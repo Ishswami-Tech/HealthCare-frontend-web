@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Healthcare Frontend Web Application
+
+A modern healthcare application built with Next.js 14, React Server Components, TanStack Query, and Server Actions.
+
+## Features
+
+- Server-Side Rendering (SSR) with Next.js 14
+- React Server Components for improved performance
+- TanStack Query for efficient data fetching and caching
+- Server Actions for secure server-side mutations
+- Authentication with multiple methods (Email/Password, OTP, Magic Link)
+- Session management with active sessions tracking
+- TypeScript for type safety
+- Modern UI with Tailwind CSS
+
+## Prerequisites
+
+- Node.js 18.x or later
+- npm 9.x or later
 
 ## Getting Started
 
-First, run the development server:
-
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd healthcarefrontend-web
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+Create a `.env.local` file in the root directory with the following variables:
+```env
+NEXT_PUBLIC_API_URL=https://api.ishswami.in
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
+NEXT_PUBLIC_FACEBOOK_APP_ID=your_facebook_app_id
+NEXT_PUBLIC_APPLE_CLIENT_ID=your_apple_client_id
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Run the development server:
+```bash
+npm run dev
+```
 
-## Learn More
+The application will be available at `http://localhost:3000`.
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/                    # Next.js app directory
+│   ├── providers/         # React context providers
+│   └── layout.tsx         # Root layout
+├── components/            # React components
+├── hooks/                 # Custom React hooks
+├── lib/                   # Utility functions and server actions
+│   ├── actions/          # Server actions
+│   └── schema/           # Validation schemas
+└── types/                # TypeScript type definitions
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Authentication Flow
 
-## Deploy on Vercel
+The application supports multiple authentication methods:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Email/Password
+2. OTP verification
+3. Magic Link
+4. Social Login (Google, Facebook, Apple)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Authentication state is managed using TanStack Query and Server Actions, providing:
+
+- Automatic session management
+- Secure token handling
+- Active sessions tracking
+- Session termination capabilities
+
+## Data Fetching
+
+We use TanStack Query for efficient data fetching and caching:
+
+```typescript
+// Example query
+const { data, isLoading } = useQuery({
+  queryKey: ['key'],
+  queryFn: fetchData,
+});
+
+// Example mutation
+const { mutate } = useMutation({
+  mutationFn: updateData,
+  onSuccess: () => {
+    // Handle success
+  },
+});
+```
+
+## Server Actions
+
+Server-side mutations are handled using Next.js Server Actions:
+
+```typescript
+// Example server action
+async function serverAction(formData: FormData) {
+  'use server';
+  // Handle server-side logic
+}
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
