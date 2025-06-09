@@ -68,16 +68,10 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// Configure which paths the middleware should run on
+// Configure middleware matching pattern
 export const config = {
+  // Match all paths except static files and api routes
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
-  ],
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ]
 }; 

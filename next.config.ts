@@ -3,7 +3,6 @@ import { NextConfig } from 'next';
 const config: NextConfig = {
   // Enable React strict mode for better development experience
   reactStrictMode: true,
-  swcMinify: true,
 
   // Configure image domains for Next.js Image component
   images: {
@@ -51,25 +50,6 @@ const config: NextConfig = {
             value: 'max-age=31536000; includeSubDomains',
           },
         ],
-      },
-    ];
-  },
-
-  // Configure redirects
-  async redirects() {
-    return [
-      {
-        source: '/',
-        has: [
-          {
-            type: 'cookie',
-            key: 'accessToken',
-            value: '(?!.*).*',
-            invert: true,
-          },
-        ],
-        destination: '/auth/login',
-        permanent: false,
       },
     ];
   },
