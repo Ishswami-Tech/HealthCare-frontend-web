@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getDashboardByRole, isAuthPath, getAllowedRolesForPath, AUTH_PATHS } from '@/config/routes';
 import { Role } from '@/types/auth.types';
-import {
-  isAuthPath,
-  isProtectedPath,
-  getAllowedRolesForPath,
-  getDashboardByRole,
-} from '@/config/routes';
+
+// Define public paths that don't require authentication
+const PUBLIC_PATHS = [
+  '/', // Root path
+  ...AUTH_PATHS, // All auth paths
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -20,48 +21,63 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get('access_token')?.value;
-  const userRole = request.cookies.get('user_role')?.value as Role;
+  // Allow access to public paths without authentication
+  if (PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
+    // If user is authenticated and trying to access auth pages, redirect to their dashboard
+    if (pathname !== '/' && isAuthPath(pathname)) {
+      const token = request.cookies.get('access_token')?.value;
+      const sessionId = request.cookies.get('session_id')?.value;
+      const userRole = request.cookies.get('user_role')?.value as Role | undefined;
 
-  // Handle authentication paths
-  if (isAuthPath(pathname)) {
-    if (token && userRole) {
-      return NextResponse.redirect(new URL(getDashboardByRole(userRole), request.url));
+      if (token && sessionId && userRole) {
+        return NextResponse.redirect(new URL(getDashboardByRole(userRole), request.url));
+      }
     }
     return NextResponse.next();
   }
 
-  // Handle protected paths
-  if (isProtectedPath(pathname) || getAllowedRolesForPath(pathname)) {
-    if (!token) {
-      const response = NextResponse.redirect(
-        new URL(`/auth/login?redirect=${encodeURIComponent(pathname)}`, request.url)
-      );
-      return response;
-    }
+  // Get auth tokens from cookies
+  const token = request.cookies.get('access_token')?.value;
+  const sessionId = request.cookies.get('session_id')?.value;
+  const userRole = request.cookies.get('user_role')?.value as Role | undefined;
 
-    // Check role-based access
-    const allowedRoles = getAllowedRolesForPath(pathname);
-    if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
-      // Redirect to appropriate dashboard based on user's role
-      return NextResponse.redirect(new URL(getDashboardByRole(userRole), request.url));
-    }
+  // Check if user is authenticated for protected routes
+  if (!token || !sessionId || !userRole) {
+    const searchParams = new URLSearchParams({
+      callbackUrl: pathname,
+    });
+    return NextResponse.redirect(
+      new URL(`/auth/login?${searchParams}`, request.url)
+    );
   }
 
-  // Continue to the next middleware or to the page
-  return NextResponse.next();
+  // Check role-based access
+  const allowedRoles = getAllowedRolesForPath(pathname);
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
+    // Redirect to user's dashboard if they don't have access
+    return NextResponse.redirect(
+      new URL(getDashboardByRole(userRole), request.url)
+    );
+  }
+
+  // Clone the response and add session headers
+  const response = NextResponse.next();
+  response.headers.set('X-Session-ID', sessionId);
+  response.headers.set('X-User-Role', userRole);
+
+  return response;
 }
 
+// Configure which paths the middleware should run on
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
-     * 1. /_next (Next.js internals)
-     * 2. /api (API routes)
-     * 3. /static (static files)
-     * 4. /_vercel (Vercel internals)
-     * 5. all root files inside public (e.g. /favicon.ico)
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
      */
-    '/((?!_next|api|static|_vercel|[\\w-]+\\.\\w+).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 }; 

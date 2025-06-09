@@ -13,19 +13,27 @@ const useZodForm = <T extends z.ZodType>(
     watch,
     reset,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<z.infer<T>>({
     resolver: zodResolver(schema),
     defaultValues,
   });
 
-  const onFormSubmit = handleSubmit((values) => mutation(values));
+  const onFormSubmit = handleSubmit((values) => {
+    try {
+      mutation(values);
+    } catch (error) {
+      console.error('Form submission error:', error);
+    }
+  });
 
   return {
     register,
     watch,
     reset,
     onFormSubmit,
+    getValues,
     errors,
   };
 };

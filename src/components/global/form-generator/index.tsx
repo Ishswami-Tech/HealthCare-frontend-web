@@ -3,7 +3,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorMessage } from "@hookform/error-message";
 import React from "react";
-import { FieldErrors, FieldValues, UseFormRegister } from "react-hook-form";
+import { FieldErrors, UseFormRegister } from "react-hook-form";
+
+type FormData = Record<string, unknown>;
 
 type Props = {
   type?: "text" | "email" | "password" | "number";
@@ -11,9 +13,9 @@ type Props = {
   options?: { value: string; label: string; id: string }[];
   label?: string;
   placeholder: string;
-  register: UseFormRegister<any>;
+  register: UseFormRegister<FormData>;
   name: string;
-  errors: FieldErrors<FieldValues>;
+  errors: FieldErrors<FormData>;
   lines?: number;
 };
 
@@ -113,4 +115,5 @@ const FormGenerator = ({
       break;
   }
 };
+
 export default FormGenerator;

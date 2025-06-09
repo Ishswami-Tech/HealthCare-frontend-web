@@ -88,8 +88,9 @@ export interface SessionInfo {
 
 export interface LoginFormData {
   email: string;
-  password: string;
+  password?: string;
   otp?: string;
+  rememberMe?: boolean;
 }
 
 export interface RegisterFormData extends RegisterData {
@@ -100,6 +101,7 @@ export interface RegisterFormData extends RegisterData {
 export interface OTPFormData {
   email: string;
   otp: string;
+  rememberMe?: boolean;
 }
 
 // User Types
@@ -125,10 +127,8 @@ export interface UserProfile extends User {
 // Validation Schemas
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters').optional(),
-  otp: z.string().min(6, 'OTP must be 6 digits').optional(),
-}).refine(data => data.password || data.otp, {
-  message: 'Either password or OTP must be provided'
+  password: z.string().min(1, 'Password is required'),
+  rememberMe: z.boolean().optional().default(false),
 });
 
 export const registerSchema = z.object({
@@ -154,6 +154,7 @@ export const registerSchema = z.object({
 export const otpSchema = z.object({
   email: z.string().email('Invalid email address'),
   otp: z.string().length(6, 'OTP must be 6 digits'),
+  rememberMe: z.boolean().optional().default(false),
 });
 
 export const forgotPasswordSchema = z.object({

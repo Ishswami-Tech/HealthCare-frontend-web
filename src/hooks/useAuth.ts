@@ -15,57 +15,36 @@ import {
   socialLogin as socialLoginAction,
   requestMagicLink as requestMagicLinkAction,
   verifyMagicLink as verifyMagicLinkAction,
-  terminateAllSessions,
   registerWithClinic as registerWithClinicAction,
+  changePassword as changePasswordAction,
+  terminateAllSessions,
+  checkOTPStatus as checkOTPStatusAction,
+  invalidateOTP as invalidateOTPAction,
+  verifyEmail as verifyEmailAction,
+  googleLogin as googleLoginAction,
+  facebookLogin as facebookLoginAction,
+  appleLogin as appleLoginAction,
 } from '@/lib/actions/auth.server';
 import type {
-  LoginFormData,
   RegisterFormData,
   OTPFormData,
-  ResetPasswordFormData,
   RegisterData,
   SocialLoginData,
   Role,
+  Session,
+  AuthResponse,
 } from '@/types/auth.types';
 import { getDashboardByRole } from '@/config/routes';
 
-// Toast style configurations
-const toastStyles = {
-  success: {
-    className: 'bg-green-50 border border-green-200 text-green-800',
-    icon: '✓',
-  },
-  error: {
-    className: 'bg-red-50 border border-red-200 text-red-800',
-    icon: '✕',
-  },
-  warning: {
-    className: 'bg-yellow-50 border border-yellow-200 text-yellow-800',
-    icon: '⚠',
-  },
-  info: {
-    className: 'bg-blue-50 border border-blue-200 text-blue-800',
-    icon: 'ℹ',
-  },
-};
-
-interface User {
-  role?: Role;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  isVerified?: boolean;
-}
-
 // Helper function to determine the redirect path
-function getRedirectPath(user: User | null | undefined, redirectUrl?: string) {
+function getRedirectPath(user: { role?: Role } | null | undefined, redirectUrl?: string) {
   if (redirectUrl && !redirectUrl.includes('/auth/')) {
     return redirectUrl;
   }
   if (user?.role) {
     return getDashboardByRole(user.role);
   }
-  return '/patient/dashboard'; // Default fallback route
+  return '/auth/login'; // Default to login if no role
 }
 
 export function useAuth() {
@@ -77,49 +56,38 @@ export function useAuth() {
     data: session,
     isLoading,
     error: sessionError,
-  } = useQuery({
+  } = useQuery<Session | null>({
     queryKey: ['session'],
     queryFn: getServerSession,
+    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
+    retry: 1, // Only retry once on failure
   });
 
+  const isAuthenticated = !!session?.user;
+
   // Login mutation
-  const { mutate: login, isPending: isLoggingIn } = useMutation({
-    mutationFn: async (data: LoginFormData) => {
-      const formData = new FormData();
-      if (data.email) formData.append('email', data.email);
-      if (data.password) formData.append('password', data.password);
-      if (data.otp) formData.append('otp', data.otp);
-      return loginAction(formData);
+  const { mutate: login, isPending: isLoggingIn } = useMutation<AuthResponse, Error, { email: string; password: string; rememberMe?: boolean }>({
+    mutationFn: async (data) => {
+      const response = await loginAction(data);
+      return response;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['session'] });
       const redirectPath = getRedirectPath(data.user, data.redirectUrl);
       router.push(redirectPath);
-      
-      toast.success('Welcome back! You have successfully logged in', {
-        ...toastStyles.success,
-        duration: 3000,
-      });
+      toast.success('Welcome back! You have successfully logged in');
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error 
-          ? error.message 
-          : 'Unable to log in. Please check your credentials and try again',
-        {
-          ...toastStyles.error,
-          duration: 5000,
-        }
-      );
+      toast.error(error instanceof Error ? error.message : 'Unable to log in. Please check your credentials and try again');
     },
   });
 
   // Register mutation
-  const { mutate: register, isPending: isRegistering } = useMutation({
+  const { mutate: register, isPending: isRegistering } = useMutation<AuthResponse, Error, RegisterFormData>({
     mutationFn: async (data: RegisterFormData) => {
       const formData = new FormData();
       Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
+        if (value !== undefined) {
           formData.append(key, String(value));
         }
       });
@@ -127,31 +95,18 @@ export function useAuth() {
     },
     onSuccess: () => {
       router.push('/auth/login?registered=true');
-      toast.success(
-        'Registration successful! Please check your email to verify your account',
-        {
-          ...toastStyles.success,
-          duration: 5000,
-        }
-      );
+      toast.success('Registration successful! Please check your email to verify your account');
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Registration failed. Please check your information and try again',
-        {
-          ...toastStyles.error,
-          duration: 5000,
-        }
-      );
+      toast.error(error instanceof Error ? error.message : 'Registration failed. Please check your information and try again');
     },
   });
 
   // Register with clinic mutation
-  const { mutate: registerWithClinic, isPending: isRegisteringWithClinic } = useMutation({
-    mutationFn: (data: RegisterData & { clinicId: string; appName: string }) => registerWithClinicAction(data),
+  const { mutate: registerWithClinic, isPending: isRegisteringWithClinic } = useMutation<AuthResponse, Error, RegisterData & { clinicId: string; appName: string }>({
+    mutationFn: (data) => registerWithClinicAction(data),
     onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['session'] });
       if (data.user?.role) {
         router.push(getDashboardByRole(data.user.role));
       } else if (data.redirectUrl) {
@@ -166,114 +121,63 @@ export function useAuth() {
     },
   });
 
-  // OTP mutations
-  const { mutate: verifyOTP, isPending: isVerifyingOTP } = useMutation({
-    mutationFn: async (data: OTPFormData) => {
-      const formData = new FormData();
-      formData.append('email', data.email);
-      formData.append('otp', data.otp);
-      return verifyOTPAction(formData);
-    },
+  // OTP verification mutation
+  const { mutate: verifyOTP, isPending: isVerifyingOTP } = useMutation<AuthResponse, Error, OTPFormData>({
+    mutationFn: (data) => verifyOTPAction(data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['session'] });
       const redirectPath = getRedirectPath(data.user, data.redirectUrl);
       router.push(redirectPath);
-      
-      toast.success('OTP verified successfully! Welcome back', {
-        ...toastStyles.success,
-        duration: 3000,
-      });
+      toast.success('OTP verified successfully! Welcome back!');
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Invalid OTP. Please check and try again',
-        {
-          ...toastStyles.error,
-          duration: 5000,
-        }
-      );
+      toast.error(error instanceof Error ? error.message : 'Invalid or expired OTP');
     },
   });
 
-  const { mutate: requestOTP, isPending: isRequestingOTP } = useMutation({
-    mutationFn: (identifier: string) => requestOTPAction(identifier),
-    onSuccess: () => {
-      toast.success('OTP has been sent to your email', {
-        ...toastStyles.success,
-        duration: 3000,
-      });
+  // Request OTP mutation
+  const { mutate: requestOTP, isPending: isRequestingOTP } = useMutation<{ success: boolean; message: string }, Error, string>({
+    mutationFn: async (identifier: string) => {
+      return requestOTPAction(identifier);
+    },
+    onSuccess: (data) => {
+      toast.success(data.message);
+      queryClient.invalidateQueries({ queryKey: ['session'] });
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Failed to send OTP. Please try again',
-        {
-          ...toastStyles.error,
-          duration: 5000,
-        }
-      );
+      toast.error(error.message);
     },
   });
 
-  // Logout mutations
-  const { mutate: logout, isPending: isLoggingOut } = useMutation({
+  // Logout mutation
+  const { mutate: logout, isPending: isLoggingOut } = useMutation<void, Error, void>({
     mutationFn: logoutAction,
     onSuccess: () => {
       queryClient.clear();
       router.push('/auth/login');
-      toast.success('You have been successfully logged out', {
-        ...toastStyles.success,
-        duration: 3000,
-      });
+      toast.success('You have been successfully logged out');
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : 'There was a problem logging out. Please try again',
-        {
-          ...toastStyles.error,
-          duration: 5000,
-        }
-      );
-    },
-  });
-
-  const { mutate: logoutAllDevices, isPending: isLoggingOutAll } = useMutation({
-    mutationFn: terminateAllSessions,
-    onSuccess: () => {
-      queryClient.clear();
-      router.push('/auth/login');
-      toast.success('Logged out from all devices');
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Logout failed');
+      toast.error(error instanceof Error ? error.message : 'There was a problem logging out. Please try again');
     },
   });
 
   // Password reset mutations
-  const { mutate: forgotPassword, isPending: isRequestingReset } = useMutation({
-    mutationFn: (email: string) => forgotPasswordAction(email),
-    onSuccess: () => {
-      toast.success('Password reset instructions sent to your email');
+  const { mutate: forgotPassword, isPending: isRequestingReset } = useMutation<AuthResponse, Error, string>({
+    mutationFn: (email) => forgotPasswordAction(email),
+    onSuccess: (data) => {
+      toast.success(data.message || 'Password reset instructions sent to your email');
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to request password reset');
     },
   });
 
-  const { mutate: resetPassword, isPending: isResettingPassword } = useMutation({
-    mutationFn: (data: ResetPasswordFormData) => resetPasswordAction({
-      token: data.token,
-      password: data.password,
-      confirmPassword: data.confirmPassword,
-    }),
-    onSuccess: () => {
+  const { mutate: resetPassword, isPending: isResettingPassword } = useMutation<AuthResponse, Error, { token: string; newPassword: string }>({
+    mutationFn: (data) => resetPasswordAction(data),
+    onSuccess: (data) => {
       router.push('/auth/login?reset=true');
-      toast.success('Password reset successful');
+      toast.success(data.message || 'Password reset successful');
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Password reset failed');
@@ -281,15 +185,12 @@ export function useAuth() {
   });
 
   // Social login mutation
-  const { mutate: socialLogin, isPending: isSocialLoggingIn } = useMutation({
-    mutationFn: (data: SocialLoginData) => socialLoginAction(data),
+  const { mutate: socialLogin, isPending: isSocialLoggingIn } = useMutation<AuthResponse, Error, SocialLoginData>({
+    mutationFn: (data) => socialLoginAction(data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['session'] });
-      if (data.redirectUrl) {
-        router.push(data.redirectUrl);
-      } else {
-        router.push('/dashboard');
-      }
+      const redirectPath = getRedirectPath(data.user, data.redirectUrl);
+      router.push(redirectPath);
       toast.success('Logged in successfully');
     },
     onError: (error) => {
@@ -298,25 +199,22 @@ export function useAuth() {
   });
 
   // Magic link mutations
-  const { mutate: requestMagicLink, isPending: isRequestingMagicLink } = useMutation({
-    mutationFn: (email: string) => requestMagicLinkAction(email),
-    onSuccess: () => {
-      toast.success('Magic link sent to your email');
+  const { mutate: requestMagicLink, isPending: isRequestingMagicLink } = useMutation<AuthResponse, Error, string>({
+    mutationFn: (email) => requestMagicLinkAction(email),
+    onSuccess: (data) => {
+      toast.success(data.message || 'Magic link sent to your email');
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to send magic link');
     },
   });
 
-  const { mutate: verifyMagicLink, isPending: isVerifyingMagicLink } = useMutation({
-    mutationFn: (token: string) => verifyMagicLinkAction(token),
+  const { mutate: verifyMagicLink, isPending: isVerifyingMagicLink } = useMutation<AuthResponse, Error, string>({
+    mutationFn: (token) => verifyMagicLinkAction(token),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['session'] });
-      if (data.redirectUrl) {
-        router.push(data.redirectUrl);
-      } else {
-        router.push('/dashboard');
-      }
+      const redirectPath = getRedirectPath(data.user, data.redirectUrl);
+      router.push(redirectPath);
       toast.success('Logged in successfully');
     },
     onError: (error) => {
@@ -324,25 +222,100 @@ export function useAuth() {
     },
   });
 
-  // Password change mutation
-  const { mutate: changePassword, isPending: isChangingPassword } = useMutation({
-    mutationFn: async (data: FormData) => {
-      const response = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        body: data,
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to change password');
-      }
-      return response.json();
-    },
+  // Change password mutation
+  const { mutate: changePassword, isPending: isChangingPassword } = useMutation<AuthResponse, Error, FormData>({
+    mutationFn: (data) => changePasswordAction(data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['session'] });
       toast.success('Password changed successfully');
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to change password');
+      toast.error(error.message);
+    },
+  });
+
+  // Logout all devices mutation
+  const { mutate: logoutAllDevices, isPending: isLoggingOutAll } = useMutation<void, Error, void>({
+    mutationFn: () => terminateAllSessions(),
+    onSuccess: () => {
+      queryClient.clear();
+      router.push('/auth/login');
+      toast.success('Logged out from all devices');
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Check OTP Status mutation
+  const { mutate: checkOTPStatus, isPending: isCheckingOTPStatus } = useMutation<{ hasActiveOTP: boolean }, Error, string>({
+    mutationFn: (email) => checkOTPStatusAction(email),
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Invalidate OTP mutation
+  const { mutate: invalidateOTP, isPending: isInvalidatingOTP } = useMutation<{ message: string }, Error, string>({
+    mutationFn: (email) => invalidateOTPAction(email),
+    onSuccess: (data) => {
+      toast.success(data.message);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Verify Email mutation
+  const { mutate: verifyEmail, isPending: isVerifyingEmail } = useMutation<{ message: string }, Error, string>({
+    mutationFn: (token) => verifyEmailAction(token),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['session'] });
+      toast.success(data.message);
+      router.push('/auth/login');
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Social Login mutations
+  const { mutate: googleLogin, isPending: isGoogleLoggingIn } = useMutation<AuthResponse, Error, string>({
+    mutationFn: (token) => googleLoginAction(token),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['session'] });
+      const redirectPath = getRedirectPath(data.user, data.redirectUrl);
+      router.push(redirectPath);
+      toast.success('Logged in with Google successfully');
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const { mutate: facebookLogin, isPending: isFacebookLoggingIn } = useMutation<AuthResponse, Error, string>({
+    mutationFn: (token) => facebookLoginAction(token),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['session'] });
+      const redirectPath = getRedirectPath(data.user, data.redirectUrl);
+      router.push(redirectPath);
+      toast.success('Logged in with Facebook successfully');
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const { mutate: appleLogin, isPending: isAppleLoggingIn } = useMutation<AuthResponse, Error, string>({
+    mutationFn: (token) => appleLoginAction(token),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['session'] });
+      const redirectPath = getRedirectPath(data.user, data.redirectUrl);
+      router.push(redirectPath);
+      toast.success('Logged in with Apple successfully');
+    },
+    onError: (error) => {
+      toast.error(error.message);
     },
   });
 
@@ -350,35 +323,53 @@ export function useAuth() {
     // Session state
     session,
     isLoading,
-    isAuthenticated: !!session,
+    isAuthenticated,
     sessionError,
 
     // Auth mutations
     login,
-    isLoggingIn,
     register,
-    isRegistering,
     registerWithClinic,
-    isRegisteringWithClinic,
     verifyOTP,
-    isVerifyingOTP,
     requestOTP,
-    isRequestingOTP,
     logout,
-    isLoggingOut,
-    logoutAllDevices,
-    isLoggingOutAll,
     forgotPassword,
-    isRequestingReset,
     resetPassword,
-    isResettingPassword,
     socialLogin,
-    isSocialLoggingIn,
     requestMagicLink,
-    isRequestingMagicLink,
     verifyMagicLink,
-    isVerifyingMagicLink,
     changePassword,
+    logoutAllDevices,
+
+    // Loading states
+    isLoggingIn,
+    isRegistering,
+    isRegisteringWithClinic,
+    isVerifyingOTP,
+    isRequestingOTP,
+    isLoggingOut,
+    isRequestingReset,
+    isResettingPassword,
+    isSocialLoggingIn,
+    isRequestingMagicLink,
+    isVerifyingMagicLink,
     isChangingPassword,
+    isLoggingOutAll,
+
+    // New mutations
+    checkOTPStatus,
+    invalidateOTP,
+    verifyEmail,
+    googleLogin,
+    facebookLogin,
+    appleLogin,
+
+    // New loading states
+    isCheckingOTPStatus,
+    isInvalidatingOTP,
+    isVerifyingEmail,
+    isGoogleLoggingIn,
+    isFacebookLoggingIn,
+    isAppleLoggingIn,
   };
 } 

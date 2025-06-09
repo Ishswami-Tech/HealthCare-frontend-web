@@ -1,9 +1,22 @@
 import * as z from "zod";
 import { Role } from "@/types/auth.types";
 
-export const loginSchema = z.object({
+// Schema for requesting OTP
+export const requestOtpSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+});
+
+// Schema for password login
+export const passwordLoginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  rememberMe: z.boolean().optional(),
+});
+
+// Schema for OTP verification/login
+export const otpVerifySchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  otp: z.string().length(6, "OTP must be 6 digits"),
   rememberMe: z.boolean().optional(),
 });
 
@@ -36,11 +49,6 @@ export const registerSchema = z
     path: ["confirmPassword"],
   });
 
-export const otpSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  otp: z.string().length(6, "OTP must be 6 digits"),
-});
-
 export const forgotPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
@@ -56,8 +64,9 @@ export const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
-export type LoginFormData = z.infer<typeof loginSchema>;
+export type PasswordLoginFormData = z.infer<typeof passwordLoginSchema>;
+export type OtpRequestFormData = z.infer<typeof requestOtpSchema>;
+export type OtpVerifyFormData = z.infer<typeof otpVerifySchema>;
 export type RegisterFormData = z.infer<typeof registerSchema>;
-export type OTPFormData = z.infer<typeof otpSchema>;
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;

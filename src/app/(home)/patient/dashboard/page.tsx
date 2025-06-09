@@ -20,7 +20,7 @@ export default function PatientDashboardPage() {
       <div className="bg-white overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <h2 className="text-2xl font-semibold text-gray-900">
-            Welcome, {user?.firstName || "Patient"}!
+            Welcome, {user?.name || "Patient"}!
           </h2>
           <p className="mt-1 text-sm text-gray-500">
             This is your personal healthcare dashboard. Here you can manage your

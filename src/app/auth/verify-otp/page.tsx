@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
-import { otpSchema } from "@/lib/schema/login-schema";
-import type { OTPFormData } from "@/lib/schema/login-schema";
+import type { OTPFormData } from "@/types/auth.types";
+import { otpSchema } from "@/types/auth.types";
 
 function VerifyOTPContent() {
   const router = useRouter();
