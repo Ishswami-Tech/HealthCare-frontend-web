@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,42 +12,42 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
 import { toast } from "sonner";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { forgotPasswordSchema } from "@/types/auth.types";
+import { forgotPasswordSchema } from "@/lib/schema/login-schema";
 import type { ForgotPasswordFormData } from "@/types/auth.types";
+import useZodForm from "@/hooks/useZodForm";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
-  const { forgotPassword } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const { forgotPassword, isRequestingReset } = useAuth();
 
-  const form = useForm<ForgotPasswordFormData>({
-    resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: {
-      email: "",
+  const form = useZodForm(
+    forgotPasswordSchema,
+    async (data: ForgotPasswordFormData) => {
+      try {
+        await forgotPassword(data.email);
+        toast.success(
+          "Password reset instructions have been sent to your email."
+        );
+        router.push("/auth/login");
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to send reset instructions"
+        );
+      }
     },
-  });
-
-  const onSubmit = async (data: ForgotPasswordFormData) => {
-    setFormError(null);
-    setIsLoading(true);
-    try {
-      await forgotPassword(data.email);
-      toast.success(
-        "Password reset instructions have been sent to your email."
-      );
-      router.push("/auth/login");
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Failed to send reset instructions";
-      setFormError(errorMessage);
-    } finally {
-      setIsLoading(false);
+    {
+      email: "",
     }
-  };
+  );
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -60,37 +58,42 @@ export default function ForgotPasswordPage() {
         </p>
       </CardHeader>
       <CardContent>
-        {formError && (
-          <div className="p-3 mb-4 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
-            {formError}
-          </div>
-        )}
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Input
-              type="email"
-              placeholder="Email"
-              {...form.register("email")}
-              disabled={isLoading}
+        <Form {...form}>
+          <form onSubmit={form.onFormSubmit} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="Email"
+                      disabled={isRequestingReset}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            {form.formState.errors.email && (
-              <p className="text-sm text-red-500">
-                {form.formState.errors.email.message}
-              </p>
-            )}
-          </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
-              <div className="flex items-center justify-center">
-                <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
-                Sending instructions...
-              </div>
-            ) : (
-              "Send Instructions"
-            )}
-          </Button>
-        </form>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isRequestingReset}
+            >
+              {isRequestingReset ? (
+                <div className="flex items-center justify-center">
+                  <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
+                  Sending instructions...
+                </div>
+              ) : (
+                "Send Instructions"
+              )}
+            </Button>
+          </form>
+        </Form>
       </CardContent>
       <CardFooter>
         <div className="w-full text-center text-sm text-gray-600">

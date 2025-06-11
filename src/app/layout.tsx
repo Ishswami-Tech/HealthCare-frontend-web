@@ -20,7 +20,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <QueryProvider>
           {children}
-          <Toaster />
+          <Toaster richColors />
         </QueryProvider>
       </body>
     </html>

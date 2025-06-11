@@ -84,15 +84,7 @@ export function useAuth() {
 
   // Register mutation
   const { mutate: register, isPending: isRegistering } = useMutation<AuthResponse, Error, RegisterFormData>({
-    mutationFn: async (data: RegisterFormData) => {
-      const formData = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined) {
-          formData.append(key, String(value));
-        }
-      });
-      return registerAction(formData);
-    },
+    mutationFn: (data) => registerAction(data),
     onSuccess: () => {
       router.push('/auth/login?registered=true');
       toast.success('Registration successful! Please check your email to verify your account');

@@ -12,6 +12,8 @@ const config: NextConfig = {
       'lh3.googleusercontent.com',
       'platform-lookaside.fbsbx.com',
       'graph.facebook.com',
+      'api.ishswami.in',
+      'ishswami.in'
     ],
   },
 
@@ -56,8 +58,8 @@ const config: NextConfig = {
 
   experimental: {
     serverActions: {
-      bodySizeLimit: '2mb',
-      allowedOrigins: ['localhost:3000'],
+      bodySizeLimit: '5mb',
+      allowedOrigins: ['localhost:3000', 'api.ishswami.in', 'ishswami.in'],
     },
   },
 };

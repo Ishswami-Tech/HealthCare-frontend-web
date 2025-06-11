@@ -1,43 +1,59 @@
 "use client";
 
-import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
+import { changePasswordSchema } from "@/lib/schema/login-schema";
+import useZodForm from "@/hooks/useZodForm";
+import { z } from "zod";
+
+type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 
 export default function SettingsPage() {
   const { session, changePassword, isChangingPassword } = useAuth();
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      toast.error("New passwords do not match");
-      return;
+  const form = useZodForm(
+    changePasswordSchema,
+    async (values: ChangePasswordFormData) => {
+      const formData = new FormData();
+      formData.append("currentPassword", values.currentPassword);
+      formData.append("newPassword", values.newPassword);
+      await changePassword(formData);
+      form.reset();
+      toast.success("Password changed successfully");
+    },
+    {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
     }
+  );
 
+  const onSubmit = form.handleSubmit(async (values) => {
     try {
       const formData = new FormData();
-      formData.append("currentPassword", currentPassword);
-      formData.append("newPassword", newPassword);
+      formData.append("currentPassword", values.currentPassword);
+      formData.append("newPassword", values.newPassword);
       await changePassword(formData);
+      form.reset();
       toast.success("Password changed successfully");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to change password"
       );
     }
-  };
+  });
 
   return (
     <div className="container mx-auto py-6">
@@ -55,50 +71,74 @@ export default function SettingsPage() {
                 <CardTitle>Change Password</CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleChangePassword} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input
-                      id="currentPassword"
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      required
+                <Form {...form}>
+                  <form onSubmit={onSubmit} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="currentPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Current Password"
+                              disabled={isChangingPassword}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
+
+                    <FormField
+                      control={form.control}
+                      name="newPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="New Password"
+                              disabled={isChangingPassword}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">
-                      Confirm New Password
-                    </Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
+
+                    <FormField
+                      control={form.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Confirm New Password"
+                              disabled={isChangingPassword}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <Button type="submit" disabled={isChangingPassword}>
-                    {isChangingPassword ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Changing Password...
-                      </>
-                    ) : (
-                      "Change Password"
-                    )}
-                  </Button>
-                </form>
+
+                    <Button type="submit" disabled={isChangingPassword}>
+                      {isChangingPassword ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Changing Password...
+                        </>
+                      ) : (
+                        "Change Password"
+                      )}
+                    </Button>
+                  </form>
+                </Form>
               </CardContent>
             </Card>
 

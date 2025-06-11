@@ -12,22 +12,25 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import { loginSchema, otpSchema } from "@/types/auth.types";
-import useZodForm from "@/hooks/useZodForm";
 import { useAuth } from "@/hooks/useAuth";
+import useZodForm from "@/hooks/useZodForm";
+import { AuthResponse, loginSchema, otpSchema } from "@/types/auth.types";
 import { getDashboardByRole } from "@/config/routes";
-import { Role, LoginFormData, OTPFormData } from "@/types/auth.types";
+import { toast } from "sonner";
+import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
 
 type SocialProvider = "google" | "apple";
-type AuthResponse = {
-  user?: { role?: Role };
-  redirectUrl?: string;
-};
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"password" | "otp">("password");
-  const [message, setMessage] = useState("");
   const [showOTPInput, setShowOTPInput] = useState(false);
   const router = useRouter();
   const {
@@ -41,8 +44,9 @@ export default function LoginPage() {
     isSocialLoggingIn,
   } = useAuth();
 
-  const handleSuccess = (response: AuthResponse) => {
-    console.log("Login success:", response);
+  const handleSuccess = (response: AuthResponse | null) => {
+    if (!response) return;
+
     const searchParams = new URLSearchParams(window.location.search);
     const redirectUrl = searchParams.get("redirect");
 
@@ -54,64 +58,77 @@ export default function LoginPage() {
             ? getDashboardByRole(response.user.role)
             : "/dashboard");
 
-    router.push(finalRedirectUrl);
+    router.push(finalRedirectUrl || "/dashboard");
   };
 
-  const handleError = (error: unknown) => {
-    console.error("Login error:", error);
-    setMessage(error instanceof Error ? error.message : "An error occurred");
-  };
-
-  const handlePasswordSubmit = async (data: LoginFormData) => {
-    console.log("Submitting password form with data:", data);
+  const loginMutation = async (
+    data: z.infer<typeof loginSchema>
+  ): Promise<AuthResponse> => {
     try {
-      if (!data.password) {
-        throw new Error("Password is required");
-      }
-      await login({
+      const response = await login({
         email: data.email,
         password: data.password,
         rememberMe: data.rememberMe,
       });
+      const authResponse = response as unknown as AuthResponse;
+      handleSuccess(authResponse);
+      return authResponse;
     } catch (error) {
-      handleError(error);
+      toast.error(error instanceof Error ? error.message : "Failed to sign in");
+      throw error;
     }
   };
 
-  const handleOTPSubmit = async (data: OTPFormData) => {
-    console.log("Submitting OTP form with data:", data);
+  const otpMutation = async (
+    data: z.infer<typeof otpSchema>
+  ): Promise<AuthResponse> => {
     try {
-      await verifyOTP(data);
+      const response = await verifyOTP(data);
+      const authResponse = response as unknown as AuthResponse;
+      handleSuccess(authResponse);
+      return authResponse;
     } catch (error) {
-      handleError(error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to verify OTP"
+      );
+      throw error;
     }
   };
 
-  const passwordForm = useZodForm<typeof loginSchema>(
-    loginSchema,
-    handlePasswordSubmit
-  );
+  const passwordForm = useZodForm(loginSchema, loginMutation, {
+    email: "",
+    password: "",
+    rememberMe: false,
+  });
 
-  const otpForm = useZodForm<typeof otpSchema>(otpSchema, handleOTPSubmit);
+  const otpForm = useZodForm(otpSchema, otpMutation, {
+    email: "",
+    otp: "",
+    rememberMe: false,
+  });
 
   const handleRequestOTP = async (email: string) => {
-    console.log("Requesting OTP for email:", email);
     try {
       await requestOTP(email);
       setShowOTPInput(true);
-      setMessage("OTP sent successfully!");
+      toast.success("OTP sent successfully!");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to send OTP");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send OTP"
+      );
     }
   };
 
   const handleSocialLogin = (provider: SocialProvider) => {
-    console.log("Attempting social login with provider:", provider);
     socialLogin(
       { provider, token: "" },
       {
         onSuccess: handleSuccess,
-        onError: handleError,
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Social login failed"
+          );
+        },
       }
     );
   };
@@ -133,7 +150,7 @@ export default function LoginPage() {
             className="flex-1"
             onClick={() => {
               setActiveTab("password");
-              setMessage("");
+              setShowOTPInput(false);
             }}
           >
             Password
@@ -144,7 +161,6 @@ export default function LoginPage() {
             className="flex-1"
             onClick={() => {
               setActiveTab("otp");
-              setMessage("");
               setShowOTPInput(false);
             }}
           >
@@ -154,192 +170,187 @@ export default function LoginPage() {
       </CardHeader>
       <CardContent>
         {activeTab === "password" ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              console.log("Password form submitted");
-              const formData = passwordForm.getValues();
-              console.log("Form data:", formData);
-              handlePasswordSubmit(formData);
-            }}
-            className="space-y-4"
-          >
-            <div className="space-y-2">
-              <Input
-                type="email"
-                placeholder="Email"
-                {...passwordForm.register("email")}
+          <Form {...passwordForm}>
+            <form onSubmit={passwordForm.onFormSubmit} className="space-y-4">
+              <FormField
+                control={passwordForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input type="email" placeholder="Email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {passwordForm.errors.email && (
-                <p className="text-sm text-red-500">
-                  {passwordForm.errors.email.message}
-                </p>
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <Input
-                type="password"
-                placeholder="Password"
-                {...passwordForm.register("password")}
+              <FormField
+                control={passwordForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Password"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {passwordForm.errors.password && (
-                <p className="text-sm text-red-500">
-                  {passwordForm.errors.password.message}
-                </p>
-              )}
-            </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="rememberMe"
-                  {...passwordForm.register("rememberMe")}
+              <div className="flex items-center justify-between">
+                <FormField
+                  control={passwordForm.control}
+                  name="rememberMe"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center space-x-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <label
+                        htmlFor="rememberMe"
+                        className="text-sm font-medium leading-none cursor-pointer"
+                      >
+                        Remember me
+                      </label>
+                    </FormItem>
+                  )}
                 />
-                <label
-                  htmlFor="rememberMe"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-sm text-blue-600 hover:underline"
                 >
-                  Remember me
-                </label>
+                  Forgot password?
+                </Link>
               </div>
-              <Link
-                href="/auth/forgot-password"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Forgot password?
-              </Link>
-            </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-              onClick={() => console.log("Sign in button clicked")}
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
-                  Signing in...
-                </div>
-              ) : (
-                "Sign in"
-              )}
-            </Button>
-          </form>
-        ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              console.log("OTP form submitted");
-              const formData = otpForm.getValues();
-              console.log("Form data:", formData);
-              handleOTPSubmit(formData);
-            }}
-            className="space-y-4"
-          >
-            <div className="space-y-2">
-              <Input
-                type="email"
-                placeholder="Email"
-                {...otpForm.register("email")}
-              />
-              {otpForm.errors.email && (
-                <p className="text-sm text-red-500">
-                  {otpForm.errors.email.message}
-                </p>
-              )}
-            </div>
-
-            {!showOTPInput ? (
-              <Button
-                type="button"
-                className="w-full"
-                disabled={isLoading}
-                onClick={() => {
-                  const email = otpForm.watch("email");
-                  if (email) {
-                    handleRequestOTP(email);
-                  } else {
-                    setMessage("Please enter your email address");
-                  }
-                }}
-              >
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <div className="flex items-center justify-center">
                     <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
-                    Sending OTP...
+                    Signing in...
                   </div>
                 ) : (
-                  "Get OTP"
+                  "Sign in"
                 )}
               </Button>
-            ) : (
-              <div className="space-y-4">
-                <Input
-                  type="text"
-                  placeholder="Enter OTP"
-                  maxLength={6}
-                  {...otpForm.register("otp")}
-                />
-                {otpForm.errors.otp && (
-                  <p className="text-sm text-red-500">
-                    {otpForm.errors.otp.message}
-                  </p>
+            </form>
+          </Form>
+        ) : (
+          <Form {...otpForm}>
+            <form onSubmit={otpForm.onFormSubmit} className="space-y-4">
+              <FormField
+                control={otpForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input type="email" placeholder="Email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
+              />
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="rememberMeOTP"
-                    {...otpForm.register("rememberMe")}
-                  />
-                  <label
-                    htmlFor="rememberMeOTP"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Remember me
-                  </label>
-                </div>
-
-                <Button type="submit" className="w-full" disabled={isLoading}>
+              {!showOTPInput ? (
+                <Button
+                  type="button"
+                  className="w-full"
+                  disabled={isLoading}
+                  onClick={() => {
+                    const email = otpForm.getValues("email");
+                    if (email) {
+                      handleRequestOTP(email);
+                    } else {
+                      toast.error("Please enter your email address");
+                    }
+                  }}
+                >
                   {isLoading ? (
                     <div className="flex items-center justify-center">
                       <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
-                      Verifying...
+                      Sending OTP...
                     </div>
                   ) : (
-                    "Verify OTP"
+                    "Get OTP"
                   )}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    const email = otpForm.watch("email");
-                    if (email) {
-                      handleRequestOTP(email);
-                    }
-                  }}
-                  disabled={isLoading}
-                >
-                  Resend OTP
-                </Button>
-              </div>
-            )}
-          </form>
-        )}
+              ) : (
+                <div className="space-y-4">
+                  <FormField
+                    control={otpForm.control}
+                    name="otp"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            placeholder="Enter OTP"
+                            maxLength={6}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-        {message && (
-          <div
-            className={`mt-4 p-3 rounded-md ${
-              message.toLowerCase().includes("success")
-                ? "bg-green-50 text-green-700"
-                : "bg-red-50 text-red-700"
-            }`}
-          >
-            {message}
-          </div>
+                  <FormField
+                    control={otpForm.control}
+                    name="rememberMe"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center space-x-2">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <label
+                          htmlFor="rememberMeOTP"
+                          className="text-sm font-medium leading-none cursor-pointer"
+                        >
+                          Remember me
+                        </label>
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
+                        Verifying...
+                      </div>
+                    ) : (
+                      "Verify OTP"
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      const email = otpForm.getValues("email");
+                      if (email) {
+                        handleRequestOTP(email);
+                      }
+                    }}
+                    disabled={isLoading}
+                  >
+                    Resend OTP
+                  </Button>
+                </div>
+              )}
+            </form>
+          </Form>
         )}
 
         <div className="relative mt-6">
@@ -347,7 +358,7 @@ export default function LoginPage() {
             <Separator className="w-full" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-gray-500">
+            <span className="bg-white dark:bg-gray-900 px-2 text-gray-500">
               Or continue with
             </span>
           </div>
@@ -390,7 +401,7 @@ export default function LoginPage() {
           >
             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
               <path
-                d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
+                d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09z"
                 fill="currentColor"
               />
             </svg>

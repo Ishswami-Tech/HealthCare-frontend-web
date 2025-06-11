@@ -30,7 +30,10 @@ export async function middleware(request: NextRequest) {
       const userRole = request.cookies.get('user_role')?.value as Role | undefined;
 
       if (token && sessionId && userRole) {
-        return NextResponse.redirect(new URL(getDashboardByRole(userRole), request.url));
+        const dashboardPath = getDashboardByRole(userRole);
+        if (dashboardPath) {
+          return NextResponse.redirect(new URL(dashboardPath, request.url));
+        }
       }
     }
     return NextResponse.next();
@@ -45,19 +48,33 @@ export async function middleware(request: NextRequest) {
   if (!token || !sessionId || !userRole) {
     const searchParams = new URLSearchParams({
       callbackUrl: pathname,
+      error: !token ? 'token_missing' : !sessionId ? 'session_missing' : 'role_missing'
     });
     return NextResponse.redirect(
       new URL(`/auth/login?${searchParams}`, request.url)
     );
   }
 
+  // Validate user role
+  if (!Object.values(Role).includes(userRole)) {
+    const response = NextResponse.redirect(
+      new URL('/auth/login', request.url)
+    );
+    // Clear invalid role cookie
+    response.cookies.delete('user_role');
+    return response;
+  }
+
   // Check role-based access
   const allowedRoles = getAllowedRolesForPath(pathname);
   if (allowedRoles && !allowedRoles.includes(userRole)) {
     // Redirect to user's dashboard if they don't have access
-    return NextResponse.redirect(
-      new URL(getDashboardByRole(userRole), request.url)
-    );
+    const dashboardPath = getDashboardByRole(userRole);
+    if (dashboardPath) {
+      return NextResponse.redirect(
+        new URL(dashboardPath, request.url)
+      );
+    }
   }
 
   // Clone the response and add session headers

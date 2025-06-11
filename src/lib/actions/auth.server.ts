@@ -1,11 +1,15 @@
 'use server';
 
-import { Role, Session } from '@/types/auth.types';
+import { Role, Session, RegisterFormData } from '@/types/auth.types';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { getDashboardByRole } from '@/config/routes';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ishswami.in';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+if (!API_URL) {
+  console.error('NEXT_PUBLIC_API_URL is not defined in environment variables');
+  throw new Error('API URL is not configured');
+}
 
 /**
  * Get the current server session
@@ -83,18 +87,39 @@ export async function login(data: { email: string; password: string; rememberMe?
 /**
  * Register a new user
  */
-export async function register(formData: FormData) {
-  const response = await fetch(`${API_URL}/auth/register`, {
-    method: 'POST',
-    body: formData,
-  });
+export async function register(data: RegisterFormData) {
+  try {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Registration failed');
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      // Try to get a detailed error message from the response
+      const errorMessage = responseData.message || responseData.error || 'Registration failed';
+      
+      // Log the error details for debugging
+      console.error('Registration error:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: responseData
+      });
+
+      throw new Error(errorMessage);
+    }
+
+    return responseData;
+  } catch (error) {
+    // If it's already an Error object, rethrow it
+    if (error instanceof Error) {
+      throw error;
+    }
+    // Otherwise, wrap it in an Error object
+    throw new Error('Failed to connect to the registration service. Please try again.');
   }
-
-  return response.json();
 }
 
 /**
@@ -326,7 +351,7 @@ export async function refreshToken() {
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value;
   const sessionId = cookieStore.get('session_id')?.value;
-
+  
   if (!token) {
     throw new Error('No token to refresh');
   }
@@ -424,15 +449,15 @@ async function setAuthCookies(data: {
     });
   }
 
-  if (data.session_id) {
-    cookieStore.set('session_id', data.session_id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 24 * 60 * 60,
-    });
-  }
+    if (data.session_id) {
+      cookieStore.set('session_id', data.session_id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 24 * 60 * 60,
+      });
+    }
 
   if (data.user?.role) {
     cookieStore.set('user_role', data.user.role, {
@@ -504,7 +529,7 @@ export async function verifyEmail(token: string) {
     const error = await response.json();
     throw new Error(error.message || 'Failed to verify email');
   }
-
+  
   return response.json();
 }
 

@@ -23,18 +23,24 @@ export function DashboardLayout({
   const { user } = session || {};
 
   useEffect(() => {
-    const roles = Array.isArray(allowedRole) ? allowedRole : [allowedRole];
-    if (!user?.role || !roles.includes(user.role)) {
-      console.error(`Unauthorized access to ${title.toLowerCase()} dashboard`);
-      // Redirect to appropriate dashboard based on user's role
-      const redirectPath = user?.role
-        ? getDashboardByRole(user.role)
-        : "/auth/login";
-      router.replace(redirectPath);
+    if (!isLoading && user) {
+      const roles = Array.isArray(allowedRole) ? allowedRole : [allowedRole];
+      if (!roles.includes(user.role)) {
+        console.error(
+          `Unauthorized access to ${title.toLowerCase()} dashboard`
+        );
+        // Redirect to appropriate dashboard based on user's role
+        const redirectPath = getDashboardByRole(user.role);
+        router.replace(redirectPath);
+      }
+    } else if (!isLoading && !user) {
+      // If not loading and no user, redirect to login
+      router.replace("/auth/login");
     }
-  }, [user, title, allowedRole, router]);
+  }, [user, title, allowedRole, router, isLoading]);
 
-  if (isLoading) {
+  // Show loading state while checking authentication
+  if (isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin" />
@@ -42,7 +48,9 @@ export function DashboardLayout({
     );
   }
 
-  if (!user) {
+  // Verify role before rendering content
+  const roles = Array.isArray(allowedRole) ? allowedRole : [allowedRole];
+  if (!roles.includes(user.role)) {
     return null;
   }
 
