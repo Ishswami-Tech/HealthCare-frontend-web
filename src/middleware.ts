@@ -1,94 +1,97 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getDashboardByRole, isAuthPath, getAllowedRolesForPath, AUTH_PATHS } from '@/config/routes';
+import { getSession } from '@/lib/session';
+import { getDashboardByRole } from '@/config/routes';
 import { Role } from '@/types/auth.types';
 
-// Define public paths that don't require authentication
-const PUBLIC_PATHS = [
-  '/', // Root path
-  ...AUTH_PATHS, // All auth paths
+// Define protected and public routes
+const protectedRoutes = [
+  '/super-admin',
+  '/admin',
+  '/doctor',
+  '/patient',
+  '/receptionist',
+  '/settings',
+  '/profile',
 ];
+
+const publicRoutes = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-email',
+  '/auth/verify-otp',
+  '/auth/request-otp',
+  '/auth/magic-link',
+  '/auth/social',
+];
+
+// Map routes to required roles
+const routeRoleMap: Record<string, Role[]> = {
+  '/super-admin': [Role.SUPER_ADMIN],
+  '/admin': [Role.CLINIC_ADMIN],
+  '/doctor': [Role.DOCTOR],
+  '/patient': [Role.PATIENT],
+  '/receptionist': [Role.RECEPTIONIST],
+};
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for static files and API routes
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname.includes('.')
-  ) {
+  // Allow public routes
+  if (publicRoutes.some(route => pathname.startsWith(route))) {
     return NextResponse.next();
   }
 
-  // Allow access to public paths without authentication
-  if (PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
-    // If user is authenticated and trying to access auth pages, redirect to their dashboard
-    if (pathname !== '/' && isAuthPath(pathname)) {
-      const token = request.cookies.get('access_token')?.value;
-      const sessionId = request.cookies.get('session_id')?.value;
-      const userRole = request.cookies.get('user_role')?.value as Role | undefined;
-
-      if (token && sessionId && userRole) {
-        const dashboardPath = getDashboardByRole(userRole);
-        if (dashboardPath) {
-          return NextResponse.redirect(new URL(dashboardPath, request.url));
-        }
-      }
-    }
+  // Check if the route is protected
+  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
+  if (!isProtectedRoute) {
     return NextResponse.next();
   }
 
-  // Get auth tokens from cookies
-  const token = request.cookies.get('access_token')?.value;
-  const sessionId = request.cookies.get('session_id')?.value;
-  const userRole = request.cookies.get('user_role')?.value as Role | undefined;
+  // Get session from cookies
+  const session = await getSession();
 
-  // Check if user is authenticated for protected routes
-  if (!token || !sessionId || !userRole) {
-    const searchParams = new URLSearchParams({
-      callbackUrl: pathname,
-      error: !token ? 'token_missing' : !sessionId ? 'session_missing' : 'role_missing'
-    });
-    return NextResponse.redirect(
-      new URL(`/auth/login?${searchParams}`, request.url)
-    );
-  }
-
-  // Validate user role
-  if (!Object.values(Role).includes(userRole)) {
-    const response = NextResponse.redirect(
-      new URL('/auth/login', request.url)
-    );
-    // Clear invalid role cookie
-    response.cookies.delete('user_role');
-    return response;
+  // If no session, redirect to login
+  if (!session) {
+    const url = new URL('/auth/login', request.url);
+    url.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(url);
   }
 
   // Check role-based access
-  const allowedRoles = getAllowedRolesForPath(pathname);
-  if (allowedRoles && !allowedRoles.includes(userRole)) {
-    // Redirect to user's dashboard if they don't have access
-    const dashboardPath = getDashboardByRole(userRole);
-    if (dashboardPath) {
-      return NextResponse.redirect(
-        new URL(dashboardPath, request.url)
-      );
+  const userRole = session.user.role;
+  const dashboardPath = getDashboardByRole(userRole);
+
+  // Find the matching route and its required roles
+  const matchingRoute = Object.keys(routeRoleMap).find(route => pathname.startsWith(route));
+  if (matchingRoute) {
+    const allowedRoles = routeRoleMap[matchingRoute];
+    if (!allowedRoles.includes(userRole)) {
+      // If user doesn't have the required role, redirect to their dashboard
+      return NextResponse.redirect(new URL(dashboardPath, request.url));
     }
   }
 
-  // Clone the response and add session headers
-  const response = NextResponse.next();
-  response.headers.set('X-Session-ID', sessionId);
-  response.headers.set('X-User-Role', userRole);
+  // If user is on a protected route but not their dashboard, redirect to their dashboard
+  if (pathname !== dashboardPath && pathname.startsWith('/' + userRole.toLowerCase())) {
+    return NextResponse.redirect(new URL(dashboardPath, request.url));
+  }
 
-  return response;
+  return NextResponse.next();
 }
 
-// Configure middleware matching pattern
 export const config = {
-  // Match all paths except static files and api routes
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ]
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+  ],
 }; 

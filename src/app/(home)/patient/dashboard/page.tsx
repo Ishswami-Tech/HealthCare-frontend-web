@@ -2,17 +2,36 @@
 
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
+import { Role } from "@/types/auth.types";
 
 export default function PatientDashboardPage() {
-  const { session } = useAuth();
+  const router = useRouter();
+  const { session, isLoading } = useAuth();
   const { user } = session || {};
 
   useEffect(() => {
-    // Verify user role
-    if (user?.role !== "PATIENT") {
-      console.error("Unauthorized access to patient dashboard");
+    // Only check role if we're not loading and have a user
+    if (!isLoading && user) {
+      if (user.role !== Role.PATIENT) {
+        router.push("/auth/login");
+      }
     }
-  }, [user]);
+  }, [user, isLoading, router]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  // Don't render anything if not a patient
+  if (!user || user.role !== Role.PATIENT) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -20,7 +39,7 @@ export default function PatientDashboardPage() {
       <div className="bg-white overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <h2 className="text-2xl font-semibold text-gray-900">
-            Welcome, {user?.name || "Patient"}!
+            Welcome, {user?.firstName || "Patient"}!
           </h2>
           <p className="mt-1 text-sm text-gray-500">
             This is your personal healthcare dashboard. Here you can manage your

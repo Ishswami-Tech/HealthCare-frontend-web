@@ -45,11 +45,10 @@ export default function RegisterPage() {
           ...values,
           role: Role.PATIENT, // Set default role
           gender: values.gender || "MALE", // Ensure gender has a default value
+          age: values.age || 18, // Ensure age has a default value
         };
         await registerUser(formData);
-        toast.success("Registration successful! Redirecting to login...");
-        // Clear any previous errors
-        setFormError(null);
+        
         // Reset form
         form.reset();
         // Redirect after a short delay
@@ -59,17 +58,14 @@ export default function RegisterPage() {
       } catch (error) {
         console.error("Registration error:", error);
         // Set form error
-        setFormError(
-          error instanceof Error
-            ? error.message
-            : "Registration failed. Please try again."
-        );
+        const errorMessage = error instanceof Error
+          ? error.message
+          : "Registration failed. Please try again.";
+        
+        setFormError(errorMessage);
         // Show toast error
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Registration failed. Please try again."
-        );
+        toast.error(errorMessage);
+        // Don't redirect on error
         throw error; // Re-throw to let the form handle the error state
       }
     },
@@ -82,6 +78,7 @@ export default function RegisterPage() {
       phone: "",
       gender: "MALE",
       role: Role.PATIENT,
+      age: 18,
       terms: false,
     }
   );

@@ -2,8 +2,8 @@
 
 import { Role, Session, RegisterFormData } from '@/types/auth.types';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { getDashboardByRole } from '@/config/routes';
+import { setSession, getSession, clearSession, getAuthHeaders } from '@/lib/session';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 if (!API_URL) {
@@ -16,34 +16,28 @@ if (!API_URL) {
  */
 export async function getServerSession(): Promise<Session | null> {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('access_token')?.value;
-    const sessionId = cookieStore.get('session_id')?.value;
-
-    if (!token || !sessionId) {
+    const session = await getSession();
+    if (!session) {
       return null;
     }
 
     const response = await fetch(`${API_URL}/auth/verify`, {
       headers: {
-        Authorization: `Bearer ${token}`,
-        'X-Session-ID': sessionId,
+        Authorization: `Bearer ${session.access_token}`,
+        'X-Session-ID': session.session_id,
       },
       cache: 'no-store',
     });
 
     if (!response.ok) {
-      // If verification fails, clear the cookies
-      cookieStore.delete('access_token');
-      cookieStore.delete('session_id');
-      cookieStore.delete('user_role');
+      await clearSession();
       return null;
     }
 
     const data = await response.json();
     
     // Ensure the response matches our Session type
-    const session: Session = {
+    const updatedSession: Session = {
       user: {
         id: data.user.id,
         email: data.user.email,
@@ -57,7 +51,7 @@ export async function getServerSession(): Promise<Session | null> {
       redirectPath: data.redirectPath
     };
 
-    return session;
+    return updatedSession;
   } catch (error) {
     console.error('Session verification error:', error);
     return null;
@@ -68,20 +62,29 @@ export async function getServerSession(): Promise<Session | null> {
  * Login with email and password
  */
 export async function login(data: { email: string; password: string; rememberMe?: boolean }) {
-  const response = await fetch(`${API_URL}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
+  try {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Login failed');
+    if (!response.ok) {
+      throw new Error('Login failed');
+    }
+
+    const result = await response.json();
+    
+    // Set session data
+    await setSession(result);
+
+    return result;
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
   }
-
-  const responseData = await response.json();
-  await setAuthCookies(responseData);
-  return responseData;
 }
 
 /**
@@ -98,26 +101,20 @@ export async function register(data: RegisterFormData) {
     const responseData = await response.json();
 
     if (!response.ok) {
-      // Try to get a detailed error message from the response
       const errorMessage = responseData.message || responseData.error || 'Registration failed';
-      
-      // Log the error details for debugging
       console.error('Registration error:', {
         status: response.status,
         statusText: response.statusText,
         data: responseData
       });
-
       throw new Error(errorMessage);
     }
 
     return responseData;
   } catch (error) {
-    // If it's already an Error object, rethrow it
     if (error instanceof Error) {
       throw error;
     }
-    // Otherwise, wrap it in an Error object
     throw new Error('Failed to connect to the registration service. Please try again.');
   }
 }
@@ -319,19 +316,16 @@ export async function resetPassword(data: { token: string; newPassword: string }
  * Change Password
  */
 export async function changePassword(formData: FormData) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value;
-  const sessionId = cookieStore.get('session_id')?.value;
-
-  if (!token) {
+  const session = await getSession();
+  if (!session) {
     throw new Error('Not authenticated');
   }
 
   const response = await fetch(`${API_URL}/auth/change-password`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`,
-      'X-Session-ID': sessionId || '',
+      Authorization: `Bearer ${session.access_token}`,
+      'X-Session-ID': session.session_id,
     },
     body: formData,
   });
@@ -348,19 +342,16 @@ export async function changePassword(formData: FormData) {
  * Refresh Token
  */
 export async function refreshToken() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value;
-  const sessionId = cookieStore.get('session_id')?.value;
-  
-  if (!token) {
+  const session = await getSession();
+  if (!session) {
     throw new Error('No token to refresh');
   }
 
   const response = await fetch(`${API_URL}/auth/refresh`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`,
-      'X-Session-ID': sessionId || '',
+      Authorization: `Bearer ${session.access_token}`,
+      'X-Session-ID': session.session_id,
     },
   });
 
@@ -370,7 +361,7 @@ export async function refreshToken() {
   }
 
   const responseData = await response.json();
-  await setAuthCookies(responseData);
+  await setSession(responseData);
   return responseData;
 }
 
@@ -378,42 +369,47 @@ export async function refreshToken() {
  * Logout
  */
 export async function logout() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value;
-  const sessionId = cookieStore.get('session_id')?.value;
+  const session = await getSession();
+  if (session) {
+    try {
+      const response = await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+          'X-Session-ID': session.session_id,
+        },
+        body: JSON.stringify({
+          sessionId: session.session_id,
+          allDevices: false
+        }),
+      });
 
-  if (token) {
-    await fetch(`${API_URL}/auth/logout`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'X-Session-ID': sessionId || '',
-      },
-    });
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
+    }
   }
-
-  cookieStore.delete('access_token');
-  cookieStore.delete('session_id');
-  cookieStore.delete('user_role');
+  await clearSession();
 }
 
 /**
  * Terminate All Sessions
  */
 export async function terminateAllSessions() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value;
-  const sessionId = cookieStore.get('session_id')?.value;
-
-  if (!token) {
+  const session = await getSession();
+  if (!session) {
     throw new Error('Not authenticated');
   }
 
   const response = await fetch(`${API_URL}/auth/logout`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`,
-      'X-Session-ID': sessionId || '',
+      Authorization: `Bearer ${session.access_token}`,
+      'X-Session-ID': session.session_id,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ allDevices: true }),
@@ -424,9 +420,7 @@ export async function terminateAllSessions() {
     throw new Error(error.message || 'Failed to terminate all sessions');
   }
 
-  cookieStore.delete('access_token');
-  cookieStore.delete('session_id');
-  cookieStore.delete('user_role');
+  await clearSession();
 }
 
 // Helper function to set auth cookies
@@ -437,35 +431,35 @@ async function setAuthCookies(data: {
     role?: Role;
   };
 }) {
-  const cookieStore = await cookies();
+  const cookies = await import('next/headers').then(mod => mod.cookies());
   
   if (data.access_token) {
-    cookieStore.set('access_token', data.access_token, {
+    cookies.set('access_token', data.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 24 * 60 * 60,
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
   }
 
-    if (data.session_id) {
-      cookieStore.set('session_id', data.session_id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 24 * 60 * 60,
-      });
-    }
-
-  if (data.user?.role) {
-    cookieStore.set('user_role', data.user.role, {
-      httpOnly: false,
+  if (data.session_id) {
+    cookies.set('session_id', data.session_id, {
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 24 * 60 * 60,
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+  }
+
+  if (data.user) {
+    cookies.set('user_role', data.user.role || '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
   }
 }
@@ -490,7 +484,7 @@ export async function requireRole(allowedRoles: Role[]) {
   const session = await requireAuth();
   
   if (!allowedRoles.includes(session.user.role)) {
-    const dashboardPath = getRedirectPath(session.user.role);
+    const dashboardPath = getDashboardByRole(session.user.role);
     redirect(dashboardPath);
   }
   

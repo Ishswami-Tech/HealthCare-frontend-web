@@ -90,7 +90,7 @@ export default function LandingPage() {
               {isAuthenticated && session?.user ? (
                 <>
                   <span className="text-sm text-gray-600">
-                    Welcome, {session.user.name || "User"}
+                    Welcome, {session.user.firstName || "User"}
                   </span>
                   <Button onClick={handleDashboardNavigation}>
                     View Dashboard

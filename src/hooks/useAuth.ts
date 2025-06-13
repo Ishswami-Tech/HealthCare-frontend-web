@@ -30,10 +30,10 @@ import type {
   OTPFormData,
   RegisterData,
   SocialLoginData,
-  Role,
   Session,
   AuthResponse,
 } from '@/types/auth.types';
+import { Role } from '@/types/auth.types';
 import { getDashboardByRole } from '@/config/routes';
 
 // Helper function to determine the redirect path
@@ -51,46 +51,48 @@ export function useAuth() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // Query for user session
-  const {
-    data: session,
-    isLoading,
-    error: sessionError,
-  } = useQuery<Session | null>({
+  // Get current session
+  const { data: session, isLoading } = useQuery({
     queryKey: ['session'],
     queryFn: getServerSession,
-    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
-    retry: 1, // Only retry once on failure
   });
 
-  const isAuthenticated = !!session?.user;
-
   // Login mutation
-  const { mutate: login, isPending: isLoggingIn } = useMutation<AuthResponse, Error, { email: string; password: string; rememberMe?: boolean }>({
-    mutationFn: async (data) => {
-      const response = await loginAction(data);
-      return response;
-    },
+  const loginMutation = useMutation({
+    mutationFn: loginAction,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['session'] });
-      const redirectPath = getRedirectPath(data.user, data.redirectUrl);
-      router.push(redirectPath);
-      toast.success('Welcome back! You have successfully logged in');
+      queryClient.setQueryData(['session'], data);
+      const dashboardPath = getDashboardByRole(data.user.role);
+      router.push(dashboardPath);
+      toast.success('Login successful');
     },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Unable to log in. Please check your credentials and try again');
+    onError: (error: Error) => {
+      toast.error(error.message || 'Login failed');
     },
   });
 
   // Register mutation
-  const { mutate: register, isPending: isRegistering } = useMutation<AuthResponse, Error, RegisterFormData>({
-    mutationFn: (data) => registerAction(data),
+  const registerMutation = useMutation({
+    mutationFn: registerAction,
     onSuccess: () => {
-      router.push('/auth/login?registered=true');
-      toast.success('Registration successful! Please check your email to verify your account');
+      toast.success('Registration successful. Please check your email to verify your account.');
+      router.push('/auth/login');
     },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Registration failed. Please check your information and try again');
+    onError: (error: Error) => {
+      toast.error(error.message || 'Registration failed');
+    },
+  });
+
+  // Logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: logoutAction,
+    onSuccess: () => {
+      queryClient.clear();
+      router.push('/auth/login');
+      toast.success('Logged out successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Logout failed');
     },
   });
 
@@ -138,19 +140,6 @@ export function useAuth() {
     },
     onError: (error) => {
       toast.error(error.message);
-    },
-  });
-
-  // Logout mutation
-  const { mutate: logout, isPending: isLoggingOut } = useMutation<void, Error, void>({
-    mutationFn: logoutAction,
-    onSuccess: () => {
-      queryClient.clear();
-      router.push('/auth/login');
-      toast.success('You have been successfully logged out');
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'There was a problem logging out. Please try again');
     },
   });
 
@@ -311,20 +300,25 @@ export function useAuth() {
     },
   });
 
+  const handleAuthRedirect = (user: { role?: Role } | null | undefined, redirectUrl?: string) => {
+    const path = getRedirectPath(user, redirectUrl);
+    router.push(path);
+  };
+
   return {
-    // Session state
     session,
     isLoading,
-    isAuthenticated,
-    sessionError,
-
-    // Auth mutations
-    login,
-    register,
+    isAuthenticated: !!session?.user,
+    user: session?.user,
+    login: loginMutation.mutate,
+    register: registerMutation.mutate,
+    logout: logoutMutation.mutate,
+    isLoggingIn: loginMutation.isPending,
+    isRegistering: registerMutation.isPending,
+    isLoggingOut: logoutMutation.isPending,
     registerWithClinic,
     verifyOTP,
     requestOTP,
-    logout,
     forgotPassword,
     resetPassword,
     socialLogin,
@@ -332,14 +326,9 @@ export function useAuth() {
     verifyMagicLink,
     changePassword,
     logoutAllDevices,
-
-    // Loading states
-    isLoggingIn,
-    isRegistering,
     isRegisteringWithClinic,
     isVerifyingOTP,
     isRequestingOTP,
-    isLoggingOut,
     isRequestingReset,
     isResettingPassword,
     isSocialLoggingIn,
@@ -347,21 +336,19 @@ export function useAuth() {
     isVerifyingMagicLink,
     isChangingPassword,
     isLoggingOutAll,
-
-    // New mutations
     checkOTPStatus,
     invalidateOTP,
     verifyEmail,
     googleLogin,
     facebookLogin,
     appleLogin,
-
-    // New loading states
     isCheckingOTPStatus,
     isInvalidatingOTP,
     isVerifyingEmail,
     isGoogleLoggingIn,
     isFacebookLoggingIn,
     isAppleLoggingIn,
+    handleAuthRedirect,
+    getRedirectPath
   };
 } 
