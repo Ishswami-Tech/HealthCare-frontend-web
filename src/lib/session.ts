@@ -1,6 +1,22 @@
 import { cookies } from 'next/headers';
 import { Role } from '@/types/auth.types';
 
+export interface Clinic {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zipCode?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  logo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SessionData {
   access_token: string;
   session_id: string;
@@ -25,7 +41,7 @@ export interface SessionData {
     createdAt: string;
     updatedAt: string;
     clinicToken?: string;
-    clinic?: any;
+    clinic?: Clinic;
   };
 }
 

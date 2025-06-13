@@ -3,7 +3,7 @@
 import { Role, Session, RegisterFormData } from '@/types/auth.types';
 import { redirect } from 'next/navigation';
 import { getDashboardByRole } from '@/config/routes';
-import { setSession, getSession, clearSession, getAuthHeaders } from '@/lib/session';
+import { setSession, getSession, clearSession } from '@/lib/session';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 if (!API_URL) {
@@ -16,11 +16,16 @@ if (!API_URL) {
  */
 export async function getServerSession(): Promise<Session | null> {
   try {
+    console.log('1. Starting getServerSession');
     const session = await getSession();
+    console.log('2. Current session from cookie:', session);
+    
     if (!session) {
+      console.log('3. No session found');
       return null;
     }
 
+    console.log('4. Making verify request to API');
     const response = await fetch(`${API_URL}/auth/verify`, {
       headers: {
         Authorization: `Bearer ${session.access_token}`,
@@ -29,12 +34,16 @@ export async function getServerSession(): Promise<Session | null> {
       cache: 'no-store',
     });
 
+    console.log('5. API Response status:', response.status);
+    
     if (!response.ok) {
+      console.log('6. Response not OK, clearing session');
       await clearSession();
       return null;
     }
 
     const data = await response.json();
+    console.log('7. API Response data:', JSON.stringify(data, null, 2));
     
     // Ensure the response matches our Session type
     const updatedSession: Session = {
@@ -42,18 +51,21 @@ export async function getServerSession(): Promise<Session | null> {
         id: data.user.id,
         email: data.user.email,
         role: data.user.role as Role,
-        name: data.user.name,
-        isVerified: data.user.isVerified,
-        createdAt: data.user.createdAt || new Date().toISOString(),
-        updatedAt: data.user.updatedAt || new Date().toISOString()
+        firstName: data.user.firstName || data.user.first_name || '',
+        lastName: data.user.lastName || data.user.last_name || '',
+        name: data.user.name || `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() || undefined,
+        isVerified: data.user.isVerified || data.user.is_verified || false,
+        createdAt: data.user.createdAt || data.user.created_at || new Date().toISOString(),
+        updatedAt: data.user.updatedAt || data.user.updated_at || new Date().toISOString()
       },
       permissions: data.permissions || [],
       redirectPath: data.redirectPath
     };
 
+    console.log('8. Mapped session:', JSON.stringify(updatedSession, null, 2));
     return updatedSession;
   } catch (error) {
-    console.error('Session verification error:', error);
+    console.error('9. Session verification error:', error);
     return null;
   }
 }
@@ -63,6 +75,7 @@ export async function getServerSession(): Promise<Session | null> {
  */
 export async function login(data: { email: string; password: string; rememberMe?: boolean }) {
   try {
+    console.log('1. Starting login process');
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: {
@@ -71,14 +84,57 @@ export async function login(data: { email: string; password: string; rememberMe?
       body: JSON.stringify(data),
     });
 
+    console.log('2. Login response status:', response.status);
+    
     if (!response.ok) {
       throw new Error('Login failed');
     }
 
     const result = await response.json();
+    console.log('3. Login response data:', JSON.stringify(result, null, 2));
+
+    // Additional request to get full user details if firstName/lastName are missing
+    if (!result.user.firstName || !result.user.lastName) {
+      console.log('4. Fetching additional user details');
+      try {
+        const userResponse = await fetch(`${API_URL}/users/me`, {
+          headers: {
+            'Authorization': `Bearer ${result.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('5. Profile response status:', userResponse.status);
+        
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          console.log('6. Profile data:', JSON.stringify(userData, null, 2));
+          
+          // Merge the user data, handling both camelCase and snake_case
+          result.user = {
+            ...result.user,
+            ...userData,
+            firstName: userData.firstName || userData.first_name || '',
+            lastName: userData.lastName || userData.last_name || '',
+            // Include other relevant fields
+            phone: userData.phone || userData.phoneNumber || '',
+            dateOfBirth: userData.dateOfBirth || userData.date_of_birth || null,
+            gender: userData.gender || '',
+            address: userData.address || '',
+          };
+        } else {
+          console.warn('Failed to fetch user profile:', userResponse.status);
+        }
+      } catch (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        // Don't throw here, continue with basic user data
+      }
+    }
     
     // Set session data
+    console.log('7. Final session data:', JSON.stringify(result, null, 2));
     await setSession(result);
+    console.log('8. Session data set successfully');
 
     return result;
   } catch (error) {
@@ -92,10 +148,17 @@ export async function login(data: { email: string; password: string; rememberMe?
  */
 export async function register(data: RegisterFormData) {
   try {
+    // Ensure firstName and lastName are properly formatted
+    const formattedData = {
+      ...data,
+      firstName: data.firstName.trim(),
+      lastName: data.lastName.trim(),
+    };
+
     const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify(formattedData),
     });
 
     const responseData = await response.json();
@@ -372,28 +435,91 @@ export async function logout() {
   const session = await getSession();
   if (session) {
     try {
+      console.log('Attempting to logout on server with session:', session.session_id);
+      
+      // Get device info from session if available
+      const deviceInfo = {
+        browser: 'web', // Default to web browser
+        os: process.platform,
+        device: 'browser',
+        deviceId: session.session_id // Use session ID as device ID
+      };
+
       const response = await fetch(`${API_URL}/auth/logout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-          'X-Session-ID': session.session_id,
+          'Authorization': `Bearer ${session.access_token}`,
+          'X-Session-Id': session.session_id,
+          'X-Device-Id': deviceInfo.deviceId,
+          'X-Device-Info': JSON.stringify(deviceInfo)
         },
         body: JSON.stringify({
           sessionId: session.session_id,
-          allDevices: false
+          deviceId: deviceInfo.deviceId,
+          deviceInfo: deviceInfo,
+          allDevices: true
         }),
+        credentials: 'include'
       });
 
+      // Wait for and parse the response
+      const data = await response.json().catch(() => ({ message: 'No response body' }));
+      console.log('Logout API response:', { status: response.status, data });
+
       if (!response.ok) {
-        throw new Error('Logout failed');
+        if (response.status === 401) {
+          if (data.message?.includes('Invalid device')) {
+            // If device validation fails, try to logout from all devices
+            console.log('Device validation failed, attempting to logout from all devices');
+            return await logoutAllDevices();
+          }
+          console.log('Session already expired on server');
+        } else {
+          console.error('Server logout failed:', data.message || response.statusText);
+          throw new Error(data.message || `Logout failed with status ${response.status}`);
+        }
+      } else {
+        console.log('Successfully logged out on server');
       }
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
+    } finally {
+      await clearSession();
+      console.log('Local session cleared');
     }
+  } else {
+    console.log('No active session to logout');
+    await clearSession();
   }
-  await clearSession();
+}
+
+// Helper function to logout from all devices
+async function logoutAllDevices() {
+  const session = await getSession();
+  if (!session) return;
+
+  const response = await fetch(`${API_URL}/auth/logout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+      'X-Session-Id': session.session_id
+    },
+    body: JSON.stringify({
+      sessionId: session.session_id,
+      allDevices: true
+    }),
+    credentials: 'include'
+  });
+
+  const data = await response.json().catch(() => ({ message: 'No response body' }));
+  console.log('Logout all devices response:', { status: response.status, data });
+
+  if (!response.ok && response.status !== 401) {
+    throw new Error(data.message || `Logout all devices failed with status ${response.status}`);
+  }
 }
 
 /**
@@ -500,13 +626,6 @@ export async function checkAuth() {
     isAuthenticated: !!session?.user,
     session,
   };
-}
-
-/**
- * Get the appropriate dashboard path for a role
- */
-function getRedirectPath(role: Role): string {
-  return getDashboardByRole(role);
 }
 
 /**

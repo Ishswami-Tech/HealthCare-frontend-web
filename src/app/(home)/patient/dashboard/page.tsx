@@ -11,16 +11,26 @@ export default function PatientDashboardPage() {
   const { user } = session || {};
 
   useEffect(() => {
+    console.log('Dashboard Mount - Session:', JSON.stringify(session, null, 2));
+    console.log('Dashboard Mount - Loading:', isLoading);
+    console.log('Dashboard Mount - User:', JSON.stringify(user, null, 2));
+
     // Only check role if we're not loading and have a user
     if (!isLoading && user) {
+      console.log('User Role Check - Role:', user.role);
       if (user.role !== Role.PATIENT) {
+        console.log('Invalid role, redirecting to login');
         router.push("/auth/login");
       }
+    } else if (!isLoading && !user) {
+      console.log('No user found, redirecting to login');
+      router.push("/auth/login");
     }
   }, [user, isLoading, router]);
 
   // Show loading state
   if (isLoading) {
+    console.log('Rendering loading state');
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -28,10 +38,33 @@ export default function PatientDashboardPage() {
     );
   }
 
-  // Don't render anything if not a patient
+  // Don't render anything if not a patient or no user
   if (!user || user.role !== Role.PATIENT) {
+    console.log('Not rendering - Invalid user or role');
     return null;
   }
+
+  // Get the display name in order of preference
+  const displayName = (() => {
+    console.log('Building display name from:', {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      name: user.name
+    });
+    
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user.name) {
+      return user.name;
+    }
+    if (user.firstName) {
+      return user.firstName;
+    }
+    return "Patient";
+  })();
+
+  console.log('Final display name:', displayName);
 
   return (
     <div className="space-y-6">
@@ -39,7 +72,7 @@ export default function PatientDashboardPage() {
       <div className="bg-white overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <h2 className="text-2xl font-semibold text-gray-900">
-            Welcome, {user?.firstName || "Patient"}!
+            Welcome, {displayName}!
           </h2>
           <p className="mt-1 text-sm text-gray-500">
             This is your personal healthcare dashboard. Here you can manage your

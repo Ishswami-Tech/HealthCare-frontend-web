@@ -82,7 +82,7 @@ export default function LandingPage() {
                 }
               >
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  HealthCare
+                  Ishswami 
                 </h1>
               </Link>
             </div>

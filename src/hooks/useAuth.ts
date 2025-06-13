@@ -26,11 +26,9 @@ import {
   appleLogin as appleLoginAction,
 } from '@/lib/actions/auth.server';
 import type {
-  RegisterFormData,
   OTPFormData,
   RegisterData,
   SocialLoginData,
-  Session,
   AuthResponse,
 } from '@/types/auth.types';
 import { Role } from '@/types/auth.types';
@@ -54,19 +52,52 @@ export function useAuth() {
   // Get current session
   const { data: session, isLoading } = useQuery({
     queryKey: ['session'],
-    queryFn: getServerSession,
+    queryFn: async () => {
+      console.log('useAuth - Fetching session');
+      const result = await getServerSession();
+      console.log('useAuth - Session result:', JSON.stringify(result, null, 2));
+      return result;
+    },
   });
 
   // Login mutation
   const loginMutation = useMutation({
-    mutationFn: loginAction,
+    mutationFn: async (data: { email: string; password: string; rememberMe?: boolean }) => {
+      console.log('useAuth - Starting login mutation');
+      const result = await loginAction(data);
+      console.log('useAuth - Login result:', JSON.stringify(result, null, 2));
+
+      // Validate user data
+      if (!result.user) {
+        throw new Error('Invalid user data received');
+      }
+
+      // Ensure required fields are present with defaults
+      const user = {
+        ...result.user,
+        firstName: result.user.firstName || '',
+        lastName: result.user.lastName || '',
+        phone: result.user.phone || '',
+        dateOfBirth: result.user.dateOfBirth || null,
+        gender: result.user.gender || '',
+        address: result.user.address || '',
+      };
+
+      return {
+        ...result,
+        user,
+      };
+    },
     onSuccess: (data) => {
+      console.log('useAuth - Login success, setting session data:', JSON.stringify(data, null, 2));
       queryClient.setQueryData(['session'], data);
       const dashboardPath = getDashboardByRole(data.user.role);
+      console.log('useAuth - Redirecting to:', dashboardPath);
       router.push(dashboardPath);
-      toast.success('Login successful');
+      toast.success(`Welcome back${data.user.firstName ? ', ' + data.user.firstName : ''}!`);
     },
     onError: (error: Error) => {
+      console.error('useAuth - Login error:', error);
       toast.error(error.message || 'Login failed');
     },
   });
@@ -85,14 +116,36 @@ export function useAuth() {
 
   // Logout mutation
   const logoutMutation = useMutation({
-    mutationFn: logoutAction,
+    mutationFn: async () => {
+      try {
+        await logoutAction();
+        return { success: true };
+      } catch (error) {
+        // If it's a 401 or session-related error, treat as success
+        if (error instanceof Error && 
+            (error.message.includes('401') || 
+             error.message.includes('Session') ||
+             error.message.includes('session'))) {
+          return { success: true };
+        }
+        throw error;
+      }
+    },
     onSuccess: () => {
+      // Clear all query cache
       queryClient.clear();
+      // Clear any stored auth state
+      queryClient.setQueryData(['session'], null);
       router.push('/auth/login');
       toast.success('Logged out successfully');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Logout failed');
+      console.error('Logout error in mutation:', error);
+      // Clear client state even if server logout fails
+      queryClient.clear();
+      queryClient.setQueryData(['session'], null);
+      router.push('/auth/login');
+      toast.error('Logged out locally, but server logout failed');
     },
   });
 

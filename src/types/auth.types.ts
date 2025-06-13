@@ -93,8 +93,16 @@ export interface LoginFormData {
   rememberMe?: boolean;
 }
 
-export interface RegisterFormData extends RegisterData {
+export interface RegisterFormData {
+  email: string;
+  password: string;
   confirmPassword: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  gender?: string;
+  role?: Role;
+  age?: number;
   terms: boolean;
 }
 
