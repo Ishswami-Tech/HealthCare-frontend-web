@@ -654,7 +654,7 @@ export async function verifyEmail(token: string) {
 export async function googleLogin(token: string) {
   try {
     console.log('Starting Google login with token');
-    const response = await fetch(`${API_URL}/auth/google`, {
+    const response = await fetch(`${API_URL}/auth/social/google`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
