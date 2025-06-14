@@ -7,7 +7,7 @@ import { useEffect } from "react";
 
 // Add Google client ID as a constant
 const GOOGLE_CLIENT_ID =
-  "616510725595-icnj6ql0qie97dp4vol3u9uafbnmhend.apps.googleusercontent.com";
+  "616510725595-icnj6ql0qie97dp4voi3u9uafbnmhend.apps.googleusercontent.com";
 
 // Add type definitions for Google OAuth
 declare global {

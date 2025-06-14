@@ -83,10 +83,6 @@ export default function RegisterPage() {
     }
   );
 
-  const handleSocialLogin = async (provider: "google" | "apple") => {
-    // Social login logic will be implemented later
-    console.log(`Logging in with ${provider}`);
-  };
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -98,10 +94,12 @@ export default function RegisterPage() {
       </CardHeader>
       <CardContent>
         <SocialLogin
-          onGoogleLogin={() => handleSocialLogin("google")}
-          onAppleLogin={() => handleSocialLogin("apple")}
           isLoading={isLoading}
           className="mb-6"
+          onError={(error) => {
+            setFormError(error.message);
+            toast.error(error.message);
+          }}
         />
 
         <div className="relative">
