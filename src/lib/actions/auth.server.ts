@@ -86,11 +86,13 @@ export async function login(data: { email: string; password: string; rememberMe?
 
     console.log('2. Login response status:', response.status);
     
+    const result = await response.json();
+    
     if (!response.ok) {
-      throw new Error('Login failed');
+      console.error('3. Login error response:', result);
+      throw new Error(result.message || result.error || 'Login failed');
     }
 
-    const result = await response.json();
     console.log('3. Login response data:', JSON.stringify(result, null, 2));
 
     // Additional request to get full user details if firstName/lastName are missing
@@ -650,20 +652,45 @@ export async function verifyEmail(token: string) {
  * Google Login
  */
 export async function googleLogin(token: string) {
-  const response = await fetch(`${API_URL}/auth/social/google`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  });
+  try {
+    console.log('Starting Google login with token');
+    const response = await fetch(`${API_URL}/auth/google`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+      credentials: 'include'
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Google login failed');
+    const result = await response.json();
+    
+    if (!response.ok) {
+      console.error('Google login error response:', result);
+      throw new Error(result.message || result.error || 'Google login failed');
+    }
+
+    console.log('Google login successful, setting auth cookies');
+    
+    // Set auth cookies
+    await setAuthCookies(result);
+    
+    // Add additional user information
+    const enhancedResponse = {
+      ...result,
+      user: {
+        ...result.user,
+        isNewUser: result.isNewUser,
+        googleId: result.user.googleId,
+        profileComplete: result.user.profileComplete
+      }
+    };
+
+    return enhancedResponse;
+  } catch (error) {
+    console.error('Google login error:', error);
+    throw error instanceof Error ? error : new Error('Google login failed');
   }
-
-  const responseData = await response.json();
-  await setAuthCookies(responseData);
-  return responseData;
 }
 
 /**

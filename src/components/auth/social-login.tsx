@@ -1,26 +1,167 @@
-import { Button } from "@/components/ui/button";
+"use client";
 
-type SocialLoginProps = {
-  onGoogleLogin: () => void;
-  onAppleLogin: () => void;
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
+import { useEffect } from "react";
+
+// Add Google client ID as a constant
+const GOOGLE_CLIENT_ID =
+  "616510725595-icnj6ql0qie97dp4vol3u9uafbnmhend.apps.googleusercontent.com";
+
+// Add type definitions for Google OAuth
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+            auto_select?: boolean;
+            context?: string;
+            ux_mode?: string;
+            allowed_parent_origin?: string;
+          }) => void;
+          renderButton: (
+            element: HTMLElement,
+            config: {
+              theme?: "outline" | "filled_blue" | "filled_black";
+              size?: "large" | "medium" | "small";
+              type?: "standard" | "icon";
+              shape?: "rectangular" | "pill" | "circle" | "square";
+              logo_alignment?: "left" | "center";
+              width?: number;
+              text?: string;
+            }
+          ) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
+
+interface SocialLoginProps {
+  onError?: (error: Error) => void;
   isLoading?: boolean;
   className?: string;
-};
+}
 
 export function SocialLogin({
-  onGoogleLogin,
-  onAppleLogin,
+  onError,
   isLoading,
-  className = "",
+  className,
 }: SocialLoginProps) {
+  const { googleLogin, appleLogin, isGoogleLoggingIn, isAppleLoggingIn } =
+    useAuth();
+
+  useEffect(() => {
+    // Initialize Google OAuth
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+
+    console.log("Setting up Google OAuth script...");
+
+    script.onload = () => {
+      console.log("Google OAuth script loaded");
+      console.log("Current origin:", window.location.origin);
+      console.log("Client ID being used:", GOOGLE_CLIENT_ID);
+
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleResponse,
+            auto_select: false,
+            context: "signin",
+          });
+          console.log("Google OAuth initialized successfully");
+        } catch (error) {
+          console.error("Failed to initialize Google OAuth:", error);
+          onError?.(new Error("Failed to initialize Google Sign-In"));
+        }
+      } else {
+        console.error("Google OAuth object not available");
+      }
+    };
+
+    script.onerror = () => {
+      console.error("Failed to load Google OAuth script");
+    };
+
+    document.head.appendChild(script);
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
+  const handleGoogleResponse = async (response: { credential: string }) => {
+    try {
+      console.log("Received Google response");
+
+      if (!response.credential) {
+        console.error("No credential received from Google");
+        throw new Error("No credential received from Google");
+      }
+
+      console.log("Attempting Google login...");
+      await googleLogin(response.credential);
+      console.log("Google login successful");
+    } catch (error) {
+      console.error("Google login error:", error);
+      onError?.(
+        error instanceof Error ? error : new Error("Google login failed")
+      );
+    }
+  };
+
+  const handleGoogleLogin = () => {
+    try {
+      console.log("Google login button clicked");
+
+      if (!window.google?.accounts?.id) {
+        console.error("Google OAuth not initialized");
+        throw new Error("Google OAuth not initialized");
+      }
+
+      console.log("Prompting Google login...");
+      window.google.accounts.id.prompt();
+    } catch (error) {
+      console.error("Google login prompt error:", error);
+      onError?.(
+        error instanceof Error
+          ? error
+          : new Error("Failed to initialize Google login")
+      );
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    try {
+      // In a real implementation, you would get the token from Apple OAuth
+      // For now, we'll pass a dummy token
+      await appleLogin("dummy-apple-token");
+      // The onSuccess callback will be handled by the useAuth hook
+    } catch (error) {
+      onError?.(
+        error instanceof Error ? error : new Error("Apple login failed")
+      );
+    }
+  };
+
+  const isDisabled = isLoading || isGoogleLoggingIn || isAppleLoggingIn;
+
   return (
-    <div className={`grid grid-cols-2 gap-4 ${className}`}>
+    <div className={cn("grid grid-cols-2 gap-4", className)}>
       <Button
         type="button"
         variant="outline"
         className="w-full"
-        onClick={onGoogleLogin}
-        disabled={isLoading}
+        onClick={handleGoogleLogin}
+        disabled={isDisabled}
       >
         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
           <path
@@ -46,14 +187,11 @@ export function SocialLogin({
         type="button"
         variant="outline"
         className="w-full"
-        onClick={onAppleLogin}
-        disabled={isLoading}
+        onClick={handleAppleLogin}
+        disabled={isDisabled}
       >
-        <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-          <path
-            d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
-            fill="currentColor"
-          />
+        <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M14.94 5.19A4.38 4.38 0 0 0 16 2.5a4.38 4.38 0 0 0-2.91 1.52 4.13 4.13 0 0 0-1.03 2.96c1.08 0 2.03-.38 2.88-1.79M17.46 12.63c.06 3.03 2.65 4.03 2.68 4.05a11.32 11.32 0 0 1-1.45 2.97c-.87 1.27-1.78 2.53-3.21 2.55-1.4.03-1.86-.83-3.46-.83-1.61 0-2.11.81-3.44.86-1.38.05-2.43-1.37-3.32-2.64-1.81-2.6-3.2-7.37-1.33-10.59a5.16 5.16 0 0 1 4.35-2.64c1.36-.03 2.64.91 3.47.91.83 0 2.38-1.13 4.02-.96.68.03 2.6.28 3.83 2.07-.1.06-2.29 1.34-2.26 4" />
         </svg>
         Apple
       </Button>
