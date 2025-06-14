@@ -21,7 +21,8 @@ declare global {
             auto_select?: boolean;
             context?: string;
             ux_mode?: string;
-            allowed_parent_origin?: string;
+            allowed_parent_origin?: string | string[];
+            itp_support?: boolean;
           }) => void;
           renderButton: (
             element: HTMLElement,
@@ -67,16 +68,27 @@ export function SocialLogin({
 
     script.onload = () => {
       console.log("Google OAuth script loaded");
-      console.log("Current origin:", window.location.origin);
-      console.log("Client ID being used:", GOOGLE_CLIENT_ID);
+      const currentOrigin = window.location.origin;
+      console.log("Current origin:", currentOrigin);
+      
+      // Use environment variable for client ID
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID;
+      console.log("Client ID being used:", clientId);
 
       if (window.google?.accounts?.id) {
         try {
           window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
+            client_id: clientId,
             callback: handleGoogleResponse,
             auto_select: false,
             context: "signin",
+            ux_mode: "popup",
+            itp_support: true,
+            allowed_parent_origin: [
+              "http://localhost:3000",
+              "https://ishswami.in",
+              "https://www.ishswami.in"
+            ]
           });
           console.log("Google OAuth initialized successfully");
         } catch (error) {
@@ -90,6 +102,7 @@ export function SocialLogin({
 
     script.onerror = () => {
       console.error("Failed to load Google OAuth script");
+      onError?.(new Error("Failed to load Google Sign-In"));
     };
 
     document.head.appendChild(script);

@@ -34,11 +34,38 @@ npm install
 3. Set up environment variables:
 Create a `.env.local` file in the root directory with the following variables:
 ```env
+# API Configuration
 NEXT_PUBLIC_API_URL=https://api.ishswami.in
+
+# OAuth Configuration
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
 NEXT_PUBLIC_FACEBOOK_APP_ID=your_facebook_app_id
 NEXT_PUBLIC_APPLE_CLIENT_ID=your_apple_client_id
 ```
+
+### Google OAuth Setup
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the Google OAuth2 API
+4. Configure the OAuth consent screen:
+   - Add your app name and contact information
+   - Add authorized domains:
+     * `localhost`
+     * `ishswami.in`
+     * `www.ishswami.in`
+5. Create OAuth 2.0 Client ID credentials:
+   - Application type: Web application
+   - Name: Your app name
+   - Authorized JavaScript origins:
+     * `http://localhost:3000`
+     * `https://ishswami.in`
+     * `https://www.ishswami.in`
+   - Authorized redirect URIs:
+     * `http://localhost:3000/auth/callback/google`
+     * `https://ishswami.in/auth/callback/google`
+     * `https://www.ishswami.in/auth/callback/google`
+6. Copy the Client ID and add it to your `.env.local` file
 
 4. Run the development server:
 ```bash
