@@ -53,11 +53,12 @@ export interface ChangePasswordData {
 }
 
 export interface AuthResponse {
+  access_token: string;
+  session_id: string;
   user: User;
-  access_token?: string;
-  refresh_token?: string;
-  session_id?: string;
+  session: Session;
   redirectUrl?: string;
+  isNewUser?: boolean;
   message?: string;
   permissions?: string[];
 }

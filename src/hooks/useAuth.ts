@@ -45,6 +45,20 @@ function getRedirectPath(user: { role?: Role } | null | undefined, redirectUrl?:
   return '/auth/login'; // Default to login if no role
 }
 
+interface GoogleLoginResponse {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    role: Role;
+    isNewUser?: boolean;
+    googleId?: string;
+    profileComplete?: boolean;
+  };
+  token?: string;
+  redirectUrl?: string;
+}
+
 export function useAuth() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -100,6 +114,23 @@ export function useAuth() {
       console.error('useAuth - Login error:', error);
       toast.error(error.message || 'Login failed');
     },
+  });
+ 
+  // Google login mutation
+  const {
+    mutateAsync: googleLogin,
+    isPending: isGoogleLoggingIn
+  } = useMutation<GoogleLoginResponse, Error, string>({
+    mutationFn: (token: string) => googleLoginAction(token),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['session'] });
+      const redirectPath = getRedirectPath(data.user, data.redirectUrl);
+      router.push(redirectPath);
+      toast.success(`Welcome${data.user.name ? ', ' + data.user.name : ''}!`);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Google login failed');
+    }
   });
 
   // Register mutation
@@ -268,16 +299,17 @@ export function useAuth() {
     },
   });
 
-  // Logout all devices mutation
-  const { mutate: logoutAllDevices, isPending: isLoggingOutAll } = useMutation<void, Error, void>({
-    mutationFn: () => terminateAllSessions(),
+  // Terminate all sessions mutation
+  const terminateAllSessionsMutation = useMutation({
+    mutationFn: terminateAllSessions,
     onSuccess: () => {
       queryClient.clear();
+      queryClient.setQueryData(['session'], null);
       router.push('/auth/login');
-      toast.success('Logged out from all devices');
+      toast.success('All sessions terminated successfully');
     },
-    onError: (error) => {
-      toast.error(error.message);
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to terminate all sessions');
     },
   });
 
@@ -314,19 +346,6 @@ export function useAuth() {
   });
 
   // Social Login mutations
-  const { mutate: googleLogin, isPending: isGoogleLoggingIn } = useMutation<AuthResponse, Error, string>({
-    mutationFn: (token) => googleLoginAction(token),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['session'] });
-      const redirectPath = getRedirectPath(data.user, data.redirectUrl);
-      router.push(redirectPath);
-      toast.success('Logged in with Google successfully');
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
-
   const { mutate: facebookLogin, isPending: isFacebookLoggingIn } = useMutation<AuthResponse, Error, string>({
     mutationFn: (token) => facebookLoginAction(token),
     onSuccess: (data) => {
@@ -340,17 +359,11 @@ export function useAuth() {
     },
   });
 
-  const { mutate: appleLogin, isPending: isAppleLoggingIn } = useMutation<AuthResponse, Error, string>({
-    mutationFn: (token) => appleLoginAction(token),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['session'] });
-      const redirectPath = getRedirectPath(data.user, data.redirectUrl);
-      router.push(redirectPath);
-      toast.success('Logged in with Apple successfully');
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
+  const {
+    mutateAsync: appleLogin,
+    isPending: isAppleLoggingIn
+  } = useMutation({
+    mutationFn: (token: string) => Promise.resolve() // TODO: Implement Apple login
   });
 
   const handleAuthRedirect = (user: { role?: Role } | null | undefined, redirectUrl?: string) => {
@@ -366,29 +379,15 @@ export function useAuth() {
     login: loginMutation.mutate,
     register: registerMutation.mutate,
     logout: logoutMutation.mutate,
-    isLoggingIn: loginMutation.isPending,
-    isRegistering: registerMutation.isPending,
-    isLoggingOut: logoutMutation.isPending,
-    registerWithClinic,
     verifyOTP,
     requestOTP,
     forgotPassword,
     resetPassword,
-    socialLogin,
+    changePassword,
     requestMagicLink,
     verifyMagicLink,
-    changePassword,
-    logoutAllDevices,
-    isRegisteringWithClinic,
-    isVerifyingOTP,
-    isRequestingOTP,
-    isRequestingReset,
-    isResettingPassword,
-    isSocialLoggingIn,
-    isRequestingMagicLink,
-    isVerifyingMagicLink,
-    isChangingPassword,
-    isLoggingOutAll,
+    registerWithClinic,
+    terminateAllSessions: terminateAllSessionsMutation.mutate,
     checkOTPStatus,
     invalidateOTP,
     verifyEmail,
@@ -401,7 +400,15 @@ export function useAuth() {
     isGoogleLoggingIn,
     isFacebookLoggingIn,
     isAppleLoggingIn,
-    handleAuthRedirect,
+    isLoggingIn: loginMutation.isPending,
+    isRegistering: registerMutation.isPending,
+    isLoggingOut: logoutMutation.isPending,
+    isRequestingReset,
+    isResettingPassword,
+    isChangingPassword,
+    isRequestingMagicLink,
+    isVerifyingMagicLink,
+    isTerminatingAllSessions: terminateAllSessionsMutation.isPending,
     getRedirectPath
   };
 } 

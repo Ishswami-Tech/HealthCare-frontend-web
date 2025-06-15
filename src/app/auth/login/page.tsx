@@ -37,9 +37,11 @@ export default function LoginPage() {
     requestOTP,
     verifyOTP,
     isLoggingIn,
-    isVerifyingOTP,
-    isRequestingOTP,
-    isSocialLoggingIn,
+    verifyEmail,
+    isVerifyingEmail,
+    isGoogleLoggingIn,
+    isAppleLoggingIn,
+    isFacebookLoggingIn
   } = useAuth();
 
   const handleSuccess = (response: AuthResponse | null) => {
@@ -118,7 +120,7 @@ export default function LoginPage() {
   };
 
   const isLoading =
-    isLoggingIn || isVerifyingOTP || isRequestingOTP || isSocialLoggingIn;
+    isLoggingIn || isVerifyingEmail || isGoogleLoggingIn || isAppleLoggingIn || isFacebookLoggingIn;
 
   return (
     <Card className="w-full max-w-md mx-auto">

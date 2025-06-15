@@ -11,6 +11,20 @@ if (!API_URL) {
   throw new Error('API URL is not configured');
 }
 
+interface GoogleLoginResponse {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    role: Role;
+    isNewUser?: boolean;
+    googleId?: string;
+    profileComplete?: boolean;
+  };
+  token?: string;
+  redirectUrl?: string;
+}
+
 /**
  * Get the current server session
  */
@@ -651,13 +665,14 @@ export async function verifyEmail(token: string) {
 /**
  * Google Login
  */
-export async function googleLogin(token: string) {
+export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
   try {
     console.log('Starting Google login with token');
     const response = await fetch(`${API_URL}/auth/social/google`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify({ token }),
       credentials: 'include'
@@ -672,21 +687,48 @@ export async function googleLogin(token: string) {
 
     console.log('Google login successful, setting auth cookies');
     
-    // Set auth cookies
-    await setAuthCookies(result);
-    
-    // Add additional user information
-    const enhancedResponse = {
-      ...result,
+    // Set auth cookies with the access and refresh tokens
+    await setAuthCookies({
+      access_token: result.access_token,
+      session_id: result.session_id,
       user: {
-        ...result.user,
-        isNewUser: result.isNewUser,
-        googleId: result.user.googleId,
-        profileComplete: result.user.profileComplete
+        role: result.user.role
       }
-    };
+    });
 
-    return enhancedResponse;
+    // Ensure we have the complete user data
+    const userResponse = await fetch(`${API_URL}/users/me`, {
+      headers: {
+        'Authorization': `Bearer ${result.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    let userData = result.user;
+    if (userResponse.ok) {
+      const additionalData = await userResponse.json();
+      userData = {
+        ...userData,
+        ...additionalData,
+        firstName: additionalData.firstName || additionalData.first_name || '',
+        lastName: additionalData.lastName || additionalData.last_name || '',
+      };
+    }
+    
+    // Return the response with proper typing
+    return {
+      user: {
+        id: userData.id,
+        email: userData.email,
+        role: userData.role,
+        name: userData.name || `${userData.firstName} ${userData.lastName}`.trim(),
+        isNewUser: result.isNewUser,
+        googleId: userData.googleId,
+        profileComplete: userData.profileComplete
+      },
+      token: result.access_token,
+      redirectUrl: result.redirectUrl || getDashboardByRole(userData.role)
+    };
   } catch (error) {
     console.error('Google login error:', error);
     throw error instanceof Error ? error : new Error('Google login failed');

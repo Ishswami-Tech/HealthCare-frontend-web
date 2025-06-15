@@ -3,6 +3,8 @@
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { getDashboardByRole } from "@/config/routes";
 
 // Add Google client ID as a constant
 const GOOGLE_CLIENT_ID =
@@ -19,6 +21,11 @@ declare global {
             callback: (response: { credential: string }) => void;
             auto_select?: boolean;
             context?: string;
+            ux_mode?: string;
+            login_uri?: string;
+            allowed_parent_origin?: string;
+            itp_support?: boolean;
+            native_callback?: (response: { credential: string }) => void;
           }) => void;
           renderButton: (
             element: HTMLElement,
@@ -50,9 +57,49 @@ export function SocialLogin({
   isLoading,
   className,
 }: SocialLoginProps) {
-  const { googleLogin, appleLogin, isGoogleLoggingIn, isAppleLoggingIn } =
-    useAuth();
+  const router = useRouter();
+  const { googleLogin, appleLogin, isGoogleLoggingIn, isAppleLoggingIn } = useAuth();
   const googleButtonRef = useRef<HTMLDivElement>(null);
+
+  const handleGoogleResponse = async (response: { credential: string }) => {
+    try {
+      console.log("Received Google response");
+
+      if (!response.credential) {
+        console.error("No credential received from Google");
+        throw new Error("No credential received from Google");
+      }
+
+      // Decode the JWT to verify it's properly formatted
+      const token = response.credential;
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        throw new Error("Invalid token format");
+      }
+
+      console.log("Attempting Google login...");
+      const result = await googleLogin(token);
+      
+      // Handle redirection
+      const searchParams = new URLSearchParams(window.location.search);
+      const callbackUrl = searchParams.get('callbackUrl');
+      
+      const redirectUrl = 
+        (callbackUrl && !callbackUrl.includes('/auth/'))
+          ? callbackUrl
+          : result.redirectUrl || 
+            (result.user?.role ? getDashboardByRole(result.user.role) : '/patient/dashboard');
+
+      console.log("Google login successful, redirecting to:", redirectUrl);
+      router.push(redirectUrl);
+      
+    } catch (error) {
+      console.error("Google login error:", error);
+      onError?.(
+        error instanceof Error ? error : new Error("Google login failed")
+      );
+    }
+  };
 
   useEffect(() => {
     const script = document.createElement("script");
@@ -72,11 +119,26 @@ export function SocialLogin({
 
       if (window.google?.accounts?.id && googleButtonRef.current) {
         try {
+          // Get the current URL parameters
+          const searchParams = new URLSearchParams(window.location.search);
+          const callbackUrl = searchParams.get('callbackUrl');
+          
+          // Construct the login_uri with the callbackUrl if present
+          const loginUri = new URL('/auth/callback/google', currentOrigin);
+          if (callbackUrl) {
+            loginUri.searchParams.set('callbackUrl', callbackUrl);
+          }
+
           window.google.accounts.id.initialize({
             client_id: clientId,
             callback: handleGoogleResponse,
             auto_select: false,
-            context: "signin"
+            context: "signin",
+            ux_mode: "redirect",
+            itp_support: true,
+            login_uri: loginUri.toString(),
+            allowed_parent_origin: currentOrigin,
+            native_callback: handleGoogleResponse
           });
 
           // Render the Google Sign In button
@@ -111,27 +173,7 @@ export function SocialLogin({
       // Cleanup Google Sign-In
       window.google?.accounts?.id?.cancel?.();
     };
-  }, [onError]);
-
-  const handleGoogleResponse = async (response: { credential: string }) => {
-    try {
-      console.log("Received Google response");
-
-      if (!response.credential) {
-        console.error("No credential received from Google");
-        throw new Error("No credential received from Google");
-      }
-
-      console.log("Attempting Google login...");
-      await googleLogin(response.credential);
-      console.log("Google login successful");
-    } catch (error) {
-      console.error("Google login error:", error);
-      onError?.(
-        error instanceof Error ? error : new Error("Google login failed")
-      );
-    }
-  };
+  }, [onError, router]);
 
   const handleAppleLogin = async () => {
     try {
