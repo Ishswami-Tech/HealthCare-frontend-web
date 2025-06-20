@@ -48,7 +48,7 @@ export default function RegisterPage() {
           age: values.age || 18, // Ensure age has a default value
         };
         await registerUser(formData);
-        
+
         // Reset form
         form.reset();
         // Redirect after a short delay
@@ -58,10 +58,11 @@ export default function RegisterPage() {
       } catch (error) {
         console.error("Registration error:", error);
         // Set form error
-        const errorMessage = error instanceof Error
-          ? error.message
-          : "Registration failed. Please try again.";
-        
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Registration failed. Please try again.";
+
         setFormError(errorMessage);
         // Show toast error
         toast.error(errorMessage);
@@ -83,7 +84,6 @@ export default function RegisterPage() {
     }
   );
 
-
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="space-y-1">
@@ -94,7 +94,6 @@ export default function RegisterPage() {
       </CardHeader>
       <CardContent>
         <SocialLogin
-          isLoading={isLoading}
           className="mb-6"
           onError={(error) => {
             setFormError(error.message);

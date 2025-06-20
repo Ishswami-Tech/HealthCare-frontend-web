@@ -5,10 +5,16 @@ import { cn } from "@/lib/utils";
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getDashboardByRole } from "@/config/routes";
+import { Role } from "@/types/auth.types";
 
-// Add Google client ID as a constant
-const GOOGLE_CLIENT_ID =
-  "616510725595-icnj6ql0qie97dp4voi3u9uafbnmhend.apps.googleusercontent.com";
+// Get Google client ID from environment variables
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+if (!GOOGLE_CLIENT_ID) {
+  console.error(
+    "NEXT_PUBLIC_GOOGLE_CLIENT_ID is not defined in environment variables"
+  );
+}
 
 // Add type definitions for Google OAuth
 declare global {
@@ -40,6 +46,7 @@ declare global {
             }
           ) => void;
           cancel: () => void;
+          prompt: () => void;
         };
       };
     };
@@ -48,97 +55,92 @@ declare global {
 
 interface SocialLoginProps {
   onError?: (error: Error) => void;
-  isLoading?: boolean;
   className?: string;
+  onSuccess?: () => void;
 }
 
 export function SocialLogin({
   onError,
-  isLoading,
   className,
+  onSuccess,
 }: SocialLoginProps) {
   const router = useRouter();
-  const { googleLogin, appleLogin, isGoogleLoggingIn, isAppleLoggingIn } = useAuth();
+  const { googleLogin, isGoogleLoggingIn } = useAuth();
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
   const handleGoogleResponse = async (response: { credential: string }) => {
     try {
-      console.log("Received Google response");
-
       if (!response.credential) {
-        console.error("No credential received from Google");
-        throw new Error("No credential received from Google");
+        const error = new Error("No credential received from Google");
+        console.error(error.message);
+        onError?.(error);
+        return;
       }
 
-      // Decode the JWT to verify it's properly formatted
-      const token = response.credential;
-      const tokenParts = token.split('.');
-      if (tokenParts.length !== 3) {
-        throw new Error("Invalid token format");
-      }
+      const result = await googleLogin(response.credential);
 
-      console.log("Attempting Google login...");
-      const result = await googleLogin(token);
-      
       // Handle redirection
       const searchParams = new URLSearchParams(window.location.search);
-      const callbackUrl = searchParams.get('callbackUrl');
-      
-      const redirectUrl = 
-        (callbackUrl && !callbackUrl.includes('/auth/'))
-          ? callbackUrl
-          : result.redirectUrl || 
-            (result.user?.role ? getDashboardByRole(result.user.role) : '/patient/dashboard');
+      const callbackUrl = searchParams.get("callbackUrl");
 
-      console.log("Google login successful, redirecting to:", redirectUrl);
+      const redirectUrl =
+        callbackUrl && !callbackUrl.includes("/auth/")
+          ? callbackUrl
+          : result.redirectUrl ||
+            (result.user?.role
+              ? getDashboardByRole(result.user.role as Role)
+              : "/patient/dashboard");
+
+      onSuccess?.();
       router.push(redirectUrl);
-      
     } catch (error) {
       console.error("Google login error:", error);
       onError?.(
-        error instanceof Error ? error : new Error("Google login failed")
+        error instanceof Error
+          ? error
+          : new Error(typeof error === "string" ? error : "Google login failed")
       );
     }
   };
 
   useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) {
+      onError?.(new Error("Google Client ID is not configured"));
+      return;
+    }
+
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.defer = true;
-
-    console.log("Setting up Google OAuth script...");
+    let isScriptLoaded = false;
 
     script.onload = () => {
-      console.log("Google OAuth script loaded");
+      isScriptLoaded = true;
       const currentOrigin = window.location.origin;
-      console.log("Current origin:", currentOrigin);
-      
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID;
-      console.log("Client ID being used:", clientId);
 
       if (window.google?.accounts?.id && googleButtonRef.current) {
         try {
           // Get the current URL parameters
           const searchParams = new URLSearchParams(window.location.search);
-          const callbackUrl = searchParams.get('callbackUrl');
-          
+          const callbackUrl = searchParams.get("callbackUrl");
+
           // Construct the login_uri with the callbackUrl if present
-          const loginUri = new URL('/auth/callback/google', currentOrigin);
+          const loginUri = new URL("/auth/callback/google", currentOrigin);
           if (callbackUrl) {
-            loginUri.searchParams.set('callbackUrl', callbackUrl);
+            loginUri.searchParams.set("callbackUrl", callbackUrl);
           }
 
           window.google.accounts.id.initialize({
-            client_id: clientId,
+            client_id: GOOGLE_CLIENT_ID,
             callback: handleGoogleResponse,
             auto_select: false,
             context: "signin",
-            ux_mode: "redirect",
+            ux_mode: "popup",
             itp_support: true,
             login_uri: loginUri.toString(),
             allowed_parent_origin: currentOrigin,
-            native_callback: handleGoogleResponse
+            native_callback: handleGoogleResponse,
           });
 
           // Render the Google Sign In button
@@ -149,16 +151,18 @@ export function SocialLogin({
             text: "signin_with",
             shape: "rectangular",
             logo_alignment: "left",
-            width: 200
+            width: 250,
           });
-
-          console.log("Google OAuth initialized successfully");
         } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to initialize Google Sign-In";
           console.error("Failed to initialize Google OAuth:", error);
-          onError?.(new Error("Failed to initialize Google Sign-In"));
+          onError?.(new Error(errorMessage));
         }
       } else {
-        console.error("Google OAuth object not available");
+        onError?.(new Error("Google OAuth object not available"));
       }
     };
 
@@ -168,39 +172,43 @@ export function SocialLogin({
     };
 
     document.head.appendChild(script);
+
     return () => {
-      document.head.removeChild(script);
-      // Cleanup Google Sign-In
-      window.google?.accounts?.id?.cancel?.();
+      // Enhanced cleanup
+      if (isScriptLoaded && window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.cancel();
+        } catch (error) {
+          console.error("Error during Google Sign-In cleanup:", error);
+        }
+      }
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
     };
-  }, [onError, router]);
-
-  const handleAppleLogin = async () => {
-    try {
-      await appleLogin("dummy-apple-token");
-    } catch (error) {
-      onError?.(
-        error instanceof Error ? error : new Error("Apple login failed")
-      );
-    }
-  };
-
-  const isDisabled = isLoading || isGoogleLoggingIn || isAppleLoggingIn;
+  }, [onError, router, onSuccess]);
 
   return (
-    <div className={cn("grid grid-cols-2 gap-4", className)}>
-      <div ref={googleButtonRef} className="flex items-center justify-center" />
-      <button
-        type="button"
-        className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        onClick={handleAppleLogin}
-        disabled={isDisabled}
-      >
-        <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M14.94 5.19A4.38 4.38 0 0 0 16 2.5a4.38 4.38 0 0 0-2.91 1.52 4.13 4.13 0 0 0-1.03 2.96c1.08 0 2.03-.38 2.88-1.79M17.46 12.63c.06 3.03 2.65 4.03 2.68 4.05a11.32 11.32 0 0 1-1.45 2.97c-.87 1.27-1.78 2.53-3.21 2.55-1.4.03-1.86-.83-3.46-.83-1.61 0-2.11.81-3.44.86-1.38.05-2.43-1.37-3.32-2.64-1.81-2.6-3.2-7.37-1.33-10.59a5.16 5.16 0 0 1 4.35-2.64c1.36-.03 2.64.91 3.47.91.83 0 2.38-1.13 4.02-.96.68.03 2.6.28 3.83 2.07-.1.06-2.29 1.34-2.26 4" />
-        </svg>
-        Sign in with Apple
-      </button>
+    <div className={cn("flex flex-col gap-4 w-full", className)}>
+      <div
+        ref={googleButtonRef}
+        className={cn(
+          "flex items-center justify-center w-full min-h-[40px]",
+          isGoogleLoggingIn && "opacity-50 cursor-not-allowed"
+        )}
+        role="button"
+        aria-disabled="true"
+      />
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">
+            Or continue with
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

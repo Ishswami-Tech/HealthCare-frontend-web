@@ -1,57 +1,78 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { Role } from "@/types/auth.types";
+import { Loader2 } from "lucide-react";
 
 export default function PatientDashboardPage() {
   const router = useRouter();
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, refreshSession } = useAuth();
   const { user } = session || {};
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    console.log('Dashboard Mount - Session:', JSON.stringify(session, null, 2));
-    console.log('Dashboard Mount - Loading:', isLoading);
-    console.log('Dashboard Mount - User:', JSON.stringify(user, null, 2));
+    console.log("Dashboard Mount - Session:", JSON.stringify(session, null, 2));
+    console.log("Dashboard Mount - Loading:", isLoading);
+    console.log("Dashboard Mount - User:", JSON.stringify(user, null, 2));
+
+    // Try to refresh the session once on mount
+    const initializeSession = async () => {
+      try {
+        if (!session?.user) {
+          await refreshSession();
+        }
+      } catch (error) {
+        console.error("Error refreshing session:", error);
+      } finally {
+        // Mark initialization as complete after a short delay
+        setTimeout(() => setIsInitializing(false), 1000);
+      }
+    };
+
+    initializeSession();
 
     // Only check role if we're not loading and have a user
     if (!isLoading && user) {
-      console.log('User Role Check - Role:', user.role);
+      console.log("User Role Check - Role:", user.role);
       if (user.role !== Role.PATIENT) {
-        console.log('Invalid role, redirecting to login');
+        console.log("Invalid role, redirecting to login");
         router.push("/auth/login");
       }
-    } else if (!isLoading && !user) {
-      console.log('No user found, redirecting to login');
+    } else if (!isLoading && !isInitializing && !user) {
+      console.log("No user found, redirecting to login");
       router.push("/auth/login");
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, router, session, refreshSession, isInitializing]);
 
   // Show loading state
-  if (isLoading) {
-    console.log('Rendering loading state');
+  if (isLoading || isInitializing) {
+    console.log("Rendering loading state");
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-500 mb-4" />
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
       </div>
     );
   }
 
   // Don't render anything if not a patient or no user
   if (!user || user.role !== Role.PATIENT) {
-    console.log('Not rendering - Invalid user or role');
+    console.log("Not rendering - Invalid user or role");
     return null;
   }
 
   // Get the display name in order of preference
   const displayName = (() => {
-    console.log('Building display name from:', {
+    console.log("Building display name from:", {
       firstName: user.firstName,
       lastName: user.lastName,
-      name: user.name
+      name: user.name,
     });
-    
+
     if (user.firstName && user.lastName) {
       return `${user.firstName} ${user.lastName}`;
     }
@@ -64,7 +85,7 @@ export default function PatientDashboardPage() {
     return "Patient";
   })();
 
-  console.log('Final display name:', displayName);
+  console.log("Final display name:", displayName);
 
   return (
     <div className="space-y-6">

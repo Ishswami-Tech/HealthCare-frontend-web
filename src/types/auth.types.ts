@@ -1,19 +1,22 @@
 import { z } from 'zod';
 
+// Define Role as both enum and type for backward compatibility
 export enum Role {
-  SUPER_ADMIN = "SUPER_ADMIN",
-  CLINIC_ADMIN = "CLINIC_ADMIN",
-  DOCTOR = "DOCTOR",
-  RECEPTIONIST = "RECEPTIONIST",
-  PATIENT = "PATIENT",
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  CLINIC_ADMIN = 'CLINIC_ADMIN',
+  DOCTOR = 'DOCTOR',
+  RECEPTIONIST = 'RECEPTIONIST',
+  PATIENT = 'PATIENT'
 }
+
+// Keep the type definition for better type safety
+export type RoleType = keyof typeof Role;
 
 // Auth Types
 export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
-  accessToken: string | null;
-  refreshToken: string | null;
+  session: SessionData | null;
   loading: boolean;
   error: string | null;
 }
@@ -53,20 +56,20 @@ export interface ChangePasswordData {
 }
 
 export interface AuthResponse {
-  access_token: string;
-  session_id: string;
   user: User;
-  session: Session;
+  access_token: string;
+  refresh_token: string;
+  session_id: string;
+  message?: string;
   redirectUrl?: string;
   isNewUser?: boolean;
-  message?: string;
-  permissions?: string[];
 }
 
 export interface Session {
   user: User;
-  permissions?: string[];
-  redirectPath?: string;
+  access_token: string;
+  session_id: string;
+  isAuthenticated: boolean;
 }
 
 export interface DeviceInfo {
@@ -89,22 +92,18 @@ export interface SessionInfo {
 
 export interface LoginFormData {
   email: string;
-  password?: string;
-  otp?: string;
+  password: string;
   rememberMe?: boolean;
 }
 
 export interface RegisterFormData {
   email: string;
   password: string;
-  confirmPassword: string;
   firstName: string;
   lastName: string;
-  phone: string;
-  gender?: string;
   role?: Role;
-  age?: number;
-  terms: boolean;
+  clinicId?: string;
+  appName?: string;
 }
 
 export interface OTPFormData {
@@ -117,13 +116,15 @@ export interface OTPFormData {
 export interface User {
   id: string;
   email: string;
-  name?: string;
+  role: Role | string;
   firstName?: string;
   lastName?: string;
-  role: Role;
-  isVerified: boolean;
-  createdAt: string;
-  updatedAt: string;
+  name?: string;
+  isVerified?: boolean;
+  profileComplete?: boolean;
+  googleId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface UserProfile extends User {
@@ -142,6 +143,17 @@ export const loginSchema = z.object({
   rememberMe: z.boolean().optional().default(false),
 });
 
+// Helper function to safely use Role enum with Zod
+const createRoleEnum = () => {
+  return z.enum([
+    Role.SUPER_ADMIN,
+    Role.CLINIC_ADMIN,
+    Role.DOCTOR,
+    Role.RECEPTIONIST,
+    Role.PATIENT
+  ] as [string, ...string[]]);
+};
+
 export const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z
@@ -153,7 +165,7 @@ export const registerSchema = z.object({
     .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
   confirmPassword: z.string(),
   name: z.string().min(2, 'Name must be at least 2 characters').optional(),
-  role: z.nativeEnum(Role).optional(),
+  role: createRoleEnum().optional(),
   terms: z.boolean().refine((val) => val === true, {
     message: 'You must accept the terms and conditions',
   }),
@@ -210,4 +222,53 @@ export interface OTPStatus {
 
 export interface ForgotPasswordFormData {
   email: string;
+}
+
+export interface RegisterData extends RegisterFormData {
+  clinicId: string;
+  appName: string;
+}
+
+export interface GoogleLoginResponse {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    role: Role;
+    isNewUser?: boolean;
+    googleId?: string;
+    profileComplete?: boolean;
+  };
+  token?: string;
+  redirectUrl?: string;
+}
+
+export interface TokenData {
+  token: string;
+  expiresAt: number;
+}
+
+export interface SessionData {
+  accessToken: TokenData;
+  refreshToken: TokenData;
+  sessionId: string;
+  lastActivity: string;
+  deviceInfo: DeviceInfo;
+}
+
+export interface RefreshTokenResponse {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+}
+
+export interface SessionError {
+  message: string;
+  code: 'SESSION_EXPIRED' | 'INVALID_TOKEN' | 'INVALID_SESSION' | 'UNAUTHORIZED' | 'UNKNOWN';
+  status: number;
+}
+
+export interface MessageResponse {
+  message: string;
+  success?: boolean;
 } 

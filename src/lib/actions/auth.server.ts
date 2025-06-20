@@ -1,9 +1,10 @@
 'use server';
 
-import { Role, Session, RegisterFormData } from '@/types/auth.types';
+import { Role, RegisterFormData } from '@/types/auth.types';
 import { redirect } from 'next/navigation';
 import { getDashboardByRole } from '@/config/routes';
-import { setSession, getSession, clearSession } from '@/lib/session';
+import { cookies } from 'next/headers';
+import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 if (!API_URL) {
@@ -11,11 +12,33 @@ if (!API_URL) {
   throw new Error('API URL is not configured');
 }
 
+// Update cookie options with better security
+const COOKIE_OPTIONS: Partial<ResponseCookie> = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  path: '/',
+  maxAge: 60 * 60 * 24 * 7, // 7 days
+};
+
+// Add session token options
+const SESSION_TOKEN_OPTIONS: Partial<ResponseCookie> = {
+  ...COOKIE_OPTIONS,
+  maxAge: 60 * 15, // 15 minutes for access token
+};
+
+const REFRESH_TOKEN_OPTIONS: Partial<ResponseCookie> = {
+  ...COOKIE_OPTIONS,
+  maxAge: 60 * 60 * 24 * 30, // 30 days for refresh token
+};
+
 interface GoogleLoginResponse {
   user: {
     id: string;
     email: string;
     name?: string;
+    firstName?: string;
+    lastName?: string;
     role: Role;
     isNewUser?: boolean;
     googleId?: string;
@@ -25,63 +48,246 @@ interface GoogleLoginResponse {
   redirectUrl?: string;
 }
 
+// Update Session type at the top of the file
+export interface Session {
+  user: {
+    id: string;
+    email: string;
+    role: Role;
+    firstName?: string;
+    lastName?: string;
+    name?: string;
+    isVerified?: boolean;
+    profileComplete?: boolean;
+  };
+  access_token: string;
+  session_id: string;
+  isAuthenticated: boolean;
+}
+
 /**
  * Get the current server session
  */
 export async function getServerSession(): Promise<Session | null> {
   try {
-    console.log('1. Starting getServerSession');
-    const session = await getSession();
-    console.log('2. Current session from cookie:', session);
-    
-    if (!session) {
-      console.log('3. No session found');
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get('access_token')?.value;
+    const refreshTokenValue = cookieStore.get('refresh_token')?.value;
+    const sessionId = cookieStore.get('session_id')?.value;
+    const userRole = cookieStore.get('user_role')?.value;
+
+    console.log('getServerSession - Checking cookies:', {
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshTokenValue,
+      hasSessionId: !!sessionId,
+      userRole
+    });
+
+    // If no access token, try to refresh if we have a refresh token
+    if (!accessToken && refreshTokenValue) {
+      console.log('getServerSession - No access token, attempting refresh');
+      try {
+        const refreshedSession = await refreshToken();
+        if (refreshedSession) {
+          console.log('getServerSession - Session refreshed successfully');
+          return refreshedSession;
+        }
+      } catch (error) {
+        console.error('getServerSession - Refresh failed:', error);
+        await clearSession();
+        return null;
+      }
+    }
+
+    // If no tokens at all, return null
+    if (!accessToken) {
+      console.log('getServerSession - No tokens found');
       return null;
     }
 
-    console.log('4. Making verify request to API');
-    const response = await fetch(`${API_URL}/auth/verify`, {
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-        'X-Session-ID': session.session_id,
-      },
-      cache: 'no-store',
-    });
+    // Use the token data directly instead of fetching user data again
+    // This avoids the 404 error when the /users/me endpoint might not be available
+    try {
+      // Create a session from the existing cookie data
+      const session: Session = {
+        user: {
+          id: '', // We'll fill this from JWT if possible
+          email: '',
+          role: userRole as Role,
+          firstName: '',
+          lastName: '',
+          name: '',
+          isVerified: true,
+          profileComplete: false
+        },
+        access_token: accessToken,
+        session_id: sessionId || '',
+        isAuthenticated: true
+      };
 
-    console.log('5. API Response status:', response.status);
-    
-    if (!response.ok) {
-      console.log('6. Response not OK, clearing session');
+      // Try to extract user info from JWT token
+      try {
+        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        console.log('getServerSession - JWT payload:', payload);
+        
+        session.user.id = payload.sub || '';
+        session.user.email = payload.email || '';
+        session.user.role = payload.role || userRole as Role;
+        
+        // If we have basic user info, return the session
+        if (session.user.id && session.user.email && session.user.role) {
+          console.log('getServerSession - Created session from JWT:', session);
+          return session;
+        }
+      } catch (jwtError) {
+        console.error('getServerSession - Error parsing JWT:', jwtError);
+      }
+
+      // Fall back to API call if JWT parsing fails
+      console.log('getServerSession - Attempting to fetch user data from API');
+      const response = await fetch(`${API_URL}/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Session-ID': sessionId || '',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('getServerSession - User fetch failed:', response.status);
+        if (response.status === 401 && refreshTokenValue) {
+          console.log('getServerSession - Attempting token refresh after 401');
+          const refreshedSession = await refreshToken();
+          return refreshedSession;
+        }
+        await clearSession();
+        return null;
+      }
+
+      const userData = await response.json();
+      console.log('getServerSession - User data fetched:', JSON.stringify(userData, null, 2));
+
+      // Return only the properties defined in the Session interface
+      return {
+        user: {
+          id: userData.id,
+          email: userData.email,
+          role: userData.role || userRole as Role,
+          firstName: userData.firstName || userData.first_name || '',
+          lastName: userData.lastName || userData.last_name || '',
+          name: userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+          isVerified: userData.isVerified || true,
+          profileComplete: userData.profileComplete || false
+        },
+        access_token: accessToken,
+        session_id: sessionId || '',
+        isAuthenticated: true
+      };
+    } catch (error) {
+      console.error('getServerSession - Error fetching user data:', error);
       await clearSession();
       return null;
     }
-
-    const data = await response.json();
-    console.log('7. API Response data:', JSON.stringify(data, null, 2));
-    
-    // Ensure the response matches our Session type
-    const updatedSession: Session = {
-      user: {
-        id: data.user.id,
-        email: data.user.email,
-        role: data.user.role as Role,
-        firstName: data.user.firstName || data.user.first_name || '',
-        lastName: data.user.lastName || data.user.last_name || '',
-        name: data.user.name || `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() || undefined,
-        isVerified: data.user.isVerified || data.user.is_verified || false,
-        createdAt: data.user.createdAt || data.user.created_at || new Date().toISOString(),
-        updatedAt: data.user.updatedAt || data.user.updated_at || new Date().toISOString()
-      },
-      permissions: data.permissions || [],
-      redirectPath: data.redirectPath
-    };
-
-    console.log('8. Mapped session:', JSON.stringify(updatedSession, null, 2));
-    return updatedSession;
   } catch (error) {
-    console.error('9. Session verification error:', error);
+    console.error('getServerSession - Unexpected error:', error);
     return null;
   }
+}
+
+/**
+ * Set session data in cookies with proper expiration
+ */
+export async function setSession(data: {
+  access_token: string;
+  refresh_token: string;
+  session_id: string;
+  user: {
+    id: string;
+    email: string;
+    role: Role;
+    firstName?: string;
+    lastName?: string;
+    isVerified?: boolean;
+  };
+}) {
+  const cookieStore = await cookies();
+  const session: Session = {
+    access_token: data.access_token,
+    session_id: data.session_id,
+    user: {
+      id: data.user.id,
+      email: data.user.email,
+      role: data.user.role,
+      firstName: data.user.firstName || '',
+      lastName: data.user.lastName || '',
+      name: `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() || undefined,
+      isVerified: data.user.isVerified || false,
+      profileComplete: false
+    },
+    isAuthenticated: true
+  };
+
+  // Set cookies using Next.js 15 cookie API
+  cookieStore.set({
+    name: 'access_token',
+    value: data.access_token,
+    ...SESSION_TOKEN_OPTIONS,
+  });
+  
+  cookieStore.set({
+    name: 'refresh_token',
+    value: data.refresh_token,
+    ...REFRESH_TOKEN_OPTIONS,
+  });
+  
+  cookieStore.set({
+    name: 'session_id',
+    value: data.session_id,
+    ...COOKIE_OPTIONS,
+  });
+  
+  cookieStore.set({
+    name: 'user_role',
+    value: data.user.role,
+    ...COOKIE_OPTIONS,
+  });
+
+  return session;
+}
+
+/**
+ * Clear session data from cookies
+ */
+export async function clearSession() {
+  const cookieStore = await cookies();
+  const expiredOptions: Partial<ResponseCookie> = {
+    ...COOKIE_OPTIONS,
+    maxAge: 0,
+  };
+  
+  // Clear cookies using Next.js 15 cookie API
+  cookieStore.set({
+    name: 'access_token',
+    value: '',
+    ...expiredOptions,
+  });
+  
+  cookieStore.set({
+    name: 'refresh_token',
+    value: '',
+    ...expiredOptions,
+  });
+  
+  cookieStore.set({
+    name: 'session_id',
+    value: '',
+    ...expiredOptions,
+  });
+  
+  cookieStore.set({
+    name: 'user_role',
+    value: '',
+    ...expiredOptions,
+  });
 }
 
 /**
@@ -395,7 +601,7 @@ export async function resetPassword(data: { token: string; newPassword: string }
  * Change Password
  */
 export async function changePassword(formData: FormData) {
-  const session = await getSession();
+  const session = await getServerSession();
   if (!session) {
     throw new Error('Not authenticated');
   }
@@ -420,35 +626,43 @@ export async function changePassword(formData: FormData) {
 /**
  * Refresh Token
  */
-export async function refreshToken() {
-  const session = await getSession();
-  if (!session) {
-    throw new Error('No token to refresh');
+export async function refreshToken(): Promise<Session | null> {
+  try {
+    const cookieStore = await cookies();
+    const currentToken = cookieStore.get('access_token')?.value;
+    const sessionId = cookieStore.get('session_id')?.value;
+
+    if (!currentToken || !sessionId) {
+      throw new Error('No token to refresh');
+    }
+
+    const response = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${currentToken}`,
+        'X-Session-ID': sessionId,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to refresh token');
+    }
+
+    const responseData = await response.json();
+    await setSession(responseData);
+    return responseData;
+  } catch (error) {
+    console.error('Token refresh failed:', error);
+    await clearSession();
+    return null;
   }
-
-  const response = await fetch(`${API_URL}/auth/refresh`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-      'X-Session-ID': session.session_id,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to refresh token');
-  }
-
-  const responseData = await response.json();
-  await setSession(responseData);
-  return responseData;
 }
 
 /**
  * Logout
  */
 export async function logout() {
-  const session = await getSession();
+  const session = await getServerSession();
   if (session) {
     try {
       console.log('Attempting to logout on server with session:', session.session_id);
@@ -513,7 +727,7 @@ export async function logout() {
 
 // Helper function to logout from all devices
 async function logoutAllDevices() {
-  const session = await getSession();
+  const session = await getServerSession();
   if (!session) return;
 
   const response = await fetch(`${API_URL}/auth/logout`, {
@@ -542,7 +756,7 @@ async function logoutAllDevices() {
  * Terminate All Sessions
  */
 export async function terminateAllSessions() {
-  const session = await getSession();
+  const session = await getServerSession();
   if (!session) {
     throw new Error('Not authenticated');
   }
@@ -568,40 +782,71 @@ export async function terminateAllSessions() {
 // Helper function to set auth cookies
 async function setAuthCookies(data: {
   access_token?: string;
+  refresh_token?: string;
   session_id?: string;
   user?: {
     role?: Role;
   };
 }) {
-  const cookies = await import('next/headers').then(mod => mod.cookies());
+  const cookieStore = await cookies();
+  const secure = process.env.NODE_ENV === 'production';
+  
+  // Access token cookie options (15 minutes)
+  const accessTokenOptions: Partial<ResponseCookie> = {
+    httpOnly: true,
+    secure,
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 60 * 15, // 15 minutes
+  };
+  
+  // Refresh token cookie options (30 days)
+  const refreshTokenOptions: Partial<ResponseCookie> = {
+    httpOnly: true,
+    secure,
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+  };
+  
+  // Session and user cookie options (7 days)
+  const sessionOptions: Partial<ResponseCookie> = {
+    httpOnly: true,
+    secure,
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+  };
   
   if (data.access_token) {
-    cookies.set('access_token', data.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+    cookieStore.set({
+      name: 'access_token',
+      value: data.access_token,
+      ...accessTokenOptions,
+    });
+  }
+
+  if (data.refresh_token) {
+    cookieStore.set({
+      name: 'refresh_token',
+      value: data.refresh_token,
+      ...refreshTokenOptions,
     });
   }
 
   if (data.session_id) {
-    cookies.set('session_id', data.session_id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+    cookieStore.set({
+      name: 'session_id',
+      value: data.session_id,
+      ...sessionOptions,
     });
   }
 
-  if (data.user) {
-    cookies.set('user_role', data.user.role || '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+  if (data.user?.role) {
+    cookieStore.set({
+      name: 'user_role',
+      value: data.user.role,
+      ...sessionOptions,
     });
   }
 }
@@ -687,47 +932,113 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
 
     console.log('Google login successful, setting auth cookies');
     
-    // Set auth cookies with the access and refresh tokens
-    await setAuthCookies({
-      access_token: result.access_token,
-      session_id: result.session_id,
-      user: {
-        role: result.user.role
-      }
-    });
-
-    // Ensure we have the complete user data
-    const userResponse = await fetch(`${API_URL}/users/me`, {
-      headers: {
-        'Authorization': `Bearer ${result.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    let userData = result.user;
-    if (userResponse.ok) {
-      const additionalData = await userResponse.json();
-      userData = {
-        ...userData,
-        ...additionalData,
-        firstName: additionalData.firstName || additionalData.first_name || '',
-        lastName: additionalData.lastName || additionalData.last_name || '',
-      };
+    // Ensure we have all required data
+    if (!result.access_token || !result.refresh_token || !result.user) {
+      console.error('Missing required data in Google login response:', result);
+      throw new Error('Invalid response from server');
     }
     
+    // Set cookies with explicit options to ensure they're properly set
+    const cookieStore = await cookies();
+    
+    // Set access token with shorter expiry (15 minutes)
+    cookieStore.set({
+      name: 'access_token',
+      value: result.access_token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Use lax to ensure it works with redirects
+      path: '/',
+      maxAge: 60 * 15, // 15 minutes
+    });
+    
+    // Set refresh token with longer expiry (30 days)
+    cookieStore.set({
+      name: 'refresh_token',
+      value: result.refresh_token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Use lax to ensure it works with redirects
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
+    
+    // Set session ID
+    cookieStore.set({
+      name: 'session_id',
+      value: result.session_id || '',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Use lax to ensure it works with redirects
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    
+    // Set user role for quick access in middleware
+    cookieStore.set({
+      name: 'user_role',
+      value: result.user.role,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Use lax to ensure it works with redirects
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    console.log('Auth cookies set successfully');
+
+    // Ensure firstName and lastName are properly extracted
+    const firstName = result.user.firstName || '';
+    const lastName = result.user.lastName || '';
+    const name = result.user.name || `${firstName} ${lastName}`.trim();
+
+    // Try to get additional user profile data if firstName/lastName are missing
+    if (!firstName || !lastName) {
+      try {
+        console.log('Fetching additional user profile data');
+        const profileResponse = await fetch(`${API_URL}/user/profile`, {
+          headers: {
+            'Authorization': `Bearer ${result.access_token}`,
+            'X-Session-ID': result.session_id || '',
+          },
+        });
+        
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          console.log('Additional profile data:', JSON.stringify(profileData, null, 2));
+          
+          // Update user data with profile information
+          if (profileData) {
+            result.user = {
+              ...result.user,
+              firstName: profileData.firstName || firstName,
+              lastName: profileData.lastName || lastName,
+              name: profileData.name || name,
+            };
+          }
+        } else {
+          console.warn('Failed to fetch additional profile data:', profileResponse.status);
+        }
+      } catch (profileError) {
+        console.error('Error fetching user profile:', profileError);
+      }
+    }
+
     // Return the response with proper typing
     return {
       user: {
-        id: userData.id,
-        email: userData.email,
-        role: userData.role,
-        name: userData.name || `${userData.firstName} ${userData.lastName}`.trim(),
+        id: result.user.id,
+        email: result.user.email,
+        role: result.user.role,
+        name: result.user.name || `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim(),
+        firstName: result.user.firstName || '',
+        lastName: result.user.lastName || '',
         isNewUser: result.isNewUser,
-        googleId: userData.googleId,
-        profileComplete: userData.profileComplete
+        googleId: result.user.googleId,
+        profileComplete: result.user.profileComplete
       },
       token: result.access_token,
-      redirectUrl: result.redirectUrl || getDashboardByRole(userData.role)
+      redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
     };
   } catch (error) {
     console.error('Google login error:', error);

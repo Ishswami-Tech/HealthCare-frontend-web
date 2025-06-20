@@ -23,24 +23,26 @@ import {
   verifyEmail as verifyEmailAction,
   googleLogin as googleLoginAction,
   facebookLogin as facebookLoginAction,
-  appleLogin as appleLoginAction,
+  refreshToken,
+  clearSession,
 } from '@/lib/actions/auth.server';
 import type {
   OTPFormData,
   RegisterData,
   SocialLoginData,
   AuthResponse,
+  MessageResponse,
 } from '@/types/auth.types';
 import { Role } from '@/types/auth.types';
 import { getDashboardByRole } from '@/config/routes';
 
 // Helper function to determine the redirect path
-function getRedirectPath(user: { role?: Role } | null | undefined, redirectUrl?: string) {
+function getRedirectPath(user: { role?: Role | string } | null | undefined, redirectUrl?: string) {
   if (redirectUrl && !redirectUrl.includes('/auth/')) {
     return redirectUrl;
   }
   if (user?.role) {
-    return getDashboardByRole(user.role);
+    return getDashboardByRole(user.role as Role);
   }
   return '/auth/login'; // Default to login if no role
 }
@@ -50,6 +52,8 @@ interface GoogleLoginResponse {
     id: string;
     email: string;
     name?: string;
+    firstName?: string;
+    lastName?: string;
     role: Role;
     isNewUser?: boolean;
     googleId?: string;
@@ -63,49 +67,162 @@ export function useAuth() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // Get current session
+  // Get current session with auto-refresh
   const { data: session, isLoading } = useQuery({
     queryKey: ['session'],
     queryFn: async () => {
-      console.log('useAuth - Fetching session');
-      const result = await getServerSession();
-      console.log('useAuth - Session result:', JSON.stringify(result, null, 2));
-      return result;
+      try {
+        console.log('useAuth - Fetching session');
+        const result = await getServerSession();
+        console.log('useAuth - Session result:', JSON.stringify(result, null, 2));
+
+        // If no session, return null
+        if (!result) {
+          console.log('useAuth - No session found');
+          return null;
+        }
+
+        // If session exists but is about to expire, refresh it
+        if (result.user && isTokenExpiringSoon(result.access_token)) {
+          console.log('useAuth - Token expiring soon, refreshing...');
+          try {
+            const refreshedSession = await refreshToken();
+            if (refreshedSession) {
+              console.log('useAuth - Session refreshed successfully');
+              return refreshedSession;
+            }
+            // If refresh failed, clear session and return null
+            console.log('useAuth - Session refresh failed, clearing session');
+            await clearSession();
+            return null;
+          } catch (error) {
+            console.error('useAuth - Session refresh error:', error);
+            await clearSession();
+            return null;
+          }
+        }
+
+        return result;
+      } catch (error) {
+        console.error('Session fetch error:', error);
+        // Clear session on error
+        await clearSession();
+        return null;
+      }
+    },
+    // Refresh session every 4 minutes
+    refetchInterval: 4 * 60 * 1000,
+    // Don't retry on 401/403 errors
+    retry: (failureCount, error) => {
+      if (error instanceof Error) {
+        const status = (error as { status?: number }).status;
+        if (status === 401 || status === 403) {
+          return false;
+        }
+      }
+      return failureCount < 3;
     },
   });
 
-  // Login mutation
+  // Helper function to check if token is expiring soon
+  const isTokenExpiringSoon = (token: string) => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const expiryTime = payload.exp * 1000; // Convert to milliseconds
+      const currentTime = Date.now();
+      const timeUntilExpiry = expiryTime - currentTime;
+      
+      // Return true if token expires in less than 5 minutes
+      const isExpiring = timeUntilExpiry < 5 * 60 * 1000;
+      console.log('useAuth - Token expiry check:', {
+        expiryTime: new Date(expiryTime).toISOString(),
+        currentTime: new Date(currentTime).toISOString(),
+        timeUntilExpiry: Math.floor(timeUntilExpiry / 1000),
+        isExpiring
+      });
+      return isExpiring;
+    } catch (error) {
+      console.error('Token parsing error:', error);
+      return true; // Assume token needs refresh if we can't parse it
+    }
+  };
+
+  // Function to manually refresh the session
+  const refreshSession = async () => {
+    console.log('useAuth - Manually refreshing session');
+    try {
+      // First try to get the session from the server
+      const serverSession = await getServerSession();
+      
+      if (serverSession) {
+        console.log('useAuth - Server session found:', JSON.stringify(serverSession, null, 2));
+        queryClient.setQueryData(['session'], serverSession);
+        return serverSession;
+      }
+      
+      // If no server session, try to refresh the token
+      console.log('useAuth - No server session, attempting token refresh');
+      const refreshedSession = await refreshToken();
+      
+      if (refreshedSession) {
+        console.log('useAuth - Token refreshed successfully');
+        queryClient.setQueryData(['session'], refreshedSession);
+        return refreshedSession;
+      }
+      
+      // If refresh fails, clear session
+      console.log('useAuth - Refresh failed, clearing session');
+      queryClient.setQueryData(['session'], null);
+      return null;
+    } catch (error) {
+      console.error('useAuth - Session refresh error:', error);
+      queryClient.setQueryData(['session'], null);
+      return null;
+    }
+  };
+
+  // Enhanced login mutation with proper error handling
   const loginMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; rememberMe?: boolean }) => {
       console.log('useAuth - Starting login mutation');
-      const result = await loginAction(data);
-      console.log('useAuth - Login result:', JSON.stringify(result, null, 2));
+      try {
+        const result = await loginAction(data);
+        console.log('useAuth - Login result:', JSON.stringify(result, null, 2));
 
-      // Validate user data
-      if (!result.user) {
-        throw new Error('Invalid user data received');
+        if (!result.user) {
+          throw new Error('Invalid user data received');
+        }
+
+        // Ensure required fields are present with defaults
+        const user = {
+          ...result.user,
+          firstName: result.user.firstName || '',
+          lastName: result.user.lastName || '',
+          phone: result.user.phone || '',
+          dateOfBirth: result.user.dateOfBirth || null,
+          gender: result.user.gender || '',
+          address: result.user.address || '',
+        };
+
+        return {
+          ...result,
+          user,
+        };
+      } catch (error) {
+        console.error('Login error:', error);
+        if (error instanceof Error) {
+          if (error.message.includes('credentials')) {
+            throw new Error('Invalid email or password');
+          }
+          throw error;
+        }
+        throw new Error('An unexpected error occurred during login');
       }
-
-      // Ensure required fields are present with defaults
-      const user = {
-        ...result.user,
-        firstName: result.user.firstName || '',
-        lastName: result.user.lastName || '',
-        phone: result.user.phone || '',
-        dateOfBirth: result.user.dateOfBirth || null,
-        gender: result.user.gender || '',
-        address: result.user.address || '',
-      };
-
-      return {
-        ...result,
-        user,
-      };
     },
     onSuccess: (data) => {
       console.log('useAuth - Login success, setting session data:', JSON.stringify(data, null, 2));
       queryClient.setQueryData(['session'], data);
-      const dashboardPath = getDashboardByRole(data.user.role);
+      const dashboardPath = getDashboardByRole(data.user.role as Role);
       console.log('useAuth - Redirecting to:', dashboardPath);
       router.push(dashboardPath);
       toast.success(`Welcome back${data.user.firstName ? ', ' + data.user.firstName : ''}!`);
@@ -115,20 +232,71 @@ export function useAuth() {
       toast.error(error.message || 'Login failed');
     },
   });
- 
+
   // Google login mutation
   const {
     mutateAsync: googleLogin,
     isPending: isGoogleLoggingIn
   } = useMutation<GoogleLoginResponse, Error, string>({
-    mutationFn: (token: string) => googleLoginAction(token),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['session'] });
+    mutationFn: async (token: string) => {
+      console.log('useAuth - Starting Google login');
+      const result = await googleLoginAction(token);
+      console.log('useAuth - Google login result:', JSON.stringify(result, null, 2));
+      return result;
+    },
+    onSuccess: async (data) => {
+      console.log('useAuth - Google login success, setting session data');
+      
+      // Set the session data in the query client
+      const sessionData = {
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          role: data.user.role,
+          name: data.user.name,
+          firstName: data.user.firstName || data.user.name?.split(' ')[0] || '',
+          lastName: data.user.lastName || data.user.name?.split(' ').slice(1).join(' ') || '',
+          isVerified: true,
+          googleId: data.user.googleId,
+          profileComplete: data.user.profileComplete
+        },
+        access_token: data.token || '',
+        session_id: '', // Will be set by the server
+        isAuthenticated: true
+      };
+
+      // Set the session data immediately to prevent redirect loops
+      queryClient.setQueryData(['session'], sessionData);
+      
+      // Force a session refresh to get the latest data from the server
+      try {
+        // Wait a moment for cookies to be set
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Manually fetch the session to ensure it's properly set
+        const serverSession = await getServerSession();
+        console.log('useAuth - Manual session refresh result:', JSON.stringify(serverSession, null, 2));
+        
+        if (serverSession) {
+          // Update with the server session data
+          queryClient.setQueryData(['session'], serverSession);
+        }
+      } catch (refreshError) {
+        console.error('useAuth - Error refreshing session:', refreshError);
+      }
+      
+      // Get the redirect path
       const redirectPath = getRedirectPath(data.user, data.redirectUrl);
+      console.log('useAuth - Redirecting to:', redirectPath);
+      
+      // Show success message
+      toast.success(`Welcome${data.user.firstName ? ', ' + data.user.firstName : ''}!`);
+      
+      // Redirect to dashboard
       router.push(redirectPath);
-      toast.success(`Welcome${data.user.name ? ', ' + data.user.name : ''}!`);
     },
     onError: (error) => {
+      console.error('useAuth - Google login error:', error);
       toast.error(error instanceof Error ? error.message : 'Google login failed');
     }
   });
@@ -145,7 +313,7 @@ export function useAuth() {
     },
   });
 
-  // Logout mutation
+  // Enhanced logout mutation with proper cleanup
   const logoutMutation = useMutation({
     mutationFn: async () => {
       try {
@@ -167,6 +335,8 @@ export function useAuth() {
       queryClient.clear();
       // Clear any stored auth state
       queryClient.setQueryData(['session'], null);
+      // Clear local storage and cookies
+      clearSession();
       router.push('/auth/login');
       toast.success('Logged out successfully');
     },
@@ -175,6 +345,7 @@ export function useAuth() {
       // Clear client state even if server logout fails
       queryClient.clear();
       queryClient.setQueryData(['session'], null);
+      clearSession();
       router.push('/auth/login');
       toast.error('Logged out locally, but server logout failed');
     },
@@ -186,7 +357,7 @@ export function useAuth() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['session'] });
       if (data.user?.role) {
-        router.push(getDashboardByRole(data.user.role));
+        router.push(getDashboardByRole(data.user.role as Role));
       } else if (data.redirectUrl) {
         router.push(data.redirectUrl);
       } else {
@@ -228,7 +399,7 @@ export function useAuth() {
   });
 
   // Password reset mutations
-  const { mutate: forgotPassword, isPending: isRequestingReset } = useMutation<AuthResponse, Error, string>({
+  const { mutate: forgotPassword, isPending: isRequestingReset } = useMutation<MessageResponse, Error, string>({
     mutationFn: (email) => forgotPasswordAction(email),
     onSuccess: (data) => {
       toast.success(data.message || 'Password reset instructions sent to your email');
@@ -238,7 +409,7 @@ export function useAuth() {
     },
   });
 
-  const { mutate: resetPassword, isPending: isResettingPassword } = useMutation<AuthResponse, Error, { token: string; newPassword: string }>({
+  const { mutate: resetPassword, isPending: isResettingPassword } = useMutation<MessageResponse, Error, { token: string; newPassword: string }>({
     mutationFn: (data) => resetPasswordAction(data),
     onSuccess: (data) => {
       router.push('/auth/login?reset=true');
@@ -264,7 +435,7 @@ export function useAuth() {
   });
 
   // Magic link mutations
-  const { mutate: requestMagicLink, isPending: isRequestingMagicLink } = useMutation<AuthResponse, Error, string>({
+  const { mutate: requestMagicLink, isPending: isRequestingMagicLink } = useMutation<MessageResponse, Error, string>({
     mutationFn: (email) => requestMagicLinkAction(email),
     onSuccess: (data) => {
       toast.success(data.message || 'Magic link sent to your email');
@@ -363,13 +534,8 @@ export function useAuth() {
     mutateAsync: appleLogin,
     isPending: isAppleLoggingIn
   } = useMutation({
-    mutationFn: (token: string) => Promise.resolve() // TODO: Implement Apple login
+    mutationFn: () => Promise.resolve() // TODO: Implement Apple login
   });
-
-  const handleAuthRedirect = (user: { role?: Role } | null | undefined, redirectUrl?: string) => {
-    const path = getRedirectPath(user, redirectUrl);
-    router.push(path);
-  };
 
   return {
     session,
@@ -394,6 +560,7 @@ export function useAuth() {
     googleLogin,
     facebookLogin,
     appleLogin,
+    socialLogin,
     isCheckingOTPStatus,
     isInvalidatingOTP,
     isVerifyingEmail,
@@ -409,6 +576,11 @@ export function useAuth() {
     isRequestingMagicLink,
     isVerifyingMagicLink,
     isTerminatingAllSessions: terminateAllSessionsMutation.isPending,
-    getRedirectPath
+    isRegisteringWithClinic,
+    isVerifyingOTP,
+    isRequestingOTP,
+    isSocialLoggingIn,
+    getRedirectPath,
+    refreshSession,
   };
 } 

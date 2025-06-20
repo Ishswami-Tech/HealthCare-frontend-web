@@ -1,97 +1,128 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getSession } from '@/lib/session';
-import { getDashboardByRole } from '@/config/routes';
 import { Role } from '@/types/auth.types';
 
-// Define protected and public routes
-const protectedRoutes = [
-  '/super-admin',
-  '/admin',
-  '/doctor',
-  '/patient',
-  '/receptionist',
-  '/settings',
-  '/profile',
-];
+// Define protected routes and their allowed roles
+const PROTECTED_ROUTES = {
+  '/dashboard': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
+  '/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
+  '/doctor/dashboard': [Role.DOCTOR],
+  '/patient/dashboard': [Role.PATIENT],
+  '/receptionist/dashboard': [Role.RECEPTIONIST],
+  '/super-admin/dashboard': [Role.SUPER_ADMIN],
+  '/settings': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
+};
 
-const publicRoutes = [
+// Define public routes that don't require authentication
+const PUBLIC_ROUTES = [
   '/auth/login',
   '/auth/register',
   '/auth/forgot-password',
   '/auth/reset-password',
-  '/auth/verify-email',
   '/auth/verify-otp',
-  '/auth/request-otp',
-  '/auth/magic-link',
-  '/auth/social',
+  '/auth/verify-email',
+  '/auth/callback',  // Add callback routes for OAuth
+  '/',               // Root path should be public
 ];
 
-// Map routes to required roles
-const routeRoleMap: Record<string, Role[]> = {
-  '/super-admin': [Role.SUPER_ADMIN],
-  '/admin': [Role.CLINIC_ADMIN],
-  '/doctor': [Role.DOCTOR],
-  '/patient': [Role.PATIENT],
-  '/receptionist': [Role.RECEPTIONIST],
-};
+// Helper function to convert string role to enum
+function parseRole(roleStr: string | undefined): Role | undefined {
+  if (!roleStr) return undefined;
+  
+  // Check if the role string matches any enum value
+  const validRole = Object.values(Role).includes(roleStr as Role);
+  return validRole ? roleStr as Role : undefined;
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  console.log('Middleware - Processing request for:', pathname);
+
+  // Skip middleware for static files and API routes
+  if (
+    pathname.startsWith('/_next') || 
+    pathname.startsWith('/api') ||
+    pathname.includes('.') ||
+    pathname === '/favicon.ico'
+  ) {
+    return NextResponse.next();
+  }
 
   // Allow public routes
-  if (publicRoutes.some(route => pathname.startsWith(route))) {
+  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+    console.log('Middleware - Public route, allowing access');
     return NextResponse.next();
   }
 
-  // Check if the route is protected
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
-  if (!isProtectedRoute) {
+  // Check for access token
+  const accessToken = request.cookies.get('access_token')?.value;
+  const refreshToken = request.cookies.get('refresh_token')?.value;
+  const userRoleStr = request.cookies.get('user_role')?.value;
+  const userRole = parseRole(userRoleStr);
+
+  console.log('Middleware - Auth check:', {
+    hasAccessToken: !!accessToken,
+    hasRefreshToken: !!refreshToken,
+    userRole,
+    pathname
+  });
+
+  // If no access token but has refresh token, let the app handle the refresh
+  if (!accessToken && refreshToken) {
+    console.log('Middleware - No access token but has refresh token, allowing request');
     return NextResponse.next();
   }
 
-  // Get session from cookies
-  const session = await getSession();
-
-  // If no session, redirect to login
-  if (!session) {
-    const url = new URL('/auth/login', request.url);
-    url.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(url);
+  // If no tokens at all, redirect to login
+  if (!accessToken && !refreshToken) {
+    console.log('Middleware - No auth tokens, redirecting to login');
+    const loginUrl = new URL('/auth/login', request.url);
+    loginUrl.searchParams.set('from', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  // Check role-based access
-  const userRole = session.user.role;
-  const dashboardPath = getDashboardByRole(userRole);
+  // If we have access token but no role, allow the request and let the app handle it
+  if (accessToken && !userRole) {
+    console.log('Middleware - Has access token but no role, allowing request');
+    return NextResponse.next();
+  }
 
-  // Find the matching route and its required roles
-  const matchingRoute = Object.keys(routeRoleMap).find(route => pathname.startsWith(route));
-  if (matchingRoute) {
-    const allowedRoles = routeRoleMap[matchingRoute];
+  // Check role-based access for protected routes
+  const matchedRoute = Object.entries(PROTECTED_ROUTES).find(([routePath]) => 
+    pathname.startsWith(routePath)
+  );
+
+  if (matchedRoute && userRole) {
+    const [, allowedRoles] = matchedRoute;
+    console.log('Middleware - Checking role access:', {
+      userRole,
+      allowedRoles,
+      hasAccess: allowedRoles.includes(userRole)
+    });
+
     if (!allowedRoles.includes(userRole)) {
-      // If user doesn't have the required role, redirect to their dashboard
-      return NextResponse.redirect(new URL(dashboardPath, request.url));
+      // Redirect to appropriate dashboard based on role
+      console.log('Middleware - Invalid role, redirecting to appropriate dashboard');
+      const dashboardUrl = new URL(`/${userRole.toLowerCase()}/dashboard`, request.url);
+      return NextResponse.redirect(dashboardUrl);
     }
   }
 
-  // If user is on a protected route but not their dashboard, redirect to their dashboard
-  if (pathname !== dashboardPath && pathname.startsWith('/' + userRole.toLowerCase())) {
-    return NextResponse.redirect(new URL(dashboardPath, request.url));
-  }
-
+  // Allow the request
+  console.log('Middleware - Access granted');
   return NextResponse.next();
 }
 
+// Configure matcher for middleware
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
+     * Match all request paths except for:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder
+     * - public files (public directory)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }; 

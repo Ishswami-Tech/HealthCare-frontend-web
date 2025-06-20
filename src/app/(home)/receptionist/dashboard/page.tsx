@@ -2,21 +2,27 @@
 
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { Role } from "@/types/auth.types";
+import { useRouter } from "next/navigation";
 
 export default function ReceptionistDashboard() {
   const { session } = useAuth();
   const { user } = session || {};
+  const router = useRouter();
 
   useEffect(() => {
     // Verify user role
-    if (user?.role !== "RECEPTIONIST") {
+    if (user?.role !== Role.RECEPTIONIST) {
       console.error("Unauthorized access to receptionist dashboard");
+      router.replace("/auth/login");
     }
-  }, [user]);
+  }, [user, router]);
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-6">Welcome, {user?.firstName || "Receptionist"}!</h1>
+      <h1 className="text-2xl font-bold mb-6">
+        Welcome, {user?.firstName || "Receptionist"}!
+      </h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Today&apos;s Overview */}
         <div className="bg-white rounded-lg shadow p-6">

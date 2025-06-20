@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { Role } from "@/types/auth.types";
 
 export default function DoctorDashboard() {
   const { session } = useAuth();
@@ -10,7 +11,7 @@ export default function DoctorDashboard() {
 
   useEffect(() => {
     // Verify user role
-    if (session?.user?.role !== "DOCTOR") {
+    if (session?.user?.role !== Role.DOCTOR) {
       router.replace("/auth/login");
     }
   }, [session, router]);

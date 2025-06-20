@@ -20,6 +20,17 @@ export const otpVerifySchema = z.object({
   rememberMe: z.boolean().optional(),
 });
 
+// Helper function to safely use Role enum with Zod
+const createRoleEnum = () => {
+  return z.enum([
+    Role.SUPER_ADMIN,
+    Role.CLINIC_ADMIN,
+    Role.DOCTOR,
+    Role.RECEPTIONIST,
+    Role.PATIENT,
+  ] as [string, ...string[]]);
+};
+
 export const registerSchema = z
   .object({
     email: z.string().email("Please enter a valid email address"),
@@ -38,7 +49,7 @@ export const registerSchema = z
     lastName: z.string().min(2, "Last name must be at least 2 characters"),
     phone: z.string().min(10, "Phone number must be at least 10 characters"),
     gender: z.enum(["MALE", "FEMALE", "OTHER"]).default("MALE"),
-    role: z.nativeEnum(Role).default(Role.PATIENT),
+    role: createRoleEnum().default(Role.PATIENT),
     age: z.number().default(18),
     terms: z.boolean().refine((val) => val === true, {
       message: "You must accept the terms and conditions",
