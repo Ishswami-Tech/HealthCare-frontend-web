@@ -57,16 +57,21 @@ interface SocialLoginProps {
   onError?: (error: Error) => void;
   className?: string;
   onSuccess?: () => void;
+  isLoading?: boolean;
 }
 
 export function SocialLogin({
   onError,
   className,
   onSuccess,
+  isLoading,
 }: SocialLoginProps) {
   const router = useRouter();
   const { googleLogin, isGoogleLoggingIn } = useAuth();
   const googleButtonRef = useRef<HTMLDivElement>(null);
+
+  // Use either the passed isLoading prop or the internal isGoogleLoggingIn state
+  const isButtonDisabled = isLoading || isGoogleLoggingIn;
 
   const handleGoogleResponse = async (response: { credential: string }) => {
     try {
@@ -194,10 +199,9 @@ export function SocialLogin({
         ref={googleButtonRef}
         className={cn(
           "flex items-center justify-center w-full min-h-[40px]",
-          isGoogleLoggingIn && "opacity-50 cursor-not-allowed"
+          isButtonDisabled && "opacity-50 cursor-not-allowed"
         )}
         role="button"
-        aria-disabled="true"
       />
       <div className="relative">
         <div className="absolute inset-0 flex items-center">

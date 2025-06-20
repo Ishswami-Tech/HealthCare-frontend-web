@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import useZodForm from "@/hooks/useZodForm";
-import { AuthResponse, loginSchema, otpSchema } from "@/types/auth.types";
+import { AuthResponse, loginSchema, otpSchema, Role } from "@/types/auth.types";
 import { getDashboardByRole } from "@/config/routes";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -37,11 +37,10 @@ export default function LoginPage() {
     requestOTP,
     verifyOTP,
     isLoggingIn,
-    verifyEmail,
     isVerifyingEmail,
     isGoogleLoggingIn,
     isAppleLoggingIn,
-    isFacebookLoggingIn
+    isFacebookLoggingIn,
   } = useAuth();
 
   const handleSuccess = (response: AuthResponse | null) => {
@@ -55,7 +54,7 @@ export default function LoginPage() {
         ? redirectUrl
         : response.redirectUrl ||
           (response.user?.role
-            ? getDashboardByRole(response.user.role)
+            ? getDashboardByRole(response.user.role as Role)
             : "/dashboard");
 
     router.push(finalRedirectUrl || "/dashboard");
@@ -120,7 +119,11 @@ export default function LoginPage() {
   };
 
   const isLoading =
-    isLoggingIn || isVerifyingEmail || isGoogleLoggingIn || isAppleLoggingIn || isFacebookLoggingIn;
+    isLoggingIn ||
+    isVerifyingEmail ||
+    isGoogleLoggingIn ||
+    isAppleLoggingIn ||
+    isFacebookLoggingIn;
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -354,8 +357,8 @@ export default function LoginPage() {
           onError={(error) => {
             toast.error(error.message || "Social login failed");
           }}
-          isLoading={isLoading}
           className="mt-6"
+          isLoading={isLoading}
         />
       </CardContent>
       <CardFooter>

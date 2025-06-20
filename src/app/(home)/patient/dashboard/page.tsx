@@ -6,22 +6,83 @@ import { useRouter } from "next/navigation";
 import { Role } from "@/types/auth.types";
 import { Loader2 } from "lucide-react";
 
+// Define a type for user data
+interface UserData {
+  id?: string;
+  email?: string;
+  role?: Role;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  isVerified?: boolean;
+  profileComplete?: boolean;
+  // Additional possible properties
+  phone?: string;
+  address?: string;
+  dateOfBirth?: string | Date;
+  gender?: string;
+  age?: number;
+  googleId?: string;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
 export default function PatientDashboardPage() {
   const router = useRouter();
   const { session, isLoading, refreshSession } = useAuth();
   const { user } = session || {};
   const [isInitializing, setIsInitializing] = useState(true);
+  const [profileData, setProfileData] = useState<UserData | null>(null);
+
+  // Function to fetch user profile directly
+  const fetchUserProfile = async () => {
+    if (!session?.access_token) return;
+
+    try {
+      console.log("Fetching user profile directly from API");
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+      const response = await fetch(`${API_URL}/user/profile`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "X-Session-ID": session.session_id || "",
+        },
+        cache: "no-store",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("User profile fetched:", JSON.stringify(data, null, 2));
+        setProfileData(data);
+      } else {
+        console.error("Failed to fetch user profile:", response.status);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
 
   useEffect(() => {
     console.log("Dashboard Mount - Session:", JSON.stringify(session, null, 2));
     console.log("Dashboard Mount - Loading:", isLoading);
     console.log("Dashboard Mount - User:", JSON.stringify(user, null, 2));
+    console.log(
+      "Dashboard Mount - User object keys:",
+      user ? Object.keys(user) : "No user"
+    );
 
     // Try to refresh the session once on mount
     const initializeSession = async () => {
       try {
         if (!session?.user) {
           await refreshSession();
+        } else if (
+          session.user &&
+          !session.user.firstName &&
+          !session.user.lastName
+        ) {
+          // If we have a user but no name info, fetch profile
+          await fetchUserProfile();
         }
       } catch (error) {
         console.error("Error refreshing session:", error);
@@ -65,22 +126,33 @@ export default function PatientDashboardPage() {
     return null;
   }
 
+  // Combine user data with profile data if available
+  const userData: UserData = {
+    ...(user || {}),
+    ...(profileData || {}),
+  };
+
   // Get the display name in order of preference
   const displayName = (() => {
     console.log("Building display name from:", {
-      firstName: user.firstName,
-      lastName: user.lastName,
-      name: user.name,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      name: userData.name,
+      email: userData.email,
     });
 
-    if (user.firstName && user.lastName) {
-      return `${user.firstName} ${user.lastName}`;
+    if (userData.firstName && userData.lastName) {
+      return `${userData.firstName} ${userData.lastName}`;
     }
-    if (user.name) {
-      return user.name;
+    if (userData.name) {
+      return userData.name;
     }
-    if (user.firstName) {
-      return user.firstName;
+    if (userData.firstName) {
+      return userData.firstName;
+    }
+    // If no name is available, use the first part of the email
+    if (userData.email) {
+      return userData.email.split("@")[0];
     }
     return "Patient";
   })();

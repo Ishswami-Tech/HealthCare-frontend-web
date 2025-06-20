@@ -145,7 +145,7 @@ export async function getServerSession(): Promise<Session | null> {
 
       // Fall back to API call if JWT parsing fails
       console.log('getServerSession - Attempting to fetch user data from API');
-      const response = await fetch(`${API_URL}/auth/me`, {
+      const response = await fetch(`${API_URL}/user/profile`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'X-Session-ID': sessionId || '',
@@ -995,12 +995,14 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
     // Try to get additional user profile data if firstName/lastName are missing
     if (!firstName || !lastName) {
       try {
-        console.log('Fetching additional user profile data');
+        console.log('Fetching additional user profile data from:', `${API_URL}/user/profile`);
+        console.log('Using auth token:', result.access_token.substring(0, 15) + '...');
         const profileResponse = await fetch(`${API_URL}/user/profile`, {
           headers: {
             'Authorization': `Bearer ${result.access_token}`,
             'X-Session-ID': result.session_id || '',
           },
+          cache: 'no-store',
         });
         
         if (profileResponse.ok) {
