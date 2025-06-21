@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useQueryData } from "@/hooks/useQueryData";
 import { useRouter } from "next/navigation";
 import { Role } from "@/types/auth.types";
+import { getUserProfile } from "@/lib/actions/users.server";
 import { Loader2 } from "lucide-react";
 
 // Define a type for user data
@@ -32,35 +34,19 @@ export default function PatientDashboardPage() {
   const { session, isLoading, refreshSession } = useAuth();
   const { user } = session || {};
   const [isInitializing, setIsInitializing] = useState(true);
-  const [profileData, setProfileData] = useState<UserData | null>(null);
 
-  // Function to fetch user profile directly
-  const fetchUserProfile = async () => {
-    if (!session?.access_token) return;
-
-    try {
-      console.log("Fetching user profile directly from API");
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-      const response = await fetch(`${API_URL}/user/profile`, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "X-Session-ID": session.session_id || "",
-        },
-        cache: "no-store",
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("User profile fetched:", JSON.stringify(data, null, 2));
-        setProfileData(data);
-      } else {
-        console.error("Failed to fetch user profile:", response.status);
+  // Fetch user profile using React Query
+  const { data: profileData, isPending: loadingProfile } =
+    useQueryData<UserData>(
+      ["patient-profile"],
+      async () => {
+        const response = await getUserProfile();
+        return response.data || response;
+      },
+      {
+        enabled: !!session?.access_token,
       }
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-    }
-  };
+    );
 
   useEffect(() => {
     console.log("Dashboard Mount - Session:", JSON.stringify(session, null, 2));
@@ -76,13 +62,6 @@ export default function PatientDashboardPage() {
       try {
         if (!session?.user) {
           await refreshSession();
-        } else if (
-          session.user &&
-          !session.user.firstName &&
-          !session.user.lastName
-        ) {
-          // If we have a user but no name info, fetch profile
-          await fetchUserProfile();
         }
       } catch (error) {
         console.error("Error refreshing session:", error);
@@ -171,8 +150,59 @@ export default function PatientDashboardPage() {
             This is your personal healthcare dashboard. Here you can manage your
             appointments, view medical records, and more.
           </p>
+          {loadingProfile && (
+            <div className="mt-4 flex items-center">
+              <Loader2 className="h-4 w-4 animate-spin text-blue-500 mr-2" />
+              <span className="text-sm text-gray-500">
+                Loading profile data...
+              </span>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Profile Information */}
+      {profileData && (
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Profile Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <span className="text-sm font-medium text-gray-500">
+                  Email:
+                </span>
+                <p className="text-sm text-gray-900">{profileData.email}</p>
+              </div>
+              {profileData.phone && (
+                <div>
+                  <span className="text-sm font-medium text-gray-500">
+                    Phone:
+                  </span>
+                  <p className="text-sm text-gray-900">{profileData.phone}</p>
+                </div>
+              )}
+              {profileData.gender && (
+                <div>
+                  <span className="text-sm font-medium text-gray-500">
+                    Gender:
+                  </span>
+                  <p className="text-sm text-gray-900">{profileData.gender}</p>
+                </div>
+              )}
+              {profileData.address && (
+                <div className="md:col-span-2">
+                  <span className="text-sm font-medium text-gray-500">
+                    Address:
+                  </span>
+                  <p className="text-sm text-gray-900">{profileData.address}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

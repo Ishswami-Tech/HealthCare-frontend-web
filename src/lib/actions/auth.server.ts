@@ -358,6 +358,10 @@ export async function login(data: { email: string; password: string; rememberMe?
     await setSession(result);
     console.log('8. Session data set successfully');
 
+    // Set profile completion status based on user data
+    const profileComplete = calculateProfileCompletionFromUserData(result.user);
+    await setProfileComplete(profileComplete);
+
     return result;
   } catch (error) {
     console.error('Login error:', error);
@@ -786,6 +790,7 @@ async function setAuthCookies(data: {
   session_id?: string;
   user?: {
     role?: Role;
+    profileComplete?: boolean;
   };
 }) {
   const cookieStore = await cookies();
@@ -846,6 +851,15 @@ async function setAuthCookies(data: {
     cookieStore.set({
       name: 'user_role',
       value: data.user.role,
+      ...sessionOptions,
+    });
+  }
+
+  // Set profile completion status
+  if (data.user?.profileComplete !== undefined) {
+    cookieStore.set({
+      name: 'profile_complete',
+      value: data.user.profileComplete.toString(),
       ...sessionOptions,
     });
   }
@@ -985,6 +999,22 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
+    // Set profile completion status based on user data
+    const profileComplete = calculateProfileCompletionFromUserData(result.user);
+    cookieStore.set({
+      name: 'profile_complete',
+      value: profileComplete.toString(),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Use lax to ensure it works with redirects
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    console.log('Auth cookies being set:', {
+      accessToken: result.access_token ? 'SET' : 'NOT SET',
+      sessionId: result.session_id ? 'SET' : 'NOT SET',
+    });
     console.log('Auth cookies set successfully');
 
     // Ensure firstName and lastName are properly extracted
@@ -995,12 +1025,18 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
     // Try to get additional user profile data if firstName/lastName are missing
     if (!firstName || !lastName) {
       try {
-        console.log('Fetching additional user profile data from:', `${API_URL}/user/profile`);
+        // Extract user ID from JWT token
+        const payload = JSON.parse(atob(result.access_token.split('.')[1]));
+        const userId = payload.sub;
+        
+        console.log('Fetching additional user profile data from:', `${API_URL}/user/${userId}`);
         console.log('Using auth token:', result.access_token.substring(0, 15) + '...');
-        const profileResponse = await fetch(`${API_URL}/user/profile`, {
+        
+        const profileResponse = await fetch(`${API_URL}/user/${userId}`, {
           headers: {
             'Authorization': `Bearer ${result.access_token}`,
             'X-Session-ID': result.session_id || '',
+            'Content-Type': 'application/json',
           },
           cache: 'no-store',
         });
@@ -1017,6 +1053,21 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
               lastName: profileData.lastName || lastName,
               name: profileData.name || name,
             };
+            
+            // Recalculate profile completion based on updated data
+            const updatedProfileComplete = calculateProfileCompletionFromUserData(result.user);
+            if (updatedProfileComplete !== profileComplete) {
+              console.log('Updating profile completion cookie based on API response');
+              cookieStore.set({
+                name: 'profile_complete',
+                value: updatedProfileComplete.toString(),
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/',
+                maxAge: 60 * 60 * 24 * 7, // 7 days
+              });
+            }
           }
         } else {
           console.warn('Failed to fetch additional profile data:', profileResponse.status);
@@ -1037,7 +1088,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         lastName: result.user.lastName || '',
         isNewUser: result.isNewUser,
         googleId: result.user.googleId,
-        profileComplete: result.user.profileComplete
+        profileComplete: calculateProfileCompletionFromUserData(result.user)
       },
       token: result.access_token,
       redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
@@ -1086,4 +1137,44 @@ export async function appleLogin(token: string) {
   const responseData = await response.json();
   await setAuthCookies(responseData);
   return responseData;
+}
+
+/**
+ * Set profile completion status in cookies
+ */
+export async function setProfileComplete(complete: boolean) {
+  const cookieStore = await cookies();
+  const secure = process.env.NODE_ENV === 'production';
+  
+  console.log('Setting profile completion cookie:', { complete, secure });
+  
+  cookieStore.set({
+    name: 'profile_complete',
+    value: complete.toString(),
+    httpOnly: true,
+    secure,
+    sameSite: 'lax', // Use lax for better compatibility with redirects
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+  });
+  
+  console.log('Profile completion cookie set successfully');
+}
+
+function calculateProfileCompletionFromUserData(user: {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  dateOfBirth?: string | null;
+  gender?: string;
+  address?: string;
+}): boolean {
+  return !!(
+    user.firstName?.trim() &&
+    user.lastName?.trim() &&
+    user.phone?.trim() &&
+    user.dateOfBirth &&
+    user.gender?.trim() &&
+    user.address?.trim()
+  );
 } 

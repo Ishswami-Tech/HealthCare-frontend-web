@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { Role } from '@/types/auth.types';
+import { shouldRedirectToProfileCompletion } from '@/lib/utils/profile-completion';
 
 // Define protected routes and their allowed roles
 const PROTECTED_ROUTES = {
@@ -25,6 +26,11 @@ const PUBLIC_ROUTES = [
   '/',               // Root path should be public
 ];
 
+// Define routes that require authentication but don't need profile completion
+const AUTH_ONLY_ROUTES = [
+  '/profile-completion', // Allow access to profile completion for authenticated users
+];
+
 // Helper function to convert string role to enum
 function parseRole(roleStr: string | undefined): Role | undefined {
   if (!roleStr) return undefined;
@@ -32,6 +38,30 @@ function parseRole(roleStr: string | undefined): Role | undefined {
   // Check if the role string matches any enum value
   const validRole = Object.values(Role).includes(roleStr as Role);
   return validRole ? roleStr as Role : undefined;
+}
+
+// Helper function to calculate profile completion from user data
+function calculateProfileCompletionFromUserData(userData: Record<string, unknown>): boolean {
+  if (!userData) return false;
+
+  // Essential required fields for all users
+  const requiredFields = [
+    'firstName',
+    'lastName', 
+    'phone',
+    'dateOfBirth',
+    'gender',
+    'address'
+  ];
+
+  // Check if all required fields are present and not empty
+  const missingFields = requiredFields.filter(field => {
+    const value = userData[field];
+    return !value || (typeof value === 'string' && value.trim() === '');
+  });
+
+  // Profile is complete if no required fields are missing
+  return missingFields.length === 0;
 }
 
 export async function middleware(request: NextRequest) {
@@ -49,7 +79,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Allow public routes
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+  if (PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))) {
     console.log('Middleware - Public route, allowing access');
     return NextResponse.next();
   }
@@ -59,12 +89,39 @@ export async function middleware(request: NextRequest) {
   const refreshToken = request.cookies.get('refresh_token')?.value;
   const userRoleStr = request.cookies.get('user_role')?.value;
   const userRole = parseRole(userRoleStr);
+  const profileCompleteCookie = request.cookies.get('profile_complete')?.value;
+
+  // Try to extract user data from JWT token to calculate profile completion
+  let profileComplete = profileCompleteCookie === 'true';
+  let userData: Record<string, unknown> | null = null;
+
+  if (accessToken) {
+    try {
+      const payload = JSON.parse(atob(accessToken.split('.')[1]));
+      userData = {
+        firstName: payload.firstName || '',
+        lastName: payload.lastName || '',
+        phone: payload.phone || '',
+        dateOfBirth: payload.dateOfBirth || '',
+        gender: payload.gender || '',
+        address: payload.address || '',
+      };
+      
+      // Calculate profile completion from user data
+      profileComplete = calculateProfileCompletionFromUserData(userData);
+    } catch (error) {
+      console.log('Middleware - Error parsing JWT token:', error);
+    }
+  }
 
   console.log('Middleware - Auth check:', {
     hasAccessToken: !!accessToken,
     hasRefreshToken: !!refreshToken,
     userRole,
-    pathname
+    profileComplete,
+    pathname,
+    profileCompleteCookie: profileCompleteCookie,
+    userData: userData ? Object.keys(userData) : null
   });
 
   // If no access token but has refresh token, let the app handle the refresh
@@ -87,9 +144,38 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Check if this is an auth-only route (requires auth but not profile completion)
+  if (AUTH_ONLY_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+    console.log('Middleware - Auth-only route, allowing access');
+    return NextResponse.next();
+  }
+
+  // Check if profile is complete for authenticated users using centralized logic
+  const shouldRedirect = shouldRedirectToProfileCompletion(!!accessToken, profileComplete, pathname);
+  console.log('Middleware - Profile completion check:', {
+    isAuthenticated: !!accessToken,
+    profileComplete,
+    currentPath: pathname,
+    shouldRedirect,
+    functionResult: shouldRedirectToProfileCompletion(!!accessToken, profileComplete, pathname)
+  });
+
+  if (shouldRedirect) {
+    console.log('Middleware - Profile not complete, redirecting to profile completion');
+    console.log('Middleware - Profile completion details:', {
+      isAuthenticated: !!accessToken,
+      profileComplete,
+      currentPath: pathname,
+      shouldRedirect: shouldRedirectToProfileCompletion(!!accessToken, profileComplete, pathname)
+    });
+    const profileCompletionUrl = new URL('/profile-completion', request.url);
+    profileCompletionUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(profileCompletionUrl);
+  }
+
   // Check role-based access for protected routes
   const matchedRoute = Object.entries(PROTECTED_ROUTES).find(([routePath]) => 
-    pathname.startsWith(routePath)
+    pathname === routePath || pathname.startsWith(routePath + '/')
   );
 
   if (matchedRoute && userRole) {

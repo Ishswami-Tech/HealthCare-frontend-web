@@ -285,15 +285,24 @@ export function useAuth() {
         console.error('useAuth - Error refreshing session:', refreshError);
       }
       
-      // Get the redirect path
-      const redirectPath = getRedirectPath(data.user, data.redirectUrl);
-      console.log('useAuth - Redirecting to:', redirectPath);
+      // Check if profile is complete and redirect accordingly
+      const profileComplete = data.user.profileComplete || false;
+      console.log('useAuth - Profile completion status:', profileComplete);
       
-      // Show success message
-      toast.success(`Welcome${data.user.firstName ? ', ' + data.user.firstName : ''}!`);
-      
-      // Redirect to dashboard
-      router.push(redirectPath);
+      if (!profileComplete) {
+        console.log('useAuth - Profile not complete, redirecting to profile completion');
+        router.push('/profile-completion');
+      } else {
+        // Get the redirect path for complete profiles
+        const redirectPath = getRedirectPath(data.user, data.redirectUrl);
+        console.log('useAuth - Redirecting to:', redirectPath);
+        
+        // Show success message
+        toast.success(`Welcome${data.user.firstName ? ', ' + data.user.firstName : ''}!`);
+        
+        // Redirect to dashboard
+        router.push(redirectPath);
+      }
     },
     onError: (error) => {
       console.error('useAuth - Google login error:', error);
@@ -304,9 +313,14 @@ export function useAuth() {
   // Register mutation
   const registerMutation = useMutation({
     mutationFn: registerAction,
-    onSuccess: () => {
-      toast.success('Registration successful. Please check your email to verify your account.');
-      router.push('/auth/login');
+    onSuccess: (data) => {
+      // If profile is not complete, redirect to profile completion
+      if (data.user && !data.user.profileComplete) {
+        router.push('/profile-completion');
+      } else {
+        toast.success('Registration successful. Please check your email to verify your account.');
+        router.push('/auth/login');
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Registration failed');

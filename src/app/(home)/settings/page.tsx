@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useQueryData } from "@/hooks/useQueryData";
+import { useMutationData } from "@/hooks/useMutationData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,11 +19,55 @@ import {
 import { changePasswordSchema } from "@/lib/schema/login-schema";
 import useZodForm from "@/hooks/useZodForm";
 import { z } from "zod";
+import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
 
 type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 
+interface UserProfile {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  role: string;
+  phone?: string;
+  address?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  isVerified?: boolean;
+}
+
 export default function SettingsPage() {
   const { session, changePassword, isChangingPassword } = useAuth();
+
+  // Fetch user profile
+  const {
+    data: profile,
+    isPending: loadingProfile,
+    refetch: refetchProfile,
+  } = useQueryData<UserProfile>(
+    ["user-profile"],
+    async () => {
+      const response = await getUserProfile();
+      return response.data || response;
+    },
+    {
+      enabled: !!session?.access_token,
+    }
+  );
+
+  // Update profile mutation
+  const { mutate: updateProfile, isPending: updatingProfile } = useMutationData(
+    ["update-profile"],
+    async (data: Partial<UserProfile>) => {
+      const response = await updateUserProfile(data);
+      return response;
+    },
+    "user-profile",
+    () => {
+      toast.success("Profile updated successfully");
+      refetchProfile();
+    }
+  );
 
   const form = useZodForm(
     changePasswordSchema,
@@ -55,14 +101,135 @@ export default function SettingsPage() {
     }
   });
 
+  const handleProfileUpdate = (field: keyof UserProfile, value: string) => {
+    if (profile) {
+      updateProfile({ [field]: value });
+    }
+  };
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-8">Settings</h1>
 
-      <Tabs defaultValue="security" className="space-y-6">
+      <Tabs defaultValue="profile" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="profile">
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Profile Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingProfile ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                  </div>
+                ) : profile ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">
+                          First Name
+                        </label>
+                        <Input
+                          value={profile.firstName || ""}
+                          onChange={(e) =>
+                            handleProfileUpdate("firstName", e.target.value)
+                          }
+                          disabled={updatingProfile}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">
+                          Last Name
+                        </label>
+                        <Input
+                          value={profile.lastName || ""}
+                          onChange={(e) =>
+                            handleProfileUpdate("lastName", e.target.value)
+                          }
+                          disabled={updatingProfile}
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Email
+                      </label>
+                      <Input
+                        value={profile.email}
+                        disabled
+                        className="mt-1 bg-gray-50"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Email cannot be changed
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Phone
+                      </label>
+                      <Input
+                        value={profile.phone || ""}
+                        onChange={(e) =>
+                          handleProfileUpdate("phone", e.target.value)
+                        }
+                        disabled={updatingProfile}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Address
+                      </label>
+                      <Input
+                        value={profile.address || ""}
+                        onChange={(e) =>
+                          handleProfileUpdate("address", e.target.value)
+                        }
+                        disabled={updatingProfile}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Gender
+                      </label>
+                      <select
+                        value={profile.gender || ""}
+                        onChange={(e) =>
+                          handleProfileUpdate("gender", e.target.value)
+                        }
+                        disabled={updatingProfile}
+                        aria-label="Select gender"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      >
+                        <option value="">Select gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    {updatingProfile && (
+                      <div className="flex items-center text-blue-600">
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Updating profile...
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-500">Failed to load profile</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         <TabsContent value="security">
           <div className="grid gap-6">
