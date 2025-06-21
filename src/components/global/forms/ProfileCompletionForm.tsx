@@ -247,7 +247,27 @@ export default function ProfileCompletionForm({
       updateProfile(profileData as unknown as Record<string, unknown>);
     } catch (error) {
       console.error("Profile completion error:", error);
-      toast.error("Failed to complete profile. Please try again.");
+      
+      // Handle device validation errors specifically
+      if (error instanceof Error && 
+          (error.message.includes('Session validation failed') || 
+           error.message.includes('Invalid device'))) {
+        
+        toast.error(
+          <div className="flex flex-col gap-2">
+            <p>Your session appears to be invalid or expired.</p>
+            <button 
+              className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-sm"
+              onClick={() => router.push('/auth/login')}
+            >
+              Please log in again
+            </button>
+          </div>,
+          { duration: 10000 }
+        );
+      } else {
+        toast.error("Failed to complete profile. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }

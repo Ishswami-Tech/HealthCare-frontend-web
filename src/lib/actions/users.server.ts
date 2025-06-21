@@ -93,6 +93,43 @@ export async function updateUserProfile(data: Record<string, unknown>) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('Failed to update user profile:', response.status, errorData);
+      
+      // Special handling for device validation errors
+      if (response.status === 401 && errorData.message?.includes('Invalid device')) {
+        console.warn('Device validation failed. Attempting to refresh the session...');
+        
+        // Try to refresh the session
+        try {
+          const refreshResponse = await fetch(`${API_URL}/auth/refresh`, {
+            method: 'POST',
+            headers: await getAuthHeaders(),
+          });
+          
+          if (refreshResponse.ok) {
+            console.log('Session refreshed successfully, retrying profile update');
+            // Retry the update with fresh tokens
+            const retryResponse = await fetch(`${API_URL}/user/${userId}`, {
+              method: 'PATCH',
+              headers: await getAuthHeaders(),
+              body: JSON.stringify(data),
+            });
+            
+            if (retryResponse.ok) {
+              const result = await retryResponse.json();
+              console.log('Profile update result (after retry):', JSON.stringify(result, null, 2));
+              return result;
+            } else {
+              throw new Error(`Failed to update profile after refresh: ${retryResponse.status}`);
+            }
+          } else {
+            throw new Error('Failed to refresh session');
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing session:', refreshError);
+          throw new Error('Session validation failed. Please log out and log in again.');
+        }
+      }
+      
       throw new Error(`Failed to update profile: ${response.status}`);
     }
     
