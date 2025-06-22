@@ -4,10 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { getDashboardByRole } from "@/config/routes";
-import { Role } from "@/types/auth.types";
 
-// Get Google client ID from environment variables
+// Google client ID from environment variable
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 if (!GOOGLE_CLIENT_ID) {
@@ -73,46 +71,44 @@ export function SocialLogin({
   // Use either the passed isLoading prop or the internal isGoogleLoggingIn state
   const isButtonDisabled = isLoading || isGoogleLoggingIn;
 
-  const handleGoogleResponse = async (response: { credential: string }) => {
-    try {
-      if (!response.credential) {
-        const error = new Error("No credential received from Google");
-        console.error(error.message);
-        onError?.(error);
-        return;
-      }
-
-      const result = await googleLogin(response.credential);
-
-      // Handle redirection
-      const searchParams = new URLSearchParams(window.location.search);
-      const callbackUrl = searchParams.get("callbackUrl");
-
-      const redirectUrl =
-        callbackUrl && !callbackUrl.includes("/auth/")
-          ? callbackUrl
-          : result.redirectUrl ||
-            (result.user?.role
-              ? getDashboardByRole(result.user.role as Role)
-              : "/patient/dashboard");
-
-      onSuccess?.();
-      router.push(redirectUrl);
-    } catch (error) {
-      console.error("Google login error:", error);
-      onError?.(
-        error instanceof Error
-          ? error
-          : new Error(typeof error === "string" ? error : "Google login failed")
-      );
-    }
-  };
-
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) {
       onError?.(new Error("Google Client ID is not configured"));
       return;
     }
+
+    // Define handleGoogleResponse inside useEffect to avoid dependency issues
+    const handleGoogleResponse = async (response: { credential: string }) => {
+      try {
+        if (!response.credential) {
+          const error = new Error("No credential received from Google");
+          console.error(error.message);
+          onError?.(error);
+          return;
+        }
+
+        await googleLogin(response.credential);
+
+        // Handle redirection
+        const searchParams = new URLSearchParams(window.location.search);
+        const callbackUrl = searchParams.get("callbackUrl");
+
+        // Get the redirect URL from the search params or use a default
+        const redirectUrl = callbackUrl && !callbackUrl.includes("/auth/")
+          ? callbackUrl
+          : "/patient/dashboard"; // Default to patient dashboard
+
+        onSuccess?.();
+        router.push(redirectUrl);
+      } catch (error) {
+        console.error("Google login error:", error);
+        onError?.(
+          error instanceof Error
+            ? error
+            : new Error(typeof error === "string" ? error : "Google login failed")
+        );
+      }
+    };
 
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
@@ -191,7 +187,7 @@ export function SocialLogin({
         script.parentNode.removeChild(script);
       }
     };
-  }, [onError, router, onSuccess]);
+  }, [onError, router, onSuccess, googleLogin]);
 
   return (
     <div className={cn("flex flex-col gap-4 w-full", className)}>

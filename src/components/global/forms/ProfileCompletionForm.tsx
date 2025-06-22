@@ -88,7 +88,7 @@ export default function ProfileCompletionForm({
       lastName: "",
       phone: "",
       dateOfBirth: "",
-      gender: undefined,
+      gender: "MALE",
       address: "",
       emergencyContact: "",
       specialization: "",
@@ -106,11 +106,7 @@ export default function ProfileCompletionForm({
         lastName: existingProfile.lastName || session?.user?.lastName || "",
         phone: existingProfile.phone || "",
         dateOfBirth: existingProfile.dateOfBirth || "",
-        gender: existingProfile.gender as
-          | "MALE"
-          | "FEMALE"
-          | "OTHER"
-          | undefined,
+        gender: existingProfile.gender as "MALE" | "FEMALE" | "OTHER" || "MALE",
         address: existingProfile.address || "",
         emergencyContact: existingProfile.emergencyContact || "",
         specialization: existingProfile.specialization || "",
@@ -132,7 +128,7 @@ export default function ProfileCompletionForm({
         lastName: session?.user?.lastName || "",
         phone: "",
         dateOfBirth: "",
-        gender: undefined,
+        gender: "MALE",
         address: "",
         emergencyContact: "",
         specialization: "",
@@ -154,8 +150,7 @@ export default function ProfileCompletionForm({
     ["update-profile-completion"],
     async (data: Record<string, unknown>) => {
       try {
-        const response = await updateUserProfile(data);
-        return response;
+        return await updateUserProfile(data);
       } catch (error) {
         console.error("Profile update error:", error);
         // Convert the error to a format that can be displayed in toast
@@ -168,8 +163,11 @@ export default function ProfileCompletionForm({
       }
     },
     "user-profile",
-    async (response) => {
+    async (result) => {
       try {
+        // Log the result for debugging
+        console.log("Profile update successful:", result);
+        
         // Only show success toast once
         toast.success("Profile completed successfully!");
 
@@ -399,6 +397,13 @@ export default function ProfileCompletionForm({
                         today.getDate()
                       ).toISOString().split('T')[0];
                       
+                      // Calculate a reasonable minimum birth year (100 years ago)
+                      const minYear = new Date(
+                        today.getFullYear() - 100,
+                        today.getMonth(),
+                        today.getDate()
+                      ).toISOString().split('T')[0];
+                      
                       return (
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">
@@ -408,28 +413,32 @@ export default function ProfileCompletionForm({
                           <FormControl>
                             <Input
                               type="date"
-                              placeholder="YYYY-MM-DD"
-                              max={new Date().toISOString().split('T')[0]}
-                              min="1920-01-01"
+                              min={minYear}
+                              max={minDate}
                               {...field}
                               onChange={(e) => {
                                 field.onChange(e);
-                                // Show a warning if the date is less than 12 years ago
-                                const selectedDate = new Date(e.target.value);
-                                const twelveYearsAgo = new Date(
-                                  today.getFullYear() - 12,
-                                  today.getMonth(),
-                                  today.getDate()
-                                );
                                 
-                                if (selectedDate > twelveYearsAgo) {
-                                  toast.warning("You must be at least 12 years old to register");
+                                // Check if the selected date meets the age requirement
+                                const selectedDate = new Date(e.target.value);
+                                const today = new Date();
+                                let age = today.getFullYear() - selectedDate.getFullYear();
+                                const monthDifference = today.getMonth() - selectedDate.getMonth();
+                                
+                                if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < selectedDate.getDate())) {
+                                  age--;
+                                }
+                                
+                                if (age < 12) {
+                                  toast.warning("You must be at least 12 years old");
                                 }
                               }}
                             />
                           </FormControl>
+                          <p className="text-xs text-gray-500 mt-1">
+                            You must be at least 12 years old
+                          </p>
                           <FormMessage />
-                          <p className="text-xs text-gray-500 mt-1">You must be at least 12 years old to register</p>
                         </FormItem>
                       );
                     }}
@@ -446,12 +455,13 @@ export default function ProfileCompletionForm({
                         Gender *
                       </FormLabel>
                       <Select
+                        value={field.value}
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        defaultValue="MALE"
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select your gender" />
+                            <SelectValue placeholder="Select gender" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -502,13 +512,13 @@ export default function ProfileCompletionForm({
                       <FormLabel>Emergency Contact Information *</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Enter emergency contact information (e.g., John Doe (Spouse): 555-123-4567)"
+                          placeholder="Format: Name (Relationship): Phone Number - Example: John Doe (Spouse): 555-123-4567"
                           className="min-h-[80px]"
                           {...field}
                         />
                       </FormControl>
                       <p className="text-xs text-gray-500 mt-1">
-                        Please include name, relationship, and phone number
+                        Please include the person&apos;s name, their relationship to you, and their contact number
                       </p>
                       <FormMessage />
                     </FormItem>
