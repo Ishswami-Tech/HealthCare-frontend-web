@@ -222,10 +222,20 @@ export function useAuth() {
     onSuccess: (data) => {
       console.log('useAuth - Login success, setting session data:', JSON.stringify(data, null, 2));
       queryClient.setQueryData(['session'], data);
-      const dashboardPath = getDashboardByRole(data.user.role as Role);
-      console.log('useAuth - Redirecting to:', dashboardPath);
-      router.push(dashboardPath);
-      toast.success(`Welcome back${data.user.firstName ? ', ' + data.user.firstName : ''}!`);
+      
+      // Check if profile is complete and redirect accordingly
+      const profileComplete = data.user.profileComplete || false;
+      console.log('useAuth - Profile completion status:', profileComplete);
+      
+      if (!profileComplete) {
+        console.log('useAuth - Profile not complete, redirecting to profile completion');
+        router.push('/profile-completion');
+      } else {
+        const dashboardPath = getDashboardByRole(data.user.role as Role);
+        console.log('useAuth - Redirecting to:', dashboardPath);
+        router.push(dashboardPath);
+        toast.success(`Welcome back${data.user.firstName ? ', ' + data.user.firstName : ''}!`);
+      }
     },
     onError: (error: Error) => {
       console.error('useAuth - Login error:', error);
@@ -389,9 +399,19 @@ export function useAuth() {
     mutationFn: (data) => verifyOTPAction(data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['session'] });
-      const redirectPath = getRedirectPath(data.user, data.redirectUrl);
-      router.push(redirectPath);
-      toast.success('OTP verified successfully! Welcome back!');
+      
+      // Check if profile is complete and redirect accordingly
+      const profileComplete = data.user.profileComplete || false;
+      console.log('useAuth - OTP verification - Profile completion status:', profileComplete);
+      
+      if (!profileComplete) {
+        console.log('useAuth - OTP verification - Profile not complete, redirecting to profile completion');
+        router.push('/profile-completion');
+      } else {
+        const redirectPath = getRedirectPath(data.user, data.redirectUrl);
+        router.push(redirectPath);
+        toast.success('OTP verified successfully! Welcome back!');
+      }
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Invalid or expired OTP');

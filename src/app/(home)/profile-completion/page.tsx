@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import ProfileCompletionForm from "@/components/global/forms/ProfileCompletionForm";
-import { getProfileCompletionRedirectUrl } from "@/lib/utils/profile-completion";
+import { getProfileCompletionRedirectUrl } from "@/lib/profile";
 import { Role } from "@/types/auth.types";
 
 export default function ProfileCompletionPage() {
@@ -46,5 +46,6 @@ export default function ProfileCompletionPage() {
     );
   }
 
+  // Show full page profile completion form for both mobile and desktop
   return <ProfileCompletionForm />;
 }

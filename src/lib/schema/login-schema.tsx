@@ -48,7 +48,7 @@ export const registerSchema = z
     firstName: z.string().min(2, "First name must be at least 2 characters"),
     lastName: z.string().min(2, "Last name must be at least 2 characters"),
     phone: z.string().min(10, "Phone number must be at least 10 characters"),
-    gender: z.enum(["MALE", "FEMALE", "OTHER"]).default("MALE"),
+    gender: z.enum(["male", "female", "other"]).default("male"),
     role: createRoleEnum().default(Role.PATIENT),
     age: z.number().default(18),
     terms: z.boolean().refine((val) => val === true, {
@@ -121,11 +121,13 @@ export const profileCompletionSchema = z.object({
       // Check if age is at least 12
       return age >= 12;
     }, "You must be at least 12 years old to register"),
-  gender: z.enum(["MALE", "FEMALE", "OTHER"], {
+  gender: z.enum(["male", "female", "other"], {
     required_error: "Please select a gender",
   }),
   address: z.string().min(10, "Address must be at least 10 characters"),
-  emergencyContact: z.string().min(5, "Emergency contact information is required"),
+  emergencyContactName: z.string().min(2, "Emergency contact name is required"),
+  emergencyContactPhone: z.string().min(10, "Emergency contact phone is required"),
+  emergencyContactRelationship: z.string().min(2, "Emergency contact relationship is required"),
   // Optional fields for profile updates
   specialization: z.string().optional(),
   experience: z.string().optional(),

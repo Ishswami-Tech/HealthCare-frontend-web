@@ -13,7 +13,7 @@ import {
   getProfileCompletionRedirectUrl,
   transformApiResponse,
   type UserProfileData,
-} from "@/lib/utils/profile-completion";
+} from "@/lib/profile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -88,9 +88,11 @@ export default function ProfileCompletionForm({
       lastName: "",
       phone: "",
       dateOfBirth: "",
-      gender: "MALE",
+      gender: "male",
       address: "",
-      emergencyContact: "",
+      emergencyContactName: "",
+      emergencyContactPhone: "",
+      emergencyContactRelationship: "",
       specialization: "",
       experience: "",
       clinicName: "",
@@ -101,14 +103,19 @@ export default function ProfileCompletionForm({
   // Pre-fill form with existing data when available
   useEffect(() => {
     if (existingProfile && !isInitialized) {
+       const [emergencyContactName, emergencyContactRest] = existingProfile.emergencyContact?.split(' (') || ['', ''];
+       const [emergencyContactRelationship, emergencyContactPhone] = emergencyContactRest?.split('): ') || ['', ''];
+
       const formData = {
         firstName: existingProfile.firstName || session?.user?.firstName || "",
         lastName: existingProfile.lastName || session?.user?.lastName || "",
         phone: existingProfile.phone || "",
         dateOfBirth: existingProfile.dateOfBirth || "",
-        gender: existingProfile.gender as "MALE" | "FEMALE" | "OTHER" || "MALE",
+        gender: existingProfile.gender ? existingProfile.gender.toLowerCase() as "male" | "female" | "other" : "male",
         address: existingProfile.address || "",
-        emergencyContact: existingProfile.emergencyContact || "",
+        emergencyContactName: emergencyContactName || "",
+        emergencyContactPhone: emergencyContactPhone || "",
+        emergencyContactRelationship: emergencyContactRelationship?.replace(')','') || "",
         specialization: existingProfile.specialization || "",
         experience: existingProfile.experience || "",
         clinicName: existingProfile.clinicName || "",
@@ -128,9 +135,11 @@ export default function ProfileCompletionForm({
         lastName: session?.user?.lastName || "",
         phone: "",
         dateOfBirth: "",
-        gender: "MALE",
+        gender: "male",
         address: "",
-        emergencyContact: "",
+        emergencyContactName: "",
+        emergencyContactPhone: "",
+        emergencyContactRelationship: "",
         specialization: "",
         experience: "",
         clinicName: "",
@@ -169,29 +178,29 @@ export default function ProfileCompletionForm({
         console.log("Profile update successful:", result);
         
         // Only show success toast once
-        toast.success("Profile completed successfully!");
+      toast.success("Profile completed successfully!");
 
-        // Refresh session to get updated user data
-        await refreshSession();
+      // Refresh session to get updated user data
+      await refreshSession();
 
-        // Set profile complete cookie
-        await setProfileComplete(true);
+      // Set profile complete cookie
+      await setProfileComplete(true);
 
         // Wait a moment for cookies to be set and session to update
         setTimeout(() => {
           try {
-            // Call onComplete callback if provided
-            if (onComplete) {
-              onComplete();
-            } else {
-              // Use centralized redirect logic
-              const userRole = session?.user?.role as Role;
-              const finalRedirect = getProfileCompletionRedirectUrl(
-                userRole,
-                redirectUrl
-              );
+      // Call onComplete callback if provided
+      if (onComplete) {
+        onComplete();
+      } else {
+        // Use centralized redirect logic
+        const userRole = session?.user?.role as Role;
+        const finalRedirect = getProfileCompletionRedirectUrl(
+          userRole,
+          redirectUrl
+        );
               console.log("Redirecting to:", finalRedirect);
-              router.push(finalRedirect);
+        router.push(finalRedirect);
             }
           } catch (redirectError) {
             console.error("Error during redirect:", redirectError);
@@ -208,29 +217,63 @@ export default function ProfileCompletionForm({
   const onSubmit = async (data: ProfileCompletionFormData) => {
     setIsSubmitting(true);
     try {
-      // Prepare the data based on user role
-      const profileData: ProfileData = {
-        ...data,
-        emergencyContact: data.emergencyContact, // Already a string now
-        profileComplete: true, // Mark profile as complete
+      // Start with a base object containing only common fields.
+      const baseProfileData = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        dateOfBirth: data.dateOfBirth,
+        gender: data.gender,
+        address: data.address,
+        emergencyContact: `${data.emergencyContactName} (${data.emergencyContactRelationship}): ${data.emergencyContactPhone}`,
       };
 
-      // Add role-specific fields
-      if (session?.user?.role === Role.DOCTOR) {
-        profileData.specialization = data.specialization;
-        profileData.experience = data.experience;
-      } else if (session?.user?.role === Role.CLINIC_ADMIN) {
-        profileData.clinicName = data.clinicName;
-        profileData.clinicAddress = data.clinicAddress;
+      let roleSpecificData = {};
+      const userRole = session?.user?.role;
+
+      if (userRole === Role.DOCTOR) {
+        roleSpecificData = {
+          specialization: data.specialization,
+          experience: data.experience,
+        };
+      } else if (userRole === Role.CLINIC_ADMIN) {
+        roleSpecificData = {
+          clinicName: data.clinicName,
+          clinicAddress: data.clinicAddress,
+        };
       }
 
-      // Log the data being sent
-      console.log('Submitting profile data:', JSON.stringify(profileData, null, 2));
+      const finalData = { ...baseProfileData, ...roleSpecificData };
 
-      // Try to update the profile
-      updateProfile(profileData as unknown as Record<string, unknown>);
+      console.log('Submitting profile data:', JSON.stringify(finalData, null, 2));
+      updateProfile(finalData as Record<string, unknown>);
+
     } catch (error) {
       console.error("Profile completion error:", error);
+      
+      // Handle API validation errors - map them to form fields
+      if (error instanceof Error && error.message.includes('validation')) {
+        try {
+          // Try to parse the error message as JSON
+          const errorData = JSON.parse(error.message.replace('validation error: ', ''));
+          
+          // Set field errors
+          if (errorData.errors) {
+            Object.entries(errorData.errors).forEach(([field, message]) => {
+              form.setError(field as keyof ProfileCompletionFormData, { 
+                type: 'server', 
+                message: message as string 
+              });
+            });
+            
+            toast.error("Please correct the errors in the form");
+            return;
+          }
+        } catch (parseError) {
+          // If parsing fails, continue with generic error handling
+          console.error("Error parsing validation error:", parseError);
+        }
+      }
       
       // Handle different types of errors with specific messages
       if (error instanceof Error) {
@@ -321,6 +364,25 @@ export default function ProfileCompletionForm({
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Form Errors Summary */}
+              {Object.keys(form.formState.errors).length > 0 && (
+                <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-4">
+                  <div className="flex items-center mb-2">
+                    <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 01-1-1v-4a1 1 0 112 0v4a1 1 0 01-1 1z" clipRule="evenodd" />
+                    </svg>
+                    <h3 className="font-medium">Please correct the following errors:</h3>
+                  </div>
+                  <ul className="list-disc pl-5 space-y-1 text-sm">
+                    {Object.entries(form.formState.errors).map(([field, error]) => (
+                      <li key={field}>
+                        <strong className="capitalize">{field}:</strong> {error?.message?.toString()}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {/* Basic Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -339,9 +401,12 @@ export default function ProfileCompletionForm({
                           <Input
                             placeholder="Enter your first name"
                             {...field}
+                            aria-invalid={!!form.formState.errors.firstName}
+                            aria-describedby="firstName-error"
+                            className={form.formState.errors.firstName ? "border-red-500 focus:border-red-500" : ""}
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage id="firstName-error" />
                       </FormItem>
                     )}
                   />
@@ -356,9 +421,12 @@ export default function ProfileCompletionForm({
                           <Input
                             placeholder="Enter your last name"
                             {...field}
+                            aria-invalid={!!form.formState.errors.lastName}
+                            aria-describedby="lastName-error"
+                            className={form.formState.errors.lastName ? "border-red-500 focus:border-red-500" : ""}
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage id="lastName-error" />
                       </FormItem>
                     )}
                   />
@@ -378,9 +446,14 @@ export default function ProfileCompletionForm({
                           <Input
                             placeholder="Enter your phone number"
                             {...field}
+                            aria-invalid={!!form.formState.errors.phone}
+                            aria-describedby="phone-error"
+                            className={form.formState.errors.phone ? "border-red-500 focus:border-red-500" : ""}
+                            type="tel"
+                            inputMode="tel"
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage id="phone-error" />
                       </FormItem>
                     )}
                   />
@@ -405,17 +478,20 @@ export default function ProfileCompletionForm({
                       ).toISOString().split('T')[0];
                       
                       return (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            Date of Birth *
-                          </FormLabel>
-                          <FormControl>
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          Date of Birth *
+                        </FormLabel>
+                        <FormControl>
                             <Input
                               type="date"
                               min={minYear}
                               max={minDate}
                               {...field}
+                              aria-invalid={!!form.formState.errors.dateOfBirth}
+                              aria-describedby="dateOfBirth-error"
+                              className={form.formState.errors.dateOfBirth ? "border-red-500 focus:border-red-500" : ""}
                               onChange={(e) => {
                                 field.onChange(e);
                                 
@@ -431,15 +507,18 @@ export default function ProfileCompletionForm({
                                 
                                 if (age < 12) {
                                   toast.warning("You must be at least 12 years old");
+                                  form.setError('dateOfBirth', { 
+                                    type: 'manual',
+                                    message: 'You must be at least 12 years old'
+                                  });
+                                } else {
+                                  form.clearErrors('dateOfBirth');
                                 }
                               }}
                             />
-                          </FormControl>
-                          <p className="text-xs text-gray-500 mt-1">
-                            You must be at least 12 years old
-                          </p>
-                          <FormMessage />
-                        </FormItem>
+                        </FormControl>
+                          <FormMessage id="dateOfBirth-error" />
+                      </FormItem>
                       );
                     }}
                   />
@@ -457,20 +536,24 @@ export default function ProfileCompletionForm({
                       <Select
                         value={field.value}
                         onValueChange={field.onChange}
-                        defaultValue="MALE"
+                        defaultValue="male"
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger
+                            className={form.formState.errors.gender ? "border-red-500 focus:border-red-500" : ""}
+                            aria-invalid={!!form.formState.errors.gender}
+                            aria-describedby="gender-error"
+                          >
                             <SelectValue placeholder="Select gender" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="MALE">Male</SelectItem>
-                          <SelectItem value="FEMALE">Female</SelectItem>
-                          <SelectItem value="OTHER">Other</SelectItem>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormMessage />
+                      <FormMessage id="gender-error" />
                     </FormItem>
                   )}
                 />
@@ -489,9 +572,12 @@ export default function ProfileCompletionForm({
                           placeholder="Enter your complete address"
                           rows={3}
                           {...field}
+                          aria-invalid={!!form.formState.errors.address}
+                          aria-describedby="address-error"
+                          className={form.formState.errors.address ? "border-red-500 focus:border-red-500" : ""}
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage id="address-error" />
                     </FormItem>
                   )}
                 />
@@ -504,22 +590,56 @@ export default function ProfileCompletionForm({
                   Emergency Contact
                 </h3>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                  name="emergencyContactName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Name *</FormLabel>
+                        <FormControl>
+                          <Input
+                          placeholder="Enter contact's full name"
+                            {...field}
+                          className={form.formState.errors.emergencyContactName ? "border-red-500 focus:border-red-500" : ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                  name="emergencyContactPhone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Phone *</FormLabel>
+                        <FormControl>
+                          <Input
+                          placeholder="Enter contact's phone number"
+                          type="tel"
+                            {...field}
+                          className={form.formState.errors.emergencyContactPhone ? "border-red-500 focus:border-red-500" : ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={form.control}
-                  name="emergencyContact"
+                  name="emergencyContactRelationship"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Emergency Contact Information *</FormLabel>
+                      <FormLabel>Relationship *</FormLabel>
                       <FormControl>
-                        <Textarea
-                          placeholder="Format: Name (Relationship): Phone Number - Example: John Doe (Spouse): 555-123-4567"
-                          className="min-h-[80px]"
+                        <Input
+                          placeholder="e.g., Spouse, Parent, Sibling"
                           {...field}
+                          className={form.formState.errors.emergencyContactRelationship ? "border-red-500 focus:border-red-500" : ""}
                         />
                       </FormControl>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Please include the person&apos;s name, their relationship to you, and their contact number
-                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -609,11 +729,29 @@ export default function ProfileCompletionForm({
               )}
 
               {/* Submit Button */}
-              <div className="flex justify-end pt-6">
+              <div className="flex flex-col gap-4 pt-6">
+                {form.formState.isSubmitted && Object.keys(form.formState.errors).length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-md p-3">
+                    <p className="flex items-center">
+                      <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      Please fix the errors above before submitting the form.
+                    </p>
+                  </div>
+                )}
                 <Button
                   type="submit"
                   disabled={isSubmitting || updatingProfile}
-                  className="w-full md:w-auto"
+                  className="w-full md:w-auto self-end"
+                  onClick={() => {
+                    if (Object.keys(form.formState.errors).length > 0) {
+                      // Scroll to the first error
+                      const firstErrorField = Object.keys(form.formState.errors)[0];
+                      const errorElement = document.getElementById(`${firstErrorField}-error`);
+                      errorElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                  }}
                 >
                   {isSubmitting || updatingProfile ? (
                     <>

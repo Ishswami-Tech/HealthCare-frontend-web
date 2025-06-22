@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { Role } from '@/types/auth.types';
-import { shouldRedirectToProfileCompletion } from '@/lib/utils/profile-completion';
+import { shouldRedirectToProfileCompletion } from '@/lib/profile';
 
 // Define protected routes and their allowed roles
 const PROTECTED_ROUTES = {

@@ -22,6 +22,7 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
+import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function ForgotPasswordPage() {
         toast.error(
           error instanceof Error
             ? error.message
-            : "Failed to send reset instructions"
+            : ERROR_MESSAGES.FORGOT_PASSWORD_FAILED
         );
       }
     },

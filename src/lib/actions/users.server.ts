@@ -38,7 +38,7 @@ async function getAuthHeaders() {
   if (!accessToken) {
     console.error("getAuthHeaders - NO ACCESS TOKEN FOUND IN COOKIES. This will cause a 401 error.");
   }
-  
+
   if (!sessionId) {
     console.warn("getAuthHeaders - NO SESSION ID FOUND IN COOKIES. This may cause authentication issues.");
   }
@@ -136,16 +136,13 @@ export async function updateUserProfile(data: Record<string, unknown>) {
       role: payload.role,
     });
 
-    // Add the user ID to the data to help with backend permission checks
-    // This is a workaround for the backend expecting the ID in a specific format
-    const enhancedData = {
-      ...data,
-      // Include the ID in multiple formats to increase chances of matching backend expectations
-      id: userId,
-      userId: userId,
-      user_id: userId,
-      sub: userId // Add the sub field which is used by the JWT auth guard
-    };
+    // The user ID should only be sent in the URL, not in the body.
+    // The backend's validation pipe will reject the request if IDs are in the body.
+    const cleanData = { ...data };
+    delete cleanData.id;
+    delete cleanData.userId;
+    delete cleanData.user_id;
+    delete cleanData.sub;
 
     // Use the correct API endpoint: PATCH /user/{id}
     const response = await fetch(`${API_URL}/user/${userId}`, {
@@ -154,7 +151,7 @@ export async function updateUserProfile(data: Record<string, unknown>) {
         ...await getEnhancedAuthHeaders(userId),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(enhancedData),
+      body: JSON.stringify(cleanData),
     });
     
     if (!response.ok) {
@@ -211,7 +208,7 @@ export async function updateUserProfile(data: Record<string, unknown>) {
                   ...await getEnhancedAuthHeaders(userId),
                   'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(enhancedData),
+                body: JSON.stringify(cleanData),
               });
               
               if (retryResponse.ok) {

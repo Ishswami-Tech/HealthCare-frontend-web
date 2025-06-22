@@ -22,6 +22,7 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
+import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function ResetPasswordPage() {
         router.push("/auth/login");
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : "Failed to reset password"
+          error instanceof Error ? error.message : ERROR_MESSAGES.RESET_PASSWORD_FAILED
         );
       }
     },
@@ -72,7 +73,7 @@ export default function ResetPasswordPage() {
       router.push("/auth/login");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to reset password"
+        error instanceof Error ? error.message : ERROR_MESSAGES.RESET_PASSWORD_FAILED
       );
     }
   });

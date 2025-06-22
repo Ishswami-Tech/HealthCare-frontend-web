@@ -30,6 +30,7 @@ import useZodForm from "@/hooks/useZodForm";
 import { Role } from "@/types/auth.types";
 import { toast } from "sonner";
 import { useState } from "react";
+import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export default function RegisterPage() {
         const formData = {
           ...values,
           role: Role.PATIENT, // Set default role
-          gender: values.gender || "MALE", // Ensure gender has a default value
+          gender: values.gender || "male", 
           age: values.age || 18, // Ensure age has a default value
         };
         await registerUser(formData);
@@ -61,7 +62,7 @@ export default function RegisterPage() {
         const errorMessage =
           error instanceof Error
             ? error.message
-            : "Registration failed. Please try again.";
+            : ERROR_MESSAGES.REGISTER_FAILED;
 
         setFormError(errorMessage);
         // Show toast error
@@ -77,7 +78,7 @@ export default function RegisterPage() {
       firstName: "",
       lastName: "",
       phone: "",
-      gender: "MALE",
+      gender: "male",
       role: Role.PATIENT,
       age: 18,
       terms: false,

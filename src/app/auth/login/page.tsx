@@ -27,6 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { SocialLogin } from "@/components/auth/social-login";
+import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"password" | "otp">("password");
@@ -44,8 +45,18 @@ export default function LoginPage() {
   } = useAuth();
 
   const handleSuccess = (response: AuthResponse | null) => {
-    if (!response) return;
+    if (!response || !response.user) {
+      toast.error(ERROR_MESSAGES.LOGIN_FAILED);
+      return;
+    }
 
+    // If profile is not complete, redirect to the completion page
+    if (response.user.profileComplete === false) {
+      router.push('/profile-completion');
+      return;
+    }
+
+    // If profile is complete, continue with the original redirect logic
     const searchParams = new URLSearchParams(window.location.search);
     const redirectUrl = searchParams.get("redirect");
 
@@ -53,9 +64,7 @@ export default function LoginPage() {
       redirectUrl && !redirectUrl.includes("/auth/")
         ? redirectUrl
         : response.redirectUrl ||
-          (response.user?.role
-            ? getDashboardByRole(response.user.role as Role)
-            : "/dashboard");
+          getDashboardByRole(response.user.role as Role);
 
     router.push(finalRedirectUrl || "/dashboard");
   };
@@ -73,7 +82,7 @@ export default function LoginPage() {
       handleSuccess(authResponse);
       return authResponse;
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to sign in");
+      toast.error(error instanceof Error ? error.message : ERROR_MESSAGES.LOGIN_FAILED);
       throw error;
     }
   };
@@ -88,7 +97,7 @@ export default function LoginPage() {
       return authResponse;
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to verify OTP"
+        error instanceof Error ? error.message : ERROR_MESSAGES.OTP_FAILED
       );
       throw error;
     }
