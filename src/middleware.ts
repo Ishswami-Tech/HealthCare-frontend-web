@@ -92,7 +92,6 @@ export async function middleware(request: NextRequest) {
   const profileCompleteCookie = request.cookies.get('profile_complete')?.value;
 
   // Try to extract user data from JWT token to calculate profile completion
-  let profileComplete = profileCompleteCookie === 'true';
   let userData: Record<string, unknown> | null = null;
 
   if (accessToken) {
@@ -106,9 +105,6 @@ export async function middleware(request: NextRequest) {
         gender: payload.gender || '',
         address: payload.address || '',
       };
-      
-      // Calculate profile completion from user data
-      profileComplete = calculateProfileCompletionFromUserData(userData);
     } catch (error) {
       console.log('Middleware - Error parsing JWT token:', error);
     }
@@ -118,7 +114,6 @@ export async function middleware(request: NextRequest) {
     hasAccessToken: !!accessToken,
     hasRefreshToken: !!refreshToken,
     userRole,
-    profileComplete,
     pathname,
     profileCompleteCookie: profileCompleteCookie,
     userData: userData ? Object.keys(userData) : null
@@ -151,10 +146,18 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check if profile is complete for authenticated users using centralized logic
+  const profileCompleteFromCookie = profileCompleteCookie === 'true';
+  const profileCompleteFromUserData = userData ? calculateProfileCompletionFromUserData(userData) : false;
+  
+  // Prioritize the cookie value since it's set after a successful profile update
+  const profileComplete = profileCompleteFromCookie || profileCompleteFromUserData;
+  
   const shouldRedirect = shouldRedirectToProfileCompletion(!!accessToken, profileComplete, pathname);
   console.log('Middleware - Profile completion check:', {
     isAuthenticated: !!accessToken,
     profileComplete,
+    profileCompleteFromCookie,
+    profileCompleteFromUserData,
     currentPath: pathname,
     shouldRedirect,
     functionResult: shouldRedirectToProfileCompletion(!!accessToken, profileComplete, pathname)

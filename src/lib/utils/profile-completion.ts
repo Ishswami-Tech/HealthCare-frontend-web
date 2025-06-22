@@ -30,12 +30,8 @@ export interface UserProfileData {
   updatedAt?: string;
   clinicToken?: string;
   clinic?: Record<string, unknown>;
-  // Emergency contact fields (may be nested or separate)
-  emergencyContact?: {
-    name: string;
-    phone: string;
-    relationship: string;
-  };
+  // Emergency contact as a string
+  emergencyContact?: string;
   // Role-specific fields
   specialization?: string;
   licenseNumber?: string;
@@ -56,9 +52,7 @@ export function checkProfileCompletion(profileData: UserProfileData): ProfileCom
     'dateOfBirth',
     'gender',
     'address',
-    'emergencyContact.name',
-    'emergencyContact.phone',
-    'emergencyContact.relationship'
+    'emergencyContact'
   ];
 
   const optionalFields: string[] = [];
@@ -188,9 +182,7 @@ export function getRequiredFieldsForRole(): string[] {
     'dateOfBirth',
     'gender',
     'address',
-    'emergencyContact.name',
-    'emergencyContact.phone',
-    'emergencyContact.relationship'
+    'emergencyContact'
   ];
 
   return baseFields;
@@ -282,11 +274,7 @@ export function transformApiResponse(apiData: Record<string, unknown>): UserProf
     clinicToken: (apiData.clinicToken as string) || '',
     clinic: (apiData.clinic as Record<string, unknown>) || {},
     // Handle emergency contact (may need to be extracted from other fields)
-    emergencyContact: (apiData.emergencyContact as { name: string; phone: string; relationship: string }) || {
-      name: '',
-      phone: '',
-      relationship: ''
-    },
+    emergencyContact: (apiData.emergencyContact as string) || '',
     // Role-specific fields
     specialization: (apiData.specialization as string) || '',
     licenseNumber: (apiData.licenseNumber as string) || '',

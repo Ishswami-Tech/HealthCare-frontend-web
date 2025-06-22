@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryData } from "@/hooks/useQueryData";
@@ -37,35 +36,7 @@ import {
 import { toast } from "sonner";
 import { Loader2, User, Phone, MapPin, Calendar, Venus } from "lucide-react";
 import { Role } from "@/types/auth.types";
-
-// Profile completion schema - only essential fields are required
-const profileCompletionSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
-  gender: z.enum(["male", "female", "other"], {
-    required_error: "Please select a gender",
-  }),
-  address: z.string().min(10, "Address must be at least 10 characters"),
-  emergencyContact: z.object({
-    name: z.string().min(2, "Emergency contact name is required"),
-    phone: z.string().min(10, "Emergency contact phone is required"),
-    relationship: z.string().min(2, "Relationship is required"),
-  }),
-  // Optional fields for profile updates
-  specialization: z.string().optional(),
-  licenseNumber: z.string().optional(),
-  experience: z.string().optional(),
-  clinicName: z.string().optional(),
-  clinicAddress: z.string().optional(),
-});
-
-type ProfileCompletionFormData = z.infer<typeof profileCompletionSchema>;
-
-interface ProfileData extends ProfileCompletionFormData {
-  profileComplete: boolean;
-}
+import { profileCompletionSchema, ProfileCompletionFormData, ProfileData } from "@/lib/schema/login-schema";
 
 interface ProfileCompletionFormProps {
   onComplete?: () => void;
@@ -119,13 +90,8 @@ export default function ProfileCompletionForm({
       dateOfBirth: "",
       gender: undefined,
       address: "",
-      emergencyContact: {
-        name: "",
-        phone: "",
-        relationship: "",
-      },
+      emergencyContact: "",
       specialization: "",
-      licenseNumber: "",
       experience: "",
       clinicName: "",
       clinicAddress: "",
@@ -141,18 +107,13 @@ export default function ProfileCompletionForm({
         phone: existingProfile.phone || "",
         dateOfBirth: existingProfile.dateOfBirth || "",
         gender: existingProfile.gender as
-          | "male"
-          | "female"
-          | "other"
+          | "MALE"
+          | "FEMALE"
+          | "OTHER"
           | undefined,
         address: existingProfile.address || "",
-        emergencyContact: existingProfile.emergencyContact || {
-          name: "",
-          phone: "",
-          relationship: "",
-        },
+        emergencyContact: existingProfile.emergencyContact || "",
         specialization: existingProfile.specialization || "",
-        licenseNumber: existingProfile.licenseNumber || "",
         experience: existingProfile.experience || "",
         clinicName: existingProfile.clinicName || "",
         clinicAddress: existingProfile.clinicAddress || "",
@@ -173,13 +134,8 @@ export default function ProfileCompletionForm({
         dateOfBirth: "",
         gender: undefined,
         address: "",
-        emergencyContact: {
-          name: "",
-          phone: "",
-          relationship: "",
-        },
+        emergencyContact: "",
         specialization: "",
-        licenseNumber: "",
         experience: "",
         clinicName: "",
         clinicAddress: "",
@@ -197,30 +153,56 @@ export default function ProfileCompletionForm({
   const { mutate: updateProfile, isPending: updatingProfile } = useMutationData(
     ["update-profile-completion"],
     async (data: Record<string, unknown>) => {
-      const response = await updateUserProfile(data);
-      return response;
+      try {
+        const response = await updateUserProfile(data);
+        return response;
+      } catch (error) {
+        console.error("Profile update error:", error);
+        // Convert the error to a format that can be displayed in toast
+        if (error instanceof Error) {
+          toast.error(`Error: ${error.message}`);
+        } else {
+          toast.error("An unexpected error occurred. Please try again.");
+        }
+        throw error; // Re-throw for the mutation to handle
+      }
     },
     "user-profile",
-    async () => {
-      toast.success("Profile completed successfully!");
+    async (response) => {
+      try {
+        // Only show success toast once
+        toast.success("Profile completed successfully!");
 
-      // Refresh session to get updated user data
-      await refreshSession();
+        // Refresh session to get updated user data
+        await refreshSession();
 
-      // Set profile complete cookie
-      await setProfileComplete(true);
+        // Set profile complete cookie
+        await setProfileComplete(true);
 
-      // Call onComplete callback if provided
-      if (onComplete) {
-        onComplete();
-      } else {
-        // Use centralized redirect logic
-        const userRole = session?.user?.role as Role;
-        const finalRedirect = getProfileCompletionRedirectUrl(
-          userRole,
-          redirectUrl
-        );
-        router.push(finalRedirect);
+        // Wait a moment for cookies to be set and session to update
+        setTimeout(() => {
+          try {
+            // Call onComplete callback if provided
+            if (onComplete) {
+              onComplete();
+            } else {
+              // Use centralized redirect logic
+              const userRole = session?.user?.role as Role;
+              const finalRedirect = getProfileCompletionRedirectUrl(
+                userRole,
+                redirectUrl
+              );
+              console.log("Redirecting to:", finalRedirect);
+              router.push(finalRedirect);
+            }
+          } catch (redirectError) {
+            console.error("Error during redirect:", redirectError);
+            toast.error("Profile was updated but there was an error redirecting. Please try navigating manually.");
+          }
+        }, 1000); // Increased timeout to ensure cookies are set
+      } catch (error) {
+        console.error("Error in profile completion success handler:", error);
+        toast.error("Profile was updated but there was an error redirecting. Please try navigating manually.");
       }
     }
   );
@@ -231,42 +213,79 @@ export default function ProfileCompletionForm({
       // Prepare the data based on user role
       const profileData: ProfileData = {
         ...data,
+        emergencyContact: data.emergencyContact, // Already a string now
         profileComplete: true, // Mark profile as complete
       };
 
       // Add role-specific fields
       if (session?.user?.role === Role.DOCTOR) {
         profileData.specialization = data.specialization;
-        profileData.licenseNumber = data.licenseNumber;
         profileData.experience = data.experience;
       } else if (session?.user?.role === Role.CLINIC_ADMIN) {
         profileData.clinicName = data.clinicName;
         profileData.clinicAddress = data.clinicAddress;
       }
 
+      // Log the data being sent
+      console.log('Submitting profile data:', JSON.stringify(profileData, null, 2));
+
+      // Try to update the profile
       updateProfile(profileData as unknown as Record<string, unknown>);
     } catch (error) {
       console.error("Profile completion error:", error);
       
-      // Handle device validation errors specifically
-      if (error instanceof Error && 
-          (error.message.includes('Session validation failed') || 
-           error.message.includes('Invalid device'))) {
-        
-        toast.error(
-          <div className="flex flex-col gap-2">
-            <p>Your session appears to be invalid or expired.</p>
-            <button 
-              className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-sm"
-              onClick={() => router.push('/auth/login')}
-            >
-              Please log in again
-            </button>
-          </div>,
-          { duration: 10000 }
-        );
+      // Handle different types of errors with specific messages
+      if (error instanceof Error) {
+        if (error.message.includes('Session validation failed') || 
+            error.message.includes('Invalid device') || 
+            error.message.includes('Invalid session')) {
+          // Session-related errors
+          toast.error(
+            <div className="flex flex-col gap-2">
+              <p>Your session appears to be invalid or expired.</p>
+              <button 
+                className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-sm"
+                onClick={() => router.push('/auth/login')}
+              >
+                Please log in again
+              </button>
+            </div>,
+            { duration: 10000 }
+          );
+        } else if (error.message.includes('500') || error.message.includes('Server encountered an error')) {
+          // Server errors
+          toast.error(
+            <div className="flex flex-col gap-2">
+              <p>The server encountered an error processing your request.</p>
+              <p className="text-sm">Please try again in a few moments or contact support if the issue persists.</p>
+              <div className="flex gap-2 mt-1">
+                <button 
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-1 px-3 rounded text-sm"
+                  onClick={() => window.location.reload()}
+                >
+                  Refresh Page
+                </button>
+                <button 
+                  className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-sm"
+                  onClick={() => router.push('/auth/login')}
+                >
+                  Log In Again
+                </button>
+              </div>
+            </div>,
+            { duration: 15000 }
+          );
+        } else {
+          // Generic errors
+          toast.error(`Failed to complete profile: ${error.message}`, { 
+            duration: 5000 
+          });
+        }
       } else {
-        toast.error("Failed to complete profile. Please try again.");
+        // Fallback for non-Error objects
+        toast.error("Failed to complete profile. Please try again.", { 
+          duration: 5000 
+        });
       }
     } finally {
       setIsSubmitting(false);
@@ -371,18 +390,49 @@ export default function ProfileCompletionForm({
                   <FormField
                     control={form.control}
                     name="dateOfBirth"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          Date of Birth *
-                        </FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      // Calculate the minimum date (12 years ago)
+                      const today = new Date();
+                      const minDate = new Date(
+                        today.getFullYear() - 12,
+                        today.getMonth(),
+                        today.getDate()
+                      ).toISOString().split('T')[0];
+                      
+                      return (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            Date of Birth *
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              placeholder="YYYY-MM-DD"
+                              max={new Date().toISOString().split('T')[0]}
+                              min="1920-01-01"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                // Show a warning if the date is less than 12 years ago
+                                const selectedDate = new Date(e.target.value);
+                                const twelveYearsAgo = new Date(
+                                  today.getFullYear() - 12,
+                                  today.getMonth(),
+                                  today.getDate()
+                                );
+                                
+                                if (selectedDate > twelveYearsAgo) {
+                                  toast.warning("You must be at least 12 years old to register");
+                                }
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-xs text-gray-500 mt-1">You must be at least 12 years old to register</p>
+                        </FormItem>
+                      );
+                    }}
                   />
                 </div>
 
@@ -405,9 +455,9 @@ export default function ProfileCompletionForm({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="MALE">Male</SelectItem>
+                          <SelectItem value="FEMALE">Female</SelectItem>
+                          <SelectItem value="OTHER">Other</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -439,58 +489,27 @@ export default function ProfileCompletionForm({
 
               {/* Emergency Contact */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Phone className="h-5 w-5" />
                   Emergency Contact
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="emergencyContact.name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Name *</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Emergency contact name"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="emergencyContact.phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Phone *</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Emergency contact phone"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
                 <FormField
                   control={form.control}
-                  name="emergencyContact.relationship"
+                  name="emergencyContact"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Relationship *</FormLabel>
+                      <FormLabel>Emergency Contact Information *</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="e.g., Spouse, Parent, Sibling"
+                        <Textarea
+                          placeholder="Enter emergency contact information (e.g., John Doe (Spouse): 555-123-4567)"
+                          className="min-h-[80px]"
                           {...field}
                         />
                       </FormControl>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Please include name, relationship, and phone number
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -524,35 +543,18 @@ export default function ProfileCompletionForm({
 
                     <FormField
                       control={form.control}
-                      name="licenseNumber"
+                      name="experience"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>License Number</FormLabel>
+                          <FormLabel>Years of Experience</FormLabel>
                           <FormControl>
-                            <Input
-                              placeholder="Medical license number"
-                              {...field}
-                            />
+                            <Input placeholder="e.g., 5 years" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-
-                  <FormField
-                    control={form.control}
-                    name="experience"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Years of Experience</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., 5 years" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
               )}
 

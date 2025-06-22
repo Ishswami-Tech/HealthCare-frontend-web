@@ -18,10 +18,14 @@ export const useMutationData = <TData = unknown, TVariables = unknown>(
     mutationKey,
     mutationFn,
     onSuccess(data: ApiResponse<TData>) {
-      if (onSuccess) onSuccess(data);
-      return toast(data.status === 200 ? 'Success' : 'Error', {
-        description: String(data.data),
-      });
+      if (onSuccess) {
+        onSuccess(data);
+      } else {
+        // Only show automatic toast if no custom success handler is provided
+        toast(data.status === 200 ? 'Success' : 'Error', {
+          description: typeof data.data === 'object' ? 'Operation completed successfully' : String(data.data),
+        });
+      }
     },
     onSettled: async () => {
       if (queryKey) {

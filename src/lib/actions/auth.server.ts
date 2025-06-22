@@ -6,10 +6,67 @@ import { getDashboardByRole } from '@/config/routes';
 import { cookies } from 'next/headers';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+// API URL configuration with fallback for local development
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
 if (!API_URL) {
   console.error('NEXT_PUBLIC_API_URL is not defined in environment variables');
   throw new Error('API URL is not configured');
+}
+
+// Log the API URL being used
+console.log('Using API URL:', API_URL);
+
+/**
+ * Utility function to check API connectivity
+ */
+async function checkApiConnection(): Promise<boolean> {
+  try {
+    console.log('Checking API connectivity to:', API_URL);
+    
+    // Try multiple endpoints that might be available
+    const endpoints = ['/health', '/api-health', '/api', '/'];
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying endpoint: ${API_URL}${endpoint}`);
+        const response = await fetch(`${API_URL}${endpoint}`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          cache: 'no-store',
+          // Set a short timeout to avoid hanging
+          signal: AbortSignal.timeout(3000)
+        });
+        
+        if (response.ok) {
+          console.log(`API connection successful via ${endpoint}`);
+          return true;
+        } else {
+          console.warn(`Endpoint ${endpoint} returned status: ${response.status}`);
+        }
+      } catch (endpointError) {
+        console.warn(`Failed to connect to ${endpoint}:`, endpointError);
+      }
+    }
+    
+    // If we're in development, allow proceeding even with connection issues
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('API connection failed but proceeding anyway in development mode');
+      return true;
+    }
+    
+    console.error('All API connection attempts failed');
+    return false;
+  } catch (error) {
+    console.error('API connection error:', error);
+    
+    // If we're in development, allow proceeding even with connection issues
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('API connection failed but proceeding anyway in development mode');
+      return true;
+    }
+    
+    return false;
+  }
 }
 
 // Update cookie options with better security
@@ -927,172 +984,216 @@ export async function verifyEmail(token: string) {
 export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
   try {
     console.log('Starting Google login with token');
-    const response = await fetch(`${API_URL}/auth/social/google`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({ token }),
-      credentials: 'include'
-    });
-
-    const result = await response.json();
     
-    if (!response.ok) {
-      console.error('Google login error response:', result);
-      throw new Error(result.message || result.error || 'Google login failed');
-    }
-
-    console.log('Google login successful, setting auth cookies');
-    
-    // Ensure we have all required data
-    if (!result.access_token || !result.refresh_token || !result.user) {
-      console.error('Missing required data in Google login response:', result);
-      throw new Error('Invalid response from server');
+    // Check API connectivity first
+    const isApiConnected = await checkApiConnection();
+    if (!isApiConnected) {
+      // Create a more helpful error message with troubleshooting steps
+      throw new Error(
+        'Cannot connect to the backend API. Please try the following:\n' +
+        '1. Check your network connection\n' +
+        '2. Verify the backend server is running\n' +
+        '3. Check if the API URL is correct: ' + API_URL
+      );
     }
     
-    // Set cookies with explicit options to ensure they're properly set
-    const cookieStore = await cookies();
+    // Try to handle the login with timeout protection
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
-    // Set access token with shorter expiry (15 minutes)
-    cookieStore.set({
-      name: 'access_token',
-      value: result.access_token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Use lax to ensure it works with redirects
-      path: '/',
-      maxAge: 60 * 15, // 15 minutes
-    });
-    
-    // Set refresh token with longer expiry (30 days)
-    cookieStore.set({
-      name: 'refresh_token',
-      value: result.refresh_token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Use lax to ensure it works with redirects
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
-    
-    // Set session ID
-    cookieStore.set({
-      name: 'session_id',
-      value: result.session_id || '',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Use lax to ensure it works with redirects
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-    
-    // Set user role for quick access in middleware
-    cookieStore.set({
-      name: 'user_role',
-      value: result.user.role,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Use lax to ensure it works with redirects
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
+    try {
+      const response = await fetch(`${API_URL}/auth/social/google`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ token }),
+        credentials: 'include',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
 
-    // Set profile completion status based on user data
-    const profileComplete = calculateProfileCompletionFromUserData(result.user);
-    cookieStore.set({
-      name: 'profile_complete',
-      value: profileComplete.toString(),
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Use lax to ensure it works with redirects
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
-    console.log('Auth cookies being set:', {
-      accessToken: result.access_token ? 'SET' : 'NOT SET',
-      sessionId: result.session_id ? 'SET' : 'NOT SET',
-    });
-    console.log('Auth cookies set successfully');
-
-    // Ensure firstName and lastName are properly extracted
-    const firstName = result.user.firstName || '';
-    const lastName = result.user.lastName || '';
-    const name = result.user.name || `${firstName} ${lastName}`.trim();
-
-    // Try to get additional user profile data if firstName/lastName are missing
-    if (!firstName || !lastName) {
-      try {
-        // Extract user ID from JWT token
-        const payload = JSON.parse(atob(result.access_token.split('.')[1]));
-        const userId = payload.sub;
+      // Check if the response is JSON before trying to parse it
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        // Not JSON, likely HTML error page
+        const text = await response.text();
+        console.error('Non-JSON response received:', text.substring(0, 200) + '...');
         
-        console.log('Fetching additional user profile data from:', `${API_URL}/user/${userId}`);
-        console.log('Using auth token:', result.access_token.substring(0, 15) + '...');
+        // Log the status and API URL for debugging
+        console.error('Response status:', response.status, response.statusText);
+        console.error('API URL:', `${API_URL}/auth/social/google`);
         
-        const profileResponse = await fetch(`${API_URL}/user/${userId}`, {
-          headers: {
-            'Authorization': `Bearer ${result.access_token}`,
-            'X-Session-ID': result.session_id || '',
-            'Content-Type': 'application/json',
-          },
-          cache: 'no-store',
-        });
-        
-        if (profileResponse.ok) {
-          const profileData = await profileResponse.json();
-          console.log('Additional profile data:', JSON.stringify(profileData, null, 2));
-          
-          // Update user data with profile information
-          if (profileData) {
-            result.user = {
-              ...result.user,
-              firstName: profileData.firstName || firstName,
-              lastName: profileData.lastName || lastName,
-              name: profileData.name || name,
-            };
-            
-            // Recalculate profile completion based on updated data
-            const updatedProfileComplete = calculateProfileCompletionFromUserData(result.user);
-            if (updatedProfileComplete !== profileComplete) {
-              console.log('Updating profile completion cookie based on API response');
-              cookieStore.set({
-                name: 'profile_complete',
-                value: updatedProfileComplete.toString(),
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                path: '/',
-                maxAge: 60 * 60 * 24 * 7, // 7 days
-              });
-            }
-          }
-        } else {
-          console.warn('Failed to fetch additional profile data:', profileResponse.status);
+        // In development, log more details
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Full response text:', text);
         }
-      } catch (profileError) {
-        console.error('Error fetching user profile:', profileError);
+        
+        throw new Error(`Server returned non-JSON response (${response.status}). Check if the backend is running correctly.`);
       }
-    }
 
-    // Return the response with proper typing
-    return {
-      user: {
-        id: result.user.id,
-        email: result.user.email,
-        role: result.user.role,
-        name: result.user.name || `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim(),
-        firstName: result.user.firstName || '',
-        lastName: result.user.lastName || '',
-        isNewUser: result.isNewUser,
-        googleId: result.user.googleId,
-        profileComplete: calculateProfileCompletionFromUserData(result.user)
-      },
-      token: result.access_token,
-      redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
-    };
+      const result = await response.json();
+      
+      if (!response.ok) {
+        console.error('Google login error response:', result);
+        throw new Error(result.message || result.error || 'Google login failed');
+      }
+
+      console.log('Google login successful, setting auth cookies');
+      
+      // Ensure we have all required data
+      if (!result.access_token || !result.refresh_token || !result.user) {
+        console.error('Missing required data in Google login response:', result);
+        throw new Error('Invalid response from server');
+      }
+      
+      // Set cookies with explicit options to ensure they're properly set
+      const cookieStore = await cookies();
+      
+      // Set access token with shorter expiry (15 minutes)
+      cookieStore.set({
+        name: 'access_token',
+        value: result.access_token,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax', // Use lax to ensure it works with redirects
+        path: '/',
+        maxAge: 60 * 15, // 15 minutes
+      });
+      
+      // Set refresh token with longer expiry (30 days)
+      cookieStore.set({
+        name: 'refresh_token',
+        value: result.refresh_token,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax', // Use lax to ensure it works with redirects
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+      });
+      
+      // Set session ID
+      cookieStore.set({
+        name: 'session_id',
+        value: result.session_id || '',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax', // Use lax to ensure it works with redirects
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+      
+      // Set user role for quick access in middleware
+      cookieStore.set({
+        name: 'user_role',
+        value: result.user.role,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax', // Use lax to ensure it works with redirects
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+
+      // Set profile completion status based on user data
+      const profileComplete = calculateProfileCompletionFromUserData(result.user);
+      cookieStore.set({
+        name: 'profile_complete',
+        value: profileComplete.toString(),
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax', // Use lax to ensure it works with redirects
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+
+      console.log('Auth cookies being set:', {
+        accessToken: result.access_token ? 'SET' : 'NOT SET',
+        sessionId: result.session_id ? 'SET' : 'NOT SET',
+      });
+      console.log('Auth cookies set successfully');
+
+      // Ensure firstName and lastName are properly extracted
+      const firstName = result.user.firstName || '';
+      const lastName = result.user.lastName || '';
+      const name = result.user.name || `${firstName} ${lastName}`.trim();
+
+      // Try to get additional user profile data if firstName/lastName are missing
+      if (!firstName || !lastName) {
+        try {
+          // Extract user ID from JWT token
+          const payload = JSON.parse(atob(result.access_token.split('.')[1]));
+          const userId = payload.sub;
+          
+          console.log('Fetching additional user profile data from:', `${API_URL}/user/${userId}`);
+          console.log('Using auth token:', result.access_token.substring(0, 15) + '...');
+          
+          const profileResponse = await fetch(`${API_URL}/user/${userId}`, {
+            headers: {
+              'Authorization': `Bearer ${result.access_token}`,
+              'X-Session-ID': result.session_id || '',
+              'Content-Type': 'application/json',
+            },
+            cache: 'no-store',
+          });
+          
+          if (profileResponse.ok) {
+            const profileData = await profileResponse.json();
+            console.log('Additional profile data:', JSON.stringify(profileData, null, 2));
+            
+            // Update user data with profile information
+            if (profileData) {
+              result.user = {
+                ...result.user,
+                firstName: profileData.firstName || firstName,
+                lastName: profileData.lastName || lastName,
+                name: profileData.name || name,
+              };
+              
+              // Recalculate profile completion based on updated data
+              const updatedProfileComplete = calculateProfileCompletionFromUserData(result.user);
+              if (updatedProfileComplete !== profileComplete) {
+                console.log('Updating profile completion cookie based on API response');
+                cookieStore.set({
+                  name: 'profile_complete',
+                  value: updatedProfileComplete.toString(),
+                  httpOnly: true,
+                  secure: process.env.NODE_ENV === 'production',
+                  sameSite: 'lax',
+                  path: '/',
+                  maxAge: 60 * 60 * 24 * 7, // 7 days
+                });
+              }
+            }
+          } else {
+            console.warn('Failed to fetch additional profile data:', profileResponse.status);
+          }
+        } catch (profileError) {
+          console.error('Error fetching user profile:', profileError);
+        }
+      }
+
+      // Return the response with proper typing
+      return {
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          role: result.user.role,
+          name: result.user.name || `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim(),
+          firstName: result.user.firstName || '',
+          lastName: result.user.lastName || '',
+          isNewUser: result.isNewUser,
+          googleId: result.user.googleId,
+          profileComplete: calculateProfileCompletionFromUserData(result.user)
+        },
+        token: result.access_token,
+        redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
+      };
+    } catch (error) {
+      console.error('Google login error:', error);
+      throw error instanceof Error ? error : new Error('Google login failed');
+    }
   } catch (error) {
     console.error('Google login error:', error);
     throw error instanceof Error ? error : new Error('Google login failed');

@@ -95,9 +95,55 @@ export const changePasswordSchema = z
     path: ["confirmPassword"],
   });
 
+// Profile completion schema - only essential fields are required
+export const profileCompletionSchema = z.object({
+  firstName: z.string().min(2, "First name must be at least 2 characters"),
+  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  dateOfBirth: z.string()
+    .min(1, "Date of birth is required")
+    .refine((date) => {
+      // Check if the date is not in the future
+      return new Date(date) <= new Date();
+    }, "Date of birth cannot be in the future")
+    .refine((date) => {
+      // Calculate age
+      const birthDate = new Date(date);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDifference = today.getMonth() - birthDate.getMonth();
+      
+      // Adjust age if birthday hasn't occurred yet this year
+      if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      // Check if age is at least 12
+      return age >= 12;
+    }, "You must be at least 12 years old to register"),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"], {
+    required_error: "Please select a gender",
+  }),
+  address: z.string().min(10, "Address must be at least 10 characters"),
+  emergencyContact: z.string().min(5, "Emergency contact information is required"),
+  // Optional fields for profile updates
+  specialization: z.string().optional(),
+  experience: z.string().optional(),
+  clinicName: z.string().optional(),
+  clinicAddress: z.string().optional(),
+});
+
 export type PasswordLoginFormData = z.infer<typeof passwordLoginSchema>;
 export type OtpRequestFormData = z.infer<typeof requestOtpSchema>;
 export type OtpVerifyFormData = z.infer<typeof otpVerifySchema>;
 export type RegisterFormData = z.infer<typeof registerSchema>;
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
+export type ProfileCompletionFormData = z.infer<typeof profileCompletionSchema>;
+
+// Helper type for backend format
+export interface ProfileData extends Omit<ProfileCompletionFormData, 'emergencyContact'> {
+  profileComplete: boolean;
+  emergencyContact: string; // String format for the backend
+}
