@@ -223,7 +223,7 @@ export default function ProfileCompletionForm({
         lastName: data.lastName,
         phone: data.phone,
         dateOfBirth: data.dateOfBirth,
-        gender: data.gender,
+        gender: data.gender.toUpperCase(),
         address: data.address,
         emergencyContact: `${data.emergencyContactName} (${data.emergencyContactRelationship}): ${data.emergencyContactPhone}`,
       };
