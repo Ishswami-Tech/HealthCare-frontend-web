@@ -43,14 +43,15 @@ async function getAuthHeaders() {
     console.warn("getAuthHeaders - NO SESSION ID FOUND IN COOKIES. This may cause authentication issues.");
   }
 
-  // Make sure to use the correct header name format (X-Session-ID) as expected by the backend
-  // Also include the user ID in multiple formats to ensure compatibility with the backend
-  return {
+  // Log all outgoing headers
+  const headers = {
     'Authorization': `Bearer ${accessToken}`,
     'X-Session-ID': sessionId || '',
     'X-User-ID': userId, // Add explicit user ID header
     'Content-Type': 'application/json',
   };
+  console.log('getAuthHeaders - Outgoing headers:', headers);
+  return headers;
 }
 
 // Special function for user profile updates to ensure proper authentication
@@ -90,9 +91,12 @@ export async function getUserProfile() {
     }
 
     // Use the correct API endpoint: /user/{id}
-    const response = await fetch(`${API_URL}/user/${userId}`, {
+    const url = `${API_URL}/user/${userId}`;
+    const headers = await getAuthHeaders();
+    console.log('getUserProfile - Fetching profile with:', { url, headers });
+    const response = await fetch(url, {
       method: 'GET',
-      headers: await getAuthHeaders(),
+      headers,
       cache: 'no-store',
     });
     
@@ -110,7 +114,7 @@ export async function getUserProfile() {
   }
 }
 
-export async function updateUserProfile(data: Record<string, unknown>) {
+export async function updateUserProfile(profileData: Record<string, unknown>) {
   try {
     // First get the current user's ID from the session
     const cookieStore = await cookies();
@@ -129,7 +133,7 @@ export async function updateUserProfile(data: Record<string, unknown>) {
     }
 
     console.log('Updating profile for user:', userId);
-    console.log('Profile data:', JSON.stringify(data, null, 2));
+    console.log('Profile data:', JSON.stringify(profileData, null, 2));
     console.log('JWT payload:', {
       userId: payload.sub,
       email: payload.email,
@@ -138,51 +142,57 @@ export async function updateUserProfile(data: Record<string, unknown>) {
 
     // The user ID should only be sent in the URL, not in the body.
     // The backend's validation pipe will reject the request if IDs are in the body.
-    const cleanData = { ...data };
-    delete cleanData.id;
-    delete cleanData.userId;
-    delete cleanData.user_id;
-    delete cleanData.sub;
+    const cleanData = { ...profileData };
+    delete (cleanData as Record<string, unknown>).id;
+    delete (cleanData as Record<string, unknown>).userId;
+    delete (cleanData as Record<string, unknown>).user_id;
+    delete (cleanData as Record<string, unknown>).sub;
 
     // Use the correct API endpoint: PATCH /user/{id}
     const response = await fetch(`${API_URL}/user/${userId}`, {
       method: 'PATCH',
       headers: {
-        ...await getEnhancedAuthHeaders(userId),
+        ...(await getEnhancedAuthHeaders(userId)),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(cleanData),
     });
-    
+
+    let responseData: Record<string, unknown> = {};
+    try {
+      responseData = await response.json();
+    } catch {
+      responseData = {};
+    }
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Failed to update user profile:', response.status, errorData);
-      
+      console.error('Failed to update user profile:', response.status, responseData);
       // Special handling for authentication errors
       if (response.status === 401) {
-        const errorMessage = errorData.message || '';
+        const errorMessage = typeof responseData === 'object' && responseData && 'message' in responseData
+          ? String((responseData as { message?: string }).message)
+          : '';
         console.warn(`Authentication error: ${errorMessage}`);
-        
         // Handle both device validation and session errors
         if (errorMessage.includes('Invalid device') || errorMessage.includes('Invalid session')) {
           console.warn('Attempting to refresh the session...');
-          
           // Try to refresh the session
           try {
             const refreshResponse = await fetch(`${API_URL}/auth/refresh`, {
               method: 'POST',
               headers: await getEnhancedAuthHeaders(userId),
             });
-            
+            let refreshData: Record<string, unknown> = {};
+            try {
+              refreshData = await refreshResponse.json();
+            } catch {
+              refreshData = {};
+            }
             if (refreshResponse.ok) {
               console.log('Session refreshed successfully, retrying profile update');
-              
-              // Get the refreshed tokens from the response
-              const refreshData = await refreshResponse.json();
-              
               // Update cookies with new tokens if provided
-              if (refreshData.access_token) {
-                cookieStore.set('access_token', refreshData.access_token, {
+              if (typeof refreshData === 'object' && refreshData && 'access_token' in refreshData) {
+                cookieStore.set('access_token', String((refreshData as { access_token?: string }).access_token), {
                   httpOnly: true,
                   secure: process.env.NODE_ENV === 'production',
                   sameSite: 'strict',
@@ -190,9 +200,8 @@ export async function updateUserProfile(data: Record<string, unknown>) {
                   maxAge: 60 * 15, // 15 minutes
                 });
               }
-              
-              if (refreshData.session_id) {
-                cookieStore.set('session_id', refreshData.session_id, {
+              if (typeof refreshData === 'object' && refreshData && 'session_id' in refreshData) {
+                cookieStore.set('session_id', String((refreshData as { session_id?: string }).session_id), {
                   httpOnly: true,
                   secure: process.env.NODE_ENV === 'production',
                   sameSite: 'strict',
@@ -200,21 +209,24 @@ export async function updateUserProfile(data: Record<string, unknown>) {
                   maxAge: 60 * 60 * 24 * 7, // 7 days
                 });
               }
-              
               // Retry the update with fresh tokens
               const retryResponse = await fetch(`${API_URL}/user/${userId}`, {
                 method: 'PATCH',
                 headers: {
-                  ...await getEnhancedAuthHeaders(userId),
+                  ...(await getEnhancedAuthHeaders(userId)),
                   'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(cleanData),
               });
-              
+              let retryData: Record<string, unknown> = {};
+              try {
+                retryData = await retryResponse.json();
+              } catch {
+                retryData = {};
+              }
               if (retryResponse.ok) {
-                const result = await retryResponse.json();
-                console.log('Profile update result (after retry):', JSON.stringify(result, null, 2));
-                return { status: 200, data: result };
+                console.log('Profile update result (after retry):', JSON.stringify(retryData, null, 2));
+                return { status: 200, data: retryData };
               } else {
                 throw new Error(`Failed to update profile after refresh: ${retryResponse.status}`);
               }
@@ -228,23 +240,23 @@ export async function updateUserProfile(data: Record<string, unknown>) {
         }
       } else if (response.status === 403) {
         // Handle permission errors with more specific messaging
-        console.error('Permission error when updating profile:', errorData);
+        console.error('Permission error when updating profile:', responseData);
         throw new Error('You do not have permission to update this profile. This may be due to an authentication issue. Please try logging out and logging back in.');
       } else if (response.status === 500) {
         // Handle server errors
-        console.error('Server error when updating profile:', errorData);
+        console.error('Server error when updating profile:', responseData);
         throw new Error('The server encountered an error. Please try again later.');
       } else {
         // Handle other errors
-        const errorMessage = errorData.message || `Error ${response.status}`;
+        const errorMessage = typeof responseData === 'object' && responseData && 'message' in responseData
+          ? String((responseData as { message?: string }).message)
+          : `Error ${response.status}`;
         throw new Error(`Failed to update profile: ${errorMessage}`);
       }
     }
-    
     // Process successful response
-    const result = await response.json();
-    console.log('Profile update result:', JSON.stringify(result, null, 2));
-    return { status: 200, data: result };
+    console.log('Profile update result:', JSON.stringify(responseData, null, 2));
+    return { status: 200, data: responseData };
   } catch (error) {
     console.error('Error updating user profile:', error);
     throw error;

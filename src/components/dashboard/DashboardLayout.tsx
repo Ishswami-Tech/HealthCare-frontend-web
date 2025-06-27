@@ -6,6 +6,9 @@ import { Role } from "@/types/auth.types";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getDashboardByRole } from "@/config/routes";
+import { useQueryData } from "@/hooks/useQueryData";
+import { getUserProfile } from "@/lib/actions/users.server";
+import { checkProfileCompletion, transformApiResponse } from "@/lib/profile";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -21,6 +24,27 @@ export function DashboardLayout({
   const { session, isLoading } = useAuth();
   const router = useRouter();
   const { user } = session || {};
+
+  // Fetch user profile for completeness check
+  const { data: profile, isPending: loadingProfile } = useQueryData(
+    ["dashboard-profile"],
+    async () => {
+      const response = await getUserProfile();
+      return transformApiResponse(response.data || response);
+    },
+    { enabled: !!session?.access_token }
+  );
+
+  useEffect(() => {
+    if (!isLoading && !loadingProfile && user && profile) {
+      // Merge session user and profile data for completeness check
+      const mergedProfile = { ...profile, ...user };
+      const { isComplete } = checkProfileCompletion(mergedProfile);
+      if (!isComplete) {
+        router.replace("/profile-completion");
+      }
+    }
+  }, [isLoading, loadingProfile, user, profile, router]);
 
   useEffect(() => {
     if (!isLoading && user) {
@@ -39,8 +63,8 @@ export function DashboardLayout({
     }
   }, [user, title, allowedRole, router, isLoading]);
 
-  // Show loading state while checking authentication
-  if (isLoading || !user) {
+  // Show loading state while checking authentication or profile completeness
+  if (isLoading || !user || loadingProfile || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin" />
@@ -51,6 +75,13 @@ export function DashboardLayout({
   // Verify role before rendering content
   const roles = Array.isArray(allowedRole) ? allowedRole : [allowedRole];
   if (!roles.includes(user.role)) {
+    return null;
+  }
+
+  // Check profile completeness again before rendering children
+  const mergedProfile = { ...profile, ...user };
+  const { isComplete } = checkProfileCompletion(mergedProfile);
+  if (!isComplete) {
     return null;
   }
 
