@@ -13,7 +13,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
 import { SocialLogin } from "@/components/auth/social-login";
 import {
   Form,
@@ -31,24 +30,39 @@ import { Role } from "@/types/auth.types";
 import { toast } from "sonner";
 import { useState } from "react";
 import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
+import { Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register: registerUser, isLoading } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
+  const [isSocialLoginLoading, setIsSocialLoginLoading] = useState(false);
+
+  // Disable form inputs when social login is loading
+  const isFormDisabled = isSocialLoginLoading;
 
   const form = useZodForm(
     registerSchema,
     async (values: RegisterFormData) => {
       try {
         setFormError(null);
+
+        // Show loading toast
+        toast.loading("Creating account...", {
+          id: "register",
+        });
+
         const formData = {
           ...values,
           role: Role.PATIENT, // Set default role
-          gender: values.gender || "male", 
+          gender: values.gender || "male",
           age: values.age || 18, // Ensure age has a default value
         };
         await registerUser(formData);
+
+        // Dismiss loading toast and show success
+        toast.dismiss("register");
+        toast.success("Account created successfully!");
 
         // Reset form
         form.reset();
@@ -57,6 +71,9 @@ export default function RegisterPage() {
           router.push("/auth/login?registered=true");
         }, 3000);
       } catch (error) {
+        // Dismiss loading toast and show error
+        toast.dismiss("register");
+
         console.error("Registration error:", error);
         // Set form error
         const errorMessage =
@@ -95,23 +112,22 @@ export default function RegisterPage() {
       </CardHeader>
       <CardContent>
         <SocialLogin
-          className="mb-6"
+          className="mb-6 w-full"
           onError={(error) => {
             setFormError(error.message);
             toast.error(error.message);
           }}
+          onLoadingStateChange={setIsSocialLoginLoading}
         />
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <Separator className="w-full" />
+        {isSocialLoginLoading && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+              <p className="text-sm text-blue-600">Signing up with Google...</p>
+            </div>
           </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white dark:bg-gray-900 px-2 text-gray-500">
-              Or continue with email
-            </span>
-          </div>
-        </div>
+        )}
 
         {formError && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -138,7 +154,14 @@ export default function RegisterPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input placeholder="First name" {...field} />
+                      <Input
+                        placeholder="First name"
+                        {...field}
+                        disabled={isFormDisabled}
+                        className={
+                          isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -150,7 +173,14 @@ export default function RegisterPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input placeholder="Last name" {...field} />
+                      <Input
+                        placeholder="Last name"
+                        {...field}
+                        disabled={isFormDisabled}
+                        className={
+                          isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -168,6 +198,10 @@ export default function RegisterPage() {
                       type="email"
                       placeholder="Email address"
                       {...field}
+                      disabled={isFormDisabled}
+                      className={
+                        isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
+                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -181,7 +215,15 @@ export default function RegisterPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input type="tel" placeholder="Phone number" {...field} />
+                    <Input
+                      type="tel"
+                      placeholder="Phone number"
+                      {...field}
+                      disabled={isFormDisabled}
+                      className={
+                        isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
+                      }
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -198,13 +240,18 @@ export default function RegisterPage() {
                       type="password"
                       placeholder="Create password"
                       {...field}
+                      disabled={isFormDisabled}
+                      className={
+                        isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
+                      }
                     />
                   </FormControl>
-                  <PasswordStrength password={field.value} />
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            <PasswordStrength password={form.watch("password")} />
 
             <FormField
               control={form.control}
@@ -216,6 +263,10 @@ export default function RegisterPage() {
                       type="password"
                       placeholder="Confirm password"
                       {...field}
+                      disabled={isFormDisabled}
+                      className={
+                        isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
+                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -223,54 +274,67 @@ export default function RegisterPage() {
               )}
             />
 
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <FormField
-                  control={form.control}
-                  name="terms"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center space-x-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <label
-                        htmlFor="terms"
-                        className="text-sm text-gray-600 cursor-pointer"
+            <FormField
+              control={form.control}
+              name="terms"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={isFormDisabled}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <label
+                      htmlFor="terms"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      I agree to the{" "}
+                      <Link
+                        href="/terms"
+                        className="text-blue-600 hover:text-blue-800"
                       >
-                        I accept the{" "}
-                        <Link
-                          href="/terms"
-                          className="text-blue-600 hover:underline"
-                        >
-                          terms and conditions
-                        </Link>
-                      </label>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
-                    Creating account...
+                        Terms of Service
+                      </Link>{" "}
+                      and{" "}
+                      <Link
+                        href="/privacy"
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        Privacy Policy
+                      </Link>
+                    </label>
                   </div>
-                ) : (
-                  "Create account"
-                )}
-              </Button>
-            </div>
+                </FormItem>
+              )}
+            />
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isFormDisabled || isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                "Create account"
+              )}
+            </Button>
           </form>
         </Form>
       </CardContent>
-      <CardFooter>
-        <div className="w-full text-center text-sm text-gray-600">
+      <CardFooter className="flex flex-col space-y-2">
+        <div className="text-sm text-center">
           Already have an account?{" "}
-          <Link href="/auth/login" className="text-blue-600 hover:underline">
+          <Link
+            href="/auth/login"
+            className="text-blue-600 hover:text-blue-800"
+          >
             Sign in
           </Link>
         </div>

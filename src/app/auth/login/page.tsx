@@ -10,7 +10,6 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import useZodForm from "@/hooks/useZodForm";
@@ -28,21 +27,15 @@ import {
 } from "@/components/ui/form";
 import { SocialLogin } from "@/components/auth/social-login";
 import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"password" | "otp">("password");
   const [showOTPInput, setShowOTPInput] = useState(false);
+  const [isSocialLoginLoading, setIsSocialLoginLoading] = useState(false);
   const router = useRouter();
-  const {
-    login,
-    requestOTP,
-    verifyOTP,
-    isLoggingIn,
-    isVerifyingEmail,
-    isGoogleLoggingIn,
-    isAppleLoggingIn,
-    isFacebookLoggingIn,
-  } = useAuth();
+  const { login, requestOTP, verifyOTP, isLoggingIn, isVerifyingEmail } =
+    useAuth();
 
   const handleSuccess = (response: AuthResponse | null) => {
     if (!response || !response.user) {
@@ -52,7 +45,8 @@ export default function LoginPage() {
 
     // If profile is not complete, redirect to the completion page
     if (response.user.profileComplete === false) {
-      router.push('/profile-completion');
+      toast.info("Please complete your profile to continue");
+      router.push("/profile-completion");
       return;
     }
 
@@ -73,16 +67,30 @@ export default function LoginPage() {
     data: z.infer<typeof loginSchema>
   ): Promise<AuthResponse> => {
     try {
+      // Show loading toast
+      toast.loading("Signing in...", {
+        id: "login",
+      });
+
       const response = await login({
         email: data.email,
         password: data.password,
         rememberMe: data.rememberMe,
       });
       const authResponse = response as unknown as AuthResponse;
+
+      // Dismiss loading toast and show success
+      toast.dismiss("login");
+      toast.success("Successfully signed in!");
+
       handleSuccess(authResponse);
       return authResponse;
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : ERROR_MESSAGES.LOGIN_FAILED);
+      // Dismiss loading toast and show error
+      toast.dismiss("login");
+      toast.error(
+        error instanceof Error ? error.message : ERROR_MESSAGES.LOGIN_FAILED
+      );
       throw error;
     }
   };
@@ -91,11 +99,23 @@ export default function LoginPage() {
     data: z.infer<typeof otpSchema>
   ): Promise<AuthResponse> => {
     try {
+      // Show loading toast
+      toast.loading("Verifying OTP...", {
+        id: "otp-verify",
+      });
+
       const response = await verifyOTP(data);
       const authResponse = response as unknown as AuthResponse;
+
+      // Dismiss loading toast and show success
+      toast.dismiss("otp-verify");
+      toast.success("OTP verified successfully!");
+
       handleSuccess(authResponse);
       return authResponse;
     } catch (error) {
+      // Dismiss loading toast and show error
+      toast.dismiss("otp-verify");
       toast.error(
         error instanceof Error ? error.message : ERROR_MESSAGES.OTP_FAILED
       );
@@ -117,22 +137,29 @@ export default function LoginPage() {
 
   const handleRequestOTP = async (email: string) => {
     try {
+      // Show loading toast
+      toast.loading("Sending OTP...", {
+        id: "otp-request",
+      });
+
       await requestOTP(email);
-      setShowOTPInput(true);
+
+      // Dismiss loading toast and show success
+      toast.dismiss("otp-request");
       toast.success("OTP sent successfully!");
+
+      setShowOTPInput(true);
     } catch (error) {
+      // Dismiss loading toast and show error
+      toast.dismiss("otp-request");
       toast.error(
         error instanceof Error ? error.message : "Failed to send OTP"
       );
     }
   };
 
-  const isLoading =
-    isLoggingIn ||
-    isVerifyingEmail ||
-    isGoogleLoggingIn ||
-    isAppleLoggingIn ||
-    isFacebookLoggingIn;
+  // Disable form inputs when social login is loading
+  const isFormDisabled = isSocialLoginLoading;
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -141,7 +168,28 @@ export default function LoginPage() {
         <p className="text-sm text-gray-600 text-center mt-2">
           Sign in to access your account
         </p>
-        <div className="flex space-x-2 mt-6">
+      </CardHeader>
+      <CardContent>
+        <SocialLogin
+          className="mb-6 w-full"
+          onError={(error) => {
+            toast.error(error.message);
+          }}
+          onLoadingStateChange={setIsSocialLoginLoading}
+        />
+
+        {/* <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <Separator className="w-full" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white dark:bg-gray-900 px-2 text-gray-500">
+              or continue with email
+            </span>
+          </div>
+        </div> */}
+
+        <div className="flex space-x-2 mb-6">
           <Button
             type="button"
             variant={activeTab === "password" ? "default" : "outline"}
@@ -150,6 +198,7 @@ export default function LoginPage() {
               setActiveTab("password");
               setShowOTPInput(false);
             }}
+            disabled={isFormDisabled}
           >
             Password
           </Button>
@@ -161,12 +210,21 @@ export default function LoginPage() {
               setActiveTab("otp");
               setShowOTPInput(false);
             }}
+            disabled={isFormDisabled}
           >
             OTP
           </Button>
         </div>
-      </CardHeader>
-      <CardContent>
+
+        {isSocialLoginLoading && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+              <p className="text-sm text-blue-600">Signing in with Google...</p>
+            </div>
+          </div>
+        )}
+
         {activeTab === "password" ? (
           <Form {...passwordForm}>
             <form onSubmit={passwordForm.onFormSubmit} className="space-y-4">
@@ -176,7 +234,15 @@ export default function LoginPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input type="email" placeholder="Email" {...field} />
+                      <Input
+                        type="email"
+                        placeholder="Email"
+                        {...field}
+                        disabled={isFormDisabled}
+                        className={
+                          isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -193,6 +259,10 @@ export default function LoginPage() {
                         type="password"
                         placeholder="Password"
                         {...field}
+                        disabled={isFormDisabled}
+                        className={
+                          isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -200,41 +270,40 @@ export default function LoginPage() {
                 )}
               />
 
-              <div className="flex items-center justify-between">
-                <FormField
-                  control={passwordForm.control}
-                  name="rememberMe"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center space-x-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
+              <FormField
+                control={passwordForm.control}
+                name="rememberMe"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={isFormDisabled}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
                       <label
                         htmlFor="rememberMe"
-                        className="text-sm font-medium leading-none cursor-pointer"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                       >
                         Remember me
                       </label>
-                    </FormItem>
-                  )}
-                />
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+                    </div>
+                  </FormItem>
+                )}
+              />
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isFormDisabled || isLoggingIn}
+              >
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Signing in...
-                  </div>
+                  </>
                 ) : (
                   "Sign in"
                 )}
@@ -250,130 +319,122 @@ export default function LoginPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input type="email" placeholder="Email" {...field} />
+                      <Input
+                        type="email"
+                        placeholder="Email"
+                        {...field}
+                        disabled={isFormDisabled}
+                        className={
+                          isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {!showOTPInput ? (
+              {showOTPInput ? (
+                <FormField
+                  control={otpForm.control}
+                  name="otp"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          placeholder="Enter OTP"
+                          {...field}
+                          disabled={isFormDisabled}
+                          className={
+                            isFormDisabled
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
                 <Button
                   type="button"
+                  variant="outline"
                   className="w-full"
-                  disabled={isLoading}
                   onClick={() => {
                     const email = otpForm.getValues("email");
                     if (email) {
                       handleRequestOTP(email);
                     } else {
-                      toast.error("Please enter your email address");
+                      toast.error("Please enter your email first");
                     }
                   }}
+                  disabled={isFormDisabled}
                 >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
-                      Sending OTP...
+                  Request OTP
+                </Button>
+              )}
+
+              <FormField
+                control={otpForm.control}
+                name="rememberMe"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={isFormDisabled}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <label
+                        htmlFor="rememberMe"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Remember me
+                      </label>
                     </div>
+                  </FormItem>
+                )}
+              />
+
+              {showOTPInput && (
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isFormDisabled || isVerifyingEmail}
+                >
+                  {isVerifyingEmail ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Verifying...
+                    </>
                   ) : (
-                    "Get OTP"
+                    "Verify OTP"
                   )}
                 </Button>
-              ) : (
-                <div className="space-y-4">
-                  <FormField
-                    control={otpForm.control}
-                    name="otp"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Input
-                            type="text"
-                            placeholder="Enter OTP"
-                            maxLength={6}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={otpForm.control}
-                    name="rememberMe"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <label
-                          htmlFor="rememberMeOTP"
-                          className="text-sm font-medium leading-none cursor-pointer"
-                        >
-                          Remember me
-                        </label>
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <div className="flex items-center justify-center">
-                        <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
-                        Verifying...
-                      </div>
-                    ) : (
-                      "Verify OTP"
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      const email = otpForm.getValues("email");
-                      if (email) {
-                        handleRequestOTP(email);
-                      }
-                    }}
-                    disabled={isLoading}
-                  >
-                    Resend OTP
-                  </Button>
-                </div>
               )}
             </form>
           </Form>
         )}
-
-        <div className="relative mt-6">
-          <div className="absolute inset-0 flex items-center">
-            <Separator className="w-full" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white dark:bg-gray-900 px-2 text-gray-500">
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        <SocialLogin
-          onError={(error) => {
-            toast.error(error.message || "Social login failed");
-          }}
-          className="mt-6"
-          isLoading={isLoading}
-        />
       </CardContent>
-      <CardFooter>
-        <div className="w-full text-center text-sm text-gray-600">
+      <CardFooter className="flex flex-col space-y-2">
+        <div className="text-sm text-center">
+          <Link
+            href="/auth/forgot-password"
+            className="text-blue-600 hover:text-blue-800"
+          >
+            Forgot your password?
+          </Link>
+        </div>
+        <div className="text-sm text-center">
           Don&apos;t have an account?{" "}
-          <Link href="/auth/register" className="text-blue-600 hover:underline">
+          <Link
+            href="/auth/register"
+            className="text-blue-600 hover:text-blue-800"
+          >
             Sign up
           </Link>
         </div>

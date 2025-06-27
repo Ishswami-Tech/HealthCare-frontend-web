@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 // Google client ID from environment variable
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -56,6 +57,7 @@ interface SocialLoginProps {
   className?: string;
   onSuccess?: () => void;
   isLoading?: boolean;
+  onLoadingStateChange?: (isLoading: boolean) => void;
 }
 
 export function SocialLogin({
@@ -63,6 +65,7 @@ export function SocialLogin({
   className,
   onSuccess,
   isLoading,
+  onLoadingStateChange,
 }: SocialLoginProps) {
   const router = useRouter();
   const { googleLogin, isGoogleLoggingIn } = useAuth();
@@ -71,9 +74,17 @@ export function SocialLogin({
   // Use either the passed isLoading prop or the internal isGoogleLoggingIn state
   const isButtonDisabled = isLoading || isGoogleLoggingIn;
 
+  // Notify parent component when loading state changes
+  useEffect(() => {
+    onLoadingStateChange?.(isGoogleLoggingIn);
+  }, [isGoogleLoggingIn, onLoadingStateChange]);
+
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) {
-      onError?.(new Error("Google Client ID is not configured"));
+      const error = new Error("Google Client ID is not configured");
+      console.error(error.message);
+      onError?.(error);
+      toast.error("Google login is not configured");
       return;
     }
 
@@ -84,29 +95,47 @@ export function SocialLogin({
           const error = new Error("No credential received from Google");
           console.error(error.message);
           onError?.(error);
+          toast.error("Failed to get credentials from Google");
           return;
         }
 
+        // Show loading toast
+        toast.loading("Signing in with Google...", {
+          id: "google-login",
+        });
+
         await googleLogin(response.credential);
+
+        // Dismiss loading toast and show success
+        toast.dismiss("google-login");
+        toast.success("Successfully signed in with Google!");
 
         // Handle redirection
         const searchParams = new URLSearchParams(window.location.search);
         const callbackUrl = searchParams.get("callbackUrl");
 
         // Get the redirect URL from the search params or use a default
-        const redirectUrl = callbackUrl && !callbackUrl.includes("/auth/")
-          ? callbackUrl
-          : "/patient/dashboard"; // Default to patient dashboard
+        const redirectUrl =
+          callbackUrl && !callbackUrl.includes("/auth/")
+            ? callbackUrl
+            : "/patient/dashboard"; // Default to patient dashboard
 
         onSuccess?.();
         router.push(redirectUrl);
       } catch (error) {
+        // Dismiss loading toast and show error
+        toast.dismiss("google-login");
+
         console.error("Google login error:", error);
-        onError?.(
+        const errorMessage =
           error instanceof Error
+            ? error.message
+            : typeof error === "string"
             ? error
-            : new Error(typeof error === "string" ? error : "Google login failed")
-        );
+            : "Google login failed";
+
+        onError?.(new Error(errorMessage));
+        toast.error(errorMessage);
       }
     };
 
@@ -161,15 +190,20 @@ export function SocialLogin({
               : "Failed to initialize Google Sign-In";
           console.error("Failed to initialize Google OAuth:", error);
           onError?.(new Error(errorMessage));
+          toast.error(errorMessage);
         }
       } else {
-        onError?.(new Error("Google OAuth object not available"));
+        const error = new Error("Google OAuth object not available");
+        onError?.(error);
+        toast.error("Google login is not available");
       }
     };
 
     script.onerror = () => {
       console.error("Failed to load Google OAuth script");
-      onError?.(new Error("Failed to load Google Sign-In"));
+      const error = new Error("Failed to load Google Sign-In");
+      onError?.(error);
+      toast.error("Failed to load Google login");
     };
 
     document.head.appendChild(script);
@@ -198,6 +232,7 @@ export function SocialLogin({
           isButtonDisabled && "opacity-50 cursor-not-allowed"
         )}
         role="button"
+        aria-label="Sign in with Google"
       />
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
