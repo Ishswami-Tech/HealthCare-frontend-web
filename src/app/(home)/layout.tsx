@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { getRoutesByRole } from "@/config/routes";
 import { getUserProfile } from "@/lib/actions/users.server";
+import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import { sidebarLinksByRole, SidebarLink } from "@/config/sidebarLinks";
+import { Role } from "@/types/auth.types";
+import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
+import React from "react";
 
 interface UserProfile {
   id: string;
@@ -18,6 +23,7 @@ interface UserProfile {
   address?: string;
   dateOfBirth?: string;
   gender?: string;
+  avatarUrl?: string;
 }
 
 export default function HomeLayout({
@@ -28,6 +34,11 @@ export default function HomeLayout({
   const { session, isLoading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { setShow } = useLoadingOverlay();
+
+  React.useEffect(() => {
+    setShow(false);
+  }, [setShow]);
 
   // Fetch user profile for display
   const { data: profile } = useQueryData<UserProfile>(
@@ -68,39 +79,27 @@ export default function HomeLayout({
     );
   }
 
+  // Robust role check: fallback to 'PATIENT' if role is invalid
+  const userRole: Role = (Object.values(Role) as string[]).includes((session?.user?.role ?? "") as string)
+    ? (session?.user?.role as Role)
+    : Role.PATIENT;
+  const sidebarLinks: SidebarLink[] = sidebarLinksByRole[userRole as Role] as SidebarLink[];
+
+  // User avatar fallback
+  const userAvatar = profile?.avatarUrl || "/avatar.png";
+
   return (
     <div className="min-h-screen flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-800 text-white p-4">
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-2">Welcome</h2>
-          <p className="text-sm text-gray-300">{displayName}</p>
-          <p className="text-xs text-gray-400">{session?.user?.role}</p>
-        </div>
-
-        <nav className="space-y-2">
-          {navLinks.map((link) => (
-            <Button
-              key={link.path}
-              variant={pathname === link.path ? "secondary" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => router.push(link.path)}
-            >
-              {link.label}
-            </Button>
-          ))}
-          <Button
-            variant="destructive"
-            className="w-full mt-4"
-            onClick={handleLogout}
-          >
-            Logout
-          </Button>
-        </nav>
-      </aside>
-
-      {/* Main content */}
-      <main className="flex-1 p-8">{children}</main>
+      <GlobalSidebar
+        links={sidebarLinks.map(link => ({
+          ...link,
+          icon: link.icon(),
+          href: link.path // Ensure href is present for SidebarLinkItem type
+        }))}
+        user={{ name: displayName, avatarUrl: userAvatar }}
+      >
+        <main className="flex-1 p-8">{children}</main>
+      </GlobalSidebar>
     </div>
   );
 }

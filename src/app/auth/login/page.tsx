@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +28,7 @@ import {
 import { SocialLogin } from "@/components/auth/social-login";
 import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
 import { Loader2 } from "lucide-react";
+import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"password" | "otp">("password");
@@ -36,6 +37,11 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, requestOTP, verifyOTP, isLoggingIn, isVerifyingEmail } =
     useAuth();
+  const { setShow } = useLoadingOverlay();
+
+  useEffect(() => {
+    setShow(false);
+  }, [setShow]);
 
   const handleSuccess = (response: AuthResponse | null) => {
     if (!response || !response.user) {
