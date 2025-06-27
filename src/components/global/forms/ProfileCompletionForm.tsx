@@ -367,7 +367,7 @@ export default function ProfileCompletionForm({
   // Show loading state while fetching profile data
   if (loadingProfile || !isInitialized) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
         <div className="flex flex-col items-center">
           <Loader2 className="h-12 w-12 animate-spin text-blue-500 mb-4" />
           <p className="text-gray-600">Loading your profile data...</p>
@@ -377,20 +377,19 @@ export default function ProfileCompletionForm({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-xl bg-white rounded-lg shadow-lg">
+        <CardHeader className="text-center border-b pb-1">
           <CardTitle className="text-2xl font-bold text-gray-900">
             Complete Your Profile
           </CardTitle>
           <p className="text-gray-600 mt-2">
-            Please provide the required information to complete your profile
-            setup
+            Please provide the required information to complete your profile setup
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-8">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               {/* Form Errors Summary */}
               {Object.keys(form.formState.errors).length > 0 && (
                 <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-4">
@@ -424,13 +423,13 @@ export default function ProfileCompletionForm({
               )}
 
               {/* Basic Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-blue-700 flex items-center gap-2 mb-2 border-b pb-1">
                   <User className="h-5 w-5" />
                   Basic Information
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="firstName"
@@ -454,7 +453,6 @@ export default function ProfileCompletionForm({
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="lastName"
@@ -480,7 +478,7 @@ export default function ProfileCompletionForm({
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="phone"
@@ -509,12 +507,10 @@ export default function ProfileCompletionForm({
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="dateOfBirth"
                     render={({ field }) => {
-                      // Calculate the minimum date (12 years ago)
                       const today = new Date();
                       const minDate = new Date(
                         today.getFullYear() - 12,
@@ -523,8 +519,6 @@ export default function ProfileCompletionForm({
                       )
                         .toISOString()
                         .split("T")[0];
-
-                      // Calculate a reasonable minimum birth year (100 years ago)
                       const minYear = new Date(
                         today.getFullYear() - 100,
                         today.getMonth(),
@@ -532,7 +526,6 @@ export default function ProfileCompletionForm({
                       )
                         .toISOString()
                         .split("T")[0];
-
                       return (
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">
@@ -554,32 +547,21 @@ export default function ProfileCompletionForm({
                               }
                               onChange={(e) => {
                                 field.onChange(e);
-
-                                // Check if the selected date meets the age requirement
                                 const selectedDate = new Date(e.target.value);
                                 const today = new Date();
-                                let age =
-                                  today.getFullYear() -
-                                  selectedDate.getFullYear();
-                                const monthDifference =
-                                  today.getMonth() - selectedDate.getMonth();
-
+                                let age = today.getFullYear() - selectedDate.getFullYear();
+                                const monthDifference = today.getMonth() - selectedDate.getMonth();
                                 if (
                                   monthDifference < 0 ||
-                                  (monthDifference === 0 &&
-                                    today.getDate() < selectedDate.getDate())
+                                  (monthDifference === 0 && today.getDate() < selectedDate.getDate())
                                 ) {
                                   age--;
                                 }
-
                                 if (age < 12) {
-                                  toast.warning(
-                                    "You must be at least 12 years old"
-                                  );
+                                  toast.warning("You must be at least 12 years old");
                                   form.setError("dateOfBirth", {
                                     type: "manual",
-                                    message:
-                                      "You must be at least 12 years old",
+                                    message: "You must be at least 12 years old",
                                   });
                                 } else {
                                   form.clearErrors("dateOfBirth");
@@ -599,13 +581,13 @@ export default function ProfileCompletionForm({
                   name="gender"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2">
+                      <FormLabel className="flex items-center gap-2 font-semibold text-gray-800">
                         <Venus className="h-4 w-4" />
                         Gender *
                       </FormLabel>
                       <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
+                        value={field.value || "male"}
+                        onValueChange={(val) => field.onChange(val || "male")}
                         defaultValue="male"
                       >
                         <FormControl>
@@ -662,13 +644,12 @@ export default function ProfileCompletionForm({
               </div>
 
               {/* Emergency Contact */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <div className="space-y-2 pt-2">
+                <h3 className="text-lg font-bold text-blue-700 flex items-center gap-2 mb-2 border-b pb-1">
                   <Phone className="h-5 w-5" />
                   Emergency Contact
                 </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="emergencyContactName"
@@ -738,12 +719,11 @@ export default function ProfileCompletionForm({
 
               {/* Role-specific fields (Optional) */}
               {isDoctor && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
+                <div className="space-y-2 pt-2">
+                  <h3 className="text-lg font-bold text-blue-700 mb-2 border-b pb-1">
                     Professional Information (Optional)
                   </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <FormField
                       control={form.control}
                       name="specialization"
@@ -760,7 +740,6 @@ export default function ProfileCompletionForm({
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={form.control}
                       name="experience"
@@ -779,11 +758,10 @@ export default function ProfileCompletionForm({
               )}
 
               {isClinicAdmin && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
+                <div className="space-y-2 pt-2">
+                  <h3 className="text-lg font-bold text-blue-700 mb-2 border-b pb-1">
                     Clinic Information (Optional)
                   </h3>
-
                   <FormField
                     control={form.control}
                     name="clinicName"
@@ -797,7 +775,6 @@ export default function ProfileCompletionForm({
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="clinicAddress"
@@ -819,10 +796,10 @@ export default function ProfileCompletionForm({
               )}
 
               {/* Submit Button */}
-              <div className="flex flex-col gap-4 pt-6">
+              <div className="flex flex-col md:flex-row gap-3 pt-6 justify-end">
                 {form.formState.isSubmitted &&
                   Object.keys(form.formState.errors).length > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-md p-3">
+                    <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-md p-3 w-full md:w-auto">
                       <p className="flex items-center">
                         <svg
                           className="h-5 w-5 mr-2"
@@ -842,7 +819,7 @@ export default function ProfileCompletionForm({
                 <Button
                   type="submit"
                   disabled={isSubmitting || updatingProfile}
-                  className="w-full md:w-auto self-end"
+                  className="w-full md:w-auto self-end bg-blue-700 hover:bg-blue-800 text-white font-semibold px-8 py-2 rounded-lg shadow"
                   onClick={() => {
                     if (Object.keys(form.formState.errors).length > 0) {
                       // Scroll to the first error
