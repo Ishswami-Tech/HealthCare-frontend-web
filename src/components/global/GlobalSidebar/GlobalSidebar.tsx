@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
-import { Loader2 } from "lucide-react";
 
 export interface SidebarLinkItem {
   label: string;
@@ -43,14 +42,6 @@ const LogoIcon = () => (
   </a>
 );
 
-// Overlay for logout loading
-const LogoutOverlay = () => (
-  <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
-    <Loader2 className="w-10 h-10 animate-spin text-red-600 mb-4" />
-    <span className="text-lg font-semibold text-red-700">Logging out...</span>
-  </div>
-);
-
 export default function GlobalSidebar({ links, user, children }: GlobalSidebarProps) {
   const [open, setOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
@@ -58,23 +49,21 @@ export default function GlobalSidebar({ links, user, children }: GlobalSidebarPr
   const { logout } = useAuth();
   const router = useRouter();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const { setShow } = useLoadingOverlay();
-
-  // Color palette for fallback avatars
-  const COLORS = [
-    "bg-blue-400",
-    "bg-green-400",
-    "bg-pink-400",
-    "bg-yellow-400",
-    "bg-purple-400",
-    "bg-red-400",
-    "bg-indigo-400",
-    "bg-teal-400",
-    "bg-orange-400",
-  ];
+  const { setOverlay } = useLoadingOverlay();
 
   // Memoize a random color for this user (based on their name)
   const avatarColor = React.useMemo(() => {
+    const COLORS = [
+      "bg-blue-400",
+      "bg-green-400",
+      "bg-pink-400",
+      "bg-yellow-400",
+      "bg-purple-400",
+      "bg-red-400",
+      "bg-indigo-400",
+      "bg-teal-400",
+      "bg-orange-400",
+    ];
     if (!user.name) return COLORS[0];
     const hash = user.name.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
     return COLORS[hash % COLORS.length];
@@ -88,12 +77,12 @@ export default function GlobalSidebar({ links, user, children }: GlobalSidebarPr
   };
 
   const handleLogoutConfirm = async () => {
-    setShow(true); // Show global overlay
+    setOverlay({ show: true, variant: "logout" }); // Show global overlay
     try {
       await logout();
       router.replace("/auth/login");
-    } catch (err) {
-      setShow(false);
+    } catch {
+      setOverlay({ show: false });
       toast.error("Logout failed. Please try again.");
       router.replace("/auth/login");
     } finally {
@@ -143,6 +132,7 @@ export default function GlobalSidebar({ links, user, children }: GlobalSidebarPr
                 label: user.name,
                 href: "#",
                 icon: !avatarError && user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={user.avatarUrl}
                     className="size-9 shrink-0 rounded-full object-cover"

@@ -37,11 +37,11 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, requestOTP, verifyOTP, isLoggingIn, isVerifyingEmail } =
     useAuth();
-  const { setShow } = useLoadingOverlay();
+  const { setOverlay } = useLoadingOverlay();
 
   useEffect(() => {
-    setShow(false);
-  }, [setShow]);
+    setOverlay({ show: false });
+  }, [setOverlay]);
 
   const handleSuccess = (response: AuthResponse | null) => {
     if (!response || !response.user) {
@@ -73,30 +73,27 @@ export default function LoginPage() {
     data: z.infer<typeof loginSchema>
   ): Promise<AuthResponse> => {
     try {
-      // Show loading toast
+      setOverlay({ show: true, variant: "login" });
       toast.loading("Signing in...", {
         id: "login",
       });
-
       const response = await login({
         email: data.email,
         password: data.password,
         rememberMe: data.rememberMe,
       });
       const authResponse = response as unknown as AuthResponse;
-
-      // Dismiss loading toast and show success
       toast.dismiss("login");
       toast.success("Successfully signed in!");
-
+      setOverlay({ show: false });
       handleSuccess(authResponse);
       return authResponse;
     } catch (error) {
-      // Dismiss loading toast and show error
       toast.dismiss("login");
       toast.error(
         error instanceof Error ? error.message : ERROR_MESSAGES.LOGIN_FAILED
       );
+      setOverlay({ show: false });
       throw error;
     }
   };

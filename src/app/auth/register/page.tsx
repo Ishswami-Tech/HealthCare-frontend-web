@@ -31,12 +31,14 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
 import { Loader2 } from "lucide-react";
+import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register: registerUser, isLoading } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
   const [isSocialLoginLoading, setIsSocialLoginLoading] = useState(false);
+  const { setOverlay } = useLoadingOverlay();
 
   // Disable form inputs when social login is loading
   const isFormDisabled = isSocialLoginLoading;
@@ -46,12 +48,10 @@ export default function RegisterPage() {
     async (values: RegisterFormData) => {
       try {
         setFormError(null);
-
-        // Show loading toast
+        setOverlay({ show: true, variant: "register" });
         toast.loading("Creating account...", {
           id: "register",
         });
-
         const formData = {
           ...values,
           role: Role.PATIENT, // Set default role
@@ -59,33 +59,24 @@ export default function RegisterPage() {
           age: values.age || 18, // Ensure age has a default value
         };
         await registerUser(formData);
-
-        // Dismiss loading toast and show success
         toast.dismiss("register");
         toast.success("Account created successfully!");
-
-        // Reset form
+        setOverlay({ show: false });
         form.reset();
-        // Redirect after a short delay
         setTimeout(() => {
           router.push("/auth/login?registered=true");
         }, 3000);
       } catch (error) {
-        // Dismiss loading toast and show error
         toast.dismiss("register");
-
         console.error("Registration error:", error);
-        // Set form error
         const errorMessage =
           error instanceof Error
             ? error.message
             : ERROR_MESSAGES.REGISTER_FAILED;
-
         setFormError(errorMessage);
-        // Show toast error
         toast.error(errorMessage);
-        // Don't redirect on error
-        throw error; // Re-throw to let the form handle the error state
+        setOverlay({ show: false });
+        throw error;
       }
     },
     {

@@ -11,7 +11,12 @@ export type SidebarLink = {
 };
 
 // Helper to DRY icon rendering with consistent size
-const iconWrapper = (Icon: React.ElementType) => () => <Icon className="size-6" />;
+const iconWrapper = (Icon: React.ComponentType<{ className?: string }>) => {
+  const Wrapped = () => <Icon className="size-6" />;
+  const iconMeta = Icon as { displayName?: string; name?: string };
+  Wrapped.displayName = `SidebarIconWrapper(${iconMeta.displayName || iconMeta.name || 'Icon'})`;
+  return Wrapped;
+};
 
 export const sidebarLinksByRole: Record<Role, SidebarLink[]> = {
   [Role.SUPER_ADMIN]: [

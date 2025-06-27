@@ -23,21 +23,26 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
+import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const { forgotPassword, isRequestingReset } = useAuth();
+  const { setOverlay } = useLoadingOverlay();
 
   const form = useZodForm(
     forgotPasswordSchema,
     async (data: ForgotPasswordFormData) => {
       try {
+        setOverlay({ show: true, variant: "default", message: "Sending instructions..." });
         await forgotPassword(data.email);
         toast.success(
           "Password reset instructions have been sent to your email."
         );
         router.push("/auth/login");
+        setOverlay({ show: false });
       } catch (error) {
+        setOverlay({ show: false });
         toast.error(
           error instanceof Error
             ? error.message
@@ -84,14 +89,7 @@ export default function ForgotPasswordPage() {
               className="w-full"
               disabled={isRequestingReset}
             >
-              {isRequestingReset ? (
-                <div className="flex items-center justify-center">
-                  <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2" />
-                  Sending instructions...
-                </div>
-              ) : (
-                "Send Instructions"
-              )}
+              Send Instructions
             </Button>
           </form>
         </Form>

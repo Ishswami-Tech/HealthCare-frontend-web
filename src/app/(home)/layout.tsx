@@ -1,17 +1,13 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryData } from "@/hooks/useQueryData";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { getRoutesByRole } from "@/config/routes";
-import { getUserProfile } from "@/lib/actions/users.server";
 import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { sidebarLinksByRole, SidebarLink } from "@/config/sidebarLinks";
 import { Role } from "@/types/auth.types";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 import React from "react";
+import { getUserProfile } from "@/lib/actions/users.server";
 
 interface UserProfile {
   id: string;
@@ -31,14 +27,16 @@ export default function HomeLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { session, isLoading, logout } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
-  const { setShow } = useLoadingOverlay();
+  const { session, isLoading } = useAuth();
+  const { setOverlay } = useLoadingOverlay();
 
   React.useEffect(() => {
-    setShow(false);
-  }, [setShow]);
+    if (isLoading) {
+      setOverlay({ show: true, variant: "default" });
+    } else {
+      setOverlay({ show: false });
+    }
+  }, [isLoading, setOverlay]);
 
   // Fetch user profile for display
   const { data: profile } = useQueryData<UserProfile>(
@@ -52,33 +50,6 @@ export default function HomeLayout({
     }
   );
 
-  // Get navigation links based on user role
-  const navLinks = getRoutesByRole(session?.user?.role);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      // The useAuth hook will handle the redirection and state cleanup
-    } catch (error) {
-      console.error("Logout failed:", error);
-      window.location.href = `/auth/login?t=${Date.now()}`;
-    }
-  };
-
-  // Get display name
-  const displayName =
-    profile?.firstName && profile?.lastName
-      ? `${profile.firstName} ${profile.lastName}`
-      : profile?.firstName || session?.user?.firstName || "User";
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  }
-
   // Robust role check: fallback to 'PATIENT' if role is invalid
   const userRole: Role = (Object.values(Role) as string[]).includes((session?.user?.role ?? "") as string)
     ? (session?.user?.role as Role)
@@ -87,6 +58,12 @@ export default function HomeLayout({
 
   // User avatar fallback
   const userAvatar = profile?.avatarUrl || "/avatar.png";
+
+  // Get display name
+  const displayName =
+    profile?.firstName && profile?.lastName
+      ? `${profile.firstName} ${profile.lastName}`
+      : profile?.firstName || session?.user?.firstName || "User";
 
   return (
     <div className="min-h-screen flex">
