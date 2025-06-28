@@ -350,15 +350,51 @@ export async function clearSession() {
 /**
  * Login with email and password
  */
-export async function login(data: { email: string; password: string; rememberMe?: boolean }) {
+export async function login(data: { 
+  email: string; 
+  password?: string; 
+  otp?: string;
+  rememberMe?: boolean;
+  clinicId?: string;
+}) {
   try {
     console.log('1. Starting login process');
+    
+    // Validate that either password or OTP is provided
+    if (!data.password && !data.otp) {
+      throw new Error('Either password or OTP must be provided');
+    }
+
+    const requestBody: Record<string, unknown> = {
+      email: data.email,
+    };
+
+    if (data.password) {
+      requestBody.password = data.password;
+    }
+
+    if (data.otp) {
+      requestBody.otp = data.otp;
+    }
+
+    // Add clinic ID if provided
+    if (data.clinicId) {
+      requestBody.clinicId = data.clinicId;
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add clinic ID header if provided
+    if (data.clinicId) {
+      headers['X-Clinic-ID'] = data.clinicId;
+    }
+
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
+      headers,
+      body: JSON.stringify(requestBody),
     });
 
     console.log('2. Login response status:', response.status);
@@ -376,9 +412,10 @@ export async function login(data: { email: string; password: string; rememberMe?
     if (!result.user.firstName || !result.user.lastName) {
       console.log('4. Fetching additional user details');
       try {
-        const userResponse = await fetch(`${API_URL}/users/me`, {
+        const userResponse = await fetch(`${API_URL}/user/${result.user.id}`, {
           headers: {
             'Authorization': `Bearer ${result.access_token}`,
+            'X-Session-ID': result.session_id,
             'Content-Type': 'application/json'
           }
         });
@@ -429,7 +466,7 @@ export async function login(data: { email: string; password: string; rememberMe?
 /**
  * Register a new user
  */
-export async function register(data: RegisterFormData) {
+export async function register(data: RegisterFormData & { clinicId?: string }) {
   try {
     // Ensure firstName and lastName are properly formatted
     const formattedData = {
@@ -438,9 +475,18 @@ export async function register(data: RegisterFormData) {
       lastName: data.lastName.trim(),
     };
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add clinic ID header if provided
+    if (data.clinicId) {
+      headers['X-Clinic-ID'] = data.clinicId;
+    }
+
     const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(formattedData),
     });
 
@@ -493,11 +539,20 @@ export async function registerWithClinic(data: {
 /**
  * Request OTP
  */
-export async function requestOTP(identifier: string) {
+export async function requestOTP(identifier: string, clinicId?: string) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Add clinic ID header if provided
+  if (clinicId) {
+    headers['X-Clinic-ID'] = clinicId;
+  }
+
   const response = await fetch(`${API_URL}/auth/request-otp`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier }),
+    headers,
+    body: JSON.stringify({ identifier, clinicId }),
   });
 
   if (!response.ok) {
@@ -511,10 +566,24 @@ export async function requestOTP(identifier: string) {
 /**
  * Verify OTP
  */
-export async function verifyOTP(data: { email: string; otp: string; rememberMe?: boolean }) {
+export async function verifyOTP(data: { 
+  email: string; 
+  otp: string; 
+  rememberMe?: boolean;
+  clinicId?: string;
+}) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Add clinic ID header if provided
+  if (data.clinicId) {
+    headers['X-Clinic-ID'] = data.clinicId;
+  }
+
   const response = await fetch(`${API_URL}/auth/verify-otp`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(data),
   });
 
@@ -1006,13 +1075,17 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       console.log('Making request to:', `${API_URL}/auth/social/google`);
       console.log('Request body:', JSON.stringify({ token: token.substring(0, 10) + '...' }, null, 2));
       
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      };
+
+      const requestBody: Record<string, unknown> = { token };
+      
       const response = await fetch(`${API_URL}/auth/social/google`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ token }),
+        headers,
+        body: JSON.stringify(requestBody),
         credentials: 'include',
         signal: controller.signal
       });
@@ -1052,7 +1125,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       console.log('Google login successful, setting auth cookies');
       
       // Ensure we have all required data
-      if (!result.access_token || !result.refresh_token || !result.user) {
+      if (!result.access_token || !result.session_id || !result.user) {
         console.error('Missing required data in Google login response:', result);
         throw new Error('Invalid response from server: Missing required fields');
       }
@@ -1069,17 +1142,6 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         sameSite: 'lax', // Use lax to ensure it works with redirects
         path: '/',
         maxAge: 60 * 15, // 15 minutes
-      });
-      
-      // Set refresh token with longer expiry (30 days)
-      cookieStore.set({
-        name: 'refresh_token',
-        value: result.refresh_token,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax', // Use lax to ensure it works with redirects
-        path: '/',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
       });
       
       // Set session ID
