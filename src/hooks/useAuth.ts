@@ -252,10 +252,29 @@ export function useAuth() {
       console.log('useAuth - Starting Google login');
       const result = await googleLoginAction(token);
       console.log('useAuth - Google login result:', JSON.stringify(result, null, 2));
+      
+      // Check if result is undefined or null
+      if (!result) {
+        throw new Error('Google login failed: No response from server');
+      }
+      
+      // Check if required fields are present
+      if (!result.user || !result.user.id || !result.user.email || !result.user.role) {
+        console.error('useAuth - Invalid response structure:', result);
+        throw new Error('Google login failed: Invalid response from server');
+      }
+      
       return result;
     },
     onSuccess: async (data) => {
       console.log('useAuth - Google login success, setting session data');
+      
+      // Additional safety check
+      if (!data || !data.user) {
+        console.error('useAuth - onSuccess called with invalid data:', data);
+        toast.error('Google login failed: Invalid response data');
+        return;
+      }
       
       // Set the session data in the query client
       const sessionData = {

@@ -91,69 +91,76 @@ export default function GlobalSidebar({ links, user, children }: GlobalSidebarPr
   };
 
   return (
-    <div
-      className={cn(
-        "flex w-full max-w-7xl flex-1 flex-col overflow-hidden border-gray-200 bg-white md:flex-row",
-        "h-screen"
-      )}
-    >
-      <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10 bg-white text-gray-900 rounded-lg border-1 m-1 border-gray-200 ">
-          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-            <div className="bg-white rounded-lg shadow p-3 mb-6 flex items-center justify-center">
-              {open ? <Logo /> : <LogoIcon />}
+    <>
+      <div
+        className={cn(
+          "flex w-full max-w-7xl flex-1 flex-col overflow-hidden border-gray-200 bg-white md:flex-row",
+          "h-screen"
+        )}
+      >
+        <Sidebar open={open} setOpen={setOpen}>
+          <SidebarBody className="justify-between gap-10 bg-white text-gray-900 rounded-lg border-1 m-1 border-gray-200 ">
+            <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+              <div className="bg-white rounded-lg shadow p-3 my-6 flex items-center justify-center">
+                {open ? <Logo /> : <LogoIcon />}
+              </div>
+              <div className="mt-2 flex flex-col gap-2">
+                {links.map((link, idx) => {
+                  const isLogout = link.label === "Logout";
+                  return (
+                    <div
+                      key={idx}
+                      onClick={isLogout ? (e) => handleLinkClick(link, e) : undefined}
+                      role={isLogout ? "button" : undefined}
+                      tabIndex={isLogout ? 0 : undefined}
+                    >
+                      <SidebarLink
+                        link={{ ...link, href: isLogout ? "#" : link.href }}
+                        className={
+                          isLogout
+                            ? "bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 font-semibold transition-colors duration-200 rounded-lg px-3 py-2"
+                            : "hover:bg-gray-100 active:bg-gray-200 transition-colors duration-200 rounded-lg px-3 py-2 text-gray-900"
+                        }
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="mt-2 flex flex-col gap-2">
-              {links.map((link, idx) => {
-                const isLogout = link.label === "Logout";
-                return (
-                  <div
-                    key={idx}
-                    onClick={isLogout ? (e) => handleLinkClick(link, e) : undefined}
-                    role={isLogout ? "button" : undefined}
-                    tabIndex={isLogout ? 0 : undefined}
-                  >
-                    <SidebarLink
-                      link={{ ...link, href: isLogout ? "#" : link.href }}
-                      className={
-                        isLogout
-                          ? "bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 font-semibold transition-colors duration-200 rounded-lg px-3 py-2"
-                          : "hover:bg-gray-100 active:bg-gray-200 transition-colors duration-200 rounded-lg px-3 py-2 text-gray-900"
-                      }
+            <div>
+              <SidebarLink
+                link={{
+                  label: user.name,
+                  href: "#",
+                  icon: !avatarError && user.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.avatarUrl}
+                      className="size-9 shrink-0 rounded-full object-cover"
+                      width={50}
+                      height={50}
+                      alt="Avatar"
+                      onError={() => setAvatarError(true)}
                     />
-                  </div>
-                );
-              })}
+                  ) : (
+                    <div className={`size-6 flex items-center justify-center rounded-lg ${avatarColor} text-white font-bold text-md`}>
+                      {firstLetter}
+                    </div>
+                  ),
+                }}
+                className="bg-gray-100 rounded-lg px-3 py-2 text-gray-900 transition-colors duration-200 hover:bg-gray-200"
+              />
             </div>
-          </div>
-          <div>
-            <SidebarLink
-              link={{
-                label: user.name,
-                href: "#",
-                icon: !avatarError && user.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.avatarUrl}
-                    className="size-9 shrink-0 rounded-full object-cover"
-                    width={50}
-                    height={50}
-                    alt="Avatar"
-                    onError={() => setAvatarError(true)}
-                  />
-                ) : (
-                  <div className={`size-6 flex items-center justify-center rounded-lg ${avatarColor} text-white font-bold text-md`}>
-                    {firstLetter}
-                  </div>
-                ),
-              }}
-              className="bg-gray-100 rounded-lg px-3 py-2 text-gray-900 transition-colors duration-200 hover:bg-gray-200"
-            />
-          </div>
-        </SidebarBody>
-      </Sidebar>
+          </SidebarBody>
+        </Sidebar>
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
+          {children}
+        </div>
+      </div>
+      
+      {/* Dialog moved outside sidebar structure to ensure it appears above mobile sidebar */}
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <DialogContent showCloseButton={true}>
+        <DialogContent showCloseButton={true} className="!z-[9999]">
           <DialogHeader>
             <DialogTitle>Confirm Logout</DialogTitle>
           </DialogHeader>
@@ -179,9 +186,6 @@ export default function GlobalSidebar({ links, user, children }: GlobalSidebarPr
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        {children}
-      </div>
-    </div>
+    </>
   );
 } 

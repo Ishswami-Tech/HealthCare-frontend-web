@@ -984,6 +984,7 @@ export async function verifyEmail(token: string) {
 export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
   try {
     console.log('Starting Google login with token');
+    console.log('API URL being used:', API_URL);
     
     // Check API connectivity first
     const isApiConnected = await checkApiConnection();
@@ -1002,6 +1003,9 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
     try {
+      console.log('Making request to:', `${API_URL}/auth/social/google`);
+      console.log('Request body:', JSON.stringify({ token: token.substring(0, 10) + '...' }, null, 2));
+      
       const response = await fetch(`${API_URL}/auth/social/google`, {
         method: 'POST',
         headers: { 
@@ -1014,6 +1018,9 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       });
       
       clearTimeout(timeoutId);
+
+      console.log('Response status:', response.status, response.statusText);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       // Check if the response is JSON before trying to parse it
       const contentType = response.headers.get('content-type');
@@ -1035,10 +1042,11 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       }
 
       const result = await response.json();
+      console.log('Parsed response:', JSON.stringify(result, null, 2));
       
       if (!response.ok) {
         console.error('Google login error response:', result);
-        throw new Error(result.message || result.error || 'Google login failed');
+        throw new Error(result.message || result.error || `Google login failed with status ${response.status}`);
       }
 
       console.log('Google login successful, setting auth cookies');
@@ -1046,7 +1054,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       // Ensure we have all required data
       if (!result.access_token || !result.refresh_token || !result.user) {
         console.error('Missing required data in Google login response:', result);
-        throw new Error('Invalid response from server');
+        throw new Error('Invalid response from server: Missing required fields');
       }
       
       // Set cookies with explicit options to ensure they're properly set
@@ -1175,7 +1183,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       }
 
       // Return the response with proper typing
-      return {
+      const responseData = {
         user: {
           id: result.user.id,
           email: result.user.email,
@@ -1190,6 +1198,9 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         token: result.access_token,
         redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
       };
+      
+      console.log('Returning Google login response:', JSON.stringify(responseData, null, 2));
+      return responseData;
     } catch (error) {
       console.error('Google login error:', error);
       throw error instanceof Error ? error : new Error('Google login failed');
