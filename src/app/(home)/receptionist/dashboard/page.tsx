@@ -6,7 +6,9 @@ import { useQueryData } from "@/hooks/useQueryData";
 import { Role } from "@/types/auth.types";
 import { useRouter } from "next/navigation";
 import { getUserProfile } from "@/lib/actions/users.server";
-import { Loader2 } from "lucide-react";
+import { useAppointments } from "@/hooks/useAppointments";
+import { Loader2, Calendar, Clock, User, CheckCircle, AlertCircle, Users } from "lucide-react";
+import { AppointmentWithRelations } from "@/types/appointment.types";
 
 interface UserProfile {
   id: string;
@@ -39,6 +41,9 @@ export default function ReceptionistDashboard() {
       }
     );
 
+  // Fetch appointments
+  const { data: appointments, isPending: loadingAppointments } = useAppointments();
+
   useEffect(() => {
     if (!authLoading) {
       setTimeout(() => setIsInitializing(false), 1000);
@@ -70,6 +75,21 @@ export default function ReceptionistDashboard() {
       ? `${profile.firstName} ${profile.lastName}`
       : profile?.firstName || user?.firstName || "Receptionist";
 
+  // Calculate appointment statistics
+  const today = new Date().toISOString().split('T')[0];
+  const todayAppointments = appointments?.filter(apt => 
+    apt.date?.startsWith(today)
+  ) || [];
+  const pendingAppointments = appointments?.filter(apt => 
+    apt.status === 'PENDING'
+  ) || [];
+  const confirmedAppointments = appointments?.filter(apt => 
+    apt.status === 'CONFIRMED'
+  ) || [];
+  const completedAppointments = appointments?.filter(apt => 
+    apt.status === 'COMPLETED'
+  ) || [];
+
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-6">Welcome, {displayName}!</h1>
@@ -80,15 +100,19 @@ export default function ReceptionistDashboard() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Total Appointments</span>
-              <span className="font-semibold">0</span>
+              <span className="font-semibold">{todayAppointments.length}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Check-ins</span>
-              <span className="font-semibold">0</span>
+              <span className="text-gray-600">Pending</span>
+              <span className="font-semibold">{pendingAppointments.length}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Pending Registrations</span>
-              <span className="font-semibold">0</span>
+              <span className="text-gray-600">Confirmed</span>
+              <span className="font-semibold">{confirmedAppointments.length}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Completed</span>
+              <span className="font-semibold">{completedAppointments.length}</span>
             </div>
           </div>
         </div>
@@ -97,9 +121,38 @@ export default function ReceptionistDashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-4">Appointment Queue</h2>
           <div className="space-y-4">
-            {loadingProfile ? (
+            {loadingAppointments ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+              </div>
+            ) : todayAppointments.length > 0 ? (
+              <div className="space-y-2">
+                {todayAppointments.slice(0, 3).map((appointment: AppointmentWithRelations) => (
+                  <div
+                    key={appointment.id}
+                    className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <User className="h-4 w-4 text-blue-500" />
+                      <div>
+                        <p className="text-sm font-medium">
+                          {appointment.patient?.user?.firstName} {appointment.patient?.user?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {appointment.date} at {appointment.time}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                      appointment.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
+                      appointment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {appointment.status}
+                    </span>
+                  </div>
+                ))}
               </div>
             ) : (
               <p className="text-gray-600">No appointments in queue</p>
@@ -120,6 +173,52 @@ export default function ReceptionistDashboard() {
             <button className="w-full bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors">
               Manage Check-ins
             </button>
+            <button className="w-full bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 transition-colors">
+              View All Appointments
+            </button>
+          </div>
+        </div>
+
+        {/* Recent Appointments */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">Recent Appointments</h2>
+          <div className="space-y-4">
+            {loadingAppointments ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+              </div>
+            ) : appointments && appointments.length > 0 ? (
+              <div className="space-y-2">
+                {appointments.slice(0, 3).map((appointment: AppointmentWithRelations) => (
+                  <div
+                    key={appointment.id}
+                    className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-4 w-4 text-blue-500" />
+                      <div>
+                        <p className="text-sm font-medium">
+                          {appointment.patient?.user?.firstName} {appointment.patient?.user?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {appointment.date} at {appointment.time}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                      appointment.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
+                      appointment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {appointment.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-600">No recent appointments</p>
+            )}
           </div>
         </div>
 

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Calendar, Bell, Clock } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -20,6 +20,8 @@ import { changePasswordSchema } from "@/lib/schema/login-schema";
 import useZodForm from "@/hooks/useZodForm";
 import { z } from "zod";
 import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
+import { useAppointments } from "@/hooks/useAppointments";
+import { AppointmentWithRelations } from "@/types/appointment.types";
 
 type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 
@@ -54,6 +56,9 @@ export default function SettingsPage() {
       enabled: !!session?.access_token,
     }
   );
+
+  // Fetch appointments for statistics
+  const { data: appointments, isPending: loadingAppointments } = useAppointments();
 
   // Update profile mutation
   const { mutate: updateProfile, isPending: updatingProfile } = useMutationData(
@@ -107,6 +112,18 @@ export default function SettingsPage() {
     }
   };
 
+  // Calculate appointment statistics
+  const today = new Date().toISOString().split('T')[0];
+  const todayAppointments = appointments?.filter(apt => 
+    apt.date?.startsWith(today)
+  ) || [];
+  const upcomingAppointments = appointments?.filter(apt => 
+    apt.date > today
+  ) || [];
+  const completedAppointments = appointments?.filter(apt => 
+    apt.status === 'COMPLETED'
+  ) || [];
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-8">Settings</h1>
@@ -114,6 +131,7 @@ export default function SettingsPage() {
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="appointments">Appointments</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
@@ -225,6 +243,142 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <p className="text-gray-500">Failed to load profile</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="appointments">
+          <div className="grid gap-6">
+            {/* Appointment Statistics */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Calendar className="h-5 w-5 mr-2" />
+                  Appointment Statistics
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingAppointments ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {todayAppointments.length}
+                      </div>
+                      <div className="text-sm text-gray-600">Today&apos;s Appointments</div>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">
+                        {upcomingAppointments.length}
+                      </div>
+                      <div className="text-sm text-gray-600">Upcoming Appointments</div>
+                    </div>
+                    <div className="text-center p-4 bg-purple-50 rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {completedAppointments.length}
+                      </div>
+                      <div className="text-sm text-gray-600">Completed Appointments</div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Appointment Preferences */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Bell className="h-5 w-5 mr-2" />
+                  Appointment Preferences
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Email Notifications</h4>
+                      <p className="text-sm text-gray-500">
+                        Receive email reminders for appointments
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      Configure
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">SMS Notifications</h4>
+                      <p className="text-sm text-gray-500">
+                        Receive SMS reminders for appointments
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      Configure
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Reminder Timing</h4>
+                      <p className="text-sm text-gray-500">
+                        Set when to receive appointment reminders
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      Configure
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Appointments */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Clock className="h-5 w-5 mr-2" />
+                  Recent Appointments
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingAppointments ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                  </div>
+                ) : appointments && appointments.length > 0 ? (
+                  <div className="space-y-2">
+                    {appointments.slice(0, 3).map((appointment: AppointmentWithRelations) => (
+                      <div
+                        key={appointment.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Calendar className="h-4 w-4 text-blue-500" />
+                          <div>
+                            <p className="text-sm font-medium">
+                              {appointment.date} at {appointment.time}
+                            </p>
+                            <p className="text-xs text-gray-500"> 
+                            {appointment.type} - {appointment.notes || "No notes"}                            </p>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                          appointment.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
+                          appointment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {appointment.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-4">No recent appointments</p>
                 )}
               </CardContent>
             </Card>

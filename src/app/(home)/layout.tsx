@@ -8,6 +8,8 @@ import { Role } from "@/types/auth.types";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 import React from "react";
 import { getUserProfile } from "@/lib/actions/users.server";
+import { useAppointments } from "@/hooks/useAppointments";
+import { Bell, Calendar } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -50,6 +52,9 @@ export default function HomeLayout({
     }
   );
 
+  // Fetch appointments for notifications
+  const { data: appointments } = useAppointments();
+
   // Robust role check: fallback to 'PATIENT' if role is invalid
   const userRole: Role = (Object.values(Role) as string[]).includes((session?.user?.role ?? "") as string)
     ? (session?.user?.role as Role)
@@ -65,6 +70,27 @@ export default function HomeLayout({
       ? `${profile.firstName} ${profile.lastName}`
       : profile?.firstName || session?.user?.firstName || "User";
 
+  // Calculate appointment notifications
+  const today = new Date().toISOString().split('T')[0];
+  const todayAppointments = appointments?.filter(apt => {
+    if (userRole === Role.DOCTOR) {
+      return apt.date?.startsWith(today) && apt.doctorId === session?.user?.id;
+    } else if (userRole === Role.PATIENT) {
+      return apt.date?.startsWith(today) && apt.patientId === session?.user?.id;
+    } else {
+      return apt.date?.startsWith(today);
+    }
+  }) || [];
+  const pendingAppointments = appointments?.filter(apt => {
+    if (userRole === Role.DOCTOR) {
+      return apt.status === 'PENDING' && apt.doctorId === session?.user?.id;
+    } else if (userRole === Role.PATIENT) {
+      return apt.status === 'PENDING' && apt.patientId === session?.user?.id;
+    } else {
+      return apt.status === 'PENDING';
+    }
+  }) || [];
+
   return (
     <div className="min-h-screen flex">
       <GlobalSidebar
@@ -73,7 +99,10 @@ export default function HomeLayout({
           icon: link.icon(),
           href: link.path // Ensure href is present for SidebarLinkItem type
         }))}
-        user={{ name: displayName, avatarUrl: userAvatar }}
+        user={{ 
+          name: displayName, 
+          avatarUrl: userAvatar
+        }}
       >
         <main className="flex-1 p-8">{children}</main>
       </GlobalSidebar>

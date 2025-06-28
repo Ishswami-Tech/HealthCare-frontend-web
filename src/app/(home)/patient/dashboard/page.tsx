@@ -6,7 +6,9 @@ import { useQueryData } from "@/hooks/useQueryData";
 import { useRouter } from "next/navigation";
 import { Role } from "@/types/auth.types";
 import { getUserProfile } from "@/lib/actions/users.server";
-import { Loader2 } from "lucide-react";
+import { useAppointments } from "@/hooks/useAppointments";
+import { Loader2, Calendar, Clock, User, CheckCircle, AlertCircle, Plus } from "lucide-react";
+import { AppointmentWithRelations } from "@/types/appointment.types";
 
 // Define a type for user data
 interface UserData {
@@ -47,6 +49,9 @@ export default function PatientDashboardPage() {
         enabled: !!session?.access_token,
       }
     );
+
+  // Fetch appointments
+  const { data: appointments, isPending: loadingAppointments } = useAppointments();
 
   useEffect(() => {
     console.log("Dashboard Mount - Session:", JSON.stringify(session, null, 2));
@@ -138,6 +143,21 @@ export default function PatientDashboardPage() {
 
   console.log("Final display name:", displayName);
 
+  // Calculate appointment statistics
+  const today = new Date().toISOString().split('T')[0];
+  const todayAppointments = appointments?.filter(apt => 
+    apt.date?.startsWith(today) && apt.patientId === user?.id
+  ) || [];
+  const upcomingAppointments = appointments?.filter(apt => 
+    apt.date > today && apt.patientId === user?.id
+  ) || [];
+  const completedAppointments = appointments?.filter(apt => 
+    apt.status === 'COMPLETED' && apt.patientId === user?.id
+  ) || [];
+  const pendingAppointments = appointments?.filter(apt => 
+    apt.status === 'PENDING' && apt.patientId === user?.id
+  ) || [];
+
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
@@ -156,6 +176,167 @@ export default function PatientDashboardPage() {
               <span className="text-sm text-gray-500">
                 Loading profile data...
               </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Appointment Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Calendar className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Today&apos;s Appointments
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {loadingAppointments ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      todayAppointments.length
+                    )}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Clock className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Upcoming Appointments
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {loadingAppointments ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      upcomingAppointments.length
+                    )}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Completed
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {loadingAppointments ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      completedAppointments.length
+                    )}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <AlertCircle className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Pending
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {loadingAppointments ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      pendingAppointments.length
+                    )}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Upcoming Appointments */}
+      <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="px-4 py-5 sm:p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Upcoming Appointments
+          </h3>
+          {loadingAppointments ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+            </div>
+          ) : upcomingAppointments.length > 0 ? (
+            <div className="space-y-4">
+              {upcomingAppointments.slice(0, 3).map((appointment: AppointmentWithRelations) => (
+                <div
+                  key={appointment.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="h-5 w-5 text-blue-500" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {appointment.doctor?.user?.firstName} {appointment.doctor?.user?.lastName}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {appointment.date} at {appointment.time}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {appointment.type} - {appointment.notes || 'No notes'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                      appointment.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
+                      appointment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {appointment.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No upcoming appointments</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Get started by scheduling your first appointment.
+              </p>
+              <div className="mt-6">
+                <button className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                  <Plus className="-ml-1 mr-2 h-4 w-4" />
+                  Schedule Appointment
+                </button>
+              </div>
             </div>
           )}
         </div>

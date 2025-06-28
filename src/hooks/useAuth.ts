@@ -234,11 +234,14 @@ export function useAuth() {
         const dashboardPath = getDashboardByRole(data.user.role as Role);
         console.log('useAuth - Redirecting to:', dashboardPath);
         router.push(dashboardPath);
-        toast.success(`Welcome back${data.user.firstName ? ', ' + data.user.firstName : ''}!`);
+        // Only show success toast if not already showing an error
+        setTimeout(() => toast.success(`Welcome back${data.user.firstName ? ', ' + data.user.firstName : ''}!`), 100);
       }
     },
     onError: (error: Error) => {
       console.error('useAuth - Login error:', error);
+      // Dismiss all toasts before showing error
+      toast.dismiss && toast.dismiss();
       toast.error(error.message || 'Login failed');
     },
   });
