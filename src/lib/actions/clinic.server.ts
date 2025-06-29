@@ -36,7 +36,7 @@ async function apiCall<T>(
   const headers = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${session.access_token}`,
-    'Session-ID': session.session_id,
+    'X-Session-ID': session.session_id,
     ...(CLINIC_ID ? { 'X-Clinic-ID': CLINIC_ID } : {}),
     ...options.headers,
   };

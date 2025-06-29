@@ -11,7 +11,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
 function getAuthHeaders(token?: string, sessionId?: string) {
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  if (sessionId) headers['Session-ID'] = sessionId;
+  if (sessionId) headers['X-Session-ID'] = sessionId;
   return headers;
 }
 

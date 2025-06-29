@@ -14,9 +14,7 @@ import {
   QueuePosition,
   AppointmentQueue,
   QRCodeResponse,
-  AppointmentConfirmation,
-  AppointmentLocation,
-  DoctorWithUser
+  AppointmentConfirmation
 } from '@/types/appointment.types';
 import { getServerSession } from './auth.server';
 
@@ -41,7 +39,7 @@ async function apiCall<T>(
   const headers = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${session.access_token}`,
-    'Session-ID': session.session_id,
+    'X-Session-ID': session.session_id,
     ...(CLINIC_ID ? { 'X-Clinic-ID': CLINIC_ID } : {}),
     ...options.headers,
   };
@@ -138,32 +136,6 @@ export async function getUserUpcomingAppointments(userId: string): Promise<Appoi
   return response.data;
 }
 
-// ===== APPOINTMENT LOCATIONS =====
-
-/**
- * Get all appointment locations
- */
-export async function getAllLocations(): Promise<AppointmentLocation[]> {
-  const response = await apiCall<AppointmentLocation[]>('/appointments/locations');
-  return response.data;
-}
-
-/**
- * Get location by ID
- */
-export async function getLocationById(locationId: string): Promise<AppointmentLocation> {
-  const response = await apiCall<AppointmentLocation>(`/appointments/locations/${locationId}`);
-  return response.data;
-}
-
-/**
- * Get doctors by location
- */
-export async function getDoctorsByLocation(locationId: string): Promise<DoctorWithUser[]> {
-  const response = await apiCall<DoctorWithUser[]>(`/appointments/locations/${locationId}/doctors`);
-  return response.data;
-}
-
 // ===== CHECK-IN OPERATIONS =====
 
 /**
@@ -193,22 +165,6 @@ export async function reorderQueue(data: ReorderQueueData): Promise<AppointmentW
     method: 'POST',
     body: JSON.stringify(data),
   });
-  return response.data;
-}
-
-/**
- * Get doctor active queue
- */
-export async function getDoctorActiveQueue(doctorId: string): Promise<{ appointments: AppointmentWithRelations[]; queueStats: { total: number; waiting: number; active: number } }> {
-  const response = await apiCall<{ appointments: AppointmentWithRelations[]; queueStats: { total: number; waiting: number; active: number } }>(`/check-in/doctor-queue/${doctorId}`);
-  return response.data;
-}
-
-/**
- * Get location queue
- */
-export async function getLocationQueue(): Promise<{ doctor: DoctorWithUser; appointments: AppointmentWithRelations[] }[]> {
-  const response = await apiCall<{ doctor: DoctorWithUser; appointments: AppointmentWithRelations[] }[]>('/check-in/location-queue');
   return response.data;
 }
 

@@ -810,8 +810,8 @@ export async function logout() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
-          'X-Session-Id': session.session_id,
-          'X-Device-Id': deviceInfo.deviceId,
+          'X-Session-ID': session.session_id,
+          'X-Device-ID': deviceInfo.deviceId,
           'X-Device-Info': JSON.stringify(deviceInfo)
         },
         body: JSON.stringify({
@@ -865,7 +865,7 @@ async function logoutAllDevices() {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
-      'X-Session-Id': session.session_id
+      'X-Session-ID': session.session_id
     },
     body: JSON.stringify({
       sessionId: session.session_id,

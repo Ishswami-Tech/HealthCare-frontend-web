@@ -27,8 +27,9 @@ const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID!;
 function getAuthHeaders(token?: string, sessionId?: string, clinicId?: string) {
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  if (sessionId) headers['Session-ID'] = sessionId;
+  if (sessionId) headers['X-Session-ID'] = sessionId;
   if (clinicId) headers['X-Clinic-ID'] = clinicId;
+  headers['Content-Type'] = 'application/json';
   return headers;
 }
 
@@ -107,23 +108,28 @@ export const useClinics = () => {
 /**
  * Hook to get clinic by ID
  */
-export const useClinic = (id: string) => {
-  const { session } = useAuth();
+export const useClinic = (clinicId?: string) => {
+  const { session, isLoading } = useAuth();
   const token = session?.access_token;
   const sessionId = session?.session_id;
+  const id = clinicId || CLINIC_ID;
   
   return useQueryData<ClinicWithRelations>(
     ['clinic', id],
     async () => {
-      const response = await apiCall<ClinicWithRelations>(`/clinics/${id}`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
+      const headers = getAuthHeaders(token, sessionId, id);
+      console.log('Clinic fetch headers:', headers);
+      const response = await fetch(`${API_URL}/clinics/${id}`, {
+        headers,
       });
-      return response.data;
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || `HTTP error! status: ${response.status}`);
+      }
+      return response.json();
     },
     {
-      enabled: !!id,
+      enabled: !!token && !!sessionId && !!id && !isLoading,
     }
   );
 };
