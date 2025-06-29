@@ -18,13 +18,17 @@ import {
 // API URL configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
 
+// In all API calls, pass clinicId from env
+const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID!;
+
 /**
  * Helper to get auth headers
  */
-function getAuthHeaders(token?: string, sessionId?: string) {
+function getAuthHeaders(token?: string, sessionId?: string, clinicId?: string) {
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (sessionId) headers['Session-ID'] = sessionId;
+  if (clinicId) headers['X-Clinic-ID'] = clinicId;
   return headers;
 }
 
@@ -70,7 +74,7 @@ export const useCreateClinic = () => {
       return apiCall<ClinicWithRelations>('/clinics', {
         method: 'POST',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
         body: JSON.stringify(data),
       });
@@ -92,7 +96,7 @@ export const useClinics = () => {
     async () => {
       const response = await apiCall<ClinicWithRelations[]>('/clinics', {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;
@@ -113,7 +117,7 @@ export const useClinic = (id: string) => {
     async () => {
       const response = await apiCall<ClinicWithRelations>(`/clinics/${id}`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;
@@ -137,7 +141,7 @@ export const useClinicByAppName = (appName: string) => {
     async () => {
       const response = await apiCall<ClinicWithRelations>(`/clinics/app/${appName}`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;
@@ -162,7 +166,7 @@ export const useUpdateClinic = () => {
       return apiCall<ClinicWithRelations>(`/clinics/${id}`, {
         method: 'PUT',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
         body: JSON.stringify(data),
       });
@@ -185,7 +189,7 @@ export const useDeleteClinic = () => {
       return apiCall<{ message: string }>(`/clinics/${id}`, {
         method: 'DELETE',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
     },
@@ -209,7 +213,7 @@ export const useCreateClinicLocation = () => {
       return apiCall<ClinicLocation>(`/clinics/${clinicId}/locations`, {
         method: 'POST',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
         body: JSON.stringify(data),
       });
@@ -231,7 +235,7 @@ export const useClinicLocations = (clinicId: string) => {
     async () => {
       const response = await apiCall<ClinicLocation[]>(`/clinics/${clinicId}/locations`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;
@@ -255,7 +259,7 @@ export const useClinicLocation = (clinicId: string, locationId: string) => {
     async () => {
       const response = await apiCall<ClinicLocation>(`/clinics/${clinicId}/locations/${locationId}`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;
@@ -280,7 +284,7 @@ export const useUpdateClinicLocation = () => {
       return apiCall<ClinicLocation>(`/clinics/${clinicId}/locations/${locationId}`, {
         method: 'PUT',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
         body: JSON.stringify(data),
       });
@@ -303,7 +307,7 @@ export const useDeleteClinicLocation = () => {
       return apiCall<{ message: string }>(`/clinics/${clinicId}/locations/${locationId}`, {
         method: 'DELETE',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
     },
@@ -324,7 +328,7 @@ export const useGenerateLocationQR = () => {
     async ({ clinicId, locationId }) => {
       return apiCall<{ qrCode: string }>(`/clinics/${clinicId}/locations/${locationId}/qr`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
     },
@@ -346,7 +350,7 @@ export const useVerifyLocationQR = () => {
       return apiCall<ClinicLocation>('/clinics/locations/verify-qr', {
         method: 'POST',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
         body: JSON.stringify({ qrData }),
       });
@@ -371,7 +375,7 @@ export const useAssignClinicAdmin = () => {
       return apiCall<ClinicUser>('/clinics/assign-admin', {
         method: 'POST',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
         body: JSON.stringify(data),
       });
@@ -393,7 +397,7 @@ export const useClinicDoctors = (clinicId: string) => {
     async () => {
       const response = await apiCall<ClinicUser[]>(`/clinics/${clinicId}/doctors`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;
@@ -417,7 +421,7 @@ export const useClinicPatients = (clinicId: string) => {
     async () => {
       const response = await apiCall<ClinicUser[]>(`/clinics/${clinicId}/patients`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;
@@ -442,7 +446,7 @@ export const useRegisterPatientToClinic = () => {
       return apiCall<ClinicUser>('/clinics/register-patient', {
         method: 'POST',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
         body: JSON.stringify(data),
       });
@@ -464,7 +468,7 @@ export const useClinicUsersByRole = (clinicId: string, role: string) => {
     async () => {
       const response = await apiCall<ClinicUser[]>(`/clinics/${clinicId}/users?role=${role}`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;
@@ -490,7 +494,7 @@ export const useValidateAppName = () => {
     async (appName) => {
       return apiCall<{ available: boolean; message?: string }>(`/clinics/validate-app-name?appName=${appName}`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
     }
@@ -511,7 +515,7 @@ export const useAssociateUserWithClinic = () => {
       return apiCall<{ message: string }>(`/clinics/${clinicId}/associate`, {
         method: 'POST',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
     },
@@ -532,7 +536,7 @@ export const useClinicStats = (clinicId: string) => {
     async () => {
       const response = await apiCall<ClinicStats>(`/clinics/${clinicId}/stats`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;
@@ -556,7 +560,7 @@ export const useClinicSettings = (clinicId: string) => {
     async () => {
       const response = await apiCall<ClinicSettings>(`/clinics/${clinicId}/settings`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;
@@ -581,7 +585,7 @@ export const useUpdateClinicSettings = () => {
       return apiCall<ClinicSettings>(`/clinics/${clinicId}/settings`, {
         method: 'PUT',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
         body: JSON.stringify(settings),
       });
@@ -603,7 +607,7 @@ export const useActiveLocations = (clinicId: string) => {
     async () => {
       const response = await apiCall<ClinicLocation[]>(`/clinics/${clinicId}/locations/active`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;
@@ -627,7 +631,7 @@ export const useGenerateClinicToken = () => {
     async (clinicId) => {
       return apiCall<{ token: string }>(`/clinics/${clinicId}/token`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
     }
@@ -647,7 +651,7 @@ export const useHasClinicPermission = (clinicId: string) => {
     async () => {
       const response = await apiCall<boolean>(`/clinics/${clinicId}/permission`, {
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
       return response.data;

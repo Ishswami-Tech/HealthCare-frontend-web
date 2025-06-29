@@ -22,12 +22,13 @@ import { getServerSession } from './auth.server';
 
 // API URL configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID;
 
 /**
  * Base API call function with authentication
  */
 async function apiCall<T>(
-  endpoint: string, 
+  endpoint: string,
   options: RequestInit = {}
 ): Promise<{ status: number; data: T }> {
   const session = await getServerSession();
@@ -41,6 +42,7 @@ async function apiCall<T>(
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${session.access_token}`,
     'Session-ID': session.session_id,
+    ...(CLINIC_ID ? { 'X-Clinic-ID': CLINIC_ID } : {}),
     ...options.headers,
   };
 
@@ -142,7 +144,7 @@ export async function getUserUpcomingAppointments(userId: string): Promise<Appoi
  * Get all appointment locations
  */
 export async function getAllLocations(): Promise<AppointmentLocation[]> {
-  const response = await apiCall<AppointmentLocation[]>('/api/appointments/locations');
+  const response = await apiCall<AppointmentLocation[]>('/appointments/locations');
   return response.data;
 }
 
@@ -150,7 +152,7 @@ export async function getAllLocations(): Promise<AppointmentLocation[]> {
  * Get location by ID
  */
 export async function getLocationById(locationId: string): Promise<AppointmentLocation> {
-  const response = await apiCall<AppointmentLocation>(`/api/appointments/locations/${locationId}`);
+  const response = await apiCall<AppointmentLocation>(`/appointments/locations/${locationId}`);
   return response.data;
 }
 
@@ -158,7 +160,7 @@ export async function getLocationById(locationId: string): Promise<AppointmentLo
  * Get doctors by location
  */
 export async function getDoctorsByLocation(locationId: string): Promise<DoctorWithUser[]> {
-  const response = await apiCall<DoctorWithUser[]>(`/api/appointments/locations/${locationId}/doctors`);
+  const response = await apiCall<DoctorWithUser[]>(`/appointments/locations/${locationId}/doctors`);
   return response.data;
 }
 
@@ -168,7 +170,7 @@ export async function getDoctorsByLocation(locationId: string): Promise<DoctorWi
  * Process patient check-in
  */
 export async function processCheckIn(data: ProcessCheckInData): Promise<AppointmentWithRelations> {
-  const response = await apiCall<AppointmentWithRelations>('/api/check-in/process', {
+  const response = await apiCall<AppointmentWithRelations>('/check-in/process', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -179,7 +181,7 @@ export async function processCheckIn(data: ProcessCheckInData): Promise<Appointm
  * Get patient queue position
  */
 export async function getPatientQueuePosition(appointmentId: string): Promise<QueuePosition> {
-  const response = await apiCall<QueuePosition>(`/api/check-in/patient-position/${appointmentId}`);
+  const response = await apiCall<QueuePosition>(`/check-in/patient-position/${appointmentId}`);
   return response.data;
 }
 
@@ -187,7 +189,7 @@ export async function getPatientQueuePosition(appointmentId: string): Promise<Qu
  * Reorder appointment queue
  */
 export async function reorderQueue(data: ReorderQueueData): Promise<AppointmentWithRelations[]> {
-  const response = await apiCall<AppointmentWithRelations[]>('/api/check-in/reorder-queue', {
+  const response = await apiCall<AppointmentWithRelations[]>('/check-in/reorder-queue', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -198,7 +200,7 @@ export async function reorderQueue(data: ReorderQueueData): Promise<AppointmentW
  * Get doctor active queue
  */
 export async function getDoctorActiveQueue(doctorId: string): Promise<{ appointments: AppointmentWithRelations[]; queueStats: { total: number; waiting: number; active: number } }> {
-  const response = await apiCall<{ appointments: AppointmentWithRelations[]; queueStats: { total: number; waiting: number; active: number } }>(`/api/check-in/doctor-queue/${doctorId}`);
+  const response = await apiCall<{ appointments: AppointmentWithRelations[]; queueStats: { total: number; waiting: number; active: number } }>(`/check-in/doctor-queue/${doctorId}`);
   return response.data;
 }
 
@@ -206,7 +208,7 @@ export async function getDoctorActiveQueue(doctorId: string): Promise<{ appointm
  * Get location queue
  */
 export async function getLocationQueue(): Promise<{ doctor: DoctorWithUser; appointments: AppointmentWithRelations[] }[]> {
-  const response = await apiCall<{ doctor: DoctorWithUser; appointments: AppointmentWithRelations[] }[]>('/api/check-in/location-queue');
+  const response = await apiCall<{ doctor: DoctorWithUser; appointments: AppointmentWithRelations[] }[]>('/check-in/location-queue');
   return response.data;
 }
 
@@ -216,7 +218,7 @@ export async function getLocationQueue(): Promise<{ doctor: DoctorWithUser; appo
  * Get doctor queue
  */
 export async function getDoctorQueue(doctorId: string, date: string): Promise<AppointmentQueue> {
-  const response = await apiCall<AppointmentQueue>(`/api/appointments/queue/doctor/${doctorId}`, {
+  const response = await apiCall<AppointmentQueue>(`/appointments/queue/doctor/${doctorId}`, {
     method: 'GET',
     body: JSON.stringify({ date }),
   });
@@ -227,7 +229,7 @@ export async function getDoctorQueue(doctorId: string, date: string): Promise<Ap
  * Get patient queue position
  */
 export async function getQueuePosition(appointmentId: string): Promise<QueuePosition> {
-  const response = await apiCall<QueuePosition>(`/api/appointments/queue/position/${appointmentId}`);
+  const response = await apiCall<QueuePosition>(`/appointments/queue/position/${appointmentId}`);
   return response.data;
 }
 
@@ -235,7 +237,7 @@ export async function getQueuePosition(appointmentId: string): Promise<QueuePosi
  * Confirm appointment
  */
 export async function confirmAppointment(appointmentId: string): Promise<AppointmentWithRelations> {
-  const response = await apiCall<AppointmentWithRelations>(`/api/appointments/queue/confirm/${appointmentId}`, {
+  const response = await apiCall<AppointmentWithRelations>(`/appointments/queue/confirm/${appointmentId}`, {
     method: 'POST',
   });
   return response.data;
@@ -245,7 +247,7 @@ export async function confirmAppointment(appointmentId: string): Promise<Appoint
  * Start consultation
  */
 export async function startConsultation(appointmentId: string, data: StartConsultationData): Promise<AppointmentWithRelations> {
-  const response = await apiCall<AppointmentWithRelations>(`/api/appointments/queue/start/${appointmentId}`, {
+  const response = await apiCall<AppointmentWithRelations>(`/appointments/queue/start/${appointmentId}`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -258,7 +260,7 @@ export async function startConsultation(appointmentId: string, data: StartConsul
  * Generate confirmation QR code
  */
 export async function generateConfirmationQR(appointmentId: string): Promise<QRCodeResponse> {
-  const response = await apiCall<QRCodeResponse>(`/api/appointments/confirmation/${appointmentId}/qr`);
+  const response = await apiCall<QRCodeResponse>(`/appointments/confirmation/${appointmentId}/qr`);
   return response.data;
 }
 
@@ -266,7 +268,7 @@ export async function generateConfirmationQR(appointmentId: string): Promise<QRC
  * Verify appointment QR code
  */
 export async function verifyAppointmentQR(data: VerifyAppointmentQRData): Promise<AppointmentConfirmation> {
-  const response = await apiCall<AppointmentConfirmation>('/api/appointments/confirmation/verify', {
+  const response = await apiCall<AppointmentConfirmation>('/appointments/confirmation/verify', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -277,7 +279,7 @@ export async function verifyAppointmentQR(data: VerifyAppointmentQRData): Promis
  * Mark appointment as completed
  */
 export async function markAppointmentCompleted(appointmentId: string, data: CompleteAppointmentData): Promise<AppointmentWithRelations> {
-  const response = await apiCall<AppointmentWithRelations>(`/api/appointments/confirmation/${appointmentId}/complete`, {
+  const response = await apiCall<AppointmentWithRelations>(`/appointments/confirmation/${appointmentId}/complete`, {
     method: 'POST',
     body: JSON.stringify(data),
   });

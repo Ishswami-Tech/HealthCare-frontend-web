@@ -4,6 +4,7 @@
 import { cookies } from 'next/headers';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID;
 
 async function getAuthHeaders() {
   const cookieStore = await cookies();
@@ -49,6 +50,7 @@ async function getAuthHeaders() {
     'X-Session-ID': sessionId || '',
     'X-User-ID': userId, // Add explicit user ID header
     'Content-Type': 'application/json',
+    ...(CLINIC_ID ? { 'X-Clinic-ID': CLINIC_ID } : {}),
   };
   console.log('getAuthHeaders - Outgoing headers:', headers);
   return headers;

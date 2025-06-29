@@ -20,9 +20,9 @@ export const AUTH_PATHS = [
   '/auth/verify-email',
   '/auth/verify-magic-link',
   '/auth/otp-login',
-  '/auth/social/google',
-  '/auth/social/facebook',
-  '/auth/social/apple',
+  '/auth/google',
+  '/auth/facebook',
+  '/auth/apple',
   '/auth/verify',
   '/auth/check-otp-status',
 ];

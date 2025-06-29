@@ -9,6 +9,7 @@ import { getUserProfile } from "@/lib/actions/users.server";
 import { useAppointments } from "@/hooks/useAppointments";
 import { Loader2, Calendar, Clock, User, CheckCircle, AlertCircle, Plus } from "lucide-react";
 import { AppointmentWithRelations } from "@/types/appointment.types";
+import { useClinic } from "@/hooks/useClinics";
 
 // Define a type for user data
 interface UserData {
@@ -32,6 +33,8 @@ interface UserData {
 }
 
 export default function PatientDashboardPage() {
+  const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID!;
+  const { data: clinic, isPending: loadingClinic } = useClinic(CLINIC_ID);
   const router = useRouter();
   const { session, isLoading, refreshSession } = useAuth();
   const { user } = session || {};
@@ -355,6 +358,23 @@ export default function PatientDashboardPage() {
                   Email:
                 </span>
                 <p className="text-sm text-gray-900">{profileData.email}</p>
+              </div>
+              <div>
+                <span className="text-sm font-medium text-gray-500">
+                  Clinic:
+                </span>
+                <p className="text-sm text-gray-900">{loadingClinic ? "Loading..." : clinic?.name}</p>
+              </div>              <div>
+                <span className="text-sm font-medium text-gray-500">
+                  Clinic Address:
+                </span>
+                <p className="text-sm text-gray-900">{clinic?.address}</p>
+              </div>
+              <div>
+                <span className="text-sm font-medium text-gray-500">
+                  Clinic Phone:
+                </span>
+                <p className="text-sm text-gray-900">{clinic?.phone}</p>
               </div>
               {profileData.phone && (
                 <div>

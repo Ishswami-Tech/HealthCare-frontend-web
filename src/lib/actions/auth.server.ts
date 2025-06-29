@@ -675,7 +675,7 @@ export async function verifyMagicLink(token: string) {
  * Social Login
  */
 export async function socialLogin({ provider, token }: { provider: string; token: string }) {
-  const response = await fetch(`${API_URL}/auth/social/${provider}`, {
+  const response = await fetch(`${API_URL}/auth/${provider}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
@@ -1072,7 +1072,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
     try {
-      console.log('Making request to:', `${API_URL}/auth/social/google`);
+      console.log('Making request to:', `${API_URL}/auth/google`);
       console.log('Request body:', JSON.stringify({ token: token.substring(0, 10) + '...' }, null, 2));
       
       const headers: Record<string, string> = {
@@ -1082,7 +1082,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
 
       const requestBody: Record<string, unknown> = { token };
       
-      const response = await fetch(`${API_URL}/auth/social/google`, {
+      const response = await fetch(`${API_URL}/auth/google`, {
         method: 'POST',
         headers,
         body: JSON.stringify(requestBody),
@@ -1104,7 +1104,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         
         // Log the status and API URL for debugging
         console.error('Response status:', response.status, response.statusText);
-        console.error('API URL:', `${API_URL}/auth/social/google`);
+        console.error('API URL:', `${API_URL}/auth/google`);
         
         // In development, log more details
         if (process.env.NODE_ENV === 'development') {
@@ -1277,7 +1277,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
  * Facebook Login
  */
 export async function facebookLogin(token: string) {
-  const response = await fetch(`${API_URL}/auth/social/facebook`, {
+  const response = await fetch(`${API_URL}/auth/facebook`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
@@ -1297,7 +1297,7 @@ export async function facebookLogin(token: string) {
  * Apple Login
  */
 export async function appleLogin(token: string) {
-  const response = await fetch(`${API_URL}/auth/social/apple`, {
+  const response = await fetch(`${API_URL}/auth/apple`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
