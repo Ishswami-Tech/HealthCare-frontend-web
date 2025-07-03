@@ -19,7 +19,7 @@ export interface Clinic {
   currency?: string;
   language?: string;
   isActive: boolean;
-  settings?: Record<string, any>;
+  settings?: ClinicSettings | Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -41,7 +41,7 @@ export interface ClinicLocation {
   latitude?: number;
   longitude?: number;
   workingHours?: Record<string, { start: string; end: string } | null>;
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -125,7 +125,7 @@ export interface CreateClinicData {
   language?: string;
   databaseName?: string;
   isActive?: boolean;
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 export interface UpdateClinicData {
@@ -140,7 +140,7 @@ export interface UpdateClinicData {
   currency?: string;
   language?: string;
   isActive?: boolean;
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 export interface CreateClinicLocationData {
@@ -157,7 +157,7 @@ export interface CreateClinicLocationData {
   latitude?: number;
   longitude?: number;
   workingHours?: Record<string, { start: string; end: string } | null>;
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 export interface UpdateClinicLocationData {
@@ -174,7 +174,7 @@ export interface UpdateClinicLocationData {
   latitude?: number;
   longitude?: number;
   workingHours?: Record<string, { start: string; end: string } | null>;
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 export interface AssignClinicAdminData {
@@ -262,7 +262,7 @@ export interface ClinicError {
   success: false;
   message: string;
   code?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 // Filter and query types

@@ -15,8 +15,8 @@ import {
   getClinicAdmins,
 } from "@/lib/actions/users.server";
 import { useAppointments } from "@/hooks/useAppointments";
-import { Loader2, Calendar, Clock, Users, CheckCircle, AlertCircle, TrendingUp } from "lucide-react";
-import { Appointment } from "@/types/appointment.types";
+import { Loader2, Calendar } from "lucide-react";
+import { AppointmentWithRelations } from "@/types/appointment.types";
 
 interface User {
   id: string;
@@ -91,7 +91,8 @@ export default function SuperAdminDashboard() {
   );
 
   // Fetch appointments
-  const { data: appointments, isPending: loadingAppointments } = useAppointments();
+  const { data: appointments, isPending: loadingAppointments } =
+    useAppointments();
 
   useEffect(() => {
     if (!authLoading) {
@@ -119,19 +120,15 @@ export default function SuperAdminDashboard() {
   const totalClinicAdmins = clinicAdmins?.length || 0;
 
   // Calculate appointment statistics
-  const today = new Date().toISOString().split('T')[0];
-  const todayAppointments = appointments?.filter(apt => 
-    apt.scheduledDate?.startsWith(today)
-  ) || [];
-  const pendingAppointments = appointments?.filter(apt => 
-    apt.status === 'PENDING'
-  ) || [];
-  const confirmedAppointments = appointments?.filter(apt => 
-    apt.status === 'CONFIRMED'
-  ) || [];
-  const completedAppointments = appointments?.filter(apt => 
-    apt.status === 'COMPLETED'
-  ) || [];
+  const today = new Date().toISOString().split("T")[0];
+  const todayAppointments =
+    appointments?.filter((apt) => apt.date?.startsWith(today)) || [];
+  const pendingAppointments =
+    appointments?.filter((apt) => apt.status === "PENDING") || [];
+  const confirmedAppointments =
+    appointments?.filter((apt) => apt.status === "CONFIRMED") || [];
+  const completedAppointments =
+    appointments?.filter((apt) => apt.status === "COMPLETED") || [];
 
   return (
     <DashboardLayout
@@ -154,8 +151,14 @@ export default function SuperAdminDashboard() {
         stats={[
           { label: "Today's Appointments", value: todayAppointments.length },
           { label: "Pending Appointments", value: pendingAppointments.length },
-          { label: "Confirmed Appointments", value: confirmedAppointments.length },
-          { label: "Completed Appointments", value: completedAppointments.length },
+          {
+            label: "Confirmed Appointments",
+            value: confirmedAppointments.length,
+          },
+          {
+            label: "Completed Appointments",
+            value: completedAppointments.length,
+          },
         ]}
       />
 
@@ -165,7 +168,7 @@ export default function SuperAdminDashboard() {
           <ActionButton label="System Settings" variant="green" />
           <ActionButton label="User Management" variant="purple" />
           <ActionButton label="View Reports" variant="yellow" />
-          <ActionButton label="Appointment Analytics" variant="orange" />
+          <ActionButton label="Appointment Analytics" variant="blue" />
         </div>
       </DashboardCard>
 
@@ -178,37 +181,47 @@ export default function SuperAdminDashboard() {
             </div>
           ) : appointments && appointments.length > 0 ? (
             <div className="space-y-2">
-              {appointments.slice(0, 5).map((appointment: Appointment) => (
-                <div
-                  key={appointment.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-4 w-4 text-blue-500" />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {appointment.patient?.firstName} {appointment.patient?.lastName} → {appointment.doctor?.firstName} {appointment.doctor?.lastName}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {appointment.scheduledDate} at {appointment.scheduledTime}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {appointment.appointmentType} - {appointment.reason}
-                      </p>
+              {appointments
+                .slice(0, 5)
+                .map((appointment: AppointmentWithRelations) => (
+                  <div
+                    key={appointment.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Calendar className="h-4 w-4 text-blue-500" />
+                      <div>
+                        <p className="text-sm font-medium">
+                          {appointment.patient?.user?.firstName}{" "}
+                          {appointment.patient?.user?.lastName} →{" "}
+                          {appointment.doctor?.user?.firstName}{" "}
+                          {appointment.doctor?.user?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {appointment.date} at {appointment.time}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {appointment.type} - {appointment.notes}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`px-2 py-1 text-xs rounded-full ${
+                          appointment.status === "PENDING"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : appointment.status === "CONFIRMED"
+                            ? "bg-blue-100 text-blue-800"
+                            : appointment.status === "COMPLETED"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {appointment.status}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                      appointment.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
-                      appointment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {appointment.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
           ) : (
             <div className="text-gray-600 text-center py-4">

@@ -121,7 +121,7 @@ export async function deleteClinic(id: string): Promise<{ message: string }> {
  */
 export async function createClinicLocation(
   data: CreateClinicLocationData,
-  locationId?: string
+  
 ): Promise<ClinicLocation> {
   const response = await apiCall<ClinicLocation>(`/clinics/${CLINIC_ID}/locations`, {
     method: 'POST',

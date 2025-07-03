@@ -1,8 +1,6 @@
 import { Inter } from "next/font/google";
-import { Toaster } from "sonner";
-import QueryProvider from "./providers/QueryProvider";
 import "./globals.css";
-import { LoadingOverlayProvider } from "@/app/providers/LoadingOverlayContext";
+import { AppProvider } from "@/app/providers/AppProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,12 +24,7 @@ export default function RootLayout({
         ></script>
       </head>
       <body className={inter.className}>
-        <LoadingOverlayProvider>
-          <QueryProvider>
-            {children}
-            <Toaster richColors />
-          </QueryProvider>
-        </LoadingOverlayProvider>
+        <AppProvider>{children}</AppProvider>
       </body>
     </html>
   );

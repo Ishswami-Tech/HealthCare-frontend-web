@@ -241,7 +241,7 @@ export function useAuth() {
     onError: (error: Error) => {
       console.error('useAuth - Login error:', error);
       // Dismiss all toasts before showing error
-      toast.dismiss && toast.dismiss();
+      if (toast.dismiss) toast.dismiss();
       toast.error(error.message || 'Login failed');
     },
   });

@@ -1,7 +1,7 @@
 'use server';
 
 // Health check server action
-export async function getHealthStatus(): Promise<{ status: string; details?: any }> {
+export async function getHealthStatus(): Promise<{ status: string; details?: unknown }> {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
   try {
     const response = await fetch(`${API_URL}/health`, {

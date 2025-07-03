@@ -16,6 +16,9 @@ if (!API_URL) {
 // Log the API URL being used
 console.log('Using API URL:', API_URL);
 
+// At the top of the file, add:
+const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID;
+
 /**
  * Utility function to check API connectivity
  */
@@ -355,7 +358,6 @@ export async function login(data: {
   password?: string; 
   otp?: string;
   rememberMe?: boolean;
-  clinicId?: string;
 }) {
   try {
     console.log('1. Starting login process');
@@ -377,18 +379,13 @@ export async function login(data: {
       requestBody.otp = data.otp;
     }
 
-    // Add clinic ID if provided
-    if (data.clinicId) {
-      requestBody.clinicId = data.clinicId;
-    }
-
+    // Add clinic ID from env
+    requestBody.clinicId = CLINIC_ID;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-
-    // Add clinic ID header if provided
-    if (data.clinicId) {
-      headers['X-Clinic-ID'] = data.clinicId;
+    if (typeof CLINIC_ID === 'string' && CLINIC_ID) {
+      headers['X-Clinic-ID'] = CLINIC_ID;
     }
 
     const response = await fetch(`${API_URL}/auth/login`, {
@@ -539,20 +536,17 @@ export async function registerWithClinic(data: {
 /**
  * Request OTP
  */
-export async function requestOTP(identifier: string, clinicId?: string) {
+export async function requestOTP(identifier: string) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-
-  // Add clinic ID header if provided
-  if (clinicId) {
-    headers['X-Clinic-ID'] = clinicId;
+  if (CLINIC_ID) {
+    headers['X-Clinic-ID'] = CLINIC_ID;
   }
-
   const response = await fetch(`${API_URL}/auth/request-otp`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ identifier, clinicId }),
+    body: JSON.stringify({ identifier, clinicId: CLINIC_ID }),
   });
 
   if (!response.ok) {
@@ -570,21 +564,18 @@ export async function verifyOTP(data: {
   email: string; 
   otp: string; 
   rememberMe?: boolean;
-  clinicId?: string;
 }) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-
-  // Add clinic ID header if provided
-  if (data.clinicId) {
-    headers['X-Clinic-ID'] = data.clinicId;
+  if (CLINIC_ID) {
+    headers['X-Clinic-ID'] = CLINIC_ID;
   }
-
+  const requestBody = { ...data, clinicId: CLINIC_ID };
   const response = await fetch(`${API_URL}/auth/verify-otp`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(data),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -675,10 +666,18 @@ export async function verifyMagicLink(token: string) {
  * Social Login
  */
 export async function socialLogin({ provider, token }: { provider: string; token: string }) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (CLINIC_ID) {
+    headers['X-Clinic-ID'] = CLINIC_ID;
+  }
+  const requestBody: Record<string, unknown> = { token };
+  if (CLINIC_ID) {
+    requestBody.clinicId = CLINIC_ID;
+  }
   const response = await fetch(`${API_URL}/auth/${provider}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
+    headers,
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -1079,9 +1078,13 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       };
-
+      if (CLINIC_ID) {
+        headers['X-Clinic-ID'] = CLINIC_ID;
+      }
       const requestBody: Record<string, unknown> = { token };
-      
+      if (CLINIC_ID) {
+        requestBody.clinicId = CLINIC_ID;
+      }
       const response = await fetch(`${API_URL}/auth/google`, {
         method: 'POST',
         headers,

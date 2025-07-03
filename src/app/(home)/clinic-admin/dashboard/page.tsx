@@ -14,7 +14,7 @@ import {
   getClinicAdmins,
 } from "@/lib/actions/users.server";
 import { useAppointments } from "@/hooks/useAppointments";
-import { Loader2, Calendar, Clock, Users, CheckCircle } from "lucide-react";
+import { Loader2, Calendar } from "lucide-react";
 import { AppointmentWithRelations } from "@/types/appointment.types";
 
 interface User {
@@ -80,7 +80,8 @@ export default function ClinicAdminDashboard() {
   );
 
   // Fetch appointments
-  const { data: appointments, isPending: loadingAppointments } = useAppointments();
+  const { data: appointments, isPending: loadingAppointments } =
+    useAppointments();
 
   useEffect(() => {
     if (!authLoading) {
@@ -107,16 +108,13 @@ export default function ClinicAdminDashboard() {
   const totalClinicAdmins = clinicAdmins?.length || 0;
 
   // Calculate appointment statistics
-  const today = new Date().toISOString().split('T')[0];
-  const todayAppointments = appointments?.filter(apt => 
-    apt.date?.startsWith(today)
-  ) || [];
-  const pendingAppointments = appointments?.filter(apt => 
-    apt.status === 'PENDING'
-  ) || [];
-  const completedAppointments = appointments?.filter(apt => 
-    apt.status === 'COMPLETED'
-  ) || [];
+  const today = new Date().toISOString().split("T")[0];
+  const todayAppointments =
+    appointments?.filter((apt) => apt.date?.startsWith(today)) || [];
+  const pendingAppointments =
+    appointments?.filter((apt) => apt.status === "PENDING") || [];
+  const completedAppointments =
+    appointments?.filter((apt) => apt.status === "COMPLETED") || [];
 
   return (
     <DashboardLayout
@@ -161,37 +159,47 @@ export default function ClinicAdminDashboard() {
             </div>
           ) : appointments && appointments.length > 0 ? (
             <div className="space-y-2">
-              {appointments.slice(0, 5).map((appointment: AppointmentWithRelations) => (
-                <div
-                  key={appointment.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-4 w-4 text-blue-500" />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {appointment.patient?.user?.firstName} {appointment.patient?.user?.lastName}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {appointment.date} at {appointment.time}
-                      </p>
+              {appointments
+                .slice(0, 5)
+                .map((appointment: AppointmentWithRelations) => (
+                  <div
+                    key={appointment.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Calendar className="h-4 w-4 text-blue-500" />
+                      <div>
+                        <p className="text-sm font-medium">
+                          {appointment.patient?.user?.firstName}{" "}
+                          {appointment.patient?.user?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {appointment.date} at {appointment.time}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`px-2 py-1 text-xs rounded-full ${
+                          appointment.status === "PENDING"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : appointment.status === "CONFIRMED"
+                            ? "bg-blue-100 text-blue-800"
+                            : appointment.status === "COMPLETED"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {appointment.status}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                      appointment.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
-                      appointment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {appointment.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
           ) : (
-            <p className="text-gray-600 text-center py-4">No appointments found</p>
+            <p className="text-gray-600 text-center py-4">
+              No appointments found
+            </p>
           )}
         </div>
       </DashboardCard>

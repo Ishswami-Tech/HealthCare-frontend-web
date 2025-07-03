@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,11 +29,14 @@ import { SocialLogin } from "@/components/auth/social-login";
 import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
 import { Loader2 } from "lucide-react";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"password" | "otp">("password");
   const [showOTPInput, setShowOTPInput] = useState(false);
   const [isSocialLoginLoading, setIsSocialLoginLoading] = useState(false);
+  const [sharedEmail, setSharedEmail] = useState("");
+  const otpInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { login, requestOTP, verifyOTP, isLoggingIn, isVerifyingEmail } =
     useAuth();
@@ -42,6 +45,12 @@ export default function LoginPage() {
   useEffect(() => {
     setOverlay({ show: false });
   }, [setOverlay]);
+
+  useEffect(() => {
+    if (showOTPInput && otpInputRef.current) {
+      otpInputRef.current.focus();
+    }
+  }, [showOTPInput]);
 
   const handleSuccess = (response: AuthResponse | null) => {
     if (!response || !response.user) {
@@ -127,13 +136,13 @@ export default function LoginPage() {
   };
 
   const passwordForm = useZodForm(loginSchema, loginMutation, {
-    email: "",
+    email: sharedEmail,
     password: "",
     rememberMe: false,
   });
 
   const otpForm = useZodForm(otpSchema, otpMutation, {
-    email: "",
+    email: sharedEmail,
     otp: "",
     rememberMe: false,
   });
@@ -163,6 +172,14 @@ export default function LoginPage() {
 
   // Disable form inputs when social login is loading
   const isFormDisabled = isSocialLoginLoading;
+
+  const handleTabSwitch = (tab: "password" | "otp") => {
+    setActiveTab(tab);
+    setShowOTPInput(false);
+    // Optionally reset OTP value
+    otpForm.reset({ email: sharedEmail, otp: "", rememberMe: false });
+    passwordForm.reset({ email: sharedEmail, password: "", rememberMe: false });
+  };
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -197,10 +214,7 @@ export default function LoginPage() {
             type="button"
             variant={activeTab === "password" ? "default" : "outline"}
             className="flex-1"
-            onClick={() => {
-              setActiveTab("password");
-              setShowOTPInput(false);
-            }}
+            onClick={() => handleTabSwitch("password")}
             disabled={isFormDisabled}
           >
             Password
@@ -209,10 +223,7 @@ export default function LoginPage() {
             type="button"
             variant={activeTab === "otp" ? "default" : "outline"}
             className="flex-1"
-            onClick={() => {
-              setActiveTab("otp");
-              setShowOTPInput(false);
-            }}
+            onClick={() => handleTabSwitch("otp")}
             disabled={isFormDisabled}
           >
             OTP
@@ -228,200 +239,239 @@ export default function LoginPage() {
           </div>
         )}
 
-        {activeTab === "password" ? (
-          <Form {...passwordForm}>
-            <form onSubmit={passwordForm.onFormSubmit} className="space-y-4">
-              <FormField
-                control={passwordForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="Email"
-                        {...field}
-                        disabled={isFormDisabled}
-                        className={
-                          isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={passwordForm.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Password"
-                        {...field}
-                        disabled={isFormDisabled}
-                        className={
-                          isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={passwordForm.control}
-                name="rememberMe"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        disabled={isFormDisabled}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <label
-                        htmlFor="rememberMe"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Remember me
-                      </label>
-                    </div>
-                  </FormItem>
-                )}
-              />
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isFormDisabled || isLoggingIn}
-              >
-                {isLoggingIn ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  "Sign in"
-                )}
-              </Button>
-            </form>
-          </Form>
-        ) : (
-          <Form {...otpForm}>
-            <form onSubmit={otpForm.onFormSubmit} className="space-y-4">
-              <FormField
-                control={otpForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="Email"
-                        {...field}
-                        disabled={isFormDisabled}
-                        className={
-                          isFormDisabled ? "opacity-50 cursor-not-allowed" : ""
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {showOTPInput ? (
-                <FormField
-                  control={otpForm.control}
-                  name="otp"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input
-                          type="text"
-                          placeholder="Enter OTP"
-                          {...field}
-                          disabled={isFormDisabled}
-                          className={
-                            isFormDisabled
-                              ? "opacity-50 cursor-not-allowed"
-                              : ""
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    const email = otpForm.getValues("email");
-                    if (email) {
-                      handleRequestOTP(email);
-                    } else {
-                      toast.error("Please enter your email first");
-                    }
-                  }}
-                  disabled={isFormDisabled}
+        <AnimatePresence mode="wait">
+          {activeTab === "password" ? (
+            <motion.div
+              key="password"
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 30 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Form {...passwordForm}>
+                <form
+                  onSubmit={passwordForm.onFormSubmit}
+                  className="space-y-4"
                 >
-                  Request OTP
-                </Button>
-              )}
+                  <FormField
+                    control={passwordForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="Email"
+                            {...field}
+                            value={sharedEmail}
+                            onChange={(e) => {
+                              setSharedEmail(e.target.value);
+                              field.onChange(e);
+                              otpForm.setValue("email", e.target.value);
+                            }}
+                            disabled={isFormDisabled}
+                            className={
+                              isFormDisabled
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={otpForm.control}
-                name="rememberMe"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        disabled={isFormDisabled}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <label
-                        htmlFor="rememberMe"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Remember me
-                      </label>
-                    </div>
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={passwordForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            placeholder="Password"
+                            {...field}
+                            disabled={isFormDisabled}
+                            className={
+                              isFormDisabled
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              {showOTPInput && (
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isFormDisabled || isVerifyingEmail}
-                >
-                  {isVerifyingEmail ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Verifying...
-                    </>
+                  <FormField
+                    control={passwordForm.control}
+                    name="rememberMe"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            disabled={isFormDisabled}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <label
+                            htmlFor="rememberMe"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Remember me
+                          </label>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isFormDisabled || isLoggingIn}
+                  >
+                    {isLoggingIn ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      "Sign in"
+                    )}
+                  </Button>
+                </form>
+              </Form>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="otp"
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -30 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Form {...otpForm}>
+                <form onSubmit={otpForm.onFormSubmit} className="space-y-4">
+                  <FormField
+                    control={otpForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="Email"
+                            {...field}
+                            value={sharedEmail}
+                            onChange={(e) => {
+                              setSharedEmail(e.target.value);
+                              field.onChange(e);
+                              passwordForm.setValue("email", e.target.value);
+                            }}
+                            disabled={isFormDisabled}
+                            className={
+                              isFormDisabled
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {showOTPInput ? (
+                    <FormField
+                      control={otpForm.control}
+                      name="otp"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="Enter OTP"
+                              {...field}
+                              ref={otpInputRef}
+                              disabled={isFormDisabled}
+                              className={
+                                isFormDisabled
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : ""
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   ) : (
-                    "Verify OTP"
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        if (sharedEmail) {
+                          handleRequestOTP(sharedEmail);
+                        } else {
+                          toast.error("Please enter your email first");
+                        }
+                      }}
+                      disabled={isFormDisabled}
+                    >
+                      Request OTP
+                    </Button>
                   )}
-                </Button>
-              )}
-            </form>
-          </Form>
-        )}
+
+                  <FormField
+                    control={otpForm.control}
+                    name="rememberMe"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            disabled={isFormDisabled}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <label
+                            htmlFor="rememberMe"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Remember me
+                          </label>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  {showOTPInput && (
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isFormDisabled || isVerifyingEmail}
+                    >
+                      {isVerifyingEmail ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Verifying...
+                        </>
+                      ) : (
+                        "Verify OTP"
+                      )}
+                    </Button>
+                  )}
+                </form>
+              </Form>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </CardContent>
       <CardFooter className="flex flex-col space-y-2">
         <div className="text-sm text-center">

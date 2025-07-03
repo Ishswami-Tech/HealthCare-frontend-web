@@ -58,7 +58,8 @@ export default function SettingsPage() {
   );
 
   // Fetch appointments for statistics
-  const { data: appointments, isPending: loadingAppointments } = useAppointments();
+  const { data: appointments, isPending: loadingAppointments } =
+    useAppointments();
 
   // Update profile mutation
   const { mutate: updateProfile, isPending: updatingProfile } = useMutationData(
@@ -113,16 +114,13 @@ export default function SettingsPage() {
   };
 
   // Calculate appointment statistics
-  const today = new Date().toISOString().split('T')[0];
-  const todayAppointments = appointments?.filter(apt => 
-    apt.date?.startsWith(today)
-  ) || [];
-  const upcomingAppointments = appointments?.filter(apt => 
-    apt.date > today
-  ) || [];
-  const completedAppointments = appointments?.filter(apt => 
-    apt.status === 'COMPLETED'
-  ) || [];
+  const today = new Date().toISOString().split("T")[0];
+  const todayAppointments =
+    appointments?.filter((apt) => apt.date?.startsWith(today)) || [];
+  const upcomingAppointments =
+    appointments?.filter((apt) => apt.date > today) || [];
+  const completedAppointments =
+    appointments?.filter((apt) => apt.status === "COMPLETED") || [];
 
   return (
     <div className="container mx-auto py-6">
@@ -270,19 +268,25 @@ export default function SettingsPage() {
                       <div className="text-2xl font-bold text-blue-600">
                         {todayAppointments.length}
                       </div>
-                      <div className="text-sm text-gray-600">Today&apos;s Appointments</div>
+                      <div className="text-sm text-gray-600">
+                        Today&apos;s Appointments
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-green-50 rounded-lg">
                       <div className="text-2xl font-bold text-green-600">
                         {upcomingAppointments.length}
                       </div>
-                      <div className="text-sm text-gray-600">Upcoming Appointments</div>
+                      <div className="text-sm text-gray-600">
+                        Upcoming Appointments
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-purple-50 rounded-lg">
                       <div className="text-2xl font-bold text-purple-600">
                         {completedAppointments.length}
                       </div>
-                      <div className="text-sm text-gray-600">Completed Appointments</div>
+                      <div className="text-sm text-gray-600">
+                        Completed Appointments
+                      </div>
                     </div>
                   </div>
                 )}
@@ -351,34 +355,45 @@ export default function SettingsPage() {
                   </div>
                 ) : appointments && appointments.length > 0 ? (
                   <div className="space-y-2">
-                    {appointments.slice(0, 3).map((appointment: AppointmentWithRelations) => (
-                      <div
-                        key={appointment.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Calendar className="h-4 w-4 text-blue-500" />
-                          <div>
-                            <p className="text-sm font-medium">
-                              {appointment.date} at {appointment.time}
-                            </p>
-                            <p className="text-xs text-gray-500"> 
-                            {appointment.type} - {appointment.notes || "No notes"}                            </p>
+                    {appointments
+                      .slice(0, 3)
+                      .map((appointment: AppointmentWithRelations) => (
+                        <div
+                          key={appointment.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <Calendar className="h-4 w-4 text-blue-500" />
+                            <div>
+                              <p className="text-sm font-medium">
+                                {appointment.date} at {appointment.time}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {appointment.type} -{" "}
+                                {appointment.notes || "No notes"}{" "}
+                              </p>
+                            </div>
                           </div>
+                          <span
+                            className={`px-2 py-1 text-xs rounded-full ${
+                              appointment.status === "PENDING"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : appointment.status === "CONFIRMED"
+                                ? "bg-blue-100 text-blue-800"
+                                : appointment.status === "COMPLETED"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {appointment.status}
+                          </span>
                         </div>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                          appointment.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
-                          appointment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {appointment.status}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-4">No recent appointments</p>
+                  <p className="text-gray-500 text-center py-4">
+                    No recent appointments
+                  </p>
                 )}
               </CardContent>
             </Card>
