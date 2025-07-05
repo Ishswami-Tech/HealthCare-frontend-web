@@ -54,6 +54,10 @@ interface GoogleLoginResponse {
     name?: string;
     firstName?: string;
     lastName?: string;
+    phone?: string;
+    dateOfBirth?: string | null;
+    gender?: string;
+    address?: string;
     role: Role;
     isNewUser?: boolean;
     googleId?: string;
@@ -198,10 +202,6 @@ export function useAuth() {
           ...result.user,
           firstName: result.user.firstName || '',
           lastName: result.user.lastName || '',
-          phone: result.user.phone || '',
-          dateOfBirth: result.user.dateOfBirth || null,
-          gender: result.user.gender || '',
-          address: result.user.address || '',
         };
 
         return {
@@ -253,6 +253,7 @@ export function useAuth() {
   } = useMutation<GoogleLoginResponse, Error, string>({
     mutationFn: async (token: string) => {
       console.log('useAuth - Starting Google login');
+      console.log('useAuth - Clinic ID from env:', process.env.NEXT_PUBLIC_CLINIC_ID);
       const result = await googleLoginAction(token);
       console.log('useAuth - Google login result:', JSON.stringify(result, null, 2));
       
@@ -288,6 +289,10 @@ export function useAuth() {
           name: data.user.name,
           firstName: data.user.firstName || data.user.name?.split(' ')[0] || '',
           lastName: data.user.lastName || data.user.name?.split(' ').slice(1).join(' ') || '',
+          phone: data.user.phone || '',
+          dateOfBirth: data.user.dateOfBirth || null,
+          gender: data.user.gender || '',
+          address: data.user.address || '',
           isVerified: true,
           googleId: data.user.googleId,
           profileComplete: data.user.profileComplete

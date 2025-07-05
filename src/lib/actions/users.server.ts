@@ -21,6 +21,7 @@ async function getAuthHeaders() {
         userId: payload.sub,
         email: payload.email,
         role: payload.role,
+        clinicId: payload.clinicId,
         exp: new Date(payload.exp * 1000).toISOString(),
         iat: new Date(payload.iat * 1000).toISOString(),
       });
@@ -34,6 +35,7 @@ async function getAuthHeaders() {
     accessToken: accessToken ? accessToken.substring(0, 15) + '...' : 'N/A',
     hasSessionId: !!sessionId,
     sessionId: sessionId,
+    clinicId: CLINIC_ID,
   });
   
   if (!accessToken) {
@@ -42,6 +44,10 @@ async function getAuthHeaders() {
 
   if (!sessionId) {
     console.warn("getAuthHeaders - NO SESSION ID FOUND IN COOKIES. This may cause authentication issues.");
+  }
+
+  if (!CLINIC_ID) {
+    console.warn("getAuthHeaders - NO CLINIC ID FOUND IN ENVIRONMENT. This may cause clinic-related issues.");
   }
 
   // Log all outgoing headers

@@ -99,6 +99,10 @@ interface GoogleLoginResponse {
     name?: string;
     firstName?: string;
     lastName?: string;
+    phone?: string;
+    dateOfBirth?: string | null;
+    gender?: string;
+    address?: string;
     role: Role;
     isNewUser?: boolean;
     googleId?: string;
@@ -117,6 +121,10 @@ export interface Session {
     firstName?: string;
     lastName?: string;
     name?: string;
+    phone?: string;
+    dateOfBirth?: string | null;
+    gender?: string;
+    address?: string;
     isVerified?: boolean;
     profileComplete?: boolean;
   };
@@ -235,6 +243,10 @@ export async function getServerSession(): Promise<Session | null> {
           firstName: userData.firstName || userData.first_name || '',
           lastName: userData.lastName || userData.last_name || '',
           name: userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+          phone: userData.phone || '',
+          dateOfBirth: userData.dateOfBirth || userData.date_of_birth || null,
+          gender: userData.gender || '',
+          address: userData.address || '',
           isVerified: userData.isVerified || true,
           profileComplete: userData.profileComplete || false
         },
@@ -266,6 +278,10 @@ export async function setSession(data: {
     role: Role;
     firstName?: string;
     lastName?: string;
+    phone?: string;
+    dateOfBirth?: string | null;
+    gender?: string;
+    address?: string;
     isVerified?: boolean;
   };
 }) {
@@ -280,6 +296,10 @@ export async function setSession(data: {
       firstName: data.user.firstName || '',
       lastName: data.user.lastName || '',
       name: `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() || undefined,
+      phone: data.user.phone || '',
+      dateOfBirth: data.user.dateOfBirth || null,
+      gender: data.user.gender || '',
+      address: data.user.address || '',
       isVerified: data.user.isVerified || false,
       profileComplete: false
     },
@@ -361,6 +381,7 @@ export async function login(data: {
 }) {
   try {
     console.log('1. Starting login process');
+    console.log('Clinic ID being used:', CLINIC_ID);
     
     // Validate that either password or OTP is provided
     if (!data.password && !data.otp) {
@@ -379,14 +400,26 @@ export async function login(data: {
       requestBody.otp = data.otp;
     }
 
-    // Add clinic ID from env
-    requestBody.clinicId = CLINIC_ID;
+    // Always include clinic ID in request body
+    if (CLINIC_ID) {
+      requestBody.clinicId = CLINIC_ID;
+      console.log('Added clinicId to request body:', CLINIC_ID);
+    } else {
+      console.warn('CLINIC_ID not found in environment variables');
+    }
+    
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (typeof CLINIC_ID === 'string' && CLINIC_ID) {
+    
+    // Always include clinic ID in headers for redundancy
+    if (CLINIC_ID) {
       headers['X-Clinic-ID'] = CLINIC_ID;
+      console.log('Added X-Clinic-ID header:', CLINIC_ID);
     }
+
+    console.log('Final request headers:', headers);
+    console.log('Final request body keys:', Object.keys(requestBody));
 
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
@@ -404,59 +437,81 @@ export async function login(data: {
     }
 
     console.log('3. Login response data:', JSON.stringify(result, null, 2));
-
-    // Additional request to get full user details if firstName/lastName are missing
-    if (!result.user.firstName || !result.user.lastName) {
-      console.log('4. Fetching additional user details');
-      try {
-        const userResponse = await fetch(`${API_URL}/user/${result.user.id}`, {
-          headers: {
-            'Authorization': `Bearer ${result.access_token}`,
-            'X-Session-ID': result.session_id,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        console.log('5. Profile response status:', userResponse.status);
-        
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          console.log('6. Profile data:', JSON.stringify(userData, null, 2));
-          
-          // Merge the user data, handling both camelCase and snake_case
-          result.user = {
-            ...result.user,
-            ...userData,
-            firstName: userData.firstName || userData.first_name || '',
-            lastName: userData.lastName || userData.last_name || '',
-            // Include other relevant fields
-            phone: userData.phone || userData.phoneNumber || '',
-            dateOfBirth: userData.dateOfBirth || userData.date_of_birth || null,
-            gender: userData.gender || '',
-            address: userData.address || '',
-          };
-        } else {
-          console.warn('Failed to fetch user profile:', userResponse.status);
-        }
-      } catch (profileError) {
-        console.error('Error fetching user profile:', profileError);
-        // Don't throw here, continue with basic user data
-      }
-    }
     
-    // Set session data
-    console.log('7. Final session data:', JSON.stringify(result, null, 2));
-    await setSession(result);
-    console.log('8. Session data set successfully');
+    // Set cookies with explicit options to ensure they're properly set
+    const cookieStore = await cookies();
+    
+    // Set access token with shorter expiry (15 minutes)
+    cookieStore.set({
+      name: 'access_token',
+      value: result.access_token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Use lax to ensure it works with redirects
+      path: '/',
+      maxAge: 60 * 15, // 15 minutes
+    });
+    
+    // Set session ID
+    cookieStore.set({
+      name: 'session_id',
+      value: result.session_id || '',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Use lax to ensure it works with redirects
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    
+    // Set user role for quick access in middleware
+    cookieStore.set({
+      name: 'user_role',
+      value: result.user.role,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Use lax to ensure it works with redirects
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
 
     // Set profile completion status based on user data
     const profileComplete = calculateProfileCompletionFromUserData(result.user);
-    await setProfileComplete(profileComplete);
+    cookieStore.set({
+      name: 'profile_complete',
+      value: profileComplete.toString(),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Use lax to ensure it works with redirects
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
 
-    return result;
+    console.log('Auth cookies being set:', {
+      accessToken: result.access_token ? 'SET' : 'NOT SET',
+      sessionId: result.session_id ? 'SET' : 'NOT SET',
+    });
+    console.log('Auth cookies set successfully');
+
+    // Return the response with proper typing
+    const responseData = {
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        role: result.user.role,
+        name: result.user.name || `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim(),
+        firstName: result.user.firstName || '',
+        lastName: result.user.lastName || '',
+        profileComplete: calculateProfileCompletionFromUserData(result.user)
+      },
+      token: result.access_token,
+      redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
+    };
+    
+    console.log('Returning login response:', JSON.stringify(responseData, null, 2));
+    return responseData;
   } catch (error) {
     console.error('Login error:', error);
-    throw error;
+    throw error instanceof Error ? error : new Error('Login failed');
   }
 }
 
@@ -465,6 +520,10 @@ export async function login(data: {
  */
 export async function register(data: RegisterFormData & { clinicId?: string }) {
   try {
+    console.log('Starting registration process');
+    console.log('Clinic ID from data:', data.clinicId);
+    console.log('Clinic ID from env:', CLINIC_ID);
+    
     // Ensure firstName and lastName are properly formatted
     const formattedData = {
       ...data,
@@ -476,10 +535,25 @@ export async function register(data: RegisterFormData & { clinicId?: string }) {
       'Content-Type': 'application/json',
     };
 
-    // Add clinic ID header if provided
-    if (data.clinicId) {
-      headers['X-Clinic-ID'] = data.clinicId;
+    // Priority: Use clinicId from data, then from env
+    const finalClinicId = data.clinicId || CLINIC_ID;
+    
+    // Always include clinic ID in headers
+    if (finalClinicId) {
+      headers['X-Clinic-ID'] = finalClinicId;
+      console.log('Added X-Clinic-ID header:', finalClinicId);
+    } else {
+      console.warn('No clinic ID available for registration');
     }
+
+    // Always include clinic ID in request body for redundancy
+    if (finalClinicId) {
+      formattedData.clinicId = finalClinicId;
+      console.log('Added clinicId to request body:', finalClinicId);
+    }
+
+    console.log('Final request headers:', headers);
+    console.log('Final request body keys:', Object.keys(formattedData));
 
     const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
@@ -499,6 +573,7 @@ export async function register(data: RegisterFormData & { clinicId?: string }) {
       throw new Error(errorMessage);
     }
 
+    console.log('Registration successful:', responseData);
     return responseData;
   } catch (error) {
     if (error instanceof Error) {
@@ -537,24 +612,54 @@ export async function registerWithClinic(data: {
  * Request OTP
  */
 export async function requestOTP(identifier: string) {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (CLINIC_ID) {
-    headers['X-Clinic-ID'] = CLINIC_ID;
-  }
-  const response = await fetch(`${API_URL}/auth/request-otp`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ identifier, clinicId: CLINIC_ID }),
-  });
+  try {
+    console.log('Starting OTP request process');
+    console.log('Identifier:', identifier);
+    console.log('Clinic ID from env:', CLINIC_ID);
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Always include clinic ID in headers
+    if (CLINIC_ID) {
+      headers['X-Clinic-ID'] = CLINIC_ID;
+      console.log('Added X-Clinic-ID header:', CLINIC_ID);
+    } else {
+      console.warn('CLINIC_ID not found in environment variables');
+    }
+    
+    const requestBody: Record<string, unknown> = { 
+      identifier,
+      clinicId: CLINIC_ID 
+    };
+    
+    // Always include clinic ID in request body for redundancy
+    if (CLINIC_ID) {
+      console.log('Added clinicId to request body:', CLINIC_ID);
+    }
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to request OTP');
-  }
+    console.log('Final request headers:', headers);
+    console.log('Final request body keys:', Object.keys(requestBody));
+    
+    const response = await fetch(`${API_URL}/auth/request-otp`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+    });
 
-  return response.json();
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to request OTP');
+    }
+
+    const result = await response.json();
+    console.log('OTP request successful:', result);
+    return result;
+  } catch (error) {
+    console.error('OTP request error:', error);
+    throw error instanceof Error ? error : new Error('Failed to request OTP');
+  }
 }
 
 /**
@@ -666,28 +771,53 @@ export async function verifyMagicLink(token: string) {
  * Social Login
  */
 export async function socialLogin({ provider, token }: { provider: string; token: string }) {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (CLINIC_ID) {
-    headers['X-Clinic-ID'] = CLINIC_ID;
-  }
-  const requestBody: Record<string, unknown> = { token };
-  if (CLINIC_ID) {
-    requestBody.clinicId = CLINIC_ID;
-  }
-  const response = await fetch(`${API_URL}/auth/${provider}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(requestBody),
-  });
+  try {
+    console.log('Starting social login process');
+    console.log('Provider:', provider);
+    console.log('Clinic ID from env:', CLINIC_ID);
+    
+    const headers: Record<string, string> = { 
+      'Content-Type': 'application/json' 
+    };
+    
+    // Always include clinic ID in headers
+    if (CLINIC_ID) {
+      headers['X-Clinic-ID'] = CLINIC_ID;
+      console.log('Added X-Clinic-ID header:', CLINIC_ID);
+    } else {
+      console.warn('CLINIC_ID not found in environment variables');
+    }
+    
+    const requestBody: Record<string, unknown> = { token };
+    
+    // Always include clinic ID in request body for redundancy
+    if (CLINIC_ID) {
+      requestBody.clinicId = CLINIC_ID;
+      console.log('Added clinicId to request body:', CLINIC_ID);
+    }
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Social login failed');
-  }
+    console.log('Final request headers:', headers);
+    console.log('Final request body keys:', Object.keys(requestBody));
+    
+    const response = await fetch(`${API_URL}/auth/${provider}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+    });
 
-  const responseData = await response.json();
-  await setAuthCookies(responseData);
-  return responseData;
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Social login failed');
+    }
+
+    const responseData = await response.json();
+    console.log('Social login successful:', responseData);
+    await setAuthCookies(responseData);
+    return responseData;
+  } catch (error) {
+    console.error('Social login error:', error);
+    throw error instanceof Error ? error : new Error('Social login failed');
+  }
 }
 
 /**
@@ -1053,6 +1183,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
   try {
     console.log('Starting Google login with token');
     console.log('API URL being used:', API_URL);
+    console.log('Clinic ID being used:', CLINIC_ID);
     
     // Check API connectivity first
     const isApiConnected = await checkApiConnection();
@@ -1068,7 +1199,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
     
     // Try to handle the login with timeout protection
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     
     try {
       console.log('Making request to:', `${API_URL}/auth/google`);
@@ -1078,13 +1209,26 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       };
+      
+      // Always include clinic ID in headers if available
       if (CLINIC_ID) {
         headers['X-Clinic-ID'] = CLINIC_ID;
+        console.log('Added X-Clinic-ID header:', CLINIC_ID);
+      } else {
+        console.warn('CLINIC_ID not found in environment variables');
       }
+      
       const requestBody: Record<string, unknown> = { token };
+      
+      // Always include clinic ID in request body for redundancy
       if (CLINIC_ID) {
         requestBody.clinicId = CLINIC_ID;
+        console.log('Added clinicId to request body:', CLINIC_ID);
       }
+      
+      console.log('Final request headers:', headers);
+      console.log('Final request body keys:', Object.keys(requestBody));
+      
       const response = await fetch(`${API_URL}/auth/google`, {
         method: 'POST',
         headers,
@@ -1206,6 +1350,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
             headers: {
               'Authorization': `Bearer ${result.access_token}`,
               'X-Session-ID': result.session_id || '',
+              'X-Clinic-ID': CLINIC_ID || '',
               'Content-Type': 'application/json',
             },
             cache: 'no-store',
