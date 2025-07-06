@@ -6,7 +6,7 @@ import { useQueryData } from "@/hooks/useQueryData";
 import { useRouter } from "next/navigation";
 import { Role } from "@/types/auth.types";
 import { getUserProfile } from "@/lib/actions/users.server";
-import { useAppointments } from "@/hooks/useAppointments";
+import { useMyAppointments } from "@/hooks/useAppointments";
 import {
   Loader2,
   Calendar,
@@ -16,7 +16,7 @@ import {
   Plus,
 } from "lucide-react";
 import { AppointmentWithRelations } from "@/types/appointment.types";
-import { useClinic } from "@/hooks/useClinics";
+import { useMyClinic } from "@/hooks/useClinics";
 
 // Define a type for user data
 interface UserData {
@@ -40,8 +40,7 @@ interface UserData {
 }
 
 export default function PatientDashboardPage() {
-  const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID!;
-  const { data: clinic, isPending: loadingClinic } = useClinic(CLINIC_ID);
+  const { data: clinic, isPending: loadingClinic } = useMyClinic();
   const router = useRouter();
   const { session, isLoading, refreshSession } = useAuth();
   const { user } = session || {};
@@ -62,7 +61,7 @@ export default function PatientDashboardPage() {
 
   // Fetch appointments
   const { data: appointments, isPending: loadingAppointments } =
-    useAppointments();
+    useMyAppointments();
 
   useEffect(() => {
     console.log("Dashboard Mount - Session:", JSON.stringify(session, null, 2));
@@ -125,6 +124,7 @@ export default function PatientDashboardPage() {
   const userData: UserData = {
     ...(user || {}),
     ...(profileData || {}),
+    dateOfBirth: profileData?.dateOfBirth || undefined,
   };
 
   // Get the display name in order of preference
@@ -156,21 +156,22 @@ export default function PatientDashboardPage() {
 
   // Calculate appointment statistics
   const today = new Date().toISOString().split("T")[0];
+  const appointmentsList = appointments?.appointments || [];
   const todayAppointments =
-    appointments?.filter(
-      (apt) => apt.date?.startsWith(today) && apt.patientId === user?.id
+    appointmentsList.filter(
+      (apt) => apt.date?.startsWith(today)
     ) || [];
   const upcomingAppointments =
-    appointments?.filter(
-      (apt) => apt.date > today && apt.patientId === user?.id
+    appointmentsList.filter(
+      (apt) => apt.date > today
     ) || [];
   const completedAppointments =
-    appointments?.filter(
-      (apt) => apt.status === "COMPLETED" && apt.patientId === user?.id
+    appointmentsList.filter(
+      (apt) => apt.status === "COMPLETED"
     ) || [];
   const pendingAppointments =
-    appointments?.filter(
-      (apt) => apt.status === "PENDING" && apt.patientId === user?.id
+    appointmentsList.filter(
+      (apt) => apt.status === "PENDING"
     ) || [];
 
   return (

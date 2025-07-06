@@ -20,6 +20,13 @@ function getAuthHeaders(token?: string, sessionId?: string) {
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (sessionId) headers['X-Session-ID'] = sessionId;
+  
+  // Add clinic ID from environment
+  const clinicId = process.env.NEXT_PUBLIC_CLINIC_ID;
+  if (clinicId) {
+    headers['X-Clinic-ID'] = clinicId;
+  }
+  
   return headers;
 }
 
@@ -385,5 +392,35 @@ export const useStartConsultation = () => {
       });
     },
     'appointments'
+  );
+}; 
+
+/**
+ * Hook to get current user's appointments (for patients)
+ * Uses the new /my-appointments endpoint
+ */
+export const useMyAppointments = (filters?: AppointmentFilters) => {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const sessionId = session?.session_id;
+  return useQueryData<{ appointments: AppointmentWithRelations[]; total: number; page: number; limit: number; totalPages: number }>(
+    ['myAppointments', filters],
+    async () => {
+      const queryParams = new URLSearchParams();
+      if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            queryParams.append(key, value.toString());
+          }
+        });
+      }
+      const endpoint = `/appointments/my-appointments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const response = await apiCall<{ appointments: AppointmentWithRelations[]; total: number; page: number; limit: number; totalPages: number }>(endpoint, {
+        headers: {
+          ...getAuthHeaders(token, sessionId),
+        },
+      });
+      return response.data;
+    }
   );
 }; 

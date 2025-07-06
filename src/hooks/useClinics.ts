@@ -159,6 +159,31 @@ export const useClinicByAppName = (appName: string) => {
 };
 
 /**
+ * Hook to get current user's clinic
+ * Uses the new /my-clinic endpoint
+ */
+export const useMyClinic = () => {
+  const { session, isLoading } = useAuth();
+  const token = session?.access_token;
+  const sessionId = session?.session_id;
+  
+  return useQueryData<ClinicWithRelations>(
+    ['myClinic'],
+    async () => {
+      const response = await apiCall<ClinicWithRelations>('/clinics/my-clinic', {
+        headers: {
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
+        },
+      });
+      return response.data;
+    },
+    {
+      enabled: !!token && !!sessionId && !isLoading,
+    }
+  );
+};
+
+/**
  * Hook to update clinic
  */
 export const useUpdateClinic = () => {

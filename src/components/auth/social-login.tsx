@@ -166,7 +166,7 @@ export function SocialLogin({
             callback: handleGoogleResponse,
             auto_select: false,
             context: "signin",
-            ux_mode: "popup",
+            ux_mode: "popup",  // TODO: change to "redirect"
             itp_support: true,
             login_uri: loginUri.toString(),
             allowed_parent_origin: currentOrigin,
