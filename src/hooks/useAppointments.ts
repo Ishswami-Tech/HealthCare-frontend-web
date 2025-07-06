@@ -400,9 +400,6 @@ export const useStartConsultation = () => {
  * Uses the new /my-appointments endpoint
  */
 export const useMyAppointments = (filters?: AppointmentFilters) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
   return useQueryData<{ appointments: AppointmentWithRelations[]; total: number; page: number; limit: number; totalPages: number }>(
     ['myAppointments', filters],
     async () => {
@@ -414,13 +411,19 @@ export const useMyAppointments = (filters?: AppointmentFilters) => {
           }
         });
       }
-      const endpoint = `/appointments/my-appointments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await apiCall<{ appointments: AppointmentWithRelations[]; total: number; page: number; limit: number; totalPages: number }>(endpoint, {
+      const endpoint = `/api/my-appointments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const response = await fetch(endpoint, {
+        method: 'GET',
         headers: {
-          ...getAuthHeaders(token, sessionId),
+          'Content-Type': 'application/json',
         },
       });
-      return response.data;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return data;
     }
   );
 }; 

@@ -1123,6 +1123,58 @@ async function setAuthCookies(data: {
 }
 
 /**
+ * Central utility for authenticated API calls using server-side cookies
+ */
+export async function authenticatedApi<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<{ status: number; data: T }> {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get('access_token')?.value;
+  const sessionId = cookieStore.get('session_id')?.value;
+  const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+
+  if (!accessToken) {
+    throw new Error('No access token found');
+  }
+
+  const url = `${API_URL}${endpoint}`;
+  const baseHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${accessToken}`,
+  };
+  if (sessionId) baseHeaders['X-Session-ID'] = sessionId;
+  if (CLINIC_ID) baseHeaders['X-Clinic-ID'] = CLINIC_ID;
+  const headers: Record<string, string> = {
+    ...baseHeaders,
+    ...(options.headers as Record<string, string>),
+  };
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  let data: unknown = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    let errMsg: string | undefined = undefined;
+    if (data && typeof data === 'object' && data !== null && 'message' in data) {
+      errMsg = (data as { message?: string }).message;
+    }
+    throw new Error(errMsg || `HTTP error! status: ${response.status}`);
+  }
+
+  return { status: response.status, data: data as T };
+}
+
+/**
  * Require authentication - redirects to login if not authenticated
  */
 export async function requireAuth() {
