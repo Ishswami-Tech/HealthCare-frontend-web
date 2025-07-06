@@ -14,6 +14,7 @@ import {
   ClinicStats,
   ClinicSettings
 } from '@/types/clinic.types';
+import { createClinic, getAllClinics, getClinicById, getClinicByAppName, updateClinic, deleteClinic, createClinicLocation, getClinicLocations, getClinicLocationById, updateClinicLocation, deleteClinicLocation, generateLocationQR, verifyLocationQR, assignClinicAdmin, getClinicDoctors, getClinicPatients, registerPatientToClinic, getClinicUsersByRole, validateAppName, associateUserWithClinic, getClinicStats, getClinicSettings, updateClinicSettings, getActiveLocations, generateClinicToken } from '@/lib/actions/clinic.server';
 
 // API URL configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
@@ -65,44 +66,18 @@ async function apiCall<T>(
  * Hook to create a new clinic
  */
 export const useCreateClinic = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationData<ClinicWithRelations, CreateClinicData>(
-    ['createClinic'],
-    async (data) => {
-      return apiCall<ClinicWithRelations>('/clinics', {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-        body: JSON.stringify(data),
-      });
-    },
-    'clinics'
-  );
+  return useMutationData(['createClinic'], async (data) => {
+    return await createClinic(data);
+  }, 'clinics');
 };
 
 /**
  * Hook to get all clinics
  */
 export const useClinics = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useQueryData<ClinicWithRelations[]>(
-    ['clinics'],
-    async () => {
-      const response = await apiCall<ClinicWithRelations[]>('/clinics', {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
-    }
-  );
+  return useQueryData(['clinics'], async () => {
+    return await getAllClinics();
+  });
 };
 
 /**

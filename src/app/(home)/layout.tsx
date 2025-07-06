@@ -38,12 +38,24 @@ export default function HomeLayout({
     }
   }, [isLoading, setOverlay]);
 
+  const defaultUserProfile: UserProfile = { id: "", email: "", role: "" };
   // Fetch user profile for display
   const { data: profile } = useQueryData<UserProfile>(
     ["layout-profile"],
     async () => {
       const response = await getUserProfile();
-      return response.data || response;
+      if (typeof response === "object" && response !== null) {
+        const data = (response as Record<string, unknown>).data || response;
+        // Check if data has required fields
+        if (
+          typeof (data as UserProfile).id === "string" &&
+          typeof (data as UserProfile).email === "string" &&
+          typeof (data as UserProfile).role === "string"
+        ) {
+          return data as UserProfile;
+        }
+      }
+      return defaultUserProfile;
     },
     {
       enabled: !!session?.access_token,

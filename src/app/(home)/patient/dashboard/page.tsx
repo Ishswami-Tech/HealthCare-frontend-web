@@ -39,6 +39,9 @@ interface UserData {
   updatedAt?: string | Date;
 }
 
+// Define a default user data object
+const defaultUserData: UserData = { id: "", email: "", role: Role.PATIENT };
+
 export default function PatientDashboardPage() {
   const { data: clinic, isPending: loadingClinic } = useMyClinic();
   const router = useRouter();
@@ -51,8 +54,18 @@ export default function PatientDashboardPage() {
     useQueryData<UserData>(
       ["patient-profile"],
       async () => {
-        const response = await getUserProfile();
-        return response.data || response;
+        const response: unknown = await getUserProfile();
+        if (typeof response === "object" && response !== null) {
+          const data = (response as Record<string, unknown>).data || response;
+          if (
+            typeof (data as UserData).id === "string" &&
+            typeof (data as UserData).email === "string" &&
+            typeof (data as UserData).role === "string"
+          ) {
+            return data as UserData;
+          }
+        }
+        return defaultUserData;
       },
       {
         enabled: !!session?.access_token,
@@ -156,22 +169,22 @@ export default function PatientDashboardPage() {
 
   // Calculate appointment statistics
   const today = new Date().toISOString().split("T")[0];
-  const appointmentsList = appointments?.appointments || [];
+  const appointmentsList: AppointmentWithRelations[] = appointments || [];
   const todayAppointments =
-    appointmentsList.filter(
-      (apt) => apt.date?.startsWith(today)
+    appointmentsList.filter((apt: AppointmentWithRelations) =>
+      apt.date?.startsWith(today)
     ) || [];
   const upcomingAppointments =
     appointmentsList.filter(
-      (apt) => apt.date > today
+      (apt: AppointmentWithRelations) => apt.date > today
     ) || [];
   const completedAppointments =
     appointmentsList.filter(
-      (apt) => apt.status === "COMPLETED"
+      (apt: AppointmentWithRelations) => apt.status === "COMPLETED"
     ) || [];
   const pendingAppointments =
     appointmentsList.filter(
-      (apt) => apt.status === "PENDING"
+      (apt: AppointmentWithRelations) => apt.status === "PENDING"
     ) || [];
 
   return (

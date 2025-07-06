@@ -1,6 +1,7 @@
 import { useQueryData } from './useQueryData';
 import { useMutationData } from './useMutationData';
 import { useAuth } from './useAuth';
+import { getUserProfile, updateUserProfile } from '@/lib/actions/users.server';
 
 // API URL configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
@@ -49,78 +50,18 @@ async function apiCall<T>(
  * Hook to get user profile
  */
 export const useUserProfile = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useQueryData<Record<string, unknown>>(
-    ['userProfile'],
-    async () => {
-      // Extract user ID from JWT token
-      if (!token) {
-        throw new Error('No access token available');
-      }
-      
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const userId = payload.sub;
-      
-      if (!userId) {
-        throw new Error('No user ID found in token');
-      }
-      
-      const response = await apiCall<Record<string, unknown>>(`/user/${userId}`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId),
-        },
-      });
-      return response.data;
-    },
-    {
-      enabled: !!token,
-    }
-  );
+  return useQueryData(['userProfile'], async () => {
+    return await getUserProfile();
+  });
 };
 
 /**
  * Hook to update user profile
  */
 export const useUpdateUserProfile = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationData<Record<string, unknown>, Record<string, unknown>>(
-    ['updateUserProfile'],
-    async (profileData) => {
-      // Extract user ID from JWT token
-      if (!token) {
-        throw new Error('No access token available');
-      }
-      
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const userId = payload.sub;
-      
-      if (!userId) {
-        throw new Error('No user ID found in token');
-      }
-      
-      // Clean the data to remove ID fields
-      const cleanData = { ...profileData };
-      delete (cleanData as Record<string, unknown>).id;
-      delete (cleanData as Record<string, unknown>).userId;
-      delete (cleanData as Record<string, unknown>).user_id;
-      delete (cleanData as Record<string, unknown>).sub;
-      
-      return apiCall<Record<string, unknown>>(`/user/${userId}`, {
-        method: 'PATCH',
-        headers: {
-          ...getAuthHeaders(token, sessionId),
-        },
-        body: JSON.stringify(cleanData),
-      });
-    },
-    'userProfile'
-  );
+  return useMutationData(['updateUserProfile'], async (profileData) => {
+    return await updateUserProfile(profileData as Record<string, unknown>);
+  }, 'userProfile');
 };
 
 // ===== USER MANAGEMENT HOOKS =====

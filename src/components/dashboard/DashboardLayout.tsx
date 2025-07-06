@@ -31,7 +31,12 @@ export function DashboardLayout({
     ["dashboard-profile"],
     async () => {
       const response = await getUserProfile();
-      return transformApiResponse(response.data || response);
+      // Type guard: ensure response is object
+      if (typeof response === "object" && response !== null) {
+        const data = (response as Record<string, unknown>).data || response;
+        return transformApiResponse(data as Record<string, unknown>);
+      }
+      return transformApiResponse({} as Record<string, unknown>);
     },
     { enabled: !!session?.access_token }
   );

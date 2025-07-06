@@ -1151,6 +1151,9 @@ export async function authenticatedApi<T>(
     ...(options.headers as Record<string, string>),
   };
 
+  // Debug: Log headers before making the request
+  console.log('[authenticatedApi] Request headers:', headers);
+
   const response = await fetch(url, {
     ...options,
     headers,

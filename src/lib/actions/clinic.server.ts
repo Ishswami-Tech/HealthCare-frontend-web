@@ -13,47 +13,11 @@ import {
   ClinicStats,
   ClinicSettings
 } from '@/types/clinic.types';
-import { getServerSession } from './auth.server';
+import { authenticatedApi } from './auth.server';
 
 // API URL configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
 const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID;
-
-/**
- * Base API call function with authentication
- */
-async function apiCall<T>(
-  endpoint: string, 
-  options: RequestInit = {}
-): Promise<{ status: number; data: T }> {
-  const session = await getServerSession();
-  
-  if (!session) {
-    throw new Error('Authentication required');
-  }
-
-  const url = `${API_URL}${endpoint}`;
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session.access_token}`,
-    'X-Session-ID': session.session_id,
-    ...(CLINIC_ID ? { 'X-Clinic-ID': CLINIC_ID } : {}),
-    ...options.headers,
-  };
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return { status: response.status, data };
-}
 
 // ===== CLINIC CRUD OPERATIONS =====
 
@@ -61,19 +25,19 @@ async function apiCall<T>(
  * Create a new clinic
  */
 export async function createClinic(data: CreateClinicData): Promise<ClinicWithRelations> {
-  const response = await apiCall<ClinicWithRelations>(`/clinics`, {
+  const { data: result } = await authenticatedApi<ClinicWithRelations>(`/clinics`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
-  return response.data;
+  return result;
 }
 
 /**
  * Get all clinics for the authenticated user
  */
 export async function getAllClinics(): Promise<ClinicWithRelations[]> {
-  const response = await apiCall<ClinicWithRelations[]>('/clinics');
-  return response.data;
+  const { data } = await authenticatedApi<ClinicWithRelations[]>('/clinics');
+  return data;
 }
 
 /**
@@ -81,37 +45,37 @@ export async function getAllClinics(): Promise<ClinicWithRelations[]> {
  */
 export async function getClinicById(id: string): Promise<ClinicWithRelations> {
   if (!id) throw new Error('Clinic ID is required');
-  const response = await apiCall<ClinicWithRelations>(`/clinics/${id}`);
-  return response.data;
+  const { data } = await authenticatedApi<ClinicWithRelations>(`/clinics/${id}`);
+  return data;
 }
 
 /**
  * Get clinic by app name
  */
 export async function getClinicByAppName(appName: string): Promise<ClinicWithRelations> {
-  const response = await apiCall<ClinicWithRelations>(`/clinics/app/${appName}`);
-  return response.data;
+  const { data } = await authenticatedApi<ClinicWithRelations>(`/clinics/app/${appName}`);
+  return data;
 }
 
 /**
  * Update clinic
  */
 export async function updateClinic(id: string, data: UpdateClinicData): Promise<ClinicWithRelations> {
-  const response = await apiCall<ClinicWithRelations>(`/clinics/${id}`, {
+  const { data: result } = await authenticatedApi<ClinicWithRelations>(`/clinics/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
-  return response.data;
+  return result;
 }
 
 /**
  * Delete clinic
  */
 export async function deleteClinic(id: string): Promise<{ message: string }> {
-  const response = await apiCall<{ message: string }>(`/clinics/${id}`, {
+  const { data } = await authenticatedApi<{ message: string }>(`/clinics/${id}`, {
     method: 'DELETE',
   });
-  return response.data;
+  return data;
 }
 
 // ===== CLINIC LOCATION OPERATIONS =====
@@ -123,67 +87,67 @@ export async function createClinicLocation(
   data: CreateClinicLocationData,
   
 ): Promise<ClinicLocation> {
-  const response = await apiCall<ClinicLocation>(`/clinics/${CLINIC_ID}/locations`, {
+  const { data: result } = await authenticatedApi<ClinicLocation>(`/clinics/${CLINIC_ID}/locations`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
-  return response.data;
+  return result;
 }
 
 /**
  * Get all locations for a clinic
  */
 export async function getClinicLocations(): Promise<ClinicLocation[]> {
-  const response = await apiCall<ClinicLocation[]>(`/clinics/${CLINIC_ID}/locations`);
-  return response.data;
+  const { data } = await authenticatedApi<ClinicLocation[]>(`/clinics/${CLINIC_ID}/locations`);
+  return data;
 }
 
 /**
  * Get clinic location by ID
  */
 export async function getClinicLocationById(locationId: string): Promise<ClinicLocation> {
-  const response = await apiCall<ClinicLocation>(`/clinics/${CLINIC_ID}/locations/${locationId}`);
-  return response.data;
+  const { data } = await authenticatedApi<ClinicLocation>(`/clinics/${CLINIC_ID}/locations/${locationId}`);
+  return data;
 }
 
 /**
  * Update clinic location
  */
 export async function updateClinicLocation(locationId: string, data: UpdateClinicLocationData): Promise<ClinicLocation> {
-  const response = await apiCall<ClinicLocation>(`/clinics/${CLINIC_ID}/locations/${locationId}`, {
+  const { data: result } = await authenticatedApi<ClinicLocation>(`/clinics/${CLINIC_ID}/locations/${locationId}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
-  return response.data;
+  return result;
 }
 
 /**
  * Delete clinic location
  */
 export async function deleteClinicLocation(locationId: string): Promise<{ message: string }> {
-  const response = await apiCall<{ message: string }>(`/clinics/${CLINIC_ID}/locations/${locationId}`, {
+  const { data } = await authenticatedApi<{ message: string }>(`/clinics/${CLINIC_ID}/locations/${locationId}`, {
     method: 'DELETE',
   });
-  return response.data;
+  return data;
 }
 
 /**
  * Generate QR code for clinic location
  */
 export async function generateLocationQR(locationId: string): Promise<{ qrCode: string }> {
-  const response = await apiCall<{ qrCode: string }>(`/clinics/${CLINIC_ID}/locations/${locationId}/qr`);
-  return response.data;
+  const { data } = await authenticatedApi<{ qrCode: string }>(`/clinics/${CLINIC_ID}/locations/${locationId}/qr`);
+  return data;
 }
 
 /**
  * Verify location QR code
  */
 export async function verifyLocationQR(qrData: string): Promise<ClinicLocation> {
-  const response = await apiCall<ClinicLocation>(`/clinics/locations/verify-qr`, {
+  const { data } = await authenticatedApi<ClinicLocation>(`/clinics/locations/verify-qr`, {
     method: 'POST',
     body: JSON.stringify({ qrData }),
   });
-  return response.data;
+  return data;
 }
 
 // ===== CLINIC USER MANAGEMENT =====
@@ -192,46 +156,46 @@ export async function verifyLocationQR(qrData: string): Promise<ClinicLocation> 
  * Assign clinic admin
  */
 export async function assignClinicAdmin(data: AssignClinicAdminData): Promise<ClinicUser> {
-  const response = await apiCall<ClinicUser>(`/clinics/admin`, {
+  const { data: result } = await authenticatedApi<ClinicUser>(`/clinics/admin`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
-  return response.data;
+  return result;
 }
 
 /**
  * Get clinic doctors
  */
 export async function getClinicDoctors(): Promise<ClinicUser[]> {
-  const response = await apiCall<ClinicUser[]>(`/clinics/${CLINIC_ID}/doctors`);
-  return response.data;
+  const { data } = await authenticatedApi<ClinicUser[]>(`/clinics/${CLINIC_ID}/doctors`);
+  return data;
 }
 
 /**
  * Get clinic patients
  */
 export async function getClinicPatients(): Promise<ClinicUser[]> {
-  const response = await apiCall<ClinicUser[]>(`/clinics/${CLINIC_ID}/patients`);
-  return response.data;
+  const { data } = await authenticatedApi<ClinicUser[]>(`/clinics/${CLINIC_ID}/patients`);
+  return data;
 }
 
 /**
  * Register patient to clinic
  */
 export async function registerPatientToClinic(data: RegisterPatientData): Promise<ClinicUser> {
-  const response = await apiCall<ClinicUser>(`/clinics/register-patient`, {
+  const { data: result } = await authenticatedApi<ClinicUser>(`/clinics/register-patient`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
-  return response.data;
+  return result;
 }
 
 /**
  * Get clinic users by role
  */
 export async function getClinicUsersByRole(role: string): Promise<ClinicUser[]> {
-  const response = await apiCall<ClinicUser[]>(`/clinics/${CLINIC_ID}/users/role/${role}`);
-  return response.data;
+  const { data } = await authenticatedApi<ClinicUser[]>(`/clinics/${CLINIC_ID}/users/role/${role}`);
+  return data;
 }
 
 // ===== CLINIC UTILITIES =====
@@ -240,65 +204,65 @@ export async function getClinicUsersByRole(role: string): Promise<ClinicUser[]> 
  * Validate app name availability
  */
 export async function validateAppName(appName: string): Promise<{ available: boolean; message?: string }> {
-  const response = await apiCall<{ available: boolean; message?: string }>(`/clinics/validate-app-name`, {
+  const { data } = await authenticatedApi<{ available: boolean; message?: string }>(`/clinics/validate-app-name`, {
     method: 'POST',
     body: JSON.stringify({ appName }),
   });
-  return response.data;
+  return data;
 }
 
 /**
  * Associate user with clinic
  */
 export async function associateUserWithClinic(): Promise<{ message: string }> {
-  const response = await apiCall<{ message: string }>(`/clinics/associate-user`, {
+  const { data } = await authenticatedApi<{ message: string }>(`/clinics/associate-user`, {
     method: 'POST',
     body: JSON.stringify({ clinicId: CLINIC_ID }),
   });
-  return response.data;
+  return data;
 }
 
 /**
  * Get clinic statistics
  */
 export async function getClinicStats(): Promise<ClinicStats> {
-  const response = await apiCall<ClinicStats>(`/clinics/${CLINIC_ID}/stats`);
-  return response.data;
+  const { data } = await authenticatedApi<ClinicStats>(`/clinics/${CLINIC_ID}/stats`);
+  return data;
 }
 
 /**
  * Get clinic settings
  */
 export async function getClinicSettings(): Promise<ClinicSettings> {
-  const response = await apiCall<ClinicSettings>(`/clinics/${CLINIC_ID}/settings`);
-  return response.data;
+  const { data } = await authenticatedApi<ClinicSettings>(`/clinics/${CLINIC_ID}/settings`);
+  return data;
 }
 
 /**
  * Update clinic settings
  */
 export async function updateClinicSettings(settings: Partial<ClinicSettings>): Promise<ClinicSettings> {
-  const response = await apiCall<ClinicSettings>(`/clinics/${CLINIC_ID}/settings`, {
+  const { data: result } = await authenticatedApi<ClinicSettings>(`/clinics/${CLINIC_ID}/settings`, {
     method: 'PUT',
     body: JSON.stringify(settings),
   });
-  return response.data;
+  return result;
 }
 
 /**
  * Get active locations for a clinic
  */
 export async function getActiveLocations(): Promise<ClinicLocation[]> {
-  const response = await apiCall<ClinicLocation[]>(`/clinics/${CLINIC_ID}/locations/active`);
-  return response.data;
+  const { data } = await authenticatedApi<ClinicLocation[]>(`/clinics/${CLINIC_ID}/locations/active`);
+  return data;
 }
 
 /**
  * Generate clinic token
  */
 export async function generateClinicToken(): Promise<{ token: string }> {
-  const response = await apiCall<{ token: string }>(`/clinics/${CLINIC_ID}/token`);
-  return response.data;
+  const { data } = await authenticatedApi<{ token: string }>(`/clinics/${CLINIC_ID}/token`);
+  return data;
 }
 
 
