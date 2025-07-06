@@ -84,7 +84,7 @@ const COOKIE_OPTIONS: Partial<ResponseCookie> = {
 // Add session token options
 const SESSION_TOKEN_OPTIONS: Partial<ResponseCookie> = {
   ...COOKIE_OPTIONS,
-  maxAge: 60 * 15, // 15 minutes for access token
+  maxAge: 60 * 60 * 5, // 5 hours for access token
 };
 
 const REFRESH_TOKEN_OPTIONS: Partial<ResponseCookie> = {
@@ -443,7 +443,7 @@ export async function login(data: {
     // Set cookies with explicit options to ensure they're properly set
     const cookieStore = await cookies();
     
-    // Set access token with shorter expiry (15 minutes)
+    // Set access token with 5 hour expiry for development
     cookieStore.set({
       name: 'access_token',
       value: result.access_token,
@@ -451,7 +451,7 @@ export async function login(data: {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax', // Use lax to ensure it works with redirects
       path: '/',
-      maxAge: 60 * 15, // 15 minutes
+      maxAge: 60 * 60 * 5, // 5 hours
     });
     
     // Set session ID
@@ -1053,13 +1053,13 @@ async function setAuthCookies(data: {
   const cookieStore = await cookies();
   const secure = process.env.NODE_ENV === 'production';
   
-  // Access token cookie options (15 minutes)
+  // Access token cookie options (5 hours for development)
   const accessTokenOptions: Partial<ResponseCookie> = {
     httpOnly: true,
     secure,
     sameSite: 'strict',
     path: '/',
-    maxAge: 60 * 15, // 15 minutes
+    maxAge: 60 * 60 * 5, // 5 hours
   };
   
   // Refresh token cookie options (30 days)
@@ -1282,7 +1282,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       // Set cookies with explicit options to ensure they're properly set
       const cookieStore = await cookies();
       
-      // Set access token with shorter expiry (15 minutes)
+      // Set access token with 5 hour expiry for development
       cookieStore.set({
         name: 'access_token',
         value: result.access_token,
@@ -1290,7 +1290,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax', // Use lax to ensure it works with redirects
         path: '/',
-        maxAge: 60 * 15, // 15 minutes
+        maxAge: 60 * 60 * 5, // 5 hours
       });
       
       // Set session ID

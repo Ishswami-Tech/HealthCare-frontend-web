@@ -205,7 +205,7 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
                   secure: process.env.NODE_ENV === 'production',
                   sameSite: 'strict',
                   path: '/',
-                  maxAge: 60 * 15, // 15 minutes
+                  maxAge: 60 * 60 * 5, // 5 hours
                 });
               }
               if (typeof refreshData === 'object' && refreshData && 'session_id' in refreshData) {

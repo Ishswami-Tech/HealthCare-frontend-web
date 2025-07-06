@@ -70,20 +70,18 @@ export default function HomeLayout({
       : profile?.firstName || session?.user?.firstName || "User";
 
   return (
-    <div className="min-h-screen flex">
-      <GlobalSidebar
-        links={sidebarLinks.map((link) => ({
-          ...link,
-          icon: link.icon(),
-          href: link.path, // Ensure href is present for SidebarLinkItem type
-        }))}
-        user={{
-          name: displayName,
-          avatarUrl: userAvatar,
-        }}
-      >
-        <main className="flex-1 p-8">{children}</main>
-      </GlobalSidebar>
-    </div>
+    <GlobalSidebar
+      links={sidebarLinks.map((link) => ({
+        ...link,
+        icon: link.icon(),
+        href: link.path, // Ensure href is present for SidebarLinkItem type
+      }))}
+      user={{
+        name: displayName,
+        avatarUrl: userAvatar,
+      }}
+    >
+      <main className="w-full p-8">{children}</main>
+    </GlobalSidebar>
   );
 }

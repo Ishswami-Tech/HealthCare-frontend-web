@@ -5,7 +5,13 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
@@ -34,15 +40,20 @@ const Logo = () => (
 );
 
 const LogoIcon = () => (
-  <a
+  <Link
     href="#"
     className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
   >
-    <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-red-500 dark:bg-white" />
-  </a>
+    {/* <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-red-500 dark:bg-white" /> */}
+    I
+  </Link>
 );
 
-export default function GlobalSidebar({ links, user, children }: GlobalSidebarProps) {
+export default function GlobalSidebar({
+  links,
+  user,
+  children,
+}: GlobalSidebarProps) {
   const [open, setOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const firstLetter = user.name?.charAt(0).toUpperCase() || "U";
@@ -65,7 +76,9 @@ export default function GlobalSidebar({ links, user, children }: GlobalSidebarPr
       "bg-orange-400",
     ];
     if (!user.name) return COLORS[0];
-    const hash = user.name.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+    const hash = user.name
+      .split("")
+      .reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
     return COLORS[hash % COLORS.length];
   }, [user.name]);
 
@@ -94,12 +107,12 @@ export default function GlobalSidebar({ links, user, children }: GlobalSidebarPr
     <>
       <div
         className={cn(
-          "flex w-full max-w-7xl flex-1 flex-col overflow-hidden border-gray-200 bg-white md:flex-row",
+          "flex w-full flex-1 flex-col overflow-hidden border-gray-200 bg-gray-50 md:flex-row",
           "h-screen"
         )}
       >
         <Sidebar open={open} setOpen={setOpen}>
-          <SidebarBody className="justify-between gap-10 bg-white text-gray-900 rounded-lg border-1 m-1 border-gray-200 ">
+          <SidebarBody className="justify-between gap-10 bg-gray-50 text-gray-900 rounded-lg border-1 m-1 border-gray-200 ">
             <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
               <div className="bg-white rounded-lg shadow p-3 my-6 flex items-center justify-center">
                 {open ? <Logo /> : <LogoIcon />}
@@ -108,21 +121,24 @@ export default function GlobalSidebar({ links, user, children }: GlobalSidebarPr
                 {links.map((link, idx) => {
                   const isLogout = link.label === "Logout";
                   return (
-                    <div
+                    <button
                       key={idx}
-                      onClick={isLogout ? (e) => handleLinkClick(link, e) : undefined}
-                      role={isLogout ? "button" : undefined}
-                      tabIndex={isLogout ? 0 : undefined}
+                      onClick={
+                        isLogout ? (e) => handleLinkClick(link, e) : undefined
+                      }
+                      className="w-full text-left"
+                      disabled={!isLogout}
+                      aria-label={isLogout ? "Logout" : undefined}
                     >
                       <SidebarLink
                         link={{ ...link, href: isLogout ? "#" : link.href }}
                         className={
                           isLogout
-                            ? "bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 font-semibold transition-colors duration-200 rounded-lg px-3 py-2"
-                            : "hover:bg-gray-100 active:bg-gray-200 transition-colors duration-200 rounded-lg px-3 py-2 text-gray-900"
+                            ? "bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 font-semibold  transition-colors duration-200 rounded-lg px-2 py-2"
+                            : "hover:bg-gray-100 active:bg-gray-200 transition-colors duration-200 rounded-lg px-2  py-2 text-gray-900 "
                         }
                       />
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -132,32 +148,33 @@ export default function GlobalSidebar({ links, user, children }: GlobalSidebarPr
                 link={{
                   label: user.name,
                   href: "#",
-                  icon: !avatarError && user.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={user.avatarUrl}
-                      className="size-9 shrink-0 rounded-full object-cover"
-                      width={50}
-                      height={50}
-                      alt="Avatar"
-                      onError={() => setAvatarError(true)}
-                    />
-                  ) : (
-                    <div className={`size-6 flex items-center justify-center rounded-lg ${avatarColor} text-white font-bold text-md`}>
-                      {firstLetter}
-                    </div>
-                  ),
+                  icon:
+                    !avatarError && user.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={user.avatarUrl}
+                        className="size-9 shrink-0 rounded-full object-cover"
+                        width={50}
+                        height={50}
+                        alt="Avatar"
+                        onError={() => setAvatarError(true)}
+                      />
+                    ) : (
+                      <div
+                        className={`size-6 flex items-center justify-center rounded-lg ${avatarColor} text-white font-bold text-md`}
+                      >
+                        {firstLetter}
+                      </div>
+                    ),
                 }}
                 className="bg-gray-100 rounded-lg px-3 py-2 text-gray-900 transition-colors duration-200 hover:bg-gray-200"
               />
             </div>
           </SidebarBody>
         </Sidebar>
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
-          {children}
-        </div>
+        <div className=" bg-gray-50 flex-1 overflow-x-auto ">{children}</div>
       </div>
-      
+
       {/* Dialog moved outside sidebar structure to ensure it appears above mobile sidebar */}
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
         <DialogContent showCloseButton={true} className="!z-[9999]">
@@ -167,7 +184,8 @@ export default function GlobalSidebar({ links, user, children }: GlobalSidebarPr
           <Alert variant="destructive">
             <AlertTitle>Are you sure you want to logout?</AlertTitle>
             <AlertDescription>
-              You will be redirected to the login page and your session will end.
+              You will be redirected to the login page and your session will
+              end.
             </AlertDescription>
           </Alert>
           <DialogFooter>
@@ -188,4 +206,4 @@ export default function GlobalSidebar({ links, user, children }: GlobalSidebarPr
       </Dialog>
     </>
   );
-} 
+}

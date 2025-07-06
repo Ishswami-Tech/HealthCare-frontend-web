@@ -9,6 +9,7 @@ import { getDashboardByRole } from "@/config/routes";
 import { useQueryData } from "@/hooks/useQueryData";
 import { getUserProfile } from "@/lib/actions/users.server";
 import { checkProfileCompletion, transformApiResponse } from "@/lib/profile";
+import type { UserProfile } from "@/types/auth.types";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -35,10 +36,32 @@ export function DashboardLayout({
     { enabled: !!session?.access_token }
   );
 
+  function cleanProfile(
+    profile: Partial<UserProfile>,
+    user: Partial<UserProfile>
+  ): UserProfile {
+    const dateOfBirthRaw = profile?.dateOfBirth ?? user?.dateOfBirth;
+    const genderRaw = profile?.gender ?? user?.gender;
+    const allowedGenders = ["male", "female", "other"];
+    let gender: "male" | "female" | "other" | undefined = undefined;
+    if (allowedGenders.includes((genderRaw || "").toLowerCase())) {
+      gender = genderRaw as "male" | "female" | "other";
+    }
+    return {
+      ...profile,
+      ...user,
+      dateOfBirth: dateOfBirthRaw === null ? undefined : dateOfBirthRaw,
+      gender,
+    } as UserProfile;
+  }
+
   useEffect(() => {
     if (!isLoading && !loadingProfile && user && profile) {
       // Merge session user and profile data for completeness check
-      const mergedProfile = { ...profile, ...user };
+      const mergedProfile = cleanProfile(
+        profile as Partial<UserProfile>,
+        user as Partial<UserProfile>
+      );
       const { isComplete } = checkProfileCompletion(mergedProfile);
       if (!isComplete) {
         router.replace("/profile-completion");
@@ -79,7 +102,10 @@ export function DashboardLayout({
   }
 
   // Check profile completeness again before rendering children
-  const mergedProfile = { ...profile, ...user };
+  const mergedProfile = cleanProfile(
+    profile as Partial<UserProfile>,
+    user as Partial<UserProfile>
+  );
   const { isComplete } = checkProfileCompletion(mergedProfile);
   if (!isComplete) {
     return null;

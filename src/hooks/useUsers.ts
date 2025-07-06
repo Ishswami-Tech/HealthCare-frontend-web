@@ -12,6 +12,8 @@ function getAuthHeaders(token?: string, sessionId?: string) {
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (sessionId) headers['X-Session-ID'] = sessionId;
+  const clinicId = process.env.NEXT_PUBLIC_CLINIC_ID;
+  if (clinicId) headers['X-Clinic-ID'] = clinicId;
   return headers;
 }
 
