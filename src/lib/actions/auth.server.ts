@@ -9,65 +9,62 @@ import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 // API URL configuration with fallback for local development
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
 if (!API_URL) {
-  console.error('NEXT_PUBLIC_API_URL is not defined in environment variables');
-  throw new Error('API URL is not configured');
+  throw new Error('API URL is not configured. Please set NEXT_PUBLIC_API_URL environment variable.');
 }
 
-// Log the API URL being used
-console.log('Using API URL:', API_URL);
-
-// At the top of the file, add:
+// Clinic ID from environment
 const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID;
+
+// Development logging
+if (process.env.NODE_ENV === 'development') {
+  console.log('Using API URL:', API_URL);
+  console.log('Using Clinic ID:', CLINIC_ID);
+}
 
 /**
  * Utility function to check API connectivity
  */
 async function checkApiConnection(): Promise<boolean> {
   try {
-    console.log('Checking API connectivity to:', API_URL);
-    
     // Try multiple endpoints that might be available
     const endpoints = ['/health', '/api-health', '/api', '/'];
-    
+
     for (const endpoint of endpoints) {
       try {
-        console.log(`Trying endpoint: ${API_URL}${endpoint}`);
         const response = await fetch(`${API_URL}${endpoint}`, {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
           cache: 'no-store',
-          // Set a short timeout to avoid hanging
           signal: AbortSignal.timeout(3000)
         });
-        
+
         if (response.ok) {
-          console.log(`API connection successful via ${endpoint}`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`API connection successful via ${endpoint}`);
+          }
           return true;
-        } else {
-          console.warn(`Endpoint ${endpoint} returned status: ${response.status}`);
         }
       } catch (endpointError) {
-        console.warn(`Failed to connect to ${endpoint}:`, endpointError);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Failed to connect to ${endpoint}:`, endpointError);
+        }
       }
     }
-    
+
     // If we're in development, allow proceeding even with connection issues
     if (process.env.NODE_ENV === 'development') {
       console.warn('API connection failed but proceeding anyway in development mode');
       return true;
     }
-    
-    console.error('All API connection attempts failed');
+
     return false;
   } catch (error) {
-    console.error('API connection error:', error);
-    
-    // If we're in development, allow proceeding even with connection issues
     if (process.env.NODE_ENV === 'development') {
+      console.error('API connection error:', error);
       console.warn('API connection failed but proceeding anyway in development mode');
       return true;
     }
-    
+
     return false;
   }
 }
@@ -375,21 +372,23 @@ export async function clearSession() {
 /**
  * Login with email and password
  */
-export async function login(data: { 
-  email: string; 
-  password?: string; 
+export async function login(data: {
+  email: string;
+  password?: string;
   otp?: string;
   rememberMe?: boolean;
 }) {
   try {
-    console.log('1. Starting login process');
-    console.log('Clinic ID being used:', CLINIC_ID);
-    
-    // Validate that either password or OTP is provided
+    // Validate input
+    if (!data.email) {
+      throw new Error('Email is required');
+    }
+
     if (!data.password && !data.otp) {
       throw new Error('Either password or OTP must be provided');
     }
 
+    // Prepare request body
     const requestBody: Record<string, unknown> = {
       email: data.email,
     };
@@ -402,26 +401,19 @@ export async function login(data: {
       requestBody.otp = data.otp;
     }
 
-    // Always include clinic ID in request body
+    // Include clinic ID if available
     if (CLINIC_ID) {
       requestBody.clinicId = CLINIC_ID;
-      console.log('Added clinicId to request body:', CLINIC_ID);
-    } else {
-      console.warn('CLINIC_ID not found in environment variables');
     }
-    
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    
-    // Always include clinic ID in headers for redundancy
+
+    // Include clinic ID in headers for redundancy
     if (CLINIC_ID) {
       headers['X-Clinic-ID'] = CLINIC_ID;
-      console.log('Added X-Clinic-ID header:', CLINIC_ID);
     }
-
-    console.log('Final request headers:', headers);
-    console.log('Final request body keys:', Object.keys(requestBody));
 
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
@@ -429,73 +421,54 @@ export async function login(data: {
       body: JSON.stringify(requestBody),
     });
 
-    console.log('2. Login response status:', response.status);
-    
     const result = await response.json();
-    
+
     if (!response.ok) {
-      console.error('3. Login error response:', result);
       throw new Error(result.message || result.error || 'Login failed');
     }
 
-    console.log('3. Login response data:', JSON.stringify(result, null, 2));
-    
-    // Set cookies with explicit options to ensure they're properly set
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Login successful for user:', result.user?.email);
+    }
+
+    // Set authentication cookies
     const cookieStore = await cookies();
-    
-    // Set access token with 5 hour expiry for development
+    const profileComplete = calculateProfileCompletionFromUserData(result.user);
+
+    // Set access token
     cookieStore.set({
       name: 'access_token',
       value: result.access_token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Use lax to ensure it works with redirects
-      path: '/',
-      maxAge: 60 * 60 * 5, // 5 hours
+      ...SESSION_TOKEN_OPTIONS,
+      sameSite: 'lax', // Use lax for better compatibility with redirects
     });
-    
+
     // Set session ID
     cookieStore.set({
       name: 'session_id',
       value: result.session_id || '',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Use lax to ensure it works with redirects
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      ...COOKIE_OPTIONS,
+      sameSite: 'lax',
     });
-    
-    // Set user role for quick access in middleware
+
+    // Set user role for middleware access
     cookieStore.set({
       name: 'user_role',
       value: result.user.role,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Use lax to ensure it works with redirects
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      ...COOKIE_OPTIONS,
+      sameSite: 'lax',
     });
 
-    // Set profile completion status based on user data
-    const profileComplete = calculateProfileCompletionFromUserData(result.user);
+    // Set profile completion status
     cookieStore.set({
       name: 'profile_complete',
       value: profileComplete.toString(),
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Use lax to ensure it works with redirects
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      ...COOKIE_OPTIONS,
+      sameSite: 'lax',
     });
 
-    console.log('Auth cookies being set:', {
-      accessToken: result.access_token ? 'SET' : 'NOT SET',
-      sessionId: result.session_id ? 'SET' : 'NOT SET',
-    });
-    console.log('Auth cookies set successfully');
-
-    // Return the response with proper typing
-    const responseData = {
+    // Return structured response
+    return {
       user: {
         id: result.user.id,
         email: result.user.email,
@@ -503,16 +476,23 @@ export async function login(data: {
         name: result.user.name || `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim(),
         firstName: result.user.firstName || '',
         lastName: result.user.lastName || '',
-        profileComplete: calculateProfileCompletionFromUserData(result.user)
+        phone: result.user.phone || '',
+        dateOfBirth: result.user.dateOfBirth || null,
+        gender: result.user.gender || '',
+        address: result.user.address || '',
+        isVerified: result.user.isVerified || false,
+        profileComplete
       },
-      token: result.access_token,
+      access_token: result.access_token,
+      refresh_token: result.refresh_token || '',
+      session_id: result.session_id,
+      isAuthenticated: true,
       redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
     };
-    
-    console.log('Returning login response:', JSON.stringify(responseData, null, 2));
-    return responseData;
   } catch (error) {
-    console.error('Login error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Login error:', error);
+    }
     throw error instanceof Error ? error : new Error('Login failed');
   }
 }

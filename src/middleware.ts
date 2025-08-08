@@ -2,28 +2,48 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { Role } from '@/types/auth.types';
 import { shouldRedirectToProfileCompletion } from '@/lib/profile';
+import createIntlMiddleware from 'next-intl/middleware';
+import { locales, defaultLocale } from '@/i18n/config';
 
 // Define protected routes and their allowed roles
 const PROTECTED_ROUTES = {
-  '/dashboard': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
+  '/dashboard': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
+  '/(dashboard)/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
+  '/(dashboard)/doctor/dashboard': [Role.DOCTOR],
+  '/(dashboard)/patient/dashboard': [Role.PATIENT],
+  '/(dashboard)/receptionist/dashboard': [Role.RECEPTIONIST],
+  '/(dashboard)/pharmacist/dashboard': [Role.PHARMACIST],
+  '/(dashboard)/super-admin/dashboard': [Role.SUPER_ADMIN],
+  '/(shared)/appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
+  '/(shared)/queue': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST],
+  '/(shared)/ehr': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
+  '/(shared)/pharmacy': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.PHARMACIST, Role.DOCTOR],
+  '/(shared)/analytics': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
+  // Legacy routes for backward compatibility
   '/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
   '/doctor/dashboard': [Role.DOCTOR],
   '/patient/dashboard': [Role.PATIENT],
   '/receptionist/dashboard': [Role.RECEPTIONIST],
+  '/pharmacist/dashboard': [Role.PHARMACIST],
   '/super-admin/dashboard': [Role.SUPER_ADMIN],
-  '/settings': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
+  '/settings': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
 };
 
 // Define public routes that don't require authentication
 const PUBLIC_ROUTES = [
+  // Auth routes (using clean /auth/ paths)
   '/auth/login',
   '/auth/register',
   '/auth/forgot-password',
   '/auth/reset-password',
   '/auth/verify-otp',
   '/auth/verify-email',
-  '/auth/callback',  // Add callback routes for OAuth
+  '/auth/callback',
+  // Public content
+  '/(public)',
   '/',               // Root path should be public
+  // Ayurveda website (public pages)
+  '/ayurveda',
 ];
 
 // Define routes that require authentication but don't need profile completion
@@ -64,18 +84,52 @@ function calculateProfileCompletionFromUserData(userData: Record<string, unknown
   return missingFields.length === 0;
 }
 
+// Create the intl middleware
+const intlMiddleware = createIntlMiddleware({
+  locales,
+  defaultLocale,
+  localeDetection: false, // We'll handle locale detection manually via cookies
+});
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   console.log('Middleware - Processing request for:', pathname);
 
   // Skip middleware for static files and API routes
   if (
-    pathname.startsWith('/_next') || 
+    pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.includes('.') ||
     pathname === '/favicon.ico'
   ) {
     return NextResponse.next();
+  }
+
+  // Handle i18n for non-auth routes
+  // Skip i18n middleware for auth routes to avoid conflicts
+  if (!pathname.startsWith('/(auth)') && !pathname.startsWith('/auth')) {
+    // Get locale from cookie
+    const locale = request.cookies.get('locale')?.value || defaultLocale;
+
+    // Set locale in request headers for next-intl
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-locale', locale);
+
+    // Create new request with locale header
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+
+    // Ensure locale cookie is set
+    if (!request.cookies.get('locale')?.value) {
+      response.cookies.set('locale', defaultLocale, {
+        path: '/',
+        maxAge: 31536000, // 1 year
+        sameSite: 'lax',
+      });
+    }
   }
 
   // Allow public routes

@@ -6,6 +6,7 @@ export enum Role {
   CLINIC_ADMIN = 'CLINIC_ADMIN',
   DOCTOR = 'DOCTOR',
   RECEPTIONIST = 'RECEPTIONIST',
+  PHARMACIST = 'PHARMACIST',
   PATIENT = 'PATIENT'
 }
 
@@ -122,6 +123,7 @@ export interface User {
   name?: string;
   isVerified?: boolean;
   profileComplete?: boolean;
+  profilePicture?: string;
   googleId?: string;
   createdAt?: string;
   updatedAt?: string;

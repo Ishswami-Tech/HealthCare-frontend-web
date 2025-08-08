@@ -15,6 +15,11 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { Separator } from "@/components/ui/separator";
+import { useTranslations } from "next-intl";
+import { translateSidebarLinks } from "@/utils/sidebarTranslations";
 
 export interface SidebarLinkItem {
   label: string;
@@ -61,6 +66,10 @@ export default function GlobalSidebar({
   const router = useRouter();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const { setOverlay } = useLoadingOverlay();
+  const t = useTranslations();
+
+  // Translate sidebar links
+  const translatedLinks = translateSidebarLinks(links, t);
 
   // Memoize a random color for this user (based on their name)
   const avatarColor = React.useMemo(() => {
@@ -118,17 +127,20 @@ export default function GlobalSidebar({
                 {open ? <Logo /> : <LogoIcon />}
               </div>
               <div className="mt-2 flex flex-col gap-2">
-                {links.map((link, idx) => {
-                  const isLogout = link.label === "Logout";
+                {translatedLinks.map((link, idx) => {
+                  const isLogout =
+                    link.label === t("sidebar.logout") ||
+                    link.label === "Logout";
                   return (
                     <button
                       key={idx}
+                      type="button"
                       onClick={
                         isLogout ? (e) => handleLinkClick(link, e) : undefined
                       }
                       className="w-full text-left"
                       disabled={!isLogout}
-                      aria-label={isLogout ? "Logout" : undefined}
+                      aria-label={isLogout ? t("sidebar.logout") : undefined}
                     >
                       <SidebarLink
                         link={{ ...link, href: isLogout ? "#" : link.href }}
@@ -142,6 +154,27 @@ export default function GlobalSidebar({
                   );
                 })}
               </div>
+
+              {/* Theme and Language Controls */}
+              {open && (
+                <div className="mt-4 space-y-3">
+                  <Separator />
+                  <div className="px-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {t("theme.toggleTheme")}
+                      </span>
+                      <ThemeToggle />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {t("language.changeLanguage")}
+                      </span>
+                      <LanguageSwitcher />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <SidebarLink
@@ -179,27 +212,28 @@ export default function GlobalSidebar({
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
         <DialogContent showCloseButton={true} className="!z-[9999]">
           <DialogHeader>
-            <DialogTitle>Confirm Logout</DialogTitle>
+            <DialogTitle>
+              {t("auth.logout")} {t("common.confirm")}
+            </DialogTitle>
           </DialogHeader>
           <Alert variant="destructive">
-            <AlertTitle>Are you sure you want to logout?</AlertTitle>
-            <AlertDescription>
-              You will be redirected to the login page and your session will
-              end.
-            </AlertDescription>
+            <AlertTitle>{t("auth.logoutSuccess")}?</AlertTitle>
+            <AlertDescription>{t("auth.loginSuccess")}</AlertDescription>
           </Alert>
           <DialogFooter>
             <button
+              type="button"
               className="bg-gray-200 text-gray-900 rounded px-4 py-2 mr-2"
               onClick={() => setShowLogoutDialog(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
+              type="button"
               className="bg-red-600 text-white rounded px-4 py-2 flex items-center gap-2"
               onClick={handleLogoutConfirm}
             >
-              Logout
+              {t("sidebar.logout")}
             </button>
           </DialogFooter>
         </DialogContent>

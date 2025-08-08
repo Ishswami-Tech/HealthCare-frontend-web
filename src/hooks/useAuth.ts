@@ -32,39 +32,66 @@ import type {
   SocialLoginData,
   AuthResponse,
   MessageResponse,
+  User,
 } from '@/types/auth.types';
 import { Role } from '@/types/auth.types';
 import { getDashboardByRole } from '@/config/routes';
 
-// Helper function to determine the redirect path
-function getRedirectPath(user: { role?: Role | string } | null | undefined, redirectUrl?: string) {
+// Constants
+const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+const SESSION_REFRESH_INTERVAL = 4 * 60 * 1000; // 4 minutes
+const MAX_RETRY_ATTEMPTS = 3;
+
+// Types
+interface GoogleLoginResponse {
+  user: User & {
+    isNewUser?: boolean;
+    googleId?: string;
+  };
+  token?: string;
+  redirectUrl?: string;
+}
+
+interface SessionData {
+  user: User;
+  access_token: string;
+  session_id: string;
+  isAuthenticated: boolean;
+}
+
+// Helper functions
+function getRedirectPath(user: { role?: Role | string } | null | undefined, redirectUrl?: string): string {
   if (redirectUrl && !redirectUrl.includes('/auth/')) {
     return redirectUrl;
   }
   if (user?.role) {
     return getDashboardByRole(user.role as Role);
   }
-  return '/auth/login'; // Default to login if no role
+  return '/auth/login';
 }
 
-interface GoogleLoginResponse {
-  user: {
-    id: string;
-    email: string;
-    name?: string;
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    dateOfBirth?: string | null;
-    gender?: string;
-    address?: string;
-    role: Role;
-    isNewUser?: boolean;
-    googleId?: string;
-    profileComplete?: boolean;
-  };
-  token?: string;
-  redirectUrl?: string;
+function isTokenExpiringSoon(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expiryTime = payload.exp * 1000;
+    const currentTime = Date.now();
+    const timeUntilExpiry = expiryTime - currentTime;
+
+    return timeUntilExpiry < TOKEN_REFRESH_THRESHOLD;
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Token parsing error:', error);
+    }
+    return true; // Assume token needs refresh if we can't parse it
+  }
+}
+
+function isAuthError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const status = (error as { status?: number }).status;
+    return status === 401 || status === 403;
+  }
+  return false;
 }
 
 export function useAuth() {
@@ -72,35 +99,30 @@ export function useAuth() {
   const queryClient = useQueryClient();
 
   // Get current session with auto-refresh
-  const { data: session, isLoading } = useQuery({
+  const { data: session, isLoading } = useQuery<SessionData | null>({
     queryKey: ['session'],
-    queryFn: async () => {
+    queryFn: async (): Promise<SessionData | null> => {
       try {
-        console.log('useAuth - Fetching session');
         const result = await getServerSession();
-        console.log('useAuth - Session result:', JSON.stringify(result, null, 2));
 
-        // If no session, return null
         if (!result) {
-          console.log('useAuth - No session found');
           return null;
         }
 
-        // If session exists but is about to expire, refresh it
-        if (result.user && isTokenExpiringSoon(result.access_token)) {
-          console.log('useAuth - Token expiring soon, refreshing...');
+        // If session exists but token is expiring soon, refresh it
+        if (result.user && result.access_token && isTokenExpiringSoon(result.access_token)) {
           try {
             const refreshedSession = await refreshToken();
             if (refreshedSession) {
-              console.log('useAuth - Session refreshed successfully');
               return refreshedSession;
             }
             // If refresh failed, clear session and return null
-            console.log('useAuth - Session refresh failed, clearing session');
             await clearSession();
             return null;
           } catch (error) {
-            console.error('useAuth - Session refresh error:', error);
+            if (process.env.NODE_ENV === 'development') {
+              console.error('Session refresh error:', error);
+            }
             await clearSession();
             return null;
           }
@@ -108,141 +130,105 @@ export function useAuth() {
 
         return result;
       } catch (error) {
-        console.error('Session fetch error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Session fetch error:', error);
+        }
         // Clear session on error
         await clearSession();
         return null;
       }
     },
-    // Refresh session every 4 minutes
-    refetchInterval: 4 * 60 * 1000,
-    // Don't retry on 401/403 errors
+    refetchInterval: SESSION_REFRESH_INTERVAL,
     retry: (failureCount, error) => {
-      if (error instanceof Error) {
-        const status = (error as { status?: number }).status;
-        if (status === 401 || status === 403) {
-          return false;
-        }
+      if (isAuthError(error)) {
+        return false;
       }
-      return failureCount < 3;
+      return failureCount < MAX_RETRY_ATTEMPTS;
     },
   });
 
-  // Helper function to check if token is expiring soon
-  const isTokenExpiringSoon = (token: string) => {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const expiryTime = payload.exp * 1000; // Convert to milliseconds
-      const currentTime = Date.now();
-      const timeUntilExpiry = expiryTime - currentTime;
-      
-      // Return true if token expires in less than 5 minutes
-      const isExpiring = timeUntilExpiry < 5 * 60 * 1000;
-      console.log('useAuth - Token expiry check:', {
-        expiryTime: new Date(expiryTime).toISOString(),
-        currentTime: new Date(currentTime).toISOString(),
-        timeUntilExpiry: Math.floor(timeUntilExpiry / 1000),
-        isExpiring
-      });
-      return isExpiring;
-    } catch (error) {
-      console.error('Token parsing error:', error);
-      return true; // Assume token needs refresh if we can't parse it
-    }
-  };
-
   // Function to manually refresh the session
-  const refreshSession = async () => {
-    console.log('useAuth - Manually refreshing session');
+  const refreshSession = async (): Promise<SessionData | null> => {
     try {
       // First try to get the session from the server
       const serverSession = await getServerSession();
-      
+
       if (serverSession) {
-        console.log('useAuth - Server session found:', JSON.stringify(serverSession, null, 2));
         queryClient.setQueryData(['session'], serverSession);
         return serverSession;
       }
-      
+
       // If no server session, try to refresh the token
-      console.log('useAuth - No server session, attempting token refresh');
       const refreshedSession = await refreshToken();
-      
+
       if (refreshedSession) {
-        console.log('useAuth - Token refreshed successfully');
         queryClient.setQueryData(['session'], refreshedSession);
         return refreshedSession;
       }
-      
+
       // If refresh fails, clear session
-      console.log('useAuth - Refresh failed, clearing session');
       queryClient.setQueryData(['session'], null);
       return null;
     } catch (error) {
-      console.error('useAuth - Session refresh error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Session refresh error:', error);
+      }
       queryClient.setQueryData(['session'], null);
       return null;
     }
   };
 
   // Enhanced login mutation with proper error handling
-  const loginMutation = useMutation({
-    mutationFn: async (data: { email: string; password: string; rememberMe?: boolean }) => {
-      console.log('useAuth - Starting login mutation');
-      try {
-        const result = await loginAction(data);
-        console.log('useAuth - Login result:', JSON.stringify(result, null, 2));
+  const loginMutation = useMutation<AuthResponse, Error, { email: string; password: string; rememberMe?: boolean }>({
+    mutationFn: async (data) => {
+      const result = await loginAction(data);
 
-        if (!result.user) {
-          throw new Error('Invalid user data received');
-        }
-
-        // Ensure required fields are present with defaults
-        const user = {
-          ...result.user,
-          firstName: result.user.firstName || '',
-          lastName: result.user.lastName || '',
-        };
-
-        return {
-          ...result,
-          user,
-        };
-      } catch (error) {
-        console.error('Login error:', error);
-        if (error instanceof Error) {
-          if (error.message.includes('credentials')) {
-            throw new Error('Invalid email or password');
-          }
-          throw error;
-        }
-        throw new Error('An unexpected error occurred during login');
+      if (!result.user) {
+        throw new Error('Invalid user data received');
       }
+
+      // Ensure required fields are present with defaults
+      const user: User = {
+        ...result.user,
+        firstName: result.user.firstName || '',
+        lastName: result.user.lastName || '',
+      };
+
+      return {
+        ...result,
+        user,
+      };
     },
     onSuccess: (data) => {
-      console.log('useAuth - Login success, setting session data:', JSON.stringify(data, null, 2));
       queryClient.setQueryData(['session'], data);
-      
+
       // Check if profile is complete and redirect accordingly
       const profileComplete = data.user.profileComplete || false;
-      console.log('useAuth - Profile completion status:', profileComplete);
-      
+
       if (!profileComplete) {
-        console.log('useAuth - Profile not complete, redirecting to profile completion');
         router.push('/profile-completion');
       } else {
         const dashboardPath = getDashboardByRole(data.user.role as Role);
-        console.log('useAuth - Redirecting to:', dashboardPath);
         router.push(dashboardPath);
-        // Only show success toast if not already showing an error
-        setTimeout(() => toast.success(`Welcome back${data.user.firstName ? ', ' + data.user.firstName : ''}!`), 100);
+        // Show success toast after a brief delay to ensure navigation
+        setTimeout(() => {
+          toast.success(`Welcome back${data.user.firstName ? ', ' + data.user.firstName : ''}!`);
+        }, 100);
       }
     },
     onError: (error: Error) => {
-      console.error('useAuth - Login error:', error);
-      // Dismiss all toasts before showing error
-      if (toast.dismiss) toast.dismiss();
-      toast.error(error.message || 'Login failed');
+      // Provide user-friendly error messages
+      let errorMessage = 'Login failed';
+
+      if (error.message.includes('credentials') || error.message.includes('Invalid')) {
+        errorMessage = 'Invalid email or password';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast.error(errorMessage);
     },
   });
 
@@ -252,36 +238,26 @@ export function useAuth() {
     isPending: isGoogleLoggingIn
   } = useMutation<GoogleLoginResponse, Error, string>({
     mutationFn: async (token: string) => {
-      console.log('useAuth - Starting Google login');
-      console.log('useAuth - Clinic ID from env:', process.env.NEXT_PUBLIC_CLINIC_ID);
       const result = await googleLoginAction(token);
-      console.log('useAuth - Google login result:', JSON.stringify(result, null, 2));
-      
-      // Check if result is undefined or null
+
       if (!result) {
         throw new Error('Google login failed: No response from server');
       }
-      
-      // Check if required fields are present
+
       if (!result.user || !result.user.id || !result.user.email || !result.user.role) {
-        console.error('useAuth - Invalid response structure:', result);
         throw new Error('Google login failed: Invalid response from server');
       }
-      
+
       return result;
     },
     onSuccess: async (data) => {
-      console.log('useAuth - Google login success, setting session data');
-      
-      // Additional safety check
       if (!data || !data.user) {
-        console.error('useAuth - onSuccess called with invalid data:', data);
         toast.error('Google login failed: Invalid response data');
         return;
       }
-      
-      // Set the session data in the query client
-      const sessionData = {
+
+      // Create session data with proper defaults
+      const sessionData: SessionData = {
         user: {
           id: data.user.id,
           email: data.user.email,
@@ -289,61 +265,46 @@ export function useAuth() {
           name: data.user.name,
           firstName: data.user.firstName || data.user.name?.split(' ')[0] || '',
           lastName: data.user.lastName || data.user.name?.split(' ').slice(1).join(' ') || '',
-          phone: data.user.phone || '',
-          dateOfBirth: data.user.dateOfBirth || null,
-          gender: data.user.gender || '',
-          address: data.user.address || '',
           isVerified: true,
           googleId: data.user.googleId,
           profileComplete: data.user.profileComplete
         },
         access_token: data.token || '',
-        session_id: '', // Will be set by the server
+        session_id: '',
         isAuthenticated: true
       };
 
-      // Set the session data immediately to prevent redirect loops
+      // Set the session data immediately
       queryClient.setQueryData(['session'], sessionData);
-      
-      // Force a session refresh to get the latest data from the server
+
+      // Refresh session from server after a brief delay
       try {
-        // Wait a moment for cookies to be set
         await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Manually fetch the session to ensure it's properly set
         const serverSession = await getServerSession();
-        console.log('useAuth - Manual session refresh result:', JSON.stringify(serverSession, null, 2));
-        
+
         if (serverSession) {
-          // Update with the server session data
           queryClient.setQueryData(['session'], serverSession);
         }
       } catch (refreshError) {
-        console.error('useAuth - Error refreshing session:', refreshError);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error refreshing session:', refreshError);
+        }
       }
-      
-      // Check if profile is complete and redirect accordingly
+
+      // Handle redirect based on profile completion
       const profileComplete = data.user.profileComplete || false;
-      console.log('useAuth - Profile completion status:', profileComplete);
-      
+
       if (!profileComplete) {
-        console.log('useAuth - Profile not complete, redirecting to profile completion');
         router.push('/profile-completion');
       } else {
-        // Get the redirect path for complete profiles
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
-        console.log('useAuth - Redirecting to:', redirectPath);
-        
-        // Show success message
         toast.success(`Welcome${data.user.firstName ? ', ' + data.user.firstName : ''}!`);
-        
-        // Redirect to dashboard
         router.push(redirectPath);
       }
     },
     onError: (error) => {
-      console.error('useAuth - Google login error:', error);
-      toast.error(error instanceof Error ? error.message : 'Google login failed');
+      const errorMessage = error instanceof Error ? error.message : 'Google login failed';
+      toast.error(errorMessage);
     }
   });
 
@@ -365,15 +326,15 @@ export function useAuth() {
   });
 
   // Enhanced logout mutation with proper cleanup
-  const logoutMutation = useMutation({
+  const logoutMutation = useMutation<{ success: boolean }, Error, void>({
     mutationFn: async () => {
       try {
         await logoutAction();
         return { success: true };
       } catch (error) {
         // If it's a 401 or session-related error, treat as success
-        if (error instanceof Error && 
-            (error.message.includes('401') || 
+        if (error instanceof Error &&
+            (error.message.includes('401') ||
              error.message.includes('Session') ||
              error.message.includes('session'))) {
           return { success: true };
@@ -382,21 +343,24 @@ export function useAuth() {
       }
     },
     onSuccess: () => {
-      // Clear all query cache
+      // Clear all query cache and session data
       queryClient.clear();
-      // Clear any stored auth state
       queryClient.setQueryData(['session'], null);
-      // Clear local storage and cookies
       clearSession();
+
       router.push('/auth/login');
       toast.success('Logged out successfully');
     },
     onError: (error: Error) => {
-      console.error('Logout error in mutation:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Logout error:', error);
+      }
+
       // Clear client state even if server logout fails
       queryClient.clear();
       queryClient.setQueryData(['session'], null);
       clearSession();
+
       router.push('/auth/login');
       toast.error('Logged out locally, but server logout failed');
     },
@@ -425,14 +389,12 @@ export function useAuth() {
   const { mutate: verifyOTP, isPending: isVerifyingOTP } = useMutation<AuthResponse, Error, OTPFormData>({
     mutationFn: (data) => verifyOTPAction(data),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['session'] });
-      
+      queryClient.setQueryData(['session'], data);
+
       // Check if profile is complete and redirect accordingly
       const profileComplete = data.user.profileComplete || false;
-      console.log('useAuth - OTP verification - Profile completion status:', profileComplete);
-      
+
       if (!profileComplete) {
-        console.log('useAuth - OTP verification - Profile not complete, redirecting to profile completion');
         router.push('/profile-completion');
       } else {
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
@@ -441,7 +403,8 @@ export function useAuth() {
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Invalid or expired OTP');
+      const errorMessage = error instanceof Error ? error.message : 'Invalid or expired OTP';
+      toast.error(errorMessage);
     },
   });
 

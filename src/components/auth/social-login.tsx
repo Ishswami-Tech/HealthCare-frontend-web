@@ -2,18 +2,16 @@
 
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 // Google client ID from environment variable
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-if (!GOOGLE_CLIENT_ID) {
-  console.error(
-    "NEXT_PUBLIC_GOOGLE_CLIENT_ID is not defined in environment variables"
-  );
-}
+// Constants
+const GOOGLE_SCRIPT_URL = "https://accounts.google.com/gsi/client";
+const DEFAULT_REDIRECT_URL = "/patient/dashboard";
 
 // Add type definitions for Google OAuth
 declare global {
@@ -79,65 +77,56 @@ export function SocialLogin({
     onLoadingStateChange?.(isGoogleLoggingIn);
   }, [isGoogleLoggingIn, onLoadingStateChange]);
 
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) {
-      const error = new Error("Google Client ID is not configured");
-      console.error(error.message);
-      onError?.(error);
-      toast.error("Google login is not configured");
-      return;
-    }
-
-    // Define handleGoogleResponse inside useEffect to avoid dependency issues
-    const handleGoogleResponse = async (response: { credential: string }) => {
+  // Memoized Google response handler
+  const handleGoogleResponse = useCallback(
+    async (response: { credential: string }) => {
       try {
         if (!response.credential) {
-          const error = new Error("No credential received from Google");
-          console.error(error.message);
-          onError?.(error);
-          toast.error("Failed to get credentials from Google");
-          return;
+          throw new Error("No credential received from Google");
         }
 
-        // Show loading toast
-        toast.loading("Signing in with Google...", {
-          id: "google-login",
-        });
+        const toastId = toast.loading("Signing in with Google...");
 
         await googleLogin(response.credential);
 
-        // Dismiss loading toast and show success
-        toast.dismiss("google-login");
+        toast.dismiss(toastId);
         toast.success("Successfully signed in with Google!");
 
         // Handle redirection
         const searchParams = new URLSearchParams(window.location.search);
         const callbackUrl = searchParams.get("callbackUrl");
-
-        // Get the redirect URL from the search params or use a default
         const redirectUrl =
           callbackUrl && !callbackUrl.includes("/auth/")
             ? callbackUrl
-            : "/patient/dashboard"; // Default to patient dashboard
+            : DEFAULT_REDIRECT_URL;
 
         onSuccess?.();
         router.push(redirectUrl);
       } catch (error) {
-        // Dismiss loading toast and show error
-        toast.dismiss("google-login");
-
-        console.error("Google login error:", error);
         const errorMessage =
-          error instanceof Error
-            ? error.message
-            : typeof error === "string"
-            ? error
-            : "Google login failed";
+          error instanceof Error ? error.message : "Google login failed";
+
+        if (process.env.NODE_ENV === "development") {
+          console.error("Google login error:", error);
+        }
 
         onError?.(new Error(errorMessage));
         toast.error(errorMessage);
       }
-    };
+    },
+    [googleLogin, router, onSuccess, onError]
+  );
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) {
+      const error = new Error("Google Client ID is not configured");
+      if (process.env.NODE_ENV === "development") {
+        console.error(error.message);
+      }
+      onError?.(error);
+      toast.error("Google login is not configured");
+      return;
+    }
 
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
@@ -166,7 +155,7 @@ export function SocialLogin({
             callback: handleGoogleResponse,
             auto_select: false,
             context: "signin",
-            ux_mode: "popup",  // TODO: change to "redirect"
+            ux_mode: "popup", // TODO: change to "redirect"
             itp_support: true,
             login_uri: loginUri.toString(),
             allowed_parent_origin: currentOrigin,
@@ -188,7 +177,9 @@ export function SocialLogin({
             error instanceof Error
               ? error.message
               : "Failed to initialize Google Sign-In";
-          console.error("Failed to initialize Google OAuth:", error);
+          if (process.env.NODE_ENV === "development") {
+            console.error("Failed to initialize Google OAuth:", error);
+          }
           onError?.(new Error(errorMessage));
           toast.error(errorMessage);
         }
@@ -200,7 +191,9 @@ export function SocialLogin({
     };
 
     script.onerror = () => {
-      console.error("Failed to load Google OAuth script");
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to load Google OAuth script");
+      }
       const error = new Error("Failed to load Google Sign-In");
       onError?.(error);
       toast.error("Failed to load Google login");
@@ -214,14 +207,16 @@ export function SocialLogin({
         try {
           window.google.accounts.id.cancel();
         } catch (error) {
-          console.error("Error during Google Sign-In cleanup:", error);
+          if (process.env.NODE_ENV === "development") {
+            console.error("Error during Google Sign-In cleanup:", error);
+          }
         }
       }
       if (script.parentNode) {
         script.parentNode.removeChild(script);
       }
     };
-  }, [onError, router, onSuccess, googleLogin]);
+  }, [handleGoogleResponse, onError]);
 
   return (
     <div className={cn("flex flex-col gap-4 w-full", className)}>

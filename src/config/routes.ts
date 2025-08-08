@@ -17,6 +17,7 @@ export const AUTH_PATHS = [
   '/auth/register',
   '/auth/forgot-password',
   '/auth/reset-password',
+  '/auth/verify-otp',
   '/auth/verify-email',
   '/auth/verify-magic-link',
   '/auth/otp-login',
@@ -24,66 +25,84 @@ export const AUTH_PATHS = [
   '/auth/facebook',
   '/auth/apple',
   '/auth/verify',
+  '/auth/callback',
   '/auth/check-otp-status',
 ];
 
 export const ROLE_ROUTES: Record<Role, RoleRoutes> = {
   SUPER_ADMIN: {
-    dashboard: '/super-admin/dashboard',
+    dashboard: '/(dashboard)/super-admin/dashboard',
     routes: [
-      { path: '/super-admin/dashboard', label: 'Dashboard' },
-      { path: '/super-admin/clinics', label: 'Manage Clinics' },
-      { path: '/super-admin/users', label: 'User Management' },
-      { path: '/super-admin/settings', label: 'System Settings' },
-      { path: '/super-admin/profile', label: 'Profile' },
+      { path: '/(dashboard)/super-admin/dashboard', label: 'Dashboard' },
+      { path: '/(dashboard)/super-admin/clinics', label: 'Manage Clinics' },
+      { path: '/(dashboard)/super-admin/users', label: 'User Management' },
+      { path: '/(dashboard)/super-admin/settings', label: 'System Settings' },
+      { path: '/(dashboard)/super-admin/profile', label: 'Profile' },
     ],
   },
   CLINIC_ADMIN: {
-    dashboard: '/clinic-admin/dashboard',
+    dashboard: '/(dashboard)/clinic-admin/dashboard',
     routes: [
-      { path: '/clinic-admin/dashboard', label: 'Dashboard' },
-      { path: '/clinic-admin/staff', label: 'Staff Management' },
-      { path: '/clinic-admin/schedule', label: 'Schedule' },
-      { path: '/clinic-admin/settings', label: 'Clinic Settings' },
-      { path: '/clinic-admin/profile', label: 'Profile' },
+      { path: '/(dashboard)/clinic-admin/dashboard', label: 'Dashboard' },
+      { path: '/(dashboard)/clinic-admin/staff', label: 'Staff Management' },
+      { path: '/(dashboard)/clinic-admin/schedule', label: 'Schedule' },
+      { path: '/(dashboard)/clinic-admin/settings', label: 'Clinic Settings' },
+      { path: '/(dashboard)/clinic-admin/profile', label: 'Profile' },
     ],
   },
   DOCTOR: {
-    dashboard: '/doctor/dashboard',
+    dashboard: '/(dashboard)/doctor/dashboard',
     routes: [
-      { path: '/doctor/dashboard', label: 'Dashboard' },
-      { path: '/doctor/appointments', label: 'Appointments' },
-      { path: '/doctor/patients', label: 'Patients' },
-      { path: '/doctor/profile', label: 'Profile' },
+      { path: '/(dashboard)/doctor/dashboard', label: 'Dashboard' },
+      { path: '/(dashboard)/doctor/appointments', label: 'Appointments' },
+      { path: '/(dashboard)/doctor/patients', label: 'Patients' },
+      { path: '/(dashboard)/doctor/profile', label: 'Profile' },
     ],
   },
   RECEPTIONIST: {
-    dashboard: '/receptionist/dashboard',
+    dashboard: '/(dashboard)/receptionist/dashboard',
     routes: [
-      { path: '/receptionist/dashboard', label: 'Dashboard' },
-      { path: '/receptionist/appointments', label: 'Appointments' },
-      { path: '/receptionist/patients', label: 'Patients' },
-      { path: '/receptionist/profile', label: 'Profile' },
+      { path: '/(dashboard)/receptionist/dashboard', label: 'Dashboard' },
+      { path: '/(dashboard)/receptionist/appointments', label: 'Appointments' },
+      { path: '/(dashboard)/receptionist/patients', label: 'Patients' },
+      { path: '/(dashboard)/receptionist/profile', label: 'Profile' },
+    ],
+  },
+  PHARMACIST: {
+    dashboard: '/(dashboard)/pharmacist/dashboard',
+    routes: [
+      { path: '/(dashboard)/pharmacist/dashboard', label: 'Dashboard' },
+      { path: '/(dashboard)/pharmacist/prescriptions', label: 'Prescriptions' },
+      { path: '/(dashboard)/pharmacist/inventory', label: 'Inventory' },
+      { path: '/(dashboard)/pharmacist/profile', label: 'Profile' },
     ],
   },
   PATIENT: {
-    dashboard: '/patient/dashboard',
+    dashboard: '/(dashboard)/patient/dashboard',
     routes: [
-      { path: '/patient/dashboard', label: 'Dashboard' },
-      { path: '/patient/appointments', label: 'Appointments' },
-      { path: '/patient/medical-records', label: 'Medical Records' },
-      { path: '/patient/prescriptions', label: 'Prescriptions' },
-      { path: '/patient/profile', label: 'Profile' },
+      { path: '/(dashboard)/patient/dashboard', label: 'Dashboard' },
+      { path: '/(dashboard)/patient/appointments', label: 'Appointments' },
+      { path: '/(dashboard)/patient/medical-records', label: 'Medical Records' },
+      { path: '/(dashboard)/patient/prescriptions', label: 'Prescriptions' },
+      { path: '/(dashboard)/patient/profile', label: 'Profile' },
     ],
   },
 };
 
 // Map of path prefixes to allowed roles
 export const ROLE_PATH_MAP: Record<string, Role[]> = {
+  '/(dashboard)/super-admin': [Role.SUPER_ADMIN],
+  '/(dashboard)/clinic-admin': [Role.CLINIC_ADMIN],
+  '/(dashboard)/doctor': [Role.DOCTOR],
+  '/(dashboard)/receptionist': [Role.RECEPTIONIST],
+  '/(dashboard)/pharmacist': [Role.PHARMACIST],
+  '/(dashboard)/patient': [Role.PATIENT],
+  // Legacy paths for backward compatibility
   '/super-admin': [Role.SUPER_ADMIN],
   '/clinic-admin': [Role.CLINIC_ADMIN],
   '/doctor': [Role.DOCTOR],
   '/receptionist': [Role.RECEPTIONIST],
+  '/pharmacist': [Role.PHARMACIST],
   '/patient': [Role.PATIENT],
 };
 

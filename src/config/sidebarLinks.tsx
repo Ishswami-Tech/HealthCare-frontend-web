@@ -9,6 +9,8 @@ import {
   Stethoscope,
   FileText,
   Building2,
+  Pill,
+  Package,
 } from "lucide-react";
 import { Role } from "@/types/auth.types";
 
@@ -113,6 +115,25 @@ export const sidebarLinksByRole: Record<Role, SidebarLink[]> = {
       path: "/receptionist/patients",
       icon: iconWrapper(Users),
     },
+    { label: "Logout", path: "#", icon: iconWrapper(LogOut) },
+  ],
+  [Role.PHARMACIST]: [
+    {
+      label: "Dashboard",
+      path: "/pharmacist/dashboard",
+      icon: iconWrapper(Home),
+    },
+    {
+      label: "Prescriptions",
+      path: "/pharmacist/prescriptions",
+      icon: iconWrapper(Pill),
+    },
+    {
+      label: "Inventory",
+      path: "/pharmacist/inventory",
+      icon: iconWrapper(Package),
+    },
+    { label: "Profile", path: "/pharmacist/profile", icon: iconWrapper(User) },
     { label: "Logout", path: "#", icon: iconWrapper(LogOut) },
   ],
   [Role.PATIENT]: [

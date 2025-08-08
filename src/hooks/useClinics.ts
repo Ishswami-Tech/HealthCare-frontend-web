@@ -80,6 +80,8 @@ export const useClinics = () => {
   });
 };
 
+
+
 /**
  * Hook to get clinic by ID
  */
