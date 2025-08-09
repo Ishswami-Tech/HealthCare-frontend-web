@@ -6,47 +6,42 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { LanguageProvider, useTranslation } from "@/lib/i18n/context";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
-type Testimonial = {
-  name: string;
-  role: string;
-  content: string;
-};
-
-const testimonials: Testimonial[] = [
-  {
-    name: "Sarah Johnson",
-    role: "Patient",
-    content:
-      "The appointment booking system is so convenient. I love being able to see all my medical records in one place.",
-  },
-  {
-    name: "Dr. Michael Chen",
-    role: "Cardiologist",
-    content:
-      "This platform has streamlined my practice. Patient management has never been easier.",
-  },
-  {
-    name: "Emily Rodriguez",
-    role: "Clinic Manager",
-    content:
-      "The administrative features are fantastic. It has greatly improved our clinic's efficiency.",
-  },
-];
-
-export default function LandingPage() {
+// Create a component that uses translations
+function LandingPageContent() {
+  const { t } = useTranslation();
   const { session, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
+  const testimonials = [
+    {
+      name: t("testimonials.patient1Name"),
+      role: t("testimonials.patient1Role"),
+      content: t("testimonials.patient1Content"),
+    },
+    {
+      name: t("testimonials.doctor1Name"),
+      role: t("testimonials.doctor1Role"),
+      content: t("testimonials.doctor1Content"),
+    },
+    {
+      name: t("testimonials.manager1Name"),
+      role: t("testimonials.manager1Role"),
+      content: t("testimonials.manager1Content"),
+    },
+  ];
+
   const handleDashboardNavigation = () => {
     if (!isAuthenticated) {
-      toast.error("Please login to access the dashboard");
+      toast.error(t("landing.loginRequired"));
       router.push("/auth/login");
       return;
     }
 
     if (!session) {
-      toast.error("Invalid user session");
+      toast.error(t("landing.invalidSession"));
       router.push("/auth/login");
       return;
     }
@@ -82,7 +77,7 @@ export default function LandingPage() {
                 }
               >
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Ishswami
+                  {t("landing.brandName")}
                 </h1>
               </Link>
             </div>
@@ -90,7 +85,7 @@ export default function LandingPage() {
               {isAuthenticated && session?.user ? (
                 <>
                   <span className="text-sm text-gray-600">
-                    Welcome, {session.user.firstName || "User"}
+                    {t("landing.welcome")}, {session.user.firstName || "User"}
                   </span>
                   <Button onClick={handleDashboardNavigation}>
                     View Dashboard
@@ -102,10 +97,10 @@ export default function LandingPage() {
                     variant="ghost"
                     onClick={() => router.push("/auth/login")}
                   >
-                    Sign In
+                    {t("landing.loginButton")}
                   </Button>
                   <Button onClick={() => router.push("/auth/register")}>
-                    Get Started
+                    {t("landing.getStartedButton")}
                   </Button>
                 </>
               )}
@@ -120,15 +115,13 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="text-center lg:text-left">
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-                Your Health,{" "}
+                {t("landing.heroTitle")}{" "}
                 <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Our Priority
+                  {t("landing.heroPriority")}
                 </span>
               </h1>
               <p className="mt-6 text-lg text-gray-600 leading-relaxed">
-                Experience healthcare like never before. Connect with top
-                doctors, manage appointments, and access your medical records -
-                all in one secure platform.
+                {t("landing.heroDescription")}
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 {isAuthenticated ? (
@@ -137,7 +130,7 @@ export default function LandingPage() {
                     onClick={handleDashboardNavigation}
                     className="text-lg px-8"
                   >
-                    Go to Dashboard
+                    {t("landing.goToDashboard")}
                   </Button>
                 ) : (
                   <>
@@ -176,19 +169,27 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
             <div className="text-center">
               <div className="text-4xl font-bold text-indigo-600">1000+</div>
-              <div className="mt-2 text-lg text-gray-600">Active Doctors</div>
+              <div className="mt-2 text-lg text-gray-600">
+                {t("landing.activeDoctors")}
+              </div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-indigo-600">50k+</div>
-              <div className="mt-2 text-lg text-gray-600">Happy Patients</div>
+              <div className="mt-2 text-lg text-gray-600">
+                {t("landing.happyPatients")}
+              </div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-indigo-600">100+</div>
-              <div className="mt-2 text-lg text-gray-600">Specialties</div>
+              <div className="mt-2 text-lg text-gray-600">
+                {t("landing.specialties")}
+              </div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-indigo-600">4.9</div>
-              <div className="mt-2 text-lg text-gray-600">User Rating</div>
+              <div className="mt-2 text-lg text-gray-600">
+                {t("landing.userRating")}
+              </div>
             </div>
           </div>
         </div>
@@ -199,14 +200,13 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-base font-semibold text-blue-600 tracking-wide uppercase">
-              Features
+              {t("landing.featuresTitle")}
             </h2>
             <p className="mt-2 text-3xl font-bold text-gray-900 sm:text-4xl">
-              Everything you need in one place
+              {t("landing.featuresSubtitle")}
             </p>
             <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-500">
-              Our platform provides a comprehensive suite of tools for both
-              patients and healthcare providers.
+              {t("landing.featuresDescription")}
             </p>
           </div>
 
@@ -214,39 +214,33 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 {
-                  title: "Online Appointments",
-                  description:
-                    "Book and manage appointments with your healthcare providers online.",
+                  title: t("landing.onlineAppointments"),
+                  description: t("landing.onlineAppointmentsDesc"),
                   icon: "🗓️",
                 },
                 {
-                  title: "Medical Records",
-                  description:
-                    "Access your complete medical history and records securely.",
+                  title: t("landing.medicalRecords"),
+                  description: t("landing.medicalRecordsDesc"),
                   icon: "📋",
                 },
                 {
-                  title: "Secure Messaging",
-                  description:
-                    "Communicate with your healthcare providers securely.",
+                  title: t("landing.secureMessaging"),
+                  description: t("landing.secureMessagingDesc"),
                   icon: "💬",
                 },
                 {
-                  title: "Prescription Management",
-                  description:
-                    "View and manage your prescriptions in one place.",
+                  title: t("landing.prescriptionManagement"),
+                  description: t("landing.prescriptionManagementDesc"),
                   icon: "💊",
                 },
                 {
-                  title: "Lab Results",
-                  description:
-                    "Get your lab results quickly and track your health metrics.",
+                  title: t("landing.labResults"),
+                  description: t("landing.labResultsDesc"),
                   icon: "🔬",
                 },
                 {
-                  title: "Telemedicine",
-                  description:
-                    "Connect with doctors remotely through video consultations.",
+                  title: t("landing.telemedicine"),
+                  description: t("landing.telemedicineDesc"),
                   icon: "🎥",
                 },
               ].map((feature) => (
@@ -271,11 +265,10 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-gray-900">
-              What Our Users Say
+              {t("landing.testimonialsTitle")}
             </h2>
             <p className="mt-4 text-lg text-gray-600">
-              Don&apos;t just take our word for it - hear from our satisfied
-              users
+              {t("landing.testimonialsSubtitle")}
             </p>
           </div>
 
@@ -302,11 +295,10 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-white sm:text-4xl">
-              Ready to get started?
+              {t("landing.ctaTitle")}
             </h2>
             <p className="mt-4 text-xl text-blue-100">
-              Join thousands of patients and healthcare providers who trust our
-              platform.
+              {t("landing.ctaDescription")}
             </p>
             <div className="mt-8">
               {isAuthenticated ? (
@@ -338,7 +330,9 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-lg font-semibold mb-4">Company</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                {t("landing.companySection")}
+              </h3>
               <ul className="space-y-2">
                 <li>
                   <Link href="#" className="hover:text-white">
@@ -358,7 +352,9 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Services</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                {t("landing.servicesSection")}
+              </h3>
               <ul className="space-y-2">
                 <li>
                   <Link href="#" className="hover:text-white">
@@ -378,7 +374,9 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Legal</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                {t("landing.legalSection")}
+              </h3>
               <ul className="space-y-2">
                 <li>
                   <Link href="#" className="hover:text-white">
@@ -398,7 +396,9 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Connect</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                {t("landing.connectSection")}
+              </h3>
               <ul className="space-y-2">
                 <li>
                   <Link href="#" className="hover:text-white">
@@ -426,5 +426,17 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// Main component with LanguageProvider
+export default function LandingPage() {
+  return (
+    <LanguageProvider>
+      <div className="relative">
+        <LanguageSwitcher />
+        <LandingPageContent />
+      </div>
+    </LanguageProvider>
   );
 }

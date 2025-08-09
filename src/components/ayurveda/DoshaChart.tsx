@@ -3,7 +3,19 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
+import {
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 export interface DoshaData {
   vata: number;
@@ -30,28 +42,28 @@ const DOSHA_DESCRIPTIONS = {
     name: "Vata",
     element: "Air + Space",
     qualities: "Movement, Creativity, Communication",
-    color: DOSHA_COLORS.vata
+    color: DOSHA_COLORS.vata,
   },
   pitta: {
     name: "Pitta",
     element: "Fire + Water",
     qualities: "Transformation, Intelligence, Metabolism",
-    color: DOSHA_COLORS.pitta
+    color: DOSHA_COLORS.pitta,
   },
   kapha: {
     name: "Kapha",
     element: "Earth + Water",
     qualities: "Structure, Stability, Immunity",
-    color: DOSHA_COLORS.kapha
-  }
+    color: DOSHA_COLORS.kapha,
+  },
 };
 
-export default function DoshaChart({ 
-  doshaData, 
-  type = "radar", 
+export default function DoshaChart({
+  doshaData,
+  type = "radar",
   title = "Dosha Analysis",
   showLegend = true,
-  className = ""
+  className = "",
 }: DoshaChartProps) {
   // Prepare data for radar chart
   const radarData = [
@@ -61,7 +73,7 @@ export default function DoshaChart({
       fullMark: 100,
     },
     {
-      dosha: "Pitta", 
+      dosha: "Pitta",
       value: doshaData.pitta,
       fullMark: 100,
     },
@@ -86,7 +98,9 @@ export default function DoshaChart({
       { name: "Pitta", value: doshaData.pitta },
       { name: "Kapha", value: doshaData.kapha },
     ];
-    return doshas.reduce((prev, current) => (prev.value > current.value) ? prev : current);
+    return doshas.reduce((prev, current) =>
+      prev.value > current.value ? prev : current
+    );
   };
 
   const dominantDosha = getDominantDosha();
@@ -96,11 +110,7 @@ export default function DoshaChart({
       <RadarChart data={radarData}>
         <PolarGrid />
         <PolarAngleAxis dataKey="dosha" />
-        <PolarRadiusAxis 
-          angle={90} 
-          domain={[0, 100]} 
-          tick={false}
-        />
+        <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} />
         <Radar
           name="Dosha Level"
           dataKey="value"
@@ -121,7 +131,9 @@ export default function DoshaChart({
           cx="50%"
           cy="50%"
           labelLine={false}
-          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+          label={({ name, percent }) =>
+            `${name} ${(percent * 100).toFixed(0)}%`
+          }
           outerRadius={80}
           fill="#8884d8"
           dataKey="value"
@@ -159,23 +171,25 @@ export default function DoshaChart({
           <div className="grid grid-cols-3 gap-4">
             {Object.entries(DOSHA_DESCRIPTIONS).map(([key, dosha]) => {
               const value = doshaData[key as keyof DoshaData];
-              const isHighest = value === Math.max(doshaData.vata, doshaData.pitta, doshaData.kapha);
-              
+              const isHighest =
+                value ===
+                Math.max(doshaData.vata, doshaData.pitta, doshaData.kapha);
+
               return (
-                <div 
+                <div
                   key={key}
                   className={`p-3 rounded-lg border-2 transition-all ${
-                    isHighest 
-                      ? 'border-current bg-opacity-10' 
-                      : 'border-gray-200 bg-gray-50'
+                    isHighest
+                      ? "border-current bg-opacity-10"
+                      : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
                   }`}
-                  style={{ 
+                  style={{
                     borderColor: isHighest ? dosha.color : undefined,
-                    backgroundColor: isHighest ? `${dosha.color}10` : undefined
+                    backgroundColor: isHighest ? `${dosha.color}10` : undefined,
                   }}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <div 
+                    <div
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: dosha.color }}
                     />
@@ -186,15 +200,16 @@ export default function DoshaChart({
                       </Badge>
                     )}
                   </div>
-                  <div className="text-2xl font-bold mb-1" style={{ color: dosha.color }}>
+                  <div
+                    className="text-2xl font-bold mb-1"
+                    style={{ color: dosha.color }}
+                  >
                     {value}%
                   </div>
                   <div className="text-xs text-gray-600 mb-1">
                     {dosha.element}
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {dosha.qualities}
-                  </div>
+                  <div className="text-xs text-gray-500">{dosha.qualities}</div>
                 </div>
               );
             })}
@@ -206,12 +221,25 @@ export default function DoshaChart({
             <div className="text-sm text-gray-600">
               {dominantDosha.value > 50 ? (
                 <p>
-                  <span className="font-medium" style={{ color: DOSHA_COLORS[dominantDosha.name.toLowerCase() as keyof typeof DOSHA_COLORS] }}>
+                  <span
+                    className="font-medium"
+                    style={{
+                      color:
+                        DOSHA_COLORS[
+                          dominantDosha.name.toLowerCase() as keyof typeof DOSHA_COLORS
+                        ],
+                    }}
+                  >
                     {dominantDosha.name}
-                  </span> dominant constitution. Focus on balancing practices for {dominantDosha.name.toLowerCase()}.
+                  </span>{" "}
+                  dominant constitution. Focus on balancing practices for{" "}
+                  {dominantDosha.name.toLowerCase()}.
                 </p>
               ) : (
-                <p>Balanced constitution with no single dosha dominating. Maintain current lifestyle practices.</p>
+                <p>
+                  Balanced constitution with no single dosha dominating.
+                  Maintain current lifestyle practices.
+                </p>
               )}
             </div>
           </div>

@@ -10,6 +10,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeContextProvider } from "@/contexts/ThemeContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 function ErrorFallback({
   error,
@@ -83,23 +84,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
           disableTransitionOnChange
         >
           <ThemeContextProvider>
-            <LoadingOverlayProvider>
-              <QueryProvider>
-                <GlobalLoadingOverlayListener />
-                {children}
-                <Toaster
-                  richColors
-                  position="top-right"
-                  expand={false}
-                  visibleToasts={4}
-                  closeButton
-                  toastOptions={{
-                    duration: 4000,
-                    className: "text-sm",
-                  }}
-                />
-              </QueryProvider>
-            </LoadingOverlayProvider>
+            <LanguageProvider>
+              <LoadingOverlayProvider>
+                <QueryProvider>
+                  <GlobalLoadingOverlayListener />
+                  {children}
+                  <Toaster
+                    richColors
+                    position="top-right"
+                    expand={false}
+                    visibleToasts={4}
+                    closeButton
+                    toastOptions={{
+                      duration: 4000,
+                      className: "text-sm",
+                    }}
+                  />
+                </QueryProvider>
+              </LoadingOverlayProvider>
+            </LanguageProvider>
           </ThemeContextProvider>
         </ThemeProvider>
       </Suspense>

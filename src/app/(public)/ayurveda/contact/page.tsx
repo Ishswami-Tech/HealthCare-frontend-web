@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Phone, 
-  Mail, 
-  MapPin, 
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Phone,
+  Mail,
+  MapPin,
   Clock,
   MessageCircle,
   Calendar,
@@ -17,100 +17,107 @@ import {
   Heart,
   CheckCircle,
   Send,
-  Star
-} from 'lucide-react';
+  Star,
+} from "lucide-react";
+import { LanguageProvider } from "@/lib/i18n/context";
+import { ClinicInfo } from "@/components/clinic/clinic-info";
+import { GoogleMaps } from "@/components/maps/google-maps";
+import { WhatsAppButton } from "@/components/contact/whatsapp-button";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    condition: '',
-    message: ''
+    name: "",
+    email: "",
+    phone: "",
+    condition: "",
+    message: "",
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData(prev => ({
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Handle form submission
-    console.log('Form submitted:', formData);
+    console.log("Form submitted:", formData);
   };
 
   const contactInfo = [
     {
       icon: Phone,
-      title: 'Phone Numbers',
-      details: [
-        '+91-XXXX-XXXX (Main)',
-        '+91-YYYY-YYYY (Emergency)',
-        '+91-ZZZZ-ZZZZ (WhatsApp)'
-      ],
-      color: 'from-green-500 to-emerald-600'
+      title: "Phone Numbers",
+      details: ["9860370961", "7709399925", "Call for appointment"],
+      color: "from-green-500 to-emerald-600",
     },
     {
       icon: Mail,
-      title: 'Email Addresses',
+      title: "Email Addresses",
       details: [
-        'info@vishwamurthiayurveda.com',
-        'appointments@vishwamurthiayurveda.com',
-        'emergency@vishwamurthiayurveda.com'
+        "vishwamurthiayurveda@gmail.com",
+        "For appointments & queries",
+        "Quick response guaranteed",
       ],
-      color: 'from-blue-500 to-cyan-600'
+      color: "from-blue-500 to-cyan-600",
     },
     {
       icon: MapPin,
-      title: 'Location',
+      title: "Location",
       details: [
-        '123 Ayurveda Street',
-        'Wellness District',
-        'Mumbai, Maharashtra 400001'
+        "Moraya Ganapati Mandir Road",
+        "Gandhi Peth, Chinchwad Gaon",
+        "Pimpri-Chinchwad, Maharashtra",
       ],
-      color: 'from-orange-500 to-red-600'
+      color: "from-orange-500 to-red-600",
     },
     {
       icon: Clock,
-      title: 'Working Hours',
+      title: "Working Hours",
       details: [
-        'Mon - Sat: 8:00 AM - 8:00 PM',
-        'Sunday: 9:00 AM - 5:00 PM',
-        '24/7 Emergency Support'
+        "Monday - Friday: 11:45 AM - 11:30 PM",
+        "Saturday & Sunday: Closed",
+        "Emergency consultations available",
       ],
-      color: 'from-purple-500 to-indigo-600'
-    }
+      color: "from-purple-500 to-indigo-600",
+    },
   ];
 
   const quickActions = [
     {
-      title: 'Book Consultation',
-      description: 'Schedule your appointment with our experts',
+      title: "Book Consultation",
+      description: "Schedule your appointment with our experts",
       icon: Calendar,
-      action: 'Book Now',
-      color: 'from-orange-500 to-red-600'
+      action: "Book Now",
+      color: "from-orange-500 to-red-600",
     },
     {
-      title: 'WhatsApp Support',
-      description: 'Get instant help and quick responses',
+      title: "WhatsApp Support",
+      description: "Get instant help and quick responses",
       icon: MessageCircle,
-      action: 'Chat Now',
-      color: 'from-green-500 to-emerald-600'
+      action: "Chat Now",
+      color: "from-green-500 to-emerald-600",
     },
     {
-      title: 'Emergency Care',
-      description: '24/7 emergency consultation available',
+      title: "Emergency Care",
+      description: "24/7 emergency consultation available",
       icon: Phone,
-      action: 'Call Emergency',
-      color: 'from-red-500 to-pink-600'
-    }
+      action: "Call Emergency",
+      color: "from-red-500 to-pink-600",
+    },
   ];
 
   return (
     <div className="min-h-screen">
+      {/* Language Switcher */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSwitcher variant="compact" />
+      </div>
       {/* Hero Section */}
       <section className="py-20 bg-gradient-to-br from-orange-50 via-amber-50 to-red-50">
         <div className="container mx-auto px-4">
@@ -119,17 +126,18 @@ export default function ContactPage() {
               <Heart className="w-4 h-4 mr-2" />
               Contact Shri Vishwamurthi Ayurvedalay
             </Badge>
-            
+
             <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-6">
-              Get in Touch for{' '}
+              Get in Touch for{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-red-600">
                 Authentic Healing
               </span>
             </h1>
-            
+
             <p className="text-xl text-gray-700 mb-8 leading-relaxed">
-              Ready to begin your journey to complete wellness? Our expert team is here to guide you 
-              every step of the way with personalized Ayurvedic solutions.
+              Ready to begin your journey to complete wellness? Our expert team
+              is here to guide you every step of the way with personalized
+              Ayurvedic solutions.
             </p>
 
             <div className="flex flex-wrap justify-center gap-4">
@@ -166,20 +174,25 @@ export default function ContactPage() {
             <div className="grid md:grid-cols-3 gap-8 mb-16">
               {quickActions.map((action, index) => {
                 const IconComponent = action.icon;
-                
+
                 return (
-                  <Card key={index} className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-gray-50">
+                  <Card
+                    key={index}
+                    className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-gray-50"
+                  >
                     <CardContent className="p-8">
-                      <div className={`w-16 h-16 bg-gradient-to-r ${action.color} rounded-full flex items-center justify-center mx-auto mb-6`}>
+                      <div
+                        className={`w-16 h-16 bg-gradient-to-r ${action.color} rounded-full flex items-center justify-center mx-auto mb-6`}
+                      >
                         <IconComponent className="w-8 h-8 text-white" />
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-4">
                         {action.title}
                       </h3>
-                      <p className="text-gray-600 mb-6">
-                        {action.description}
-                      </p>
-                      <Button className={`bg-gradient-to-r ${action.color} hover:opacity-90 text-white w-full`}>
+                      <p className="text-gray-600 mb-6">{action.description}</p>
+                      <Button
+                        className={`bg-gradient-to-r ${action.color} hover:opacity-90 text-white w-full`}
+                      >
                         {action.action}
                       </Button>
                     </CardContent>
@@ -204,7 +217,8 @@ export default function ContactPage() {
                       Send Us a Message
                     </CardTitle>
                     <p className="text-gray-600">
-                      Fill out the form below and we'll get back to you within 24 hours
+                      Fill out the form below and we'll get back to you within
+                      24 hours
                     </p>
                   </CardHeader>
                   <CardContent>
@@ -275,7 +289,7 @@ export default function ContactPage() {
                         />
                       </div>
 
-                      <Button 
+                      <Button
                         type="submit"
                         className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-lg py-6"
                       >
@@ -291,12 +305,14 @@ export default function ContactPage() {
               <div className="space-y-8">
                 {contactInfo.map((info, index) => {
                   const IconComponent = info.icon;
-                  
+
                   return (
                     <Card key={index} className="bg-white shadow-lg border-0">
                       <CardContent className="p-6">
                         <div className="flex items-start space-x-4">
-                          <div className={`w-12 h-12 bg-gradient-to-r ${info.color} rounded-full flex items-center justify-center flex-shrink-0`}>
+                          <div
+                            className={`w-12 h-12 bg-gradient-to-r ${info.color} rounded-full flex items-center justify-center flex-shrink-0`}
+                          >
                             <IconComponent className="w-6 h-6 text-white" />
                           </div>
                           <div>
@@ -329,8 +345,9 @@ export default function ContactPage() {
                           Emergency Consultation
                         </h3>
                         <p className="text-red-700 mb-4">
-                          For urgent health concerns, our expert doctors are available 24/7 
-                          for immediate consultation and guidance.
+                          For urgent health concerns, our expert doctors are
+                          available 24/7 for immediate consultation and
+                          guidance.
                         </p>
                         <Button className="bg-red-600 hover:bg-red-700 text-white">
                           <Phone className="w-4 h-4 mr-2" />
@@ -346,47 +363,44 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Map Section */}
+      {/* Google Maps Section */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-playfair font-bold text-gray-900 mb-4">
-                Visit Our Healing Center
-              </h2>
-              <p className="text-lg text-gray-600">
-                Located in the heart of Mumbai's wellness district
-              </p>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Visit Our Clinic
+            </h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              Located in the heart of Chinchwad, our clinic is easily accessible
+              and provides a peaceful environment for healing.
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-12 items-start">
+            {/* Map */}
+            <div>
+              <GoogleMaps
+                address="Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India"
+                latitude={18.6298}
+                longitude={73.7997}
+                zoom={15}
+                height="400px"
+                showInfoWindow={true}
+                clinicName="Shri Vishwamurthi Ayurvedalay"
+                clinicPhone="9860370961, 7709399925"
+                clinicHours="Mon-Fri: 11:45 AM – 11:30 PM"
+              />
             </div>
 
-            <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-200 shadow-xl">
-              <CardContent className="p-8">
-                <div className="aspect-video bg-gray-200 rounded-lg flex items-center justify-center mb-6">
-                  <div className="text-center">
-                    <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">Interactive Map Coming Soon</p>
-                    <p className="text-sm text-gray-500">
-                      123 Ayurveda Street, Wellness District, Mumbai, Maharashtra 400001
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="grid md:grid-cols-3 gap-6 text-center">
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">By Metro</h4>
-                    <p className="text-sm text-gray-600">Wellness Station - 5 min walk</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">By Bus</h4>
-                    <p className="text-sm text-gray-600">Route 101, 205, 308 - Ayurveda Stop</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Parking</h4>
-                    <p className="text-sm text-gray-600">Free parking available on-site</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Contact Info */}
+            <div>
+              <ClinicInfo
+                variant="card"
+                showDoctor={false}
+                showTimings={true}
+                showContact={true}
+              />
+            </div>
           </div>
         </div>
       </section>
