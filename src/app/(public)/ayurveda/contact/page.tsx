@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ import { WhatsAppButton } from "@/components/contact/whatsapp-button";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 export default function ContactPage() {
+  const t = useTranslations();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -52,37 +54,41 @@ export default function ContactPage() {
   const contactInfo = [
     {
       icon: Phone,
-      title: "Phone Numbers",
-      details: ["9860370961", "7709399925", "Call for appointment"],
+      title: t("contact.contactInfo.phoneNumbers.title"),
+      details: [
+        t("contact.contactInfo.phoneNumbers.details.0"),
+        t("contact.contactInfo.phoneNumbers.details.1"),
+        t("contact.contactInfo.phoneNumbers.details.2"),
+      ],
       color: "from-green-500 to-emerald-600",
     },
     {
       icon: Mail,
-      title: "Email Addresses",
+      title: t("contact.contactInfo.emailAddresses.title"),
       details: [
-        "vishwamurthiayurveda@gmail.com",
-        "For appointments & queries",
-        "Quick response guaranteed",
+        t("contact.contactInfo.emailAddresses.details.0"),
+        t("contact.contactInfo.emailAddresses.details.1"),
+        t("contact.contactInfo.emailAddresses.details.2"),
       ],
       color: "from-blue-500 to-cyan-600",
     },
     {
       icon: MapPin,
-      title: "Location",
+      title: t("contact.contactInfo.location.title"),
       details: [
-        "Moraya Ganapati Mandir Road",
-        "Gandhi Peth, Chinchwad Gaon",
-        "Pimpri-Chinchwad, Maharashtra",
+        t("contact.contactInfo.location.details.0"),
+        t("contact.contactInfo.location.details.1"),
+        t("contact.contactInfo.location.details.2"),
       ],
       color: "from-orange-500 to-red-600",
     },
     {
       icon: Clock,
-      title: "Working Hours",
+      title: t("contact.contactInfo.workingHours.title"),
       details: [
-        "Monday - Friday: 11:45 AM - 11:30 PM",
-        "Saturday & Sunday: Closed",
-        "Emergency consultations available",
+        t("contact.contactInfo.workingHours.details.0"),
+        t("contact.contactInfo.workingHours.details.1"),
+        t("contact.contactInfo.workingHours.details.2"),
       ],
       color: "from-purple-500 to-indigo-600",
     },
@@ -90,24 +96,24 @@ export default function ContactPage() {
 
   const quickActions = [
     {
-      title: "Book Consultation",
-      description: "Schedule your appointment with our experts",
+      title: t("contact.quickActions.bookConsultation.title"),
+      description: t("contact.quickActions.bookConsultation.description"),
       icon: Calendar,
-      action: "Book Now",
+      action: t("contact.quickActions.bookConsultation.action"),
       color: "from-orange-500 to-red-600",
     },
     {
-      title: "WhatsApp Support",
-      description: "Get instant help and quick responses",
+      title: t("contact.quickActions.whatsappSupport.title"),
+      description: t("contact.quickActions.whatsappSupport.description"),
       icon: MessageCircle,
-      action: "Chat Now",
+      action: t("contact.quickActions.whatsappSupport.action"),
       color: "from-green-500 to-emerald-600",
     },
     {
-      title: "Emergency Care",
-      description: "24/7 emergency consultation available",
+      title: t("contact.quickActions.emergencyCare.title"),
+      description: t("contact.quickActions.emergencyCare.description"),
       icon: Phone,
-      action: "Call Emergency",
+      action: t("contact.quickActions.emergencyCare.action"),
       color: "from-red-500 to-pink-600",
     },
   ];
@@ -124,20 +130,15 @@ export default function ContactPage() {
           <div className="max-w-4xl mx-auto text-center">
             <Badge className="bg-orange-100 text-orange-800 border-orange-200 mb-6">
               <Heart className="w-4 h-4 mr-2" />
-              Contact Shri Vishwamurthi Ayurvedalay
+              {t("contact.badge")}
             </Badge>
 
             <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-6">
-              Get in Touch for{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-red-600">
-                Authentic Healing
-              </span>
+              {t("contact.title")}
             </h1>
 
             <p className="text-xl text-gray-700 mb-8 leading-relaxed">
-              Ready to begin your journey to complete wellness? Our expert team
-              is here to guide you every step of the way with personalized
-              Ayurvedic solutions.
+              {t("contact.subtitle")}
             </p>
 
             <div className="flex flex-wrap justify-center gap-4">
@@ -214,11 +215,10 @@ export default function ContactPage() {
                 <Card className="bg-white shadow-xl border-0">
                   <CardHeader>
                     <CardTitle className="text-2xl font-playfair font-bold text-gray-900">
-                      Send Us a Message
+                      {t("contact.form.title")}
                     </CardTitle>
                     <p className="text-gray-600">
-                      Fill out the form below and we'll get back to you within
-                      24 hours
+                      {t("contact.form.subtitle")}
                     </p>
                   </CardHeader>
                   <CardContent>
@@ -226,25 +226,29 @@ export default function ContactPage() {
                       <div className="grid md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Full Name *
+                            {t("contact.form.fields.fullName")}
                           </label>
                           <Input
                             name="name"
                             value={formData.name}
                             onChange={handleInputChange}
-                            placeholder="Enter your full name"
+                            placeholder={t(
+                              "contact.form.placeholders.fullName"
+                            )}
                             required
                           />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Phone Number *
+                            {t("contact.form.fields.phoneNumber")}
                           </label>
                           <Input
                             name="phone"
                             value={formData.phone}
                             onChange={handleInputChange}
-                            placeholder="+91-XXXXX-XXXXX"
+                            placeholder={t(
+                              "contact.form.placeholders.phoneNumber"
+                            )}
                             required
                           />
                         </div>
@@ -252,39 +256,43 @@ export default function ContactPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Email Address *
+                          {t("contact.form.fields.emailAddress")}
                         </label>
                         <Input
                           name="email"
                           type="email"
                           value={formData.email}
                           onChange={handleInputChange}
-                          placeholder="your.email@example.com"
+                          placeholder={t(
+                            "contact.form.placeholders.emailAddress"
+                          )}
                           required
                         />
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Health Condition/Concern
+                          {t("contact.form.fields.healthCondition")}
                         </label>
                         <Input
                           name="condition"
                           value={formData.condition}
                           onChange={handleInputChange}
-                          placeholder="Brief description of your health concern"
+                          placeholder={t(
+                            "contact.form.placeholders.healthCondition"
+                          )}
                         />
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Message
+                          {t("contact.form.fields.message")}
                         </label>
                         <Textarea
                           name="message"
                           value={formData.message}
                           onChange={handleInputChange}
-                          placeholder="Tell us more about how we can help you..."
+                          placeholder={t("contact.form.placeholders.message")}
                           rows={4}
                         />
                       </div>
@@ -294,7 +302,7 @@ export default function ContactPage() {
                         className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-lg py-6"
                       >
                         <Send className="w-5 h-5 mr-2" />
-                        Send Message
+                        {t("contact.form.submitButton")}
                       </Button>
                     </form>
                   </CardContent>
@@ -320,7 +328,10 @@ export default function ContactPage() {
                               {info.title}
                             </h3>
                             <div className="space-y-1">
-                              {info.details.map((detail, detailIndex) => (
+                              {(Array.isArray(info.details)
+                                ? info.details
+                                : [info.details]
+                              ).map((detail: string, detailIndex: number) => (
                                 <p key={detailIndex} className="text-gray-700">
                                   {detail}
                                 </p>

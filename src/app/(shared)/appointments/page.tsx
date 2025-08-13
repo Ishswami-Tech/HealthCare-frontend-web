@@ -14,8 +14,21 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { useMyAppointments } from "@/hooks/useAppointments";
+import {
+  useMyAppointments,
+  useAppointments,
+  useUpdateAppointment,
+  useCancelAppointment,
+  useAppointmentStats,
+} from "@/hooks/useAppointments";
+import { useClinicContext } from "@/hooks/useClinic";
+import { useAppointmentPermissions, useRBAC } from "@/hooks/useRBAC";
+import {
+  AppointmentProtectedComponent,
+  ProtectedComponent,
+} from "@/components/rbac";
 import { Role } from "@/types/auth.types";
+import { Permission } from "@/types/rbac.types";
 import {
   Calendar,
   Clock,
@@ -29,6 +42,9 @@ import {
   Eye,
   Edit,
   Trash2,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 
 export default function AppointmentsPage() {
@@ -36,19 +52,56 @@ export default function AppointmentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDoctor, setFilterDoctor] = useState("");
   const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
 
   const userRole = session?.user?.role as Role;
 
-  // Fetch real appointments data
+  // RBAC permissions
+  const appointmentPermissions = useAppointmentPermissions();
+  const rbac = useRBAC();
+
+  // Clinic context
+  const { clinicId } = useClinicContext();
+
+  // Determine which appointments to fetch based on role
+  const shouldFetchAllAppointments = rbac.hasPermission(
+    Permission.VIEW_ALL_APPOINTMENTS
+  );
+
+  // Fetch appointments data with proper permissions
+  // Always call both hooks to avoid conditional hook calls
+  const allAppointmentsQuery = useAppointments(clinicId || "", {
+    search: searchTerm,
+    doctorId: filterDoctor || undefined,
+    type: filterType || undefined,
+    status: filterStatus || undefined,
+    enabled: shouldFetchAllAppointments,
+  });
+
+  const myAppointmentsQuery = useMyAppointments({
+    search: searchTerm,
+    doctorId: filterDoctor || undefined,
+    type: filterType || undefined,
+    status: filterStatus || undefined,
+    enabled: !shouldFetchAllAppointments,
+  });
+
+  // Use the appropriate query result
   const {
     data: appointments,
     isPending: isLoading,
     error,
-  } = useMyAppointments({
-    search: searchTerm,
-    doctorId: filterDoctor || undefined,
-    type: filterType || undefined,
+    refetch: refetchAppointments,
+  } = shouldFetchAllAppointments ? allAppointmentsQuery : myAppointmentsQuery;
+
+  // Fetch appointment statistics for authorized users
+  const { data: appointmentStats } = useAppointmentStats({
+    enabled: appointmentPermissions.canViewAllAppointments,
   });
+
+  // Mutation hooks for appointment actions
+  const updateAppointmentMutation = useUpdateAppointment();
+  const cancelAppointmentMutation = useCancelAppointment();
 
   // Separate upcoming and past appointments
   const now = new Date();
@@ -185,6 +238,28 @@ export default function AppointmentsPage() {
     }
   };
 
+  // Handle appointment actions
+  const handleUpdateAppointment = async (
+    appointmentId: string,
+    updates: any
+  ) => {
+    try {
+      await updateAppointmentMutation.mutateAsync({ appointmentId, updates });
+      refetchAppointments();
+    } catch (error) {
+      console.error("Failed to update appointment:", error);
+    }
+  };
+
+  const handleCancelAppointment = async (appointmentId: string) => {
+    try {
+      await cancelAppointmentMutation.mutateAsync(appointmentId);
+      refetchAppointments();
+    } catch (error) {
+      console.error("Failed to cancel appointment:", error);
+    }
+  };
+
   const AppointmentCard = ({
     appointment,
     showActions = true,
@@ -249,33 +324,73 @@ export default function AppointmentsPage() {
 
           {showActions && (
             <div className="flex flex-col gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex items-center gap-1"
-              >
-                <Eye className="w-3 h-3" />
-                View
-              </Button>
+              {/* View button - always visible if user can view appointments */}
+              <AppointmentProtectedComponent action="view">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-1"
+                >
+                  <Eye className="w-3 h-3" />
+                  View
+                </Button>
+              </AppointmentProtectedComponent>
+
               {appointment.status !== "completed" && (
                 <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex items-center gap-1"
-                  >
-                    <Edit className="w-3 h-3" />
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex items-center gap-1 text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    Cancel
-                  </Button>
+                  {/* Edit button - only for users with update permission */}
+                  <AppointmentProtectedComponent action="update">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-1"
+                      onClick={() =>
+                        handleUpdateAppointment(appointment.id, {})
+                      }
+                      disabled={updateAppointmentMutation.isPending}
+                    >
+                      <Edit className="w-3 h-3" />
+                      {updateAppointmentMutation.isPending
+                        ? "Updating..."
+                        : "Edit"}
+                    </Button>
+                  </AppointmentProtectedComponent>
+
+                  {/* Cancel button - only for users with delete permission */}
+                  <AppointmentProtectedComponent action="delete">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-1 text-red-600 hover:text-red-700"
+                      onClick={() => handleCancelAppointment(appointment.id)}
+                      disabled={cancelAppointmentMutation.isPending}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      {cancelAppointmentMutation.isPending
+                        ? "Cancelling..."
+                        : "Cancel"}
+                    </Button>
+                  </AppointmentProtectedComponent>
                 </>
+              )}
+
+              {/* Queue management actions for authorized users */}
+              {appointment.status === "confirmed" && (
+                <AppointmentProtectedComponent action="manage">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="flex items-center gap-1"
+                    onClick={() =>
+                      handleUpdateAppointment(appointment.id, {
+                        status: "IN_PROGRESS",
+                      })
+                    }
+                  >
+                    <CheckCircle className="w-3 h-3" />
+                    Start
+                  </Button>
+                </AppointmentProtectedComponent>
               )}
             </div>
           )}
@@ -286,17 +401,92 @@ export default function AppointmentsPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Statistics Cards for authorized users */}
+      <ProtectedComponent
+        permission={Permission.VIEW_ALL_APPOINTMENTS}
+        showFallback={false}
+      >
+        {appointmentStats && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Total Today
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {appointmentStats.todayTotal || 0}
+                    </p>
+                  </div>
+                  <Calendar className="h-8 w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Confirmed
+                    </p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {appointmentStats.confirmed || 0}
+                    </p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600">
+                      {appointmentStats.pending || 0}
+                    </p>
+                  </div>
+                  <AlertCircle className="h-8 w-8 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Cancelled
+                    </p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {appointmentStats.cancelled || 0}
+                    </p>
+                  </div>
+                  <XCircle className="h-8 w-8 text-red-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </ProtectedComponent>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Appointments</h1>
-          <p className="text-gray-600">Manage your appointments and schedule</p>
+          <p className="text-gray-600">
+            {shouldFetchAllAppointments
+              ? "Manage all appointments and schedules"
+              : "Manage your appointments and schedule"}
+          </p>
         </div>
-        {(userRole === Role.PATIENT || userRole === Role.RECEPTIONIST) && (
+
+        {/* Create appointment button with RBAC */}
+        <AppointmentProtectedComponent action="create">
           <Button className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
             Book Appointment
           </Button>
-        )}
+        </AppointmentProtectedComponent>
       </div>
 
       {/* Filters */}
@@ -337,6 +527,27 @@ export default function AppointmentsPage() {
                 <SelectItem value="nadi-pariksha">Nadi Pariksha</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Status filter - only for users who can view all appointments */}
+            <ProtectedComponent
+              permission={Permission.VIEW_ALL_APPOINTMENTS}
+              showFallback={false}
+            >
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                  <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  <SelectItem value="NO_SHOW">No Show</SelectItem>
+                </SelectContent>
+              </Select>
+            </ProtectedComponent>
           </div>
         </CardContent>
       </Card>

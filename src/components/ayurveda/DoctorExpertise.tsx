@@ -1,28 +1,28 @@
 "use client";
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { 
-  Brain, 
-  Heart, 
-  Phone, 
-  MapPin, 
-  Clock, 
-  Award, 
-  Users, 
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Brain,
+  Heart,
+  Phone,
+  MapPin,
+  Clock,
+  Award,
+  Users,
   Stethoscope,
   Star,
   CheckCircle,
   Calendar,
-  MessageCircle
-} from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { cn } from '@/lib/utils';
+  MessageCircle,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
 const DoctorExpertise = () => {
-  const { t } = useLanguage();
+  const t = useTranslations();
 
   const specializations = [
     {
@@ -30,35 +30,38 @@ const DoctorExpertise = () => {
       title: t.treatments.viddhakarma.autism.title,
       description: t.treatments.viddhakarma.autism.description,
       highlight: t.treatments.viddhakarma.autism.uniqueEffect,
-      color: 'from-purple-500 to-indigo-600',
-      bgColor: 'from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20',
+      color: "from-purple-500 to-indigo-600",
+      bgColor:
+        "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
     },
     {
       icon: Heart,
       title: t.treatments.viddhakarma.cerebralPalsy.title,
       description: t.treatments.viddhakarma.cerebralPalsy.description,
       highlight: t.treatments.viddhakarma.cerebralPalsy.benefits,
-      color: 'from-red-500 to-pink-600',
-      bgColor: 'from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20',
+      color: "from-red-500 to-pink-600",
+      bgColor:
+        "from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20",
     },
     {
       icon: Stethoscope,
       title: t.treatments.viddhakarma.mentalHealth.title,
       description: t.treatments.viddhakarma.mentalHealth.description,
       highlight: "Comprehensive mental wellness approach",
-      color: 'from-green-500 to-emerald-600',
-      bgColor: 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20',
-    }
+      color: "from-green-500 to-emerald-600",
+      bgColor:
+        "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
+    },
   ];
 
   const opdSchedule = [
-    { day: 'Monday', hours: '11:45 AM – 11:30 PM', available: true },
-    { day: 'Tuesday', hours: '11:45 AM – 11:30 PM', available: true },
-    { day: 'Wednesday', hours: '11:45 AM – 11:30 PM', available: true },
-    { day: 'Thursday', hours: '11:45 AM – 11:30 PM', available: true },
-    { day: 'Friday', hours: '11:45 AM – 11:30 PM', available: true },
-    { day: 'Saturday', hours: 'Closed', available: false },
-    { day: 'Sunday', hours: 'Closed', available: false },
+    { day: "Monday", hours: "11:45 AM – 11:30 PM", available: true },
+    { day: "Tuesday", hours: "11:45 AM – 11:30 PM", available: true },
+    { day: "Wednesday", hours: "11:45 AM – 11:30 PM", available: true },
+    { day: "Thursday", hours: "11:45 AM – 11:30 PM", available: true },
+    { day: "Friday", hours: "11:45 AM – 11:30 PM", available: true },
+    { day: "Saturday", hours: "Closed", available: false },
+    { day: "Sunday", hours: "Closed", available: false },
   ];
 
   return (
@@ -90,13 +93,20 @@ const DoctorExpertise = () => {
             {specializations.map((spec, index) => {
               const IconComponent = spec.icon;
               return (
-                <Card key={index} className="group hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden bg-white dark:bg-gray-800">
-                  <CardHeader className={`bg-gradient-to-br ${spec.bgColor} relative overflow-hidden`}>
+                <Card
+                  key={index}
+                  className="group hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden bg-white dark:bg-gray-800"
+                >
+                  <CardHeader
+                    className={`bg-gradient-to-br ${spec.bgColor} relative overflow-hidden`}
+                  >
                     <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
                       <IconComponent className="w-full h-full" />
                     </div>
                     <div className="relative z-10">
-                      <div className={`w-16 h-16 bg-gradient-to-r ${spec.color} rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                      <div
+                        className={`w-16 h-16 bg-gradient-to-r ${spec.color} rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                      >
                         <IconComponent className="w-8 h-8 text-white" />
                       </div>
                       <CardTitle className="text-xl font-playfair font-bold text-gray-900 dark:text-white mb-2">
@@ -133,21 +143,31 @@ const DoctorExpertise = () => {
                 <div className="flex items-center gap-3">
                   <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">{t.doctor.contact.phone1}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Primary Contact</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {t.doctor.contact.phone1}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Primary Contact
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Phone className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">{t.doctor.contact.phone2}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Secondary Contact</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {t.doctor.contact.phone2}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Secondary Contact
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-red-600 dark:text-red-400 mt-1" />
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">{t.doctor.contact.location}</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {t.doctor.contact.location}
+                    </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                       {t.doctor.contact.address}
                     </p>
@@ -180,10 +200,10 @@ const DoctorExpertise = () => {
                     <div
                       key={index}
                       className={cn(
-                        'flex items-center justify-between p-3 rounded-lg',
+                        "flex items-center justify-between p-3 rounded-lg",
                         schedule.available
-                          ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                          : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                          ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                          : "bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
                       )}
                     >
                       <div className="flex items-center gap-3">
@@ -192,21 +212,25 @@ const DoctorExpertise = () => {
                         ) : (
                           <div className="w-5 h-5 rounded-full bg-gray-400 dark:bg-gray-500" />
                         )}
-                        <span className={cn(
-                          'font-medium',
-                          schedule.available 
-                            ? 'text-green-800 dark:text-green-200' 
-                            : 'text-gray-600 dark:text-gray-400'
-                        )}>
+                        <span
+                          className={cn(
+                            "font-medium",
+                            schedule.available
+                              ? "text-green-800 dark:text-green-200"
+                              : "text-gray-600 dark:text-gray-400"
+                          )}
+                        >
                           {schedule.day}
                         </span>
                       </div>
-                      <span className={cn(
-                        'text-sm font-medium',
-                        schedule.available 
-                          ? 'text-green-700 dark:text-green-300' 
-                          : 'text-gray-500 dark:text-gray-400'
-                      )}>
+                      <span
+                        className={cn(
+                          "text-sm font-medium",
+                          schedule.available
+                            ? "text-green-700 dark:text-green-300"
+                            : "text-gray-500 dark:text-gray-400"
+                        )}
+                      >
                         {schedule.hours}
                       </span>
                     </div>

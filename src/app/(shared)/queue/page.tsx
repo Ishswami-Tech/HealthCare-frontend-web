@@ -6,11 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { useQueuePermissions, useRBAC } from "@/hooks/useRBAC";
+import { QueueProtectedComponent, ProtectedComponent } from "@/components/rbac";
+import {
+  useQueue,
+  useUpdateQueueStatus,
+  useCallNextPatient,
+  useQueueStats,
+} from "@/hooks/useQueue";
+import { useClinicContext } from "@/hooks/useClinic";
 import { Role } from "@/types/auth.types";
-import { 
-  Clock, 
-  User, 
-  CheckCircle, 
+import { Permission } from "@/types/rbac.types";
+import {
+  Clock,
+  User,
+  CheckCircle,
   AlertCircle,
   Play,
   Pause,
@@ -19,7 +29,10 @@ import {
   Stethoscope,
   Flame,
   Droplets,
-  Leaf
+  Leaf,
+  Users,
+  Timer,
+  Activity,
 } from "lucide-react";
 
 export default function QueuePage() {
@@ -28,7 +41,79 @@ export default function QueuePage() {
 
   const userRole = session?.user?.role as Role;
 
-  // Mock queue data
+  // RBAC permissions
+  const queuePermissions = useQueuePermissions();
+  const rbac = useRBAC();
+
+  // Clinic context
+  const { clinicId } = useClinicContext();
+
+  // Fetch queue data with proper permissions
+  const {
+    data: queueData,
+    isPending: isLoading,
+    error,
+    refetch: refetchQueue,
+  } = useQueue(clinicId || "", {
+    type: activeQueue,
+    enabled: !!clinicId && queuePermissions.canViewQueue,
+  });
+
+  // Fetch queue statistics for authorized users
+  const { data: queueStats } = useQueueStats({
+    enabled: queuePermissions.canManageQueue,
+  });
+
+  // Mutation hooks for queue actions
+  const updateQueueStatusMutation = useUpdateQueueStatus();
+  const callNextPatientMutation = useCallNextPatient();
+
+  // Handle queue actions
+  const handleUpdateQueueStatus = async (patientId: string, status: string) => {
+    try {
+      await updateQueueStatusMutation.mutateAsync({ patientId, status });
+      refetchQueue();
+    } catch (error) {
+      console.error("Failed to update queue status:", error);
+    }
+  };
+
+  const handleCallNextPatient = async (queueType: string) => {
+    try {
+      await callNextPatientMutation.mutateAsync({ queueType });
+      refetchQueue();
+    } catch (error) {
+      console.error("Failed to call next patient:", error);
+    }
+  };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading queue...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-600">Error loading queue: {error.message}</p>
+          <Button onClick={() => refetchQueue()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Mock queue data (fallback)
   const consultationQueue = [
     {
       id: "1",
@@ -38,7 +123,7 @@ export default function QueuePage() {
       status: "waiting",
       type: "Consultation",
       checkedInAt: "9:45 AM",
-      estimatedWait: "15 min"
+      estimatedWait: "15 min",
     },
     {
       id: "2",
@@ -48,7 +133,7 @@ export default function QueuePage() {
       status: "in-progress",
       type: "Follow-up",
       checkedInAt: "10:15 AM",
-      startedAt: "10:25 AM"
+      startedAt: "10:25 AM",
     },
     {
       id: "3",
@@ -58,8 +143,8 @@ export default function QueuePage() {
       status: "checked-in",
       type: "Consultation",
       checkedInAt: "10:45 AM",
-      estimatedWait: "20 min"
-    }
+      estimatedWait: "20 min",
+    },
   ];
 
   const therapyQueues = {
@@ -72,8 +157,8 @@ export default function QueuePage() {
         status: "waiting",
         type: "Agnikarma",
         checkedInAt: "1:45 PM",
-        estimatedDuration: "45 min"
-      }
+        estimatedDuration: "45 min",
+      },
     ],
     panchakarma: [
       {
@@ -85,8 +170,8 @@ export default function QueuePage() {
         type: "Panchakarma",
         checkedInAt: "2:45 PM",
         startedAt: "3:05 PM",
-        estimatedDuration: "90 min"
-      }
+        estimatedDuration: "90 min",
+      },
     ],
     shirodhara: [
       {
@@ -97,41 +182,61 @@ export default function QueuePage() {
         status: "waiting",
         type: "Shirodhara",
         checkedInAt: "3:50 PM",
-        estimatedDuration: "60 min"
-      }
-    ]
+        estimatedDuration: "60 min",
+      },
+    ],
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'waiting': return 'bg-yellow-100 text-yellow-800';
-      case 'in-progress': return 'bg-blue-100 text-blue-800';
-      case 'checked-in': return 'bg-green-100 text-green-800';
-      case 'completed': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "waiting":
+        return "bg-yellow-100 text-yellow-800";
+      case "in-progress":
+        return "bg-blue-100 text-blue-800";
+      case "checked-in":
+        return "bg-green-100 text-green-800";
+      case "completed":
+        return "bg-gray-100 text-gray-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'waiting': return <Clock className="w-4 h-4" />;
-      case 'in-progress': return <Play className="w-4 h-4" />;
-      case 'checked-in': return <UserCheck className="w-4 h-4" />;
-      case 'completed': return <CheckCircle className="w-4 h-4" />;
-      default: return <AlertCircle className="w-4 h-4" />;
+      case "waiting":
+        return <Clock className="w-4 h-4" />;
+      case "in-progress":
+        return <Play className="w-4 h-4" />;
+      case "checked-in":
+        return <UserCheck className="w-4 h-4" />;
+      case "completed":
+        return <CheckCircle className="w-4 h-4" />;
+      default:
+        return <AlertCircle className="w-4 h-4" />;
     }
   };
 
   const getTherapyIcon = (type: string) => {
     switch (type) {
-      case 'Agnikarma': return <Flame className="w-5 h-5 text-orange-600" />;
-      case 'Panchakarma': return <Droplets className="w-5 h-5 text-blue-600" />;
-      case 'Shirodhara': return <Leaf className="w-5 h-5 text-green-600" />;
-      default: return <Stethoscope className="w-5 h-5 text-gray-600" />;
+      case "Agnikarma":
+        return <Flame className="w-5 h-5 text-orange-600" />;
+      case "Panchakarma":
+        return <Droplets className="w-5 h-5 text-blue-600" />;
+      case "Shirodhara":
+        return <Leaf className="w-5 h-5 text-green-600" />;
+      default:
+        return <Stethoscope className="w-5 h-5 text-gray-600" />;
     }
   };
 
-  const QueueCard = ({ item, showActions = true }: { item: any, showActions?: boolean }) => (
+  const QueueCard = ({
+    item,
+    showActions = true,
+  }: {
+    item: any;
+    showActions?: boolean;
+  }) => (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
@@ -155,9 +260,13 @@ export default function QueuePage() {
 
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <Badge className={`${getStatusColor(item.status)} flex items-center gap-1`}>
+              <Badge
+                className={`${getStatusColor(
+                  item.status
+                )} flex items-center gap-1`}
+              >
                 {getStatusIcon(item.status)}
-                {item.status.replace('-', ' ')}
+                {item.status.replace("-", " ")}
               </Badge>
               {item.estimatedWait && (
                 <p className="text-xs text-gray-500 mt-1">
@@ -171,31 +280,77 @@ export default function QueuePage() {
               )}
             </div>
 
-            {showActions && userRole !== Role.PATIENT && (
+            {showActions && (
               <div className="flex flex-col gap-1">
-                {item.status === 'waiting' && (
-                  <Button size="sm" className="flex items-center gap-1">
-                    <Play className="w-3 h-3" />
-                    Start
-                  </Button>
+                {/* Start button - for users who can update queue status */}
+                {item.status === "waiting" && (
+                  <QueueProtectedComponent action="update-status">
+                    <Button
+                      size="sm"
+                      className="flex items-center gap-1"
+                      onClick={() =>
+                        handleUpdateQueueStatus(item.id, "IN_PROGRESS")
+                      }
+                      disabled={updateQueueStatusMutation.isPending}
+                    >
+                      <Play className="w-3 h-3" />
+                      {updateQueueStatusMutation.isPending
+                        ? "Starting..."
+                        : "Start"}
+                    </Button>
+                  </QueueProtectedComponent>
                 )}
-                {item.status === 'in-progress' && (
+
+                {/* In-progress actions */}
+                {item.status === "in-progress" && (
                   <>
-                    <Button size="sm" variant="outline" className="flex items-center gap-1">
-                      <Pause className="w-3 h-3" />
-                      Pause
-                    </Button>
-                    <Button size="sm" className="flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3" />
-                      Complete
-                    </Button>
+                    <QueueProtectedComponent action="update-status">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center gap-1"
+                        onClick={() =>
+                          handleUpdateQueueStatus(item.id, "WAITING")
+                        }
+                        disabled={updateQueueStatusMutation.isPending}
+                      >
+                        <Pause className="w-3 h-3" />
+                        Pause
+                      </Button>
+                    </QueueProtectedComponent>
+
+                    <QueueProtectedComponent action="update-status">
+                      <Button
+                        size="sm"
+                        className="flex items-center gap-1"
+                        onClick={() =>
+                          handleUpdateQueueStatus(item.id, "COMPLETED")
+                        }
+                        disabled={updateQueueStatusMutation.isPending}
+                      >
+                        <CheckCircle className="w-3 h-3" />
+                        Complete
+                      </Button>
+                    </QueueProtectedComponent>
                   </>
                 )}
-                {item.status === 'checked-in' && (
-                  <Button size="sm" variant="outline" className="flex items-center gap-1">
-                    <SkipForward className="w-3 h-3" />
-                    Call Next
-                  </Button>
+
+                {/* Call next patient - for users who can call next patient */}
+                {item.status === "checked-in" && (
+                  <QueueProtectedComponent action="call-next">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-1"
+                      onClick={() => handleCallNextPatient(activeQueue)}
+                      disabled={callNextPatientMutation.isPending}
+                    >
+                      <SkipForward className="w-3 h-3" />
+                      {callNextPatientMutation.isPending
+                        ? "Calling..."
+                        : "Call Next"}
+                    </Button>
+                  </QueueProtectedComponent>
                 )}
               </div>
             )}
@@ -205,7 +360,15 @@ export default function QueuePage() {
     </Card>
   );
 
-  const TherapyQueueSection = ({ title, items, icon }: { title: string, items: any[], icon: React.ReactNode }) => (
+  const TherapyQueueSection = ({
+    title,
+    items,
+    icon,
+  }: {
+    title: string;
+    items: any[];
+    icon: React.ReactNode;
+  }) => (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         {icon}
@@ -222,7 +385,9 @@ export default function QueuePage() {
         <Card>
           <CardContent className="p-6 text-center">
             <div className="text-gray-400 mb-2">{icon}</div>
-            <p className="text-gray-500">No patients in {title.toLowerCase()} queue</p>
+            <p className="text-gray-500">
+              No patients in {title.toLowerCase()} queue
+            </p>
           </CardContent>
         </Card>
       )}
@@ -231,10 +396,85 @@ export default function QueuePage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Queue Statistics for authorized users */}
+      <ProtectedComponent
+        permission={Permission.MANAGE_QUEUE}
+        showFallback={false}
+      >
+        {queueStats && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Total in Queue
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {queueStats.totalInQueue || 0}
+                    </p>
+                  </div>
+                  <Users className="h-8 w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Average Wait
+                    </p>
+                    <p className="text-2xl font-bold text-yellow-600">
+                      {queueStats.averageWaitTime || 0}m
+                    </p>
+                  </div>
+                  <Timer className="h-8 w-8 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      In Progress
+                    </p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {queueStats.inProgress || 0}
+                    </p>
+                  </div>
+                  <Activity className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Completed Today
+                    </p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {queueStats.completedToday || 0}
+                    </p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </ProtectedComponent>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Queue Management</h1>
-          <p className="text-gray-600">Monitor and manage patient queues</p>
+          <p className="text-gray-600">
+            {queuePermissions.canManageQueue
+              ? "Monitor and manage patient queues"
+              : "View patient queue status"}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="flex items-center gap-1">
@@ -293,7 +533,11 @@ export default function QueuePage() {
       </div>
 
       {/* Queue Tabs */}
-      <Tabs value={activeQueue} onValueChange={setActiveQueue} className="space-y-6">
+      <Tabs
+        value={activeQueue}
+        onValueChange={setActiveQueue}
+        className="space-y-6"
+      >
         <TabsList>
           <TabsTrigger value="consultations">Consultations</TabsTrigger>
           <TabsTrigger value="therapies">Therapies</TabsTrigger>

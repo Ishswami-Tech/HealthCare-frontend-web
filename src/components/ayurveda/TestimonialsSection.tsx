@@ -1,88 +1,92 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { 
-  Star, 
-  Quote, 
-  ChevronLeft, 
+import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Star,
+  Quote,
+  ChevronLeft,
   ChevronRight,
   Play,
   Heart,
-  CheckCircle
-} from 'lucide-react';
+  CheckCircle,
+} from "lucide-react";
 
 const TestimonialsSection = () => {
+  const t = useTranslations();
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
   const testimonials = [
     {
       id: 1,
-      name: 'Rekha Sharma',
+      name: t("testimonials.patients.rekha.name"),
       age: 45,
-      location: 'Mumbai',
-      condition: 'Chronic Knee Pain',
-      treatment: 'Agnikarma',
+      location: t("testimonials.patients.rekha.location"),
+      condition: t("testimonials.patients.rekha.condition"),
+      treatment: t("testimonials.patients.rekha.treatment"),
       rating: 5,
-      image: '/api/placeholder/80/80',
-      quote: "After 3 sessions of Agnikarma, my 10-year chronic knee pain completely disappeared. I can now climb stairs without any discomfort. Dr. Vishwamurthi's expertise is truly remarkable.",
-      result: "100% pain relief in 3 weeks",
-      videoUrl: "#"
+      image: "/api/placeholder/80/80",
+      quote: t("testimonials.patients.rekha.quote"),
+      result: t("testimonials.patients.rekha.result"),
+      videoUrl: "#",
     },
     {
       id: 2,
-      name: 'Suresh Patel',
+      name: t("testimonials.patients.suresh.name"),
       age: 52,
-      location: 'Pune',
-      condition: 'Sciatica',
-      treatment: 'Agnikarma + Panchakarma',
+      location: t("testimonials.patients.suresh.location"),
+      condition: t("testimonials.patients.suresh.condition"),
+      treatment: t("testimonials.patients.suresh.treatment"),
       rating: 5,
-      image: '/api/placeholder/80/80',
-      quote: "The combination of Agnikarma and Panchakarma transformed my life. My sciatica pain that troubled me for 5 years is now completely gone. The treatment was gentle yet highly effective.",
-      result: "Complete recovery in 6 weeks",
-      videoUrl: "#"
+      image: "/api/placeholder/80/80",
+      quote: t("testimonials.patients.suresh.quote"),
+      result: t("testimonials.patients.suresh.result"),
+      videoUrl: "#",
     },
     {
       id: 3,
-      name: 'Priya Desai',
+      name: t("testimonials.patients.priya.name"),
       age: 38,
-      location: 'Ahmedabad',
-      condition: 'Frozen Shoulder',
-      treatment: 'Viddha Karma',
+      location: t("testimonials.patients.priya.location"),
+      condition: t("testimonials.patients.priya.condition"),
+      treatment: t("testimonials.patients.priya.treatment"),
       rating: 5,
-      image: '/api/placeholder/80/80',
-      quote: "Viddha Karma therapy restored full movement in my frozen shoulder. The precision and care with which the treatment was administered was exceptional. I'm dancing again!",
-      result: "Full mobility restored in 4 weeks",
-      videoUrl: "#"
+      image: "/api/placeholder/80/80",
+      quote: t("testimonials.patients.priya.quote"),
+      result: t("testimonials.patients.priya.result"),
+      videoUrl: "#",
     },
     {
       id: 4,
-      name: 'Rajesh Kumar',
+      name: "Rajesh Kumar",
       age: 48,
-      location: 'Delhi',
-      condition: 'Diabetes & Hypertension',
-      treatment: '21-day Panchakarma',
+      location: "Delhi",
+      condition: "Diabetes & Hypertension",
+      treatment: "21-day Panchakarma",
       rating: 5,
-      image: '/api/placeholder/80/80',
-      quote: "The 21-day Panchakarma program was life-changing. My diabetes is now under control without heavy medications, and my blood pressure has normalized. I feel 20 years younger!",
+      image: "/api/placeholder/80/80",
+      quote:
+        "The 21-day Panchakarma program was life-changing. My diabetes is now under control without heavy medications, and my blood pressure has normalized. I feel 20 years younger!",
       result: "Medication reduced by 70%",
-      videoUrl: "#"
+      videoUrl: "#",
     },
     {
       id: 5,
-      name: 'Sunita Joshi',
+      name: "Sunita Joshi",
       age: 35,
-      location: 'Bangalore',
-      condition: 'PCOD & Fertility Issues',
-      treatment: 'Specialized Fertility Program',
+      location: "Bangalore",
+      condition: "PCOD & Fertility Issues",
+      treatment: "Specialized Fertility Program",
       rating: 5,
-      image: '/api/placeholder/80/80',
-      quote: "After struggling with PCOD for years, the fertility program here helped me conceive naturally. The holistic approach addressed not just my physical health but emotional well-being too.",
+      image: "/api/placeholder/80/80",
+      quote:
+        "After struggling with PCOD for years, the fertility program here helped me conceive naturally. The holistic approach addressed not just my physical health but emotional well-being too.",
       result: "Successful natural conception",
-      videoUrl: "#"
-    }
+      videoUrl: "#",
+    },
   ];
 
   useEffect(() => {
@@ -97,7 +101,9 @@ const TestimonialsSection = () => {
   };
 
   const prevTestimonial = () => {
-    setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length);
+    setCurrentTestimonial(
+      (prev) => (prev - 1 + testimonials.length) % testimonials.length
+    );
   };
 
   const current = testimonials[currentTestimonial];
@@ -108,14 +114,13 @@ const TestimonialsSection = () => {
         <div className="text-center mb-16">
           <Badge className="bg-orange-100 text-orange-800 border-orange-200 mb-4">
             <Heart className="w-4 h-4 mr-2" />
-            Patient Success Stories
+            {t("testimonials.title")}
           </Badge>
           <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
-            Real Healing Journeys, Real Results
+            {t("testimonials.subtitle")}
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-            Discover how our authentic Ayurvedic treatments have transformed thousands of lives. 
-            These are real stories from real patients who found lasting healing.
+            {t("testimonials.description")}
           </p>
         </div>
 
@@ -128,14 +133,21 @@ const TestimonialsSection = () => {
                 <div className="p-8 bg-gradient-to-br from-orange-500 to-red-600 text-white">
                   <div className="flex items-center space-x-4 mb-6">
                     <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
-                      <span className="text-2xl font-bold">{current.name.charAt(0)}</span>
+                      <span className="text-2xl font-bold">
+                        {current.name.charAt(0)}
+                      </span>
                     </div>
                     <div>
                       <h3 className="text-xl font-bold">{current.name}</h3>
-                      <p className="text-orange-100">Age {current.age}, {current.location}</p>
+                      <p className="text-orange-100">
+                        Age {current.age}, {current.location}
+                      </p>
                       <div className="flex items-center space-x-1 mt-1">
                         {[...Array(current.rating)].map((_, i) => (
-                          <Star key={i} className="w-4 h-4 fill-current text-yellow-300" />
+                          <Star
+                            key={i}
+                            className="w-4 h-4 fill-current text-yellow-300"
+                          />
                         ))}
                       </div>
                     </div>
@@ -143,20 +155,26 @@ const TestimonialsSection = () => {
 
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-semibold text-orange-100 mb-1">Condition Treated:</h4>
+                      <h4 className="font-semibold text-orange-100 mb-1">
+                        Condition Treated:
+                      </h4>
                       <p className="font-medium">{current.condition}</p>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-orange-100 mb-1">Treatment Received:</h4>
+                      <h4 className="font-semibold text-orange-100 mb-1">
+                        Treatment Received:
+                      </h4>
                       <p className="font-medium">{current.treatment}</p>
                     </div>
                     <div className="bg-white/20 rounded-lg p-4">
-                      <h4 className="font-semibold text-orange-100 mb-1">Result Achieved:</h4>
+                      <h4 className="font-semibold text-orange-100 mb-1">
+                        Result Achieved:
+                      </h4>
                       <p className="font-bold text-lg">{current.result}</p>
                     </div>
                   </div>
 
-                  <Button 
+                  <Button
                     variant="secondary"
                     className="mt-6 bg-white text-orange-600 hover:bg-orange-50"
                   >
@@ -171,13 +189,15 @@ const TestimonialsSection = () => {
                   <blockquote className="text-lg text-gray-700 leading-relaxed mb-6 italic">
                     "{current.quote}"
                   </blockquote>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="w-5 h-5 text-green-500" />
-                      <span className="text-sm font-medium text-green-700">Verified Patient</span>
+                      <span className="text-sm font-medium text-green-700">
+                        Verified Patient
+                      </span>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       <Button
                         variant="outline"
@@ -210,9 +230,9 @@ const TestimonialsSection = () => {
               key={index}
               onClick={() => setCurrentTestimonial(index)}
               className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                index === currentTestimonial 
-                  ? 'bg-orange-500 w-8' 
-                  : 'bg-orange-200 hover:bg-orange-300'
+                index === currentTestimonial
+                  ? "bg-orange-500 w-8"
+                  : "bg-orange-200 hover:bg-orange-300"
               }`}
             />
           ))}
@@ -221,7 +241,9 @@ const TestimonialsSection = () => {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
           <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600 mb-1">4,200+</div>
+            <div className="text-2xl font-bold text-orange-600 mb-1">
+              4,200+
+            </div>
             <div className="text-sm text-gray-600">Patient Reviews</div>
           </div>
           <div className="text-center">
@@ -244,13 +266,13 @@ const TestimonialsSection = () => {
             Ready to start your own healing journey?
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
+            <Button
               size="lg"
               className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
             >
               Book Your Consultation
             </Button>
-            <Button 
+            <Button
               size="lg"
               variant="outline"
               className="border-orange-300 text-orange-600 hover:bg-orange-50"

@@ -1,39 +1,42 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  MapPin, 
-  Phone, 
-  Clock, 
-  Navigation, 
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  MapPin,
+  Phone,
+  Clock,
+  Navigation,
   ExternalLink,
   Car,
   Train,
-  Bus
-} from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
+  Bus,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
 
 const GoogleMap = () => {
-  const { t } = useLanguage();
+  const t = useTranslations();
   const [isLoading, setIsLoading] = useState(true);
 
   // Clinic coordinates for Chinchwad location
   const clinicLocation = {
     lat: 18.6298,
     lng: 73.7997,
-    address: "Dr. Chandrakumar Deshmukh, Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra 411033, India"
+    address:
+      "Dr. Chandrakumar Deshmukh, Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra 411033, India",
   };
 
   const handleGetDirections = () => {
-    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(clinicLocation.address)}`;
-    window.open(googleMapsUrl, '_blank');
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+      clinicLocation.address
+    )}`;
+    window.open(googleMapsUrl, "_blank");
   };
 
   const handleCallClinic = () => {
-    window.open('tel:+919860370961', '_self');
+    window.open("tel:+919860370961", "_self");
   };
 
   const transportOptions = [
@@ -41,20 +44,20 @@ const GoogleMap = () => {
       icon: Car,
       title: "By Car",
       description: "Free parking available",
-      time: "Varies by location"
+      time: "Varies by location",
     },
     {
       icon: Bus,
       title: "By Bus",
       description: "Multiple bus routes available",
-      time: "PMPML Bus Service"
+      time: "PMPML Bus Service",
     },
     {
       icon: Train,
       title: "By Train",
       description: "Chinchwad Railway Station",
-      time: "2 km from station"
-    }
+      time: "2 km from station",
+    },
   ];
 
   return (
@@ -69,7 +72,8 @@ const GoogleMap = () => {
             Visit Our Clinic
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Located in the heart of Chinchwad, easily accessible by all modes of transport
+            Located in the heart of Chinchwad, easily accessible by all modes of
+            transport
           </p>
         </div>
 
@@ -87,7 +91,9 @@ const GoogleMap = () => {
                 <div className="relative h-96 bg-gray-100 dark:bg-gray-700">
                   {/* Google Maps Embed */}
                   <iframe
-                    src={`https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3781.8234567890123!2d73.7997!3d18.6298!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTjCsDM3JzQ3LjMiTiA3M8KwNDcnNTguOSJF!5e0!3m2!1sen!2sin!4v1234567890123!5m2!1sen!2sin&q=${encodeURIComponent(clinicLocation.address)}`}
+                    src={`https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3781.8234567890123!2d73.7997!3d18.6298!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTjCsDM3JzQ3LjMiTiA3M8KwNDcnNTguOSJF!5e0!3m2!1sen!2sin!4v1234567890123!5m2!1sen!2sin&q=${encodeURIComponent(
+                      clinicLocation.address
+                    )}`}
                     width="100%"
                     height="100%"
                     style={{ border: 0 }}
@@ -101,24 +107,33 @@ const GoogleMap = () => {
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700">
                       <div className="text-center">
                         <div className="w-8 h-8 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                        <p className="text-gray-600 dark:text-gray-400">Loading map...</p>
+                        <p className="text-gray-600 dark:text-gray-400">
+                          Loading map...
+                        </p>
                       </div>
                     </div>
                   )}
                 </div>
-                
+
                 <div className="p-6">
                   <div className="flex flex-col sm:flex-row gap-4">
-                    <Button 
+                    <Button
                       onClick={handleGetDirections}
                       className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
                     >
                       <Navigation className="w-4 h-4 mr-2" />
                       {t.common.getDirections}
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(clinicLocation.address)}`, '_blank')}
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        window.open(
+                          `https://maps.google.com/?q=${encodeURIComponent(
+                            clinicLocation.address
+                          )}`,
+                          "_blank"
+                        )
+                      }
                     >
                       <ExternalLink className="w-4 h-4 mr-2" />
                       Open in Maps
@@ -143,32 +158,44 @@ const GoogleMap = () => {
                 <div className="flex items-start space-x-3">
                   <MapPin className="w-5 h-5 text-orange-500 dark:text-orange-400 mt-1 flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{t.contact.location}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {t.contact.location}
+                    </p>
                     <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                       {t.contact.address}
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-3">
                   <Phone className="w-5 h-5 text-green-500 dark:text-green-400 flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Phone Numbers</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">{t.contact.phone}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      Phone Numbers
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      {t.contact.phone}
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-3">
                   <Clock className="w-5 h-5 text-blue-500 dark:text-blue-400 flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{t.contact.opdTiming}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Mon-Fri: 11:45 AM – 11:30 PM</p>
-                    <p className="text-sm text-red-500 dark:text-red-400">Sat-Sun: {t.contact.closed}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {t.contact.opdTiming}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      Mon-Fri: 11:45 AM – 11:30 PM
+                    </p>
+                    <p className="text-sm text-red-500 dark:text-red-400">
+                      Sat-Sun: {t.contact.closed}
+                    </p>
                   </div>
                 </div>
 
                 <div className="pt-4">
-                  <Button 
+                  <Button
                     onClick={handleCallClinic}
                     className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                   >
@@ -192,14 +219,23 @@ const GoogleMap = () => {
                   {transportOptions.map((option, index) => {
                     const IconComponent = option.icon;
                     return (
-                      <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div
+                        key={index}
+                        className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                      >
                         <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center flex-shrink-0">
                           <IconComponent className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 dark:text-white">{option.title}</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">{option.description}</p>
-                          <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">{option.time}</p>
+                          <h4 className="font-medium text-gray-900 dark:text-white">
+                            {option.title}
+                          </h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                            {option.description}
+                          </p>
+                          <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                            {option.time}
+                          </p>
                         </div>
                       </div>
                     );

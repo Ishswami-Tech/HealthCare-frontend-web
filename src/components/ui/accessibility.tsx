@@ -13,6 +13,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 // ============================================================================
 // ACCESSIBILITY SETTINGS CONTEXT
@@ -135,37 +136,38 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
 export const AccessibilityToolbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { settings, updateSetting } = useAccessibility();
+  const t = useTranslations("ui.accessibility");
 
   const toggles = [
     {
       key: "highContrast" as const,
-      label: "High Contrast",
+      label: t("highContrast"),
       icon: Contrast,
-      description: "Increase color contrast for better visibility",
+      description: t("highContrastDesc"),
     },
     {
       key: "largeText" as const,
-      label: "Large Text",
+      label: t("largeText"),
       icon: Type,
-      description: "Increase text size for easier reading",
+      description: t("largeTextDesc"),
     },
     {
       key: "reducedMotion" as const,
-      label: "Reduced Motion",
+      label: t("reducedMotion"),
       icon: EyeOff,
-      description: "Minimize animations and transitions",
+      description: t("reducedMotionDesc"),
     },
     {
       key: "screenReader" as const,
-      label: "Screen Reader",
+      label: t("screenReader"),
       icon: Volume2,
-      description: "Optimize for screen reader compatibility",
+      description: t("screenReaderDesc"),
     },
     {
       key: "keyboardNavigation" as const,
-      label: "Keyboard Navigation",
+      label: t("keyboardNavigation"),
       icon: Settings,
-      description: "Enhanced keyboard navigation support",
+      description: t("keyboardNavigationDesc"),
     },
   ];
 
@@ -181,7 +183,7 @@ export const AccessibilityToolbar: React.FC = () => {
         <Button
           onClick={() => setIsOpen(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg"
-          aria-label="Open accessibility settings"
+          aria-label={t("openSettings")}
         >
           <Accessibility className="w-5 h-5" />
         </Button>
@@ -212,13 +214,13 @@ export const AccessibilityToolbar: React.FC = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-lg font-semibold text-gray-900">
-                      Accessibility Settings
+                      {t("title")}
                     </h2>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsOpen(false)}
-                      aria-label="Close accessibility settings"
+                      aria-label={t("closeSettings")}
                     >
                       <X className="w-4 h-4" />
                     </Button>

@@ -80,6 +80,12 @@ export interface TranslationKeys {
     testimonials: string;
     blog: string;
     appointment: string;
+    panchakarma: string;
+    agnikarma: string;
+    viddhakarma: string;
+    ourTeam: string;
+    liveChat: string;
+    bookConsultation: string;
   };
   hero: {
     title: string;
@@ -126,6 +132,102 @@ export interface TranslationKeys {
     hairProblems: string;
     beautyAntiAging: string;
     wellnessRetreats: string;
+    // Service descriptions
+    neurologicalDesc: string;
+    jointBoneDesc: string;
+    respiratoryDesc: string;
+    digestiveDesc: string;
+    kidneyStonesDesc: string;
+    skinDiseasesDesc: string;
+    metabolicDesc: string;
+    gynecologicalDesc: string;
+    hairProblemsDesc: string;
+    beautyAntiAgingDesc: string;
+    wellnessRetreatsDesc: string;
+  };
+
+  // Landing Page Content
+  landing: {
+    // Header/Navigation
+    brandName: string;
+    welcome: string;
+    loginButton: string;
+    getStartedButton: string;
+    goToDashboard: string;
+
+    // Hero Section
+    heroTitle: string;
+    heroPriority: string;
+    heroDescription: string;
+
+    // Stats Section
+    activeDoctors: string;
+    happyPatients: string;
+    specialties: string;
+    userRating: string;
+
+    // Features Section
+    featuresTitle: string;
+    featuresSubtitle: string;
+    featuresDescription: string;
+
+    // Feature Items
+    onlineAppointments: string;
+    onlineAppointmentsDesc: string;
+    medicalRecords: string;
+    medicalRecordsDesc: string;
+    secureMessaging: string;
+    secureMessagingDesc: string;
+    prescriptionManagement: string;
+    prescriptionManagementDesc: string;
+    labResults: string;
+    labResultsDesc: string;
+    telemedicine: string;
+    telemedicineDesc: string;
+
+    // Testimonials Section
+    testimonialsTitle: string;
+    testimonialsSubtitle: string;
+
+    // CTA Section
+    ctaTitle: string;
+    ctaDescription: string;
+
+    // Footer
+    companySection: string;
+    servicesSection: string;
+    legalSection: string;
+    connectSection: string;
+    about: string;
+    careers: string;
+    contact: string;
+    appointments: string;
+    telemedicineFooter: string;
+    labTests: string;
+    privacy: string;
+    terms: string;
+    security: string;
+    twitter: string;
+    facebook: string;
+    linkedin: string;
+    copyright: string;
+
+    // Toast Messages
+    loginRequired: string;
+    invalidSession: string;
+  };
+
+  // Testimonials Data
+  testimonials: {
+    patient1Name: string;
+    patient1Role: string;
+    patient1Content: string;
+    doctor1Name: string;
+    doctor1Role: string;
+    doctor1Content: string;
+    manager1Name: string;
+    manager1Role: string;
+    manager1Content: string;
   };
   treatments: {
     [key: string]: {

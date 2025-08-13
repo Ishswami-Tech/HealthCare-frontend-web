@@ -1,14 +1,15 @@
 "use client";
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { 
-  Droplets, 
-  CheckCircle, 
-  Clock, 
+import React from "react";
+import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Droplets,
+  CheckCircle,
+  Clock,
   Star,
   ArrowRight,
   Heart,
@@ -17,56 +18,67 @@ import {
   Shield,
   Target,
   Users,
-  Award
-} from 'lucide-react';
+  Award,
+} from "lucide-react";
 
 export default function PanchakarmaPage() {
+  const t = useTranslations();
+
   const phases = [
     {
-      name: 'Purva Karma',
-      subtitle: 'Preparation Phase',
-      duration: 'Days 1-7',
-      color: 'from-blue-500 to-cyan-600',
-      activities: [
-        'Detailed consultation & pulse diagnosis',
-        'Abhyanga (Synchronized oil massage)',
-        'Swedana (Herbal steam therapy)',
-        'Dietary preparation and mental readiness'
-      ]
+      name: t("panchakarma.phases.purvaKarma.name"),
+      subtitle: t("panchakarma.phases.purvaKarma.subtitle"),
+      duration: t("panchakarma.phases.purvaKarma.duration"),
+      color: "from-blue-500 to-cyan-600",
+      activities: t("panchakarma.phases.purvaKarma.activities"),
     },
     {
-      name: 'Pradhana Karma',
-      subtitle: 'Main Procedures',
-      duration: 'Days 8-14',
-      color: 'from-orange-500 to-red-600',
-      activities: [
-        'Customized detoxification protocols',
-        'Expert monitoring throughout process',
-        'Daily assessment and adjustments',
-        'Gentle, natural elimination methods'
-      ]
+      name: t("panchakarma.phases.pradhanaKarma.name"),
+      subtitle: t("panchakarma.phases.pradhanaKarma.subtitle"),
+      duration: t("panchakarma.phases.pradhanaKarma.duration"),
+      color: "from-orange-500 to-red-600",
+      activities: t("panchakarma.phases.pradhanaKarma.activities"),
     },
     {
-      name: 'Paschat Karma',
-      subtitle: 'Post-Treatment Care',
-      duration: 'Days 15-21',
-      color: 'from-green-500 to-emerald-600',
-      activities: [
-        'Gradual lifestyle reintegration',
-        'Rejuvenative therapies (Rasayana)',
-        'Long-term wellness planning',
-        'Follow-up consultations'
-      ]
-    }
+      name: t("panchakarma.phases.paschatKarma.name"),
+      subtitle: t("panchakarma.phases.paschatKarma.subtitle"),
+      duration: t("panchakarma.phases.paschatKarma.duration"),
+      color: "from-green-500 to-emerald-600",
+      activities: t("panchakarma.phases.paschatKarma.activities"),
+    },
   ];
 
   const conditions = [
-    { category: 'Chronic Diseases', items: ['Diabetes', 'Hypertension', 'Arthritis', 'Autoimmune disorders'], successRate: 92 },
-    { category: 'Digestive Disorders', items: ['IBS', 'Chronic constipation', 'Liver diseases', 'Acidity'], successRate: 95 },
-    { category: 'Skin Conditions', items: ['Eczema', 'Psoriasis', 'Chronic allergies', 'Dermatitis'], successRate: 88 },
-    { category: 'Mental Health', items: ['Stress', 'Anxiety', 'Depression', 'Insomnia'], successRate: 90 },
-    { category: 'Respiratory Issues', items: ['Asthma', 'Bronchitis', 'Chronic cough', 'Allergies'], successRate: 87 },
-    { category: 'Hormonal Imbalances', items: ['PCOD', 'Thyroid disorders', 'Fertility issues'], successRate: 89 }
+    {
+      category: "Chronic Diseases",
+      items: ["Diabetes", "Hypertension", "Arthritis", "Autoimmune disorders"],
+      successRate: 92,
+    },
+    {
+      category: "Digestive Disorders",
+      items: ["IBS", "Chronic constipation", "Liver diseases", "Acidity"],
+      successRate: 95,
+    },
+    {
+      category: "Skin Conditions",
+      items: ["Eczema", "Psoriasis", "Chronic allergies", "Dermatitis"],
+      successRate: 88,
+    },
+    {
+      category: "Mental Health",
+      items: ["Stress", "Anxiety", "Depression", "Insomnia"],
+      successRate: 90,
+    },
+    {
+      category: "Respiratory Issues",
+      items: ["Asthma", "Bronchitis", "Chronic cough", "Allergies"],
+      successRate: 87,
+    },
+    {
+      category: "Hormonal Imbalances",
+      items: ["PCOD", "Thyroid disorders", "Fertility issues"],
+      successRate: 89,
+    },
   ];
 
   return (
@@ -77,19 +89,15 @@ export default function PanchakarmaPage() {
           <div className="max-w-4xl mx-auto text-center">
             <Badge className="bg-blue-100 text-blue-800 border-blue-200 mb-6">
               <Droplets className="w-4 h-4 mr-2" />
-              Panchakarma - The Ultimate Detoxification
+              {t("panchakarma.badge")}
             </Badge>
-            
+
             <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-6">
-              Complete Body-Mind-Soul{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600">
-                Purification & Rejuvenation
-              </span>
+              {t("panchakarma.title")}
             </h1>
-            
+
             <p className="text-xl text-gray-700 mb-8 leading-relaxed">
-              Experience the most comprehensive detoxification system known to humanity. 
-              5000-year-old science meets modern wellness protocols for complete transformation.
+              {t("panchakarma.subtitle")}
             </p>
 
             <div className="flex flex-wrap justify-center gap-4 mb-8">
@@ -108,13 +116,13 @@ export default function PanchakarmaPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
+              <Button
                 size="lg"
                 className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white text-lg px-8"
               >
                 Book 21-Day Program
               </Button>
-              <Button 
+              <Button
                 size="lg"
                 variant="outline"
                 className="border-blue-300 text-blue-600 hover:bg-blue-50 text-lg px-8"
@@ -141,38 +149,58 @@ export default function PanchakarmaPage() {
                       <Leaf className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Ancient Science</h3>
-                      <p className="text-gray-700">5000-year-old complete detoxification system rooted in Ayurvedic wisdom</p>
+                      <h3 className="font-semibold text-gray-900 mb-2">
+                        Ancient Science
+                      </h3>
+                      <p className="text-gray-700">
+                        5000-year-old complete detoxification system rooted in
+                        Ayurvedic wisdom
+                      </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-start space-x-4">
                     <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <Target className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Five Sacred Procedures</h3>
-                      <p className="text-gray-700">Vamana, Virechana, Basti, Nasya, Raktamokshana - each targeting specific toxins</p>
+                      <h3 className="font-semibold text-gray-900 mb-2">
+                        Five Sacred Procedures
+                      </h3>
+                      <p className="text-gray-700">
+                        Vamana, Virechana, Basti, Nasya, Raktamokshana - each
+                        targeting specific toxins
+                      </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-start space-x-4">
                     <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <Heart className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Holistic Approach</h3>
-                      <p className="text-gray-700">Treats root cause, not just symptoms, for lasting transformation</p>
+                      <h3 className="font-semibold text-gray-900 mb-2">
+                        Holistic Approach
+                      </h3>
+                      <p className="text-gray-700">
+                        Treats root cause, not just symptoms, for lasting
+                        transformation
+                      </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-start space-x-4">
                     <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <Shield className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Modern Application</h3>
-                      <p className="text-gray-700">Scientifically validated wellness protocols adapted for contemporary lifestyle</p>
+                      <h3 className="font-semibold text-gray-900 mb-2">
+                        Modern Application
+                      </h3>
+                      <p className="text-gray-700">
+                        Scientifically validated wellness protocols adapted for
+                        contemporary lifestyle
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -189,17 +217,26 @@ export default function PanchakarmaPage() {
                         Complete Transformation
                       </h3>
                       <p className="text-gray-700 mb-6">
-                        Experience the most comprehensive healing system that addresses physical, 
-                        mental, and spiritual well-being simultaneously.
+                        Experience the most comprehensive healing system that
+                        addresses physical, mental, and spiritual well-being
+                        simultaneously.
                       </p>
                       <div className="grid grid-cols-2 gap-4 text-center">
                         <div>
-                          <div className="text-2xl font-bold text-blue-600">21</div>
-                          <div className="text-sm text-gray-600">Days Program</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            21
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Days Program
+                          </div>
                         </div>
                         <div>
-                          <div className="text-2xl font-bold text-blue-600">95%</div>
-                          <div className="text-sm text-gray-600">Success Rate</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            95%
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Success Rate
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -226,26 +263,42 @@ export default function PanchakarmaPage() {
 
             <div className="space-y-8">
               {phases.map((phase, index) => (
-                <Card key={index} className="bg-white shadow-lg border-0 overflow-hidden">
+                <Card
+                  key={index}
+                  className="bg-white shadow-lg border-0 overflow-hidden"
+                >
                   <CardContent className="p-0">
                     <div className="grid lg:grid-cols-3">
-                      <div className={`bg-gradient-to-br ${phase.color} text-white p-8 flex flex-col justify-center`}>
+                      <div
+                        className={`bg-gradient-to-br ${phase.color} text-white p-8 flex flex-col justify-center`}
+                      >
                         <div className="text-center lg:text-left">
-                          <div className="text-3xl font-bold mb-2">{index + 1}</div>
-                          <h3 className="text-2xl font-playfair font-bold mb-2">{phase.name}</h3>
-                          <p className="text-lg opacity-90 mb-4">{phase.subtitle}</p>
+                          <div className="text-3xl font-bold mb-2">
+                            {index + 1}
+                          </div>
+                          <h3 className="text-2xl font-playfair font-bold mb-2">
+                            {phase.name}
+                          </h3>
+                          <p className="text-lg opacity-90 mb-4">
+                            {phase.subtitle}
+                          </p>
                           <Badge className="bg-white/20 text-white border-white/30">
                             <Clock className="w-4 h-4 mr-2" />
                             {phase.duration}
                           </Badge>
                         </div>
                       </div>
-                      
+
                       <div className="lg:col-span-2 p-8">
-                        <h4 className="font-semibold text-gray-900 mb-4">Key Activities:</h4>
+                        <h4 className="font-semibold text-gray-900 mb-4">
+                          Key Activities:
+                        </h4>
                         <div className="grid md:grid-cols-2 gap-4">
                           {phase.activities.map((activity, actIndex) => (
-                            <div key={actIndex} className="flex items-start space-x-3">
+                            <div
+                              key={actIndex}
+                              className="flex items-start space-x-3"
+                            >
                               <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
                               <span className="text-gray-700">{activity}</span>
                             </div>
@@ -276,7 +329,10 @@ export default function PanchakarmaPage() {
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {conditions.map((condition, index) => (
-                <Card key={index} className="hover:shadow-lg transition-shadow duration-300 border border-gray-100">
+                <Card
+                  key={index}
+                  className="hover:shadow-lg transition-shadow duration-300 border border-gray-100"
+                >
                   <CardHeader>
                     <CardTitle className="text-lg text-gray-900 flex items-center justify-between">
                       {condition.category}
@@ -288,7 +344,10 @@ export default function PanchakarmaPage() {
                   <CardContent>
                     <ul className="space-y-2">
                       {condition.items.map((item, itemIndex) => (
-                        <li key={itemIndex} className="flex items-center space-x-2">
+                        <li
+                          key={itemIndex}
+                          className="flex items-center space-x-2"
+                        >
                           <CheckCircle className="w-4 h-4 text-green-500" />
                           <span className="text-gray-700">{item}</span>
                         </li>
@@ -310,19 +369,20 @@ export default function PanchakarmaPage() {
               Ready to Begin Your Transformation?
             </h2>
             <p className="text-xl text-blue-100 mb-8">
-              Join thousands who have experienced complete healing through authentic Panchakarma. 
-              Start your 21-day journey to optimal health today.
+              Join thousands who have experienced complete healing through
+              authentic Panchakarma. Start your 21-day journey to optimal health
+              today.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
+              <Button
                 size="lg"
                 variant="secondary"
                 className="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8"
               >
                 Book 21-Day Program
               </Button>
-              <Button 
+              <Button
                 size="lg"
                 variant="outline"
                 className="border-white text-white hover:bg-white/10 text-lg px-8"

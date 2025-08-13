@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,33 +23,35 @@ import {
 } from "lucide-react";
 
 const StatsSection = () => {
+  const t = useTranslations();
+
   const stats = [
     {
       icon: Users,
       number: "5000+",
-      label: "Lives Transformed",
-      description: "Patients successfully treated",
+      label: t("stats.livesTransformed"),
+      description: t("stats.patientsSuccessfullyTreated"),
       color: "from-blue-500 to-cyan-600",
     },
     {
       icon: Clock,
       number: "20+",
-      label: "Years Legacy",
-      description: "Of authentic Ayurvedic practice",
+      label: t("stats.yearsLegacy"),
+      description: t("stats.authenticAyurvedicPractice"),
       color: "from-green-500 to-emerald-600",
     },
     {
       icon: Star,
       number: "4.9★",
-      label: "Patient Rating",
-      description: "Based on 4,200+ reviews",
+      label: t("stats.patientRating"),
+      description: t("stats.basedOnReviews"),
       color: "from-yellow-500 to-orange-600",
     },
     {
       icon: Award,
       number: "95%",
-      label: "Success Rate",
-      description: "Across all treatments",
+      label: t("stats.successRate"),
+      description: t("stats.chronicConditions"),
       color: "from-purple-500 to-indigo-600",
     },
   ];
@@ -56,23 +59,23 @@ const StatsSection = () => {
   const certifications = [
     {
       icon: Shield,
-      title: "Government Certified",
-      description: "Registered Ayurvedic Hospital",
+      title: t("stats.certifications.governmentCertified.title"),
+      description: t("stats.certifications.governmentCertified.description"),
     },
     {
       icon: Award,
-      title: "ISO 9001:2015",
-      description: "Quality Management System",
+      title: t("stats.certifications.iso9001.title"),
+      description: t("stats.certifications.iso9001.description"),
     },
     {
       icon: CheckCircle,
-      title: "NABH Accredited",
-      description: "National Accreditation Board",
+      title: t("stats.certifications.nabhAccredited.title"),
+      description: t("stats.certifications.nabhAccredited.description"),
     },
     {
       icon: TrendingUp,
-      title: "Teaching Hospital",
-      description: "Academic Excellence Status",
+      title: t("stats.certifications.teachingHospital.title"),
+      description: t("stats.certifications.teachingHospital.description"),
     },
   ];
 

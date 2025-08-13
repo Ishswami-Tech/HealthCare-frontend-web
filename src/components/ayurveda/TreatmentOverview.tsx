@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,83 +19,52 @@ import {
 } from "lucide-react";
 
 const TreatmentOverview = () => {
+  const t = useTranslations();
+
   const treatments = [
     {
       id: "panchakarma",
-      title: "Panchakarma",
-      subtitle: "Complete Detoxification",
+      title: t("treatments.panchakarma.title"),
+      subtitle: t("treatments.panchakarma.subtitle"),
       icon: Droplets,
       color: "from-blue-500 to-cyan-600",
       bgColor:
         "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
-      description:
-        "5000-year-old complete body-mind-soul purification system with five sacred procedures.",
-      features: [
-        "Complete detoxification",
-        "Treats root cause",
-        "21-day program",
-        "Scientifically validated",
-      ],
-      conditions: [
-        "Chronic Diseases",
-        "Digestive Disorders",
-        "Skin Conditions",
-        "Mental Health",
-      ],
-      successRate: 95,
-      duration: "21 days",
+      description: t("treatments.panchakarma.description"),
+      features: t("treatments.panchakarma.features"),
+      conditions: t("treatments.panchakarma.conditions"),
+      successRate: t("treatments.panchakarma.successRate"),
+      duration: t("treatments.panchakarma.duration"),
       href: "/ayurveda/panchakarma",
     },
     {
       id: "agnikarma",
-      title: "Agnikarma",
-      subtitle: "Therapeutic Heat Healing",
+      title: t("treatments.agnikarma.title"),
+      subtitle: t("treatments.agnikarma.subtitle"),
       icon: Flame,
       color: "from-orange-500 to-red-600",
       bgColor:
         "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
-      description:
-        "Precision fire therapy for instant pain relief using controlled micro-cauterization.",
-      features: [
-        "Instant pain relief",
-        "Zero side effects",
-        "Precision targeting",
-        "Permanent solution",
-      ],
-      conditions: [
-        "Chronic Knee Pain",
-        "Sciatica",
-        "Frozen Shoulder",
-        "Arthritis",
-      ],
-      successRate: 92,
-      duration: "3-5 sessions",
+      description: t("treatments.agnikarma.description"),
+      features: t("treatments.agnikarma.features"),
+      conditions: t("treatments.agnikarma.conditions"),
+      successRate: t("treatments.agnikarma.successRate"),
+      duration: t("treatments.agnikarma.duration"),
       href: "/ayurveda/agnikarma",
     },
     {
       id: "viddha-karma",
-      title: "Viddha Karma",
-      subtitle: "Precision Needling Therapy",
+      title: t("treatments.viddhakarma.title"),
+      subtitle: t("treatments.viddhakarma.subtitle"),
       icon: Zap,
       color: "from-purple-500 to-indigo-600",
       bgColor:
         "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
-      description:
-        "Strategic marma point stimulation using specialized instruments for complete healing.",
-      features: [
-        "Marma point targeting",
-        "Energy flow restoration",
-        "Deep tissue healing",
-        "Nervous system balance",
-      ],
-      conditions: [
-        "Neurological Disorders",
-        "Joint Pain",
-        "Digestive Issues",
-        "Stress & Anxiety",
-      ],
-      successRate: 89,
-      duration: "4-6 sessions",
+      description: t("treatments.viddhakarma.description"),
+      features: t("treatments.viddhakarma.features"),
+      conditions: t("treatments.viddhakarma.conditions"),
+      successRate: t("treatments.viddhakarma.successRate"),
+      duration: t("treatments.viddhakarma.duration"),
       href: "/ayurveda/viddha-karma",
     },
   ];
@@ -105,15 +75,13 @@ const TreatmentOverview = () => {
         <div className="text-center mb-16">
           <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800 mb-4">
             <Heart className="w-4 h-4 mr-2" />
-            Comprehensive Treatment Offerings
+            {t("treatments.title")}
           </Badge>
           <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
-            Ancient Healing Arts for Modern Wellness
+            {t("treatments.subtitle")}
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Experience the power of authentic Ayurvedic treatments, each
-            designed to address specific health challenges with proven results
-            and lasting transformation.
+            {t("treatments.description")}
           </p>
         </div>
 
@@ -175,7 +143,7 @@ const TreatmentOverview = () => {
                   {/* Conditions Treated */}
                   <div className="mb-6">
                     <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
-                      Treats:
+                      {t("treatments.labels.treats")}
                     </h4>
                     <div className="flex flex-wrap gap-2">
                       {treatment.conditions
@@ -193,7 +161,8 @@ const TreatmentOverview = () => {
                         variant="outline"
                         className="text-xs text-gray-500 dark:text-gray-400"
                       >
-                        +{treatment.conditions.length - 2} more
+                        +{treatment.conditions.length - 2}{" "}
+                        {t("treatments.labels.more")}
                       </Badge>
                     </div>
                   </div>
@@ -208,7 +177,7 @@ const TreatmentOverview = () => {
                         </span>
                       </div>
                       <span className="text-xs text-gray-600">
-                        Success Rate
+                        {t("treatments.labels.successRate")}
                       </span>
                     </div>
                     <div className="text-center">
@@ -218,7 +187,9 @@ const TreatmentOverview = () => {
                           {treatment.duration}
                         </span>
                       </div>
-                      <span className="text-xs text-gray-600">Duration</span>
+                      <span className="text-xs text-gray-600">
+                        {t("treatments.labels.duration")}
+                      </span>
                     </div>
                   </div>
 
@@ -228,7 +199,7 @@ const TreatmentOverview = () => {
                       <Button
                         className={`w-full bg-gradient-to-r ${treatment.color} hover:opacity-90 text-white group-hover:shadow-lg transition-all duration-300`}
                       >
-                        Learn More
+                        {t("treatments.labels.learnMore")}
                         <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
                       </Button>
                     </Link>
@@ -236,7 +207,7 @@ const TreatmentOverview = () => {
                       variant="outline"
                       className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
                     >
-                      Book Consultation
+                      {t("treatments.labels.bookConsultation")}
                     </Button>
                   </div>
                 </CardContent>

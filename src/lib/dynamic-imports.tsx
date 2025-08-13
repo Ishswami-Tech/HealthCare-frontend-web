@@ -64,7 +64,7 @@ interface DynamicImportOptions {
 /**
  * Creates a dynamically imported component with optimized loading
  */
-export function createDynamicComponent<T = {}>(
+export function createDynamicComponent<T = Record<string, unknown>>(
   importFn: () => Promise<{ default: ComponentType<T> }>,
   options: DynamicImportOptions = {}
 ) {

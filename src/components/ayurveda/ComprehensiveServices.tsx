@@ -24,11 +24,11 @@ import {
   Phone,
   Calendar,
 } from "lucide-react";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 const ComprehensiveServices = () => {
-  const { t } = useLanguage();
+  const t = useTranslations();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const serviceCategories = [

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,74 +22,69 @@ import { ClinicInfo } from "@/components/clinic/clinic-info";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 export default function AboutPage() {
+  const t = useTranslations();
+
   const milestones = [
     {
       year: "2003",
-      event: "Founded Shri Vishwamurthi Ayurvedalay",
-      description:
-        "Started with a vision to bring authentic Ayurveda to modern healthcare",
+      event: t("about.milestones.2003.event"),
+      description: t("about.milestones.2003.description"),
     },
     {
       year: "2008",
-      event: "Government Recognition",
-      description:
-        "Received official certification as registered Ayurvedic hospital",
+      event: t("about.milestones.2008.event"),
+      description: t("about.milestones.2008.description"),
     },
     {
       year: "2012",
-      event: "ISO 9001:2015 Certification",
-      description: "Achieved international quality management standards",
+      event: t("about.milestones.2012.event"),
+      description: t("about.milestones.2012.description"),
     },
     {
       year: "2015",
-      event: "Teaching Hospital Status",
-      description:
-        "Became recognized center for Ayurvedic education and research",
+      event: t("about.milestones.2015.event"),
+      description: t("about.milestones.2015.description"),
     },
     {
       year: "2018",
-      event: "1000+ Lives Transformed",
-      description: "Milestone achievement in patient care and healing",
+      event: t("about.milestones.2018.event"),
+      description: t("about.milestones.2018.description"),
     },
     {
       year: "2020",
-      event: "Digital Healthcare Integration",
-      description: "Launched telemedicine and digital consultation services",
+      event: t("about.milestones.2020.event"),
+      description: t("about.milestones.2020.description"),
     },
     {
       year: "2023",
-      event: "5000+ Success Stories",
-      description: "Celebrating two decades of healing and transformation",
+      event: t("about.milestones.2023.event"),
+      description: t("about.milestones.2023.description"),
     },
   ];
 
   const values = [
     {
       icon: Heart,
-      title: "Compassionate Care",
-      description:
-        "Every patient is treated with love, respect, and individual attention",
+      title: t("about.coreValues.compassionateCare.title"),
+      description: t("about.coreValues.compassionateCare.description"),
       color: "from-red-500 to-pink-600",
     },
     {
       icon: Leaf,
-      title: "Authentic Ayurveda",
-      description:
-        "Traditional methods preserved and practiced in their purest form",
+      title: t("about.coreValues.authenticAyurveda.title"),
+      description: t("about.coreValues.authenticAyurveda.description"),
       color: "from-green-500 to-emerald-600",
     },
     {
       icon: Brain,
-      title: "Scientific Approach",
-      description:
-        "Ancient wisdom validated through modern research and evidence",
+      title: t("about.coreValues.scientificApproach.title"),
+      description: t("about.coreValues.scientificApproach.description"),
       color: "from-blue-500 to-indigo-600",
     },
     {
       icon: Target,
-      title: "Holistic Healing",
-      description:
-        "Treating the root cause for complete mind-body-soul wellness",
+      title: t("about.coreValues.holisticHealing.title"),
+      description: t("about.coreValues.holisticHealing.description"),
       color: "from-purple-500 to-violet-600",
     },
   ];

@@ -24,7 +24,7 @@ import { authenticatedApi } from './auth.server';
  * Create a new appointment
  */
 export async function createAppointment(data: CreateAppointmentData): Promise<AppointmentWithRelations> {
-  const response = await authenticatedApi<AppointmentWithRelations>('/appointments', {
+  const response = await authenticatedApi<AppointmentWithRelations>('/appointments?domain=healthcare', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -34,8 +34,10 @@ export async function createAppointment(data: CreateAppointmentData): Promise<Ap
 /**
  * Get all appointments with optional filtering
  */
-export async function getAppointments(filters?: AppointmentFilters): Promise<AppointmentWithRelations[]> {
+export async function getAppointments(tenantId: string, filters?: AppointmentFilters): Promise<AppointmentWithRelations[]> {
   const queryParams = new URLSearchParams();
+  queryParams.append('domain', 'healthcare');
+
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -44,7 +46,7 @@ export async function getAppointments(filters?: AppointmentFilters): Promise<App
     });
   }
 
-  const endpoint = `/appointments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const endpoint = `/appointments/tenant/${tenantId}?${queryParams.toString()}`;
   const response = await authenticatedApi<AppointmentWithRelations[]>(endpoint);
   return response.data;
 }
@@ -255,4 +257,158 @@ export async function canCancelAppointment(appointment: AppointmentWithRelations
 export async function canRescheduleAppointment(appointment: AppointmentWithRelations): Promise<boolean> {
   const reschedulableStatuses = ['SCHEDULED', 'CONFIRMED'];
   return reschedulableStatuses.includes(appointment.status);
-} 
+}
+
+// ===== ENHANCED APPOINTMENT MANAGEMENT =====
+
+
+
+/**
+ * Get appointment analytics
+ */
+export async function getAppointmentAnalytics(period: 'day' | 'week' | 'month' | 'year' = 'month') {
+  const response = await authenticatedApi(`/appointments/analytics?period=${period}`);
+  return response.data;
+}
+
+/**
+ * Bulk update appointments
+ */
+export async function bulkUpdateAppointments(appointmentIds: string[], updates: Partial<UpdateAppointmentData>) {
+  const response = await authenticatedApi('/appointments/bulk-update', {
+    method: 'PATCH',
+    body: JSON.stringify({ appointmentIds, updates }),
+  });
+  return response.data;
+}
+
+/**
+ * Export appointments
+ */
+export async function exportAppointments(format: 'csv' | 'excel' | 'pdf' = 'csv', filters?: AppointmentFilters) {
+  const params = new URLSearchParams({ format });
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        params.append(key, value.toString());
+      }
+    });
+  }
+
+  const response = await authenticatedApi(`/appointments/export?${params.toString()}`);
+  return response.data;
+}
+
+/**
+ * Get appointment reminders
+ */
+export async function getAppointmentReminders(appointmentId: string) {
+  const response = await authenticatedApi(`/appointments/${appointmentId}/reminders`);
+  return response.data;
+}
+
+/**
+ * Send appointment reminder
+ */
+export async function sendAppointmentReminder(appointmentId: string, type: 'sms' | 'email' | 'whatsapp' = 'sms') {
+  const response = await authenticatedApi(`/appointments/${appointmentId}/reminders`, {
+    method: 'POST',
+    body: JSON.stringify({ type }),
+  });
+  return response.data;
+}
+
+/**
+ * Get appointment conflicts
+ */
+export async function getAppointmentConflicts(data: {
+  doctorId: string;
+  startTime: string;
+  endTime: string;
+  excludeAppointmentId?: string;
+}) {
+  const response = await authenticatedApi('/appointments/conflicts', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return response.data;
+}
+
+/**
+ * Get recurring appointment templates
+ */
+export async function getRecurringAppointmentTemplates() {
+  const response = await authenticatedApi('/appointments/recurring-templates');
+  return response.data;
+}
+
+/**
+ * Create recurring appointments
+ */
+export async function createRecurringAppointments(data: {
+  template: CreateAppointmentData;
+  recurrence: {
+    frequency: 'daily' | 'weekly' | 'monthly';
+    interval: number;
+    endDate: string;
+    daysOfWeek?: number[];
+  };
+}) {
+  const response = await authenticatedApi('/appointments/recurring', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return response.data;
+}
+
+/**
+ * Get appointment history for patient
+ */
+export async function getPatientAppointmentHistory(patientId: string, limit: number = 50) {
+  const response = await authenticatedApi(`/appointments/patient/${patientId}/history?limit=${limit}`);
+  return response.data;
+}
+
+/**
+ * Get doctor schedule
+ */
+export async function getDoctorSchedule(doctorId: string, date: string) {
+  const response = await authenticatedApi(`/appointments/doctor/${doctorId}/schedule?date=${date}`);
+  return response.data;
+}
+
+/**
+ * Update doctor availability
+ */
+export async function updateDoctorAvailability(doctorId: string, availability: {
+  date: string;
+  timeSlots: Array<{
+    startTime: string;
+    endTime: string;
+    isAvailable: boolean;
+  }>;
+}) {
+  const response = await authenticatedApi(`/appointments/doctor/${doctorId}/availability`, {
+    method: 'PUT',
+    body: JSON.stringify(availability),
+  });
+  return response.data;
+}
+
+/**
+ * Get appointment notifications
+ */
+export async function getAppointmentNotifications(userId: string) {
+  const response = await authenticatedApi(`/appointments/notifications?userId=${userId}`);
+  return response.data;
+}
+
+/**
+ * Mark notification as read
+ */
+export async function markNotificationAsRead(notificationId: string) {
+  const response = await authenticatedApi(`/appointments/notifications/${notificationId}/read`, {
+    method: 'PATCH',
+  });
+  return response.data;
+}

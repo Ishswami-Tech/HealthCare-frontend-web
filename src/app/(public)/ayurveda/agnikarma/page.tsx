@@ -1,14 +1,15 @@
 "use client";
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { 
-  Flame, 
-  CheckCircle, 
-  Clock, 
+import React from "react";
+import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Flame,
+  CheckCircle,
+  Clock,
   Star,
   ArrowRight,
   Target,
@@ -17,83 +18,126 @@ import {
   Award,
   Users,
   TrendingUp,
-  Heart
-} from 'lucide-react';
+  Heart,
+} from "lucide-react";
 
 export default function AgnikarmaPage() {
+  const t = useTranslations();
   const processSteps = [
     {
       step: 1,
-      title: 'Precise Diagnosis',
-      description: 'Marma point identification + modern assessment',
+      title: "Precise Diagnosis",
+      description: "Marma point identification + modern assessment",
       icon: Target,
-      color: 'from-blue-500 to-cyan-600'
+      color: "from-blue-500 to-cyan-600",
     },
     {
       step: 2,
-      title: 'Controlled Heat Application',
-      description: 'Gold, silver, copper instruments at exact temperatures',
+      title: "Controlled Heat Application",
+      description: "Gold, silver, copper instruments at exact temperatures",
       icon: Flame,
-      color: 'from-orange-500 to-red-600'
+      color: "from-orange-500 to-red-600",
     },
     {
       step: 3,
-      title: 'Immediate Pain Relief',
-      description: 'Blocking pain signals and stimulating healing',
+      title: "Immediate Pain Relief",
+      description: "Blocking pain signals and stimulating healing",
       icon: Zap,
-      color: 'from-yellow-500 to-orange-600'
+      color: "from-yellow-500 to-orange-600",
     },
     {
       step: 4,
-      title: 'Natural Healing',
-      description: 'Activating body\'s repair mechanisms',
+      title: "Natural Healing",
+      description: "Activating body's repair mechanisms",
       icon: Heart,
-      color: 'from-green-500 to-emerald-600'
+      color: "from-green-500 to-emerald-600",
     },
     {
       step: 5,
-      title: 'Long-term Recovery',
-      description: 'Strengthening tissues and preventing recurrence',
+      title: "Long-term Recovery",
+      description: "Strengthening tissues and preventing recurrence",
       icon: Shield,
-      color: 'from-purple-500 to-indigo-600'
-    }
+      color: "from-purple-500 to-indigo-600",
+    },
   ];
 
   const conditionsData = [
-    { condition: 'Chronic Knee Pain', successRate: 95, avgSessions: '3-5 sessions', recoveryTime: '2-3 weeks', patientStory: 'Watch Rekha\'s Journey' },
-    { condition: 'Sciatica', successRate: 92, avgSessions: '4-6 sessions', recoveryTime: '3-4 weeks', patientStory: 'Read Suresh\'s Recovery' },
-    { condition: 'Frozen Shoulder', successRate: 88, avgSessions: '5-7 sessions', recoveryTime: '4-6 weeks', patientStory: 'See Priya\'s Movement' },
-    { condition: 'Tennis Elbow', successRate: 94, avgSessions: '2-4 sessions', recoveryTime: '1-2 weeks', patientStory: 'Athlete Success Stories' },
-    { condition: 'Plantar Fasciitis', successRate: 90, avgSessions: '3-5 sessions', recoveryTime: '2-3 weeks', patientStory: 'Back to Running' },
-    { condition: 'Cervical Spondylosis', successRate: 87, avgSessions: '4-6 sessions', recoveryTime: '3-5 weeks', patientStory: 'Pain-Free Working' },
-    { condition: 'Arthritis', successRate: 89, avgSessions: '6-8 sessions', recoveryTime: '4-6 weeks', patientStory: 'Dancing Again at 70' }
+    {
+      condition: "Chronic Knee Pain",
+      successRate: 95,
+      avgSessions: "3-5 sessions",
+      recoveryTime: "2-3 weeks",
+      patientStory: "Watch Rekha's Journey",
+    },
+    {
+      condition: "Sciatica",
+      successRate: 92,
+      avgSessions: "4-6 sessions",
+      recoveryTime: "3-4 weeks",
+      patientStory: "Read Suresh's Recovery",
+    },
+    {
+      condition: "Frozen Shoulder",
+      successRate: 88,
+      avgSessions: "5-7 sessions",
+      recoveryTime: "4-6 weeks",
+      patientStory: "See Priya's Movement",
+    },
+    {
+      condition: "Tennis Elbow",
+      successRate: 94,
+      avgSessions: "2-4 sessions",
+      recoveryTime: "1-2 weeks",
+      patientStory: "Athlete Success Stories",
+    },
+    {
+      condition: "Plantar Fasciitis",
+      successRate: 90,
+      avgSessions: "3-5 sessions",
+      recoveryTime: "2-3 weeks",
+      patientStory: "Back to Running",
+    },
+    {
+      condition: "Cervical Spondylosis",
+      successRate: 87,
+      avgSessions: "4-6 sessions",
+      recoveryTime: "3-5 weeks",
+      patientStory: "Pain-Free Working",
+    },
+    {
+      condition: "Arthritis",
+      successRate: 89,
+      avgSessions: "6-8 sessions",
+      recoveryTime: "4-6 weeks",
+      patientStory: "Dancing Again at 70",
+    },
   ];
 
   const advantages = [
     {
-      title: 'Instant Results',
-      description: 'Pain relief felt immediately after first session',
+      title: "Instant Results",
+      description: "Pain relief felt immediately after first session",
       icon: Zap,
-      color: 'from-yellow-500 to-orange-600'
+      color: "from-yellow-500 to-orange-600",
     },
     {
-      title: 'Precision Targeting',
-      description: 'Exact problem areas without affecting healthy tissue',
+      title: "Precision Targeting",
+      description: "Exact problem areas without affecting healthy tissue",
       icon: Target,
-      color: 'from-blue-500 to-indigo-600'
+      color: "from-blue-500 to-indigo-600",
     },
     {
-      title: 'Zero Side Effects',
-      description: 'No drugs, no invasive procedures, completely natural',
+      title: "Zero Side Effects",
+      description: "No drugs, no invasive procedures, completely natural",
       icon: Shield,
-      color: 'from-green-500 to-emerald-600'
+      color: "from-green-500 to-emerald-600",
     },
     {
-      title: 'Cost-Effective',
-      description: 'One-time treatment vs. lifetime medication costs',
+      title: "Cost-Effective",
+      description: "One-time treatment vs. lifetime medication costs",
       icon: TrendingUp,
-      color: 'from-purple-500 to-pink-600'
-    }
+      color: "from-purple-500 to-pink-600",
+    },
   ];
 
   return (
@@ -104,19 +148,15 @@ export default function AgnikarmaPage() {
           <div className="max-w-4xl mx-auto text-center">
             <Badge className="bg-orange-100 text-orange-800 border-orange-200 mb-6">
               <Flame className="w-4 h-4 mr-2" />
-              Agnikarma - Therapeutic Heat Healing
+              {t("agnikarma.badge")}
             </Badge>
-            
+
             <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-6">
-              Precision Fire Therapy for{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-red-600">
-                Instant Pain Relief
-              </span>
+              {t("agnikarma.title")}
             </h1>
-            
+
             <p className="text-xl text-gray-700 mb-8 leading-relaxed">
-              Experience the ancient art of therapeutic heat healing. Mentioned in Sushruta Samhita 
-              5000+ years ago, now scientifically proven for immediate and lasting pain relief.
+              {t("agnikarma.subtitle")}
             </p>
 
             <div className="flex flex-wrap justify-center gap-4 mb-8">
@@ -135,13 +175,13 @@ export default function AgnikarmaPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
+              <Button
                 size="lg"
                 className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-lg px-8"
               >
                 Book Agnikarma Session
               </Button>
-              <Button 
+              <Button
                 size="lg"
                 variant="outline"
                 className="border-orange-300 text-orange-600 hover:bg-orange-50 text-lg px-8"
@@ -172,8 +212,12 @@ export default function AgnikarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Award className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">Ancient Text Reference</h3>
-                  <p className="text-sm text-gray-600">Mentioned in Sushruta Samhita 5000+ years ago</p>
+                  <h3 className="font-bold text-gray-900 mb-2">
+                    Ancient Text Reference
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Mentioned in Sushruta Samhita 5000+ years ago
+                  </p>
                 </CardContent>
               </Card>
 
@@ -182,8 +226,12 @@ export default function AgnikarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircle className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">Modern Validation</h3>
-                  <p className="text-sm text-gray-600">Scientifically proven pain relief mechanism</p>
+                  <h3 className="font-bold text-gray-900 mb-2">
+                    Modern Validation
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Scientifically proven pain relief mechanism
+                  </p>
                 </CardContent>
               </Card>
 
@@ -192,8 +240,12 @@ export default function AgnikarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Target className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">Precision Technology</h3>
-                  <p className="text-sm text-gray-600">Controlled micro-cauterization for targeted healing</p>
+                  <h3 className="font-bold text-gray-900 mb-2">
+                    Precision Technology
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Controlled micro-cauterization for targeted healing
+                  </p>
                 </CardContent>
               </Card>
 
@@ -202,8 +254,12 @@ export default function AgnikarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Shield className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">Zero Side Effects</h3>
-                  <p className="text-sm text-gray-600">Completely natural, drug-free approach</p>
+                  <h3 className="font-bold text-gray-900 mb-2">
+                    Zero Side Effects
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Completely natural, drug-free approach
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -220,28 +276,40 @@ export default function AgnikarmaPage() {
                 How Agnikarma Works - Step-by-Step Process
               </h2>
               <p className="text-lg text-gray-600">
-                Precision healing through controlled therapeutic heat application
+                Precision healing through controlled therapeutic heat
+                application
               </p>
             </div>
 
             <div className="space-y-8">
               {processSteps.map((step, index) => {
                 const IconComponent = step.icon;
-                
+
                 return (
-                  <Card key={index} className="bg-white shadow-lg border-0 overflow-hidden">
+                  <Card
+                    key={index}
+                    className="bg-white shadow-lg border-0 overflow-hidden"
+                  >
                     <CardContent className="p-0">
                       <div className="grid lg:grid-cols-4">
-                        <div className={`bg-gradient-to-br ${step.color} text-white p-8 flex flex-col justify-center`}>
+                        <div
+                          className={`bg-gradient-to-br ${step.color} text-white p-8 flex flex-col justify-center`}
+                        >
                           <div className="text-center lg:text-left">
-                            <div className="text-4xl font-bold mb-2">{step.step}</div>
+                            <div className="text-4xl font-bold mb-2">
+                              {step.step}
+                            </div>
                             <IconComponent className="w-12 h-12 mx-auto lg:mx-0 mb-4" />
                           </div>
                         </div>
-                        
+
                         <div className="lg:col-span-3 p-8 flex flex-col justify-center">
-                          <h3 className="text-2xl font-bold text-gray-900 mb-4">{step.title}</h3>
-                          <p className="text-lg text-gray-700 leading-relaxed">{step.description}</p>
+                          <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                            {step.title}
+                          </h3>
+                          <p className="text-lg text-gray-700 leading-relaxed">
+                            {step.description}
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -280,20 +348,37 @@ export default function AgnikarmaPage() {
 
                   {/* Table Rows */}
                   {conditionsData.map((item, index) => (
-                    <Card key={index} className="hover:shadow-md transition-shadow duration-300">
+                    <Card
+                      key={index}
+                      className="hover:shadow-md transition-shadow duration-300"
+                    >
                       <CardContent className="p-4">
                         <div className="grid grid-cols-5 gap-4 items-center">
-                          <div className="font-semibold text-gray-900">{item.condition}</div>
+                          <div className="font-semibold text-gray-900">
+                            {item.condition}
+                          </div>
                           <div className="text-center">
                             <div className="flex items-center justify-center space-x-2">
-                              <Progress value={item.successRate} className="w-16 h-2" />
-                              <span className="font-bold text-green-600">{item.successRate}%</span>
+                              <Progress
+                                value={item.successRate}
+                                className="w-16 h-2"
+                              />
+                              <span className="font-bold text-green-600">
+                                {item.successRate}%
+                              </span>
                             </div>
                           </div>
-                          <div className="text-center text-gray-700">{item.avgSessions}</div>
-                          <div className="text-center text-gray-700">{item.recoveryTime}</div>
+                          <div className="text-center text-gray-700">
+                            {item.avgSessions}
+                          </div>
+                          <div className="text-center text-gray-700">
+                            {item.recoveryTime}
+                          </div>
                           <div className="text-center">
-                            <Button variant="link" className="text-blue-600 hover:text-blue-700 p-0 h-auto">
+                            <Button
+                              variant="link"
+                              className="text-blue-600 hover:text-blue-700 p-0 h-auto"
+                            >
                               {item.patientStory}
                             </Button>
                           </div>
@@ -324,11 +409,16 @@ export default function AgnikarmaPage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               {advantages.map((advantage, index) => {
                 const IconComponent = advantage.icon;
-                
+
                 return (
-                  <Card key={index} className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-white">
+                  <Card
+                    key={index}
+                    className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-white"
+                  >
                     <CardContent className="p-8">
-                      <div className={`w-16 h-16 bg-gradient-to-r ${advantage.color} rounded-full flex items-center justify-center mx-auto mb-6`}>
+                      <div
+                        className={`w-16 h-16 bg-gradient-to-r ${advantage.color} rounded-full flex items-center justify-center mx-auto mb-6`}
+                      >
                         <IconComponent className="w-8 h-8 text-white" />
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-4">
@@ -356,41 +446,85 @@ export default function AgnikarmaPage() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-gray-200">
-                          <th className="text-left py-4 px-4 font-semibold text-gray-900">Treatment Method</th>
-                          <th className="text-center py-4 px-4 font-semibold text-gray-900">Duration</th>
-                          <th className="text-center py-4 px-4 font-semibold text-gray-900">Success Rate</th>
-                          <th className="text-center py-4 px-4 font-semibold text-gray-900">Side Effects</th>
-                          <th className="text-center py-4 px-4 font-semibold text-gray-900">Cost</th>
+                          <th className="text-left py-4 px-4 font-semibold text-gray-900">
+                            Treatment Method
+                          </th>
+                          <th className="text-center py-4 px-4 font-semibold text-gray-900">
+                            Duration
+                          </th>
+                          <th className="text-center py-4 px-4 font-semibold text-gray-900">
+                            Success Rate
+                          </th>
+                          <th className="text-center py-4 px-4 font-semibold text-gray-900">
+                            Side Effects
+                          </th>
+                          <th className="text-center py-4 px-4 font-semibold text-gray-900">
+                            Cost
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr className="border-b border-gray-100 bg-orange-50">
-                          <td className="py-4 px-4 font-semibold text-orange-600">Agnikarma Therapy</td>
-                          <td className="text-center py-4 px-4 text-green-600 font-semibold">3-5 sessions</td>
-                          <td className="text-center py-4 px-4 text-green-600 font-semibold">92%</td>
-                          <td className="text-center py-4 px-4 text-green-600 font-semibold">None</td>
-                          <td className="text-center py-4 px-4 text-green-600 font-semibold">Low</td>
+                          <td className="py-4 px-4 font-semibold text-orange-600">
+                            Agnikarma Therapy
+                          </td>
+                          <td className="text-center py-4 px-4 text-green-600 font-semibold">
+                            3-5 sessions
+                          </td>
+                          <td className="text-center py-4 px-4 text-green-600 font-semibold">
+                            92%
+                          </td>
+                          <td className="text-center py-4 px-4 text-green-600 font-semibold">
+                            None
+                          </td>
+                          <td className="text-center py-4 px-4 text-green-600 font-semibold">
+                            Low
+                          </td>
                         </tr>
                         <tr className="border-b border-gray-100">
                           <td className="py-4 px-4">Surgery + Recovery</td>
-                          <td className="text-center py-4 px-4 text-gray-600">6-12 months</td>
-                          <td className="text-center py-4 px-4 text-gray-600">70%</td>
-                          <td className="text-center py-4 px-4 text-red-600">High Risk</td>
-                          <td className="text-center py-4 px-4 text-red-600">Very High</td>
+                          <td className="text-center py-4 px-4 text-gray-600">
+                            6-12 months
+                          </td>
+                          <td className="text-center py-4 px-4 text-gray-600">
+                            70%
+                          </td>
+                          <td className="text-center py-4 px-4 text-red-600">
+                            High Risk
+                          </td>
+                          <td className="text-center py-4 px-4 text-red-600">
+                            Very High
+                          </td>
                         </tr>
                         <tr className="border-b border-gray-100">
                           <td className="py-4 px-4">Medications</td>
-                          <td className="text-center py-4 px-4 text-gray-600">Ongoing</td>
-                          <td className="text-center py-4 px-4 text-gray-600">60%</td>
-                          <td className="text-center py-4 px-4 text-red-600">Multiple</td>
-                          <td className="text-center py-4 px-4 text-red-600">High (Ongoing)</td>
+                          <td className="text-center py-4 px-4 text-gray-600">
+                            Ongoing
+                          </td>
+                          <td className="text-center py-4 px-4 text-gray-600">
+                            60%
+                          </td>
+                          <td className="text-center py-4 px-4 text-red-600">
+                            Multiple
+                          </td>
+                          <td className="text-center py-4 px-4 text-red-600">
+                            High (Ongoing)
+                          </td>
                         </tr>
                         <tr>
                           <td className="py-4 px-4">Physiotherapy</td>
-                          <td className="text-center py-4 px-4 text-gray-600">6-18 months</td>
-                          <td className="text-center py-4 px-4 text-gray-600">50%</td>
-                          <td className="text-center py-4 px-4 text-yellow-600">Minimal</td>
-                          <td className="text-center py-4 px-4 text-yellow-600">Moderate</td>
+                          <td className="text-center py-4 px-4 text-gray-600">
+                            6-18 months
+                          </td>
+                          <td className="text-center py-4 px-4 text-gray-600">
+                            50%
+                          </td>
+                          <td className="text-center py-4 px-4 text-yellow-600">
+                            Minimal
+                          </td>
+                          <td className="text-center py-4 px-4 text-yellow-600">
+                            Moderate
+                          </td>
                         </tr>
                       </tbody>
                     </table>
@@ -410,19 +544,19 @@ export default function AgnikarmaPage() {
               Experience Instant Pain Relief Today
             </h2>
             <p className="text-xl text-orange-100 mb-8">
-              Don't let chronic pain control your life. Experience the power of Agnikarma 
-              and feel the difference from your very first session.
+              Don't let chronic pain control your life. Experience the power of
+              Agnikarma and feel the difference from your very first session.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
+              <Button
                 size="lg"
                 variant="secondary"
                 className="bg-white text-orange-600 hover:bg-orange-50 text-lg px-8"
               >
                 Book Agnikarma Session
               </Button>
-              <Button 
+              <Button
                 size="lg"
                 variant="outline"
                 className="border-white text-white hover:bg-white/10 text-lg px-8"

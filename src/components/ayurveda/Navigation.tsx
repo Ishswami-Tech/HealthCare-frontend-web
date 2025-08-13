@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { HoverAnimation } from "@/components/ui/animated-wrapper";
 import { ThemeToggle } from "@/components/theme/theme-provider";
 import { LanguageSelector } from "@/components/language/LanguageSelector";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslations } from "next-intl";
 import {
   Phone,
   MessageCircle,
@@ -27,7 +27,7 @@ const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { t } = useLanguage();
+  const t = useTranslations();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,14 +38,14 @@ const Navigation = () => {
   }, []);
 
   const navItems = [
-    { name: t.nav.home, href: "/ayurveda" },
-    { name: t.nav.treatments, href: "/ayurveda/treatments" },
-    { name: t.nav.panchakarma, href: "/ayurveda/panchakarma" },
-    { name: t.nav.agnikarma, href: "/ayurveda/agnikarma" },
-    { name: t.nav.viddhakarma, href: "/ayurveda/viddha-karma" },
-    { name: t.nav.ourTeam, href: "/ayurveda/team" },
-    { name: t.nav.about, href: "/ayurveda/about" },
-    { name: t.nav.contact, href: "/ayurveda/contact" },
+    { name: t("navigation.home"), href: "/ayurveda" },
+    { name: t("navigation.treatments"), href: "/ayurveda/treatments" },
+    { name: t("navigation.panchakarma"), href: "/ayurveda/panchakarma" },
+    { name: t("navigation.agnikarma"), href: "/ayurveda/agnikarma" },
+    { name: t("navigation.viddhakarma"), href: "/ayurveda/viddha-karma" },
+    { name: t("navigation.ourTeam"), href: "/ayurveda/team" },
+    { name: t("navigation.about"), href: "/ayurveda/about" },
+    { name: t("navigation.contact"), href: "/ayurveda/contact" },
   ];
 
   return (
@@ -59,7 +59,7 @@ const Navigation = () => {
               className="bg-white/20 text-white border-white/30"
             >
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></div>
-              LIVE: 8 patients in treatment
+              {t("navigation.livePatients", { count: 8 })}
             </Badge>
             <span className="hidden md:inline">✅ 5000+ Lives Transformed</span>
             <span className="hidden lg:inline">
@@ -159,7 +159,7 @@ const Navigation = () => {
                   >
                     <MessageCircle className="w-4 h-4 mr-2" />
                   </motion.div>
-                  {t.nav.liveChat}
+                  {t("navigation.liveChat")}
                 </Button>
               </HoverAnimation>
 
@@ -169,7 +169,7 @@ const Navigation = () => {
                   variant="outline"
                   className="hidden sm:flex border-orange-300 text-orange-600 hover:bg-orange-50"
                 >
-                  {t.nav.bookConsultation}
+                  {t("navigation.bookConsultation")}
                 </Button>
               </HoverAnimation>
 
@@ -262,7 +262,7 @@ const Navigation = () => {
                     <HoverAnimation type="scale">
                       <Button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                         <MessageCircle className="w-4 h-4 mr-2" />
-                        Live Chat Support
+                        {t("navigation.liveChat")}
                       </Button>
                     </HoverAnimation>
                     <HoverAnimation type="scale">
@@ -270,7 +270,7 @@ const Navigation = () => {
                         variant="outline"
                         className="border-orange-300 text-orange-600"
                       >
-                        Book Appointment
+                        {t("navigation.bookConsultation")}
                       </Button>
                     </HoverAnimation>
                   </motion.div>

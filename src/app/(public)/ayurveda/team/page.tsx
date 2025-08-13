@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,84 +24,59 @@ import { YouTubeVideoGrid } from "@/components/media/youtube-video";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 export default function TeamPage() {
+  const t = useTranslations();
+
   // Sample videos for demonstration
   const sampleVideos = [
     {
       id: "1",
       videoId: "dQw4w9WgXcQ", // Sample YouTube video ID
-      title: "Panchakarma Treatment Demonstration",
-      description:
-        "Learn about our comprehensive Panchakarma therapy process and its benefits for holistic wellness.",
+      title: t("team.videos.panchakarma.title"),
+      description: t("team.videos.panchakarma.description"),
     },
     {
       id: "2",
       videoId: "dQw4w9WgXcQ",
-      title: "Viddhakarma for Autism Treatment",
-      description:
-        "Dr. Deshmukh explains the specialized Viddhakarma treatment approach for autism and cerebral palsy.",
+      title: t("team.videos.viddhakarma.title"),
+      description: t("team.videos.viddhakarma.description"),
     },
     {
       id: "3",
       videoId: "dQw4w9WgXcQ",
-      title: "Agnikarma Therapy for Joint Pain",
-      description:
-        "Discover how Agnikarma therapy provides natural relief for arthritis and joint disorders.",
+      title: t("team.videos.agnikarma.title"),
+      description: t("team.videos.agnikarma.description"),
     },
   ];
 
   const chiefMedicalOfficers = [
     {
-      name: "Dr. Chandrakumar Deshmukh",
-      title: "Ayurvedic Physician & Specialist",
-      specialization: "Viddhakarma, Agnikarma & Panchakarma Specialist",
-      experience: "15+ years",
+      name: t("team.teamMembers.drDeshmukh.name"),
+      title: t("team.teamMembers.drDeshmukh.title"),
+      specialization: t("team.teamMembers.drDeshmukh.specialization"),
+      experience: t("team.teamMembers.drDeshmukh.experience"),
       image: "/api/placeholder/150/150",
-      credentials: [
-        "Student of Dr. R.B. Gogate",
-        "Specialized in Neurological Disorders",
-        "Expert in Autism & Cerebral Palsy Treatment",
-      ],
-      achievements: [
-        "2000+ Panchakarma treatments",
-        "International speaker",
-        "Textbook author",
-      ],
+      credentials: t("team.teamMembers.drDeshmukh.credentials"),
+      achievements: t("team.teamMembers.drDeshmukh.achievements"),
       color: "from-blue-500 to-cyan-600",
     },
     {
-      name: "Vaidya Krishnamurthy",
-      title: "Traditional Ayurveda Expert",
-      specialization: "Ancient Wisdom Practitioner",
-      experience: "40+ years",
+      name: t("team.teamMembers.vaidyaKrishnamurthy.name"),
+      title: t("team.teamMembers.vaidyaKrishnamurthy.title"),
+      specialization: t("team.teamMembers.vaidyaKrishnamurthy.specialization"),
+      experience: t("team.teamMembers.vaidyaKrishnamurthy.experience"),
       image: "/api/placeholder/150/150",
-      credentials: [
-        "Traditional Gurukul Training",
-        "Sanskrit Scholar",
-        "Pulse Diagnosis Master",
-      ],
-      achievements: [
-        "5000+ patients treated",
-        "Ancient text interpreter",
-        "Spiritual healer",
-      ],
+      credentials: t("team.teamMembers.vaidyaKrishnamurthy.credentials"),
+      achievements: t("team.teamMembers.vaidyaKrishnamurthy.achievements"),
       color: "from-orange-500 to-red-600",
     },
     {
-      name: "Dr. Priya Sharma",
-      title: "BAMS, Agnikarma & Viddha Karma Specialist",
-      specialization: "Therapeutic Procedures Expert",
-      experience: "20+ years",
+      name: t("team.teamMembers.drPriyaSharma.name"),
+      title: t("team.teamMembers.drPriyaSharma.title"),
+      specialization: t("team.teamMembers.drPriyaSharma.specialization"),
+      experience: t("team.teamMembers.drPriyaSharma.experience"),
       image: "/api/placeholder/150/150",
-      credentials: [
-        "BAMS Degree",
-        "Specialized Training",
-        "Pain Management Expert",
-      ],
-      achievements: [
-        "3000+ Agnikarma procedures",
-        "Zero complication record",
-        "Research pioneer",
-      ],
+      credentials: t("team.teamMembers.drPriyaSharma.credentials"),
+      achievements: t("team.teamMembers.drPriyaSharma.achievements"),
       color: "from-purple-500 to-indigo-600",
     },
     {
@@ -147,10 +123,26 @@ export default function TeamPage() {
   ];
 
   const teamStats = [
-    { number: "150+", label: "Combined Years Experience", icon: Calendar },
-    { number: "15,000+", label: "Patients Treated Collectively", icon: Users },
-    { number: "50+", label: "Research Publications", icon: BookOpen },
-    { number: "20+", label: "International Conferences", icon: Globe },
+    {
+      number: t("team.teamStats.experience.value"),
+      label: t("team.teamStats.experience.label"),
+      icon: Calendar,
+    },
+    {
+      number: t("team.teamStats.patients.value"),
+      label: t("team.teamStats.patients.label"),
+      icon: Users,
+    },
+    {
+      number: t("team.teamStats.publications.value"),
+      label: t("team.teamStats.publications.label"),
+      icon: BookOpen,
+    },
+    {
+      number: t("team.teamStats.conferences.value"),
+      label: t("team.teamStats.conferences.label"),
+      icon: Globe,
+    },
   ];
 
   return (
@@ -165,20 +157,15 @@ export default function TeamPage() {
           <div className="max-w-4xl mx-auto text-center">
             <Badge className="bg-blue-100 text-blue-800 border-blue-200 mb-6">
               <Users className="w-4 h-4 mr-2" />
-              World-Class Medical Team
+              {t("team.badge")}
             </Badge>
 
             <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-6">
-              Meet Our{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                Expert Healers
-              </span>
+              {t("team.title")}
             </h1>
 
             <p className="text-xl text-gray-700 mb-8 leading-relaxed">
-              Our team combines 150+ years of collective experience, bringing
-              together traditional Ayurvedic wisdom and modern medical
-              excellence for your complete healing.
+              {t("team.description")}
             </p>
 
             <div className="flex flex-wrap justify-center gap-4">

@@ -1,14 +1,15 @@
 "use client";
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { 
-  Zap, 
-  CheckCircle, 
-  Clock, 
+import React from "react";
+import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Zap,
+  CheckCircle,
+  Clock,
   Star,
   ArrowRight,
   Target,
@@ -17,118 +18,119 @@ import {
   Shield,
   Award,
   Users,
-  Activity
-} from 'lucide-react';
+  Activity,
+} from "lucide-react";
 
 export default function ViddhaKarmaPage() {
+  const t = useTranslations();
   const processSteps = [
     {
       step: 1,
-      title: 'Marma Point Mapping',
-      description: 'Identifying vital energy points specific to condition',
+      title: "Marma Point Mapping",
+      description: "Identifying vital energy points specific to condition",
       icon: Target,
-      color: 'from-blue-500 to-cyan-600'
+      color: "from-blue-500 to-cyan-600",
     },
     {
       step: 2,
-      title: 'Ultra-Fine Needling',
-      description: 'Sterile, single-use micro-needles for precise stimulation',
+      title: "Ultra-Fine Needling",
+      description: "Sterile, single-use micro-needles for precise stimulation",
       icon: Zap,
-      color: 'from-purple-500 to-indigo-600'
+      color: "from-purple-500 to-indigo-600",
     },
     {
       step: 3,
-      title: 'Energy Flow Restoration',
-      description: 'Clearing blockages in prana (life energy) channels',
+      title: "Energy Flow Restoration",
+      description: "Clearing blockages in prana (life energy) channels",
       icon: Activity,
-      color: 'from-green-500 to-emerald-600'
+      color: "from-green-500 to-emerald-600",
     },
     {
       step: 4,
-      title: 'Dosha Balancing',
-      description: 'Harmonizing Vata, Pitta, Kapha for optimal health',
+      title: "Dosha Balancing",
+      description: "Harmonizing Vata, Pitta, Kapha for optimal health",
       icon: Heart,
-      color: 'from-orange-500 to-red-600'
+      color: "from-orange-500 to-red-600",
     },
     {
       step: 5,
-      title: 'Deep Tissue Healing',
-      description: 'Stimulating circulation and natural repair mechanisms',
+      title: "Deep Tissue Healing",
+      description: "Stimulating circulation and natural repair mechanisms",
       icon: Shield,
-      color: 'from-pink-500 to-rose-600'
-    }
+      color: "from-pink-500 to-rose-600",
+    },
   ];
 
   const specializedApplications = [
     {
-      category: 'Neurological Disorders',
-      treatments: ['Facial paralysis', 'Trigeminal neuralgia'],
-      benefits: 'Nerve regeneration',
+      category: "Neurological Disorders",
+      treatments: ["Facial paralysis", "Trigeminal neuralgia"],
+      benefits: "Nerve regeneration",
       successRate: 89,
-      color: 'from-blue-500 to-indigo-600'
+      color: "from-blue-500 to-indigo-600",
     },
     {
-      category: 'Joint & Muscle Pain',
-      treatments: ['Arthritis', 'Fibromyalgia', 'Spasms'],
-      benefits: 'Deep tissue healing',
+      category: "Joint & Muscle Pain",
+      treatments: ["Arthritis", "Fibromyalgia", "Spasms"],
+      benefits: "Deep tissue healing",
       successRate: 92,
-      color: 'from-green-500 to-emerald-600'
+      color: "from-green-500 to-emerald-600",
     },
     {
-      category: 'Digestive Issues',
-      treatments: ['IBS', 'Constipation', 'Acidity'],
-      benefits: 'Digestive fire enhancement',
+      category: "Digestive Issues",
+      treatments: ["IBS", "Constipation", "Acidity"],
+      benefits: "Digestive fire enhancement",
       successRate: 85,
-      color: 'from-orange-500 to-red-600'
+      color: "from-orange-500 to-red-600",
     },
     {
-      category: 'Respiratory Problems',
-      treatments: ['Asthma', 'Bronchitis', 'Chronic cough'],
-      benefits: 'Lung capacity improvement',
+      category: "Respiratory Problems",
+      treatments: ["Asthma", "Bronchitis", "Chronic cough"],
+      benefits: "Lung capacity improvement",
       successRate: 87,
-      color: 'from-cyan-500 to-blue-600'
+      color: "from-cyan-500 to-blue-600",
     },
     {
-      category: 'Stress & Mental Health',
-      treatments: ['Anxiety', 'Insomnia', 'Depression'],
-      benefits: 'Nervous system balancing',
+      category: "Stress & Mental Health",
+      treatments: ["Anxiety", "Insomnia", "Depression"],
+      benefits: "Nervous system balancing",
       successRate: 83,
-      color: 'from-purple-500 to-violet-600'
+      color: "from-purple-500 to-violet-600",
     },
     {
-      category: 'Women\'s Health',
-      treatments: ['PCOD', 'Irregular periods', 'Fertility'],
-      benefits: 'Hormonal harmony',
+      category: "Women's Health",
+      treatments: ["PCOD", "Irregular periods", "Fertility"],
+      benefits: "Hormonal harmony",
       successRate: 88,
-      color: 'from-pink-500 to-rose-600'
-    }
+      color: "from-pink-500 to-rose-600",
+    },
   ];
 
   const advancedTechniques = [
     {
-      name: 'Micro-Viddha',
-      description: 'For sensitive areas and pediatric patients',
+      name: "Micro-Viddha",
+      description: "For sensitive areas and pediatric patients",
       icon: Target,
-      color: 'from-blue-500 to-cyan-600'
+      color: "from-blue-500 to-cyan-600",
     },
     {
-      name: 'Agni-Viddha',
-      description: 'Combining heat therapy with needling',
+      name: "Agni-Viddha",
+      description: "Combining heat therapy with needling",
       icon: Zap,
-      color: 'from-orange-500 to-red-600'
+      color: "from-orange-500 to-red-600",
     },
     {
-      name: 'Herbal-Viddha',
-      description: 'Using medicated needles for enhanced healing',
+      name: "Herbal-Viddha",
+      description: "Using medicated needles for enhanced healing",
       icon: Heart,
-      color: 'from-green-500 to-emerald-600'
+      color: "from-green-500 to-emerald-600",
     },
     {
-      name: 'Marma-Viddha',
-      description: 'Targeting specific energy points for maximum impact',
+      name: "Marma-Viddha",
+      description: "Targeting specific energy points for maximum impact",
       icon: Activity,
-      color: 'from-purple-500 to-indigo-600'
-    }
+      color: "from-purple-500 to-indigo-600",
+    },
   ];
 
   return (
@@ -139,20 +141,15 @@ export default function ViddhaKarmaPage() {
           <div className="max-w-4xl mx-auto text-center">
             <Badge className="bg-purple-100 text-purple-800 border-purple-200 mb-6">
               <Zap className="w-4 h-4 mr-2" />
-              Viddha Karma - Precision Needling Therapy
+              {t("viddhakarma.badge")}
             </Badge>
-            
+
             <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-6">
-              Strategic Marma Point{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
-                Stimulation
-              </span>
-              <br />for Complete Healing
+              {t("viddhakarma.title")}
             </h1>
-            
+
             <p className="text-xl text-gray-700 mb-8 leading-relaxed">
-              Therapeutic needling technique using specialized instruments to target 107 vital 
-              energy points for maximum healing and complete wellness transformation.
+              {t("viddhakarma.subtitle")}
             </p>
 
             <div className="flex flex-wrap justify-center gap-4 mb-8">
@@ -171,13 +168,13 @@ export default function ViddhaKarmaPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
+              <Button
                 size="lg"
                 className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white text-lg px-8"
               >
                 Book Viddha Karma Session
               </Button>
-              <Button 
+              <Button
                 size="lg"
                 variant="outline"
                 className="border-purple-300 text-purple-600 hover:bg-purple-50 text-lg px-8"
@@ -208,8 +205,12 @@ export default function ViddhaKarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Brain className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">Scientific Definition</h3>
-                  <p className="text-sm text-gray-600">Therapeutic needling technique using specialized instruments</p>
+                  <h3 className="font-bold text-gray-900 mb-2">
+                    Scientific Definition
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Therapeutic needling technique using specialized instruments
+                  </p>
                 </CardContent>
               </Card>
 
@@ -218,8 +219,12 @@ export default function ViddhaKarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Award className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">Historical Significance</h3>
-                  <p className="text-sm text-gray-600">Foundation of Ayurvedic para-surgery from classical texts</p>
+                  <h3 className="font-bold text-gray-900 mb-2">
+                    Historical Significance
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Foundation of Ayurvedic para-surgery from classical texts
+                  </p>
                 </CardContent>
               </Card>
 
@@ -228,8 +233,12 @@ export default function ViddhaKarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircle className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">Modern Relevance</h3>
-                  <p className="text-sm text-gray-600">Scientifically proven method for chronic pain management</p>
+                  <h3 className="font-bold text-gray-900 mb-2">
+                    Modern Relevance
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Scientifically proven method for chronic pain management
+                  </p>
                 </CardContent>
               </Card>
 
@@ -238,8 +247,12 @@ export default function ViddhaKarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Target className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">Marma Science</h3>
-                  <p className="text-sm text-gray-600">Targeting 107 vital energy points for maximum healing</p>
+                  <h3 className="font-bold text-gray-900 mb-2">
+                    Marma Science
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Targeting 107 vital energy points for maximum healing
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -263,21 +276,32 @@ export default function ViddhaKarmaPage() {
             <div className="space-y-8">
               {processSteps.map((step, index) => {
                 const IconComponent = step.icon;
-                
+
                 return (
-                  <Card key={index} className="bg-white shadow-lg border-0 overflow-hidden">
+                  <Card
+                    key={index}
+                    className="bg-white shadow-lg border-0 overflow-hidden"
+                  >
                     <CardContent className="p-0">
                       <div className="grid lg:grid-cols-4">
-                        <div className={`bg-gradient-to-br ${step.color} text-white p-8 flex flex-col justify-center`}>
+                        <div
+                          className={`bg-gradient-to-br ${step.color} text-white p-8 flex flex-col justify-center`}
+                        >
                           <div className="text-center lg:text-left">
-                            <div className="text-4xl font-bold mb-2">{step.step}</div>
+                            <div className="text-4xl font-bold mb-2">
+                              {step.step}
+                            </div>
                             <IconComponent className="w-12 h-12 mx-auto lg:mx-0 mb-4" />
                           </div>
                         </div>
-                        
+
                         <div className="lg:col-span-3 p-8 flex flex-col justify-center">
-                          <h3 className="text-2xl font-bold text-gray-900 mb-4">{step.title}</h3>
-                          <p className="text-lg text-gray-700 leading-relaxed">{step.description}</p>
+                          <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                            {step.title}
+                          </h3>
+                          <p className="text-lg text-gray-700 leading-relaxed">
+                            {step.description}
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -304,9 +328,14 @@ export default function ViddhaKarmaPage() {
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {specializedApplications.map((application, index) => (
-                <Card key={index} className="hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-gray-50">
+                <Card
+                  key={index}
+                  className="hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-gray-50"
+                >
                   <CardHeader>
-                    <div className={`w-12 h-12 bg-gradient-to-r ${application.color} rounded-full flex items-center justify-center mb-4`}>
+                    <div
+                      className={`w-12 h-12 bg-gradient-to-r ${application.color} rounded-full flex items-center justify-center mb-4`}
+                    >
                       <Activity className="w-6 h-6 text-white" />
                     </div>
                     <CardTitle className="text-xl text-gray-900 mb-2">
@@ -319,28 +348,46 @@ export default function ViddhaKarmaPage() {
                   <CardContent>
                     <div className="space-y-4">
                       <div>
-                        <h4 className="font-semibold text-gray-900 mb-2">Specific Treatments:</h4>
+                        <h4 className="font-semibold text-gray-900 mb-2">
+                          Specific Treatments:
+                        </h4>
                         <ul className="space-y-1">
-                          {application.treatments.map((treatment, treatmentIndex) => (
-                            <li key={treatmentIndex} className="flex items-center space-x-2">
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                              <span className="text-gray-700">{treatment}</span>
-                            </li>
-                          ))}
+                          {application.treatments.map(
+                            (treatment, treatmentIndex) => (
+                              <li
+                                key={treatmentIndex}
+                                className="flex items-center space-x-2"
+                              >
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                <span className="text-gray-700">
+                                  {treatment}
+                                </span>
+                              </li>
+                            )
+                          )}
                         </ul>
                       </div>
-                      
+
                       <div>
-                        <h4 className="font-semibold text-gray-900 mb-2">Unique Benefits:</h4>
+                        <h4 className="font-semibold text-gray-900 mb-2">
+                          Unique Benefits:
+                        </h4>
                         <p className="text-gray-700">{application.benefits}</p>
                       </div>
 
                       <div className="pt-4">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-700">Success Rate</span>
-                          <span className="text-sm font-bold text-green-600">{application.successRate}%</span>
+                          <span className="text-sm font-medium text-gray-700">
+                            Success Rate
+                          </span>
+                          <span className="text-sm font-bold text-green-600">
+                            {application.successRate}%
+                          </span>
                         </div>
-                        <Progress value={application.successRate} className="h-2" />
+                        <Progress
+                          value={application.successRate}
+                          className="h-2"
+                        />
                       </div>
                     </div>
                   </CardContent>
@@ -360,18 +407,24 @@ export default function ViddhaKarmaPage() {
                 Advanced Viddha Karma Techniques
               </h2>
               <p className="text-lg text-gray-600">
-                Specialized approaches for different conditions and patient needs
+                Specialized approaches for different conditions and patient
+                needs
               </p>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               {advancedTechniques.map((technique, index) => {
                 const IconComponent = technique.icon;
-                
+
                 return (
-                  <Card key={index} className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-white">
+                  <Card
+                    key={index}
+                    className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-white"
+                  >
                     <CardContent className="p-8">
-                      <div className={`w-16 h-16 bg-gradient-to-r ${technique.color} rounded-full flex items-center justify-center mx-auto mb-6`}>
+                      <div
+                        className={`w-16 h-16 bg-gradient-to-r ${technique.color} rounded-full flex items-center justify-center mx-auto mb-6`}
+                      >
                         <IconComponent className="w-8 h-8 text-white" />
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-4">
@@ -405,8 +458,12 @@ export default function ViddhaKarmaPage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               <Card className="hover:shadow-xl transition-all duration-300 border-2 border-gray-200">
                 <CardHeader className="text-center">
-                  <CardTitle className="text-lg text-gray-900">Essential Treatment</CardTitle>
-                  <div className="text-2xl font-bold text-purple-600">4 Sessions</div>
+                  <CardTitle className="text-lg text-gray-900">
+                    Essential Treatment
+                  </CardTitle>
+                  <div className="text-2xl font-bold text-purple-600">
+                    4 Sessions
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-gray-600">Stress-related conditions</p>
@@ -425,8 +482,12 @@ export default function ViddhaKarmaPage() {
                   Most Popular
                 </Badge>
                 <CardHeader className="text-center">
-                  <CardTitle className="text-lg text-gray-900">Comprehensive Care</CardTitle>
-                  <div className="text-2xl font-bold text-purple-600">6 Sessions</div>
+                  <CardTitle className="text-lg text-gray-900">
+                    Comprehensive Care
+                  </CardTitle>
+                  <div className="text-2xl font-bold text-purple-600">
+                    6 Sessions
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-gray-600">Chronic pain conditions</p>
@@ -442,8 +503,12 @@ export default function ViddhaKarmaPage() {
 
               <Card className="hover:shadow-xl transition-all duration-300 border-2 border-gray-200">
                 <CardHeader className="text-center">
-                  <CardTitle className="text-lg text-gray-900">Advanced Healing</CardTitle>
-                  <div className="text-2xl font-bold text-purple-600">8 Sessions</div>
+                  <CardTitle className="text-lg text-gray-900">
+                    Advanced Healing
+                  </CardTitle>
+                  <div className="text-2xl font-bold text-purple-600">
+                    8 Sessions
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-gray-600">Complex disorders + medicines</p>
@@ -462,8 +527,12 @@ export default function ViddhaKarmaPage() {
                   Premium
                 </Badge>
                 <CardHeader className="text-center">
-                  <CardTitle className="text-lg text-gray-900">Holistic Transformation</CardTitle>
-                  <div className="text-2xl font-bold text-purple-600">Complete Program</div>
+                  <CardTitle className="text-lg text-gray-900">
+                    Holistic Transformation
+                  </CardTitle>
+                  <div className="text-2xl font-bold text-purple-600">
+                    Complete Program
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-gray-600">Total mind-body wellness</p>
@@ -489,19 +558,20 @@ export default function ViddhaKarmaPage() {
               Unlock Your Body's Natural Healing Power
             </h2>
             <p className="text-xl text-purple-100 mb-8">
-              Experience the precision of Viddha Karma therapy. Restore energy flow, 
-              balance your doshas, and achieve complete wellness naturally.
+              Experience the precision of Viddha Karma therapy. Restore energy
+              flow, balance your doshas, and achieve complete wellness
+              naturally.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
+              <Button
                 size="lg"
                 variant="secondary"
                 className="bg-white text-purple-600 hover:bg-purple-50 text-lg px-8"
               >
                 Book Viddha Karma Session
               </Button>
-              <Button 
+              <Button
                 size="lg"
                 variant="outline"
                 className="border-white text-white hover:bg-white/10 text-lg px-8"

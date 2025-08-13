@@ -1,119 +1,125 @@
 "use client";
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { 
-  Brain, 
-  Heart, 
-  Zap, 
-  Droplets, 
-  DollarSign, 
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Brain,
+  Heart,
+  Zap,
+  Droplets,
+  DollarSign,
   Mountain,
   Phone,
   Calendar,
   CheckCircle,
   Star,
   Users,
-  Award
-} from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
+  Award,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
 
 const SpecialtyTreatments = () => {
-  const { t } = useLanguage();
+  const t = useTranslations();
 
   const specialties = [
     {
-      id: 'viddhakarma-autism',
+      id: "viddhakarma-autism",
       title: t.specialties.viddhakarmaAutism.title,
       description: t.specialties.viddhakarmaAutism.description,
       icon: Brain,
-      color: 'from-purple-500 to-indigo-600',
-      bgColor: 'from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20',
+      color: "from-purple-500 to-indigo-600",
+      bgColor:
+        "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
       features: [
         "Unique brain disorder treatment",
         "Accurate precision required",
         "Few specialists available in India",
-        "Proven results in autism care"
+        "Proven results in autism care",
       ],
-      stats: { patients: "200+", successRate: "85%", experience: "15 years" }
+      stats: { patients: "200+", successRate: "85%", experience: "15 years" },
     },
     {
-      id: 'viddhakarma-cp',
+      id: "viddhakarma-cp",
       title: t.specialties.viddhakarmaCP.title,
       description: t.specialties.viddhakarmaCP.description,
       icon: Heart,
-      color: 'from-red-500 to-pink-600',
-      bgColor: 'from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20',
+      color: "from-red-500 to-pink-600",
+      bgColor:
+        "from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20",
       features: [
         "Birth brain injury treatment",
         "Regeneration possible",
         "Rehabilitation support",
-        "Hope for recovery"
+        "Hope for recovery",
       ],
-      stats: { patients: "150+", successRate: "78%", experience: "12 years" }
+      stats: { patients: "150+", successRate: "78%", experience: "12 years" },
     },
     {
-      id: 'mental-health',
+      id: "mental-health",
       title: t.specialties.mentalHealth.title,
       description: t.specialties.mentalHealth.description,
       icon: Zap,
-      color: 'from-green-500 to-emerald-600',
-      bgColor: 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20',
+      color: "from-green-500 to-emerald-600",
+      bgColor:
+        "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
       features: [
         "Holistic mental health approach",
         "Counseling and therapy",
         "Mind-body wellness",
-        "Optimal well-being focus"
+        "Optimal well-being focus",
       ],
-      stats: { patients: "500+", successRate: "90%", experience: "20 years" }
+      stats: { patients: "500+", successRate: "90%", experience: "20 years" },
     },
     {
-      id: 'panchakarma-special',
+      id: "panchakarma-special",
       title: t.specialties.panchakarmaSpecial.title,
       description: t.specialties.panchakarmaSpecial.description,
       icon: Droplets,
-      color: 'from-blue-500 to-cyan-600',
-      bgColor: 'from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20',
+      color: "from-blue-500 to-cyan-600",
+      bgColor:
+        "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
       features: [
         "Specialized for children",
         "Expert Vaman procedures",
         "Difficult patient care",
-        "Mastery in Panchakarma"
+        "Mastery in Panchakarma",
       ],
-      stats: { patients: "1000+", successRate: "95%", experience: "20 years" }
+      stats: { patients: "1000+", successRate: "95%", experience: "20 years" },
     },
     {
-      id: 'affordability',
+      id: "affordability",
       title: t.specialties.affordability.title,
       description: t.specialties.affordability.description,
       icon: DollarSign,
-      color: 'from-orange-500 to-red-600',
-      bgColor: 'from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20',
+      color: "from-orange-500 to-red-600",
+      bgColor:
+        "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
       features: [
         "No daily treatment charges",
         "Accessible healthcare",
         "Quality for everyone",
-        "Community service focus"
+        "Community service focus",
       ],
-      stats: { patients: "Free", successRate: "100%", experience: "Always" }
+      stats: { patients: "Free", successRate: "100%", experience: "Always" },
     },
     {
-      id: 'wellness-retreats',
+      id: "wellness-retreats",
       title: t.specialties.wellnessRetreats.title,
       description: t.specialties.wellnessRetreats.description,
       icon: Mountain,
-      color: 'from-teal-500 to-cyan-600',
-      bgColor: 'from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20',
+      color: "from-teal-500 to-cyan-600",
+      bgColor:
+        "from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20",
       features: [
         "Stress relief programs",
         "Nature immersion",
         "Healthy food focus",
-        "Transformative experiences"
+        "Transformative experiences",
       ],
-      stats: { patients: "50+", successRate: "98%", experience: "5 years" }
-    }
+      stats: { patients: "50+", successRate: "98%", experience: "5 years" },
+    },
   ];
 
   return (
@@ -128,7 +134,8 @@ const SpecialtyTreatments = () => {
             Unique Ayurvedic Specializations
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Pioneering treatments and specialized care that sets us apart in the field of Ayurvedic medicine
+            Pioneering treatments and specialized care that sets us apart in the
+            field of Ayurvedic medicine
           </p>
         </div>
 
@@ -141,12 +148,16 @@ const SpecialtyTreatments = () => {
                 key={specialty.id}
                 className="group hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden bg-white dark:bg-gray-800"
               >
-                <CardHeader className={`bg-gradient-to-br ${specialty.bgColor} relative overflow-hidden`}>
+                <CardHeader
+                  className={`bg-gradient-to-br ${specialty.bgColor} relative overflow-hidden`}
+                >
                   <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
                     <IconComponent className="w-full h-full" />
                   </div>
                   <div className="relative z-10">
-                    <div className={`w-16 h-16 bg-gradient-to-r ${specialty.color} rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                    <div
+                      className={`w-16 h-16 bg-gradient-to-r ${specialty.color} rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                    >
                       <IconComponent className="w-8 h-8 text-white" />
                     </div>
                     <CardTitle className="text-xl font-playfair font-bold text-gray-900 dark:text-white mb-2">
@@ -212,10 +223,10 @@ const SpecialtyTreatments = () => {
 
                   {/* Action Buttons */}
                   <div className="flex space-x-2">
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="flex-1"
-                      onClick={() => window.open('tel:+919860370961', '_self')}
+                      onClick={() => window.open("tel:+919860370961", "_self")}
                     >
                       <Phone className="w-3 h-3 mr-1" />
                       Consult Now
@@ -243,14 +254,16 @@ const SpecialtyTreatments = () => {
                   Experience Specialized Ayurvedic Care
                 </h3>
                 <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
-                  Join thousands who have experienced the unique healing power of our specialized treatments. 
-                  Dr. Chandrakumar Deshmukh's expertise in rare Ayurvedic techniques offers hope where conventional medicine falls short.
+                  Join thousands who have experienced the unique healing power
+                  of our specialized treatments. Dr. Chandrakumar Deshmukh's
+                  expertise in rare Ayurvedic techniques offers hope where
+                  conventional medicine falls short.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button 
-                    size="lg" 
+                  <Button
+                    size="lg"
                     className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
-                    onClick={() => window.open('tel:+919860370961', '_self')}
+                    onClick={() => window.open("tel:+919860370961", "_self")}
                   >
                     <Phone className="w-4 h-4 mr-2" />
                     Call for Specialized Consultation

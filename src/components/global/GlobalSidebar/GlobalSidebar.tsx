@@ -183,7 +183,6 @@ export default function GlobalSidebar({
                   href: "#",
                   icon:
                     !avatarError && user.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={user.avatarUrl}
                         className="size-9 shrink-0 rounded-full object-cover"

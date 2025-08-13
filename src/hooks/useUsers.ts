@@ -1,7 +1,31 @@
 import { useQueryData } from './useQueryData';
 import { useMutationData } from './useMutationData';
 import { useAuth } from './useAuth';
-import { getUserProfile, updateUserProfile } from '@/lib/actions/users.server';
+import {
+  getUserProfile,
+  updateUserProfile,
+  createUser,
+  updateUserRole,
+  getUsersByRole,
+  getUsersByClinic,
+  searchUsers,
+  getUserStats,
+  bulkUpdateUsers,
+  exportUsers,
+  changeUserPassword,
+  toggleUserVerification,
+  getUserActivityLogs,
+  getUserSessions,
+  terminateUserSession,
+  getAllUsers,
+  getPatients,
+  getDoctors,
+  getReceptionists,
+  getClinicAdmins,
+  getUserById,
+  updateUser,
+  deleteUser
+} from '@/lib/actions/users.server';
 
 // API URL configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
@@ -347,22 +371,22 @@ export const useIsProfileComplete = () => {
 export const useUserAvatar = () => {
   return (user: Record<string, unknown> | null): string => {
     if (!user) return '';
-    
+
     // If user has a custom avatar, use it
     if (user.avatar) {
       return user.avatar as string;
     }
-    
+
     // If user has a profile picture, use it
     if (user.profilePicture) {
       return user.profilePicture as string;
     }
-    
+
     // Generate initials from name
     const firstName = user.firstName as string || '';
     const lastName = user.lastName as string || '';
     const name = user.name as string || '';
-    
+
     let initials = '';
     if (firstName && lastName) {
       initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -380,8 +404,179 @@ export const useUserAvatar = () => {
     } else {
       initials = 'U';
     }
-    
+
     // Return a placeholder avatar with initials
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=random&color=fff&size=128`;
   };
-}; 
+};
+
+// ===== ENHANCED USER MANAGEMENT HOOKS =====
+
+/**
+ * Hook to create a new user
+ */
+export const useCreateUser = () => {
+  return useMutationData(['createUser'], async (userData: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    role: string;
+    gender?: string;
+    dateOfBirth?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    zipCode?: string;
+  }) => {
+    const result = await createUser(userData);
+    return { status: 200, data: result };
+  }, 'users');
+};
+
+/**
+ * Hook to update user role
+ */
+export const useUpdateUserRole = () => {
+  return useMutationData(['updateUserRole'], async ({ userId, role }: { userId: string; role: string }) => {
+    const result = await updateUserRole(userId, role);
+    return { status: 200, data: result };
+  }, 'users');
+};
+
+/**
+ * Hook to get users by role
+ */
+export const useUsersByRole = (role: string) => {
+  return useQueryData(['users', 'role', role], async () => {
+    return await getUsersByRole(role);
+  }, {
+    enabled: !!role,
+  });
+};
+
+/**
+ * Hook to get users by clinic
+ */
+export const useUsersByClinic = (clinicId: string) => {
+  return useQueryData(['users', 'clinic', clinicId], async () => {
+    return await getUsersByClinic(clinicId);
+  }, {
+    enabled: !!clinicId,
+  });
+};
+
+/**
+ * Hook to search users
+ */
+export const useSearchUsers = () => {
+  return useMutationData(['searchUsers'], async ({ query, filters }: {
+    query: string;
+    filters?: {
+      role?: string;
+      clinicId?: string;
+      isVerified?: boolean;
+    };
+  }) => {
+    const result = await searchUsers(query, filters);
+    return { status: 200, data: result };
+  });
+};
+
+/**
+ * Hook to get user statistics
+ */
+export const useUserStats = () => {
+  return useQueryData(['userStats'], async () => {
+    return await getUserStats();
+  });
+};
+
+/**
+ * Hook to bulk update users
+ */
+export const useBulkUpdateUsers = () => {
+  return useMutationData(['bulkUpdateUsers'], async ({ userIds, updates }: {
+    userIds: string[];
+    updates: Record<string, any>;
+  }) => {
+    const result = await bulkUpdateUsers(userIds, updates);
+    return { status: 200, data: result };
+  }, 'users');
+};
+
+/**
+ * Hook to export users
+ */
+export const useExportUsers = () => {
+  return useMutationData(['exportUsers'], async ({ format, filters }: {
+    format?: 'csv' | 'excel';
+    filters?: Record<string, any>;
+  }) => {
+    const result = await exportUsers(format, filters);
+    return { status: 200, data: result };
+  });
+};
+
+/**
+ * Hook to change user password
+ */
+export const useChangeUserPassword = () => {
+  return useMutationData(['changeUserPassword'], async ({ userId, newPassword }: {
+    userId: string;
+    newPassword: string;
+  }) => {
+    const result = await changeUserPassword(userId, newPassword);
+    return { status: 200, data: result };
+  });
+};
+
+/**
+ * Hook to toggle user verification
+ */
+export const useToggleUserVerification = () => {
+  return useMutationData(['toggleUserVerification'], async ({ userId, isVerified }: {
+    userId: string;
+    isVerified: boolean;
+  }) => {
+    const result = await toggleUserVerification(userId, isVerified);
+    return { status: 200, data: result };
+  }, 'users');
+};
+
+/**
+ * Hook to get user activity logs
+ */
+export const useUserActivityLogs = (userId: string, limit: number = 50) => {
+  return useQueryData(['userActivityLogs', userId], async () => {
+    return await getUserActivityLogs(userId, limit);
+  }, {
+    enabled: !!userId,
+  });
+};
+
+/**
+ * Hook to get user sessions
+ */
+export const useUserSessions = (userId: string) => {
+  return useQueryData(['userSessions', userId], async () => {
+    return await getUserSessions(userId);
+  }, {
+    enabled: !!userId,
+  });
+};
+
+/**
+ * Hook to terminate user session
+ */
+export const useTerminateUserSession = () => {
+  return useMutationData(['terminateUserSession'], async ({ userId, sessionId }: {
+    userId: string;
+    sessionId: string;
+  }) => {
+    const result = await terminateUserSession(userId, sessionId);
+    return { status: 200, data: result };
+  }, 'userSessions');
+};

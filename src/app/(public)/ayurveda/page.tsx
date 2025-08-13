@@ -14,6 +14,7 @@ import {
   SectionSkeleton,
 } from "@/lib/dynamic-imports";
 import WhyChooseUsSection from "@/components/ayurveda/WhyChooseUsSection";
+import SpecializationsSection from "@/components/ayurveda/SpecializationsSection";
 import { LanguageProvider } from "@/lib/i18n/context";
 
 // Generate SEO metadata using our SEO utility
@@ -47,45 +48,7 @@ export default function AyurvedaHomePage() {
 
         {/* Quick Overview Section */}
         <LazySection fallback={<SectionSkeleton />}>
-          <section className="py-20 bg-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                  Our Specializations
-                </h2>
-                <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                  Experience authentic Ayurvedic healing with our specialized
-                  treatments
-                </p>
-              </div>
-              <div className="grid md:grid-cols-3 gap-8">
-                <div className="text-center p-6 bg-green-50 rounded-lg">
-                  <h3 className="text-xl font-semibold text-green-800 mb-2">
-                    Panchakarma
-                  </h3>
-                  <p className="text-gray-600">
-                    Complete detoxification and rejuvenation therapy
-                  </p>
-                </div>
-                <div className="text-center p-6 bg-blue-50 rounded-lg">
-                  <h3 className="text-xl font-semibold text-blue-800 mb-2">
-                    Viddhakarma
-                  </h3>
-                  <p className="text-gray-600">
-                    Specialized treatment for neurological conditions
-                  </p>
-                </div>
-                <div className="text-center p-6 bg-orange-50 rounded-lg">
-                  <h3 className="text-xl font-semibold text-orange-800 mb-2">
-                    Agnikarma
-                  </h3>
-                  <p className="text-gray-600">
-                    Therapeutic heat treatment for joint disorders
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
+          <SpecializationsSection />
         </LazySection>
 
         {/* Non-critical content - lazy load with intersection observer */}

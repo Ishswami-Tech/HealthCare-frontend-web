@@ -13,15 +13,19 @@ import {
   cancelAppointment,
   getDoctorAvailability,
   updateAppointment,
-  getAppointmentById
+  getAppointmentById,
+  getAppointmentStats
 } from '@/lib/actions/appointments.server';
 import { useAuth } from './useAuth';
 
-export const useAppointments = (filters?: AppointmentFilters) => {
+export const useAppointments = (clinicId: string, filters?: AppointmentFilters) => {
   return useQueryData<AppointmentWithRelations[]>(
-    ['appointments', filters],
+    ['appointments', clinicId, filters],
     async () => {
-      return await getAppointments(filters);
+      return await getAppointments(clinicId, filters);
+    },
+    {
+      enabled: !!clinicId,
     }
   );
 };
@@ -46,7 +50,7 @@ export const useMyAppointments = (filters?: AppointmentFilters) => {
     if (role === 'PATIENT') {
       return await getMyAppointments();
     } else {
-      return await getAppointments(filters);
+      return await getAppointments(session?.user?.clinicId || '', filters);
     }
   });
 };
@@ -189,4 +193,20 @@ export const useStartConsultation = () => {
     console.log('TODO: Implement startConsultation', id);
     return { id, status: 'IN_PROGRESS' };
   }, 'appointments');
+};
+
+/**
+ * Hook to get appointment statistics
+ */
+export const useAppointmentStats = (filters?: {
+  startDate?: string;
+  endDate?: string;
+  doctorId?: string;
+  clinicId?: string;
+}) => {
+  return useQueryData(['appointmentStats', filters], async () => {
+    return await getAppointmentStats(filters);
+  }, {
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 };

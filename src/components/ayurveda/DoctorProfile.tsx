@@ -17,10 +17,10 @@ import {
   Heart,
   CheckCircle,
 } from "lucide-react";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslations } from "next-intl";
 
 const DoctorProfile = () => {
-  const { t } = useLanguage();
+  const t = useTranslations();
 
   const opdSchedule = [
     { day: t.contact.days.monday, time: "11:45 AM – 11:30 PM", isOpen: true },

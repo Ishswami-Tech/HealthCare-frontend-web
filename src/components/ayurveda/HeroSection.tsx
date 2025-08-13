@@ -25,19 +25,17 @@ import {
   TrendingUp,
   AlertCircle,
 } from "lucide-react";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslations } from "next-intl";
 
 const HeroSection = () => {
-  const { t } = useLanguage();
+  const t = useTranslations();
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [liveCount, setLiveCount] = useState(147);
 
   const testimonials = [
-    "Meera from Mumbai completed 21-day Panchakarma detox - 3 min ago",
-    "Rajesh rated Agnikarma treatment 5 stars for sciatica relief - 7 min ago",
-    "Dr. Sharma referred fertility case for traditional treatment - 10 min ago",
-    "Sunita shared Viddha Karma success story on Instagram - 15 min ago",
-    "Corporate wellness program booked for 50 employees - 18 min ago",
+    t("hero.testimonials.0"),
+    t("hero.testimonials.1"),
+    t("hero.testimonials.2"),
   ];
 
   useEffect(() => {
@@ -74,7 +72,7 @@ const HeroSection = () => {
                 <HoverAnimation type="scale">
                   <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700">
                     <CheckCircle className="w-3 h-3 mr-1" />
-                    Government Certified
+                    {t("hero.trustIndicators.governmentCertified")}
                   </Badge>
                 </HoverAnimation>
               </StaggerItem>
@@ -82,7 +80,7 @@ const HeroSection = () => {
                 <HoverAnimation type="scale">
                   <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-700">
                     <Award className="w-3 h-3 mr-1" />
-                    ISO 9001:2015
+                    {t("hero.trustIndicators.iso9001")}
                   </Badge>
                 </HoverAnimation>
               </StaggerItem>
@@ -90,7 +88,7 @@ const HeroSection = () => {
                 <HoverAnimation type="scale">
                   <Badge className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-700">
                     <Star className="w-3 h-3 mr-1" />
-                    4.9/5 Rating
+                    {t("heroSection.rating")}
                   </Badge>
                 </HoverAnimation>
               </StaggerItem>
@@ -118,7 +116,7 @@ const HeroSection = () => {
                   }}
                   className="block"
                 >
-                  {t.hero.title1}
+                  {t("hero.title1")}
                 </motion.span>
 
                 <motion.span
@@ -165,7 +163,7 @@ const HeroSection = () => {
                       ease: "easeInOut",
                     }}
                   >
-                    Complete Healing.
+                    {t("heroSection.completeHealing")}.
                   </motion.span>
                 </motion.span>
 
@@ -191,7 +189,7 @@ const HeroSection = () => {
                       ease: "easeInOut",
                     }}
                   >
-                    Transform Your Life
+                    {t("heroSection.transformYourLife")}
                   </motion.span>
                 </motion.span>
               </h1>
@@ -200,10 +198,7 @@ const HeroSection = () => {
             {/* Subheadline */}
             <ScrollReveal direction="up" delay={0.3}>
               <p className="text-lg md:text-xl text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
-                Experience Authentic <strong>Panchakarma</strong>,{" "}
-                <strong>Agnikarma</strong>, <strong>Viddha Karma</strong> &
-                Complete Ayurvedic Solutions - Where 5000-Year Healing Wisdom
-                Meets Modern Excellence
+                {t("heroSection.authenticTreatments")}
               </p>
             </ScrollReveal>
 
@@ -212,15 +207,21 @@ const HeroSection = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 max-w-3xl">
                 <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
                   <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  <span className="text-sm">20+ Years Experience</span>
+                  <span className="text-sm">
+                    {t("heroSection.yearsExperience")}
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
                   <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  <span className="text-sm">5000+ Lives Transformed</span>
+                  <span className="text-sm">
+                    {t("heroSection.patientsHealed")}
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
                   <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  <span className="text-sm">Government Certified</span>
+                  <span className="text-sm">
+                    {t("heroSection.governmentCertified")}
+                  </span>
                 </div>
               </div>
             </ScrollReveal>
@@ -237,7 +238,7 @@ const HeroSection = () => {
                         transition={{ duration: 2, repeat: Infinity }}
                       />
                       <span className="font-semibold text-gray-900 dark:text-white">
-                        Live Activity
+                        {t("heroSection.liveActivity")}
                       </span>
                     </div>
                     <Badge
@@ -245,7 +246,7 @@ const HeroSection = () => {
                       className="text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-600"
                     >
                       <TrendingUp className="w-3 h-3 mr-1" />
-                      High Demand
+                      {t("heroSection.highDemand")}
                     </Badge>
                   </div>
                   <motion.p
@@ -262,10 +263,10 @@ const HeroSection = () => {
                       <CounterAnimation
                         from={100}
                         to={liveCount}
-                        suffix=" people viewing treatments today"
+                        suffix={` ${t("heroSection.peopleViewing")}`}
                       />
                     </span>
-                    <span>Bookings increased 400% this month</span>
+                    <span>{t("heroSection.bookingsIncreased")}</span>
                   </div>
                 </div>
               </HoverAnimation>
@@ -377,7 +378,7 @@ const HeroSection = () => {
                     className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
                   >
                     <Play className="w-4 h-4 mr-2" />
-                    Watch Healing Journeys
+                    {t("heroSection.watchHealingJourneys")}
                   </Button>
                 </HoverAnimation>
               </StaggerItem>
@@ -387,7 +388,7 @@ const HeroSection = () => {
                     variant="ghost"
                     className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
                   >
-                    🏥 Virtual Clinic Tour
+                    🏥 {t("heroSection.virtualClinicTour")}
                   </Button>
                 </HoverAnimation>
               </StaggerItem>
@@ -397,7 +398,7 @@ const HeroSection = () => {
                     variant="ghost"
                     className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
                   >
-                    📋 Free Health Assessment
+                    📋 {t("heroSection.freeHealthAssessment")}
                   </Button>
                 </HoverAnimation>
               </StaggerItem>

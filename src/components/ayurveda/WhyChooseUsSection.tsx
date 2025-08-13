@@ -19,56 +19,56 @@ import {
   StaggerContainer,
   StaggerItem,
 } from "@/components/ui/animated-wrapper";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslations } from "next-intl";
 
 const WhyChooseUsSection = () => {
-  const { t } = useLanguage();
+  const t = useTranslations();
 
   const features = [
     {
       icon: Shield,
-      title: t.whyChooseUs.features.certified.title,
-      description: t.whyChooseUs.features.certified.description,
+      title: t("whyChooseUs.features.certified.title"),
+      description: t("whyChooseUs.features.certified.description"),
       color: "from-blue-500 to-cyan-500",
       bgColor: "bg-blue-50 dark:bg-blue-900/20",
       borderColor: "border-blue-200 dark:border-blue-800",
     },
     {
       icon: Award,
-      title: t.whyChooseUs.features.experience.title,
-      description: t.whyChooseUs.features.experience.description,
+      title: t("whyChooseUs.features.authentic.title"),
+      description: t("whyChooseUs.features.authentic.description"),
       color: "from-orange-500 to-red-500",
       bgColor: "bg-orange-50 dark:bg-orange-900/20",
       borderColor: "border-orange-200 dark:border-orange-800",
     },
     {
       icon: Users,
-      title: t.whyChooseUs.features.transformed.title,
-      description: t.whyChooseUs.features.transformed.description,
+      title: t("whyChooseUs.features.personalized.title"),
+      description: t("whyChooseUs.features.personalized.description"),
       color: "from-green-500 to-emerald-500",
       bgColor: "bg-green-50 dark:bg-green-900/20",
       borderColor: "border-green-200 dark:border-green-800",
     },
     {
       icon: Heart,
-      title: t.whyChooseUs.features.personalized.title,
-      description: t.whyChooseUs.features.personalized.description,
+      title: t("whyChooseUs.features.natural.title"),
+      description: t("whyChooseUs.features.natural.description"),
       color: "from-pink-500 to-rose-500",
       bgColor: "bg-pink-50 dark:bg-pink-900/20",
       borderColor: "border-pink-200 dark:border-pink-800",
     },
     {
       icon: Sparkles,
-      title: t.whyChooseUs.features.natural.title,
-      description: t.whyChooseUs.features.natural.description,
+      title: t("whyChooseUs.features.natural.title"),
+      description: t("whyChooseUs.features.natural.description"),
       color: "from-purple-500 to-indigo-500",
       bgColor: "bg-purple-50 dark:bg-purple-900/20",
       borderColor: "border-purple-200 dark:border-purple-800",
     },
     {
       icon: Target,
-      title: t.whyChooseUs.features.holistic.title,
-      description: t.whyChooseUs.features.holistic.description,
+      title: t("whyChooseUs.features.natural.title"),
+      description: t("whyChooseUs.features.natural.description"),
       color: "from-yellow-500 to-amber-500",
       bgColor: "bg-yellow-50 dark:bg-yellow-900/20",
       borderColor: "border-yellow-200 dark:border-yellow-800",
@@ -94,15 +94,15 @@ const WhyChooseUsSection = () => {
             className="inline-flex items-center gap-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-4 py-2 rounded-full text-sm font-medium mb-4"
           >
             <Sparkles className="w-4 h-4" />
-            {t.whyChooseUs.title}
+            {t("whyChooseUs.title")}
           </motion.div>
 
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
-            {t.whyChooseUs.title}
+            {t("whyChooseUs.title")}
           </h2>
 
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            {t.whyChooseUs.subtitle}
+            {t("whyChooseUs.subtitle")}
           </p>
         </ScrollReveal>
 

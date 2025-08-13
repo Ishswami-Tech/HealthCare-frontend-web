@@ -1,4 +1,4 @@
-import { translations } from './translations';
+import { translations } from './translations/index';
 import { SupportedLanguage } from './config';
 
 // Helper function to get nested translation value

@@ -86,15 +86,26 @@ const config: NextConfig = {
 
   // ESLint configuration for build
   eslint: {
-    // Temporarily disable ESLint during builds due to many unused variables
-    ignoreDuringBuilds: true,
+    // Enable ESLint during builds for healthcare compliance
+    ignoreDuringBuilds: false,
     dirs: ['src'],
   },
 
   // TypeScript configuration for build
   typescript: {
-    // Temporarily disable TypeScript errors during builds
-    ignoreBuildErrors: true,
+    // Enable TypeScript error checking for healthcare compliance
+    ignoreBuildErrors: false,
+  },
+
+  // Webpack configuration to ignore TypeScript errors during development
+  webpack: (config, { dev, isServer }) => {
+    if (dev) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+      };
+    }
+    return config;
   },
 };
 

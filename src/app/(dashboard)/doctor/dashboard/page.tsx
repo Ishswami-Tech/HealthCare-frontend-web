@@ -13,6 +13,7 @@ import {
   useMyAppointments,
   useDoctorAvailability,
 } from "@/hooks/useAppointments";
+import { useClinicContext } from "@/hooks/useClinic";
 import { useAppStore } from "@/stores/useAppStore";
 import { useQueryData } from "@/hooks/useQueryData";
 import { getUserProfile } from "@/lib/actions/users.server";
@@ -34,6 +35,9 @@ import {
 export default function DoctorDashboard() {
   const { session } = useAuth();
   const user = session?.user;
+
+  // Clinic context
+  const { clinicId } = useClinicContext();
 
   // Fetch real data using existing hooks and server actions
   const { data: appointments } = useMyAppointments();
