@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +12,6 @@ import {
   Phone,
   MessageCircle,
   Calendar,
-  BookOpen,
   Users,
   Star,
   CheckCircle,
@@ -24,11 +22,9 @@ import {
   Target,
   Mail,
   Video,
-  Globe,
 } from "lucide-react";
 
 const ComprehensiveCTA = () => {
-  const t = useTranslations();
   const [selectedIntent, setSelectedIntent] = useState<string | null>(null);
   const [email, setEmail] = useState("");
 
@@ -38,7 +34,7 @@ const ComprehensiveCTA = () => {
       title: "START MY HEALING JOURNEY NOW",
       subtitle: "High Intent - Ready for Immediate Transformation",
       description:
-        "I'm ready to begin my healing journey and want to start treatment immediately",
+        "I&apos;m ready to begin my healing journey and want to start treatment immediately",
       icon: Zap,
       color: "from-orange-500 to-red-600",
       bgColor:
@@ -104,7 +100,7 @@ const ComprehensiveCTA = () => {
       title: "STAY CONNECTED FOR WELLNESS",
       subtitle: "Low Intent - Exploring Natural Healing Options",
       description:
-        "I'm interested in learning more about Ayurvedic healing and wellness",
+        "I&apos;m interested in learning more about Ayurvedic healing and wellness",
       icon: Brain,
       color: "from-green-500 to-emerald-600",
       bgColor:
@@ -193,7 +189,7 @@ const ComprehensiveCTA = () => {
             </div>
 
             <div className="space-y-8">
-              {engagementLevels.map((level, index) => {
+              {engagementLevels.map((level) => {
                 const IconComponent = level.icon;
                 const isSelected = selectedIntent === level.id;
 
@@ -283,7 +279,7 @@ const ComprehensiveCTA = () => {
             </div>
 
             <div className="grid md:grid-cols-2 gap-8">
-              {contactChannels.map((contact, index) => {
+              {contactChannels.map((contact) => {
                 const IconComponent = contact.icon;
 
                 return (
@@ -382,10 +378,10 @@ const ComprehensiveCTA = () => {
               Transform Your Life Completely
             </h2>
             <p className="text-xl text-orange-100 mb-8 leading-relaxed">
-              At Shri Vishwamurthi Ayurvedalay, we don't just treat diseases -
-              we transform lives completely. Experience the profound healing
-              power of authentic Ayurveda, where 5000-year-old wisdom meets
-              cutting-edge modern excellence.
+              At Shri Vishwamurthi Ayurvedalay, we don&apos;t just treat
+              diseases - we transform lives completely. Experience the profound
+              healing power of authentic Ayurveda, where 5000-year-old wisdom
+              meets cutting-edge modern excellence.
             </p>
 
             {/* Emotional Vision */}

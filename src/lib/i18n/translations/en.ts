@@ -175,15 +175,15 @@ export const en: TranslationKeys = {
 
   // Testimonials Data
   testimonials: {
-    patient1Name: 'Sarah Johnson',
-    patient1Role: 'Patient',
-    patient1Content: 'The appointment booking system is so convenient. I love being able to see all my medical records in one place.',
-    doctor1Name: 'Dr. Michael Chen',
-    doctor1Role: 'Cardiologist',
-    doctor1Content: 'This platform has streamlined my practice. Patient management has never been easier.',
-    manager1Name: 'Emily Rodriguez',
-    manager1Role: 'Clinic Manager',
-    manager1Content: 'The administrative features are fantastic. It has greatly improved our clinic\'s efficiency.',
+    patient1Name: 'Suresh Kumar',
+    patient1Role: 'Patient - Chronic Sciatica',
+    patient1Content: 'After suffering from severe sciatica pain for 3 years, Dr. Deshmukh\'s Agnikarma treatment gave me complete relief in just 4 sessions. I can now walk pain-free and have returned to my normal activities.',
+    doctor1Name: 'Priya Sharma',
+    doctor1Role: 'Patient - Frozen Shoulder',
+    doctor1Content: 'I was unable to lift my arm for months due to frozen shoulder. The combination of Agnikarma and Panchakarma treatments restored my full range of motion. The results were beyond my expectations.',
+    manager1Name: 'Rajesh Patel',
+    manager1Role: 'Patient - Chronic Arthritis',
+    manager1Content: 'The 21-day Panchakarma program completely transformed my health. My arthritis pain reduced significantly, and I feel more energetic than I have in years.',
   },
 
   hero: {
@@ -191,7 +191,7 @@ export const en: TranslationKeys = {
     subtitle: 'With Dr. Chandrakumar Deshmukh',
     description: 'Experience traditional Ayurvedic treatments including Panchakarma, Viddhakarma, and Agnikarma therapies for holistic wellness and natural healing.',
     primaryCta: 'Book Consultation',
-    secondaryCta: 'Learn About Treatments',
+    secondaryCta: 'Learn About Treatments'
   },
   treatments: {
     panchakarma: {
@@ -199,22 +199,22 @@ export const en: TranslationKeys = {
       description: 'Complete detoxification and rejuvenation through five traditional cleansing procedures',
       benefits: ['Deep detoxification', 'Improved immunity', 'Mental clarity', 'Stress relief', 'Enhanced vitality'],
       duration: '7-21 days',
-      suitableFor: ['Chronic diseases', 'Stress-related disorders', 'Preventive healthcare', 'Anti-aging'],
+      suitableFor: ['Chronic diseases', 'Stress-related disorders', 'Preventive healthcare', 'Anti-aging']
     },
     viddhakarma: {
-      name: 'Viddhakarma Treatments',
-      description: 'Specialized therapy for neurological conditions including autism and cerebral palsy',
-      benefits: ['Neurological improvement', 'Enhanced cognitive function', 'Better motor skills', 'Emotional balance'],
-      duration: '3-6 months',
-      suitableFor: ['Autism', 'Cerebral Palsy', 'Mental health issues', 'Neurological disorders'],
+      name: 'Viddha Karma',
+      description: 'Specialized needling technique for neurological disorders and energy restoration',
+      benefits: ['Neurological healing', 'Energy restoration', 'Pain relief', 'Improved mobility', 'Mental clarity'],
+      duration: '4-8 weeks',
+      suitableFor: ['Autism', 'Cerebral palsy', 'Neurological disorders', 'Mental health issues']
     },
     agnikarma: {
-      name: 'Agnikarma Therapy',
-      description: 'Therapeutic heat application for joint and muscular disorders',
-      benefits: ['Pain relief', 'Improved mobility', 'Reduced inflammation', 'Enhanced healing'],
+      name: 'Agnikarma',
+      description: 'Controlled heat application for immediate pain relief and tissue regeneration',
+      benefits: ['Instant pain relief', 'Tissue regeneration', 'Improved circulation', 'Reduced inflammation', 'Long-lasting results'],
       duration: '1-3 sessions',
-      suitableFor: ['Arthritis', 'Joint pain', 'Muscular disorders', 'Sports injuries'],
-    },
+      suitableFor: ['Arthritis', 'Joint pain', 'Muscular disorders', 'Sports injuries']
+    }
   },
   contact: {
     title: 'Get in Touch',
@@ -244,5 +244,5 @@ export const en: TranslationKeys = {
     privacyPolicy: 'Privacy Policy',
     termsOfService: 'Terms of Service',
     disclaimer: 'Medical Disclaimer',
-  },
+  }
 };

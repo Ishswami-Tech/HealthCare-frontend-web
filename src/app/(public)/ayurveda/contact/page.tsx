@@ -20,10 +20,8 @@ import {
   Send,
   Star,
 } from "lucide-react";
-import { LanguageProvider } from "@/lib/i18n/context";
 import { ClinicInfo } from "@/components/clinic/clinic-info";
 import { GoogleMaps } from "@/components/maps/google-maps";
-import { WhatsAppButton } from "@/components/contact/whatsapp-button";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 export default function ContactPage() {
@@ -48,7 +46,7 @@ export default function ContactPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Handle form submission
-    console.log("Form submitted:", formData);
+    // TODO: Implement form submission logic
   };
 
   const contactInfo = [

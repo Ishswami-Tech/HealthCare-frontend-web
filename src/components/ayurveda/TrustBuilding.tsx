@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTranslation } from "@/lib/i18n/context";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -12,52 +12,45 @@ import {
   Star,
   Award,
   Heart,
-  Brain,
   Phone,
   ChevronDown,
   ChevronUp,
-  AlertCircle,
   Target,
   TrendingUp,
-  Users,
 } from "lucide-react";
 
 const TrustBuilding = () => {
+  const { t } = useTranslation();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const faqs = [
     {
-      question: "Is Ayurveda scientifically proven and safe?",
-      answer:
-        "Absolutely proven and completely safe! Ayurveda is increasingly validated by modern research with thousands of published studies. We have contributed research to international peer-reviewed journals, and our treatments show measurable results in clinical parameters. Our approach combines 5000-year-old time-tested wisdom with modern safety standards, continuous monitoring, and scientific documentation. Zero major adverse events in 20,000+ treatments.",
+      question: t("trustBuilding.faqs.0.question"),
+      answer: t("trustBuilding.faqs.0.answer"),
       icon: Shield,
       color: "from-green-500 to-emerald-600",
     },
     {
-      question: "Will treatments interfere with my current medications?",
-      answer:
-        "Our doctors are trained in both Ayurvedic and modern medicine interactions. We work closely with your existing healthcare providers to ensure safe, complementary treatment. Many patients gradually reduce medications under joint medical supervision as their natural healing progresses. We maintain detailed drug interaction databases and collaborate with your physicians throughout treatment.",
+      question: t("trustBuilding.faqs.1.question"),
+      answer: t("trustBuilding.faqs.1.answer"),
       icon: Heart,
       color: "from-blue-500 to-cyan-600",
     },
     {
-      question: "How long does treatment really take to show results?",
-      answer:
-        "Treatment duration varies by condition and individual constitution. Acute conditions often improve within days, while chronic conditions typically show significant improvement within 3-6 weeks. We provide realistic, personalized timelines during consultation based on your specific case history and track progress weekly with measurable parameters.",
+      question: t("trustBuilding.faqs.2.question"),
+      answer: t("trustBuilding.faqs.2.answer"),
       icon: Clock,
       color: "from-orange-500 to-red-600",
     },
     {
-      question: "Are Ayurvedic medicines completely safe for long-term use?",
-      answer:
-        "When prepared and prescribed correctly by qualified practitioners, Ayurvedic medicines are extremely safe with minimal side effects. Our in-house pharmacy follows strict international quality control measures, and all preparations are laboratory tested for purity, potency, and heavy metal content. We use only authentic, properly processed herbs from certified organic sources.",
+      question: t("trustBuilding.faqs.3.question"),
+      answer: t("trustBuilding.faqs.3.answer"),
       icon: CheckCircle,
       color: "from-purple-500 to-indigo-600",
     },
     {
-      question: "What if I have a medical emergency during treatment?",
-      answer:
-        "We maintain partnerships with leading hospitals and have comprehensive emergency protocols in place. Our senior doctors are trained in both traditional and modern emergency care. We provide 24/7 consultation availability for any concerns during treatment, and our facility has emergency medical equipment and direct hospital connectivity.",
+      question: t("trustBuilding.faqs.4.question"),
+      answer: t("trustBuilding.faqs.4.answer"),
       icon: Phone,
       color: "from-red-500 to-pink-600",
     },
@@ -296,8 +289,8 @@ const TrustBuilding = () => {
                       Instant Results Challenge
                     </h3>
                     <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
-                      "Feel 50% better after first session or receive additional
-                      support"
+                      &quot;Feel 50% better after first session or receive additional
+                      support&quot;
                     </p>
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                       <div className="flex items-center space-x-2">

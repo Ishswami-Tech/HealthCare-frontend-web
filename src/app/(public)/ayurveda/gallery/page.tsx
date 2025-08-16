@@ -2,9 +2,9 @@
 
 import React from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Instagram, Camera, Heart, Users, Star } from "lucide-react";
-import { LanguageProvider } from "@/lib/i18n/context";
+import { Card, CardContent } from "@/components/ui/card";
+import { Instagram, Camera, Heart, Star } from "lucide-react";
+
 import { InstagramGrid } from "@/components/media/instagram-post";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
@@ -189,7 +189,7 @@ export default function GalleryPage() {
             Share Your Healing Story
           </h2>
           <p className="text-xl mb-8 text-green-100 max-w-3xl mx-auto">
-            Have you experienced the benefits of our Ayurvedic treatments? We'd
+            Have you experienced the benefits of our Ayurvedic treatments? We&apos;d
             love to feature your success story and inspire others on their
             wellness journey.
           </p>

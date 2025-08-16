@@ -15,13 +15,13 @@ import {
 } from "@/lib/dynamic-imports";
 import WhyChooseUsSection from "@/components/ayurveda/WhyChooseUsSection";
 import SpecializationsSection from "@/components/ayurveda/SpecializationsSection";
-import { LanguageProvider } from "@/lib/i18n/context";
+
 
 // Generate SEO metadata using our SEO utility
 export const metadata = generateSEOMetadata({
   title: pageSEO.home.title,
   description: pageSEO.home.description,
-  keywords: pageSEO.home.keywords,
+  keywords: [...pageSEO.home.keywords],
   url: "/ayurveda",
   image: "/images/ayurveda-hero.jpg",
 });

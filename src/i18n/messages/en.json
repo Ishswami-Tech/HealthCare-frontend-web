@@ -337,11 +337,27 @@
     "title2": "Modern Healing",
     "subtitle": "Experience the power of traditional Ayurvedic medicine with Dr. Chandrakumar Deshmukh's expert care in Panchakarma, Agnikarma, and Viddhakarma treatments.",
     "cta": "Book Consultation",
-    "learnMore": "Learn More"
+    "learnMore": "Learn More",
+    "trustIndicators": {
+      "governmentCertified": "Government Certified",
+      "iso9001": "ISO 9001:2015",
+      "rating": "4.9/5 Rating"
+    },
+    "testimonials": [
+      "Amazing results with Panchakarma treatment",
+      "Life-changing experience with Agnikarma",
+      "Incredible healing with Viddha Karma"
+    ]
   },
   "whyChooseUs": {
     "title": "Why Choose Our Ayurvedic Care",
     "subtitle": "Discover the benefits of authentic Ayurvedic treatments with our experienced practitioners",
+    "stats": {
+      "livesTransformed": "Lives Transformed",
+      "yearsLegacy": "Years Legacy",
+      "successRate": "Success Rate",
+      "patientRating": "Patient Rating"
+    },
     "features": {
       "certified": {
         "title": "Certified Practitioners",
@@ -740,7 +756,14 @@
       "successRate": "Success Rate",
       "duration": "Duration",
       "learnMore": "Learn More",
-      "bookConsultation": "Book Consultation"
+      "bookConsultation": "Book Consultation",
+      "keyBenefits": "Key Benefits:"
+    },
+    "cta": {
+      "title": "Not Sure Which Treatment is Right for You?",
+      "subtitle": "Take our comprehensive health assessment or speak with our Ayurvedic experts to get personalized treatment recommendations.",
+      "assessmentButton": "Take Health Assessment",
+      "expertButton": "Speak with Expert"
     }
   },
   "hero": {
@@ -1018,252 +1041,469 @@
     }
   },
   "panchakarma": {
-    "title": "Panchakarma - Complete Detoxification & Rejuvenation",
-    "subtitle": "Experience the most comprehensive Ayurvedic cleansing therapy for complete mind-body transformation",
-    "badge": "Ancient Detox Science",
+    "badge": "Complete Detoxification",
+    "title": "Panchakarma - Complete Wellness Transformation",
+    "subtitle": "5000-year-old complete body-mind-soul purification system with five sacred procedures for lasting health transformation",
+    "description": "Panchakarma is the most comprehensive detoxification and rejuvenation therapy in Ayurveda. This ancient system addresses the root cause of diseases by eliminating accumulated toxins and restoring the body's natural balance.",
+    "whatIs": {
+      "title": "What is Panchakarma?",
+      "completeTransformation": "Complete Transformation",
+      "completeTransformationDesc": "Experience the most comprehensive healing system that addresses physical, mental, and spiritual well-being simultaneously.",
+      "daysProgram": "Days Program",
+      "ancientScience": {
+        "title": "Ancient Science",
+        "description": "5000-year-old complete detoxification system rooted in Ayurvedic wisdom"
+      },
+      "fiveProcedures": {
+        "title": "Five Sacred Procedures",
+        "description": "Vamana, Virechana, Basti, Nasya, Raktamokshana - each targeting specific toxins"
+      },
+      "holisticApproach": {
+        "title": "Holistic Approach",
+        "description": "Treats root cause, not just symptoms, for lasting transformation"
+      },
+      "modernApplication": {
+        "title": "Modern Application",
+        "description": "Scientifically validated wellness protocols adapted for contemporary lifestyle"
+      }
+    },
     "phases": {
+      "title": "Comprehensive Panchakarma Process",
+      "subtitle": "A carefully structured 21-day journey to complete wellness",
+      "keyActivities": "Key Activities",
       "purvaKarma": {
-        "name": "Purva Karma",
-        "subtitle": "Preparation Phase",
-        "duration": "Days 1-7",
+        "name": "Purva Karma (Preparation)",
+        "subtitle": "Pre-treatment preparation phase",
+        "duration": "7 days",
         "activities": [
-          "Detailed consultation & pulse diagnosis",
-          "Abhyanga (Synchronized oil massage)",
-          "Swedana (Herbal steam therapy)",
-          "Dietary preparation and mental readiness"
+          "Internal oleation (Snehana)",
+          "External oleation (Abhyanga)",
+          "Steam therapy (Swedana)",
+          "Diet modifications"
         ]
       },
       "pradhanaKarma": {
-        "name": "Pradhana Karma",
-        "subtitle": "Main Procedures",
-        "duration": "Days 8-14",
+        "name": "Pradhana Karma (Main Treatment)",
+        "subtitle": "Core purification procedures",
+        "duration": "7 days",
         "activities": [
-          "Customized detoxification protocols",
-          "Expert monitoring throughout process",
-          "Daily assessment and adjustments",
-          "Gentle, natural elimination methods"
+          "Vamana (Therapeutic vomiting)",
+          "Virechana (Purgation)",
+          "Basti (Medicated enema)",
+          "Nasya (Nasal administration)"
         ]
       },
       "paschatKarma": {
-        "name": "Paschat Karma",
-        "subtitle": "Recovery & Rejuvenation",
-        "duration": "Days 15-21",
+        "name": "Paschat Karma (Post-treatment)",
+        "subtitle": "Recovery and rejuvenation",
+        "duration": "7 days",
         "activities": [
-          "Gradual return to normal diet",
-          "Strengthening therapies",
-          "Lifestyle guidance and counseling",
-          "Long-term wellness planning"
+          "Gradual diet reintroduction",
+          "Lifestyle counseling",
+          "Herbal supplements",
+          "Follow-up care"
         ]
       }
     },
-    "benefits": {
-      "title": "Why Choose Panchakarma?",
-      "subtitle": "Experience the most comprehensive detoxification system known to humanity",
-      "items": [
-        {
-          "title": "Complete Detoxification",
-          "description": "Eliminates deep-seated toxins from cellular level"
-        },
-        {
-          "title": "Rejuvenation & Anti-aging",
-          "description": "Reverses aging process and restores vitality"
-        },
-        {
-          "title": "Immunity Boost",
-          "description": "Strengthens natural defense mechanisms"
-        },
-        {
-          "title": "Mental Clarity",
-          "description": "Enhances cognitive function and emotional balance"
-        },
-        {
-          "title": "Weight Management",
-          "description": "Natural and sustainable weight optimization"
-        },
-        {
-          "title": "Chronic Disease Prevention",
-          "description": "Prevents lifestyle-related health conditions"
-        }
-      ]
-    },
     "conditions": {
-      "title": "Conditions We Treat",
-      "subtitle": "Panchakarma effectively addresses a wide range of health conditions",
-      "categories": [
-        {
-          "name": "Digestive Disorders",
-          "items": ["IBS", "Chronic Constipation", "Acid Reflux", "Gastritis"]
-        },
-        {
-          "name": "Metabolic Conditions",
-          "items": [
-            "Diabetes",
-            "Obesity",
-            "Thyroid Disorders",
-            "High Cholesterol"
-          ]
-        },
-        {
-          "name": "Stress & Mental Health",
-          "items": ["Anxiety", "Depression", "Insomnia", "Chronic Fatigue"]
-        },
-        {
-          "name": "Autoimmune Disorders",
-          "items": [
-            "Arthritis",
-            "Psoriasis",
-            "Allergies",
-            "Inflammatory Conditions"
-          ]
-        }
-      ]
+      "title": "Conditions Transformed Through Panchakarma",
+      "subtitle": "Comprehensive healing for a wide range of health challenges",
+      "chronicDiseases": {
+        "category": "Chronic Diseases",
+      "items": [
+          "Diabetes",
+          "Hypertension",
+          "Arthritis",
+          "Autoimmune disorders"
+        ],
+        "successRate": 92
+      },
+      "digestiveDisorders": {
+        "category": "Digestive Disorders",
+        "items": ["IBS", "Chronic constipation", "Liver diseases", "Acidity"],
+        "successRate": 95
+      },
+      "skinConditions": {
+        "category": "Skin Conditions",
+        "items": ["Eczema", "Psoriasis", "Chronic allergies", "Dermatitis"],
+        "successRate": 88
+      },
+      "mentalHealth": {
+        "category": "Mental Health",
+        "items": ["Stress", "Anxiety", "Depression", "Insomnia"],
+        "successRate": 90
+      },
+      "respiratoryIssues": {
+        "category": "Respiratory Issues",
+        "items": ["Asthma", "Bronchitis", "Chronic cough", "Allergies"],
+        "successRate": 87
+      },
+      "hormonalImbalances": {
+        "category": "Hormonal Imbalances",
+        "items": ["PCOD", "Thyroid disorders", "Fertility issues"],
+        "successRate": 89
+      }
     },
     "cta": {
-      "title": "Ready to Transform Your Health?",
-      "description": "Begin your Panchakarma journey with a personalized consultation",
-      "bookNow": "Book Panchakarma Program",
-      "consultation": "Free Consultation"
+      "title": "Ready to Begin Your Transformation?",
+      "subtitle": "Join thousands who have experienced complete healing through authentic Panchakarma. Start your 21-day journey to optimal health today.",
+      "bookProgram": "Book 21-Day Program",
+      "freeConsultation": "Free Consultation",
+      "features": {
+        "successRate": "95% Success Rate",
+        "patientsTreated": "2000+ Patients Treated",
+        "governmentCertified": "Government Certified"
+      }
     }
   },
   "agnikarma": {
-    "title": "Agnikarma - Precision Thermal Therapy",
-    "subtitle": "Ancient fire therapy for instant pain relief and healing acceleration",
-    "badge": "Therapeutic Heat Treatment",
-    "description": "Experience the most precise and effective pain management technique from ancient Ayurveda. Agnikarma uses controlled thermal application for immediate and lasting relief from chronic pain conditions.",
-    "benefits": {
-      "title": "Why Choose Agnikarma?",
-      "items": [
-        "Instant pain relief in most cases",
-        "No side effects or complications",
-        "Permanent solution for chronic conditions",
-        "Minimal recovery time required",
-        "Cost-effective treatment option",
-        "Scientifically proven results"
-      ]
+    "badge": "Therapeutic Heat Healing",
+    "title": "Agnikarma - Precision Fire Therapy",
+    "subtitle": "Ancient thermal therapy for instant pain relief and tissue regeneration using controlled micro-cauterization",
+    "description": "Agnikarma is a specialized Ayurvedic treatment that uses controlled heat application to provide immediate pain relief and promote natural healing. This ancient technique targets specific pain points with precision, offering a drug-free solution for chronic pain conditions.",
+    "scientificFoundation": {
+      "title": "Scientific Foundation",
+      "subtitle": "Ancient wisdom validated by modern science",
+      "ancientText": {
+        "title": "Ancient Text Reference",
+        "description": "Mentioned in Sushruta Samhita 5000+ years ago"
+      },
+      "modernValidation": {
+        "title": "Modern Validation",
+        "description": "Scientifically proven pain relief mechanism"
+      },
+      "precisionTechnology": {
+        "title": "Precision Technology",
+        "description": "Controlled micro-cauterization for targeted healing"
+      },
+      "zeroSideEffects": {
+        "title": "Zero Side Effects",
+        "description": "Completely natural, drug-free approach"
+      }
+    },
+    "processSteps": {
+      "title": "How Agnikarma Works - Step-by-Step Process",
+      "subtitle": "Precision healing through controlled therapeutic heat application",
+      "steps": {
+        "1": {
+          "title": "Precise Diagnosis",
+          "description": "Marma point identification + modern assessment"
+        },
+        "2": {
+          "title": "Controlled Heat Application",
+          "description": "Gold, silver, copper instruments at exact temperatures"
+        },
+        "3": {
+          "title": "Immediate Pain Relief",
+          "description": "Blocking pain signals and stimulating healing"
+        },
+        "4": {
+          "title": "Natural Healing",
+          "description": "Activating body's repair mechanisms"
+        },
+        "5": {
+          "title": "Long-term Recovery",
+          "description": "Strengthening tissues and preventing recurrence"
+        }
+      }
     },
     "conditions": {
-      "title": "Conditions We Treat",
-      "categories": [
-        {
-          "name": "Joint & Muscle Pain",
-          "items": [
-            "Arthritis",
-            "Frozen Shoulder",
-            "Tennis Elbow",
-            "Muscle Spasms"
-          ]
-        },
-        {
-          "name": "Chronic Pain Conditions",
-          "items": [
-            "Sciatica",
-            "Lower Back Pain",
-            "Neck Pain",
-            "Chronic Headaches"
-          ]
-        },
-        {
-          "name": "Skin Conditions",
-          "items": ["Warts", "Corns", "Skin Tags", "Chronic Wounds"]
-        }
-      ]
+      "title": "Conditions Treated with Proven Success Rates",
+      "subtitle": "Real data from thousands of successful treatments",
+      "chronicKneePain": {
+        "condition": "Chronic Knee Pain",
+        "successRate": 95,
+        "avgSessions": "3-5 sessions",
+        "recoveryTime": "2-3 weeks",
+        "patientStory": "Watch Rekha's Journey"
+      },
+      "sciatica": {
+        "condition": "Sciatica",
+        "successRate": 92,
+        "avgSessions": "4-6 sessions",
+        "recoveryTime": "3-4 weeks",
+        "patientStory": "Read Suresh's Recovery"
+      },
+      "frozenShoulder": {
+        "condition": "Frozen Shoulder",
+        "successRate": 88,
+        "avgSessions": "5-7 sessions",
+        "recoveryTime": "4-6 weeks",
+        "patientStory": "See Priya's Movement"
+      },
+      "tennisElbow": {
+        "condition": "Tennis Elbow",
+        "successRate": 94,
+        "avgSessions": "2-4 sessions",
+        "recoveryTime": "1-2 weeks",
+        "patientStory": "Athlete Success Stories"
+      },
+      "plantarFasciitis": {
+        "condition": "Plantar Fasciitis",
+        "successRate": 90,
+        "avgSessions": "3-5 sessions",
+        "recoveryTime": "2-3 weeks",
+        "patientStory": "Back to Running"
+      },
+      "cervicalSpondylosis": {
+        "condition": "Cervical Spondylosis",
+        "successRate": 87,
+        "avgSessions": "4-6 sessions",
+        "recoveryTime": "3-5 weeks",
+        "patientStory": "Pain-Free Working"
+      },
+      "arthritis": {
+        "condition": "Arthritis",
+        "successRate": 89,
+        "avgSessions": "6-8 sessions",
+        "recoveryTime": "4-6 weeks",
+        "patientStory": "Dancing Again at 70"
+      }
     },
-    "procedure": {
-      "title": "The Agnikarma Procedure",
-      "subtitle": "Safe, precise, and effective thermal therapy process",
-      "steps": [
-        {
-          "title": "Initial Assessment",
-          "description": "Comprehensive evaluation of condition and treatment planning"
-        },
-        {
-          "title": "Preparation",
-          "description": "Sterilization and preparation of specialized instruments"
-        },
-        {
-          "title": "Precise Application",
-          "description": "Controlled thermal application to specific points"
-        },
-        {
-          "title": "Post-treatment Care",
-          "description": "Immediate care and healing guidance"
-        }
-      ]
+    "advantages": {
+      "title": "Why Agnikarma is Superior",
+      "subtitle": "Advantages over conventional pain management approaches",
+      "instantResults": {
+        "title": "Instant Results",
+        "description": "Pain relief felt immediately after first session"
+      },
+      "precisionTargeting": {
+        "title": "Precision Targeting",
+        "description": "Exact problem areas without affecting healthy tissue"
+      },
+      "zeroSideEffects": {
+        "title": "Zero Side Effects",
+        "description": "No drugs, no invasive procedures, completely natural"
+      },
+      "costEffective": {
+        "title": "Cost-Effective",
+        "description": "One-time treatment vs. lifetime medication costs"
+      }
+    },
+    "comparison": {
+      "title": "Treatment Comparison",
+      "agnikarma": "Agnikarma Therapy",
+      "surgery": "Surgery + Recovery",
+      "medications": "Medications",
+      "physiotherapy": "Physiotherapy",
+      "duration": "Duration",
+      "successRate": "Success Rate",
+      "sideEffects": "Side Effects",
+      "cost": "Cost",
+      "condition": "Condition",
+      "avgSessions": "Avg Sessions",
+      "recoveryTime": "Recovery Time",
+      "patientStory": "Patient Stories",
+      "treatmentMethod": "Treatment Method",
+      "sessions": "sessions",
+      "months": "months",
+      "highRisk": "High Risk",
+      "veryHigh": "Very High",
+      "ongoing": "Ongoing",
+      "multiple": "Multiple",
+      "highOngoing": "High (Ongoing)",
+      "minimal": "Minimal",
+      "moderate": "Moderate"
     },
     "cta": {
-      "title": "Experience Instant Pain Relief",
-      "description": "Book your Agnikarma consultation and discover the power of precision thermal therapy",
-      "bookNow": "Book Agnikarma Treatment",
-      "consultation": "Free Pain Assessment"
+      "title": "Experience Instant Pain Relief Today",
+      "subtitle": "Don't let chronic pain control your life. Experience the power of Agnikarma and feel the difference from your very first session.",
+      "bookSession": "Book Agnikarma Session",
+      "freeAssessment": "Free Pain Assessment",
+      "features": {
+        "instantRelief": "Instant Relief",
+        "zeroSideEffects": "Zero Side Effects",
+        "successRate": "92% Success Rate"
+      }
     }
   },
   "viddhakarma": {
-    "title": "Viddha Karma - Specialized Neurological Treatment",
-    "subtitle": "Advanced Ayurvedic therapy for autism, cerebral palsy, and neurological disorders",
-    "badge": "Neurological Healing",
-    "description": "Revolutionary treatment approach combining ancient Ayurvedic wisdom with modern understanding of neurological conditions. Specialized therapy for autism, cerebral palsy, and developmental disorders.",
-    "specializations": {
-      "title": "Our Specializations",
-      "conditions": [
-        {
-          "name": "Autism Spectrum Disorders",
-          "description": "Comprehensive treatment for autism with proven results",
-          "successRate": "85%"
-        },
-        {
-          "name": "Cerebral Palsy",
-          "description": "Improving motor functions and quality of life",
-          "successRate": "78%"
-        },
-        {
-          "name": "Developmental Delays",
-          "description": "Supporting healthy development in children",
-          "successRate": "82%"
-        },
-        {
-          "name": "Neurological Disorders",
-          "description": "Treatment for various neurological conditions",
-          "successRate": "80%"
-        }
-      ]
+    "badge": "Precision Needling Therapy",
+    "title": "Viddha Karma - Strategic Energy Healing",
+    "subtitle": "Ancient surgical techniques adapted for modern therapeutic applications with remarkable precision and zero side effects",
+    "description": "Viddha Karma is a specialized Ayurvedic treatment that uses ultra-fine needles to stimulate specific energy points (Marma points) in the body. This precise technique restores energy flow and promotes natural healing for various health conditions.",
+    "understanding": {
+      "title": "Understanding Viddha Karma",
+      "subtitle": "The science behind precision needling therapy",
+      "scientificDefinition": {
+        "title": "Scientific Definition",
+        "description": "Therapeutic needling technique using specialized instruments"
+      },
+      "historicalSignificance": {
+        "title": "Historical Significance",
+        "description": "Foundation of Ayurvedic para-surgery from classical texts"
+      },
+      "modernRelevance": {
+        "title": "Modern Relevance",
+        "description": "Scientifically proven method for chronic pain management"
+      },
+      "marmaScience": {
+        "title": "Marma Science",
+        "description": "Targeting 107 vital energy points for maximum healing"
+      }
     },
-    "approach": {
-      "title": "Our Treatment Approach",
-      "steps": [
-        "Comprehensive neurological assessment",
-        "Customized treatment protocol design",
-        "Specialized Viddha Karma procedures",
-        "Continuous monitoring and adjustment",
-        "Family counseling and support",
-        "Long-term follow-up care"
-      ]
-    },
-    "successStories": {
-      "title": "Success Stories",
-      "subtitle": "Real results from our Viddha Karma treatments",
-      "stories": [
-        {
-          "condition": "Autism",
-          "improvement": "85% improvement in communication",
-          "duration": "6 months treatment"
+    "processSteps": {
+      "title": "Viddha Karma Treatment Process",
+      "subtitle": "Precision healing through strategic energy point stimulation",
+      "steps": {
+        "1": {
+          "title": "Marma Point Mapping",
+          "description": "Identifying vital energy points specific to condition"
         },
-        {
-          "condition": "Cerebral Palsy",
-          "improvement": "Significant motor function improvement",
-          "duration": "8 months treatment"
+        "2": {
+          "title": "Ultra-Fine Needling",
+          "description": "Sterile, single-use micro-needles for precise stimulation"
         },
-        {
-          "condition": "Developmental Delay",
-          "improvement": "Achieved age-appropriate milestones",
-          "duration": "4 months treatment"
+        "3": {
+          "title": "Energy Flow Restoration",
+          "description": "Clearing blockages in prana (life energy) channels"
+        },
+        "4": {
+          "title": "Dosha Balancing",
+          "description": "Harmonizing Vata, Pitta, Kapha for optimal health"
+        },
+        "5": {
+          "title": "Deep Tissue Healing",
+          "description": "Stimulating circulation and natural repair mechanisms"
         }
-      ]
+      }
+    },
+    "specializedApplications": {
+      "title": "Specialized Applications",
+      "subtitle": "Targeted healing for specific health conditions",
+      "neurologicalDisorders": {
+        "category": "Neurological Disorders",
+        "treatments": ["Facial paralysis", "Trigeminal neuralgia"],
+        "benefits": "Nerve regeneration",
+        "successRate": 89
+      },
+      "jointMusclePain": {
+        "category": "Joint & Muscle Pain",
+        "treatments": ["Arthritis", "Fibromyalgia", "Spasms"],
+        "benefits": "Deep tissue healing",
+        "successRate": 92
+      },
+      "digestiveIssues": {
+        "category": "Digestive Issues",
+        "treatments": ["IBS", "Constipation", "Acidity"],
+        "benefits": "Digestive fire enhancement",
+        "successRate": 85
+      },
+      "respiratoryProblems": {
+        "category": "Respiratory Problems",
+        "treatments": ["Asthma", "Bronchitis", "Chronic cough"],
+        "benefits": "Lung capacity improvement",
+        "successRate": 87
+      },
+      "stressMentalHealth": {
+        "category": "Stress & Mental Health",
+        "treatments": ["Anxiety", "Insomnia", "Depression"],
+        "benefits": "Nervous system balancing",
+        "successRate": 83
+      },
+      "womensHealth": {
+        "category": "Women's Health",
+        "treatments": ["PCOD", "Irregular periods", "Fertility"],
+        "benefits": "Hormonal harmony",
+        "successRate": 88
+      }
+    },
+    "advancedTechniques": {
+      "title": "Advanced Viddha Karma Techniques",
+      "subtitle": "Specialized approaches for different conditions and patient needs",
+      "microViddha": {
+        "name": "Micro-Viddha",
+        "description": "For sensitive areas and pediatric patients"
+      },
+      "agniViddha": {
+        "name": "Agni-Viddha",
+        "description": "Combining heat therapy with needling"
+      },
+      "herbalViddha": {
+        "name": "Herbal-Viddha",
+        "description": "Using medicated needles for enhanced healing"
+      },
+      "marmaViddha": {
+        "name": "Marma-Viddha",
+        "description": "Targeting specific energy points for maximum impact"
+      }
+    },
+    "packages": {
+      "title": "Viddha Karma Treatment Packages",
+      "subtitle": "Choose the program that best fits your healing needs",
+      "essential": {
+        "name": "Essential Treatment",
+        "sessions": "4 Sessions",
+        "description": "Stress-related conditions",
+        "successRate": 85
+      },
+      "comprehensive": {
+        "name": "Comprehensive Care",
+        "sessions": "6 Sessions",
+        "description": "Chronic pain conditions",
+        "successRate": 90,
+        "popular": "Most Popular"
+      },
+      "advanced": {
+        "name": "Advanced Healing",
+        "sessions": "8 Sessions",
+        "description": "Complex disorders + medicines",
+        "successRate": 92
+      },
+      "holistic": {
+        "name": "Holistic Transformation",
+        "sessions": "Complete Program",
+        "description": "Total mind-body wellness",
+        "successRate": 95,
+        "premium": "Premium"
+      }
     },
     "cta": {
-      "title": "Transform Your Child's Future",
-      "description": "Book a specialized consultation for neurological conditions with our expert team",
-      "bookNow": "Book Viddha Karma Consultation",
-      "consultation": "Free Neurological Assessment"
+      "title": "Unlock Your Body's Natural Healing Power",
+      "subtitle": "Experience the precision of Viddha Karma therapy. Restore energy flow, balance your doshas, and achieve complete wellness naturally.",
+      "bookSession": "Book Viddha Karma Session",
+      "freeAssessment": "Free Marma Assessment",
+      "features": {
+        "marmaPoints": "107 Marma Points",
+        "safeNatural": "Safe & Natural",
+        "successRate": "89% Success Rate"
+      }
+    }
+  },
+  "gallery": {
+    "badge": "Gallery & Social Media",
+    "title": "Our Healing Journey",
+    "subtitle": "Follow our daily activities, patient success stories, and treatment demonstrations through our social media presence.",
+    "description": "Follow our journey and see real patient testimonials, treatment updates, and wellness tips from our Instagram feed.",
+    "instagram": "Follow on Instagram",
+    "stats": {
+      "instagramFollowers": {
+        "number": "10K+",
+        "label": "Instagram Followers"
+      },
+      "treatmentPhotos": {
+        "number": "500+",
+        "label": "Treatment Photos"
+      },
+      "patientStories": {
+        "number": "1000+",
+        "label": "Patient Stories"
+      },
+      "averageRating": {
+        "number": "4.9★",
+        "label": "Average Rating"
+      }
+    },
+    "patientStories": {
+      "title": "Patient Stories & Updates",
+      "subtitle": "Follow our journey and see real patient testimonials, treatment updates, and wellness tips from our Instagram feed.",
+      "viewMore": "View More on Instagram"
+    },
+    "cta": {
+      "title": "Share Your Healing Story",
+      "subtitle": "Have you experienced the benefits of our Ayurvedic treatments? We'd love to feature your success story and inspire others on their wellness journey.",
+      "shareStory": "Share Your Story",
+      "whatsappUs": "WhatsApp Us"
     }
   },
   "navigation": {
@@ -1395,6 +1635,28 @@
   "trustBuilding": {
     "title": "Why Thousands Trust Us",
     "subtitle": "Building confidence through proven results and authentic care",
+    "faqs": [
+      {
+        "question": "Is Ayurveda scientifically proven and safe?",
+        "answer": "Absolutely proven and completely safe! Ayurveda is increasingly validated by modern research with thousands of published studies. We have contributed research to international peer-reviewed journals, and our treatments show measurable results in clinical parameters. Our approach combines 5000-year-old time-tested wisdom with modern safety standards, continuous monitoring, and scientific documentation. Zero major adverse events in 20,000+ treatments."
+      },
+      {
+        "question": "Will treatments interfere with my current medications?",
+        "answer": "Our doctors are trained in both Ayurvedic and modern medicine interactions. We work closely with your existing healthcare providers to ensure safe, complementary treatment. Many patients gradually reduce medications under joint medical supervision as their natural healing progresses. We maintain detailed drug interaction databases and collaborate with your physicians throughout treatment."
+      },
+      {
+        "question": "How long does treatment really take to show results?",
+        "answer": "Treatment duration varies by condition and individual constitution. Acute conditions often improve within days, while chronic conditions typically show significant improvement within 3-6 weeks. We provide realistic, personalized timelines during consultation based on your specific case history and track progress weekly with measurable parameters."
+      },
+      {
+        "question": "Are Ayurvedic medicines completely safe for long-term use?",
+        "answer": "When prepared and prescribed correctly by qualified practitioners, Ayurvedic medicines are extremely safe with minimal side effects. Our in-house pharmacy follows strict international quality control measures, and all preparations are laboratory tested for purity, potency, and heavy metal content. We use only authentic, properly processed herbs from certified organic sources."
+      },
+      {
+        "question": "What if I have a medical emergency during treatment?",
+        "answer": "We maintain partnerships with leading hospitals and have comprehensive emergency protocols in place. Our senior doctors are trained in both traditional and modern emergency care. We provide 24/7 consultation availability for any concerns during treatment, and our facility has emergency medical equipment and direct hospital connectivity."
+      }
+    ],
     "guarantees": [
       {
         "title": "100% Authentic Treatments",
@@ -1481,6 +1743,9 @@
     "freeHealthAssessment": "Free Health Assessment",
     "completeHealing": "Complete Healing",
     "transformYourLife": "Transform Your Life",
-    "authenticTreatments": "Experience Authentic Panchakarma, Agnikarma, Viddha Karma & Complete Ayurvedic Solutions - Where 5000-Year Healing Wisdom Meets Modern Excellence"
+    "authenticTreatments": "Experience Authentic Panchakarma, Agnikarma, Viddha Karma & Complete Ayurvedic Solutions - Where 5000-Year Healing Wisdom Meets Modern Excellence",
+    "bookFreeConsultation": "Book Free Consultation",
+    "callNow": "Call Now: +91-XXXX-XXXX",
+    "todayOnly": "TODAY ONLY: Free Ayurvedic consultation + dosha assessment"
   }
 }

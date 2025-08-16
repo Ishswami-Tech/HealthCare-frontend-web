@@ -17,13 +17,10 @@ import {
   Users,
   CheckCircle,
   Star,
-  Clock,
   ArrowRight,
   Award,
-  Target,
-  Shield,
 } from "lucide-react";
-import { LanguageProvider } from "@/lib/i18n/context";
+
 import { ServicesCatalog } from "@/components/services/services-catalog";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 

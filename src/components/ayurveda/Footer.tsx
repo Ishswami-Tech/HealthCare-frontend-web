@@ -18,10 +18,10 @@ import {
   Award,
   CheckCircle,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 
 const Footer = () => {
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   const quickLinks = [
     { name: t("navigation.home"), href: "/ayurveda" },

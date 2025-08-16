@@ -19,10 +19,10 @@ import {
   StaggerContainer,
   StaggerItem,
 } from "@/components/ui/animated-wrapper";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 
 const WhyChooseUsSection = () => {
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   const features = [
     {
@@ -76,10 +76,18 @@ const WhyChooseUsSection = () => {
   ];
 
   const stats = [
-    { number: "5000+", label: "Lives Transformed", icon: Users },
-    { number: "20+", label: "Years Legacy", icon: Clock },
-    { number: "95%", label: "Success Rate", icon: TrendingUp },
-    { number: "4.9★", label: "Patient Rating", icon: Star },
+    {
+      number: "5000+",
+      label: t("whyChooseUs.stats.livesTransformed"),
+      icon: Users,
+    },
+    { number: "20+", label: t("whyChooseUs.stats.yearsLegacy"), icon: Clock },
+    {
+      number: "95%",
+      label: t("whyChooseUs.stats.successRate"),
+      icon: TrendingUp,
+    },
+    { number: "4.9★", label: t("whyChooseUs.stats.patientRating"), icon: Star },
   ];
 
   return (

@@ -13,13 +13,10 @@ import {
   Star,
   CheckCircle,
   GraduationCap,
-  Heart,
-  Brain,
-  Stethoscope,
   Globe,
   Calendar,
 } from "lucide-react";
-import { LanguageProvider } from "@/lib/i18n/context";
+
 import { YouTubeVideoGrid } from "@/components/media/youtube-video";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 

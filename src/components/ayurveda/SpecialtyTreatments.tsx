@@ -18,10 +18,10 @@ import {
   Users,
   Award,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 
 const SpecialtyTreatments = () => {
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   const specialties = [
     {
@@ -255,9 +255,9 @@ const SpecialtyTreatments = () => {
                 </h3>
                 <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
                   Join thousands who have experienced the unique healing power
-                  of our specialized treatments. Dr. Chandrakumar Deshmukh's
-                  expertise in rare Ayurvedic techniques offers hope where
-                  conventional medicine falls short.
+                  of our specialized treatments. Dr. Chandrakumar
+                  Deshmukh&apos;s expertise in rare Ayurvedic techniques offers
+                  hope where conventional medicine falls short.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button

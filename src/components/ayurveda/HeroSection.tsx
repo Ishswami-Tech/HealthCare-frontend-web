@@ -11,24 +11,21 @@ import {
   StaggerItem,
   HoverAnimation,
   CounterAnimation,
-  Parallax,
 } from "@/components/ui/animated-wrapper";
 import {
   Play,
   Star,
-  Users,
   Award,
-  Clock,
   Phone,
   MessageCircle,
   CheckCircle,
   TrendingUp,
   AlertCircle,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 
 const HeroSection = () => {
-  const t = useTranslations();
+  const { t } = useTranslation();
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [liveCount, setLiveCount] = useState(147);
 
@@ -88,7 +85,7 @@ const HeroSection = () => {
                 <HoverAnimation type="scale">
                   <Badge className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-700">
                     <Star className="w-3 h-3 mr-1" />
-                    {t("heroSection.rating")}
+                    {t("hero.trustIndicators.rating")}
                   </Badge>
                 </HoverAnimation>
               </StaggerItem>
@@ -315,7 +312,7 @@ const HeroSection = () => {
                       >
                         🔥
                       </motion.span>
-                      Book Free Consultation
+                      {t("heroSection.bookFreeConsultation")}
                       {/* Shine effect */}
                       <motion.div
                         className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
@@ -359,7 +356,7 @@ const HeroSection = () => {
                       >
                         <Phone className="w-6 h-6" />
                       </motion.div>
-                      Call Now: +91-XXXX-XXXX
+                      {t("heroSection.callNow")}
                     </Button>
                   </motion.div>
                 </HoverAnimation>
@@ -409,7 +406,7 @@ const HeroSection = () => {
               <div className="flex items-center space-x-2">
                 <AlertCircle className="w-4 h-4 text-amber-600" />
                 <span className="text-sm font-medium text-amber-800">
-                  TODAY ONLY: Free Ayurvedic consultation + dosha assessment
+                  {t("heroSection.todayOnly")}
                 </span>
               </div>
             </div>

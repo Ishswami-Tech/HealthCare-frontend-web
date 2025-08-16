@@ -3,7 +3,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Award,
@@ -17,7 +17,7 @@ import {
   Brain,
   Target,
 } from "lucide-react";
-import { LanguageProvider } from "@/lib/i18n/context";
+
 import { ClinicInfo } from "@/components/clinic/clinic-info";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 

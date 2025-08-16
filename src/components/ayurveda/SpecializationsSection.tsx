@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function SpecializationsSection() {
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   return (
     <section className="py-20 bg-white">

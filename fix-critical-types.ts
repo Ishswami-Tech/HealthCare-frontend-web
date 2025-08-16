@@ -149,3 +149,4 @@ export type SafeAny = unknown;
 export type ComponentProps = Record<string, unknown>;
 export type EventHandler = (event: Event) => void;
 export type AsyncFunction<T = void> = () => Promise<T>;
+

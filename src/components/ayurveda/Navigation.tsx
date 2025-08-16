@@ -9,17 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { HoverAnimation } from "@/components/ui/animated-wrapper";
 import { ThemeToggle } from "@/components/theme/theme-provider";
 import { LanguageSelector } from "@/components/language/LanguageSelector";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 import {
   Phone,
   MessageCircle,
   Menu,
   X,
-  Star,
-  Users,
-  Award,
-  Clock,
-  MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +22,7 @@ const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const handleScroll = () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,11 +15,10 @@ import {
   CheckCircle,
   Clock,
   Star,
-  Users,
 } from "lucide-react";
 
 const TreatmentOverview = () => {
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   const treatments = [
     {
@@ -31,8 +30,18 @@ const TreatmentOverview = () => {
       bgColor:
         "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
       description: t("treatments.panchakarma.description"),
-      features: t("treatments.panchakarma.features"),
-      conditions: t("treatments.panchakarma.conditions"),
+      features: [
+        "Complete detoxification",
+        "Treats root cause",
+        "21-day program",
+        "Scientifically validated",
+      ],
+      conditions: [
+        "Chronic Diseases",
+        "Digestive Disorders",
+        "Skin Conditions",
+        "Mental Health",
+      ],
       successRate: t("treatments.panchakarma.successRate"),
       duration: t("treatments.panchakarma.duration"),
       href: "/ayurveda/panchakarma",
@@ -46,8 +55,18 @@ const TreatmentOverview = () => {
       bgColor:
         "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
       description: t("treatments.agnikarma.description"),
-      features: t("treatments.agnikarma.features"),
-      conditions: t("treatments.agnikarma.conditions"),
+      features: [
+        "Immediate relief",
+        "No medications",
+        "Tissue regeneration",
+        "Proven technique",
+      ],
+      conditions: [
+        "Joint Pain",
+        "Muscle Stiffness",
+        "Chronic Pain",
+        "Sports Injuries",
+      ],
       successRate: t("treatments.agnikarma.successRate"),
       duration: t("treatments.agnikarma.duration"),
       href: "/ayurveda/agnikarma",
@@ -61,8 +80,18 @@ const TreatmentOverview = () => {
       bgColor:
         "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
       description: t("treatments.viddhakarma.description"),
-      features: t("treatments.viddhakarma.features"),
-      conditions: t("treatments.viddhakarma.conditions"),
+      features: [
+        "Minimally invasive",
+        "Instant pain relief",
+        "No side effects",
+        "Permanent solution",
+      ],
+      conditions: [
+        "Autism Spectrum",
+        "Cerebral Palsy",
+        "Neurological Issues",
+        "Developmental Delays",
+      ],
       successRate: t("treatments.viddhakarma.successRate"),
       duration: t("treatments.viddhakarma.duration"),
       href: "/ayurveda/viddha-karma",
@@ -123,7 +152,7 @@ const TreatmentOverview = () => {
                   {/* Key Features */}
                   <div className="mb-6">
                     <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
-                      Key Benefits:
+                      {t("treatments.labels.keyBenefits")}
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
                       {treatment.features.map((feature, index) => (
@@ -220,11 +249,10 @@ const TreatmentOverview = () => {
         <div className="text-center">
           <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl p-8 text-white">
             <h3 className="text-2xl font-playfair font-bold mb-4">
-              Not Sure Which Treatment is Right for You?
+              {t("treatments.cta.title")}
             </h3>
             <p className="text-orange-100 mb-6 max-w-2xl mx-auto">
-              Take our comprehensive health assessment or speak with our
-              Ayurvedic experts to get personalized treatment recommendations.
+              {t("treatments.cta.subtitle")}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
@@ -232,14 +260,14 @@ const TreatmentOverview = () => {
                 variant="secondary"
                 className="bg-white text-orange-600 hover:bg-orange-50"
               >
-                Take Health Assessment
+                {t("treatments.cta.assessmentButton")}
               </Button>
               <Button
                 size="lg"
                 variant="outline"
                 className="border-white text-white hover:bg-white/10"
               >
-                Speak with Expert
+                {t("treatments.cta.expertButton")}
               </Button>
             </div>
           </div>

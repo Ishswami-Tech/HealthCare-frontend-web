@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 const TestimonialsSection = () => {
-  const t = useTranslations();
+  const { t } = useTranslation();
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
   const testimonials = [
@@ -106,7 +106,7 @@ const TestimonialsSection = () => {
     );
   };
 
-  const current = testimonials[currentTestimonial];
+  const current = testimonials[currentTestimonial] || testimonials[0]!;
 
   return (
     <section className="py-20 bg-gradient-to-br from-orange-50 to-red-50">
@@ -187,7 +187,7 @@ const TestimonialsSection = () => {
                 <div className="p-8 flex flex-col justify-center">
                   <Quote className="w-12 h-12 text-orange-300 mb-6" />
                   <blockquote className="text-lg text-gray-700 leading-relaxed mb-6 italic">
-                    "{current.quote}"
+                    &quot;{current.quote}&quot;
                   </blockquote>
 
                   <div className="flex items-center justify-between">
@@ -204,6 +204,7 @@ const TestimonialsSection = () => {
                         size="sm"
                         onClick={prevTestimonial}
                         className="rounded-full w-10 h-10 p-0"
+                        aria-label="Previous testimonial"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
@@ -212,6 +213,7 @@ const TestimonialsSection = () => {
                         size="sm"
                         onClick={nextTestimonial}
                         className="rounded-full w-10 h-10 p-0"
+                        aria-label="Next testimonial"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Button>
@@ -234,6 +236,7 @@ const TestimonialsSection = () => {
                   ? "bg-orange-500 w-8"
                   : "bg-orange-200 hover:bg-orange-300"
               }`}
+              aria-label={`Go to testimonial ${index + 1}`}
             />
           ))}
         </div>

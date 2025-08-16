@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,20 +9,17 @@ import { Progress } from "@/components/ui/progress";
 import {
   Zap,
   CheckCircle,
-  Clock,
   Star,
-  ArrowRight,
   Target,
   Brain,
   Heart,
   Shield,
   Award,
-  Users,
   Activity,
 } from "lucide-react";
 
 export default function ViddhaKarmaPage() {
-  const t = useTranslations();
+  const { t } = useTranslation();
   const processSteps = [
     {
       step: 1,
@@ -98,7 +95,7 @@ export default function ViddhaKarmaPage() {
       color: "from-purple-500 to-violet-600",
     },
     {
-      category: "Women's Health",
+      category: "Women&apos;s Health",
       treatments: ["PCOD", "Irregular periods", "Fertility"],
       benefits: "Hormonal harmony",
       successRate: 88,
@@ -555,7 +552,7 @@ export default function ViddhaKarmaPage() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center text-white">
             <h2 className="text-3xl md:text-4xl font-playfair font-bold mb-6">
-              Unlock Your Body's Natural Healing Power
+              Unlock Your Body&apos;s Natural Healing Power
             </h2>
             <p className="text-xl text-purple-100 mb-8">
               Experience the precision of Viddha Karma therapy. Restore energy

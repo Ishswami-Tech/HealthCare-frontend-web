@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 const StatsSection = () => {
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   const stats = [
     {

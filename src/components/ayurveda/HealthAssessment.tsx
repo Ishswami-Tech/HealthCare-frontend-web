@@ -6,10 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-  User,
-  Heart,
   Brain,
-  Zap,
   Target,
   CheckCircle,
   ArrowRight,
@@ -19,7 +16,7 @@ import {
 
 const HealthAssessment = () => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showResults, setShowResults] = useState(false);
 
   const questions = [
@@ -127,7 +124,7 @@ const HealthAssessment = () => {
                 Your Personalized Ayurvedic Assessment
               </h2>
               <p className="text-lg text-gray-600">
-                Based on your responses, here's your complete healing path
+                Based on your responses, here&apos;s your complete healing path
               </p>
             </div>
 

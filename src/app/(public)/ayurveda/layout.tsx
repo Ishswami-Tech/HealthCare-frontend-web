@@ -9,10 +9,7 @@ import {
   generateWebsiteSchema,
 } from "@/lib/seo";
 import { WhatsAppButton } from "@/components/contact/whatsapp-button";
-import {
-  AccessibilityProvider,
-  AccessibilityToolbar,
-} from "@/components/ui/accessibility";
+import { AccessibilityToolbar } from "@/components/ui/accessibility";
 import { LanguageProvider } from "@/lib/i18n/context";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
