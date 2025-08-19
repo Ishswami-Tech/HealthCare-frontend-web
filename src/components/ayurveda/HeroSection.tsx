@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +20,9 @@ import {
   CheckCircle,
   TrendingUp,
   AlertCircle,
+  Clock,
+  Users,
+  Shield,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/context";
 
@@ -94,131 +96,44 @@ const HeroSection = () => {
             {/* Enhanced Main Headline with Advanced Animations */}
             <ScrollReveal direction="up">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
-                <motion.span
-                  initial={{ opacity: 0, y: 20, rotateX: -15 }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                    rotateX: 0,
-                    textShadow: [
-                      "0 0 0px rgba(0,0,0,0)",
-                      "0 2px 4px rgba(0,0,0,0.1)",
-                      "0 0 0px rgba(0,0,0,0)",
-                    ],
-                  }}
-                  transition={{
-                    duration: 0.8,
-                    delay: 0.2,
-                    textShadow: { duration: 3, repeat: Infinity, delay: 2 },
-                  }}
-                  className="block"
-                >
-                  {t("hero.title1")}
-                </motion.span>
+                <div className="block">{t("hero.title1")}</div>
 
-                <motion.span
+                <div
                   className="block text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-red-500 to-orange-600 dark:from-orange-400 dark:via-red-400 dark:to-orange-400"
-                  initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                  animate={{
-                    opacity: 1,
-                    scale: 1,
-                    y: 0,
-                    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                  }}
-                  transition={{
-                    opacity: { duration: 0.8, delay: 0.4 },
-                    scale: {
-                      duration: 0.8,
-                      delay: 0.4,
-                      type: "spring",
-                      stiffness: 200,
-                    },
-                    y: { duration: 0.8, delay: 0.4 },
-                    backgroundPosition: {
-                      duration: 4,
-                      repeat: Infinity,
-                      delay: 1,
-                    },
-                  }}
                   style={{
                     backgroundSize: "200% 200%",
                   }}
-                  whileHover={{
-                    scale: 1.05,
-                    filter: "drop-shadow(0 0 8px rgba(249, 115, 22, 0.4))",
-                  }}
                 >
-                  <motion.span
-                    animate={{
-                      scale: [1, 1.02, 1],
-                      y: [0, -1, 0],
-                    }}
-                    transition={{
-                      duration: 2.5,
-                      repeat: Infinity,
-                      delay: 3,
-                      ease: "easeInOut",
-                    }}
-                  >
-                    {t("heroSection.completeHealing")}.
-                  </motion.span>
-                </motion.span>
+                  <div className="block">{t("hero.title2")}</div>
+                </div>
 
-                <motion.span
-                  initial={{ opacity: 0, y: 20, rotateX: 15 }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                    rotateX: 0,
-                  }}
-                  transition={{ duration: 0.8, delay: 0.6, type: "spring" }}
-                  className="block"
-                >
-                  <motion.span
-                    animate={{
-                      opacity: [0.9, 1, 0.9],
-                      letterSpacing: ["0em", "0.02em", "0em"],
-                    }}
-                    transition={{
-                      duration: 4,
-                      repeat: Infinity,
-                      delay: 4,
-                      ease: "easeInOut",
-                    }}
-                  >
-                    {t("heroSection.transformYourLife")}
-                  </motion.span>
-                </motion.span>
+                <div className="block">
+                  <div className="block">{t("hero.title")}</div>
+                </div>
               </h1>
             </ScrollReveal>
 
             {/* Subheadline */}
             <ScrollReveal direction="up" delay={0.3}>
               <p className="text-lg md:text-xl text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
-                {t("heroSection.authenticTreatments")}
+                {t("hero.description")}
               </p>
             </ScrollReveal>
 
             {/* Key Benefits */}
             <ScrollReveal direction="up" delay={0.4}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 max-w-3xl">
-                <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
-                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  <span className="text-sm">
-                    {t("heroSection.yearsExperience")}
-                  </span>
+                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                  <Clock className="w-4 h-4 text-orange-500" />
+                  <span>{t("hero.benefits.yearsExperience")}</span>
                 </div>
-                <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
-                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  <span className="text-sm">
-                    {t("heroSection.patientsHealed")}
-                  </span>
+                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                  <Users className="w-4 h-4 text-green-500" />
+                  <span>{t("hero.benefits.patientsHealed")}</span>
                 </div>
-                <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
-                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  <span className="text-sm">
-                    {t("heroSection.governmentCertified")}
-                  </span>
+                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                  <Shield className="w-4 h-4 text-blue-500" />
+                  <span>{t("hero.benefits.governmentCertified")}</span>
                 </div>
               </div>
             </ScrollReveal>
@@ -229,41 +144,31 @@ const HeroSection = () => {
                 <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg p-4 mb-8 border border-orange-100 dark:border-gray-700 shadow-lg">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-2">
-                      <motion.div
-                        className="w-3 h-3 bg-red-500 rounded-full"
-                        animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      />
+                      <div className="w-3 h-3 bg-red-500 rounded-full" />
                       <span className="font-semibold text-gray-900 dark:text-white">
-                        {t("heroSection.liveActivity")}
+                        Live Activity
                       </span>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className="text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-600"
-                    >
+                    <Badge className="bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-700">
                       <TrendingUp className="w-3 h-3 mr-1" />
-                      {t("heroSection.highDemand")}
+                      High Demand
                     </Badge>
                   </div>
-                  <motion.p
+                  <div
                     className="text-sm text-gray-600 dark:text-gray-300"
                     key={currentTestimonial}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
                   >
                     {testimonials[currentTestimonial]}
-                  </motion.p>
+                  </div>
                   <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
                     <span>
                       <CounterAnimation
                         from={100}
                         to={liveCount}
-                        suffix={` ${t("heroSection.peopleViewing")}`}
+                        suffix=" people viewing"
                       />
                     </span>
-                    <span>{t("heroSection.bookingsIncreased")}</span>
+                    <span>Bookings Increased</span>
                   </div>
                 </div>
               </HoverAnimation>
@@ -276,89 +181,36 @@ const HeroSection = () => {
             >
               <StaggerItem>
                 <HoverAnimation type="glow">
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="relative"
-                  >
+                  <div className="relative">
                     <Button
                       size="lg"
-                      className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xl font-bold px-12 py-8 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 relative overflow-hidden group"
+                      className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-lg font-semibold px-10 py-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group relative overflow-hidden"
                     >
-                      {/* Animated background glow */}
-                      <motion.div
-                        className="absolute inset-0 bg-gradient-to-r from-orange-400 to-red-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300"
-                        animate={{
-                          scale: [1, 1.1, 1],
-                          opacity: [0.1, 0.3, 0.1],
-                        }}
-                        transition={{
-                          duration: 3,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                        }}
-                      />
-                      <motion.span
-                        animate={{
-                          scale: [1, 1.2, 1],
-                          rotate: [0, 5, -5, 0],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          repeatDelay: 3,
-                        }}
-                        className="mr-3"
-                      >
-                        🔥
-                      </motion.span>
-                      {t("heroSection.bookFreeConsultation")}
-                      {/* Shine effect */}
-                      <motion.div
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
-                        animate={{
-                          x: ["-100%", "100%"],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          repeatDelay: 4,
-                          ease: "easeInOut",
-                        }}
-                      />
+                      <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-red-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+                      <div className="relative z-10 flex items-center space-x-2">
+                        <div className="text-2xl">🔥</div>
+                        {t("hero.primaryCta")}
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12" />
                     </Button>
-                  </motion.div>
+                  </div>
                 </HoverAnimation>
               </StaggerItem>
 
               <StaggerItem>
                 <HoverAnimation type="scale">
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
+                  <div className="relative">
                     <Button
-                      size="lg"
                       variant="outline"
+                      size="lg"
                       className="border-3 border-green-500 dark:border-green-400 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-600 dark:hover:border-green-300 text-lg font-semibold px-10 py-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group"
                     >
-                      <motion.div
-                        animate={{
-                          rotate: [0, 15, -15, 0],
-                          scale: [1, 1.1, 1],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          repeatDelay: 4,
-                        }}
-                        className="mr-3"
-                      >
+                      <div className="flex items-center space-x-2">
                         <Phone className="w-6 h-6" />
-                      </motion.div>
-                      {t("heroSection.callNow")}
+                        {t("hero.secondaryCta")}
+                      </div>
                     </Button>
-                  </motion.div>
+                  </div>
                 </HoverAnimation>
               </StaggerItem>
             </StaggerContainer>
@@ -375,7 +227,7 @@ const HeroSection = () => {
                     className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
                   >
                     <Play className="w-4 h-4 mr-2" />
-                    {t("heroSection.watchHealingJourneys")}
+                    Watch Journeys
                   </Button>
                 </HoverAnimation>
               </StaggerItem>
@@ -385,7 +237,7 @@ const HeroSection = () => {
                     variant="ghost"
                     className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
                   >
-                    🏥 {t("heroSection.virtualClinicTour")}
+                    🏥 Virtual Tour
                   </Button>
                 </HoverAnimation>
               </StaggerItem>
@@ -395,7 +247,7 @@ const HeroSection = () => {
                     variant="ghost"
                     className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
                   >
-                    📋 {t("heroSection.freeHealthAssessment")}
+                    📋 Health Assessment
                   </Button>
                 </HoverAnimation>
               </StaggerItem>
@@ -406,7 +258,7 @@ const HeroSection = () => {
               <div className="flex items-center space-x-2">
                 <AlertCircle className="w-4 h-4 text-amber-600" />
                 <span className="text-sm font-medium text-amber-800">
-                  {t("heroSection.todayOnly")}
+                  Today Only
                 </span>
               </div>
             </div>
@@ -422,11 +274,11 @@ const HeroSection = () => {
                       <span className="text-4xl">🕉️</span>
                     </div>
                     <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                      Sacred Healing Environment
+                      Ayurvedic Wisdom
                     </h3>
                     <p className="text-gray-600 px-4">
-                      Experience authentic Ayurvedic treatments in our serene,
-                      traditional setting
+                      Discover the ancient art of Ayurveda and its modern
+                      application.
                     </p>
                   </div>
                 </div>

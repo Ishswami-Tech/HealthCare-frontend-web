@@ -192,7 +192,7 @@ export async function getServerSession(): Promise<Session | null> {
 
       // Try to extract user info from JWT token
       try {
-        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        const payload = JSON.parse(atob(accessToken.split('.')[1] || ''));
         console.log('getServerSession - JWT payload:', payload);
         
         session.user.id = payload.sub || '';
@@ -294,7 +294,7 @@ export async function setSession(data: {
       role: data.user.role,
       firstName: data.user.firstName || '',
       lastName: data.user.lastName || '',
-      name: `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() || undefined,
+      ...(data.user.firstName || data.user.lastName ? { name: `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() } : {}),
       phone: data.user.phone || '',
       dateOfBirth: data.user.dateOfBirth || null,
       gender: data.user.gender || '',

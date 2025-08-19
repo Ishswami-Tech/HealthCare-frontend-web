@@ -161,7 +161,7 @@ export const FormTracker: React.FC<FormTrackerProps> = ({ formId, formName }) =>
     const form = document.getElementById(formId);
     if (!form) return;
 
-    const handleSubmit = (e: Event) => {
+    const handleSubmit = (_e: Event) => {
       trackEvent('form_submit', {
         event_category: 'form',
         event_label: formName,
@@ -233,11 +233,13 @@ export const PerformanceTracker: React.FC = () => {
       new PerformanceObserver((list) => {
         const entries = list.getEntries();
         const lastEntry = entries[entries.length - 1];
-        trackEvent('web_vitals', {
-          event_category: 'performance',
-          event_label: 'LCP',
-          value: Math.round(lastEntry.startTime),
-        });
+        if (lastEntry) {
+          trackEvent('web_vitals', {
+            event_category: 'performance',
+            event_label: 'LCP',
+            value: Math.round(lastEntry.startTime),
+          });
+        }
       }).observe({ entryTypes: ['largest-contentful-paint'] });
 
       // First Input Delay

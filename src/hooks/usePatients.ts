@@ -81,7 +81,7 @@ export const usePatientMedicalHistory = (patientId: string, filters?: {
   limit?: number;
 }) => {
   return useQueryData(['patientMedicalHistory', patientId, filters], async () => {
-    return await getPatientMedicalHistory(patientId, filters);
+    return await getPatientMedicalHistory('', patientId, filters);
   }, {
     enabled: !!patientId,
   });
@@ -246,7 +246,8 @@ export const useDeletePatient = () => {
  * Hook to add patient medical history
  */
 export const useAddPatientMedicalHistory = () => {
-  return useMutationData(['addPatientMedicalHistory'], async ({ patientId, historyData }: {
+  return useMutationData(['addPatientMedicalHistory'], async ({ clinicId, patientId, historyData }: {
+    clinicId: string;
     patientId: string;
     historyData: {
       type: 'DIAGNOSIS' | 'TREATMENT' | 'SURGERY' | 'ALLERGY' | 'MEDICATION' | 'FAMILY_HISTORY';
@@ -257,7 +258,7 @@ export const useAddPatientMedicalHistory = () => {
       severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
     };
   }) => {
-    const result = await addPatientMedicalHistory(patientId, historyData);
+    const result = await addPatientMedicalHistory(clinicId, patientId, historyData);
     return { status: 200, data: result };
   }, 'patientMedicalHistory');
 };

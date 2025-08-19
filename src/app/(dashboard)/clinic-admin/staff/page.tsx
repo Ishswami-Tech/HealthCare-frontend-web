@@ -31,7 +31,6 @@ import {
   Trash2,
   Mail,
   Phone,
-  MapPin,
   Stethoscope,
   UserCog
 } from "lucide-react";

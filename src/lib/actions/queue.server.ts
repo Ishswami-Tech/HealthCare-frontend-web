@@ -78,7 +78,7 @@ export async function addToQueue(queueData: {
 export async function removeFromQueue(queueId: string, reason?: string) {
   const { data } = await authenticatedApi(`/queue/${queueId}`, {
     method: 'DELETE',
-    body: reason ? JSON.stringify({ reason }) : undefined,
+    ...(reason && { body: JSON.stringify({ reason }) }),
   });
   return data;
 }

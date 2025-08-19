@@ -34,10 +34,8 @@ import {
   Edit,
   Eye,
   UserPlus,
-  FileText,
   Clock,
   AlertCircle,
-  CheckCircle,
   Heart,
   Pill,
   Calendar as CalendarIcon

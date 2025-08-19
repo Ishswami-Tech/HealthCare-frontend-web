@@ -151,11 +151,11 @@ const StatsSection = () => {
             <HoverAnimation type="scale">
               <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700 mb-4">
                 <CheckCircle className="w-4 h-4 mr-2" />
-                Trusted & Certified
+                {t("stats.trustedCertified")}
               </Badge>
             </HoverAnimation>
             <h3 className="text-2xl font-playfair font-bold text-gray-900 dark:text-white mb-8">
-              Recognized Excellence in Ayurvedic Healthcare
+              {t("stats.recognizedExcellence")}
             </h3>
           </div>
         </ScrollReveal>
@@ -190,19 +190,19 @@ const StatsSection = () => {
             <div className="flex flex-wrap justify-center items-center gap-8 text-sm text-gray-700">
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span>Currently treating 8 patients</span>
+                <span>{t("stats.currentlyTreating")}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <TrendingUp className="w-4 h-4 text-orange-600" />
-                <span>400% increase in bookings this month</span>
+                <span>{t("stats.bookingIncrease")}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Heart className="w-4 h-4 text-red-500" />
-                <span>Featured on leading health channels</span>
+                <span>{t("stats.featuredChannels")}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="w-4 h-4 text-blue-600" />
-                <span>147 people viewing treatments today</span>
+                <span>{t("stats.peopleViewing")}</span>
               </div>
             </div>
           </div>

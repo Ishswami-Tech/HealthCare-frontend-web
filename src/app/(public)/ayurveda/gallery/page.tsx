@@ -4,11 +4,13 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Instagram, Camera, Heart, Star } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/context";
 
 import { InstagramGrid } from "@/components/media/instagram-post";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 export default function GalleryPage() {
+  const { t } = useTranslation();
   // Sample Instagram posts for demonstration
   const sampleInstagramPosts = [
     {
@@ -53,25 +55,25 @@ export default function GalleryPage() {
     {
       icon: Instagram,
       number: "10K+",
-      label: "Instagram Followers",
+      label: t("gallery.stats.instagramFollowers"),
       color: "from-pink-500 to-purple-600",
     },
     {
       icon: Camera,
       number: "500+",
-      label: "Treatment Photos",
+      label: t("gallery.stats.treatmentPhotos"),
       color: "from-blue-500 to-indigo-600",
     },
     {
       icon: Heart,
       number: "1000+",
-      label: "Patient Stories",
+      label: t("gallery.stats.patientStories"),
       color: "from-red-500 to-pink-600",
     },
     {
       icon: Star,
       number: "4.9★",
-      label: "Average Rating",
+      label: t("gallery.stats.averageRating"),
       color: "from-yellow-500 to-orange-600",
     },
   ];
@@ -89,19 +91,18 @@ export default function GalleryPage() {
           <div className="max-w-4xl mx-auto text-center">
             <Badge className="bg-pink-100 text-pink-800 border-pink-200 mb-6">
               <Instagram className="w-4 h-4 mr-2" />
-              Gallery & Social Media
+              {t("gallery.badge")}
             </Badge>
 
             <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-6">
-              Our{" "}
+              {t("gallery.hero.title1")}{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">
-                Healing Journey
+                {t("gallery.hero.title2")}
               </span>
             </h1>
 
             <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-              Follow our daily activities, patient success stories, and
-              treatment demonstrations through our social media presence.
+              {t("gallery.hero.description")}
             </p>
 
             <div className="flex flex-wrap justify-center gap-4">
@@ -112,7 +113,7 @@ export default function GalleryPage() {
                 className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2"
               >
                 <Instagram className="w-5 h-5" />
-                Follow on Instagram
+                {t("gallery.followInstagram")}
               </a>
             </div>
           </div>
@@ -153,11 +154,10 @@ export default function GalleryPage() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Patient Stories & Updates
+              {t("gallery.instagram.title")}
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Follow our journey and see real patient testimonials, treatment
-              updates, and wellness tips from our Instagram feed.
+              {t("gallery.instagram.description")}
             </p>
           </div>
 
@@ -176,7 +176,7 @@ export default function GalleryPage() {
               className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300"
             >
               <Instagram className="w-5 h-5" />
-              View More on Instagram
+              {t("gallery.viewMoreInstagram")}
             </a>
           </div>
         </div>
@@ -186,12 +186,10 @@ export default function GalleryPage() {
       <section className="py-20 bg-gradient-to-r from-green-600 to-green-700 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Share Your Healing Story
+            {t("gallery.cta.title")}
           </h2>
           <p className="text-xl mb-8 text-green-100 max-w-3xl mx-auto">
-            Have you experienced the benefits of our Ayurvedic treatments? We&apos;d
-            love to feature your success story and inspire others on their
-            wellness journey.
+            {t("gallery.cta.description")}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -199,7 +197,7 @@ export default function GalleryPage() {
               href="/ayurveda/contact"
               className="bg-white text-green-600 hover:bg-gray-100 px-8 py-4 rounded-lg font-semibold text-lg transition-colors"
             >
-              Share Your Story
+              {t("gallery.cta.shareStory")}
             </a>
             <a
               href="https://wa.me/9860370961?text=I would like to share my healing story"
@@ -207,7 +205,7 @@ export default function GalleryPage() {
               rel="noopener noreferrer"
               className="border-2 border-white text-white hover:bg-white hover:text-green-600 px-8 py-4 rounded-lg font-semibold text-lg transition-colors"
             >
-              WhatsApp Us
+              {t("gallery.cta.whatsappUs")}
             </a>
           </div>
         </div>

@@ -29,7 +29,6 @@ import {
   UserX,
   Edit,
   Trash2,
-  Filter,
   Mail,
   Phone,
 } from "lucide-react";

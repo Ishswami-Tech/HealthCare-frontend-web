@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { useTranslation } from "@/lib/i18n/context";
 import {
   Zap,
   Heart,
@@ -25,144 +26,146 @@ import {
 } from "lucide-react";
 
 const ComprehensiveCTA = () => {
+  const { t } = useTranslation();
   const [selectedIntent, setSelectedIntent] = useState<string | null>(null);
   const [email, setEmail] = useState("");
 
   const engagementLevels = [
     {
       id: "high",
-      title: "START MY HEALING JOURNEY NOW",
-      subtitle: "High Intent - Ready for Immediate Transformation",
-      description:
-        "I&apos;m ready to begin my healing journey and want to start treatment immediately",
+      title: t("comprehensiveCTA.engagementLevels.urgent.title"),
+      subtitle: t("comprehensiveCTA.engagementLevels.urgent.subtitle"),
+      description: t("comprehensiveCTA.engagementLevels.urgent.description"),
       icon: Zap,
       color: "from-orange-500 to-red-600",
       bgColor:
         "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
       actions: [
         {
-          label: "Book Comprehensive Assessment",
-          subtext: "Within 24 hours",
+          label: t("comprehensiveCTA.engagementLevels.urgent.features.helpline"),
+          subtext: "24/7 immediate response",
           urgent: true,
         },
         {
-          label: "Emergency Consultation",
-          subtext: "Same-day evaluation",
+          label: t("comprehensiveCTA.engagementLevels.urgent.features.consultation"),
+          subtext: "Same day appointment",
           urgent: true,
         },
         {
-          label: "Panchakarma Enrollment",
-          subtext: "Immediate admission",
+          label: t("comprehensiveCTA.engagementLevels.urgent.features.video"),
+          subtext: "Instant expert advice",
           urgent: false,
         },
         {
-          label: "VIP Fast-Track",
-          subtext: "No waiting period",
+          label: t("comprehensiveCTA.engagementLevels.urgent.features.whatsapp"),
+          subtext: "Quick guidance",
           urgent: false,
         },
       ],
     },
     {
       id: "medium",
-      title: "GET COMPLETE HEALING PLAN",
-      subtitle: "Medium Intent - Seeking Detailed Information",
-      description:
-        "I want to understand my options and get a personalized treatment plan",
+      title: t("comprehensiveCTA.engagementLevels.moderate.title"),
+      subtitle: t("comprehensiveCTA.engagementLevels.moderate.subtitle"),
+      description: t("comprehensiveCTA.engagementLevels.moderate.description"),
       icon: Heart,
       color: "from-blue-500 to-cyan-600",
       bgColor:
         "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
       actions: [
         {
-          label: "Free Health Assessment",
-          subtext: "Comprehensive analysis",
+          label: t("comprehensiveCTA.engagementLevels.moderate.features.consultation"),
+          subtext: "Within 48 hours",
           urgent: false,
         },
         {
-          label: "Personalized Treatment Plan",
-          subtext: "Custom roadmap",
+          label: t("comprehensiveCTA.engagementLevels.moderate.features.assessment"),
+          subtext: "Comprehensive evaluation",
           urgent: false,
         },
         {
-          label: "Educational Package",
-          subtext: "Detailed guides",
+          label: t("comprehensiveCTA.engagementLevels.moderate.features.planning"),
+          subtext: "Personalized approach",
           urgent: false,
         },
         {
-          label: "Success Story Access",
-          subtext: "Similar cases",
+          label: t("comprehensiveCTA.engagementLevels.moderate.features.followup"),
+          subtext: "Ongoing support",
           urgent: false,
         },
       ],
     },
     {
       id: "low",
-      title: "STAY CONNECTED FOR WELLNESS",
-      subtitle: "Low Intent - Exploring Natural Healing Options",
-      description:
-        "I&apos;m interested in learning more about Ayurvedic healing and wellness",
+      title: t("comprehensiveCTA.engagementLevels.preventive.title"),
+      subtitle: t("comprehensiveCTA.engagementLevels.preventive.subtitle"),
+      description: t("comprehensiveCTA.engagementLevels.preventive.description"),
       icon: Brain,
       color: "from-green-500 to-emerald-600",
       bgColor:
         "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
       actions: [
         {
-          label: "Weekly Newsletter",
-          subtext: "Health tips & guidance",
+          label: t("comprehensiveCTA.engagementLevels.preventive.features.consultation"),
+          subtext: "Preventive care",
           urgent: false,
         },
         {
-          label: "Social Media Community",
-          subtext: "Daily inspiration",
+          label: t("comprehensiveCTA.engagementLevels.preventive.features.guidance"),
+          subtext: "Health optimization",
           urgent: false,
         },
         {
-          label: "Free Monthly Workshops",
-          subtext: "Health education",
+          label: t("comprehensiveCTA.engagementLevels.preventive.features.checkups"),
+          subtext: "Maintenance care",
           urgent: false,
         },
-        { label: "E-book Library", subtext: "Free downloads", urgent: false },
+        {
+          label: t("comprehensiveCTA.engagementLevels.preventive.features.resources"),
+          subtext: "Health knowledge",
+          urgent: false,
+        },
       ],
     },
   ];
 
   const contactChannels = [
     {
-      channel: "WhatsApp Business",
-      number: "+91-XXXX-XXXX",
-      response: "AI + Human support - replied within 2 minutes",
+      channel: t("comprehensiveCTA.contactChannels.channels.whatsapp.title"),
+      number: t("comprehensiveCTA.contactChannels.channels.whatsapp.number"),
+      response: t("comprehensiveCTA.contactChannels.channels.whatsapp.description"),
       icon: MessageCircle,
-      color: "from-green-500 to-emerald-600",
+      color: "bg-green-500",
     },
     {
-      channel: "Main Helpline",
-      number: "+91-XXXX-XXXX",
-      response: "Multi-language support - answered within 2 rings",
+      channel: t("comprehensiveCTA.contactChannels.channels.helpline.title"),
+      number: t("comprehensiveCTA.contactChannels.channels.helpline.number"),
+      response: t("comprehensiveCTA.contactChannels.channels.helpline.description"),
       icon: Phone,
-      color: "from-blue-500 to-cyan-600",
+      color: "bg-blue-500",
     },
     {
-      channel: "Emergency Line",
-      number: "+91-XXXX-XXXX",
-      response: "Medical emergencies - immediate response",
-      icon: Phone,
-      color: "from-red-500 to-pink-600",
+      channel: t("comprehensiveCTA.contactChannels.channels.emergency.title"),
+      number: t("comprehensiveCTA.contactChannels.channels.emergency.number"),
+      response: t("comprehensiveCTA.contactChannels.channels.emergency.description"),
+      icon: Shield,
+      color: "bg-red-500",
     },
     {
-      channel: "Video Consultation",
-      number: "Schedule Online",
-      response: "Telemedicine appointments worldwide",
+      channel: t("comprehensiveCTA.contactChannels.channels.video.title"),
+      number: t("comprehensiveCTA.contactChannels.channels.video.action"),
+      response: t("comprehensiveCTA.contactChannels.channels.video.description"),
       icon: Video,
-      color: "from-purple-500 to-indigo-600",
+      color: "bg-purple-500",
     },
   ];
 
   const guarantees = [
-    { icon: Shield, text: "100% Satisfaction Assurance" },
-    { icon: Award, text: "Expert Care Promise" },
-    { icon: CheckCircle, text: "International Safety Standards" },
-    { icon: Users, text: "Lifetime Wellness Partnership" },
-    { icon: Star, text: "Holistic Transformation Guarantee" },
+    { icon: Shield, text: t("comprehensiveCTA.benefits.satisfaction") },
+    { icon: Award, text: t("comprehensiveCTA.benefits.expertCare") },
+    { icon: CheckCircle, text: t("comprehensiveCTA.benefits.safety") },
+    { icon: Users, text: t("comprehensiveCTA.benefits.partnership") },
+    { icon: Star, text: t("comprehensiveCTA.benefits.results") },
   ];
 
   return (
@@ -174,17 +177,13 @@ const ComprehensiveCTA = () => {
             <div className="text-center mb-16">
               <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800 mb-4">
                 <Target className="w-4 h-4 mr-2" />
-                Multi-Level Engagement Strategy
+                {t("comprehensiveCTA.strategy.title")}
               </Badge>
               <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
-                Your Journey to Complete Wellness{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-400 dark:to-red-400">
-                  Starts with One Decision
-                </span>
+                {t("comprehensiveCTA.strategy.subtitle")}
               </h2>
               <p className="text-lg text-gray-600 dark:text-gray-300">
-                Choose your level of engagement and let us guide you to optimal
-                health
+                {t("comprehensiveCTA.strategy.description")}
               </p>
             </div>
 
@@ -228,27 +227,31 @@ const ComprehensiveCTA = () => {
 
                         <div className="lg:col-span-2 p-8">
                           <div className="grid md:grid-cols-2 gap-4">
-                            {level.actions.map((action, actionIndex) => (
-                              <Button
-                                key={actionIndex}
-                                variant={action.urgent ? "default" : "outline"}
-                                className={`h-auto p-4 justify-start ${
-                                  action.urgent
-                                    ? `bg-gradient-to-r ${level.color} hover:opacity-90 text-white`
-                                    : `border-gray-300 text-gray-700 hover:bg-gray-50`
-                                }`}
-                              >
-                                <div className="text-left">
-                                  <div className="font-semibold">
-                                    {action.label}
+                            {(level.actions || []).map(
+                              (action, actionIndex) => (
+                                <Button
+                                  key={actionIndex}
+                                  variant={
+                                    action.urgent ? "default" : "outline"
+                                  }
+                                  className={`h-auto p-4 justify-start ${
+                                    action.urgent
+                                      ? `bg-gradient-to-r ${level.color} hover:opacity-90 text-white`
+                                      : `border-gray-300 text-gray-700 hover:bg-gray-50`
+                                  }`}
+                                >
+                                  <div className="text-left">
+                                    <div className="font-semibold">
+                                      {action.label}
+                                    </div>
+                                    <div className="text-xs opacity-75">
+                                      {action.subtext}
+                                    </div>
                                   </div>
-                                  <div className="text-xs opacity-75">
-                                    {action.subtext}
-                                  </div>
-                                </div>
-                                <ArrowRight className="w-4 h-4 ml-auto" />
-                              </Button>
-                            ))}
+                                  <ArrowRight className="w-4 h-4 ml-auto" />
+                                </Button>
+                              )
+                            )}
                           </div>
                         </div>
                       </div>
@@ -268,18 +271,18 @@ const ComprehensiveCTA = () => {
             <div className="text-center mb-16">
               <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 mb-4">
                 <Phone className="w-4 h-4 mr-2" />
-                Omnichannel Contact & Instant Engagement
+                {t("comprehensiveCTA.contactChannels.title")}
               </Badge>
               <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
-                Connect with Us Instantly - 24/7 Expert Support
+                {t("comprehensiveCTA.contactChannels.subtitle")}
               </h2>
               <p className="text-lg text-gray-600 dark:text-gray-300">
-                Multiple ways to reach us with guaranteed response times
+                {t("comprehensiveCTA.contactChannels.description")}
               </p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-8">
-              {contactChannels.map((contact) => {
+              {(contactChannels || []).map((contact, index) => {
                 const IconComponent = contact.icon;
 
                 return (
@@ -309,7 +312,7 @@ const ComprehensiveCTA = () => {
                       <Button
                         className={`w-full bg-gradient-to-r ${contact.color} hover:opacity-90 text-white`}
                       >
-                        Contact Now
+                        {t("comprehensiveCTA.contactChannels.channels.whatsapp.button")}
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
                     </CardContent>
@@ -326,7 +329,7 @@ const ComprehensiveCTA = () => {
                   2 Rings
                 </div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Phone Answer Time
+                  {t("comprehensiveCTA.contactChannels.responseTimes.phone")}
                 </div>
               </div>
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -335,7 +338,7 @@ const ComprehensiveCTA = () => {
                   30 Seconds
                 </div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Live Chat Response
+                  {t("comprehensiveCTA.contactChannels.responseTimes.chat")}
                 </div>
               </div>
               <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
@@ -344,7 +347,7 @@ const ComprehensiveCTA = () => {
                   4 Hours
                 </div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Email Response
+                  {t("comprehensiveCTA.contactChannels.responseTimes.email")}
                 </div>
               </div>
               <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
@@ -353,7 +356,7 @@ const ComprehensiveCTA = () => {
                   10 Minutes
                 </div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Emergency Callback
+                  {t("comprehensiveCTA.contactChannels.responseTimes.callback")}
                 </div>
               </div>
               <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
@@ -362,7 +365,7 @@ const ComprehensiveCTA = () => {
                   30 Minutes
                 </div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Appointment Confirmation
+                  {t("comprehensiveCTA.contactChannels.responseTimes.confirmation")}
                 </div>
               </div>
             </div>
@@ -375,47 +378,44 @@ const ComprehensiveCTA = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center text-white">
             <h2 className="text-3xl md:text-4xl font-playfair font-bold mb-6">
-              Transform Your Life Completely
+              {t("comprehensiveCTA.guarantees.title")}
             </h2>
             <p className="text-xl text-orange-100 mb-8 leading-relaxed">
-              At Shri Vishwamurthi Ayurvedalay, we don&apos;t just treat
-              diseases - we transform lives completely. Experience the profound
-              healing power of authentic Ayurveda, where 5000-year-old wisdom
-              meets cutting-edge modern excellence.
+              {t("comprehensiveCTA.guarantees.subtitle")}
             </p>
 
             {/* Emotional Vision */}
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 mb-8">
               <h3 className="text-2xl font-bold mb-4">
-                Imagine Your New Life...
+                {t("comprehensiveCTA.transformLife.title")}
               </h3>
               <div className="grid md:grid-cols-2 gap-6 text-left">
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>Waking up tomorrow without pain</span>
+                    <span>{t("comprehensiveCTA.transformLife.benefits.0")}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>Feeling energetic throughout the day</span>
+                    <span>{t("comprehensiveCTA.transformLife.benefits.1")}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>Sleeping peacefully through the night</span>
+                    <span>{t("comprehensiveCTA.transformLife.benefits.2")}</span>
                   </div>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>Playing actively with your children</span>
+                    <span>{t("comprehensiveCTA.transformLife.benefits.3")}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>Pursuing passions without limitations</span>
+                    <span>{t("comprehensiveCTA.transformLife.benefits.4")}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>Living the joyful life you deserve</span>
+                    <span>{t("comprehensiveCTA.transformLife.benefits.5")}</span>
                   </div>
                 </div>
               </div>
@@ -423,7 +423,7 @@ const ComprehensiveCTA = () => {
 
             {/* Trust Guarantees */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-              {guarantees.map((guarantee, index) => {
+              {(guarantees || []).map((guarantee, index) => {
                 const IconComponent = guarantee.icon;
                 return (
                   <div key={index} className="text-center">
@@ -439,8 +439,7 @@ const ComprehensiveCTA = () => {
             {/* Final CTA */}
             <div className="space-y-6">
               <p className="text-lg text-orange-100">
-                Your pain-free, vibrant, and completely healthy life is just one
-                decision away.
+                {t("comprehensiveCTA.guarantees.description")}
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -449,20 +448,19 @@ const ComprehensiveCTA = () => {
                   variant="secondary"
                   className="bg-white text-orange-600 hover:bg-orange-50 text-lg px-8 py-4"
                 >
-                  🔥 START MY HEALING JOURNEY NOW
+                  {t("comprehensiveCTA.finalMessage.button")}
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
                   className="border-white text-white hover:bg-white/10 text-lg px-8 py-4"
                 >
-                  📞 Call for Free Consultation
+                  {t("common.freeConsultation")}
                 </Button>
               </div>
 
               <p className="text-sm text-orange-200">
-                ✨ Thousands have already taken this transformative journey.
-                Join them today! ✨
+                {t("comprehensiveCTA.joinThousands.title")}
               </p>
             </div>
           </div>
@@ -474,29 +472,27 @@ const ComprehensiveCTA = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto text-center">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              Stay Connected for Wellness Wisdom
+              {t("comprehensiveCTA.newsletter.title")}
             </h3>
             <p className="text-gray-600 mb-8">
-              Get weekly Ayurvedic health tips, seasonal guidance, and exclusive
-              healing insights
+              {t("comprehensiveCTA.newsletter.description")}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
               <Input
                 type="email"
-                placeholder="Enter your email address"
+                placeholder={t("comprehensiveCTA.newsletter.placeholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="flex-1"
               />
               <Button className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
-                Subscribe
+                {t("comprehensiveCTA.newsletter.button")}
               </Button>
             </div>
 
             <p className="text-xs text-gray-500 mt-4">
-              Join 50,000+ people receiving our wellness newsletter. Unsubscribe
-              anytime.
+              {t("comprehensiveCTA.newsletter.privacy")}
             </p>
           </div>
         </div>

@@ -32,7 +32,7 @@ const MediaShowcase = () => {
       videoId: "dQw4w9WgXcQ", // Replace with actual video ID
       duration: "12:45",
       views: "15K",
-      category: "Viddhakarma",
+      category: t("treatments.viddhakarma.name"),
     },
     {
       id: "viddhakarma-cp",
@@ -42,7 +42,7 @@ const MediaShowcase = () => {
       videoId: "dQw4w9WgXcQ", // Replace with actual video ID
       duration: "18:30",
       views: "22K",
-      category: "Viddhakarma",
+      category: t("treatments.viddhakarma.name"),
     },
     {
       id: "panchakarma-demo",
@@ -54,7 +54,7 @@ const MediaShowcase = () => {
       videoId: "dQw4w9WgXcQ", // Replace with actual video ID
       duration: "25:15",
       views: "35K",
-      category: "Panchakarma",
+      category: t("treatments.panchakarma.name"),
     },
     {
       id: "agnikarma-treatment",
@@ -66,7 +66,7 @@ const MediaShowcase = () => {
       videoId: "dQw4w9WgXcQ", // Replace with actual video ID
       duration: "8:20",
       views: "28K",
-      category: "Agnikarma",
+      category: t("treatments.agnikarma.name"),
     },
   ];
 
@@ -79,7 +79,11 @@ const MediaShowcase = () => {
       likes: 245,
       comments: 18,
       date: "2 days ago",
-      hashtags: ["#Viddhakarma", "#Autism", "#AyurvedicHealing"],
+      hashtags: [
+        `#${t("treatments.viddhakarma.name")}`,
+        "#Autism",
+        "#AyurvedicHealing",
+      ],
     },
     {
       id: "post-2",
@@ -88,7 +92,11 @@ const MediaShowcase = () => {
       likes: 189,
       comments: 12,
       date: "5 days ago",
-      hashtags: ["#Agnikarma", "#PainRelief", "#KneePain"],
+      hashtags: [
+        `#${t("treatments.agnikarma.name")}`,
+        "#PainRelief",
+        "#KneePain",
+      ],
     },
     {
       id: "post-3",
@@ -106,7 +114,11 @@ const MediaShowcase = () => {
       likes: 312,
       comments: 25,
       date: "1 week ago",
-      hashtags: ["#Panchakarma", "#Detox", "#DrDeshmukh"],
+      hashtags: [
+        `#${t("treatments.panchakarma.name")}`,
+        "#Detox",
+        "#DrDeshmukh",
+      ],
     },
   ];
 
@@ -256,7 +268,7 @@ const MediaShowcase = () => {
                 <div className="aspect-square bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
                   <img
                     src={post.image}
-                    alt="Instagram post"
+                    alt={t("mediaShowcase.instagram.altText")}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />

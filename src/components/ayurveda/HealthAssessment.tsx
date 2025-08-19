@@ -13,8 +13,10 @@ import {
   Clock,
   Star,
 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/context";
 
 const HealthAssessment = () => {
+  const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showResults, setShowResults] = useState(false);
@@ -22,56 +24,68 @@ const HealthAssessment = () => {
   const questions = [
     {
       id: "physical",
-      title: "Physical Health",
-      question: "Where do you experience discomfort?",
+      title: t("healthAssessment.questions.physical.title"),
+      question: t("healthAssessment.questions.physical.question"),
       type: "body-map",
       options: [
-        "Head/Neck",
-        "Shoulders",
-        "Back",
-        "Joints",
-        "Digestive",
-        "No Issues",
+        t("healthAssessment.questions.physical.options.headNeck"),
+        t("healthAssessment.questions.physical.options.shoulders"),
+        t("healthAssessment.questions.physical.options.back"),
+        t("healthAssessment.questions.physical.options.joints"),
+        t("healthAssessment.questions.physical.options.digestive"),
+        t("healthAssessment.questions.physical.options.noIssues"),
       ],
     },
     {
       id: "energy",
-      title: "Energy Patterns",
-      question: "When do you feel most energetic?",
+      title: t("healthAssessment.questions.energy.title"),
+      question: t("healthAssessment.questions.energy.question"),
       type: "multiple-choice",
-      options: ["Morning", "Afternoon", "Evening", "Night", "Varies Daily"],
+      options: [
+        t("healthAssessment.questions.energy.options.morning"),
+        t("healthAssessment.questions.energy.options.afternoon"),
+        t("healthAssessment.questions.energy.options.evening"),
+        t("healthAssessment.questions.energy.options.night"),
+        t("healthAssessment.questions.energy.options.variesDaily"),
+      ],
     },
     {
       id: "digestion",
-      title: "Digestive Health",
-      question: "How is your appetite and digestion?",
+      title: t("healthAssessment.questions.digestion.title"),
+      question: t("healthAssessment.questions.digestion.question"),
       type: "multiple-choice",
       options: [
-        "Strong & Regular",
-        "Variable",
-        "Weak",
-        "Irregular",
-        "Problematic",
+        t("healthAssessment.questions.digestion.options.strongRegular"),
+        t("healthAssessment.questions.digestion.options.variable"),
+        t("healthAssessment.questions.digestion.options.weak"),
+        t("healthAssessment.questions.digestion.options.irregular"),
+        t("healthAssessment.questions.digestion.options.problematic"),
       ],
     },
     {
       id: "mental",
-      title: "Mental State",
-      question: "Rate your stress levels",
+      title: t("healthAssessment.questions.mental.title"),
+      question: t("healthAssessment.questions.mental.question"),
       type: "scale",
-      options: ["Very Low", "Low", "Moderate", "High", "Very High"],
+      options: [
+        t("healthAssessment.questions.mental.options.veryLow"),
+        t("healthAssessment.questions.mental.options.low"),
+        t("healthAssessment.questions.mental.options.moderate"),
+        t("healthAssessment.questions.mental.options.high"),
+        t("healthAssessment.questions.mental.options.veryHigh"),
+      ],
     },
     {
       id: "goals",
-      title: "Health Goals",
-      question: "What transformation are you seeking?",
+      title: t("healthAssessment.questions.goals.title"),
+      question: t("healthAssessment.questions.goals.question"),
       type: "multiple-choice",
       options: [
-        "Pain Relief",
-        "Detoxification",
-        "Weight Management",
-        "Stress Relief",
-        "Overall Wellness",
+        t("healthAssessment.questions.goals.options.painRelief"),
+        t("healthAssessment.questions.goals.options.detoxification"),
+        t("healthAssessment.questions.goals.options.weightManagement"),
+        t("healthAssessment.questions.goals.options.stressRelief"),
+        t("healthAssessment.questions.goals.options.overallWellness"),
       ],
     },
   ];
@@ -90,12 +104,13 @@ const HealthAssessment = () => {
 
   const getResults = () => {
     // Simple logic for demo - in real app this would be more sophisticated
-    const primaryDosha = "Vata-Pitta";
-    const imbalance = "Pitta aggravation with Vata disturbance";
-    const treatment = "21-day Panchakarma Detoxification";
-    const supportingTherapies =
-      "Agnikarma for joint pain, Viddha Karma for stress";
-    const timeline = "3-6 weeks";
+    const primaryDosha = t("healthAssessment.results.primaryDosha");
+    const imbalance = t("healthAssessment.results.imbalance");
+    const treatment = t("healthAssessment.results.treatment");
+    const supportingTherapies = t(
+      "healthAssessment.results.supportingTherapies"
+    );
+    const timeline = t("healthAssessment.results.timeline");
     const successRate = 94;
 
     return {
@@ -118,101 +133,98 @@ const HealthAssessment = () => {
             <div className="text-center mb-12">
               <Badge className="bg-green-100 text-green-800 border-green-200 mb-4">
                 <CheckCircle className="w-4 h-4 mr-2" />
-                Assessment Complete
+                {t("healthAssessment.results.assessmentComplete")}
               </Badge>
               <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
-                Your Personalized Ayurvedic Assessment
+                {t("healthAssessment.results.title")}
               </h2>
               <p className="text-lg text-gray-600">
-                Based on your responses, here&apos;s your complete healing path
+                {t("healthAssessment.results.subtitle")}
               </p>
             </div>
 
             <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-200 shadow-xl">
               <CardHeader>
                 <CardTitle className="text-2xl text-center text-gray-900">
-                  📊 YOUR COMPLETE AYURVEDIC ASSESSMENT
+                  📊 {t("healthAssessment.results.cardTitle")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Primary Dosha Constitution
-                      </h4>
-                      <p className="text-orange-600 font-medium">
-                        {results.primaryDosha}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Current Imbalance
-                      </h4>
-                      <p className="text-gray-700">{results.imbalance}</p>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Recommended Primary Treatment
-                      </h4>
-                      <p className="text-blue-600 font-medium">
-                        {results.treatment}
-                      </p>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      {t("healthAssessment.results.primaryDosha")}
+                    </h4>
+                    <p className="text-orange-600 font-medium">
+                      {results.primaryDosha}
+                    </p>
                   </div>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Supporting Therapies
-                      </h4>
-                      <p className="text-gray-700">
-                        {results.supportingTherapies}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Expected Timeline
-                      </h4>
-                      <p className="text-green-600 font-medium">
-                        {results.timeline} for significant transformation
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Success Probability
-                      </h4>
-                      <div className="flex items-center space-x-3">
-                        <Progress
-                          value={results.successRate}
-                          className="flex-1"
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      {t("healthAssessment.results.currentImbalance")}
+                    </h4>
+                    <p className="text-gray-700">{results.imbalance}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      {t("healthAssessment.results.recommendedTreatment")}
+                    </h4>
+                    <p className="text-blue-600 font-medium">
+                      {results.treatment}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      {t("healthAssessment.results.supportingTherapies")}
+                    </h4>
+                    <p className="text-gray-700">
+                      {results.supportingTherapies}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      {t("healthAssessment.results.expectedTimeline")}
+                    </h4>
+                    <p className="text-green-600 font-medium">
+                      {results.timeline}{" "}
+                      {t("healthAssessment.results.timelineText")}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      {t("healthAssessment.results.successProbability")}
+                    </h4>
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-1 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full"
+                          style={{ width: `${results.successRate}%` }}
                         />
-                        <span className="text-green-600 font-bold">
-                          {results.successRate}%
-                        </span>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Based on similar cases
-                      </p>
+                      <span className="text-sm font-medium text-gray-700">
+                        {results.successRate}%
+                      </span>
                     </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {t("healthAssessment.results.basedOnCases")}
+                    </p>
                   </div>
                 </div>
 
-                <div className="border-t border-orange-200 pt-6">
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Button
-                      size="lg"
-                      className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
-                    >
-                      Book Consultation Now
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="border-orange-300 text-orange-600 hover:bg-orange-50"
-                    >
-                      Download Full Report
-                    </Button>
-                  </div>
+                <div className="flex flex-col sm:flex-row gap-4 pt-6">
+                  <Button
+                    size="lg"
+                    className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
+                  >
+                    {t("healthAssessment.results.bookConsultation")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                  >
+                    {t("healthAssessment.results.downloadReport")}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -225,6 +237,21 @@ const HealthAssessment = () => {
   const currentQuestion = questions[currentStep];
   const progress = ((currentStep + 1) / questions.length) * 100;
 
+  // Early return if no current question (shouldn't happen but TypeScript safety)
+  if (!currentQuestion) {
+    return (
+      <section className="py-20 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-blue-900/10">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <p className="text-lg text-gray-600 dark:text-gray-300">
+              Loading assessment...
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-20 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-blue-900/10">
       <div className="container mx-auto px-4">
@@ -232,22 +259,25 @@ const HealthAssessment = () => {
           <div className="text-center mb-12">
             <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 mb-4">
               <Brain className="w-4 h-4 mr-2" />
-              Interactive Assessment
+              {t("healthAssessment.main.interactiveAssessment")}
             </Badge>
             <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
-              Discover Your Complete Ayurvedic Healing Path
+              {t("healthAssessment.main.title")}
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-              Get personalized treatment recommendations in just 3 minutes
+              {t("healthAssessment.main.subtitle")}
             </p>
 
             {/* Progress Bar */}
             <div className="max-w-md mx-auto mb-8">
               <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
                 <span>
-                  Step {currentStep + 1} of {questions.length}
+                  {t("healthAssessment.main.step")} {currentStep + 1}{" "}
+                  {t("healthAssessment.main.of")} {questions.length}
                 </span>
-                <span>{Math.round(progress)}% Complete</span>
+                <span>
+                  {Math.round(progress)}% {t("healthAssessment.main.complete")}
+                </span>
               </div>
               <Progress value={progress} className="h-2" />
             </div>
@@ -309,7 +339,8 @@ const HealthAssessment = () => {
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                   <Clock className="w-4 h-4" />
                   <span>
-                    ~{questions.length - currentStep} minutes remaining
+                    ~{questions.length - currentStep}{" "}
+                    {t("healthAssessment.main.minutesRemaining")}
                   </span>
                 </div>
 
@@ -319,8 +350,8 @@ const HealthAssessment = () => {
                   className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
                 >
                   {currentStep === questions.length - 1
-                    ? "Get Results"
-                    : "Next Question"}
+                    ? t("healthAssessment.main.getResults")
+                    : t("healthAssessment.main.nextQuestion")}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
@@ -331,15 +362,19 @@ const HealthAssessment = () => {
           <div className="flex flex-wrap justify-center gap-6 mt-12 text-sm text-gray-600">
             <div className="flex items-center space-x-2">
               <Star className="w-4 h-4 text-yellow-500" />
-              <span>Used by 5000+ patients</span>
+              <span>
+                {t("healthAssessment.trustIndicators.usedByPatients")}
+              </span>
             </div>
             <div className="flex items-center space-x-2">
               <CheckCircle className="w-4 h-4 text-green-500" />
-              <span>Scientifically validated</span>
+              <span>
+                {t("healthAssessment.trustIndicators.scientificallyValidated")}
+              </span>
             </div>
             <div className="flex items-center space-x-2">
               <Target className="w-4 h-4 text-blue-500" />
-              <span>95% accuracy rate</span>
+              <span>{t("healthAssessment.trustIndicators.accuracyRate")}</span>
             </div>
           </div>
         </div>

@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import TherapyBadge, { TherapyType, getTherapyDuration, getTherapyCategory } from "@/components/ayurveda/TherapyBadge";
+import { useTranslation } from "@/lib/i18n/context";
+import TherapyBadge, { TherapyType } from "@/components/ayurveda/TherapyBadge";
 
 interface ConsultationType {
   type: TherapyType;
@@ -138,6 +139,7 @@ export default function AyurvedaConsultationTypes({
   showDetails = true,
   className
 }: AyurvedaConsultationTypesProps) {
+  const { t } = useTranslation();
   const [expandedType, setExpandedType] = useState<TherapyType | null>(null);
 
   const ConsultationCard = ({ consultation }: { consultation: ConsultationType }) => {
@@ -158,7 +160,7 @@ export default function AyurvedaConsultationTypes({
             <div className="flex items-center gap-3">
               <TherapyBadge type={consultation.type} />
               <div>
-                <CardTitle className="text-lg">{consultation.name}</CardTitle>
+                <CardTitle className="text-lg">{t(`consultations.types.${consultation.type.toLowerCase()}.name`)}</CardTitle>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant="outline" className="text-xs">
                     {consultation.duration} min
@@ -183,7 +185,7 @@ export default function AyurvedaConsultationTypes({
                   setExpandedType(isExpanded ? null : consultation.type);
                 }}
               >
-                {isExpanded ? "Less" : "More"}
+                {isExpanded ? t("common.less") : t("common.more")}
               </Button>
             )}
           </div>
@@ -191,14 +193,14 @@ export default function AyurvedaConsultationTypes({
 
         <CardContent className="pt-0">
           <p className="text-gray-600 text-sm mb-3">
-            {consultation.description}
+            {t(`consultations.types.${consultation.type.toLowerCase()}.description`)}
           </p>
 
           {showDetails && isExpanded && (
             <div className="space-y-3 border-t pt-3">
               {consultation.prerequisites && consultation.prerequisites.length > 0 && (
                 <div>
-                  <h4 className="font-medium text-sm text-green-700 mb-1">Prerequisites:</h4>
+                  <h4 className="font-medium text-sm text-green-700 mb-1">{t("consultations.prerequisites")}:</h4>
                   <ul className="text-xs text-gray-600 space-y-1">
                     {consultation.prerequisites.map((prereq, index) => (
                       <li key={index} className="flex items-start gap-1">
@@ -212,7 +214,7 @@ export default function AyurvedaConsultationTypes({
 
               {consultation.contraindications && consultation.contraindications.length > 0 && (
                 <div>
-                  <h4 className="font-medium text-sm text-red-700 mb-1">Contraindications:</h4>
+                  <h4 className="font-medium text-sm text-red-700 mb-1">{t("consultations.contraindications")}:</h4>
                   <ul className="text-xs text-gray-600 space-y-1">
                     {consultation.contraindications.map((contra, index) => (
                       <li key={index} className="flex items-start gap-1">
@@ -246,16 +248,16 @@ export default function AyurvedaConsultationTypes({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Select Consultation Type</h2>
+        <h2 className="text-2xl font-bold mb-2">{t("consultations.selectType")}</h2>
         <p className="text-gray-600">
-          Choose the type of Ayurvedic consultation or therapy that best suits your needs
+          {t("consultations.selectDescription")}
         </p>
       </div>
 
       {Object.entries(groupedConsultations).map(([category, consultations]) => (
         <div key={category} className="space-y-3">
           <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
-            {category} Treatments
+            {t(`consultations.categories.${category.toLowerCase()}`)} {t("consultations.treatments")}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {consultations.map((consultation) => (
@@ -272,12 +274,12 @@ export default function AyurvedaConsultationTypes({
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <TherapyBadge type={selectedType} />
-            <span className="font-medium">Selected: {CONSULTATION_DETAILS[selectedType].name}</span>
+            <span className="font-medium">{t("consultations.selected")}: {t(`consultations.types.${selectedType.toLowerCase()}.name`)}</span>
           </div>
           <div className="text-sm text-gray-600">
-            <p>Duration: {CONSULTATION_DETAILS[selectedType].duration} minutes</p>
+            <p>{t("consultations.duration")}: {CONSULTATION_DETAILS[selectedType].duration} {t("common.minutes")}</p>
             {showPricing && CONSULTATION_DETAILS[selectedType].price && (
-              <p>Price: ₹{CONSULTATION_DETAILS[selectedType].price}</p>
+              <p>{t("consultations.price")}: ₹{CONSULTATION_DETAILS[selectedType].price}</p>
             )}
           </div>
         </div>

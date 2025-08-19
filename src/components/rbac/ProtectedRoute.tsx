@@ -36,7 +36,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   redirectTo,
   showUnauthorized = true,
 }) => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const rbac = useRBAC();
   const { getDefaultRoute } = useRoleBasedNavigation();
 
@@ -63,8 +63,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return true;
   }, [rbac, permission, permissions, requireAll, resource, action]);
 
-  // Show loading state while checking authentication
-  if (loading) {
+  // Show isLoading state while checking authentication
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

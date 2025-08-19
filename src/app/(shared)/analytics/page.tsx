@@ -7,7 +7,6 @@ import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -24,9 +23,7 @@ import {
   useAppointmentAnalytics,
   usePatientAnalytics,
   useRevenueAnalytics,
-  usePharmacyAnalytics,
   useQueueAnalytics,
-  useClinicAnalytics,
 } from "@/hooks/useAnalytics";
 import {
   Activity,
@@ -41,21 +38,14 @@ import {
   TrendingUp,
   TrendingDown,
   BarChart3,
-  PieChart,
   LineChart,
   Download,
-  Filter,
   RefreshCw,
   Eye,
-  Clock,
   CheckCircle,
   AlertTriangle,
-  Heart,
   Stethoscope,
-  CalendarDays,
-  UserCheck,
   DollarSign,
-  Target,
   Zap,
   Globe,
   Smartphone,
@@ -67,10 +57,9 @@ export default function AnalyticsDashboard() {
   const { session } = useAuth();
   const user = session?.user;
   const [timeRange, setTimeRange] = useState("30d");
-  const [selectedMetric, setSelectedMetric] = useState("appointments");
 
   // Determine user role and setup appropriate sidebar
-  const userRole = user?.role || Role.SUPER_ADMIN;
+  const userRole = (user?.role as Role) || Role.SUPER_ADMIN;
 
   // Clinic context
   const { clinicId } = useClinicContext();
@@ -96,17 +85,17 @@ export default function AnalyticsDashboard() {
     useDashboardAnalytics(clinicId || "", getPeriod(timeRange));
 
   const { data: appointmentData, isPending: appointmentLoading } =
-    useAppointmentAnalytics(clinicId || "", { period: getPeriod(timeRange) });
+    useAppointmentAnalytics({ clinicId: clinicId || "", period: getPeriod(timeRange) });
 
-  const { data: patientData, isPending: patientLoading } = usePatientAnalytics(
-    clinicId || "",
-    { period: getPeriod(timeRange) }
-  );
+  const { isPending: patientLoading } = usePatientAnalytics({
+    clinicId: clinicId || "",
+    period: getPeriod(timeRange)
+  });
 
-  const { data: revenueData, isPending: revenueLoading } = useRevenueAnalytics(
-    clinicId || "",
-    { period: getPeriod(timeRange) }
-  );
+  const { data: revenueData, isPending: revenueLoading } = useRevenueAnalytics({
+    clinicId: clinicId || "",
+    period: getPeriod(timeRange)
+  });
 
   const { data: queueData, isPending: queueLoading } = useQueueAnalytics(
     clinicId || "",
@@ -123,16 +112,16 @@ export default function AnalyticsDashboard() {
 
   // Use real data or fallback to defaults
   const overallStats = {
-    totalPatients: dashboardData?.totalPatients || 0,
-    activePatients: dashboardData?.activePatients || 0,
-    totalAppointments: appointmentData?.totalAppointments || 0,
-    completedAppointments: appointmentData?.completedAppointments || 0,
-    totalRevenue: revenueData?.totalRevenue || 0,
-    avgSessionDuration: queueData?.averageWaitTime
-      ? `${queueData.averageWaitTime} mins`
+    totalPatients: (dashboardData as any)?.totalPatients || 0,
+    activePatients: (dashboardData as any)?.activePatients || 0,
+    totalAppointments: (appointmentData as any)?.totalAppointments || 0,
+    completedAppointments: (appointmentData as any)?.completedAppointments || 0,
+    totalRevenue: (revenueData as any)?.totalRevenue || 0,
+    avgSessionDuration: (queueData as any)?.averageWaitTime
+      ? `${(queueData as any).averageWaitTime} mins`
       : "0 mins",
-    patientSatisfaction: dashboardData?.patientSatisfactionScore || 0,
-    systemUptime: dashboardData?.systemUptime || 0,
+    patientSatisfaction: (dashboardData as any)?.patientSatisfactionScore || 0,
+    systemUptime: (dashboardData as any)?.systemUptime || 0,
   };
 
   const performanceMetrics = [
@@ -270,9 +259,6 @@ export default function AnalyticsDashboard() {
     );
   };
 
-  const getTrendColor = (trend: string) => {
-    return trend === "up" ? "text-green-600" : "text-red-600";
-  };
 
   const sidebarLinks = getRoutesByRole(userRole).map((route) => ({
     ...route,
@@ -308,12 +294,14 @@ export default function AnalyticsDashboard() {
   sidebarLinks.push({
     label: "Analytics",
     href: "/analytics",
+    path: "/analytics",
     icon: <BarChart3 className="w-5 h-5" />,
   });
 
   sidebarLinks.push({
     label: "Logout",
     href: "/auth/login",
+    path: "/auth/login",
     icon: <LogOut className="w-5 h-5" />,
   });
 
@@ -326,7 +314,7 @@ export default function AnalyticsDashboard() {
             user?.name ||
             `${user?.firstName} ${user?.lastName}` ||
             "Administrator",
-          avatarUrl: user?.profilePicture,
+          ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
         }}
       >
         <div className="p-6 space-y-6">

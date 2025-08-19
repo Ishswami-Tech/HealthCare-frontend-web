@@ -36,8 +36,6 @@ export {
   useGenerateLocationQR,
   useVerifyLocationQR,
   useAssignClinicAdmin,
-  useClinicDoctors,
-  useClinicPatients,
   useRegisterPatientToClinic,
   useClinicUsersByRole,
   useValidateAppName,
@@ -61,8 +59,6 @@ export {
   useUpdateUser,
   useDeleteUser,
   useUsers,
-  usePatients,
-  useDoctors,
   useReceptionists,
   useClinicAdmins,
   useFormatUserName,
@@ -97,15 +93,15 @@ export {
   useMedicalRecordTemplates,
   useCreateMedicalRecordTemplate,
   usePatientPrescriptions,
-  usePrescription,
-  useCreatePrescription,
-  useUpdatePrescription,
+  usePrescription as useMedicalRecordPrescription,
+  useCreatePrescription as useCreateMedicalRecordPrescription,
+  useUpdatePrescription as useUpdateMedicalRecordPrescription,
   useGeneratePrescriptionPDF,
-  useMedicines,
-  useSearchMedicines,
-  useCreateMedicine,
-  useUpdateMedicine,
-  useDeleteMedicine,
+  useMedicines as useMedicalRecordMedicines,
+  useSearchMedicines as useSearchMedicalRecordMedicines,
+  useCreateMedicine as useCreateMedicalRecordMedicine,
+  useUpdateMedicine as useUpdateMedicalRecordMedicine,
+  useDeleteMedicine as useDeleteMedicalRecordMedicine,
   useMedicineInteractions,
   useMedicineInventory,
   useUpdateMedicineInventory,
@@ -188,7 +184,6 @@ export {
   useDoctors,
   useDoctor,
   useDoctorSchedule,
-  useDoctorAvailability,
   useDoctorAppointments,
   useDoctorPatients,
   useDoctorStats,
@@ -231,10 +226,10 @@ export {
 
 // Pharmacy hooks
 export {
-  useMedicines,
+  useMedicines as usePharmacyMedicines,
   useMedicine,
   useMedicineCategories,
-  useSearchMedicines,
+  useSearchMedicines as useSearchPharmacyMedicines,
   usePrescriptions,
   usePrescription,
   useInventory,
@@ -242,10 +237,10 @@ export {
   usePharmacySales,
   usePharmacyStats,
   useSuppliers,
-  useCreateMedicine,
-  useUpdateMedicine,
-  useDeleteMedicine,
-  useCreatePrescription,
+  useCreateMedicine as useCreatePharmacyMedicine,
+  useUpdateMedicine as useUpdatePharmacyMedicine,
+  useDeleteMedicine as useDeletePharmacyMedicine,
+  useCreatePrescription as useCreatePharmacyPrescription,
   useUpdatePrescriptionStatus,
   useDispensePrescription,
   useUpdateInventory,
@@ -253,7 +248,7 @@ export {
   useExportPharmacyData,
 } from './usePharmacy';
 
-// Clinic hooks
+// Clinic context hooks
 export {
   useCurrentClinicId,
   useCurrentClinic,
@@ -265,37 +260,6 @@ export {
   useClinicAppointments,
   useClinicContext,
 } from './useClinic';
-
-// Queue hooks
-export {
-  useQueue,
-  useQueueStats,
-  useUpdateQueueStatus,
-  useCallNextPatient,
-  useAddToQueue,
-  useTransferQueueItem,
-  useQueueConfiguration,
-  useQueueNotifications,
-  useQueueAnalytics,
-} from './useQueue';
-
-// Medical Records hooks
-export {
-  usePatientMedicalRecords,
-  useMedicalRecord,
-  useCreateMedicalRecord,
-  useUpdateMedicalRecord,
-  useDeleteMedicalRecord,
-  useMedicalRecordTemplates,
-  useCreateMedicalRecordTemplate,
-  usePatientVitalSigns,
-  useAddVitalSigns,
-  usePatientLabResults,
-  useAddLabResult,
-  usePulseDiagnosis,
-  useDoshaAnalysis,
-  usePanchakarmaTreatments,
-} from './useMedicalRecords';
 
 // RBAC hooks
 export {

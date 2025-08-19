@@ -20,10 +20,8 @@ import {
   Activity,
   LogOut,
   Save,
-  Mail,
   Bell,
   Shield,
-  Database,
   Globe,
   Palette,
 } from "lucide-react";

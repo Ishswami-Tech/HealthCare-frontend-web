@@ -3,6 +3,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "@/lib/i18n/context";
 import {
   RadarChart,
   Radar,
@@ -39,21 +40,21 @@ const DOSHA_COLORS = {
 
 const DOSHA_DESCRIPTIONS = {
   vata: {
-    name: "Vata",
-    element: "Air + Space",
-    qualities: "Movement, Creativity, Communication",
+    name: "doshas.vata.name",
+    element: "doshas.vata.element",
+    qualities: "doshas.vata.qualities",
     color: DOSHA_COLORS.vata,
   },
   pitta: {
-    name: "Pitta",
-    element: "Fire + Water",
-    qualities: "Transformation, Intelligence, Metabolism",
+    name: "doshas.pitta.name",
+    element: "doshas.pitta.element",
+    qualities: "doshas.pitta.qualities",
     color: DOSHA_COLORS.pitta,
   },
   kapha: {
-    name: "Kapha",
-    element: "Earth + Water",
-    qualities: "Structure, Stability, Immunity",
+    name: "doshas.kapha.name",
+    element: "doshas.kapha.element",
+    qualities: "doshas.kapha.qualities",
     color: DOSHA_COLORS.kapha,
   },
 };
@@ -65,20 +66,21 @@ export default function DoshaChart({
   showLegend = true,
   className = "",
 }: DoshaChartProps) {
+  const { t } = useTranslation();
   // Prepare data for radar chart
   const radarData = [
     {
-      dosha: "Vata",
+      dosha: t("doshas.vata.name"),
       value: doshaData.vata,
       fullMark: 100,
     },
     {
-      dosha: "Pitta",
+      dosha: t("doshas.pitta.name"),
       value: doshaData.pitta,
       fullMark: 100,
     },
     {
-      dosha: "Kapha",
+      dosha: t("doshas.kapha.name"),
       value: doshaData.kapha,
       fullMark: 100,
     },
@@ -86,17 +88,17 @@ export default function DoshaChart({
 
   // Prepare data for pie chart
   const pieData = [
-    { name: "Vata", value: doshaData.vata, color: DOSHA_COLORS.vata },
-    { name: "Pitta", value: doshaData.pitta, color: DOSHA_COLORS.pitta },
-    { name: "Kapha", value: doshaData.kapha, color: DOSHA_COLORS.kapha },
+    { name: t("doshas.vata.name"), value: doshaData.vata, color: DOSHA_COLORS.vata },
+    { name: t("doshas.pitta.name"), value: doshaData.pitta, color: DOSHA_COLORS.pitta },
+    { name: t("doshas.kapha.name"), value: doshaData.kapha, color: DOSHA_COLORS.kapha },
   ];
 
   // Find dominant dosha
   const getDominantDosha = () => {
     const doshas = [
-      { name: "Vata", value: doshaData.vata },
-      { name: "Pitta", value: doshaData.pitta },
-      { name: "Kapha", value: doshaData.kapha },
+      { name: t("doshas.vata.name"), value: doshaData.vata },
+      { name: t("doshas.pitta.name"), value: doshaData.pitta },
+      { name: t("doshas.kapha.name"), value: doshaData.kapha },
     ];
     return doshas.reduce((prev, current) =>
       prev.value > current.value ? prev : current
@@ -112,7 +114,7 @@ export default function DoshaChart({
         <PolarAngleAxis dataKey="dosha" />
         <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} />
         <Radar
-          name="Dosha Level"
+          name={t("doshas.level")}
           dataKey="value"
           stroke="#8884d8"
           fill="#8884d8"
@@ -155,7 +157,7 @@ export default function DoshaChart({
           <CardTitle className="flex items-center gap-2">
             {title}
             <Badge variant="outline" className="text-xs">
-              Dominant: {dominantDosha.name}
+              {t("doshas.dominant")}: {dominantDosha.name}
             </Badge>
           </CardTitle>
         </div>
@@ -193,10 +195,10 @@ export default function DoshaChart({
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: dosha.color }}
                     />
-                    <h4 className="font-semibold text-sm">{dosha.name}</h4>
+                    <h4 className="font-semibold text-sm">{t(dosha.name)}</h4>
                     {isHighest && (
                       <Badge variant="secondary" className="text-xs">
-                        Dominant
+                        {t("doshas.dominant")}
                       </Badge>
                     )}
                   </div>
@@ -207,9 +209,9 @@ export default function DoshaChart({
                     {value}%
                   </div>
                   <div className="text-xs text-gray-600 mb-1">
-                    {dosha.element}
+                    {t(dosha.element)}
                   </div>
-                  <div className="text-xs text-gray-500">{dosha.qualities}</div>
+                  <div className="text-xs text-gray-500">{t(dosha.qualities)}</div>
                 </div>
               );
             })}
@@ -217,7 +219,7 @@ export default function DoshaChart({
 
           {/* Balance Indicator */}
           <div className="p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-medium mb-2">Constitution Analysis</h4>
+            <h4 className="font-medium mb-2">{t("doshas.constitutionAnalysis")}</h4>
             <div className="text-sm text-gray-600">
               {dominantDosha.value > 50 ? (
                 <p>
@@ -232,13 +234,11 @@ export default function DoshaChart({
                   >
                     {dominantDosha.name}
                   </span>{" "}
-                  dominant constitution. Focus on balancing practices for{" "}
-                  {dominantDosha.name.toLowerCase()}.
+                  {t("doshas.dominantConstitution", { dosha: dominantDosha.name.toLowerCase() })}
                 </p>
               ) : (
                 <p>
-                  Balanced constitution with no single dosha dominating.
-                  Maintain current lifestyle practices.
+                  {t("doshas.balancedConstitution")}
                 </p>
               )}
             </div>

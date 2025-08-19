@@ -13,34 +13,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  usePatients,
-  usePatientMedicalHistory,
-  usePatientVitalSigns,
   usePatientLabResults,
   useSearchPatients,
-  useAddPatientMedicalHistory,
-  useAddPatientVitalSigns,
-  useAddPatientLabResult,
 } from "@/hooks/usePatients";
 import {
-  useCurrentClinicId,
   useClinicContext,
   useClinicPatients,
 } from "@/hooks/useClinic";
 import {
   usePatientMedicalRecords,
   useCreateMedicalRecord,
-  useUpdateMedicalRecord,
-  useDeleteMedicalRecord,
-  useMedicalRecordTemplates,
 } from "@/hooks/useMedicalRecords";
-import { usePatientPermissions, useRBAC } from "@/hooks/useRBAC";
+import { usePatientPermissions } from "@/hooks/useRBAC";
 import {
   ProtectedComponent,
   PatientProtectedComponent,
   MedicalRecordsRouteProtection,
 } from "@/components/rbac";
-import { useMedicalRecordsStore, useMedicalRecordsActions } from "@/stores";
+import { useMedicalRecordsActions } from "@/stores";
 import {
   Activity,
   Calendar,
@@ -58,10 +48,6 @@ import {
   Edit,
   Download,
   Upload,
-  Heart,
-  Brain,
-  TestTube,
-  Stethoscope,
   Clipboard,
   AlertTriangle,
   CheckCircle,
@@ -80,17 +66,15 @@ export default function EHRSystem() {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(
     null
   );
-  const [activeTab, setActiveTab] = useState("overview");
 
   // Determine user role and setup appropriate sidebar
-  const userRole = user?.role || Role.DOCTOR;
+  const userRole = (user?.role as Role) || Role.DOCTOR;
 
   // RBAC permissions
   const patientPermissions = usePatientPermissions();
-  const rbac = useRBAC();
 
   // Clinic context
-  const { clinicId, hasAccess } = useClinicContext();
+  useClinicContext();
 
   // Zustand store actions
   const medicalRecordsActions = useMedicalRecordsActions();
@@ -107,119 +91,86 @@ export default function EHRSystem() {
   });
 
   // Fetch medical records for selected patient
-  const { data: medicalRecords, isPending: recordsLoading } =
-    usePatientMedicalRecords(clinicId || "", selectedPatientId || "", {
-      enabled:
-        !!clinicId &&
-        !!selectedPatientId &&
-        patientPermissions.canViewMedicalRecords,
+  const { data: medicalRecords } =
+    usePatientMedicalRecords(selectedPatientId || "", {
+      limit: 50,
     });
 
   // Fetch vital signs for selected patient
-  const { data: vitalSigns, isPending: vitalsLoading } = usePatientVitalSigns(
-    selectedPatientId || "",
-    {
-      limit: 10,
-      enabled: !!selectedPatientId && patientPermissions.canViewMedicalRecords,
-    }
-  );
+  // const { data: vitalSigns } = usePatientVitalSigns(
+  //   selectedPatientId || "",
+  //   {
+  //     limit: 10,
+  //   }
+  // );
 
   // Fetch lab results for selected patient
-  const { data: labResults, isPending: labsLoading } = usePatientLabResults(
+  const { data: labResults } = usePatientLabResults(
     selectedPatientId || "",
     {
       limit: 10,
-      enabled: !!selectedPatientId && patientPermissions.canViewMedicalRecords,
     }
   );
 
-  // Fetch medical record templates
-  const { data: templates } = useMedicalRecordTemplates();
 
   // Mutation hooks
   const createMedicalRecordMutation = useCreateMedicalRecord();
-  const addVitalSignsMutation = useAddPatientVitalSigns();
-  const addLabResultMutation = useAddPatientLabResult();
   const searchPatientsMutation = useSearchPatients();
 
   // Calculate EHR stats from real data
   const ehrStats = {
-    totalPatients: patients?.length || 0,
-    activeRecords: medicalRecords?.length || 0,
+    totalPatients: Array.isArray(patients) ? patients.length : 0,
+    activeRecords: Array.isArray(medicalRecords) ? medicalRecords.length : 0,
     recordsToday:
-      medicalRecords?.filter((record) => {
+      Array.isArray(medicalRecords) ? medicalRecords.filter((record: any) => {
         const today = new Date().toDateString();
         const recordDate = new Date(record.createdAt).toDateString();
         return today === recordDate;
-      }).length || 0,
+      }).length : 0,
     criticalAlerts:
-      labResults?.filter((lab) => lab.status === "CRITICAL").length || 0,
+      Array.isArray(labResults) ? labResults.filter((lab: any) => lab.status === "CRITICAL").length : 0,
   };
 
   // Action handlers
-  const handleSearchPatients = async (query: string) => {
+  const handleSearchPatients = (query: string) => {
     if (!query.trim()) return;
-    try {
-      await searchPatientsMutation.mutateAsync({
-        query,
-        filters: { limit: 20 },
-      });
-    } catch (error) {
-      console.error("Failed to search patients:", error);
-    }
+    searchPatientsMutation.mutate({
+      query,
+      filters: { limit: 20 },
+    }, {
+      onError: (error) => {
+        console.error("Failed to search patients:", error);
+      }
+    });
   };
 
-  const handleCreateMedicalRecord = async (recordData: any) => {
+  const handleCreateMedicalRecord = (recordData: any) => {
     if (!selectedPatientId || !patientPermissions.canCreateMedicalRecords)
       return;
-    try {
-      await createMedicalRecordMutation.mutateAsync({
-        patientId: selectedPatientId,
-        recordData,
-      });
-      medicalRecordsActions.addRecord(recordData);
-    } catch (error) {
-      console.error("Failed to create medical record:", error);
-    }
+    
+    createMedicalRecordMutation.mutate({
+      patientId: selectedPatientId,
+      type: recordData.type,
+      title: recordData.title,
+      content: recordData.content,
+      fileUrl: recordData.fileUrl,
+      doctorId: recordData.doctorId,
+      appointmentId: recordData.appointmentId,
+    }, {
+      onSuccess: () => {
+        medicalRecordsActions.addMedicalRecord(recordData);
+      },
+      onError: (error) => {
+        console.error("Failed to create medical record:", error);
+      }
+    });
   };
 
-  const handleAddVitalSigns = async (vitalsData: any) => {
-    if (!selectedPatientId || !patientPermissions.canUpdateMedicalRecords)
-      return;
-    try {
-      await addVitalSignsMutation.mutateAsync({
-        patientId: selectedPatientId,
-        vitalsData: {
-          ...vitalsData,
-          recordedAt: new Date().toISOString(),
-          recordedBy: user?.id || "",
-        },
-      });
-    } catch (error) {
-      console.error("Failed to add vital signs:", error);
-    }
-  };
 
-  const handleAddLabResult = async (labData: any) => {
-    if (!selectedPatientId || !patientPermissions.canUpdateMedicalRecords)
-      return;
-    try {
-      await addLabResultMutation.mutateAsync({
-        patientId: selectedPatientId,
-        labData: {
-          ...labData,
-          reportedDate: new Date().toISOString(),
-          doctorId: user?.id,
-        },
-      });
-    } catch (error) {
-      console.error("Failed to add lab result:", error);
-    }
-  };
 
   // Transform patients data for display
   const recentPatients =
-    patients?.slice(0, 10).map((patient) => ({
+    Array.isArray(patients) ? patients.slice(0, 10).map((patient: any) => ({
       id: patient.id,
       name:
         `${patient.user?.firstName || ""} ${
@@ -234,7 +185,7 @@ export default function EHRSystem() {
       condition: patient.primaryCondition || "General",
       status: patient.status || "Active",
       nextAppointment: patient.nextAppointment || "Not scheduled",
-    })) || [];
+    })) : [];
 
   const criticalAlerts = [
     {
@@ -319,29 +270,17 @@ export default function EHRSystem() {
   sidebarLinks.push({
     label: "EHR System",
     href: "/ehr",
+    path: "/ehr",
     icon: <Database className="w-5 h-5" />,
   });
 
   sidebarLinks.push({
     label: "Logout",
     href: "/auth/login",
+    path: "/auth/login",
     icon: <LogOut className="w-5 h-5" />,
   });
 
-  // Transform critical alerts from real lab data
-  const realCriticalAlerts =
-    labResults
-      ?.filter((lab) => lab.status === "CRITICAL")
-      .map((lab) => ({
-        id: lab.id,
-        patient: lab.patientName || "Unknown Patient",
-        type: "Lab Result",
-        message: `${lab.testName}: ${lab.result} ${lab.unit || ""} - ${
-          lab.notes || "Requires attention"
-        }`,
-        severity: "High",
-        timestamp: new Date(lab.reportedDate).toLocaleString(),
-      })) || [];
 
   // Show loading state
   if (patientsLoading) {
@@ -397,7 +336,7 @@ export default function EHRSystem() {
               user?.name ||
               `${user?.firstName} ${user?.lastName}` ||
               "Healthcare Professional",
-            avatarUrl: user?.profilePicture,
+            ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
           }}
         >
           <div className="p-6 space-y-6">
@@ -804,7 +743,6 @@ export default function EHRSystem() {
                                         size="sm"
                                         onClick={() => {
                                           setSelectedPatientId(patient.id);
-                                          setActiveTab("records");
                                         }}
                                       >
                                         <Edit className="w-3 h-3" />
@@ -880,7 +818,7 @@ export default function EHRSystem() {
                                   size="sm"
                                   variant="outline"
                                   onClick={() =>
-                                    setSelectedPatientId(alert.patientId)
+                                    setSelectedPatientId(alert.patient)
                                   }
                                 >
                                   <Eye className="w-3 h-3 mr-1" />

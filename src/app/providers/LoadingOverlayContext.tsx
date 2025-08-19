@@ -23,7 +23,7 @@ interface LoadingOverlayContextType {
 }
 
 const LoadingOverlayContext = createContext<LoadingOverlayContextType>({
-  overlay: { show: false, variant: "default", message: undefined },
+  overlay: { show: false, variant: "default" },
   setOverlay: () => {},
   clearOverlay: () => {},
 });

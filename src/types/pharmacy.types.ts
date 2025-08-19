@@ -415,26 +415,3 @@ export interface DispensePrescriptionData {
   notes?: string;
 }
 
-// ===== EXPORT ALL TYPES =====
-
-export type {
-  Medicine,
-  MedicineCategory,
-  Prescription,
-  PrescriptionMedication,
-  InventoryItem,
-  StockMovement,
-  PharmacyOrder,
-  OrderItem,
-  Supplier,
-  Sale,
-  SaleItem,
-  MedicineFilters,
-  PrescriptionFilters,
-  SaleFilters,
-  PharmacyStats,
-  CreateMedicineData,
-  UpdateMedicineData,
-  CreatePrescriptionData,
-  DispensePrescriptionData
-};

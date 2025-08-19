@@ -10,9 +10,6 @@ import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
 import { useClinics } from "@/hooks/useClinics";
 import { useUsers } from "@/hooks/useUsers";
-import { useAppStore } from "@/stores/useAppStore";
-import { useQueryData } from "@/hooks/useQueryData";
-import { getUserProfile } from "@/lib/actions/users.server";
 import {
   Building2,
   Users,

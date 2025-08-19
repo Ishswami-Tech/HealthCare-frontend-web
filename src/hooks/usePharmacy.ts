@@ -327,7 +327,7 @@ export const useUpdateInventory = () => {
  * Hook to create pharmacy order for a clinic
  */
 export const useCreatePharmacyOrder = () => {
-  return useMutationData(['createPharmacyOrder'], async ({ clinicId, ...orderData }: {
+  return useMutationData(['createPharmacyOrder'], async ({ clinicId, medicines, ...orderData }: {
     clinicId: string;
     supplierId: string;
     medicines: {
@@ -338,7 +338,7 @@ export const useCreatePharmacyOrder = () => {
     expectedDeliveryDate?: string;
     notes?: string;
   }) => {
-    const result = await createPharmacyOrder(clinicId, orderData);
+    const result = await createPharmacyOrder(clinicId, { ...orderData, items: medicines });
     return { status: 200, data: result };
   }, 'pharmacyOrders');
 };

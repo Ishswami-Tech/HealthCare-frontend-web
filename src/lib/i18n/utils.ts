@@ -3,7 +3,7 @@ import { SupportedLanguage } from './config';
 
 // Helper function to get nested translation value
 export function getNestedTranslation(
-  obj: any,
+  obj: Record<string, unknown>,
   path: string,
   fallback?: string
 ): string {
@@ -12,7 +12,7 @@ export function getNestedTranslation(
   
   for (const key of keys) {
     if (current && typeof current === 'object' && key in current) {
-      current = current[key];
+      current = current[key] as Record<string, unknown>;
     } else {
       return fallback || path;
     }
@@ -38,11 +38,11 @@ export function getTranslationWithFallback(
   variables?: Record<string, string | number>,
   fallbackLanguage: SupportedLanguage = 'en'
 ): string {
-  const primaryTranslation = getNestedTranslation(translations[language], path);
+  const primaryTranslation = getNestedTranslation(translations[language] as unknown as Record<string, unknown>, path);
   
   // If primary translation is not found or is the same as path, try fallback
   if (primaryTranslation === path && language !== fallbackLanguage) {
-    const fallbackTranslation = getNestedTranslation(translations[fallbackLanguage], path);
+    const fallbackTranslation = getNestedTranslation(translations[fallbackLanguage] as unknown as Record<string, unknown>, path);
     const finalTranslation = fallbackTranslation !== path ? fallbackTranslation : path;
     return variables ? interpolateTranslation(finalTranslation, variables) : finalTranslation;
   }

@@ -25,7 +25,7 @@ export function ThemeToggle({
   showLabel = false,
   className,
 }: ThemeToggleProps) {
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   const themes = [
     {
@@ -48,8 +48,8 @@ export function ThemeToggle({
     },
   ];
 
-  const currentTheme = themes.find((t) => t.value === theme) || themes[2];
-  const CurrentIcon = currentTheme.icon;
+  const currentTheme = themes.find((t) => t.value === theme) || themes[2] || themes[0];
+  const CurrentIcon = currentTheme?.icon || Sun;
 
   return (
     <DropdownMenu>
@@ -66,7 +66,7 @@ export function ThemeToggle({
           <CurrentIcon className="h-4 w-4 transition-all duration-300" />
           {showLabel && (
             <span className="ml-2 text-sm font-medium">
-              {currentTheme.name}
+              {currentTheme?.name || 'Theme'}
             </span>
           )}
           <span className="sr-only">Toggle theme</span>
@@ -111,7 +111,7 @@ export function ThemeToggle({
 
 // Simple toggle button that cycles through themes
 export function SimpleThemeToggle({ className }: { className?: string }) {
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   const toggleTheme = () => {
     if (theme === "light") {
@@ -150,7 +150,7 @@ export function SimpleThemeToggle({ className }: { className?: string }) {
 
 // Animated theme toggle with smooth transitions
 export function AnimatedThemeToggle({ className }: { className?: string }) {
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   const toggleTheme = () => {
     setTheme(theme === "light" ? "dark" : "light");
@@ -171,7 +171,7 @@ export function AnimatedThemeToggle({ className }: { className?: string }) {
         <Sun
           className={cn(
             "absolute h-4 w-4 transition-all duration-500 ease-in-out",
-            resolvedTheme === "dark"
+            theme === "dark"
               ? "rotate-90 scale-0 opacity-0"
               : "rotate-0 scale-100 opacity-100"
           )}
@@ -179,7 +179,7 @@ export function AnimatedThemeToggle({ className }: { className?: string }) {
         <Moon
           className={cn(
             "absolute h-4 w-4 transition-all duration-500 ease-in-out",
-            resolvedTheme === "dark"
+            theme === "dark"
               ? "rotate-0 scale-100 opacity-100"
               : "-rotate-90 scale-0 opacity-0"
           )}

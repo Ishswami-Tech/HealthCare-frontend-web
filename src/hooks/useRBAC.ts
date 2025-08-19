@@ -6,14 +6,13 @@ import {
   ROLE_PERMISSIONS, 
   PermissionCheck, 
   PermissionContext, 
-  PermissionResult,
-  ResourceAction 
+  PermissionResult
 } from '@/types/rbac.types';
 
 /**
  * Main RBAC hook for permission checking
  */
-export const useRBAC = (context?: PermissionContext): PermissionCheck => {
+export const useRBAC = (): PermissionCheck => {
   const { user } = useAuth();
   
   const userRole = user?.role as Role;
@@ -298,9 +297,9 @@ export const useRoleBasedNavigation = () => {
  */
 export const useContextualPermissions = (context: PermissionContext) => {
   const { user } = useAuth();
-  const rbac = useRBAC(context);
+  const rbac = useRBAC();
   
-  const canAccessResource = (resourceId: string, resourceType: string): PermissionResult => {
+  const canAccessResource = (_resourceId: string, resourceType: string): PermissionResult => {
     if (!user) {
       return { allowed: false, reason: 'User not authenticated' };
     }
@@ -330,7 +329,7 @@ export const useContextualPermissions = (context: PermissionContext) => {
     }
     
     // Clinic-level access control
-    if (context.clinicId && user.clinicId && context.clinicId !== user.clinicId) {
+    if (context.clinicId && (user as any).clinicId && context.clinicId !== (user as any).clinicId) {
       return { allowed: false, reason: 'Resource belongs to different clinic' };
     }
     

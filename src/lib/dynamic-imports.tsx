@@ -5,7 +5,7 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
-import { ComponentType, ReactNode } from "react";
+import { ComponentType } from "react";
 
 // ============================================================================
 // LOADING COMPONENTS
@@ -68,12 +68,11 @@ export function createDynamicComponent<T = Record<string, unknown>>(
   importFn: () => Promise<{ default: ComponentType<T> }>,
   options: DynamicImportOptions = {}
 ) {
-  const { loading = SectionSkeleton, ssr = false, suspense = true } = options;
+  const { loading = SectionSkeleton, ssr = false } = options;
 
   return dynamic(importFn, {
     loading: () => <>{loading && React.createElement(loading)}</>,
     ssr,
-    suspense,
   });
 }
 

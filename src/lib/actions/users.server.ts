@@ -139,7 +139,7 @@ export async function getUserStats() {
 /**
  * Bulk update users
  */
-export async function bulkUpdateUsers(userIds: string[], updates: Record<string, any>) {
+export async function bulkUpdateUsers(userIds: string[], updates: Record<string, string | number | boolean>) {
   const { data } = await authenticatedApi('/user/bulk-update', {
     method: 'PATCH',
     body: JSON.stringify({ userIds, updates })
@@ -150,7 +150,7 @@ export async function bulkUpdateUsers(userIds: string[], updates: Record<string,
 /**
  * Export users data
  */
-export async function exportUsers(format: 'csv' | 'excel' = 'csv', filters?: Record<string, any>) {
+export async function exportUsers(format: 'csv' | 'excel' = 'csv', filters?: Record<string, string | number | boolean>) {
   const params = new URLSearchParams({ format });
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {

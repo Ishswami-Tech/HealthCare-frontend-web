@@ -8,12 +8,10 @@ import {
   useAppointmentPermissions,
   useQueuePermissions,
 } from "@/hooks/useRBAC";
-import { ProtectedRoute } from "@/components/rbac";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
 import { Loader2, Shield, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { getDashboardByRole } from "@/config/routes";
 import { useQueryData } from "@/hooks/useQueryData";
 import { getUserProfile } from "@/lib/actions/users.server";
 import { checkProfileCompletion, transformApiResponse } from "@/lib/profile";

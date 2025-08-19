@@ -92,13 +92,13 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
     alt,
     quality,
     placeholder: placeholder as any,
-    blurDataURL: placeholder === "blur" ? defaultBlurDataURL : undefined,
+    ...(placeholder === "blur" && { blurDataURL: defaultBlurDataURL }),
     priority,
     loading,
     unoptimized,
     onLoad: handleLoad,
     onError: handleError,
-    ...(fill ? { fill: true } : { width, height }),
+    ...(fill ? { fill: true } : { ...(width && { width }), ...(height && { height }) }),
     ...(sizes && { sizes }),
     style: {
       objectFit,
@@ -117,7 +117,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
         },
         transition: {
           duration: 0.5,
-          ease: [0.0, 0.0, 0.2, 1],
+          ease: [0.0, 0.0, 0.2, 1] as any,
         },
       }
     : {};
@@ -247,6 +247,7 @@ interface HeroImageProps extends OptimizedImageProps {
   overlayOpacity?: number;
   parallax?: boolean;
   parallaxOffset?: number;
+  children?: React.ReactNode;
 }
 
 export const HeroImage: React.FC<HeroImageProps> = ({
@@ -264,7 +265,7 @@ export const HeroImage: React.FC<HeroImageProps> = ({
         initial: { y: 0 },
         whileInView: { y: -parallaxOffset },
         viewport: { once: false, amount: 0.5 },
-        transition: { duration: 0.8, ease: "easeOut" },
+        transition: { duration: 0.8, ease: "easeOut" as any },
       }
     : {};
 

@@ -16,7 +16,6 @@ import {
 import { authenticatedApi } from './auth.server';
 
 // API URL configuration
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
 const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID;
 
 // ===== CLINIC CRUD OPERATIONS =====
@@ -334,7 +333,7 @@ export async function addClinicStaff(clinicId: string, staffData: {
   userId: string;
   role: string;
   permissions?: string[];
-  schedule?: Record<string, any>;
+  schedule?: Record<string, string | number | boolean>;
 }) {
   const { data } = await authenticatedApi(`/clinics/${clinicId}/staff`, {
     method: 'POST',

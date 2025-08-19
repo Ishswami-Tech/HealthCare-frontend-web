@@ -42,7 +42,6 @@ import {
   AlertCircle,
   Pill,
   Heart,
-  Brain,
   Stethoscope,
 } from "lucide-react";
 

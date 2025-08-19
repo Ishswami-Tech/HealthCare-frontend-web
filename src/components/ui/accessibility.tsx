@@ -311,11 +311,7 @@ export const AriaLiveRegion: React.FC<AriaLiveRegionProps> = ({
   priority = "polite",
 }) => {
   return (
-    <div
-      aria-live={priority as "polite" | "assertive"}
-      aria-atomic="true"
-      className="sr-only"
-    >
+    <div aria-live={priority} aria-atomic="true" className="sr-only">
       {message}
     </div>
   );

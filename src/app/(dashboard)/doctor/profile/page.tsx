@@ -30,16 +30,9 @@ import {
   Save,
   Star,
   Award,
-  MapPin,
-  Phone,
-  Mail,
-  Globe,
   Clock,
-  FileText,
   Camera,
   Edit,
-  Shield,
-  Bell,
   Stethoscope
 } from "lucide-react";
 
@@ -169,12 +162,7 @@ export default function DoctorProfile() {
     }));
   };
 
-  const updateNotificationSettings = (field: string, value: boolean) => {
-    setProfileData(prev => ({
-      ...prev,
-      notificationSettings: { ...prev.notificationSettings, [field]: value }
-    }));
-  };
+
 
   const sidebarLinks = getRoutesByRole(Role.DOCTOR).map(route => ({
     ...route,

@@ -153,11 +153,11 @@ export const ProtectedButton: React.FC<ProtectedButtonProps> = ({
 }) => {
   return (
     <ProtectedComponent
-      permission={permission}
-      permissions={permissions}
-      requireAll={requireAll}
-      resource={resource}
-      action={action}
+      {...(permission && { permission })}
+      {...(permissions && { permissions })}
+      {...(requireAll !== undefined && { requireAll })}
+      {...(resource && { resource })}
+      {...(action && { action })}
       showFallback={false}
     >
       <button {...buttonProps}>
@@ -193,11 +193,11 @@ export const ProtectedLink: React.FC<ProtectedLinkProps> = ({
 }) => {
   return (
     <ProtectedComponent
-      permission={permission}
-      permissions={permissions}
-      requireAll={requireAll}
-      resource={resource}
-      action={action}
+      {...(permission && { permission })}
+      {...(permissions && { permissions })}
+      {...(requireAll !== undefined && { requireAll })}
+      {...(resource && { resource })}
+      {...(action && { action })}
       showFallback={false}
     >
       <a href={href} className={className}>

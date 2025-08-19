@@ -71,7 +71,11 @@ interface PharmacyOrder {
   supplier?: {
     id: string;
     name: string;
-    contactInfo: any;
+    contactInfo: {
+      email?: string;
+      phone?: string;
+      address?: string;
+    };
   };
   status: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   items: {
@@ -135,7 +139,11 @@ interface PharmacyStore {
   setPrescriptions: (prescriptions: Prescription[]) => void;
   addPrescription: (prescription: Prescription) => void;
   updatePrescription: (id: string, updates: Partial<Prescription>) => void;
-  dispensePrescription: (id: string, dispensingData: any) => void;
+  dispensePrescription: (id: string, dispensingData: {
+    dispensedBy?: string;
+    totalAmount?: number;
+    notes?: string;
+  }) => void;
   
   setInventory: (inventory: InventoryItem[]) => void;
   updateInventoryItem: (medicineId: string, updates: Partial<InventoryItem>) => void;
@@ -307,7 +315,8 @@ export const usePharmacyStore = create<PharmacyStore>()(
 
         // Sorting
         filtered.sort((a, b) => {
-          let aValue: any, bValue: any;
+          let aValue: string | number | Date;
+          let bValue: string | number | Date;
           
           switch (filters.sortBy) {
             case 'name':

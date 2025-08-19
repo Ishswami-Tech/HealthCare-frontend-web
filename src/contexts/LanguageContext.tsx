@@ -106,9 +106,12 @@ export function useLanguageSwitcher() {
 
   const switchToNext = () => {
     const languages: Language[] = ["en", "hi", "mr"];
-    const currentIndex = languages.indexOf(language);
+    const currentIndex = languages.indexOf(language || 'en');
     const nextIndex = (currentIndex + 1) % languages.length;
-    setLanguage(languages[nextIndex]);
+    const nextLanguage = languages[nextIndex];
+    if (nextLanguage) {
+      setLanguage(nextLanguage);
+    }
   };
 
   const switchTo = (targetLanguage: Language) => {

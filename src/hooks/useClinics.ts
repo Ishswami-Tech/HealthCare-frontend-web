@@ -14,7 +14,10 @@ import {
   ClinicStats,
   ClinicSettings
 } from '@/types/clinic.types';
-import { createClinic, getAllClinics, getClinicById, getClinicByAppName, updateClinic, deleteClinic, createClinicLocation, getClinicLocations, getClinicLocationById, updateClinicLocation, deleteClinicLocation, generateLocationQR, verifyLocationQR, assignClinicAdmin, getClinicDoctors, getClinicPatients, registerPatientToClinic, getClinicUsersByRole, validateAppName, associateUserWithClinic, getClinicStats, getClinicSettings, updateClinicSettings, getActiveLocations, generateClinicToken } from '@/lib/actions/clinic.server';
+import {
+  createClinic,
+  getAllClinics
+} from '@/lib/actions/clinic.server';
 
 // API URL configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
@@ -66,8 +69,9 @@ async function apiCall<T>(
  * Hook to create a new clinic
  */
 export const useCreateClinic = () => {
-  return useMutationData(['createClinic'], async (data) => {
-    return await createClinic(data);
+  return useMutationData(['createClinic'], async (data: CreateClinicData) => {
+    const result = await createClinic(data);
+    return { status: 200, data: result };
   }, 'clinics');
 };
 
@@ -95,7 +99,6 @@ export const useClinic = (clinicId?: string) => {
     ['clinic', id],
     async () => {
       const headers = getAuthHeaders(token, sessionId, id);
-      console.log('Clinic fetch headers:', headers);
       const response = await fetch(`${API_URL}/clinics/${id}`, {
         headers,
       });
@@ -729,4 +732,4 @@ export const useClinicTypeDisplayName = () => {
     
     return typeMap[type.toLowerCase()] || type;
   };
-}; 
+};

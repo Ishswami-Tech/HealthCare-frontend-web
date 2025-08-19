@@ -27,27 +27,27 @@ const DoctorExpertise = () => {
   const specializations = [
     {
       icon: Brain,
-      title: t.treatments.viddhakarma.autism.title,
-      description: t.treatments.viddhakarma.autism.description,
-      highlight: t.treatments.viddhakarma.autism.uniqueEffect,
+      title: "Autism Treatment",
+      description: "Specialized Viddhakarma treatment for autism spectrum disorders with proven results in improving communication and social skills.",
+      highlight: "Unique energy restoration technique that shows remarkable improvement in 2-4 weeks",
       color: "from-purple-500 to-indigo-600",
       bgColor:
         "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
     },
     {
       icon: Heart,
-      title: t.treatments.viddhakarma.cerebralPalsy.title,
-      description: t.treatments.viddhakarma.cerebralPalsy.description,
-      highlight: t.treatments.viddhakarma.cerebralPalsy.benefits,
+      title: "Cerebral Palsy Care",
+      description: "Comprehensive treatment approach for cerebral palsy using Viddhakarma techniques to improve mobility and quality of life.",
+      highlight: "Significant improvement in motor skills and coordination within 6-8 weeks",
       color: "from-red-500 to-pink-600",
       bgColor:
         "from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20",
     },
     {
       icon: Stethoscope,
-      title: t.treatments.viddhakarma.mentalHealth.title,
-      description: t.treatments.viddhakarma.mentalHealth.description,
-      highlight: "Comprehensive mental wellness approach",
+      title: "Mental Health Disorders",
+      description: "Holistic treatment for various mental health conditions including anxiety, depression, and stress-related disorders.",
+      highlight: "Natural healing approach that addresses root causes without side effects",
       color: "from-green-500 to-emerald-600",
       bgColor:
         "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
@@ -72,18 +72,18 @@ const DoctorExpertise = () => {
           <div className="text-center mb-16">
             <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 mb-4">
               <Award className="w-4 h-4 mr-2" />
-              {t.doctor.title}
+              {t("doctor.title")}
             </Badge>
             <h2 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
-              {t.doctor.name}
+              {t("doctor.name")}
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-6">
-              {t.doctor.specialization}
+              {t("doctor.specialization")}
             </p>
             <div className="flex items-center justify-center gap-2 mb-8">
               <Star className="w-5 h-5 text-yellow-500 fill-current" />
               <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                {t.doctor.experience}
+                {t("doctor.experience")}
               </span>
             </div>
           </div>
@@ -144,7 +144,7 @@ const DoctorExpertise = () => {
                   <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
                   <div>
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      {t.doctor.contact.phone1}
+                      {t("clinic.phone")}
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Primary Contact
@@ -155,7 +155,7 @@ const DoctorExpertise = () => {
                   <Phone className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   <div>
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      {t.doctor.contact.phone2}
+                      {t("clinic.phone")}
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Secondary Contact
@@ -166,21 +166,21 @@ const DoctorExpertise = () => {
                   <MapPin className="w-5 h-5 text-red-600 dark:text-red-400 mt-1" />
                   <div>
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      {t.doctor.contact.location}
+                      Clinic Location
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                      {t.doctor.contact.address}
+                      {t("clinic.address")}
                     </p>
                   </div>
                 </div>
                 <div className="pt-4 space-y-2">
                   <Button className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700">
                     <Phone className="w-4 h-4 mr-2" />
-                    Call Now: {t.doctor.contact.phone1}
+                    Call Now: {t("clinic.phone")}
                   </Button>
                   <Button variant="outline" className="w-full">
                     <MessageCircle className="w-4 h-4 mr-2" />
-                    Live Chat Support
+                    Live Chat
                   </Button>
                 </div>
               </CardContent>
@@ -191,7 +191,7 @@ const DoctorExpertise = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-gray-900 dark:text-white">
                   <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                  {t.doctor.opdTiming.title}
+                  OPD Timing
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -254,10 +254,10 @@ const DoctorExpertise = () => {
                   <Heart className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                  {t.features.affordability.title}
+                  Affordable Care
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                  {t.features.affordability.description}
+                  We believe in making authentic Ayurvedic treatments accessible to everyone. Our pricing is transparent and affordable without compromising on quality.
                 </p>
               </CardContent>
             </Card>
@@ -268,10 +268,10 @@ const DoctorExpertise = () => {
                   <Users className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                  {t.features.wellnessRetreats.title}
+                  Wellness Retreats
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                  {t.features.wellnessRetreats.description}
+                  Experience comprehensive wellness programs that combine traditional treatments with modern comfort for complete health rejuvenation.
                 </p>
               </CardContent>
             </Card>

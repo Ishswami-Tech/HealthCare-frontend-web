@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyAppointments } from "@/hooks/useAppointments";
-import { useQueryData } from "@/hooks/useQueryData";
-import { getUserProfile } from "@/lib/actions/users.server";
+
+
 import { useTranslations } from "next-intl";
 import { translateSidebarLinks } from "@/utils/sidebarTranslations";
 import {
@@ -23,10 +23,8 @@ import {
   LogOut,
   Clock,
   CheckCircle,
-  AlertCircle,
   Plus,
   Video,
-  Phone,
   MapPin,
   Heart,
   Leaf,
@@ -42,7 +40,7 @@ export default function PatientDashboard() {
   const t = useTranslations();
 
   // Fetch real data using your existing hooks
-  const { data: appointments } = useMyAppointments();
+  useMyAppointments();
 
   // Mock patient data (replace with real data from your backend)
   const patientData = {
@@ -176,26 +174,19 @@ export default function PatientDashboard() {
   const sidebarLinks = getRoutesByRole(Role.PATIENT).map((route) => ({
     ...route,
     href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("medical-records") ? (
-      <FileText className="w-5 h-5" />
-    ) : route.path.includes("prescriptions") ? (
-      <Pill className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <User className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
+    icon: route.path.includes("dashboard") ? <Activity className="size-6" />
+    : route.path.includes("appointments") ? <Calendar className="size-6" />
+    : route.path.includes("medical-records") ? <FileText className="size-6" />
+    : route.path.includes("prescriptions") ? <Pill className="size-6" />
+    : route.path.includes("profile") ? <User className="size-6" />
+    : <Activity className="size-6" />,
   }));
 
   sidebarLinks.push({
     label: "Logout",
     href: "/(auth)/auth/login",
     path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
+    icon: <LogOut className="size-6" />,
   });
 
   // Translate sidebar links

@@ -123,7 +123,7 @@ export async function getPrescriptions(clinicId: string, filters?: {
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
 
@@ -255,7 +255,7 @@ export async function getPharmacyOrders(clinicId: string, filters?: {
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
 
@@ -297,7 +297,7 @@ export async function getPharmacySales(clinicId: string, filters?: {
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
 

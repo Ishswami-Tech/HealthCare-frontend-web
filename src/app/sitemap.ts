@@ -102,7 +102,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
 
   // Dynamic routes (if you have blog posts, treatments, etc.)
-  const dynamicRoutes = [
+  const dynamicRoutes: MetadataRoute.Sitemap = [
     // Add dynamic routes here when you have them
     // Example:
     // ...blogPosts.map(post => ({

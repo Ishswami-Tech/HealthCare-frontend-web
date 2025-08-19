@@ -28,14 +28,9 @@ import {
   LogOut,
   Save,
   Building2,
-  MapPin,
-  Phone,
-  Mail,
   Clock,
   Bell,
-  CreditCard,
-  Shield,
-  Globe
+  CreditCard
 } from "lucide-react";
 
 export default function ClinicAdminSettings() {

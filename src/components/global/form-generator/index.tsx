@@ -112,7 +112,7 @@ const FormGenerator = ({
       );
 
     default:
-      break;
+      return null;
   }
 };
 

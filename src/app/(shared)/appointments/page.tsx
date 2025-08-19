@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -22,13 +22,14 @@ import {
   useAppointmentStats,
 } from "@/hooks/useAppointments";
 import { useClinicContext } from "@/hooks/useClinic";
-import { useAppointmentPermissions, useRBAC } from "@/hooks/useRBAC";
+import { useRBAC } from "@/hooks/useRBAC";
 import {
   AppointmentProtectedComponent,
   ProtectedComponent,
 } from "@/components/rbac";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
+import { AppointmentWithRelations } from "@/types/appointment.types";
 import {
   Calendar,
   Clock,
@@ -38,7 +39,6 @@ import {
   Video,
   Plus,
   Search,
-  Filter,
   Eye,
   Edit,
   Trash2,
@@ -57,7 +57,6 @@ export default function AppointmentsPage() {
   const userRole = session?.user?.role as Role;
 
   // RBAC permissions
-  const appointmentPermissions = useAppointmentPermissions();
   const rbac = useRBAC();
 
   // Clinic context
@@ -71,19 +70,15 @@ export default function AppointmentsPage() {
   // Fetch appointments data with proper permissions
   // Always call both hooks to avoid conditional hook calls
   const allAppointmentsQuery = useAppointments(clinicId || "", {
-    search: searchTerm,
-    doctorId: filterDoctor || undefined,
-    type: filterType || undefined,
-    status: filterStatus || undefined,
-    enabled: shouldFetchAllAppointments,
+    ...(filterDoctor && { doctorId: filterDoctor }),
+    ...(filterType && { type: filterType }),
+    ...(filterStatus && { status: filterStatus }),
   });
 
   const myAppointmentsQuery = useMyAppointments({
-    search: searchTerm,
-    doctorId: filterDoctor || undefined,
-    type: filterType || undefined,
-    status: filterStatus || undefined,
-    enabled: !shouldFetchAllAppointments,
+    ...(filterDoctor && { doctorId: filterDoctor }),
+    ...(filterType && { type: filterType }),
+    ...(filterStatus && { status: filterStatus }),
   });
 
   // Use the appropriate query result
@@ -95,9 +90,7 @@ export default function AppointmentsPage() {
   } = shouldFetchAllAppointments ? allAppointmentsQuery : myAppointmentsQuery;
 
   // Fetch appointment statistics for authorized users
-  const { data: appointmentStats } = useAppointmentStats({
-    enabled: appointmentPermissions.canViewAllAppointments,
-  });
+  const { data: appointmentStats } = useAppointmentStats('default-tenant');
 
   // Mutation hooks for appointment actions
   const updateAppointmentMutation = useUpdateAppointment();
@@ -129,7 +122,7 @@ export default function AppointmentsPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <p className="text-red-600">
-            Error loading appointments: {error.message}
+            Error loading appointments: {error?.message || 'Unknown error'}
           </p>
           <Button onClick={() => window.location.reload()} className="mt-4">
             Retry
@@ -139,45 +132,6 @@ export default function AppointmentsPage() {
     );
   }
 
-  // Mock data for appointments (fallback if no real data)
-  const mockUpcomingAppointments = [
-    {
-      id: "1",
-      patientName: "Rajesh Kumar",
-      doctorName: "Dr. Priya Sharma",
-      date: "2025-08-10",
-      time: "10:00 AM",
-      type: "Consultation",
-      mode: "in-person",
-      status: "confirmed",
-      clinic: "Ayurveda Center",
-      phone: "+91 98765 43210",
-    },
-    {
-      id: "2",
-      patientName: "Aarti Singh",
-      doctorName: "Dr. Amit Patel",
-      date: "2025-08-10",
-      time: "2:30 PM",
-      type: "Panchakarma",
-      mode: "in-person",
-      status: "pending",
-      clinic: "Wellness Clinic",
-      phone: "+91 87654 32109",
-    },
-    {
-      id: "3",
-      patientName: "Vikram Gupta",
-      doctorName: "Dr. Ravi Mehta",
-      date: "2025-08-11",
-      time: "11:00 AM",
-      type: "Nadi Pariksha",
-      mode: "video",
-      status: "confirmed",
-      clinic: "Holistic Health",
-      phone: "+91 76543 21098",
-    },
-  ];
 
   const mockPastAppointments = [
     {
@@ -239,32 +193,36 @@ export default function AppointmentsPage() {
   };
 
   // Handle appointment actions
-  const handleUpdateAppointment = async (
+  const handleUpdateAppointment = (
     appointmentId: string,
     updates: any
   ) => {
-    try {
-      await updateAppointmentMutation.mutateAsync({ appointmentId, updates });
-      refetchAppointments();
-    } catch (error) {
-      console.error("Failed to update appointment:", error);
-    }
+    updateAppointmentMutation.mutate({ id: appointmentId, data: updates }, {
+      onSuccess: () => {
+        refetchAppointments();
+      },
+      onError: (error) => {
+        console.error("Failed to update appointment:", error);
+      }
+    });
   };
 
-  const handleCancelAppointment = async (appointmentId: string) => {
-    try {
-      await cancelAppointmentMutation.mutateAsync(appointmentId);
-      refetchAppointments();
-    } catch (error) {
-      console.error("Failed to cancel appointment:", error);
-    }
+  const handleCancelAppointment = (appointmentId: string) => {
+    cancelAppointmentMutation.mutate(appointmentId, {
+      onSuccess: () => {
+        refetchAppointments();
+      },
+      onError: (error) => {
+        console.error("Failed to cancel appointment:", error);
+      }
+    });
   };
 
   const AppointmentCard = ({
     appointment,
     showActions = true,
   }: {
-    appointment: any;
+    appointment: AppointmentWithRelations;
     showActions?: boolean;
   }) => (
     <Card className="hover:shadow-md transition-shadow">
@@ -278,13 +236,13 @@ export default function AppointmentsPage() {
               <div>
                 <h3 className="font-semibold text-lg">
                   {userRole === Role.PATIENT
-                    ? appointment.doctorName
-                    : appointment.patientName}
+                    ? appointment.doctor?.user?.name || `${appointment.doctor?.user?.firstName || ''} ${appointment.doctor?.user?.lastName || ''}`.trim()
+                    : appointment.patient?.user?.name || `${appointment.patient?.user?.firstName || ''} ${appointment.patient?.user?.lastName || ''}`.trim()}
                 </h3>
                 <p className="text-sm text-gray-600">
                   {userRole === Role.PATIENT
-                    ? appointment.clinic
-                    : appointment.phone}
+                    ? appointment.location?.name
+                    : appointment.patient?.user?.email}
                 </p>
               </div>
             </div>
@@ -299,16 +257,16 @@ export default function AppointmentsPage() {
                 <span className="text-sm">{appointment.time}</span>
               </div>
               <div className="flex items-center gap-2">
-                {appointment.mode === "video" ? (
+                {appointment.type === "video" ? (
                   <Video className="w-4 h-4 text-gray-500" />
                 ) : (
                   <MapPin className="w-4 h-4 text-gray-500" />
                 )}
-                <span className="text-sm capitalize">{appointment.mode}</span>
+                <span className="text-sm capitalize">{appointment.type}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-gray-500" />
-                <span className="text-sm">{appointment.phone}</span>
+                <span className="text-sm">{appointment.location?.phone || 'N/A'}</span>
               </div>
             </div>
 
@@ -416,7 +374,7 @@ export default function AppointmentsPage() {
                       Total Today
                     </p>
                     <p className="text-2xl font-bold">
-                      {appointmentStats.todayTotal || 0}
+                      {appointmentStats?.total || 0}
                     </p>
                   </div>
                   <Calendar className="h-8 w-8 text-blue-600" />
@@ -444,7 +402,7 @@ export default function AppointmentsPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Pending</p>
                     <p className="text-2xl font-bold text-yellow-600">
-                      {appointmentStats.pending || 0}
+                      {appointmentStats?.scheduled || 0}
                     </p>
                   </div>
                   <AlertCircle className="h-8 w-8 text-yellow-600" />
@@ -593,7 +551,7 @@ export default function AppointmentsPage() {
             ).map((appointment) => (
               <AppointmentCard
                 key={appointment.id}
-                appointment={appointment}
+                appointment={appointment as AppointmentWithRelations}
                 showActions={false}
               />
             ))

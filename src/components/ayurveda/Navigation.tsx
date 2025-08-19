@@ -8,14 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HoverAnimation } from "@/components/ui/animated-wrapper";
 import { ThemeToggle } from "@/components/theme/theme-provider";
-import { LanguageSelector } from "@/components/language/LanguageSelector";
-import { useTranslation } from "@/lib/i18n/context";
+import { useTranslation, useLanguageSwitcher } from "@/lib/i18n/context";
+import { Globe, ChevronDown } from "lucide-react";
 import {
-  Phone,
-  MessageCircle,
-  Menu,
-  X,
-} from "lucide-react";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Phone, MessageCircle, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Navigation = () => {
@@ -23,6 +24,7 @@ const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const { t } = useTranslation();
+  const { setLanguage } = useLanguageSwitcher();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -54,19 +56,52 @@ const Navigation = () => {
               className="bg-white/20 text-white border-white/30"
             >
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></div>
-              {t("navigation.livePatients", { count: 8 })}
+              {t("navigation.livePatients")}
             </Badge>
-            <span className="hidden md:inline">✅ 5000+ Lives Transformed</span>
-            <span className="hidden lg:inline">
-              ⭐ 4.9/5 Rating (4,200+ Reviews)
+            <span className="hidden md:inline">
+              {t("navigation.livesTransformed")}
             </span>
+            <span className="hidden lg:inline">{t("navigation.rating")}</span>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               <Phone className="w-4 h-4" />
-              <span className="font-semibold">+91-XXXX-XXXX</span>
+              <span className="font-semibold">
+                {t("navigation.phoneNumber")}
+              </span>
             </div>
-            <LanguageSelector />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+                  <Globe className="w-4 h-4" />
+                  <span className="hidden sm:inline">{t("navigation.language")}</span>
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setLanguage("en")}>
+                  <span className="text-lg">🇺🇸</span>
+                  <div className="flex flex-col ml-3">
+                    <span className="font-medium">English</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">English</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage("hi")}>
+                  <span className="text-lg">🇮🇳</span>
+                  <div className="flex flex-col ml-3">
+                    <span className="font-medium">हिंदी</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Hindi</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage("mr")}>
+                  <span className="text-lg">🇮🇳</span>
+                  <div className="flex flex-col ml-3">
+                    <span className="font-medium">मराठी</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Marathi</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <ThemeToggle />
           </div>
         </div>
@@ -90,18 +125,22 @@ const Navigation = () => {
             <HoverAnimation type="scale">
               <Link href="/ayurveda" className="flex items-center space-x-3">
                 <motion.div
-                  className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center"
+                  className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden"
                   whileHover={{ rotate: 360 }}
                   transition={{ duration: 0.5, ease: "easeInOut" }}
                 >
-                  <span className="text-white font-bold text-xl">🕉️</span>
+                  <img 
+                    src="/logo.svg" 
+                    alt={t("navigation.clinicName")}
+                    className="w-full h-full object-cover"
+                  />
                 </motion.div>
                 <div className="hidden md:block">
                   <h1 className="font-playfair text-xl font-bold text-gray-900 dark:text-white">
-                    Shri Vishwamurthi
+                    {t("navigation.clinicName")}
                   </h1>
                   <p className="text-sm text-orange-600 dark:text-orange-400 -mt-1">
-                    Ayurvedalay
+                    {t("navigation.clinicSubtitle")}
                   </p>
                 </div>
               </Link>

@@ -141,12 +141,12 @@ export function StatCard({
     <ModernDashboardCard
       title={title}
       value={value}
-      subtitle={subtitle}
-      icon={icon}
-      iconColor={iconColor}
-      borderColor={borderColor}
-      trend={trend}
-      className={className}
+      {...(subtitle && { subtitle })}
+      {...(icon && { icon })}
+      {...(iconColor && { iconColor })}
+      {...(borderColor && { borderColor })}
+      {...(trend && { trend })}
+      {...(className && { className })}
     />
   );
 }
@@ -165,12 +165,12 @@ export function ProgressCard({
     <ModernDashboardCard
       title={title}
       value={value}
-      subtitle={subtitle}
-      icon={icon}
-      iconColor={iconColor}
-      borderColor={borderColor}
-      progress={progress}
-      className={className}
+      {...(subtitle && { subtitle })}
+      {...(icon && { icon })}
+      {...(iconColor && { iconColor })}
+      {...(borderColor && { borderColor })}
+      {...(progress && { progress })}
+      {...(className && { className })}
     />
   );
 }
@@ -190,13 +190,13 @@ export function ActionCard({
     <ModernDashboardCard
       title={title}
       value={value}
-      subtitle={subtitle}
-      icon={icon}
-      iconColor={iconColor}
-      borderColor={borderColor}
-      action={action}
-      badge={badge}
-      className={className}
+      {...(subtitle && { subtitle })}
+      {...(icon && { icon })}
+      {...(iconColor && { iconColor })}
+      {...(borderColor && { borderColor })}
+      {...(action && { action })}
+      {...(badge && { badge })}
+      {...(className && { className })}
     />
   );
 }
@@ -230,11 +230,11 @@ export function QuickStats({ stats, className }: QuickStatsProps) {
           key={index}
           title={stat.title}
           value={stat.value}
-          subtitle={stat.subtitle}
-          icon={stat.icon}
-          iconColor={stat.iconColor}
-          borderColor={stat.borderColor}
-          trend={stat.trend}
+          {...(stat.subtitle && { subtitle: stat.subtitle })}
+          {...(stat.icon && { icon: stat.icon })}
+          {...(stat.iconColor && { iconColor: stat.iconColor })}
+          {...(stat.borderColor && { borderColor: stat.borderColor })}
+          {...(stat.trend && { trend: stat.trend })}
         />
       ))}
     </div>

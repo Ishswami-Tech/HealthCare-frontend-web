@@ -27,17 +27,12 @@ import {
   UserCheck,
   LogOut,
   Save,
-  Phone,
-  Mail,
-  MapPin,
   Camera,
   Clock,
   Award,
-  Bell,
   Shield,
   Eye,
   EyeOff,
-  Edit,
   Star,
   TrendingUp
 } from "lucide-react";

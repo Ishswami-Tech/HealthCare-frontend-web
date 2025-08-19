@@ -34,7 +34,7 @@ const Footer = () => {
     { name: t("navigation.panchakarma"), href: "/ayurveda/panchakarma" },
     { name: t("navigation.agnikarma"), href: "/ayurveda/agnikarma" },
     { name: t("navigation.viddhakarma"), href: "/ayurveda/viddha-karma" },
-    { name: t("footer.fertilityTreatment"), href: "/ayurveda/fertility" },
+    { name: t("footer.services.fertility"), href: "/ayurveda/fertility" },
   ];
 
   const conditions = [
@@ -54,36 +54,38 @@ const Footer = () => {
           {/* Company Info */}
           <div className="lg:col-span-1">
             <div className="flex items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-xl">🕉️</span>
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden">
+                <img
+                  src="/logo.svg"
+                  alt={t("clinic.name")}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div>
                 <h3 className="font-playfair text-xl font-bold">
-                  Shri Vishwamurthi
+                  {t("clinic.name")}
                 </h3>
-                <p className="text-orange-400 text-sm">Ayurvedalay</p>
+                <p className="text-orange-400 text-sm">{t("footer.tagline")}</p>
               </div>
             </div>
 
             <p className="text-gray-300 mb-6 leading-relaxed">
-              Experience authentic Ayurvedic healing with 20+ years of
-              expertise. Transforming lives through ancient wisdom and modern
-              excellence.
+              {t("footer.description")}
             </p>
 
             {/* Trust Badges */}
             <div className="space-y-2 mb-6">
               <Badge className="bg-green-600 text-white border-green-500">
                 <CheckCircle className="w-3 h-3 mr-1" />
-                Government Certified
+                {t("stats.certifications.governmentCertified.title")}
               </Badge>
               <Badge className="bg-blue-600 text-white border-blue-500">
                 <Award className="w-3 h-3 mr-1" />
-                ISO 9001:2015
+                {t("stats.certifications.iso9001.title")}
               </Badge>
               <Badge className="bg-yellow-600 text-white border-yellow-500">
                 <Star className="w-3 h-3 mr-1" />
-                4.9/5 Rating
+                {t("stats.patientRating")}
               </Badge>
             </div>
 
@@ -123,7 +125,7 @@ const Footer = () => {
           {/* Quick Links */}
           <div>
             <h4 className="font-semibold text-lg mb-6 text-orange-400">
-              Quick Links
+              {t("footer.quickLinks.title")}
             </h4>
             <ul className="space-y-3">
               {quickLinks.map((link) => (
@@ -139,7 +141,7 @@ const Footer = () => {
             </ul>
 
             <h4 className="font-semibold text-lg mb-4 mt-8 text-orange-400">
-              Treatments
+              {t("footer.services.title")}
             </h4>
             <ul className="space-y-3">
               {treatments.map((treatment) => (
@@ -158,7 +160,7 @@ const Footer = () => {
           {/* Conditions Treated */}
           <div>
             <h4 className="font-semibold text-lg mb-6 text-orange-400">
-              Conditions Treated
+              {t("footer.conditions.title")}
             </h4>
             <ul className="space-y-3">
               {conditions.map((condition) => (
@@ -176,46 +178,36 @@ const Footer = () => {
           {/* Contact Info */}
           <div>
             <h4 className="font-semibold text-lg mb-6 text-orange-400">
-              Contact Information
+              {t("footer.contact.title")}
             </h4>
 
             <div className="space-y-4">
               <div className="flex items-start space-x-3">
                 <MapPin className="w-5 h-5 text-orange-400 flex-shrink-0 mt-1" />
                 <div>
-                  <p className="text-gray-300">
-                    123 Ayurveda Street,
-                    <br />
-                    Wellness District,
-                    <br />
-                    Mumbai, Maharashtra 400001
-                  </p>
+                  <p className="text-gray-300">{t("clinic.address")}</p>
                 </div>
               </div>
 
               <div className="flex items-center space-x-3">
                 <Phone className="w-5 h-5 text-orange-400" />
                 <div>
-                  <p className="text-gray-300">+91-XXXX-XXXX</p>
+                  <p className="text-gray-300">{t("clinic.phone")}</p>
                   <p className="text-sm text-gray-400">
-                    24/7 Emergency Support
+                    {t("footer.contact.emergency")}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center space-x-3">
                 <Mail className="w-5 h-5 text-orange-400" />
-                <p className="text-gray-300">info@vishwamurthiayurveda.com</p>
+                <p className="text-gray-300">{t("clinic.email")}</p>
               </div>
 
               <div className="flex items-start space-x-3">
                 <Clock className="w-5 h-5 text-orange-400 flex-shrink-0 mt-1" />
                 <div>
-                  <p className="text-gray-300">
-                    Mon - Sat: 8:00 AM - 8:00 PM
-                    <br />
-                    Sunday: 9:00 AM - 5:00 PM
-                  </p>
+                  <p className="text-gray-300">{t("clinic.mondayToFriday")}</p>
                 </div>
               </div>
             </div>
@@ -223,14 +215,14 @@ const Footer = () => {
             {/* Emergency Contact */}
             <div className="mt-6 p-4 bg-red-900/30 border border-red-700 rounded-lg">
               <h5 className="font-semibold text-red-400 mb-2">
-                Emergency Consultation
+                {t("footer.emergency.title")}
               </h5>
               <Button
                 size="sm"
                 className="bg-green-600 hover:bg-green-700 text-white w-full"
               >
                 <MessageCircle className="w-4 h-4 mr-2" />
-                WhatsApp Now
+                {t("footer.emergency.button")}
               </Button>
             </div>
           </div>
@@ -241,41 +233,36 @@ const Footer = () => {
       <div className="border-t border-gray-700">
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} Shri Vishwamurthi Ayurvedalay. All
-              rights reserved.
-            </div>
+            <div className="text-gray-400 text-sm">{t("footer.copyright")}</div>
 
             <div className="flex flex-wrap justify-center gap-6 text-sm">
               <Link
                 href="/ayurveda/privacy"
                 className="text-gray-400 hover:text-orange-400"
               >
-                Privacy Policy
+                {t("footer.privacyPolicy")}
               </Link>
               <Link
                 href="/ayurveda/terms"
                 className="text-gray-400 hover:text-orange-400"
               >
-                Terms of Service
+                {t("footer.termsOfService")}
               </Link>
               <Link
                 href="/ayurveda/disclaimer"
                 className="text-gray-400 hover:text-orange-400"
               >
-                Medical Disclaimer
+                {t("footer.disclaimer")}
               </Link>
               <Link
                 href="/ayurveda/sitemap"
                 className="text-gray-400 hover:text-orange-400"
               >
-                Sitemap
+                {t("footer.sitemap")}
               </Link>
             </div>
 
-            <div className="text-gray-400 text-sm">
-              Made with ❤️ for healing
-            </div>
+            <div className="text-gray-400 text-sm">भारतात ❤️ सह बनवले</div>
           </div>
         </div>
       </div>

@@ -34,8 +34,6 @@ import {
   Phone,
   MessageSquare,
   Search,
-  Filter,
-  Edit,
   Eye
 } from "lucide-react";
 

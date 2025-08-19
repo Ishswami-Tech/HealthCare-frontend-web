@@ -7,9 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  Package, 
-  AlertTriangle, 
-  TrendingUp,
+  Package,
+  AlertTriangle,
   Search,
   Plus,
   Edit,
@@ -108,7 +107,7 @@ export default function InventoryPage() {
     }
   };
 
-  const getStockPercentage = (current: number, min: number, max: number) => {
+  const getStockPercentage = (current: number, max: number) => {
     return Math.round((current / max) * 100);
   };
 
@@ -158,7 +157,7 @@ export default function InventoryPage() {
                   item.status === 'low' ? 'bg-yellow-500' :
                   item.status === 'adequate' ? 'bg-blue-500' : 'bg-green-500'
                 }`}
-                style={{ width: `${getStockPercentage(item.currentStock, item.minStock, item.maxStock)}%` }}
+                style={{ width: `${getStockPercentage(item.currentStock, item.maxStock)}%` }}
               ></div>
             </div>
           </div>

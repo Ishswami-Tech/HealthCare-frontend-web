@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { locales, localeNames, localeFlags, type Locale } from "@/i18n/config";
 
@@ -31,8 +30,6 @@ export function LanguageSwitcher({
 }: LanguageSwitcherProps) {
   const t = useTranslations("language");
   const locale = useLocale() as Locale;
-  const router = useRouter();
-  const pathname = usePathname();
 
   const handleLanguageChange = async (newLocale: Locale) => {
     // Set locale in cookie
@@ -103,7 +100,6 @@ export function LanguageSwitcher({
 // Simple language toggle that cycles through languages
 export function SimpleLanguageToggle({ className }: { className?: string }) {
   const locale = useLocale() as Locale;
-  const router = useRouter();
 
   const toggleLanguage = () => {
     const currentIndex = locales.indexOf(locale);
@@ -138,7 +134,6 @@ export function SimpleLanguageToggle({ className }: { className?: string }) {
 
 // Language selector with text labels
 export function LanguageSelector({ className }: { className?: string }) {
-  const t = useTranslations("language");
   const locale = useLocale() as Locale;
 
   const handleLanguageChange = (newLocale: Locale) => {

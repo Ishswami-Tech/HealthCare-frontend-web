@@ -26,8 +26,6 @@ import {
   useConfirmAppointment,
   useStartConsultation,
   useCanCancelAppointment,
-  useFormatAppointmentDateTime,
-  useAppointmentStatusColor,
   useDoctorQueue,
 } from "@/hooks/useAppointments";
 import {
@@ -35,9 +33,11 @@ import {
   CreateAppointmentData,
 } from "@/types/appointment.types";
 import { useClinicLocations, useClinicDoctors } from "@/hooks/useClinics";
+import { useClinicContext } from "@/hooks/useClinic";
 
 export default function AppointmentManager() {
   const { toast } = useToast();
+  const { clinicId } = useClinicContext();
   const [selectedAppointment, setSelectedAppointment] =
     useState<AppointmentWithRelations | null>(null);
   const [newAppointment, setNewAppointment] = useState<CreateAppointmentData>({
@@ -52,7 +52,7 @@ export default function AppointmentManager() {
 
   // Appointment CRUD hooks
   const { data: appointments, isPending: appointmentsLoading } =
-    useAppointments();
+    useAppointments(clinicId || "");
   const { mutate: createAppointment, isPending: creatingAppointment } =
     useCreateAppointment();
   const { mutate: cancelAppointment, isPending: cancellingAppointment } =
@@ -81,8 +81,7 @@ export default function AppointmentManager() {
 
   // Queue management
   const { data: doctorQueue } = useDoctorQueue(
-    selectedAppointment?.doctorId || "",
-    selectedAppointment?.date || ""
+    selectedAppointment?.doctorId || ""
   );
   const { mutate: confirmAppointment, isPending: confirmingAppointment } =
     useConfirmAppointment();
@@ -90,9 +89,35 @@ export default function AppointmentManager() {
     useStartConsultation();
 
   // Utility hooks
-  const canCancelData = useCanCancelAppointment(selectedAppointment);
-  const { formatDateTime } = useFormatAppointmentDateTime();
-  const { getStatusColor } = useAppointmentStatusColor();
+  const canCancelData = useCanCancelAppointment(selectedAppointment || undefined);
+  
+  // Utility function to get status color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'SCHEDULED': return 'bg-blue-100 text-blue-800';
+      case 'CONFIRMED': return 'bg-green-100 text-green-800';
+      case 'CHECKED_IN': return 'bg-yellow-100 text-yellow-800';
+      case 'IN_PROGRESS': return 'bg-purple-100 text-purple-800';
+      case 'COMPLETED': return 'bg-gray-100 text-gray-800';
+      case 'CANCELLED': return 'bg-red-100 text-red-800';
+      case 'NO_SHOW': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Utility function to format date and time
+  const formatDateTime = (date: string, time: string) => {
+    const dateObj = new Date(`${date}T${time}`);
+    return dateObj.toLocaleString('en-IN', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
 
   const handleCreateAppointment = () => {
     createAppointment(newAppointment, {
@@ -475,7 +500,7 @@ export default function AppointmentManager() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {canCancelData.canCancel && (
+                {canCancelData && (
                   <Button
                     variant="destructive"
                     onClick={() =>
@@ -487,7 +512,7 @@ export default function AppointmentManager() {
                   </Button>
                 )}
 
-                {canCancelData.canCheckIn && (
+                {selectedAppointment?.status === 'CONFIRMED' && (
                   <Button
                     onClick={() => handleProcessCheckIn(selectedAppointment.id)}
                     disabled={processingCheckIn}
@@ -496,7 +521,7 @@ export default function AppointmentManager() {
                   </Button>
                 )}
 
-                {canCancelData.canStart && (
+                {selectedAppointment?.status === 'CHECKED_IN' && (
                   <Button
                     onClick={() =>
                       handleConfirmAppointment(selectedAppointment.id)
@@ -507,7 +532,7 @@ export default function AppointmentManager() {
                   </Button>
                 )}
 
-                {canCancelData.canComplete && (
+                {selectedAppointment?.status === 'IN_PROGRESS' && (
                   <Button
                     onClick={() =>
                       handleStartConsultation(
@@ -529,7 +554,6 @@ export default function AppointmentManager() {
                     <p>
                       Estimated Wait: {queuePosition.estimatedWaitTime} minutes
                     </p>
-                    <p>Total in Queue: {queuePosition.totalInQueue}</p>
                   </div>
                 )}
 
@@ -537,10 +561,8 @@ export default function AppointmentManager() {
                 {doctorQueue && (
                   <div className="mt-4 p-4 bg-green-50 rounded-lg">
                     <h4 className="font-semibold mb-2">Doctor Queue</h4>
-                    <p>Appointments: {doctorQueue.appointments?.length || 0}</p>
-                    <p>
-                      Current Position: {doctorQueue.currentPosition || "N/A"}
-                    </p>
+                    <p>Appointments in Queue: {Array.isArray(doctorQueue) ? doctorQueue.length : 0}</p>
+                    <p>Queue Status: Active</p>
                   </div>
                 )}
               </div>

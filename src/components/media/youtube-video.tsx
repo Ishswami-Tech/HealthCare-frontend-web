@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX, Maximize, Loader2 } from "lucide-react";
+import { Play, Pause, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface YouTubeVideoProps {
@@ -28,7 +28,7 @@ export function extractYouTubeVideoId(url: string): string | null {
 
   for (const pattern of patterns) {
     const match = url.match(pattern);
-    if (match) {
+    if (match && match[1]) {
       return match[1];
     }
   }
@@ -49,7 +49,6 @@ export function YouTubeVideo({
   muted = false,
   controls = true,
   aspectRatio = "16:9",
-  thumbnail,
   onPlay,
   onPause,
   onEnd,
@@ -57,7 +56,7 @@ export function YouTubeVideo({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showCustomControls, setShowCustomControls] = useState(false);
+  const showCustomControls = false; // Custom controls disabled for now
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const aspectRatioClasses = {
@@ -79,9 +78,6 @@ export function YouTubeVideo({
   if (muted) embedUrl.searchParams.set("mute", "1");
   if (!controls) embedUrl.searchParams.set("controls", "0");
 
-  // Thumbnail URL
-  const thumbnailUrl =
-    thumbnail || `https://img.youtube.com/vi/${cleanVideoId}/maxresdefault.jpg`;
 
   const handleIframeLoad = () => {
     setIsLoading(false);
@@ -249,7 +245,7 @@ export function YouTubeVideoGrid({
             videoId={video.videoId}
             title={video.title}
             aspectRatio={aspectRatio}
-            thumbnail={video.thumbnail}
+            {...(video.thumbnail && { thumbnail: video.thumbnail })}
           />
           {video.description && (
             <p className="text-gray-600 text-sm line-clamp-3">

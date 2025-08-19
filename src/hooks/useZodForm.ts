@@ -12,9 +12,9 @@ const useZodForm = <T extends z.ZodType>(
 } => {
   const form = useForm<z.infer<T>>({
     resolver: zodResolver(schema),
-    defaultValues,
-    mode: "onChange",
-  });
+    defaultValues: defaultValues || undefined,
+    mode: "onChange" as const,
+  } as any);
 
   const onFormSubmit = form.handleSubmit(async (values) => {
     try {

@@ -1,0 +1,66 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="60" cy="60" r="58" fill="url(#gradient1)" stroke="url(#gradient2)" stroke-width="2"/>
+  
+  <!-- Om Symbol (ॐ) - Central Element -->
+  <g transform="translate(30, 25)">
+    <!-- Om Symbol Path -->
+    <path d="M30 35 C30 25, 40 20, 50 20 C60 20, 70 25, 70 35 C70 45, 60 50, 50 50 C40 50, 30 45, 30 35 Z" 
+          fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
+    
+    <!-- Crescent Moon -->
+    <path d="M25 15 Q35 10, 45 15 Q35 20, 25 15" 
+          fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+    
+    <!-- Dot (Bindu) -->
+    <circle cx="50" cy="35" r="2" fill="white"/>
+    
+    <!-- Wave Lines -->
+    <path d="M20 40 Q30 35, 40 40 Q50 45, 60 40" 
+          fill="none" stroke="white" stroke-width="1" stroke-linecap="round"/>
+    <path d="M20 45 Q30 40, 40 45 Q50 50, 60 45" 
+          fill="none" stroke="white" stroke-width="1" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Leaf Elements (Ayurvedic Symbolism) -->
+  <g transform="translate(15, 15)">
+    <path d="M10 20 Q15 15, 20 20 Q15 25, 10 20 Z" 
+          fill="url(#gradient3)" opacity="0.8"/>
+  </g>
+  <g transform="translate(85, 15)">
+    <path d="M10 20 Q15 15, 20 20 Q15 25, 10 20 Z" 
+          fill="url(#gradient3)" opacity="0.8"/>
+  </g>
+  <g transform="translate(15, 85)">
+    <path d="M10 20 Q15 15, 20 20 Q15 25, 10 20 Z" 
+          fill="url(#gradient3)" opacity="0.8"/>
+  </g>
+  <g transform="translate(85, 85)">
+    <path d="M10 20 Q15 15, 20 20 Q15 25, 10 20 Z" 
+          fill="url(#gradient3)" opacity="0.8"/>
+  </g>
+  
+  <!-- Healing Hands Symbol -->
+  <g transform="translate(45, 70)" opacity="0.6">
+    <path d="M15 20 Q20 15, 25 20 Q20 25, 15 20 Z" 
+          fill="none" stroke="white" stroke-width="1" stroke-linecap="round"/>
+    <path d="M5 25 Q10 20, 15 25 Q10 30, 5 25 Z" 
+          fill="none" stroke="white" stroke-width="1" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f97316;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="gradient3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLocale } from "next-intl";
-import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 interface LanguageSelectorProps {
@@ -27,8 +26,6 @@ export function LanguageSelector({
   className,
 }: LanguageSelectorProps) {
   const locale = useLocale();
-  const router = useRouter();
-  const pathname = usePathname();
 
   const languages: {
     code: string;
@@ -49,7 +46,12 @@ export function LanguageSelector({
   };
 
   const currentLanguage =
-    languages.find((lang) => lang.code === locale) || languages[0];
+    languages.find((lang) => lang.code === locale) || languages[0] || { 
+      code: "en", 
+      name: "English", 
+      nativeName: "English", 
+      flag: "🇺🇸" 
+    };
 
   return (
     <DropdownMenu>

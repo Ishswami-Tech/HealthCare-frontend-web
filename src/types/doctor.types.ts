@@ -289,23 +289,3 @@ export interface Patient {
   gender: 'MALE' | 'FEMALE' | 'OTHER';
 }
 
-// ===== EXPORT ALL TYPES =====
-
-export type {
-  Doctor,
-  DoctorAvailability,
-  DoctorSchedule,
-  AppointmentSlot,
-  DoctorReview,
-  DoctorFilters,
-  DoctorSearchResult,
-  CreateDoctorData,
-  UpdateDoctorData,
-  DoctorAvailabilityData,
-  DoctorStats,
-  DoctorPerformance,
-  MedicalSpecialization,
-  SupportedLanguage,
-  Appointment,
-  Patient
-};

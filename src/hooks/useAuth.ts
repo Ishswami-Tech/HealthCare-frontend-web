@@ -72,7 +72,7 @@ function getRedirectPath(user: { role?: Role | string } | null | undefined, redi
 
 function isTokenExpiringSoon(token: string): boolean {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = JSON.parse(atob(token.split('.')[1] || ''));
     const expiryTime = payload.exp * 1000;
     const currentTime = Date.now();
     const timeUntilExpiry = expiryTime - currentTime;
@@ -262,12 +262,12 @@ export function useAuth() {
           id: data.user.id,
           email: data.user.email,
           role: data.user.role,
-          name: data.user.name,
+          name: data.user.name || '',
           firstName: data.user.firstName || data.user.name?.split(' ')[0] || '',
           lastName: data.user.lastName || data.user.name?.split(' ').slice(1).join(' ') || '',
           isVerified: true,
-          googleId: data.user.googleId,
-          profileComplete: data.user.profileComplete
+          googleId: data.user.googleId || '',
+          profileComplete: data.user.profileComplete || false
         },
         access_token: data.token || '',
         session_id: '',

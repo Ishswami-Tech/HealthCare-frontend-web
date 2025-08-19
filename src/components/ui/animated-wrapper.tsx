@@ -285,6 +285,27 @@ export const CounterAnimation: React.FC<CounterAnimationProps> = ({
   suffix = '',
   prefix = '',
 }) => {
+  const [count, setCount] = React.useState(from);
+
+  React.useEffect(() => {
+    const start = Date.now();
+    const distance = to - from;
+    const durationMs = duration * 1000;
+
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const progress = Math.min(elapsed / durationMs, 1);
+      const current = from + distance * progress;
+      setCount(Math.round(current));
+
+      if (progress >= 1) {
+        clearInterval(timer);
+      }
+    }, 16);
+
+    return () => clearInterval(timer);
+  }, [from, to, duration]);
+
   return (
     <motion.span
       className={cn(className)}
@@ -293,24 +314,7 @@ export const CounterAnimation: React.FC<CounterAnimationProps> = ({
       viewport={scrollViewport}
       transition={{ duration: 0.5 }}
     >
-      <motion.span
-        initial={{ textContent: from }}
-        whileInView={{ textContent: to }}
-        viewport={scrollViewport}
-        transition={{
-          duration,
-          ease: "easeOut",
-        }}
-        onUpdate={(latest) => {
-          if (typeof latest.textContent === 'number') {
-            const element = document.querySelector(`[data-counter="${to}"]`);
-            if (element) {
-              element.textContent = `${prefix}${Math.round(latest.textContent)}${suffix}`;
-            }
-          }
-        }}
-        data-counter={to}
-      />
+      {prefix}{count}{suffix}
     </motion.span>
   );
 };

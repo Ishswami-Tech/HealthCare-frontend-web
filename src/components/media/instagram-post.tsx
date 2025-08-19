@@ -7,7 +7,6 @@ import {
   MessageCircle,
   Share,
   Bookmark,
-  MoreHorizontal,
   ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,7 +41,7 @@ export function extractInstagramPostId(url: string): string | null {
 
   for (const pattern of patterns) {
     const match = url.match(pattern);
-    if (match) {
+    if (match && match[1]) {
       return match[1];
     }
   }

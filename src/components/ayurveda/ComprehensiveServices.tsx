@@ -9,12 +9,10 @@ import {
   Bone,
   Zap,
   Wind,
-  Stomach,
-  Kidney,
+  Heart,
   Sparkles,
   Scale,
   Activity,
-  Heart,
   Baby,
   Scissors,
   Droplets,
@@ -34,155 +32,258 @@ const ComprehensiveServices = () => {
   const serviceCategories = [
     {
       id: "neurological",
-      title: t.services.categories.neurological.title,
+      title: t("services.neurological"),
       icon: Brain,
       color: "from-purple-500 to-indigo-600",
       bgColor:
         "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
-      conditions: t.services.categories.neurological.conditions,
-      description:
-        "Advanced neurological treatments using traditional Ayurvedic methods",
+      conditions: [
+        "Autism",
+        "Cerebral Palsy", 
+        "Mental Health Disorders",
+        "Neurological Rehabilitation",
+        "Paralysis",
+        "Stroke Recovery"
+      ],
+      description: t("services.neurologicalDesc"),
     },
     {
       id: "jointBone",
-      title: t.services.categories.jointBone.title,
+      title: t("services.jointBone"),
       icon: Bone,
       color: "from-orange-500 to-red-600",
       bgColor:
         "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
-      conditions: t.services.categories.jointBone.conditions,
-      description:
-        "Comprehensive joint and bone care through Agnikarma and Panchakarma",
+      conditions: [
+        "Arthritis",
+        "Joint Pain",
+        "Spinal Disorders",
+        "Gout",
+        "Sports Injuries",
+        "Muscular Disorders"
+      ],
+      description: t("services.jointBoneDesc"),
     },
     {
       id: "spinal",
-      title: t.services.categories.spinal.title,
+      title: "Spinal Care",
       icon: Zap,
       color: "from-yellow-500 to-orange-600",
       bgColor:
         "from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20",
-      conditions: t.services.categories.spinal.conditions,
-      description: "Specialized spinal treatments using Viddhakarma techniques",
+      conditions: [
+        "Sciatica",
+        "Back Pain",
+        "Disc Problems",
+        "Spinal Stenosis",
+        "Scoliosis",
+        "Neck Pain"
+      ],
+      description: "Comprehensive spinal care using traditional Ayurvedic methods.",
     },
     {
       id: "respiratory",
-      title: t.services.categories.respiratory.title,
+      title: t("services.respiratory"),
       icon: Wind,
       color: "from-cyan-500 to-blue-600",
       bgColor:
         "from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20",
-      conditions: t.services.categories.respiratory.conditions,
-      description: "Respiratory health through Pranayama and herbal treatments",
+      conditions: [
+        "Asthma",
+        "Bronchitis",
+        "Sinusitis",
+        "Allergic Rhinitis",
+        "Cough",
+        "Breathing Difficulties"
+      ],
+      description: t("services.respiratoryDesc"),
     },
     {
       id: "digestive",
-      title: t.services.categories.digestive.title,
-      icon: Stomach,
+      title: "Digestive Health",
+      icon: Heart,
       color: "from-green-500 to-emerald-600",
       bgColor:
         "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
-      conditions: t.services.categories.digestive.conditions,
-      description: "Complete digestive system care and detoxification",
+      conditions: [
+        "Acidity",
+        "Piles",
+        "Constipation",
+        "IBS",
+        "Ulcers",
+        "Digestive Disorders"
+      ],
+      description: t("services.digestiveDesc"),
     },
     {
       id: "kidneyGallbladder",
-      title: t.services.categories.kidneyGallbladder.title,
-      icon: Kidney,
+      title: t("services.kidneyStones"),
+      icon: Heart,
       color: "from-teal-500 to-cyan-600",
       bgColor:
         "from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20",
-      conditions: t.services.categories.kidneyGallbladder.conditions,
-      description: "Kidney and gallbladder stone treatment without surgery",
+      conditions: [
+        "Kidney Stones",
+        "Gallbladder Stones",
+        "Urinary Problems",
+        "Kidney Disorders",
+        "Bladder Issues",
+        "Stone Prevention"
+      ],
+      description: t("services.kidneyStonesDesc"),
     },
     {
       id: "skin",
-      title: t.services.categories.skin.title,
+      title: t("services.skinDiseases"),
       icon: Sparkles,
       color: "from-pink-500 to-rose-600",
       bgColor:
         "from-pink-50 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/20",
-      conditions: t.services.categories.skin.conditions,
-      description: "Natural skin treatments for lasting beauty and health",
+      conditions: [
+        "Psoriasis",
+        "Eczema",
+        "Fungal Infections",
+        "Acne",
+        "Vitiligo",
+        "Skin Allergies"
+      ],
+      description: t("services.skinDiseasesDesc"),
     },
     {
       id: "obesity",
-      title: t.services.categories.obesity.title,
+      title: "Weight Management",
       icon: Scale,
       color: "from-indigo-500 to-purple-600",
       bgColor:
         "from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20",
-      conditions: t.services.categories.obesity.conditions,
-      description: "Holistic weight management and metabolic correction",
+      conditions: [
+        "Obesity",
+        "Weight Loss",
+        "Metabolic Disorders",
+        "Thyroid Issues",
+        "Diabetes Management",
+        "Lifestyle Diseases"
+      ],
+      description: "Natural weight management and metabolic health solutions.",
     },
     {
       id: "metabolic",
-      title: t.services.categories.metabolic.title,
+      title: t("services.metabolic"),
       icon: Activity,
       color: "from-red-500 to-pink-600",
       bgColor:
         "from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20",
-      conditions: t.services.categories.metabolic.conditions,
-      description: "Diabetes and hormonal disorder management",
+      conditions: [
+        "Diabetes",
+        "Thyroid Disorders",
+        "Metabolic Syndrome",
+        "Cholesterol Issues",
+        "Blood Pressure",
+        "Hormonal Imbalances"
+      ],
+      description: t("services.metabolicDesc"),
     },
     {
       id: "stress",
-      title: t.services.categories.stress.title,
+      title: "Stress & Mental Health",
       icon: Heart,
       color: "from-emerald-500 to-teal-600",
       bgColor:
         "from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20",
-      conditions: t.services.categories.stress.conditions,
-      description: "Mental health and stress management through Ayurveda",
+      conditions: [
+        "Stress",
+        "Anxiety",
+        "Depression",
+        "Insomnia",
+        "Mental Fatigue",
+        "Emotional Balance"
+      ],
+      description: "Holistic approach to mental health and stress management.",
     },
     {
       id: "gynecological",
-      title: t.services.categories.gynecological.title,
+      title: t("services.gynecological"),
       icon: Baby,
       color: "from-violet-500 to-purple-600",
       bgColor:
         "from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20",
-      conditions: t.services.categories.gynecological.conditions,
-      description: "Women's health and fertility treatments",
+      conditions: [
+        "Menstrual Problems",
+        "Infertility",
+        "PCOS",
+        "Menopause",
+        "Pregnancy Care",
+        "Women's Health"
+      ],
+      description: t("services.gynecologicalDesc"),
     },
     {
       id: "hair",
-      title: t.services.categories.hair.title,
+      title: t("services.hairProblems"),
       icon: Scissors,
       color: "from-amber-500 to-orange-600",
       bgColor:
         "from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20",
-      conditions: t.services.categories.hair.conditions,
-      description: "Hair care and scalp treatments",
+      conditions: [
+        "Hair Fall",
+        "Dandruff",
+        "Scalp Disorders",
+        "Premature Greying",
+        "Hair Growth",
+        "Hair Care"
+      ],
+      description: t("services.hairProblemsDesc"),
     },
     {
       id: "panchakarma",
-      title: t.services.categories.panchakarma.title,
+      title: t("services.panchakarma"),
       icon: Droplets,
       color: "from-blue-500 to-cyan-600",
       bgColor:
         "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
-      conditions: t.services.categories.panchakarma.conditions,
-      description: "Complete detoxification and rejuvenation therapy",
+      conditions: [
+        "Detoxification",
+        "Rejuvenation",
+        "Preventive Care",
+        "Chronic Diseases",
+        "Stress Relief",
+        "Anti-aging"
+      ],
+      description: t("treatments.panchakarma.description"),
     },
     {
       id: "beauty",
-      title: t.services.categories.beauty.title,
+      title: t("services.beautyAntiAging"),
       icon: Star,
       color: "from-rose-500 to-pink-600",
       bgColor:
         "from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20",
-      conditions: t.services.categories.beauty.conditions,
-      description: "Natural beauty enhancement and anti-aging treatments",
+      conditions: [
+        "Anti-aging",
+        "Skin Rejuvenation",
+        "Beauty Treatments",
+        "Natural Glow",
+        "Youthful Skin",
+        "Beauty Care"
+      ],
+      description: t("services.beautyAntiAgingDesc"),
     },
     {
       id: "other",
-      title: t.services.categories.other.title,
+      title: "Other Conditions",
       icon: Plus,
       color: "from-gray-500 to-slate-600",
       bgColor:
         "from-gray-50 to-slate-50 dark:from-gray-900/20 dark:to-slate-900/20",
-      conditions: t.services.categories.other.conditions,
-      description: "Comprehensive care for chronic and lifestyle diseases",
+      conditions: [
+        "General Wellness",
+        "Immunity Boost",
+        "Energy Enhancement",
+        "Sleep Disorders",
+        "Chronic Fatigue",
+        "Custom Treatments"
+      ],
+      description: "Comprehensive care for various health conditions and general wellness.",
     },
   ];
 
@@ -192,14 +293,13 @@ const ComprehensiveServices = () => {
         <div className="text-center mb-16">
           <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800 mb-4">
             <Heart className="w-4 h-4 mr-2" />
-            {t.services.title}
+            {t("services.title")}
           </Badge>
           <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
-            {t.services.subtitle}
+            {t("services.subtitle")}
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Comprehensive Ayurvedic treatments for all health conditions with
-            proven results and personalized care.
+            {t("services.description")}
           </p>
         </div>
 
@@ -247,7 +347,7 @@ const ComprehensiveServices = () => {
                   <div className="space-y-2 mb-4">
                     {category.conditions
                       .slice(0, isSelected ? category.conditions.length : 3)
-                      .map((condition, index) => (
+                      .map((condition: string, index: number) => (
                         <div
                           key={index}
                           className="flex items-center space-x-2"
@@ -272,7 +372,7 @@ const ComprehensiveServices = () => {
                       onClick={() => window.open("tel:+919860370961", "_self")}
                     >
                       <Phone className="w-3 h-3 mr-1" />
-                      {t.common.freeConsultation}
+                      {t("common.bookAppointment")}
                     </Button>
                     <Button size="sm" variant="outline">
                       <Calendar className="w-3 h-3" />
@@ -288,11 +388,10 @@ const ComprehensiveServices = () => {
         <div className="text-center">
           <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-2xl p-8 border border-orange-200 dark:border-orange-800">
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Ready to Start Your Healing Journey?
+              {t("treatments.cta.title")}
             </h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Get personalized treatment recommendations from Dr. Chandrakumar
-              Deshmukh
+              {t("treatments.cta.subtitle")}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
@@ -301,16 +400,16 @@ const ComprehensiveServices = () => {
                 onClick={() => window.open("tel:+919860370961", "_self")}
               >
                 <Phone className="w-4 h-4 mr-2" />
-                {t.common.callNow}: +91-9860370961
+                {t("common.callNow")}: +91-9860370961
               </Button>
               <Button size="lg" variant="outline">
                 <Calendar className="w-4 h-4 mr-2" />
-                {t.common.freeConsultation}
+                {t("common.bookAppointment")}
               </Button>
             </div>
             <div className="text-center mt-4">
               <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800">
-                {t.common.noCharges} - Viddhakarma & Agnikarma
+                {t("common.noCharges")} - Viddhakarma & Agnikarma
               </Badge>
             </div>
           </div>

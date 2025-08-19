@@ -289,20 +289,3 @@ export interface Appointment {
   updatedAt: string;
 }
 
-// ===== EXPORT ALL TYPES =====
-
-export type {
-  Patient,
-  MedicalHistoryEntry,
-  VitalSigns,
-  LabResult,
-  PatientFilters,
-  PatientSearchResult,
-  CreatePatientData,
-  UpdatePatientData,
-  PatientStats,
-  MedicalRecord,
-  Prescription,
-  PrescriptionMedication,
-  Appointment
-};

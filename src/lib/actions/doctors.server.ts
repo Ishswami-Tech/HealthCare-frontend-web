@@ -152,7 +152,7 @@ export async function getDoctorAppointments(doctorId: string, filters?: {
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
   
@@ -171,7 +171,7 @@ export async function getDoctorPatients(clinicId: string, doctorId: string, filt
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
 
@@ -234,7 +234,7 @@ export async function searchDoctors(query: string, filters?: {
   const params = new URLSearchParams({ q: query });
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
   
@@ -252,7 +252,7 @@ export async function getDoctorPerformanceMetrics(doctorId: string, filters?: {
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
   
@@ -289,7 +289,7 @@ export async function getDoctorEarnings(doctorId: string, filters?: {
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
   

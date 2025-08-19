@@ -44,7 +44,6 @@ import {
   Droplets,
   Wind,
   CheckCircle,
-  AlertCircle,
   Info
 } from "lucide-react";
 
@@ -210,31 +209,7 @@ export default function PatientAppointments() {
     setShowBookingDialog(false);
   };
 
-  // Mock existing appointments
-  const existingAppointments = [
-    {
-      id: "1",
-      type: "Panchakarma Therapy",
-      doctor: "Dr. Priya Sharma",
-      date: "2024-01-22",
-      time: "10:00 AM",
-      status: "Confirmed",
-      isOnline: false,
-      duration: "90 min",
-      price: 2000
-    },
-    {
-      id: "2",
-      type: "Follow-up Consultation", 
-      doctor: "Dr. Amit Singh",
-      date: "2024-01-25",
-      time: "3:00 PM",
-      status: "Confirmed",
-      isOnline: true,
-      duration: "20 min",
-      price: 300
-    }
-  ];
+
 
   const sidebarLinks = getRoutesByRole(Role.PATIENT).map(route => ({
     ...route,

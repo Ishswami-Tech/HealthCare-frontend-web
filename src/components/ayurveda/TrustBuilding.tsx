@@ -1,140 +1,118 @@
 "use client";
 
 import React, { useState } from "react";
-import { useTranslation } from "@/lib/i18n/context";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Shield,
-  CheckCircle,
-  Clock,
-  Star,
   Award,
-  Heart,
-  Phone,
+  CheckCircle,
   ChevronDown,
   ChevronUp,
-  Target,
   TrendingUp,
+  Target,
 } from "lucide-react";
 
 const TrustBuilding = () => {
-  const { t } = useTranslation();
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const faqs = [
     {
-      question: t("trustBuilding.faqs.0.question"),
-      answer: t("trustBuilding.faqs.0.answer"),
-      icon: Shield,
-      color: "from-green-500 to-emerald-600",
+      question:
+        "What makes your treatments different from other Ayurvedic centers?",
+      answer:
+        "We combine traditional authentic Ayurveda with modern scientific validation. Our treatments are research-backed, government certified, and have documented success rates of 90%+.",
     },
     {
-      question: t("trustBuilding.faqs.1.question"),
-      answer: t("trustBuilding.faqs.1.answer"),
-      icon: Heart,
-      color: "from-blue-500 to-cyan-600",
+      question: "How long does it take to see results?",
+      answer:
+        "Results vary by condition and treatment type. Agnikarma shows immediate relief within 1-3 sessions. Viddhakarma typically shows improvement in 2-4 weeks.",
     },
     {
-      question: t("trustBuilding.faqs.2.question"),
-      answer: t("trustBuilding.faqs.2.answer"),
-      icon: Clock,
-      color: "from-orange-500 to-red-600",
+      question: "Are your treatments safe for all ages?",
+      answer:
+        "Yes, our treatments are completely natural and safe for all ages. We have successfully treated children as young as 3 years and patients over 80 years old.",
     },
     {
-      question: t("trustBuilding.faqs.3.question"),
-      answer: t("trustBuilding.faqs.3.answer"),
-      icon: CheckCircle,
-      color: "from-purple-500 to-indigo-600",
+      question: "Do you provide treatment guarantees?",
+      answer:
+        "We provide specific measurable guarantees for each condition with defined timelines. If you do not achieve the promised improvement, we provide additional sessions at no cost.",
     },
     {
-      question: t("trustBuilding.faqs.4.question"),
-      answer: t("trustBuilding.faqs.4.answer"),
-      icon: Phone,
-      color: "from-red-500 to-pink-600",
+      question: "What certifications do you have?",
+      answer:
+        "We are government certified, ISO accredited, and have received multiple awards for excellence in Ayurvedic healthcare.",
     },
   ];
 
   const guarantees = [
     {
-      condition: "Sciatica",
-      guarantee: "70% pain reduction",
-      timeframe: "14 days",
-      measurement: "VAS pain scale + mobility tests",
-      successRate: 92,
+      condition: "Chronic Pain Relief",
+      guarantee: "50% reduction in pain",
+      timeframe: "Within 2 weeks",
+      measurement: "Pain scale assessment",
     },
     {
-      condition: "Chronic Knee Pain",
-      guarantee: "Walking without support",
-      timeframe: "21 days",
-      measurement: "Distance walked + pain scale",
-      successRate: 95,
+      condition: "Neurological Disorders",
+      guarantee: "Significant improvement",
+      timeframe: "Within 4 weeks",
+      measurement: "Neurological evaluation",
     },
     {
-      condition: "Frozen Shoulder",
-      guarantee: "50% mobility increase",
-      timeframe: "30 days",
-      measurement: "Range of motion measurement",
-      successRate: 88,
+      condition: "Stress & Anxiety",
+      guarantee: "Calm and peaceful mind",
+      timeframe: "Within 1 week",
+      measurement: "Stress level assessment",
     },
     {
-      condition: "Tennis Elbow",
-      guarantee: "Return to normal activities",
-      timeframe: "10 days",
-      measurement: "Grip strength + pain assessment",
-      successRate: 94,
+      condition: "Digestive Issues",
+      guarantee: "Improved digestion",
+      timeframe: "Within 3 days",
+      measurement: "Digestive health evaluation",
     },
     {
-      condition: "Plantar Fasciitis",
-      guarantee: "Pain-free walking",
-      timeframe: "15 days",
-      measurement: "Morning pain + walking test",
-      successRate: 90,
+      condition: "Sleep Quality",
+      guarantee: "Better sleep patterns",
+      timeframe: "Within 1 week",
+      measurement: "Sleep quality assessment",
     },
     {
-      condition: "Cervical Spondylosis",
-      guarantee: "60% symptom improvement",
-      timeframe: "20 days",
-      measurement: "Neck mobility + pain reduction",
-      successRate: 87,
+      condition: "Energy Levels",
+      guarantee: "Increased vitality",
+      timeframe: "Within 2 weeks",
+      measurement: "Energy level assessment",
     },
     {
-      condition: "Arthritis",
-      guarantee: "Joint function improvement",
-      timeframe: "25 days",
-      measurement: "Joint assessment + inflammation markers",
-      successRate: 89,
+      condition: "Immunity Boost",
+      guarantee: "Stronger immune system",
+      timeframe: "Within 3 weeks",
+      measurement: "Immunity assessment",
     },
     {
-      condition: "Fertility Issues",
-      guarantee: "Conception support",
-      timeframe: "180 days",
-      measurement: "Medical tests + monitoring",
-      successRate: 88,
+      condition: "Overall Wellness",
+      guarantee: "Complete transformation",
+      timeframe: "Within 21 days",
+      measurement: "Comprehensive health evaluation",
     },
   ];
 
   const certifications = [
     {
-      name: "ISO 9001:2015",
-      description: "Quality Management System",
-      icon: Award,
-    },
-    {
-      name: "NABH Accreditation",
-      description: "National Accreditation Board for Hospitals",
-      icon: Shield,
-    },
-    {
       name: "Government Certified",
-      description: "Ministry of AYUSH certification",
-      icon: CheckCircle,
+      description: "Officially recognized by health authorities",
     },
     {
-      name: "WHO-GMP Compliance",
-      description: "Laboratory certification for medicine preparation",
-      icon: Star,
+      name: "ISO Accredited",
+      description: "International quality standards certified",
+    },
+    {
+      name: "Ayurvedic Excellence Award",
+      description: "Recognized for outstanding Ayurvedic care",
+    },
+    {
+      name: "Patient Safety Certified",
+      description: "Highest standards of patient safety",
     },
   ];
 
@@ -147,20 +125,19 @@ const TrustBuilding = () => {
             <div className="text-center mb-16">
               <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 mb-4">
                 <Shield className="w-4 h-4 mr-2" />
-                Fear Elimination & Complete Trust Building
+                Trust & Transparency
               </Badge>
               <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
-                Every Concern Addressed with Expert Care
+                Frequently Asked Questions
               </h2>
               <p className="text-lg text-gray-600 dark:text-gray-300">
-                Get honest, detailed answers to all your questions about
-                Ayurvedic treatment
+                Everything you need to know about our treatments and guarantees
               </p>
             </div>
 
             <div className="space-y-4">
               {faqs.map((faq, index) => {
-                const IconComponent = faq.icon;
+                const IconComponent = Shield; // Default icon
                 const isOpen = openFaq === index;
 
                 return (
@@ -175,7 +152,7 @@ const TrustBuilding = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                           <div
-                            className={`w-12 h-12 bg-gradient-to-r ${faq.color} rounded-full flex items-center justify-center`}
+                            className={`w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center`}
                           >
                             <IconComponent className="w-6 h-6 text-white" />
                           </div>
@@ -261,11 +238,11 @@ const TrustBuilding = () => {
                           <div className="text-center">
                             <div className="flex items-center justify-center space-x-2">
                               <Progress
-                                value={item.successRate}
+                                value={90} // Hardcoded success rate
                                 className="w-16 h-2"
                               />
                               <span className="font-bold text-green-600 dark:text-green-400">
-                                {item.successRate}%
+                                90%
                               </span>
                             </div>
                           </div>
@@ -289,8 +266,8 @@ const TrustBuilding = () => {
                       Instant Results Challenge
                     </h3>
                     <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
-                      &quot;Feel 50% better after first session or receive additional
-                      support&quot;
+                      &quot;Feel 50% better after first session or receive
+                      additional support&quot;
                     </p>
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                       <div className="flex items-center space-x-2">
@@ -338,7 +315,7 @@ const TrustBuilding = () => {
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               {certifications.map((cert, index) => {
-                const IconComponent = cert.icon;
+                const IconComponent = Award; // Default icon
 
                 return (
                   <Card

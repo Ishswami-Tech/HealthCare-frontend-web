@@ -29,25 +29,18 @@ import {
   User,
   LogOut,
   Save,
-  Phone,
-  Mail,
   MapPin,
   Camera,
-  Clock,
-  Award,
   Bell,
   Shield,
   Eye,
   EyeOff,
-  Edit,
-  Star,
   Heart,
   Leaf,
   Sun,
   Moon,
   Waves,
   AlertTriangle,
-  CheckCircle,
   Info,
   Download,
   Upload
@@ -140,13 +133,6 @@ export default function PatientProfile() {
     setProfileData(prev => ({
       ...prev,
       personalInfo: { ...prev.personalInfo, [field]: value }
-    }));
-  };
-
-  const updateAyurvedaProfile = (field: string, value: string) => {
-    setProfileData(prev => ({
-      ...prev,
-      ayurvedaProfile: { ...prev.ayurvedaProfile, [field]: value }
     }));
   };
 

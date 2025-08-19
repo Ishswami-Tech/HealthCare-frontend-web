@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { Role } from '@/types/auth.types';
 import { shouldRedirectToProfileCompletion } from '@/lib/profile';
-import createIntlMiddleware from 'next-intl/middleware';
-import { locales, defaultLocale } from '@/i18n/config';
+import { defaultLocale } from '@/i18n/config';
+// import createIntlMiddleware from 'next-intl/middleware';
+// import { locales, defaultLocale } from '@/i18n/config';
 
 // Define protected routes and their allowed roles
 const PROTECTED_ROUTES = {
@@ -85,15 +86,15 @@ function calculateProfileCompletionFromUserData(userData: Record<string, unknown
 }
 
 // Create the intl middleware
-const intlMiddleware = createIntlMiddleware({
-  locales,
-  defaultLocale,
-  localeDetection: false, // We'll handle locale detection manually via cookies
-});
+// Internationalization middleware configuration
+// const intlMiddleware = createIntlMiddleware({
+//   locales,
+//   defaultLocale,
+//   localeDetection: false, // We'll handle locale detection manually via cookies
+// });
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  console.log('Middleware - Processing request for:', pathname);
 
   // Skip middleware for static files and API routes
   if (
@@ -134,7 +135,6 @@ export async function middleware(request: NextRequest) {
 
   // Allow public routes
   if (PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))) {
-    console.log('Middleware - Public route, allowing access');
     return NextResponse.next();
   }
 
@@ -150,38 +150,32 @@ export async function middleware(request: NextRequest) {
 
   if (accessToken) {
     try {
-      const payload = JSON.parse(atob(accessToken.split('.')[1]));
-      userData = {
-        firstName: payload.firstName || '',
-        lastName: payload.lastName || '',
-        phone: payload.phone || '',
-        dateOfBirth: payload.dateOfBirth || '',
-        gender: payload.gender || '',
-        address: payload.address || '',
-      };
-    } catch (error) {
-      console.log('Middleware - Error parsing JWT token:', error);
+      const tokenParts = accessToken.split('.');
+      if (tokenParts.length >= 2 && tokenParts[1]) {
+        const payload = JSON.parse(atob(tokenParts[1]));
+        userData = {
+          firstName: payload.firstName || '',
+          lastName: payload.lastName || '',
+          phone: payload.phone || '',
+          dateOfBirth: payload.dateOfBirth || '',
+          gender: payload.gender || '',
+          address: payload.address || '',
+        };
+      }
+    } catch {
+      // Error parsing JWT token - continue without user data
     }
   }
 
-  console.log('Middleware - Auth check:', {
-    hasAccessToken: !!accessToken,
-    hasRefreshToken: !!refreshToken,
-    userRole,
-    pathname,
-    profileCompleteCookie: profileCompleteCookie,
-    userData: userData ? Object.keys(userData) : null
-  });
+
 
   // If no access token but has refresh token, let the app handle the refresh
   if (!accessToken && refreshToken) {
-    console.log('Middleware - No access token but has refresh token, allowing request');
     return NextResponse.next();
   }
 
   // If no tokens at all, redirect to login
   if (!accessToken && !refreshToken) {
-    console.log('Middleware - No auth tokens, redirecting to login');
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('from', pathname);
     return NextResponse.redirect(loginUrl);
@@ -189,13 +183,11 @@ export async function middleware(request: NextRequest) {
 
   // If we have access token but no role, allow the request and let the app handle it
   if (accessToken && !userRole) {
-    console.log('Middleware - Has access token but no role, allowing request');
     return NextResponse.next();
   }
 
   // Check if this is an auth-only route (requires auth but not profile completion)
   if (AUTH_ONLY_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))) {
-    console.log('Middleware - Auth-only route, allowing access');
     return NextResponse.next();
   }
 
@@ -207,24 +199,8 @@ export async function middleware(request: NextRequest) {
   const profileComplete = profileCompleteFromCookie || profileCompleteFromUserData;
   
   const shouldRedirect = shouldRedirectToProfileCompletion(!!accessToken, profileComplete, pathname);
-  console.log('Middleware - Profile completion check:', {
-    isAuthenticated: !!accessToken,
-    profileComplete,
-    profileCompleteFromCookie,
-    profileCompleteFromUserData,
-    currentPath: pathname,
-    shouldRedirect,
-    functionResult: shouldRedirectToProfileCompletion(!!accessToken, profileComplete, pathname)
-  });
 
   if (shouldRedirect) {
-    console.log('Middleware - Profile not complete, redirecting to profile completion');
-    console.log('Middleware - Profile completion details:', {
-      isAuthenticated: !!accessToken,
-      profileComplete,
-      currentPath: pathname,
-      shouldRedirect: shouldRedirectToProfileCompletion(!!accessToken, profileComplete, pathname)
-    });
     const profileCompletionUrl = new URL('/profile-completion', request.url);
     profileCompletionUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(profileCompletionUrl);
@@ -237,22 +213,15 @@ export async function middleware(request: NextRequest) {
 
   if (matchedRoute && userRole) {
     const [, allowedRoles] = matchedRoute;
-    console.log('Middleware - Checking role access:', {
-      userRole,
-      allowedRoles,
-      hasAccess: allowedRoles.includes(userRole)
-    });
 
     if (!allowedRoles.includes(userRole)) {
       // Redirect to appropriate dashboard based on role
-      console.log('Middleware - Invalid role, redirecting to appropriate dashboard');
       const dashboardUrl = new URL(`/${userRole.toLowerCase()}/dashboard`, request.url);
       return NextResponse.redirect(dashboardUrl);
     }
   }
 
   // Allow the request
-  console.log('Middleware - Access granted');
   return NextResponse.next();
 }
 
@@ -268,4 +237,4 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}; 
+};

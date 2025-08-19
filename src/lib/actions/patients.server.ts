@@ -122,7 +122,7 @@ export async function getPatientAppointments(patientId: string, filters?: {
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
   
@@ -143,7 +143,7 @@ export async function getPatientMedicalHistory(clinicId: string, patientId: stri
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
 
@@ -181,7 +181,7 @@ export async function getPatientVitalSigns(patientId: string, filters?: {
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
   
@@ -226,7 +226,7 @@ export async function getPatientLabResults(patientId: string, filters?: {
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
   
@@ -279,7 +279,7 @@ export async function searchPatients(query: string, filters?: {
   const params = new URLSearchParams({ q: query });
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value) params.append(key, String(value));
     });
   }
   
@@ -303,7 +303,7 @@ export async function getPatientTimeline(patientId: string, filters?: {
     }
     Object.entries(filters).forEach(([key, value]) => {
       if (key !== 'eventTypes' && value) {
-        params.append(key, Array.isArray(value) ? value.join(',') : value);
+        params.append(key, Array.isArray(value) ? value.join(',') : String(value));
       }
     });
   }

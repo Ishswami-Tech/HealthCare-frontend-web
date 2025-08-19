@@ -1,8 +1,6 @@
 "use client";
 
 import React, { Suspense, lazy } from 'react';
-import { motion } from 'motion/react';
-import { LoadingAnimation } from './animated-wrapper';
 
 interface LazySectionProps {
   children: React.ReactNode;
@@ -28,7 +26,7 @@ export const LazySection: React.FC<LazySectionProps> = ({
   React.useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !hasLoaded) {
+        if (entry?.isIntersecting && !hasLoaded) {
           setIsVisible(true);
           setHasLoaded(true);
           observer.disconnect();

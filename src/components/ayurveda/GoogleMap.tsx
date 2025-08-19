@@ -14,18 +14,17 @@ import {
   Train,
   Bus,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 
 const GoogleMap = () => {
-  const t = useTranslations();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
 
   // Clinic coordinates for Chinchwad location
   const clinicLocation = {
     lat: 18.6298,
     lng: 73.7997,
-    address:
-      "Dr. Chandrakumar Deshmukh, Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra 411033, India",
+    address: t("clinic.address"),
   };
 
   const handleGetDirections = () => {
@@ -40,41 +39,17 @@ const GoogleMap = () => {
   };
 
   const transportOptions = [
-    {
-      icon: Car,
-      title: "By Car",
-      description: "Free parking available",
-      time: "Varies by location",
-    },
-    {
-      icon: Bus,
-      title: "By Bus",
-      description: "Multiple bus routes available",
-      time: "PMPML Bus Service",
-    },
-    {
-      icon: Train,
-      title: "By Train",
-      description: "Chinchwad Railway Station",
-      time: "2 km from station",
-    },
+    {      icon: Car,      title: "By Car",      description: "Direct route via Pune-Mumbai Highway",      time: "15-20 minutes",    },
+    {      icon: Bus,      title: "By Bus",      description: "Regular bus service from Pune city",      time: "30-45 minutes",    },    {      icon: Train,      title: "By Train",      description: "Nearest station: Chinchwad Railway Station",      time: "10-15 minutes",    },
   ];
 
   return (
     <section className="py-20 bg-white dark:bg-gray-900">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 mb-4">
-            <MapPin className="w-4 h-4 mr-2" />
-            Find Us
-          </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
-            Visit Our Clinic
-          </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Located in the heart of Chinchwad, easily accessible by all modes of
-            transport
-          </p>
+          <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 mb-4">            <MapPin className="w-4 h-4 mr-2" />            Find Us          </Badge>
+          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">            Our Location          </h2>
+          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">            Visit our clinic for personalized Ayurvedic care and treatments          </p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
@@ -82,10 +57,7 @@ const GoogleMap = () => {
           <div className="lg:col-span-2">
             <Card className="bg-white dark:bg-gray-800 shadow-xl border-0 overflow-hidden">
               <CardHeader>
-                <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
-                  <MapPin className="w-5 h-5 mr-2" />
-                  Clinic Location
-                </CardTitle>
+                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">                  <MapPin className="w-5 h-5 mr-2" />                  Clinic Location                </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="relative h-96 bg-gray-100 dark:bg-gray-700">
@@ -107,9 +79,7 @@ const GoogleMap = () => {
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700">
                       <div className="text-center">
                         <div className="w-8 h-8 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                        <p className="text-gray-600 dark:text-gray-400">
-                          Loading map...
-                        </p>
+                        <p className="text-gray-600 dark:text-gray-400">                          Loading map...                        </p>
                       </div>
                     </div>
                   )}
@@ -122,7 +92,7 @@ const GoogleMap = () => {
                       className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
                     >
                       <Navigation className="w-4 h-4 mr-2" />
-                      {t.common.getDirections}
+                      Get Directions
                     </Button>
                     <Button
                       variant="outline"
@@ -135,8 +105,7 @@ const GoogleMap = () => {
                         )
                       }
                     >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Open in Maps
+                      <ExternalLink className="w-4 h-4 mr-2" />                      Open in Maps
                     </Button>
                   </div>
                 </div>
@@ -149,20 +118,17 @@ const GoogleMap = () => {
             {/* Contact Card */}
             <Card className="bg-white dark:bg-gray-800 shadow-xl border-0">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                  <Phone className="w-5 h-5 mr-2" />
-                  Contact Information
-                </CardTitle>
+                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">                  <Phone className="w-5 h-5 mr-2" />                  Contact Information                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-start space-x-3">
                   <MapPin className="w-5 h-5 text-orange-500 dark:text-orange-400 mt-1 flex-shrink-0" />
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">
-                      {t.contact.location}
+                      Address
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                      {t.contact.address}
+                      {t("clinic.address")}
                     </p>
                   </div>
                 </div>
@@ -170,11 +136,9 @@ const GoogleMap = () => {
                 <div className="flex items-center space-x-3">
                   <Phone className="w-5 h-5 text-green-500 dark:text-green-400 flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      Phone Numbers
-                    </p>
+                    <p className="font-medium text-gray-900 dark:text-white">                      Phone Numbers                    </p>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                      {t.contact.phone}
+                      {t("clinic.phone")}
                     </p>
                   </div>
                 </div>
@@ -183,13 +147,11 @@ const GoogleMap = () => {
                   <Clock className="w-5 h-5 text-blue-500 dark:text-blue-400 flex-shrink-0" />
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">
-                      {t.contact.opdTiming}
+                      OPD Timing
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                      Mon-Fri: 11:45 AM – 11:30 PM
-                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">                      {t("clinic.mondayToFriday")}                    </p>
                     <p className="text-sm text-red-500 dark:text-red-400">
-                      Sat-Sun: {t.contact.closed}
+                      {t("clinic.weekends")}: {t("clinic.closed")}
                     </p>
                   </div>
                 </div>
@@ -200,7 +162,7 @@ const GoogleMap = () => {
                     className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                   >
                     <Phone className="w-4 h-4 mr-2" />
-                    {t.common.callNow}: 9860370961
+                    Call Now
                   </Button>
                 </div>
               </CardContent>
@@ -209,10 +171,7 @@ const GoogleMap = () => {
             {/* Transport Options */}
             <Card className="bg-white dark:bg-gray-800 shadow-xl border-0">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                  <Car className="w-5 h-5 mr-2" />
-                  How to Reach
-                </CardTitle>
+                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">                  <Car className="w-5 h-5 mr-2" />                  How to Reach                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -243,10 +202,7 @@ const GoogleMap = () => {
                 </div>
 
                 <div className="mt-6 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                  <p className="text-sm text-orange-800 dark:text-orange-200 flex items-center">
-                    <MapPin className="w-4 h-4 mr-2" />
-                    Free parking available for patients
-                  </p>
+                  <p className="text-sm text-orange-800 dark:text-orange-200 flex items-center">                    <MapPin className="w-4 h-4 mr-2" />                    Free parking available                  </p>
                 </div>
               </CardContent>
             </Card>

@@ -32,10 +32,7 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(defaultTheme);
   const [actualTheme, setActualTheme] = useState<"light" | "dark">("light");
-  const [mounted, setMounted] = useState(false);
-
   useEffect(() => {
-    setMounted(true);
     // Load saved theme from localStorage
     const savedTheme = localStorage.getItem("theme") as Theme;
     if (savedTheme) {

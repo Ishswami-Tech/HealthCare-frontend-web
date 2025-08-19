@@ -18,105 +18,108 @@ import {
   Users,
   Award,
 } from "lucide-react";
-import { useTranslation } from "@/lib/i18n/context";
 
 const SpecialtyTreatments = () => {
-  const { t } = useTranslation();
-
   const specialties = [
     {
       id: "viddhakarma-autism",
-      title: t.specialties.viddhakarmaAutism.title,
-      description: t.specialties.viddhakarmaAutism.description,
+      title: "Autism Treatment",
+      description:
+        "Specialized Viddhakarma treatment for autism spectrum disorders with proven results in improving communication and social skills.",
       icon: Brain,
       color: "from-purple-500 to-indigo-600",
       bgColor:
         "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
       features: [
-        "Unique brain disorder treatment",
-        "Accurate precision required",
-        "Few specialists available in India",
-        "Proven results in autism care",
+        "Unique energy restoration technique",
+        "Improves communication skills",
+        "Enhances social interaction",
+        "Shows results in 2-4 weeks",
       ],
       stats: { patients: "200+", successRate: "85%", experience: "15 years" },
     },
     {
       id: "viddhakarma-cp",
-      title: t.specialties.viddhakarmaCP.title,
-      description: t.specialties.viddhakarmaCP.description,
+      title: "Cerebral Palsy Care",
+      description:
+        "Comprehensive treatment approach for cerebral palsy using Viddhakarma techniques to improve mobility and quality of life.",
       icon: Heart,
       color: "from-red-500 to-pink-600",
       bgColor:
         "from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20",
       features: [
-        "Birth brain injury treatment",
-        "Regeneration possible",
-        "Rehabilitation support",
-        "Hope for recovery",
+        "Improves motor skills",
+        "Enhances coordination",
+        "Reduces spasticity",
+        "Better quality of life",
       ],
       stats: { patients: "150+", successRate: "78%", experience: "12 years" },
     },
     {
       id: "mental-health",
-      title: t.specialties.mentalHealth.title,
-      description: t.specialties.mentalHealth.description,
+      title: "Mental Health Disorders",
+      description:
+        "Holistic treatment for various mental health conditions including anxiety, depression, and stress-related disorders.",
       icon: Zap,
       color: "from-green-500 to-emerald-600",
       bgColor:
         "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
       features: [
-        "Holistic mental health approach",
-        "Counseling and therapy",
-        "Mind-body wellness",
-        "Optimal well-being focus",
+        "Natural healing approach",
+        "Addresses root causes",
+        "No side effects",
+        "Long-lasting results",
       ],
       stats: { patients: "500+", successRate: "90%", experience: "20 years" },
     },
     {
       id: "panchakarma-special",
-      title: t.specialties.panchakarmaSpecial.title,
-      description: t.specialties.panchakarmaSpecial.description,
+      title: "Panchakarma Therapies",
+      description:
+        "Complete detoxification and rejuvenation through five traditional cleansing procedures for overall wellness.",
       icon: Droplets,
       color: "from-blue-500 to-cyan-600",
       bgColor:
         "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
       features: [
-        "Specialized for children",
-        "Expert Vaman procedures",
-        "Difficult patient care",
-        "Mastery in Panchakarma",
+        "Deep detoxification",
+        "Improved immunity",
+        "Mental clarity",
+        "Stress relief",
       ],
       stats: { patients: "1000+", successRate: "95%", experience: "20 years" },
     },
     {
       id: "affordability",
-      title: t.specialties.affordability.title,
-      description: t.specialties.affordability.description,
+      title: "Affordable Care",
+      description:
+        "We believe in making authentic Ayurvedic treatments accessible to everyone without compromising on quality.",
       icon: DollarSign,
       color: "from-orange-500 to-red-600",
       bgColor:
         "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
       features: [
-        "No daily treatment charges",
-        "Accessible healthcare",
-        "Quality for everyone",
-        "Community service focus",
+        "Transparent pricing",
+        "No hidden costs",
+        "Payment plans available",
+        "Quality care guarantee",
       ],
-      stats: { patients: "Free", successRate: "100%", experience: "Always" },
+      stats: { patients: "5000+", successRate: "95%", experience: "20 years" },
     },
     {
       id: "wellness-retreats",
-      title: t.specialties.wellnessRetreats.title,
-      description: t.specialties.wellnessRetreats.description,
+      title: "Wellness Retreats",
+      description:
+        "Comprehensive wellness programs that combine traditional treatments with modern comfort for complete health rejuvenation.",
       icon: Mountain,
       color: "from-teal-500 to-cyan-600",
       bgColor:
         "from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20",
       features: [
-        "Stress relief programs",
-        "Nature immersion",
-        "Healthy food focus",
-        "Transformative experiences",
+        "Comprehensive programs",
+        "Modern amenities",
+        "Expert guidance",
+        "Complete transformation",
       ],
       stats: { patients: "50+", successRate: "98%", experience: "5 years" },
     },
@@ -128,14 +131,15 @@ const SpecialtyTreatments = () => {
         <div className="text-center mb-16">
           <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800 mb-4">
             <Star className="w-4 h-4 mr-2" />
-            Specialty Treatments
+            Our Specialties
           </Badge>
           <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
-            Unique Ayurvedic Specializations
+            Specialized Treatments
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Pioneering treatments and specialized care that sets us apart in the
-            field of Ayurvedic medicine
+            Experience the power of authentic Ayurvedic treatments, each
+            designed to address specific health challenges with proven results
+            and lasting transformation.
           </p>
         </div>
 
@@ -174,7 +178,7 @@ const SpecialtyTreatments = () => {
                   {/* Key Features */}
                   <div className="mb-6">
                     <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
-                      Key Features:
+                      Key Features
                     </h4>
                     <div className="grid grid-cols-1 gap-2">
                       {specialty.features.map((feature, index) => (
@@ -251,13 +255,12 @@ const SpecialtyTreatments = () => {
                   <Award className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                  Experience Specialized Ayurvedic Care
+                  Ready to Start Your Healing Journey?
                 </h3>
                 <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
-                  Join thousands who have experienced the unique healing power
-                  of our specialized treatments. Dr. Chandrakumar
-                  Deshmukh&apos;s expertise in rare Ayurvedic techniques offers
-                  hope where conventional medicine falls short.
+                  Take the first step towards complete wellness with our proven
+                  Ayurvedic treatments. Our expert team is here to guide you
+                  every step of the way.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button
@@ -266,11 +269,11 @@ const SpecialtyTreatments = () => {
                     onClick={() => window.open("tel:+919860370961", "_self")}
                   >
                     <Phone className="w-4 h-4 mr-2" />
-                    Call for Specialized Consultation
+                    Call for Consultation
                   </Button>
                   <Button size="lg" variant="outline">
                     <Users className="w-4 h-4 mr-2" />
-                    Join Wellness Retreat
+                    Join Retreat
                   </Button>
                 </div>
               </div>

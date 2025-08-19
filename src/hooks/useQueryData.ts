@@ -27,6 +27,7 @@ export const useQueryData = <
     isPending,  // True if the query is in a pending state (loading first time)
     isFetched,  // True if the query has been fetched at least once
     isFetching, // True if the query is currently fetching (including background updates)
+    error,      // Error object if query failed
     refetch     // Function to manually trigger a refetch
   } = useQuery({
     queryKey,
@@ -39,6 +40,7 @@ export const useQueryData = <
     isPending,  // Loading state for first fetch
     isFetched,  // Whether data has been fetched
     isFetching, // Current loading state
+    error,      // Error object if query failed
     refetch     // Manual refetch trigger
   };
 };

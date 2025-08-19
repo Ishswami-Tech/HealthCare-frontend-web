@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,7 +13,6 @@ import {
   Video,
   Phone,
   User,
-  MoreHorizontal,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -278,8 +277,8 @@ interface AppointmentListProps {
 
 export function AppointmentList({
   appointments,
-  showPatient,
-  showDoctor,
+  showPatient = false,
+  showDoctor = true,
   onReschedule,
   onCancel,
   onJoin,
@@ -306,11 +305,9 @@ export function AppointmentList({
           appointment={appointment}
           showPatient={showPatient}
           showDoctor={showDoctor}
-          onReschedule={
-            onReschedule ? () => onReschedule(appointment.id) : undefined
-          }
-          onCancel={onCancel ? () => onCancel(appointment.id) : undefined}
-          onJoin={onJoin ? () => onJoin(appointment.id) : undefined}
+          {...(onReschedule && { onReschedule: () => onReschedule(appointment.id) })}
+          {...(onCancel && { onCancel: () => onCancel(appointment.id) })}
+          {...(onJoin && { onJoin: () => onJoin(appointment.id) })}
         />
       ))}
     </div>

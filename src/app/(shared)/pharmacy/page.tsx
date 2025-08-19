@@ -17,17 +17,9 @@ import {
   usePrescriptions,
   useInventory,
   usePharmacyStats,
-  usePharmacySales,
-  useCreateMedicine,
-  useUpdateMedicine,
-  useCreatePrescription,
-  useDispensePrescription,
-  useSearchMedicines,
-  useExportPharmacyData,
 } from "@/hooks/usePharmacy";
 import { useClinicContext } from "@/hooks/useClinic";
 import { usePharmacyPermissions } from "@/hooks/useRBAC";
-import { usePharmacyActions } from "@/stores";
 import {
   Pill,
   Search,
@@ -68,7 +60,7 @@ export default function PharmacySystem() {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Determine user role and setup appropriate sidebar
-  const userRole = user?.role || Role.DOCTOR;
+  const userRole = (user?.role as Role) || Role.DOCTOR;
 
   // RBAC permissions
   const pharmacyPermissions = usePharmacyPermissions();
@@ -76,8 +68,6 @@ export default function PharmacySystem() {
   // Clinic context
   const { clinicId } = useClinicContext();
 
-  // Zustand store actions
-  const pharmacyActions = usePharmacyActions();
 
   // Fetch medicines data with proper permissions using clinic-aware approach
   const {
@@ -91,14 +81,14 @@ export default function PharmacySystem() {
   });
 
   // Fetch prescriptions
-  const { data: prescriptions, isPending: prescriptionsLoading } =
+  const { data: prescriptions } =
     usePrescriptions(clinicId || "", {
       limit: 20,
       enabled: !!clinicId && pharmacyPermissions.canManagePrescriptions,
     });
 
   // Fetch inventory data
-  const { data: inventory, isPending: inventoryLoading } = useInventory(
+  useInventory(
     clinicId || "",
     {
       lowStock: true,
@@ -110,102 +100,34 @@ export default function PharmacySystem() {
   // Fetch pharmacy statistics
   const { data: realPharmacyStats } = usePharmacyStats(clinicId || "", "day");
 
-  // Fetch sales data
-  const { data: salesData } = usePharmacySales(clinicId || "", {
-    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    endDate: new Date().toISOString(),
-    enabled: !!clinicId && pharmacyPermissions.canViewPharmacy,
-  });
 
-  // Mutation hooks
-  const createMedicineMutation = useCreateMedicine();
-  const updateMedicineMutation = useUpdateMedicine();
-  const createPrescriptionMutation = useCreatePrescription();
-  const dispensePrescriptionMutation = useDispensePrescription();
-  const searchMedicinesMutation = useSearchMedicines();
-  const exportPharmacyDataMutation = useExportPharmacyData();
 
   // Calculate pharmacy stats from real data
   const pharmacyStats = {
-    totalMedicines: medicines?.length || 0,
+    totalMedicines: (medicines as any)?.length || 0,
     inStock:
-      medicines?.filter((med) => med.stockQuantity > med.minStockLevel)
-        .length || 0,
+      (medicines as any)?.filter((med: any) => med.stockQuantity > med.minStockLevel)
+        ?.length || 0,
     lowStock:
-      medicines?.filter(
-        (med) => med.stockQuantity <= med.minStockLevel && med.stockQuantity > 0
-      ).length || 0,
-    outOfStock: medicines?.filter((med) => med.stockQuantity === 0).length || 0,
+      (medicines as any)?.filter(
+        (med: any) => med.stockQuantity <= med.minStockLevel && med.stockQuantity > 0
+      )?.length || 0,
+    outOfStock: (medicines as any)?.filter((med: any) => med.stockQuantity === 0)?.length || 0,
     todaysOrders:
-      prescriptions?.filter((p) => {
+      (prescriptions as any)?.filter((p: any) => {
         const today = new Date().toDateString();
         const prescDate = new Date(p.createdAt).toDateString();
         return today === prescDate;
-      }).length || 0,
+      })?.length || 0,
     pendingDeliveries:
-      prescriptions?.filter((p) => p.status === "PENDING").length || 0,
-    totalRevenue: realPharmacyStats?.totalRevenue || 0,
-    topSelling: realPharmacyStats?.topSellingMedicine || "N/A",
+      (prescriptions as any)?.filter((p: any) => p.status === "PENDING")?.length || 0,
+    totalRevenue: (realPharmacyStats as any)?.totalRevenue || 0,
+    topSelling: (realPharmacyStats as any)?.topSellingMedicine || "N/A",
   };
 
-  // Action handlers
-  const handleSearchMedicines = async (query: string) => {
-    if (!query.trim()) return;
-    try {
-      searchMedicinesMutation.mutate({
-        query,
-        filters: { limit: 20, inStock: true },
-      });
-    } catch (error) {
-      console.error("Failed to search medicines:", error);
-    }
-  };
 
-  const handleCreateMedicine = async (medicineData: any) => {
-    if (!pharmacyPermissions.canManageMedicines) return;
-    try {
-      createMedicineMutation.mutate(medicineData);
-      pharmacyActions.addMedicine(medicineData);
-      refetchMedicines();
-    } catch (error) {
-      console.error("Failed to create medicine:", error);
-    }
-  };
 
-  const handleDispensePrescription = async (
-    prescriptionId: string,
-    dispensingData: any
-  ) => {
-    if (!pharmacyPermissions.canDispenseMedicines) return;
-    try {
-      dispensePrescriptionMutation.mutate({
-        prescriptionId,
-        dispensingData: {
-          ...dispensingData,
-          pharmacistId: user?.id || "",
-        },
-      });
-    } catch (error) {
-      console.error("Failed to dispense prescription:", error);
-    }
-  };
 
-  const handleExportData = async (type: string, format: string) => {
-    if (!pharmacyPermissions.canManageMedicines || !clinicId) return;
-    try {
-      exportPharmacyDataMutation.mutate({
-        clinicId,
-        type: type as any,
-        format: format as any,
-        startDate: new Date(
-          Date.now() - 30 * 24 * 60 * 60 * 1000
-        ).toISOString(),
-        endDate: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("Failed to export data:", error);
-    }
-  };
 
   // Show loading state
   if (medicinesLoading) {
@@ -247,7 +169,7 @@ export default function PharmacySystem() {
   }
 
   // Transform medicines data for display
-  const ayurvedicMedicines = medicines?.slice(0, 10).map((medicine) => ({
+  const ayurvedicMedicines = (medicines as any)?.slice(0, 10)?.map((medicine: any) => ({
     id: medicine.id,
     name: medicine.name,
     category: medicine.category,
@@ -470,12 +392,14 @@ export default function PharmacySystem() {
   sidebarLinks.push({
     label: "Pharmacy System",
     href: "/pharmacy",
+    path: "/pharmacy",
     icon: <Pill className="w-5 h-5" />,
   });
 
   sidebarLinks.push({
     label: "Logout",
     href: "/auth/login",
+    path: "/auth/login",
     icon: <LogOut className="w-5 h-5" />,
   });
 
@@ -488,7 +412,7 @@ export default function PharmacySystem() {
             user?.name ||
             `${user?.firstName} ${user?.lastName}` ||
             "Healthcare Professional",
-          avatarUrl: user?.profilePicture,
+          ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
         }}
       >
         <div className="p-6 space-y-6">
@@ -612,7 +536,7 @@ export default function PharmacySystem() {
                     </div>
 
                     <div className="grid gap-4">
-                      {ayurvedicMedicines.map((medicine) => (
+                      {ayurvedicMedicines?.map((medicine: any) => (
                         <div
                           key={medicine.id}
                           className="p-4 border rounded-lg hover:bg-gray-50"

@@ -3,6 +3,7 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/context";
 import {
   Flame,
   Droplets,
@@ -37,80 +38,80 @@ interface TherapyBadgeProps {
 
 const THERAPY_CONFIG = {
   AGNIKARMA: {
-    label: "Agnikarma",
-    description: "Thermal Cautery Therapy",
+    label: "therapies.agnikarma.name",
+    description: "therapies.agnikarma.description",
     icon: Flame,
     color:
       "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800",
     iconColor: "text-orange-600 dark:text-orange-400",
   },
   VIDDHAKARMA: {
-    label: "Viddhakarma",
-    description: "Surgical Procedures",
+    label: "therapies.viddhakarma.name",
+    description: "therapies.viddhakarma.description",
     icon: Zap,
     color:
       "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800",
     iconColor: "text-red-600 dark:text-red-400",
   },
   PANCHAKARMA: {
-    label: "Panchakarma",
-    description: "Five-Action Detox",
+    label: "therapies.panchakarma.name",
+    description: "therapies.panchakarma.description",
     icon: Droplets,
     color:
       "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800",
     iconColor: "text-blue-600 dark:text-blue-400",
   },
   SHIRODHARA: {
-    label: "Shirodhara",
-    description: "Oil Pouring Therapy",
+    label: "therapies.shirodhara.name",
+    description: "therapies.shirodhara.description",
     icon: Leaf,
     color:
       "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800",
     iconColor: "text-green-600 dark:text-green-400",
   },
   CONSULTATION: {
-    label: "Consultation",
-    description: "General Consultation",
+    label: "therapies.consultation.name",
+    description: "therapies.consultation.description",
     icon: Stethoscope,
     color:
       "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700",
     iconColor: "text-gray-600 dark:text-gray-400",
   },
   NADI_PARIKSHA: {
-    label: "Nadi Pariksha",
-    description: "Pulse Diagnosis",
+    label: "therapies.nadiPariksha.name",
+    description: "therapies.nadiPariksha.description",
     icon: Wind,
     color:
       "bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800",
     iconColor: "text-purple-600 dark:text-purple-400",
   },
   ABHYANGA: {
-    label: "Abhyanga",
-    description: "Oil Massage Therapy",
+    label: "therapies.abhyanga.name",
+    description: "therapies.abhyanga.description",
     icon: Sun,
     color:
       "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
     iconColor: "text-yellow-600 dark:text-yellow-400",
   },
   SWEDANA: {
-    label: "Swedana",
-    description: "Steam Therapy",
+    label: "therapies.swedana.name",
+    description: "therapies.swedana.description",
     icon: Droplets,
     color:
       "bg-cyan-100 dark:bg-cyan-900/20 text-cyan-800 dark:text-cyan-200 border-cyan-200 dark:border-cyan-800",
     iconColor: "text-cyan-600 dark:text-cyan-400",
   },
   VIRECHANA: {
-    label: "Virechana",
-    description: "Purgation Therapy",
+    label: "therapies.virechana.name",
+    description: "therapies.virechana.description",
     icon: Leaf,
     color:
       "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800",
     iconColor: "text-emerald-600 dark:text-emerald-400",
   },
   BASTI: {
-    label: "Basti",
-    description: "Enema Therapy",
+    label: "therapies.basti.name",
+    description: "therapies.basti.description",
     icon: Moon,
     color:
       "bg-indigo-100 dark:bg-indigo-900/20 text-indigo-800 dark:text-indigo-200 border-indigo-200 dark:border-indigo-800",
@@ -125,13 +126,14 @@ export default function TherapyBadge({
   showIcon = true,
   className,
 }: TherapyBadgeProps) {
+  const { t } = useTranslation();
   const config = THERAPY_CONFIG[type];
   const Icon = config.icon;
 
   if (!config) {
     return (
       <Badge variant={variant} className={className}>
-        Unknown Therapy
+        {t("therapies.unknown")}
       </Badge>
     );
   }
@@ -157,7 +159,7 @@ export default function TherapyBadge({
         "inline-flex items-center gap-1.5 font-medium border",
         className
       )}
-      title={config.description}
+      title={t(config.description)}
     >
       {showIcon && (
         <Icon
@@ -167,7 +169,7 @@ export default function TherapyBadge({
           )}
         />
       )}
-      {config.label}
+      {t(config.label)}
     </Badge>
   );
 }
@@ -208,37 +210,37 @@ export function TherapySelect({
 }
 
 // Helper function to get therapy duration
-export function getTherapyDuration(type: TherapyType): number {
-  const durations: Record<TherapyType, number> = {
-    CONSULTATION: 30,
-    NADI_PARIKSHA: 15,
-    AGNIKARMA: 45,
-    VIDDHAKARMA: 60,
-    PANCHAKARMA: 120,
-    SHIRODHARA: 60,
-    ABHYANGA: 45,
-    SWEDANA: 30,
-    VIRECHANA: 90,
-    BASTI: 45,
+export function getTherapyDuration(type: TherapyType): string {
+  const durations: Record<TherapyType, string> = {
+    CONSULTATION: "therapies.durations.consultation",
+    NADI_PARIKSHA: "therapies.durations.nadiPariksha",
+    AGNIKARMA: "therapies.durations.agnikarma",
+    VIDDHAKARMA: "therapies.durations.viddhakarma",
+    PANCHAKARMA: "therapies.durations.panchakarma",
+    SHIRODHARA: "therapies.durations.shirodhara",
+    ABHYANGA: "therapies.durations.abhyanga",
+    SWEDANA: "therapies.durations.swedana",
+    VIRECHANA: "therapies.durations.virechana",
+    BASTI: "therapies.durations.basti",
   };
 
-  return durations[type] || 30;
+  return durations[type] || "therapies.durations.default";
 }
 
 // Helper function to get therapy category
 export function getTherapyCategory(type: TherapyType): string {
   const categories: Record<TherapyType, string> = {
-    CONSULTATION: "Diagnosis",
-    NADI_PARIKSHA: "Diagnosis",
-    AGNIKARMA: "Surgical",
-    VIDDHAKARMA: "Surgical",
-    PANCHAKARMA: "Detox",
-    SHIRODHARA: "Relaxation",
-    ABHYANGA: "Massage",
-    SWEDANA: "Steam",
-    VIRECHANA: "Detox",
-    BASTI: "Detox",
+    CONSULTATION: "therapies.categories.diagnosis",
+    NADI_PARIKSHA: "therapies.categories.diagnosis",
+    AGNIKARMA: "therapies.categories.surgical",
+    VIDDHAKARMA: "therapies.categories.surgical",
+    PANCHAKARMA: "therapies.categories.detox",
+    SHIRODHARA: "therapies.categories.relaxation",
+    ABHYANGA: "therapies.categories.massage",
+    SWEDANA: "therapies.categories.steam",
+    VIRECHANA: "therapies.categories.detox",
+    BASTI: "therapies.categories.detox",
   };
 
-  return categories[type] || "General";
+  return categories[type] || "therapies.categories.general";
 }

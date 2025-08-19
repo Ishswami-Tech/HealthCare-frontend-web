@@ -377,7 +377,7 @@ export const createSpring = (stiffness: number = 100, damping: number = 10): Tra
  */
 export const createEasing = (duration: number, ease: number[]): Transition => ({
   duration,
-  ease,
+  ease: ease as any,
 });
 
 /**

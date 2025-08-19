@@ -7,7 +7,15 @@ export interface Notification {
   type: 'APPOINTMENT' | 'PRESCRIPTION' | 'REMINDER' | 'SYSTEM' | 'MARKETING';
   title: string;
   message: string;
-  data?: Record<string, any>;
+  data?: {
+    appointmentId?: string;
+    prescriptionId?: string;
+    patientId?: string;
+    doctorId?: string;
+    clinicId?: string;
+    url?: string;
+    [key: string]: string | number | boolean | undefined;
+  };
   isRead: boolean;
   createdAt: string;
   scheduledFor?: string;

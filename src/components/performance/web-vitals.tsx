@@ -139,7 +139,7 @@ export function NavigationPerformanceTracker() {
           trackCustomMetric('dns_lookup_time', navEntry.domainLookupEnd - navEntry.domainLookupStart);
           trackCustomMetric('tcp_connect_time', navEntry.connectEnd - navEntry.connectStart);
           trackCustomMetric('server_response_time', navEntry.responseEnd - navEntry.requestStart);
-          trackCustomMetric('dom_processing_time', navEntry.domComplete - navEntry.domLoading);
+          trackCustomMetric('dom_processing_time', navEntry.domComplete - (navEntry as any).domLoading);
           trackCustomMetric('page_load_time', navEntry.loadEventEnd - navEntry.loadEventStart);
         }
       });
@@ -177,6 +177,7 @@ export function MemoryPerformanceTracker() {
 
       return () => clearInterval(interval);
     }
+    return () => {}; // Return empty cleanup function if memory is not supported
   }, []);
 
   return null;

@@ -17,42 +17,42 @@ import {
   Heart,
   CheckCircle,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 
 const DoctorProfile = () => {
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   const opdSchedule = [
-    { day: t.contact.days.monday, time: "11:45 AM – 11:30 PM", isOpen: true },
-    { day: t.contact.days.tuesday, time: "11:45 AM – 11:30 PM", isOpen: true },
+    { day: "Monday", time: "11:45 AM – 11:30 PM", isOpen: true },
+    { day: "Tuesday", time: "11:45 AM – 11:30 PM", isOpen: true },
     {
-      day: t.contact.days.wednesday,
+      day: "Wednesday",
       time: "11:45 AM – 11:30 PM",
       isOpen: true,
     },
-    { day: t.contact.days.thursday, time: "11:45 AM – 11:30 PM", isOpen: true },
-    { day: t.contact.days.friday, time: "11:45 AM – 11:30 PM", isOpen: true },
-    { day: t.contact.days.saturday, time: t.contact.closed, isOpen: false },
-    { day: t.contact.days.sunday, time: t.contact.closed, isOpen: false },
+    { day: "Thursday", time: "11:45 AM – 11:30 PM", isOpen: true },
+    { day: "Friday", time: "11:45 AM – 11:30 PM", isOpen: true },
+    { day: "Saturday", time: "Closed", isOpen: false },
+    { day: "Sunday", time: "Closed", isOpen: false },
   ];
 
   const specializations = [
     "Viddhakarma Specialist",
     "Agnikarma Expert",
-    "Panchakarma Therapist",
+    "Panchakarma Practitioner",
     "Neurological Disorders",
     "Autism Treatment",
     "Cerebral Palsy Care",
-    "Mental Health Services",
+    "Mental Health Disorders",
   ];
 
   const achievements = [
-    "Student of renowned Dr. R.B. Gogate",
-    "20+ Years Clinical Experience",
-    "5000+ Successful Treatments",
-    "Government Certified Practice",
-    "Research in Viddhakarma & Agnikarma",
-    "Specialized in Pediatric Care",
+    "Student of Dr. R.B. Gogate",
+    "15+ Years Experience",
+    "5000+ Patients Treated",
+    "Government Certified",
+    "Research Contributor",
+    "Pediatric Specialist",
   ];
 
   return (
@@ -61,13 +61,13 @@ const DoctorProfile = () => {
         <div className="text-center mb-16">
           <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 mb-4">
             <User className="w-4 h-4 mr-2" />
-            Meet Our Expert
+            Expert Physician
           </Badge>
           <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
-            {t.doctor.name}
+            {t("doctor.name")}
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            {t.doctor.title}
+            {t("doctor.title")}
           </p>
         </div>
 
@@ -82,15 +82,15 @@ const DoctorProfile = () => {
                   </div>
                   <div className="flex-1">
                     <CardTitle className="text-2xl font-playfair font-bold text-gray-900 dark:text-white mb-2">
-                      {t.doctor.name}
+                      {t("doctor.name")}
                     </CardTitle>
                     <p className="text-blue-600 dark:text-blue-400 font-semibold mb-2">
-                      {t.doctor.specialization}
+                      {t("doctor.specialization")}
                     </p>
                     <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-300">
                       <div className="flex items-center space-x-1">
                         <Award className="w-4 h-4" />
-                        <span>{t.doctor.experience}</span>
+                        <span>{t("doctor.experience")}</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Star className="w-4 h-4 text-yellow-500" />
@@ -107,7 +107,7 @@ const DoctorProfile = () => {
                     About Dr. Deshmukh
                   </h3>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {t.doctor.description}
+                    {t("doctor.about")}
                   </p>
                 </div>
 
@@ -171,10 +171,10 @@ const DoctorProfile = () => {
                   <MapPin className="w-5 h-5 text-orange-500 dark:text-orange-400 mt-1 flex-shrink-0" />
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">
-                      {t.contact.location}
+                      Clinic Location
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                      {t.contact.address}
+                      {t("clinic.address")}
                     </p>
                   </div>
                 </div>
@@ -186,7 +186,7 @@ const DoctorProfile = () => {
                       Phone Numbers
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                      {t.contact.phone}
+                      {t("clinic.phone")}
                     </p>
                   </div>
                 </div>
@@ -197,7 +197,7 @@ const DoctorProfile = () => {
                     onClick={() => window.open("tel:+919860370961", "_self")}
                   >
                     <Phone className="w-4 h-4 mr-2" />
-                    Call Now: 9860370961
+                    Call Now
                   </Button>
                   <Button variant="outline" className="w-full">
                     <Calendar className="w-4 h-4 mr-2" />
@@ -212,7 +212,7 @@ const DoctorProfile = () => {
               <CardHeader>
                 <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                   <Clock className="w-5 h-5 mr-2" />
-                  {t.contact.opdTiming}
+                  OPD Timing
                 </CardTitle>
               </CardHeader>
               <CardContent>

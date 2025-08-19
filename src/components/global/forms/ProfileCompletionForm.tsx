@@ -67,7 +67,7 @@ export default function ProfileCompletionForm({
           console.log("Raw API response:", JSON.stringify(response, null, 2));
 
           // Transform the API response to match our expected format
-          const transformedData = transformApiResponse(response);
+          const transformedData = transformApiResponse(response as Record<string, unknown>);
           console.log(
             "Transformed profile data:",
             JSON.stringify(transformedData, null, 2)

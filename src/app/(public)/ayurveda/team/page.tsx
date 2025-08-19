@@ -263,7 +263,7 @@ export default function TeamPage() {
                               Credentials:
                             </h4>
                             <ul className="space-y-1">
-                              {doctor.credentials.map(
+                              {(Array.isArray(doctor.credentials) ? doctor.credentials : [doctor.credentials]).map(
                                 (credential, credIndex) => (
                                   <li
                                     key={credIndex}
@@ -284,7 +284,7 @@ export default function TeamPage() {
                               Key Achievements:
                             </h4>
                             <ul className="space-y-1">
-                              {doctor.achievements.map(
+                              {(Array.isArray(doctor.achievements) ? doctor.achievements : [doctor.achievements]).map(
                                 (achievement, achIndex) => (
                                   <li
                                     key={achIndex}

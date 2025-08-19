@@ -484,7 +484,7 @@ export default function ReceptionistDashboard() {
                 <div className="space-y-2">
                   {todaysQueue
                     .filter((apt) => apt.queueType === "General")
-                    .map((appointment, index) => (
+                    .map((appointment) => (
                       <div
                         key={appointment.id}
                         className="flex items-center justify-between text-sm"
@@ -519,7 +519,7 @@ export default function ReceptionistDashboard() {
                 <div className="space-y-2">
                   {todaysQueue
                     .filter((apt) => apt.queueType === "Therapy")
-                    .map((appointment, index) => (
+                    .map((appointment) => (
                       <div
                         key={appointment.id}
                         className="flex items-center justify-between text-sm"
@@ -554,7 +554,7 @@ export default function ReceptionistDashboard() {
                 <div className="space-y-2">
                   {todaysQueue
                     .filter((apt) => apt.queueType === "Diagnosis")
-                    .map((appointment, index) => (
+                    .map((appointment) => (
                       <div
                         key={appointment.id}
                         className="flex items-center justify-between text-sm"

@@ -338,7 +338,7 @@ export function ClinicInfo({
               For urgent medical consultations outside clinic hours, please call
               directly at{" "}
               <span className="font-medium">
-                {clinicData.phone.split(",")[0].trim()}
+                {clinicData.phone?.split(",")[0]?.trim() || clinicData.phone}
               </span>
             </p>
           </div>

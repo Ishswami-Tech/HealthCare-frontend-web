@@ -10,7 +10,6 @@ import { toast } from "sonner";
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 // Constants
-const GOOGLE_SCRIPT_URL = "https://accounts.google.com/gsi/client";
 const DEFAULT_REDIRECT_URL = "/patient/dashboard";
 
 // Add type definitions for Google OAuth

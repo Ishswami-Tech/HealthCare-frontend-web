@@ -24,25 +24,25 @@ export function HeroSection({
     {
       icon: <Users className="w-6 h-6" />,
       value: '5000+',
-      label: 'Patients Treated',
+      label: t('hero.stats.patientsTreated'),
       color: 'text-green-600',
     },
     {
       icon: <Award className="w-6 h-6" />,
       value: '15+',
-      label: 'Years Experience',
+      label: t('hero.stats.yearsExperience'),
       color: 'text-blue-600',
     },
     {
       icon: <Star className="w-6 h-6" />,
       value: '4.9',
-      label: 'Patient Rating',
+      label: t('hero.stats.patientRating'),
       color: 'text-yellow-600',
     },
     {
       icon: <Clock className="w-6 h-6" />,
       value: '24/7',
-      label: 'Emergency Support',
+      label: t('hero.stats.emergencySupport'),
       color: 'text-red-600',
     },
   ];
@@ -107,7 +107,7 @@ export function HeroSection({
                 <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center group-hover:bg-opacity-30 transition-all">
                   <Play className="w-6 h-6 ml-1" />
                 </div>
-                <span className="font-medium">Watch Treatment Demo</span>
+                <span className="font-medium">{t('hero.watchDemo')}</span>
               </button>
             </div>
 
@@ -119,15 +119,15 @@ export function HeroSection({
                     <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                   ))}
                 </div>
-                <span>4.9/5 Rating</span>
+                <span>{t('hero.trustIndicators.rating')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                <span>5000+ Patients Treated</span>
+                <span>{t('hero.trustIndicators.patientsTreated')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Award className="w-4 h-4" />
-                <span>15+ Years Experience</span>
+                <span>{t('hero.trustIndicators.yearsExperience')}</span>
               </div>
             </div>
           </div>
@@ -156,7 +156,7 @@ export function HeroSection({
             {/* Badge */}
             <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium">
               <Award className="w-4 h-4" />
-              <span>Authentic Ayurvedic Treatment</span>
+              <span>{t('hero.badge')}</span>
             </div>
 
             {/* Heading */}
@@ -204,8 +204,8 @@ export function HeroSection({
                   <Clock className="w-4 h-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">Mon-Fri: 11:45 AM - 11:30 PM</p>
-                  <p>Emergency: 24/7 Available</p>
+                  <p className="font-medium text-gray-900">{t('hero.schedule')}</p>
+                  <p>{t('hero.emergency')}</p>
                 </div>
               </div>
             </div>
@@ -216,7 +216,7 @@ export function HeroSection({
             <div className="relative z-10">
               <img
                 src={backgroundImage}
-                alt="Ayurvedic Treatment"
+                alt={t('hero.imageAlt')}
                 className="w-full h-96 lg:h-[500px] object-cover rounded-2xl shadow-2xl"
               />
               
@@ -226,7 +226,7 @@ export function HeroSection({
                   <Star className="w-5 h-5 text-yellow-500 fill-current" />
                   <div>
                     <p className="font-bold text-gray-900">4.9/5</p>
-                    <p className="text-xs text-gray-600">Patient Rating</p>
+                    <p className="text-xs text-gray-600">{t('hero.floatingCards.rating')}</p>
                   </div>
                 </div>
               </div>
@@ -236,7 +236,7 @@ export function HeroSection({
                   <Users className="w-5 h-5 text-green-600" />
                   <div>
                     <p className="font-bold text-gray-900">5000+</p>
-                    <p className="text-xs text-gray-600">Patients Treated</p>
+                    <p className="text-xs text-gray-600">{t('hero.floatingCards.patientsTreated')}</p>
                   </div>
                 </div>
               </div>

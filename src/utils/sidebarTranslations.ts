@@ -1,5 +1,14 @@
 import { useTranslations } from 'next-intl';
 
+interface SidebarLink {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+  children?: SidebarLink[];
+}
+
+type TranslationFunction = (key: string) => string;
+
 // Mapping of route labels to translation keys
 export const SIDEBAR_LABEL_MAP: Record<string, string> = {
   // Common labels
@@ -52,7 +61,7 @@ export function useTranslatedSidebarLabel(originalLabel: string): string {
   if (translationKey) {
     try {
       return t(translationKey);
-    } catch (error) {
+    } catch {
       console.warn(`Translation not found for key: ${translationKey}`);
       return originalLabel;
     }
@@ -63,7 +72,7 @@ export function useTranslatedSidebarLabel(originalLabel: string): string {
 }
 
 // Function to translate a sidebar link
-export function translateSidebarLink(link: any, t: any) {
+export function translateSidebarLink(link: SidebarLink, t: TranslationFunction): SidebarLink {
   const translationKey = SIDEBAR_LABEL_MAP[link.label];
   
   return {
@@ -73,6 +82,6 @@ export function translateSidebarLink(link: any, t: any) {
 }
 
 // Function to translate an array of sidebar links
-export function translateSidebarLinks(links: any[], t: any) {
+export function translateSidebarLinks(links: SidebarLink[], t: TranslationFunction): SidebarLink[] {
   return links.map(link => translateSidebarLink(link, t));
 }

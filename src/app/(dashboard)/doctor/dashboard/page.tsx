@@ -11,12 +11,8 @@ import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useMyAppointments,
-  useDoctorAvailability,
 } from "@/hooks/useAppointments";
 import { useClinicContext } from "@/hooks/useClinic";
-import { useAppStore } from "@/stores/useAppStore";
-import { useQueryData } from "@/hooks/useQueryData";
-import { getUserProfile } from "@/lib/actions/users.server";
 import {
   Activity,
   Calendar,
@@ -37,7 +33,7 @@ export default function DoctorDashboard() {
   const user = session?.user;
 
   // Clinic context
-  const { clinicId } = useClinicContext();
+  useClinicContext();
 
   // Fetch real data using existing hooks and server actions
   const { data: appointments } = useMyAppointments();

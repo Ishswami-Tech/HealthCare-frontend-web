@@ -49,7 +49,7 @@ export default function VerifyOTPPage() {
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) {
-      value = value[0];
+      value = value[0] || '';
     }
 
     if (value.match(/^[0-9]$/)) {

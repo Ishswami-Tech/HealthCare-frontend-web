@@ -1,3 +1,4 @@
+import React from 'react';
 import { useQueryData } from './useQueryData';
 import { useMutationData } from './useMutationData';
 import {
@@ -141,28 +142,28 @@ export const useQueueAnalytics = (period: 'day' | 'week' | 'month' | 'year' = 'd
  * Hook for consultation queue
  */
 export const useConsultationQueue = () => {
-  return useQueue({ type: 'consultation' });
+  return useQueue('consultation', { type: 'consultation' });
 };
 
 /**
  * Hook for panchakarma queue
  */
 export const usePanchkarmaQueue = () => {
-  return useQueue({ type: 'panchakarma' });
+  return useQueue('panchakarma', { type: 'panchakarma' });
 };
 
 /**
  * Hook for agnikarma queue
  */
 export const useAgnikarmaQueue = () => {
-  return useQueue({ type: 'agnikarma' });
+  return useQueue('agnikarma', { type: 'agnikarma' });
 };
 
 /**
  * Hook for nadi pariksha queue
  */
 export const useNadiParikshaQueue = () => {
-  return useQueue({ type: 'nadi-pariksha' });
+  return useQueue('nadi-pariksha', { type: 'nadi-pariksha' });
 };
 
 // ===== QUEUE UTILITIES =====
@@ -251,10 +252,10 @@ export const useRealTimeQueue = (queueType?: string) => {
   // This would integrate with your WebSocket implementation
   // For now, we'll use polling as a fallback
   
-  const { data: queueData, refetch } = useQueue({ 
+  const { data: queueData, refetch } = useQueue(queueType || '', { 
     type: queueType,
     enabled: true 
-  });
+  } as any);
 
   // Set up polling for real-time updates
   React.useEffect(() => {

@@ -9,8 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
-import { useQueryData } from "@/hooks/useQueryData";
-import { getUserProfile } from "@/lib/actions/users.server";
 // TODO: Create pharmacy server actions
 // import { usePrescriptions } from "@/hooks/usePrescriptions";
 // import { useInventory } from "@/hooks/useInventory";
@@ -26,10 +24,8 @@ import {
   LogOut,
   Plus,
   Search,
-  Filter,
   Eye,
   Check,
-  X,
 } from "lucide-react";
 
 export default function PharmacistDashboard() {

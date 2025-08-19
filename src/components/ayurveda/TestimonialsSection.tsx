@@ -61,30 +61,28 @@ const TestimonialsSection = () => {
     },
     {
       id: 4,
-      name: "Rajesh Kumar",
+      name: t("testimonials.patients.rajesh.name"),
       age: 48,
-      location: "Delhi",
-      condition: "Diabetes & Hypertension",
-      treatment: "21-day Panchakarma",
+      location: t("testimonials.patients.rajesh.location"),
+      condition: t("testimonials.patients.rajesh.condition"),
+      treatment: t("testimonials.patients.rajesh.treatment"),
       rating: 5,
       image: "/api/placeholder/80/80",
-      quote:
-        "The 21-day Panchakarma program was life-changing. My diabetes is now under control without heavy medications, and my blood pressure has normalized. I feel 20 years younger!",
-      result: "Medication reduced by 70%",
+      quote: t("testimonials.patients.rajesh.quote"),
+      result: t("testimonials.patients.rajesh.result"),
       videoUrl: "#",
     },
     {
       id: 5,
-      name: "Sunita Joshi",
+      name: t("testimonials.patients.sunita.name"),
       age: 35,
-      location: "Bangalore",
-      condition: "PCOD & Fertility Issues",
-      treatment: "Specialized Fertility Program",
+      location: t("testimonials.patients.sunita.location"),
+      condition: t("testimonials.patients.sunita.condition"),
+      treatment: t("testimonials.patients.sunita.treatment"),
       rating: 5,
       image: "/api/placeholder/80/80",
-      quote:
-        "After struggling with PCOD for years, the fertility program here helped me conceive naturally. The holistic approach addressed not just my physical health but emotional well-being too.",
-      result: "Successful natural conception",
+      quote: t("testimonials.patients.sunita.quote"),
+      result: t("testimonials.patients.sunita.result"),
       videoUrl: "#",
     },
   ];
@@ -140,7 +138,8 @@ const TestimonialsSection = () => {
                     <div>
                       <h3 className="text-xl font-bold">{current.name}</h3>
                       <p className="text-orange-100">
-                        Age {current.age}, {current.location}
+                        {t("testimonials.age")} {current.age},{" "}
+                        {current.location}
                       </p>
                       <div className="flex items-center space-x-1 mt-1">
                         {[...Array(current.rating)].map((_, i) => (
@@ -156,19 +155,19 @@ const TestimonialsSection = () => {
                   <div className="space-y-4">
                     <div>
                       <h4 className="font-semibold text-orange-100 mb-1">
-                        Condition Treated:
+                        {t("testimonials.conditionTreated")}:
                       </h4>
                       <p className="font-medium">{current.condition}</p>
                     </div>
                     <div>
                       <h4 className="font-semibold text-orange-100 mb-1">
-                        Treatment Received:
+                        {t("testimonials.treatmentReceived")}:
                       </h4>
                       <p className="font-medium">{current.treatment}</p>
                     </div>
                     <div className="bg-white/20 rounded-lg p-4">
                       <h4 className="font-semibold text-orange-100 mb-1">
-                        Result Achieved:
+                        {t("testimonials.resultAchieved")}:
                       </h4>
                       <p className="font-bold text-lg">{current.result}</p>
                     </div>
@@ -179,7 +178,7 @@ const TestimonialsSection = () => {
                     className="mt-6 bg-white text-orange-600 hover:bg-orange-50"
                   >
                     <Play className="w-4 h-4 mr-2" />
-                    Watch Video Story
+                    {t("testimonials.watchVideo")}
                   </Button>
                 </div>
 
@@ -194,7 +193,7 @@ const TestimonialsSection = () => {
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="w-5 h-5 text-green-500" />
                       <span className="text-sm font-medium text-green-700">
-                        Verified Patient
+                        {t("testimonials.verifiedPatient")}
                       </span>
                     </div>
 

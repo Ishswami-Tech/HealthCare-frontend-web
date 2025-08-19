@@ -4,6 +4,8 @@ import {
   AppointmentFilters,
   AppointmentWithRelations,
   DoctorAvailability,
+  CreateAppointmentData,
+  UpdateAppointmentData,
 } from '@/types/appointment.types';
 import {
   getAppointments,
@@ -50,7 +52,7 @@ export const useMyAppointments = (filters?: AppointmentFilters) => {
     if (role === 'PATIENT') {
       return await getMyAppointments();
     } else {
-      return await getAppointments(session?.user?.clinicId || '', filters);
+      return await getAppointments((session?.user as any)?.clinicId || '', filters);
     }
   });
 };
@@ -58,8 +60,9 @@ export const useMyAppointments = (filters?: AppointmentFilters) => {
 // ===== APPOINTMENT CRUD HOOKS =====
 
 export const useCreateAppointment = () => {
-  return useMutationData(['createAppointment'], async (data) => {
-    return await createAppointment(data);
+  return useMutationData(['createAppointment'], async (data: CreateAppointmentData) => {
+    const result = await createAppointment(data);
+    return { status: 200, data: result };
   }, 'appointments');
 };
 
@@ -76,14 +79,16 @@ export const useAppointment = (id: string) => {
 };
 
 export const useUpdateAppointment = () => {
-  return useMutationData(['updateAppointment'], async ({ id, data }) => {
-    return await updateAppointment(id, data);
+  return useMutationData(['updateAppointment'], async ({ id, data }: { id: string; data: UpdateAppointmentData }) => {
+    const result = await updateAppointment(id, data);
+    return { status: 200, data: result };
   }, 'appointments');
 };
 
 export const useCancelAppointment = () => {
-  return useMutationData(['cancelAppointment'], async (id) => {
-    return await cancelAppointment(id);
+  return useMutationData(['cancelAppointment'], async (id: string) => {
+    const result = await cancelAppointment(id);
+    return { status: 200, data: result };
   }, 'appointments');
 };
 
@@ -106,7 +111,7 @@ export const useDoctorAvailability = (doctorId?: string, date?: string) => {
 export const useCanCancelAppointment = (appointment?: AppointmentWithRelations) => {
   if (!appointment) return false;
 
-  const appointmentDate = new Date(appointment.appointmentDate);
+  const appointmentDate = new Date((appointment as any).appointmentDate);
   const now = new Date();
   const hoursDiff = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
@@ -117,7 +122,7 @@ export const useCanCancelAppointment = (appointment?: AppointmentWithRelations) 
 export const useFormatAppointmentDateTime = (appointment?: AppointmentWithRelations) => {
   if (!appointment) return '';
 
-  const date = new Date(appointment.appointmentDate);
+  const date = new Date((appointment as any).appointmentDate);
   return date.toLocaleString('en-IN', {
     weekday: 'short',
     year: 'numeric',
@@ -146,8 +151,7 @@ export const useAppointmentStatusColor = (status?: string) => {
 export const useProcessCheckIn = () => {
   return useMutationData(['processCheckIn'], async (data) => {
     // TODO: Implement processCheckIn server action
-    console.log('TODO: Implement processCheckIn', data);
-    return data;
+    return { status: 200, data };
   }, 'appointments');
 };
 
@@ -156,7 +160,6 @@ export const usePatientQueuePosition = (appointmentId?: string) => {
     ['patientQueuePosition', appointmentId],
     async () => {
       // TODO: Implement getPatientQueuePosition server action
-      console.log('TODO: Implement getPatientQueuePosition', appointmentId);
       return { position: 1, estimatedWaitTime: 15 };
     },
     {
@@ -170,7 +173,6 @@ export const useDoctorQueue = (doctorId?: string) => {
     ['doctorQueue', doctorId],
     async () => {
       // TODO: Implement getDoctorQueue server action
-      console.log('TODO: Implement getDoctorQueue', doctorId);
       return [];
     },
     {
@@ -182,30 +184,28 @@ export const useDoctorQueue = (doctorId?: string) => {
 export const useConfirmAppointment = () => {
   return useMutationData(['confirmAppointment'], async (id) => {
     // TODO: Implement confirmAppointment server action
-    console.log('TODO: Implement confirmAppointment', id);
-    return { id, status: 'CONFIRMED' };
+    return { status: 200, data: { id, status: 'CONFIRMED' } };
   }, 'appointments');
 };
 
 export const useStartConsultation = () => {
   return useMutationData(['startConsultation'], async (id) => {
     // TODO: Implement startConsultation server action
-    console.log('TODO: Implement startConsultation', id);
-    return { id, status: 'IN_PROGRESS' };
+    return { status: 200, data: { id, status: 'IN_PROGRESS' } };
   }, 'appointments');
 };
 
 /**
  * Hook to get appointment statistics
  */
-export const useAppointmentStats = (filters?: {
+export const useAppointmentStats = (tenantId: string, filters?: {
   startDate?: string;
   endDate?: string;
   doctorId?: string;
   clinicId?: string;
 }) => {
-  return useQueryData(['appointmentStats', filters], async () => {
-    return await getAppointmentStats(filters);
+  return useQueryData(['appointmentStats', tenantId, filters], async () => {
+    return await getAppointmentStats(tenantId, filters);
   }, {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

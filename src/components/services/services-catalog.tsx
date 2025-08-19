@@ -56,8 +56,8 @@ export function ServicesCatalog({
       description: t("treatments.panchakarma.description"),
       treatments: ["Vaman", "Virechan", "Basti", "Nasya", "Raktamokshan"],
       duration: t("treatments.panchakarma.duration"),
-      suitableFor: t("treatments.panchakarma.suitableFor"),
-      benefits: t("treatments.panchakarma.benefits"),
+      suitableFor: [t("treatments.panchakarma.suitableFor")],
+      benefits: [t("treatments.panchakarma.benefits")],
       color: "green",
     },
     {
@@ -72,8 +72,8 @@ export function ServicesCatalog({
         "Neurological Rehabilitation",
       ],
       duration: t("treatments.viddhakarma.duration"),
-      suitableFor: t("treatments.viddhakarma.suitableFor"),
-      benefits: t("treatments.viddhakarma.benefits"),
+      suitableFor: [t("treatments.viddhakarma.suitableFor")],
+      benefits: [t("treatments.viddhakarma.benefits")],
       color: "purple",
     },
     {
@@ -88,8 +88,8 @@ export function ServicesCatalog({
         "Muscular Disorders",
       ],
       duration: t("treatments.agnikarma.duration"),
-      suitableFor: t("treatments.agnikarma.suitableFor"),
-      benefits: t("treatments.agnikarma.benefits"),
+      suitableFor: [t("treatments.agnikarma.suitableFor")],
+      benefits: [t("treatments.agnikarma.benefits")],
       color: "orange",
     },
     {

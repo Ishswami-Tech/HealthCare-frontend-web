@@ -293,20 +293,3 @@ export interface QueueSettings {
   updatedBy: string;
 }
 
-// ===== EXPORT ALL TYPES =====
-
-export type {
-  QueueItem,
-  QueueStats,
-  QueueConfiguration,
-  QueueFilters,
-  AddToQueueData,
-  UpdateQueueStatusData,
-  CallNextPatientData,
-  TransferQueueItemData,
-  QueueNotification,
-  QueueDisplay,
-  QueueAnalytics,
-  QueueReport,
-  QueueSettings
-};

@@ -108,7 +108,7 @@ export const useAppointmentStore = create<AppointmentState>()(
       isLoading: false,
       error: null,
       currentView: 'list',
-      selectedDate: new Date().toISOString().split('T')[0],
+      selectedDate: new Date().toISOString().split('T')[0] || '',
       queueData: {
         totalInQueue: 0,
         averageWaitTime: 0,
@@ -185,7 +185,7 @@ export const useAppointmentStore = create<AppointmentState>()(
       },
       
       getTodayAppointments: () => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toISOString().split('T')[0] || '';
         return get().getAppointmentsByDate(today);
       },
       

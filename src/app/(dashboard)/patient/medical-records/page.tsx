@@ -33,10 +33,8 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  Brain,
   Leaf,
   TestTube,
-  Camera,
   File,
   Image
 } from "lucide-react";
@@ -45,7 +43,6 @@ export default function PatientMedicalRecords() {
   const { session } = useAuth();
   const user = session?.user;
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
 
   // Mock medical records data
   const medicalHistory = [
@@ -437,7 +434,7 @@ export default function PatientMedicalRecords() {
                             <Heart className="w-5 h-5 text-red-600" />
                             <span className="font-medium">Latest BP</span>
                           </div>
-                          <div className="text-2xl font-bold text-red-600">{vitalSigns[0].bp}</div>
+                          <div className="text-2xl font-bold text-red-600">{vitalSigns[0]?.bp || 'N/A'}</div>
                           <div className="text-sm text-gray-600">mmHg</div>
                         </div>
                         
@@ -446,7 +443,7 @@ export default function PatientMedicalRecords() {
                             <Pulse className="w-5 h-5 text-blue-600" />
                             <span className="font-medium">Heart Rate</span>
                           </div>
-                          <div className="text-2xl font-bold text-blue-600">{vitalSigns[0].hr}</div>
+                          <div className="text-2xl font-bold text-blue-600">{vitalSigns[0]?.hr || 'N/A'}</div>
                           <div className="text-sm text-gray-600">bpm</div>
                         </div>
 
@@ -455,7 +452,7 @@ export default function PatientMedicalRecords() {
                             <Scale className="w-5 h-5 text-green-600" />
                             <span className="font-medium">Weight</span>
                           </div>
-                          <div className="text-2xl font-bold text-green-600">{vitalSigns[0].weight}</div>
+                          <div className="text-2xl font-bold text-green-600">{vitalSigns[0]?.weight || 'N/A'}</div>
                           <div className="text-sm text-gray-600">kg</div>
                         </div>
 
@@ -464,7 +461,7 @@ export default function PatientMedicalRecords() {
                             <Thermometer className="w-5 h-5 text-purple-600" />
                             <span className="font-medium">BMI</span>
                           </div>
-                          <div className="text-2xl font-bold text-purple-600">{vitalSigns[0].bmi}</div>
+                          <div className="text-2xl font-bold text-purple-600">{vitalSigns[0]?.bmi || 'N/A'}</div>
                           <div className="text-sm text-gray-600">Normal</div>
                         </div>
                       </div>
@@ -492,7 +489,7 @@ export default function PatientMedicalRecords() {
                                   <td className="px-4 py-2">{vital.weight} kg</td>
                                   <td className="px-4 py-2">{vital.bmi}</td>
                                   <td className="px-4 py-2">
-                                    {index < vitalSigns.length - 1 && getTrendIcon(parseFloat(vital.weight), parseFloat(vitalSigns[index + 1].weight))}
+                                    {index < vitalSigns.length - 1 && vitalSigns[index + 1] && getTrendIcon(parseFloat(vital.weight), parseFloat(vitalSigns[index + 1]?.weight || '0'))}
                                   </td>
                                 </tr>
                               ))}

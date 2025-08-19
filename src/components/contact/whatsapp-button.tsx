@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { MessageCircle, Phone, X, Send } from 'lucide-react';
+import { MessageCircle, X, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n/context';
 
@@ -135,10 +135,8 @@ export function WhatsAppButton({
 }
 
 function WhatsAppChat({ phoneNumber, clinicName, className, isOpen, onClose }: WhatsAppChatProps) {
-  const { t, language } = useTranslation();
+  const { language } = useTranslation();
   const [customMessage, setCustomMessage] = useState('');
-  
-  const defaultMessage = DEFAULT_MESSAGES[language as keyof typeof DEFAULT_MESSAGES] || DEFAULT_MESSAGES.en;
 
   const handleSendMessage = (message: string) => {
     const encodedMessage = encodeURIComponent(message);

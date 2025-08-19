@@ -29,7 +29,7 @@ export const AppointmentProtectedComponent: React.FC<AppointmentProtectedCompone
       case 'delete':
         return Permission.DELETE_APPOINTMENTS;
       case 'manage':
-        return Permission.MANAGE_APPOINTMENTS;
+        return Permission.MANAGE_APPOINTMENT_QUEUE;
       default:
         return Permission.VIEW_APPOINTMENTS;
     }
@@ -39,7 +39,7 @@ export const AppointmentProtectedComponent: React.FC<AppointmentProtectedCompone
     <ProtectedComponent
       permission={getPermission(action)}
       showFallback={showFallback}
-      fallbackMessage={fallbackMessage}
+      fallback={fallbackMessage}
     >
       {children}
     </ProtectedComponent>
@@ -72,7 +72,7 @@ export const PatientProtectedComponent: React.FC<PatientProtectedComponentProps>
       case 'delete':
         return Permission.DELETE_PATIENTS;
       case 'manage':
-        return Permission.MANAGE_PATIENTS;
+        return Permission.UPDATE_PATIENTS;
       default:
         return Permission.VIEW_PATIENTS;
     }
@@ -82,7 +82,7 @@ export const PatientProtectedComponent: React.FC<PatientProtectedComponentProps>
     <ProtectedComponent
       permission={getPermission(action)}
       showFallback={showFallback}
-      fallbackMessage={fallbackMessage}
+      fallback={fallbackMessage}
     >
       {children}
     </ProtectedComponent>
@@ -113,7 +113,7 @@ export const PharmacyProtectedComponent: React.FC<PharmacyProtectedComponentProp
       case 'dispense':
         return Permission.DISPENSE_MEDICINES;
       case 'view-prescriptions':
-        return Permission.VIEW_PRESCRIPTIONS;
+        return Permission.MANAGE_PRESCRIPTIONS;
       case 'manage-inventory':
         return Permission.MANAGE_INVENTORY;
       default:
@@ -125,7 +125,7 @@ export const PharmacyProtectedComponent: React.FC<PharmacyProtectedComponentProp
     <ProtectedComponent
       permission={getPermission(action)}
       showFallback={showFallback}
-      fallbackMessage={fallbackMessage}
+      fallback={fallbackMessage}
     >
       {children}
     </ProtectedComponent>
@@ -166,7 +166,7 @@ export const QueueProtectedComponent: React.FC<QueueProtectedComponentProps> = (
     <ProtectedComponent
       permission={getPermission(action)}
       showFallback={showFallback}
-      fallbackMessage={fallbackMessage}
+      fallback={fallbackMessage}
     >
       {children}
     </ProtectedComponent>
@@ -211,7 +211,7 @@ export const MedicalRecordsProtectedComponent: React.FC<MedicalRecordsProtectedC
     <ProtectedComponent
       permission={getPermission(action)}
       showFallback={showFallback}
-      fallbackMessage={fallbackMessage}
+      fallback={fallbackMessage}
     >
       {children}
     </ProtectedComponent>
@@ -229,8 +229,8 @@ export const MedicalRecordsRouteProtection: React.FC<MedicalRecordsRouteProtecti
 }) => {
   return (
     <ProtectedRoute
-      requiredPermission={Permission.VIEW_MEDICAL_RECORDS}
-      fallbackPath="/dashboard"
+      permission={Permission.VIEW_MEDICAL_RECORDS}
+      redirectTo="/dashboard"
     >
       {children}
     </ProtectedRoute>
@@ -246,8 +246,8 @@ export const PharmacyRouteProtection: React.FC<PharmacyRouteProtectionProps> = (
 }) => {
   return (
     <ProtectedRoute
-      requiredPermission={Permission.VIEW_PHARMACY}
-      fallbackPath="/dashboard"
+      permission={Permission.VIEW_PHARMACY}
+      redirectTo="/dashboard"
     >
       {children}
     </ProtectedRoute>
@@ -263,8 +263,8 @@ export const QueueRouteProtection: React.FC<QueueRouteProtectionProps> = ({
 }) => {
   return (
     <ProtectedRoute
-      requiredPermission={Permission.VIEW_QUEUE}
-      fallbackPath="/dashboard"
+      permission={Permission.VIEW_QUEUE}
+      redirectTo="/dashboard"
     >
       {children}
     </ProtectedRoute>
@@ -289,17 +289,17 @@ export const AdminProtectedComponent: React.FC<AdminProtectedComponentProps> = (
   const getPermission = (action: string): Permission => {
     switch (action) {
       case 'view':
-        return Permission.VIEW_ADMIN_PANEL;
+        return Permission.VIEW_USERS;
       case 'manage-users':
-        return Permission.MANAGE_USERS;
+        return Permission.UPDATE_USERS;
       case 'manage-clinics':
-        return Permission.MANAGE_CLINICS;
+        return Permission.UPDATE_CLINICS;
       case 'view-analytics':
         return Permission.VIEW_ANALYTICS;
       case 'system-settings':
         return Permission.MANAGE_SYSTEM_SETTINGS;
       default:
-        return Permission.VIEW_ADMIN_PANEL;
+        return Permission.VIEW_USERS;
     }
   };
 
@@ -307,7 +307,7 @@ export const AdminProtectedComponent: React.FC<AdminProtectedComponentProps> = (
     <ProtectedComponent
       permission={getPermission(action)}
       showFallback={showFallback}
-      fallbackMessage={fallbackMessage}
+      fallback={fallbackMessage}
     >
       {children}
     </ProtectedComponent>

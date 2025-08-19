@@ -11,8 +11,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   useLanguage,
-  languageNames,
-  languageFlags,
   getLanguageInfo,
 } from "@/contexts/LanguageContext";
 import { Language } from "@/lib/i18n/translations";
@@ -107,9 +105,12 @@ export function CompactLanguageSwitcher({ className }: { className?: string }) {
   const languages: Language[] = ["en", "hi", "mr"];
 
   const handleClick = () => {
-    const currentIndex = languages.indexOf(language);
+    const currentIndex = languages.indexOf(language || 'en');
     const nextIndex = (currentIndex + 1) % languages.length;
-    setLanguage(languages[nextIndex]);
+    const nextLanguage = languages[nextIndex];
+    if (nextLanguage) {
+      setLanguage(nextLanguage);
+    }
   };
 
   const currentLangInfo = getLanguageInfo(language);

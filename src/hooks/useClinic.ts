@@ -9,7 +9,7 @@ export const useCurrentClinicId = () => {
   const { session } = useAuth();
   
   // Try to get clinic ID from user session
-  const clinicId = session?.user?.clinicId || session?.user?.clinic?.id;
+  const clinicId = (session?.user as any)?.clinicId || (session?.user as any)?.clinic?.id;
   
   return clinicId;
 };
@@ -70,8 +70,8 @@ export const useClinicAwareQuery = <T>(
     },
     {
       enabled: !!clinicId && (options?.enabled !== false),
-      refetchInterval: options?.refetchInterval,
-    }
+      refetchInterval: options?.refetchInterval || undefined,
+    } as any
   );
 };
 

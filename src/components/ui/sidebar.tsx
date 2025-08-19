@@ -64,7 +64,11 @@ export const Sidebar = ({
   animate?: boolean;
 }) => {
   return (
-    <SidebarProvider open={open} setOpen={setOpen} animate={animate}>
+    <SidebarProvider 
+      {...(open !== undefined && { open })}
+      {...(setOpen !== undefined && { setOpen })}
+      {...(animate !== undefined && { animate })}
+    >
       {children}
     </SidebarProvider>
   );
@@ -74,7 +78,7 @@ export const SidebarBody = (props: React.ComponentProps<typeof motion.div>) => {
   return (
     <>
       <DesktopSidebar {...props} />
-      <MobileSidebar {...(props as React.ComponentProps<"div">)} />
+      <MobileSidebar {...(props as unknown as React.ComponentProps<"div">)} />
     </>
   );
 };

@@ -16,15 +16,7 @@ import {
   toggleUserVerification,
   getUserActivityLogs,
   getUserSessions,
-  terminateUserSession,
-  getAllUsers,
-  getPatients,
-  getDoctors,
-  getReceptionists,
-  getClinicAdmins,
-  getUserById,
-  updateUser,
-  deleteUser
+  terminateUserSession
 } from '@/lib/actions/users.server';
 
 // API URL configuration
@@ -393,7 +385,7 @@ export const useUserAvatar = () => {
     } else if (name) {
       const nameParts = name.split(' ');
       if (nameParts.length >= 2) {
-        initials = `${nameParts[0].charAt(0)}${nameParts[1].charAt(0)}`.toUpperCase();
+        initials = `${nameParts[0]?.charAt(0) || ''}${nameParts[1]?.charAt(0) || ''}`.toUpperCase();
       } else {
         initials = name.charAt(0).toUpperCase();
       }

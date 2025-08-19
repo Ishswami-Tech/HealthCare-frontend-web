@@ -3,6 +3,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "@/lib/i18n/context";
 // import { Progress } from "@/components/ui/progress"; // TODO: Add Progress component to shadcn/ui
 import { cn } from "@/lib/utils";
 import {
@@ -36,19 +37,20 @@ const DOSHA_COLORS = {
   kapha: "#10B981",
 };
 
-const DOSHA_NAMES = {
-  vata: "Vata",
-  pitta: "Pitta",
-  kapha: "Kapha",
-};
-
 export default function PrakritiVikritiCard({
   data,
   showRecommendations = true,
   className,
 }: PrakritiVikritiCardProps) {
+  const { t } = useTranslation();
   const { prakriti, vikriti, patientName, assessmentDate, recommendations } =
     data;
+
+  const DOSHA_NAMES = {
+    vata: t("doshas.vata"),
+    pitta: t("doshas.pitta"),
+    kapha: t("doshas.kapha"),
+  };
 
   // Calculate differences between Prakriti and Vikriti
   const getDifference = (doshaKey: keyof DoshaData) => {
@@ -76,15 +78,15 @@ export default function PrakritiVikritiCard({
       Math.abs(getDifference("kapha"));
 
     if (totalDifference < 15)
-      return { status: "balanced", color: "text-green-600", icon: CheckCircle };
+      return { status: t("prakritiVikriti.balanced"), color: "text-green-600", icon: CheckCircle };
     if (totalDifference < 30)
       return {
-        status: "mild imbalance",
+        status: t("prakritiVikriti.mildImbalance"),
         color: "text-yellow-600",
         icon: AlertTriangle,
       };
     return {
-      status: "significant imbalance",
+      status: t("prakritiVikriti.significantImbalance"),
       color: "text-red-600",
       icon: AlertTriangle,
     };
@@ -126,7 +128,7 @@ export default function PrakritiVikritiCard({
 
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Prakriti (Natural)</span>
+            <span className="text-gray-600">{t("prakritiVikriti.prakritNatural")}</span>
             <span className="font-medium">{prakritValue}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -140,7 +142,7 @@ export default function PrakritiVikritiCard({
           </div>
 
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Vikriti (Current)</span>
+            <span className="text-gray-600">{t("prakritiVikriti.vikritiCurrent")}</span>
             <span className="font-medium">{vikritValue}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -163,7 +165,7 @@ export default function PrakritiVikritiCard({
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
-            Prakriti vs Vikriti Analysis
+            {t("prakritiVikriti.title")}
             {patientName && <Badge variant="outline">{patientName}</Badge>}
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -180,7 +182,7 @@ export default function PrakritiVikritiCard({
         </div>
         {assessmentDate && (
           <p className="text-sm text-gray-600">
-            Assessment Date: {new Date(assessmentDate).toLocaleDateString()}
+            {t("prakritiVikriti.assessmentDate")}: {new Date(assessmentDate).toLocaleDateString()}
           </p>
         )}
       </CardHeader>
@@ -191,7 +193,7 @@ export default function PrakritiVikritiCard({
           <div className="space-y-4">
             <h3 className="font-semibold text-lg flex items-center gap-2">
               <Activity className="w-4 h-4 text-blue-600" />
-              Constitution Analysis
+              {t("prakritiVikriti.constitutionAnalysis")}
             </h3>
             <div className="space-y-4">
               <DoshaComparison doshaKey="vata" />
@@ -201,7 +203,7 @@ export default function PrakritiVikritiCard({
           </div>
 
           <div className="space-y-4">
-            <h3 className="font-semibold text-lg">Balance Overview</h3>
+            <h3 className="font-semibold text-lg">{t("prakritiVikriti.balanceOverview")}</h3>
             <div className="p-4 bg-gray-50 rounded-lg space-y-3">
               <div className="flex items-center gap-2">
                 <BalanceIcon className={cn("w-5 h-5", balanceStatus.color)} />
@@ -214,19 +216,16 @@ export default function PrakritiVikritiCard({
 
               <div className="text-sm text-gray-600 space-y-2">
                 <p>
-                  <strong>Prakriti</strong> represents your natural constitution
-                  - the unique balance of doshas you were born with.
+                  <strong>{t("prakritiVikriti.prakriti")}</strong> {t("prakritiVikriti.prakritDescription")}
                 </p>
                 <p>
-                  <strong>Vikriti</strong> shows your current state, which may
-                  differ from your natural constitution due to lifestyle, diet,
-                  stress, or environmental factors.
+                  <strong>{t("prakritiVikriti.vikriti")}</strong> {t("prakritiVikriti.vikritiDescription")}
                 </p>
               </div>
 
               {/* Key Imbalances */}
               <div className="space-y-2">
-                <h4 className="font-medium text-sm">Key Observations:</h4>
+                <h4 className="font-medium text-sm">{t("prakritiVikriti.keyObservations")}:</h4>
                 <div className="space-y-1">
                   {(["vata", "pitta", "kapha"] as const).map((dosha) => {
                     const diff = getDifference(dosha);
@@ -242,7 +241,7 @@ export default function PrakritiVikritiCard({
                           />
                           <span className="capitalize">{dosha}</span>
                           <span className={getDifferenceColor(diff)}>
-                            {diff > 0 ? "elevated" : "reduced"} by{" "}
+                            {diff > 0 ? t("prakritiVikriti.elevated") : t("prakritiVikriti.reduced")} {t("prakritiVikriti.by")}{" "}
                             {Math.abs(diff)}%
                           </span>
                         </div>
@@ -261,7 +260,7 @@ export default function PrakritiVikritiCard({
           recommendations &&
           recommendations.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-semibold text-lg">Recommendations</h3>
+              <h3 className="font-semibold text-lg">{t("prakritiVikriti.recommendations")}</h3>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <ul className="space-y-2">
                   {recommendations.map((recommendation, index) => (

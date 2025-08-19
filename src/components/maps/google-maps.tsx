@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, Navigation, Phone, Clock, ExternalLink, Loader2 } from 'lucide-react';
+import { MapPin, Navigation, Phone, Clock, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GoogleMapsProps {
@@ -56,9 +56,8 @@ export function GoogleMaps({
 }: GoogleMapsProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [showDirections, setShowDirections] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const mapInstanceRef = useRef<any>(null);
 
   const lat = latitude || DEFAULT_CLINIC.coordinates.lat;
   const lng = longitude || DEFAULT_CLINIC.coordinates.lng;
@@ -73,10 +72,10 @@ export function GoogleMaps({
           await loadGoogleMapsAPI();
         }
 
-        if (!mapRef.current) return;
+        if (!mapRef.current || !(window as any).google) return;
 
         // Create map instance
-        const map = new window.google.maps.Map(mapRef.current, {
+        const map = new (window as any).google.maps.Map(mapRef.current, {
           center: { lat, lng },
           zoom,
           mapTypeControl: false,
@@ -93,7 +92,7 @@ export function GoogleMaps({
         });
 
         // Create marker
-        const marker = new window.google.maps.Marker({
+        const marker = new (window as any).google.maps.Marker({
           position: { lat, lng },
           map,
           title: clinicName,
@@ -103,13 +102,13 @@ export function GoogleMaps({
                 <path d="M16 2C11.6 2 8 5.6 8 10C8 16 16 30 16 30S24 16 24 10C24 5.6 20.4 2 16 2ZM16 13C14.3 13 13 11.7 13 10S14.3 7 16 7S19 8.3 19 10S17.7 13 16 13Z" fill="#059669"/>
               </svg>
             `),
-            scaledSize: new window.google.maps.Size(32, 32),
+            scaledSize: new (window as any).google.maps.Size(32, 32),
           },
         });
 
         // Create info window if enabled
         if (showInfoWindow) {
-          const infoWindow = new window.google.maps.InfoWindow({
+          const infoWindow = new (window as any).google.maps.InfoWindow({
             content: `
               <div style="padding: 12px; max-width: 300px;">
                 <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #1f2937;">${clinicName}</h3>
@@ -179,8 +178,10 @@ export function GoogleMaps({
   };
 
   const handleCallClinic = () => {
-    const phoneNumber = clinicPhone.split(',')[0].trim().replace(/\s/g, '');
-    window.location.href = `tel:${phoneNumber}`;
+    const phoneNumber = clinicPhone?.split(',')[0]?.trim().replace(/\s/g, '') || clinicPhone;
+    if (phoneNumber) {
+      window.location.href = `tel:${phoneNumber}`;
+    }
   };
 
   if (hasError) {
@@ -257,7 +258,7 @@ export function GoogleMaps({
               </div>
               <div className="flex items-center gap-1 text-green-600">
                 <Phone className="w-4 h-4" />
-                <span>{clinicPhone.split(',')[0].trim()}</span>
+                <span>{clinicPhone?.split(',')[0]?.trim() || clinicPhone}</span>
               </div>
             </div>
           </div>

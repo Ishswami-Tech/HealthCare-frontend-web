@@ -27,8 +27,6 @@ import {
   Settings,
   LogOut,
   Plus,
-  Clock,
-  Edit,
   Trash2,
   Save,
   CalendarDays,
@@ -181,22 +179,23 @@ export default function ClinicAdminSchedule() {
     type: "Public Holiday",
   });
 
-  const weekDays = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-  ];
+
 
   const updateSchedule = (dayIndex: number, field: string, value: any) => {
+    if (!selectedDoctor) return;
+    
     const updatedSchedules = doctorSchedules.map((doctor) => {
       if (doctor.id === selectedDoctor.id) {
         const updatedDoctor = { ...doctor };
+        const currentSchedule = updatedDoctor.schedules[dayIndex];
+        if (!currentSchedule) return doctor;
+        
         updatedDoctor.schedules[dayIndex] = {
-          ...updatedDoctor.schedules[dayIndex],
+          day: currentSchedule.day,
+          startTime: currentSchedule.startTime,
+          endTime: currentSchedule.endTime,
+          available: currentSchedule.available,
+          slotDuration: currentSchedule.slotDuration,
           [field]: value,
         };
         return updatedDoctor;
@@ -304,7 +303,7 @@ export default function ClinicAdminSchedule() {
                   </CardHeader>
                   <CardContent>
                     <Select
-                      value={selectedDoctor.id}
+                      value={selectedDoctor?.id || ""}
                       onValueChange={(value) =>
                         setSelectedDoctor(
                           doctorSchedules.find((d) => d.id === value)!
@@ -330,12 +329,12 @@ export default function ClinicAdminSchedule() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Calendar className="w-5 h-5" />
-                      Weekly Schedule - {selectedDoctor.doctorName}
+                      Weekly Schedule - {selectedDoctor?.doctorName || 'No Doctor Selected'}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {selectedDoctor.schedules.map((schedule, index) => (
+                      {selectedDoctor?.schedules?.map((schedule, index) => (
                         <div
                           key={index}
                           className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center p-4 border rounded-lg"

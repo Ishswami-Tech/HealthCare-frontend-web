@@ -371,7 +371,9 @@ export interface CreateMedicalRecordData {
   isConfidential?: boolean;
   recordDate: string;
   templateId?: string;
-  templateData?: Record<string, any>;
+  templateData?: {
+    [fieldName: string]: string | number | boolean | string[] | Date;
+  };
 }
 
 export interface UpdateMedicalRecordData extends Partial<CreateMedicalRecordData> {
@@ -412,24 +414,3 @@ export interface CreateLabResultData {
   isCritical?: boolean;
 }
 
-// ===== EXPORT ALL TYPES =====
-
-export type {
-  MedicalRecord,
-  MedicalRecordAttachment,
-  MedicalRecordTemplate,
-  MedicalRecordTemplateField,
-  VitalSigns,
-  LabResult,
-  ImagingResult,
-  ImagingAttachment,
-  PulseDiagnosis,
-  DoshaAnalysis,
-  PanchakarmaTreatment,
-  PanchakarmaTreatmentSession,
-  MedicalRecordFilters,
-  CreateMedicalRecordData,
-  UpdateMedicalRecordData,
-  CreateVitalSignsData,
-  CreateLabResultData
-};

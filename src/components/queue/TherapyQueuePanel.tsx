@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
 import {
   Clock,
   User,
@@ -25,7 +24,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import TherapyBadge, {
   TherapyType,
-  getTherapyDuration,
 } from "@/components/ayurveda/TherapyBadge";
 
 export interface QueueItem {

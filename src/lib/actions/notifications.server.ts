@@ -36,7 +36,7 @@ export async function createNotification(notificationData: {
   type: 'APPOINTMENT' | 'PRESCRIPTION' | 'REMINDER' | 'SYSTEM' | 'MARKETING';
   title: string;
   message: string;
-  data?: Record<string, any>;
+  data?: Record<string, string | number | boolean>;
   scheduledFor?: string;
 }) {
   const { data } = await authenticatedApi('/notifications', {
@@ -60,10 +60,9 @@ export async function markNotificationAsRead(notificationId: string) {
  * Mark all notifications as read
  */
 export async function markAllNotificationsAsRead(userId?: string) {
-  const body = userId ? JSON.stringify({ userId }) : undefined;
   const { data } = await authenticatedApi('/notifications/mark-all-read', {
     method: 'PATCH',
-    body,
+    ...(userId && { body: JSON.stringify({ userId }) }),
   });
   return data;
 }

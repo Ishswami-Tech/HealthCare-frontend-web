@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { useQueuePermissions, useRBAC } from "@/hooks/useRBAC";
+import { useQueuePermissions } from "@/hooks/useRBAC";
 import { QueueProtectedComponent, ProtectedComponent } from "@/components/rbac";
 import {
   useQueue,
@@ -15,8 +15,21 @@ import {
   useQueueStats,
 } from "@/hooks/useQueue";
 import { useClinicContext } from "@/hooks/useClinic";
-import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
+
+// Local interface for mock queue data (different from API QueueItem)
+interface MockQueueItem {
+  id: string;
+  patientName: string;
+  doctorName: string;
+  appointmentTime: string;
+  status: string;
+  type: string;
+  checkedInAt: string;
+  startedAt?: string;
+  estimatedWait?: string;
+  estimatedDuration?: string;
+}
 import {
   Clock,
   User,
@@ -36,21 +49,19 @@ import {
 } from "lucide-react";
 
 export default function QueuePage() {
-  const { session } = useAuth();
+  useAuth();
   const [activeQueue, setActiveQueue] = useState("consultations");
 
-  const userRole = session?.user?.role as Role;
 
   // RBAC permissions
   const queuePermissions = useQueuePermissions();
-  const rbac = useRBAC();
 
   // Clinic context
   const { clinicId } = useClinicContext();
 
   // Fetch queue data with proper permissions
   const {
-    data: queueData,
+    data: _queueData,
     isPending: isLoading,
     error,
     refetch: refetchQueue,
@@ -69,22 +80,26 @@ export default function QueuePage() {
   const callNextPatientMutation = useCallNextPatient();
 
   // Handle queue actions
-  const handleUpdateQueueStatus = async (patientId: string, status: string) => {
-    try {
-      await updateQueueStatusMutation.mutateAsync({ patientId, status });
-      refetchQueue();
-    } catch (error) {
-      console.error("Failed to update queue status:", error);
-    }
+  const handleUpdateQueueStatus = (patientId: string, status: string) => {
+    updateQueueStatusMutation.mutate({ patientId, status }, {
+      onSuccess: () => {
+        refetchQueue();
+      },
+      onError: (error) => {
+        console.error("Failed to update queue status:", error);
+      }
+    });
   };
 
-  const handleCallNextPatient = async (queueType: string) => {
-    try {
-      await callNextPatientMutation.mutateAsync({ queueType });
-      refetchQueue();
-    } catch (error) {
-      console.error("Failed to call next patient:", error);
-    }
+  const handleCallNextPatient = (queueType: string) => {
+    callNextPatientMutation.mutate({ queueType }, {
+      onSuccess: () => {
+        refetchQueue();
+      },
+      onError: (error) => {
+        console.error("Failed to call next patient:", error);
+      }
+    });
   };
 
   // Show loading state
@@ -217,24 +232,12 @@ export default function QueuePage() {
     }
   };
 
-  const getTherapyIcon = (type: string) => {
-    switch (type) {
-      case "Agnikarma":
-        return <Flame className="w-5 h-5 text-orange-600" />;
-      case "Panchakarma":
-        return <Droplets className="w-5 h-5 text-blue-600" />;
-      case "Shirodhara":
-        return <Leaf className="w-5 h-5 text-green-600" />;
-      default:
-        return <Stethoscope className="w-5 h-5 text-gray-600" />;
-    }
-  };
 
   const QueueCard = ({
     item,
     showActions = true,
   }: {
-    item: any;
+    item: MockQueueItem;
     showActions?: boolean;
   }) => (
     <Card className="hover:shadow-md transition-shadow">
@@ -366,7 +369,7 @@ export default function QueuePage() {
     icon,
   }: {
     title: string;
-    items: any[];
+    items: MockQueueItem[];
     icon: React.ReactNode;
   }) => (
     <div className="space-y-4">
@@ -401,7 +404,7 @@ export default function QueuePage() {
         permission={Permission.MANAGE_QUEUE}
         showFallback={false}
       >
-        {queueStats && (
+        {queueStats ? (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
@@ -411,7 +414,7 @@ export default function QueuePage() {
                       Total in Queue
                     </p>
                     <p className="text-2xl font-bold">
-                      {queueStats.totalInQueue || 0}
+                      {(queueStats as any)?.totalInQueue || 0}
                     </p>
                   </div>
                   <Users className="h-8 w-8 text-blue-600" />
@@ -426,7 +429,7 @@ export default function QueuePage() {
                       Average Wait
                     </p>
                     <p className="text-2xl font-bold text-yellow-600">
-                      {queueStats.averageWaitTime || 0}m
+                      {(queueStats as any)?.averageWaitTime || 0}m
                     </p>
                   </div>
                   <Timer className="h-8 w-8 text-yellow-600" />
@@ -441,7 +444,7 @@ export default function QueuePage() {
                       In Progress
                     </p>
                     <p className="text-2xl font-bold text-green-600">
-                      {queueStats.inProgress || 0}
+                      {(queueStats as any)?.inProgress || 0}
                     </p>
                   </div>
                   <Activity className="h-8 w-8 text-green-600" />
@@ -456,7 +459,7 @@ export default function QueuePage() {
                       Completed Today
                     </p>
                     <p className="text-2xl font-bold text-blue-600">
-                      {queueStats.completedToday || 0}
+                      {(queueStats as any)?.completedToday || 0}
                     </p>
                   </div>
                   <CheckCircle className="h-8 w-8 text-blue-600" />
@@ -464,7 +467,7 @@ export default function QueuePage() {
               </CardContent>
             </Card>
           </div>
-        )}
+        ) : null}
       </ProtectedComponent>
 
       <div className="flex items-center justify-between">

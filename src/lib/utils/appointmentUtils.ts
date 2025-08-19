@@ -3,7 +3,7 @@ import { AppointmentWithRelations } from '@/types/appointment.types';
 export function getNextAvailableTime(currentTime: string, duration: number = 30): string {
   const [hours, minutes] = currentTime.split(':').map(Number);
   const nextTime = new Date();
-  nextTime.setHours(hours, minutes + duration, 0, 0);
+  nextTime.setHours(hours || 0, (minutes || 0) + duration, 0, 0);
   return nextTime.toTimeString().substring(0, 5);
 }
 

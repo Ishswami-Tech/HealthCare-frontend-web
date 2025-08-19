@@ -227,8 +227,8 @@ export interface AppointmentStats {
   checkedIn: number;
 }
 
-export async function getAppointmentStats(filters?: AppointmentFilters): Promise<AppointmentStats> {
-  const appointments = await getAppointments(filters);
+export async function getAppointmentStats(tenantId: string, filters?: AppointmentFilters): Promise<AppointmentStats> {
+  const appointments = await getAppointments(tenantId, filters);
   
   const stats: AppointmentStats = {
     total: appointments.length,

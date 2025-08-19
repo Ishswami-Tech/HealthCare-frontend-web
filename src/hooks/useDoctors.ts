@@ -58,7 +58,7 @@ export const useDoctor = (doctorId: string) => {
  */
 export const useDoctorSchedule = (doctorId: string, date?: string) => {
   return useQueryData(['doctorSchedule', doctorId, date], async () => {
-    return await getDoctorSchedule(doctorId, date);
+    return await getDoctorSchedule(doctorId, date || '');
   }, {
     enabled: !!doctorId,
   });
@@ -98,7 +98,7 @@ export const useDoctorPatients = (doctorId: string, filters?: {
   limit?: number;
 }) => {
   return useQueryData(['doctorPatients', doctorId, filters], async () => {
-    return await getDoctorPatients(doctorId, filters);
+    return await getDoctorPatients(doctorId, JSON.stringify(filters || {}));
   }, {
     enabled: !!doctorId,
   });
