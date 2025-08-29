@@ -270,10 +270,10 @@ export default function AboutPage() {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
-                Our Journey of Excellence
+                {t("about.milestones.title")}
               </h2>
               <p className="text-lg text-gray-600">
-                Two decades of milestones in authentic Ayurvedic healthcare
+                {t("about.milestones.subtitle")}
               </p>
             </div>
 
@@ -309,12 +309,10 @@ export default function AboutPage() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center text-white">
             <h2 className="text-3xl md:text-4xl font-playfair font-bold mb-6">
-              Be Part of Our Healing Legacy
+              {t("about.legacy.title")}
             </h2>
             <p className="text-xl text-orange-100 mb-8">
-              Join thousands who have experienced authentic Ayurvedic
-              transformation. Your journey to complete wellness begins with a
-              single step.
+              {t("about.legacy.description")}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -323,29 +321,29 @@ export default function AboutPage() {
                 variant="secondary"
                 className="bg-white text-orange-600 hover:bg-orange-50 text-lg px-8"
               >
-                Book Consultation
+                {t("navigation.bookConsultation")}
               </Button>
               <Button
                 size="lg"
                 variant="outline"
                 className="border-white text-white hover:bg-white/10 text-lg px-8"
               >
-                Take Health Assessment
+                {t("treatments.cta.assessmentButton")}
               </Button>
             </div>
 
             <div className="mt-8 flex flex-wrap justify-center gap-6 text-orange-100">
               <div className="flex items-center space-x-2">
                 <CheckCircle className="w-4 h-4" />
-                <span>Government Certified</span>
+                <span>{t("trustBuilding.certifications.items.governmentCertified.title")}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Shield className="w-4 h-4" />
-                <span>ISO 9001:2015</span>
+                <span>{t("trustBuilding.certifications.items.isoAccredited.title")}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Award className="w-4 h-4" />
-                <span>Teaching Hospital</span>
+                <span>{t("trustBuilding.certifications.items.excellenceAward.title")}</span>
               </div>
             </div>
           </div>

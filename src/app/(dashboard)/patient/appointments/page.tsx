@@ -275,7 +275,15 @@ export default function PatientAppointments() {
                                 ? 'border-blue-500 bg-blue-50' 
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
+                            role="button"
+                            tabIndex={0}
                             onClick={() => handleConsultationTypeSelect(type.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleConsultationTypeSelect(type.id);
+                              }
+                            }}
                           >
                             <div className="flex items-start gap-3">
                               <div className={`p-2 rounded-lg ${type.color}`}>

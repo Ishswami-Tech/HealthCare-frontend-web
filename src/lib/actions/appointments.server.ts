@@ -1,414 +1,794 @@
+// ✅ Appointments Server Actions - Backend Integration
+// This file provides server actions that integrate with the backend appointments system
+
 'use server';
 
-import { 
+import { revalidatePath, revalidateTag } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { z } from 'zod';
+import { cookies } from 'next/headers';
+import { clinicApiClient } from '@/lib/api/client';
+import { auditLog } from '@/lib/audit';
+import { validateClinicAccess } from '@/lib/auth/permissions';
+import type { 
+  Appointment, 
   CreateAppointmentData, 
   UpdateAppointmentData, 
-  ProcessCheckInData,
-  ReorderQueueData,
-  VerifyAppointmentQRData,
-  CompleteAppointmentData,
-  StartConsultationData,
   AppointmentFilters,
-  AppointmentWithRelations,
-  DoctorAvailability,
-  QueuePosition,
-  AppointmentQueue,
-  QRCodeResponse,
-  AppointmentConfirmation
+  QueueEntry,
+  QueueStats 
 } from '@/types/appointment.types';
-import { authenticatedApi } from './auth.server';
 
-// ===== APPOINTMENT CRUD OPERATIONS =====
+// ✅ Input Validation Schemas
+const createAppointmentSchema = z.object({
+  patientId: z.string().uuid(),
+  doctorId: z.string().uuid(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  time: z.string().regex(/^\d{2}:\d{2}$/),
+  duration: z.number().min(15).max(480), // 15 minutes to 8 hours
+  type: z.string().min(1).max(100),
+  notes: z.string().max(1000).optional(),
+  clinicId: z.string().uuid(),
+  locationId: z.string().uuid().optional(),
+  symptoms: z.array(z.string()).optional(),
+  priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).default('NORMAL'),
+});
+
+const updateAppointmentSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  duration: z.number().min(15).max(480).optional(),
+  type: z.string().min(1).max(100).optional(),
+  notes: z.string().max(1000).optional(),
+  status: z.enum(['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
+  symptoms: z.array(z.string()).optional(),
+  diagnosis: z.string().max(1000).optional(),
+  prescription: z.string().max(1000).optional(),
+  followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+const completeAppointmentSchema = z.object({
+  diagnosis: z.string().max(1000).optional(),
+  prescription: z.string().max(1000).optional(),
+  notes: z.string().max(1000).optional(),
+  followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  followUpNotes: z.string().max(1000).optional(),
+});
+
+// ✅ Helper Functions
+async function getSessionData() {
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get('session_id')?.value;
+  const userId = cookieStore.get('user_id')?.value;
+  const clinicId = cookieStore.get('clinic_id')?.value;
+
+  if (!sessionId || !userId) {
+    throw new Error('Unauthorized: Please log in again');
+  }
+
+  return { sessionId, userId, clinicId };
+}
+
+async function getClientIP(): Promise<string> {
+  const { headers } = await import('next/headers');
+  const headersList = await headers();
+  return headersList.get('x-forwarded-for') || 
+         headersList.get('x-real-ip') || 
+         'unknown';
+}
+
+async function getUserAgent(): Promise<string> {
+  const { headers } = await import('next/headers');
+  const headersList = await headers();
+  return headersList.get('user-agent') || 'unknown';
+}
+
+// ✅ Appointment Management Server Actions
 
 /**
  * Create a new appointment
  */
-export async function createAppointment(data: CreateAppointmentData): Promise<AppointmentWithRelations> {
-  const response = await authenticatedApi<AppointmentWithRelations>('/appointments?domain=healthcare', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return response.data;
+export async function createAppointment(data: CreateAppointmentData): Promise<{ success: boolean; appointment?: Appointment; error?: string }> {
+  try {
+    // Validate input
+    const validatedData = createAppointmentSchema.parse(data);
+
+    // Get session data
+    const { sessionId, userId, clinicId } = await getSessionData();
+
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'appointments.create');
+    if (!hasAccess) {
+      await auditLog({
+        userId,
+        action: 'CREATE_APPOINTMENT_DENIED',
+        resource: 'APPOINTMENT',
+        resourceId: 'new',
+        result: 'FAILURE',
+        riskLevel: 'MEDIUM',
+        ipAddress: await getClientIP(),
+        userAgent: await getUserAgent(),
+        sessionId
+      });
+      
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
+
+    // Create appointment via API - match the expected API client signature
+    const apiData = {
+      patientId: validatedData.patientId,
+      doctorId: validatedData.doctorId,
+      date: validatedData.date,
+      time: validatedData.time,
+      duration: validatedData.duration,
+      type: validatedData.type,
+      notes: validatedData.notes || '',
+      clinicId: clinicId || validatedData.clinicId
+    };
+
+    const response = await clinicApiClient.createAppointment(apiData);
+
+    if (!response.success || !response.data) {
+      return { success: false, error: 'Failed to create appointment' };
+    }
+
+    // Audit log successful creation
+    await auditLog({
+      userId,
+      action: 'APPOINTMENT_CREATED',
+      resource: 'APPOINTMENT',
+      resourceId: (response.data as any).id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress: await getClientIP(),
+      userAgent: await getUserAgent(),
+      sessionId,
+      metadata: {
+        patientId: validatedData.patientId,
+        doctorId: validatedData.doctorId,
+        appointmentDate: validatedData.date,
+        appointmentTime: validatedData.time,
+        appointmentType: validatedData.type
+      }
+    });
+
+    // Revalidate cache
+    revalidatePath('/dashboard/appointments');
+    revalidateTag('appointments');
+    
+    return { success: true, appointment: response.data as Appointment };
+    
+  } catch (error) {
+    console.error('Failed to create appointment:', error);
+    
+    if (error instanceof z.ZodError) {
+      return { 
+        success: false, 
+        error: `Validation error: ${error.errors[0]?.message}` 
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while creating the appointment' 
+    };
+  }
 }
 
 /**
- * Get all appointments with optional filtering
+ * Get appointments for a clinic
  */
-export async function getAppointments(tenantId: string, filters?: AppointmentFilters): Promise<AppointmentWithRelations[]> {
-  const queryParams = new URLSearchParams();
-  queryParams.append('domain', 'healthcare');
+export async function getAppointments(clinicId: string, filters?: AppointmentFilters): Promise<{ success: boolean; appointments?: Appointment[]; meta?: any; error?: string }> {
+  try {
+    const { sessionId, userId } = await getSessionData();
 
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        queryParams.append(key, value.toString());
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'appointments.read');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
+
+    // Convert AppointmentFilters to PaginationParams for API client
+    const paginationParams = {
+      page: filters?.page || 1,
+      limit: filters?.limit || 10,
+      sortBy: filters?.sortBy || 'createdAt',
+      sortOrder: filters?.sortOrder || 'desc',
+      search: filters?.search || '',
+      filters: {
+        status: filters?.status || '',
+        date: filters?.date || '',
+        doctorId: filters?.doctorId || '',
+        patientId: filters?.patientId || '',
+        locationId: filters?.locationId || '',
+        type: filters?.type || '',
+        startDate: filters?.startDate || '',
+        endDate: filters?.endDate || '',
       }
-    });
-  }
+    };
 
-  const endpoint = `/appointments/tenant/${tenantId}?${queryParams.toString()}`;
-  const response = await authenticatedApi<AppointmentWithRelations[]>(endpoint);
-  return response.data;
+    // Get appointments via API
+    const response = await clinicApiClient.getAppointments(clinicId, paginationParams);
+
+    if (!response.success) {
+      return { success: false, error: 'Failed to fetch appointments' };
+    }
+
+    return { 
+      success: true, 
+      appointments: response.data as Appointment[] || [], 
+      meta: response.meta 
+    };
+    
+  } catch (error) {
+    console.error('Failed to get appointments:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while fetching appointments' 
+    };
+  }
 }
 
 /**
  * Get appointment by ID
  */
-export async function getAppointmentById(id: string): Promise<AppointmentWithRelations> {
-  const response = await authenticatedApi<AppointmentWithRelations>(`/appointments/${id}`);
-  return response.data;
+export async function getAppointmentById(id: string): Promise<{ success: boolean; appointment?: Appointment; error?: string }> {
+  try {
+    const { sessionId, userId } = await getSessionData();
+
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'appointments.read');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
+
+    // Get appointment via API
+    const response = await clinicApiClient.getAppointmentById(id);
+
+    if (!response.success || !response.data) {
+      return { success: false, error: 'Appointment not found' };
+    }
+
+    return { success: true, appointment: response.data as Appointment };
+    
+  } catch (error) {
+    console.error('Failed to get appointment:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while fetching the appointment' 
+    };
+  }
 }
 
 /**
- * Update an appointment
+ * Update appointment
  */
-export async function updateAppointment(id: string, data: UpdateAppointmentData): Promise<AppointmentWithRelations> {
-  const response = await authenticatedApi<AppointmentWithRelations>(`/appointments/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-  return response.data;
+export async function updateAppointment(id: string, data: UpdateAppointmentData): Promise<{ success: boolean; appointment?: Appointment; error?: string }> {
+  try {
+    // Validate input
+    const validatedData = updateAppointmentSchema.parse(data);
+
+    // Get session data
+    const { sessionId, userId } = await getSessionData();
+
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'appointments.update');
+    if (!hasAccess) {
+      await auditLog({
+        userId,
+        action: 'UPDATE_APPOINTMENT_DENIED',
+        resource: 'APPOINTMENT',
+        resourceId: id,
+        result: 'FAILURE',
+        riskLevel: 'MEDIUM',
+        ipAddress: await getClientIP(),
+        userAgent: await getUserAgent(),
+        sessionId
+      });
+      
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
+
+    // Convert validated data to match API client signature
+    const apiData = {
+      date: validatedData.date || '',
+      time: validatedData.time || '',
+      duration: validatedData.duration || 30,
+      type: validatedData.type || '',
+      notes: validatedData.notes || '',
+      status: validatedData.status || '',
+    };
+
+    // Update appointment via API
+    const response = await clinicApiClient.updateAppointment(id, apiData);
+
+    if (!response.success || !response.data) {
+      return { success: false, error: 'Failed to update appointment' };
+    }
+
+    // Audit log successful update
+    await auditLog({
+      userId,
+      action: 'APPOINTMENT_UPDATED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress: await getClientIP(),
+      userAgent: await getUserAgent(),
+      sessionId,
+      metadata: {
+        updatedFields: Object.keys(validatedData)
+      }
+    });
+
+    // Revalidate cache
+    revalidatePath('/dashboard/appointments');
+    revalidatePath(`/dashboard/appointments/${id}`);
+    revalidateTag('appointments');
+    
+    return { success: true, appointment: response.data as Appointment };
+    
+  } catch (error) {
+    console.error('Failed to update appointment:', error);
+    
+    if (error instanceof z.ZodError) {
+      return { 
+        success: false, 
+        error: `Validation error: ${error.errors[0]?.message}` 
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while updating the appointment' 
+    };
+  }
 }
 
 /**
- * Cancel an appointment
+ * Cancel appointment
  */
-export async function cancelAppointment(id: string): Promise<AppointmentWithRelations> {
-  const response = await authenticatedApi<AppointmentWithRelations>(`/appointments/${id}`, {
-    method: 'DELETE',
-  });
-  return response.data;
-}
+export async function cancelAppointment(id: string, reason?: string): Promise<{ success: boolean; appointment?: Appointment; error?: string }> {
+  try {
+    const { sessionId, userId } = await getSessionData();
 
-// ===== DOCTOR AVAILABILITY =====
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'appointments.update');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
 
-/**
- * Get doctor availability for a specific date
- */
-export async function getDoctorAvailability(doctorId: string, date: string): Promise<DoctorAvailability> {
-  const response = await authenticatedApi<DoctorAvailability>(`/appointments/doctor/${doctorId}/availability?date=${date}`);
-  return response.data;
-}
+    // Cancel appointment via API
+    const response = await clinicApiClient.cancelAppointment(id, reason);
 
-/**
- * Get user's upcoming appointments
- */
-export async function getUserUpcomingAppointments(userId: string): Promise<AppointmentWithRelations[]> {
-  const response = await authenticatedApi<AppointmentWithRelations[]>(`/appointments/user/${userId}/upcoming`);
-  return response.data;
-}
+    if (!response.success || !response.data) {
+      return { success: false, error: 'Failed to cancel appointment' };
+    }
 
-/**
- * Get current user's own appointments (for patients)
- */
-export async function getMyAppointments(): Promise<AppointmentWithRelations[]> {
-  const response = await authenticatedApi<AppointmentWithRelations[]>('/appointments/my-appointments');
-  return response.data;
-}
+    // Audit log
+    await auditLog({
+      userId,
+      action: 'APPOINTMENT_CANCELLED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'MEDIUM',
+      ipAddress: await getClientIP(),
+      userAgent: await getUserAgent(),
+      sessionId,
+      metadata: {
+        reason: reason || 'No reason provided'
+      }
+    });
 
-// ===== CHECK-IN OPERATIONS =====
-
-/**
- * Process patient check-in
- */
-export async function processCheckIn(data: ProcessCheckInData): Promise<AppointmentWithRelations> {
-  const response = await authenticatedApi<AppointmentWithRelations>('/check-in/process', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return response.data;
-}
-
-/**
- * Get patient queue position
- */
-export async function getPatientQueuePosition(appointmentId: string): Promise<QueuePosition> {
-  const response = await authenticatedApi<QueuePosition>(`/check-in/patient-position/${appointmentId}`);
-  return response.data;
-}
-
-/**
- * Reorder appointment queue
- */
-export async function reorderQueue(data: ReorderQueueData): Promise<AppointmentWithRelations[]> {
-  const response = await authenticatedApi<AppointmentWithRelations[]>('/check-in/reorder-queue', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return response.data;
-}
-
-// ===== APPOINTMENT QUEUE =====
-
-/**
- * Get doctor queue
- */
-export async function getDoctorQueue(doctorId: string, date: string): Promise<AppointmentQueue> {
-  const response = await authenticatedApi<AppointmentQueue>(`/appointments/queue/doctor/${doctorId}`, {
-    method: 'GET',
-    body: JSON.stringify({ date }),
-  });
-  return response.data;
-}
-
-/**
- * Get patient queue position
- */
-export async function getQueuePosition(appointmentId: string): Promise<QueuePosition> {
-  const response = await authenticatedApi<QueuePosition>(`/appointments/queue/position/${appointmentId}`);
-  return response.data;
+    // Revalidate cache
+    revalidatePath('/dashboard/appointments');
+    revalidateTag('appointments');
+    
+    return { success: true, appointment: response.data as Appointment };
+    
+  } catch (error) {
+    console.error('Failed to cancel appointment:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while cancelling the appointment' 
+    };
+  }
 }
 
 /**
  * Confirm appointment
  */
-export async function confirmAppointment(appointmentId: string): Promise<AppointmentWithRelations> {
-  const response = await authenticatedApi<AppointmentWithRelations>(`/appointments/queue/confirm/${appointmentId}`, {
-    method: 'POST',
-  });
-  return response.data;
+export async function confirmAppointment(id: string): Promise<{ success: boolean; appointment?: Appointment; error?: string }> {
+  try {
+    const { sessionId, userId } = await getSessionData();
+
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'appointments.update');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
+
+    // Confirm appointment via API
+    const response = await clinicApiClient.confirmAppointment(id);
+
+    if (!response.success || !response.data) {
+      return { success: false, error: 'Failed to confirm appointment' };
+    }
+
+    // Audit log
+    await auditLog({
+      userId,
+      action: 'APPOINTMENT_CONFIRMED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress: await getClientIP(),
+      userAgent: await getUserAgent(),
+      sessionId
+    });
+
+    // Revalidate cache
+    revalidatePath('/dashboard/appointments');
+    revalidateTag('appointments');
+    
+    return { success: true, appointment: response.data as Appointment };
+    
+  } catch (error) {
+    console.error('Failed to confirm appointment:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while confirming the appointment' 
+    };
+  }
 }
 
 /**
- * Start consultation
+ * Check in appointment
  */
-export async function startConsultation(appointmentId: string, data: StartConsultationData): Promise<AppointmentWithRelations> {
-  const response = await authenticatedApi<AppointmentWithRelations>(`/appointments/queue/start/${appointmentId}`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return response.data;
-}
+export async function checkInAppointment(id: string): Promise<{ success: boolean; appointment?: Appointment; error?: string }> {
+  try {
+    const { sessionId, userId } = await getSessionData();
 
-// ===== APPOINTMENT CONFIRMATION =====
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'appointments.update');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
 
-/**
- * Generate confirmation QR code
- */
-export async function generateConfirmationQR(appointmentId: string): Promise<QRCodeResponse> {
-  const response = await authenticatedApi<QRCodeResponse>(`/appointments/confirmation/${appointmentId}/qr`);
-  return response.data;
-}
+    // Check in appointment via API
+    const response = await clinicApiClient.checkInAppointment(id);
 
-/**
- * Verify appointment QR code
- */
-export async function verifyAppointmentQR(data: VerifyAppointmentQRData): Promise<AppointmentConfirmation> {
-  const response = await authenticatedApi<AppointmentConfirmation>('/appointments/confirmation/verify', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return response.data;
-}
+    if (!response.success || !response.data) {
+      return { success: false, error: 'Failed to check in appointment' };
+    }
 
-/**
- * Mark appointment as completed
- */
-export async function markAppointmentCompleted(appointmentId: string, data: CompleteAppointmentData): Promise<AppointmentWithRelations> {
-  const response = await authenticatedApi<AppointmentWithRelations>(`/appointments/confirmation/${appointmentId}/complete`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return response.data;
-}
+    // Audit log
+    await auditLog({
+      userId,
+      action: 'APPOINTMENT_CHECKED_IN',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress: await getClientIP(),
+      userAgent: await getUserAgent(),
+      sessionId
+    });
 
-// ===== UTILITY FUNCTIONS =====
-
-/**
- * Get appointment statistics
- */
-export interface AppointmentStats {
-  total: number;
-  scheduled: number;
-  confirmed: number;
-  inProgress: number;
-  completed: number;
-  cancelled: number;
-  checkedIn: number;
-}
-
-export async function getAppointmentStats(tenantId: string, filters?: AppointmentFilters): Promise<AppointmentStats> {
-  const appointments = await getAppointments(tenantId, filters);
-  
-  const stats: AppointmentStats = {
-    total: appointments.length,
-    scheduled: appointments.filter(a => a.status === 'SCHEDULED').length,
-    confirmed: appointments.filter(a => a.status === 'CONFIRMED').length,
-    inProgress: appointments.filter(a => a.status === 'IN_PROGRESS').length,
-    completed: appointments.filter(a => a.status === 'COMPLETED').length,
-    cancelled: appointments.filter(a => a.status === 'CANCELLED').length,
-    checkedIn: appointments.filter(a => a.status === 'CHECKED_IN').length,
-  };
-
-  return stats;
+    // Revalidate cache
+    revalidatePath('/dashboard/appointments');
+    revalidateTag('appointments');
+    
+    return { success: true, appointment: response.data as Appointment };
+    
+  } catch (error) {
+    console.error('Failed to check in appointment:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while checking in the appointment' 
+    };
+  }
 }
 
 /**
- * Check if appointment can be cancelled
+ * Start appointment
  */
-export async function canCancelAppointment(appointment: AppointmentWithRelations):  Promise<boolean> {
-  const cancellableStatuses = ['SCHEDULED', 'CONFIRMED'];
-  return cancellableStatuses.includes(appointment.status);
+export async function startAppointment(id: string): Promise<{ success: boolean; appointment?: Appointment; error?: string }> {
+  try {
+    const { sessionId, userId } = await getSessionData();
+
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'appointments.update');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
+
+    // Start appointment via API
+    const response = await clinicApiClient.startAppointment(id);
+
+    if (!response.success || !response.data) {
+      return { success: false, error: 'Failed to start appointment' };
+    }
+
+    // Audit log
+    await auditLog({
+      userId,
+      action: 'APPOINTMENT_STARTED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress: await getClientIP(),
+      userAgent: await getUserAgent(),
+      sessionId
+    });
+
+    // Revalidate cache
+    revalidatePath('/dashboard/appointments');
+    revalidateTag('appointments');
+    
+    return { success: true, appointment: response.data as Appointment };
+    
+  } catch (error) {
+    console.error('Failed to start appointment:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while starting the appointment' 
+    };
+  }
 }
 
 /**
- * Check if appointment can be rescheduled
+ * Complete appointment
  */
-export async function canRescheduleAppointment(appointment: AppointmentWithRelations): Promise<boolean> {
-  const reschedulableStatuses = ['SCHEDULED', 'CONFIRMED'];
-  return reschedulableStatuses.includes(appointment.status);
-}
+export async function completeAppointment(id: string, data: {
+  diagnosis?: string;
+  prescription?: string;
+  notes?: string;
+  followUpDate?: string;
+  followUpNotes?: string;
+}): Promise<{ success: boolean; appointment?: Appointment; error?: string }> {
+  try {
+    // Validate input
+    const validatedData = completeAppointmentSchema.parse(data);
 
-// ===== ENHANCED APPOINTMENT MANAGEMENT =====
+    const { sessionId, userId } = await getSessionData();
 
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'appointments.update');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
 
+    // Convert validated data to match API client signature
+    const apiData = {
+      diagnosis: validatedData.diagnosis || '',
+      prescription: validatedData.prescription || '',
+      notes: validatedData.notes || '',
+      followUpDate: validatedData.followUpDate || '',
+    };
 
-/**
- * Get appointment analytics
- */
-export async function getAppointmentAnalytics(period: 'day' | 'week' | 'month' | 'year' = 'month') {
-  const response = await authenticatedApi(`/appointments/analytics?period=${period}`);
-  return response.data;
-}
+    // Complete appointment via API
+    const response = await clinicApiClient.completeAppointment(id, apiData);
 
-/**
- * Bulk update appointments
- */
-export async function bulkUpdateAppointments(appointmentIds: string[], updates: Partial<UpdateAppointmentData>) {
-  const response = await authenticatedApi('/appointments/bulk-update', {
-    method: 'PATCH',
-    body: JSON.stringify({ appointmentIds, updates }),
-  });
-  return response.data;
-}
+    if (!response.success || !response.data) {
+      return { success: false, error: 'Failed to complete appointment' };
+    }
 
-/**
- * Export appointments
- */
-export async function exportAppointments(format: 'csv' | 'excel' | 'pdf' = 'csv', filters?: AppointmentFilters) {
-  const params = new URLSearchParams({ format });
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        params.append(key, value.toString());
+    // Audit log
+    await auditLog({
+      userId,
+      action: 'APPOINTMENT_COMPLETED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress: await getClientIP(),
+      userAgent: await getUserAgent(),
+      sessionId,
+      metadata: {
+        hasDiagnosis: !!validatedData.diagnosis,
+        hasPrescription: !!validatedData.prescription,
+        hasFollowUp: !!validatedData.followUpDate
       }
     });
+
+    // Revalidate cache
+    revalidatePath('/dashboard/appointments');
+    revalidateTag('appointments');
+    
+    return { success: true, appointment: response.data as Appointment };
+    
+  } catch (error) {
+    console.error('Failed to complete appointment:', error);
+    
+    if (error instanceof z.ZodError) {
+      return { 
+        success: false, 
+        error: `Validation error: ${error.errors[0]?.message}` 
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while completing the appointment' 
+    };
   }
+}
 
-  const response = await authenticatedApi(`/appointments/export?${params.toString()}`);
-  return response.data;
+// ✅ Queue Management Server Actions
+
+/**
+ * Get queue for a specific type
+ */
+export async function getQueue(queueType: string): Promise<{ success: boolean; queue?: QueueEntry[]; error?: string }> {
+  try {
+    const { sessionId, userId } = await getSessionData();
+
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'queue.read');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
+
+    // Get queue via API
+    const response = await clinicApiClient.getQueue(queueType);
+
+    if (!response.success) {
+      return { success: false, error: 'Failed to fetch queue' };
+    }
+
+    return { success: true, queue: response.data as QueueEntry[] || [] };
+    
+  } catch (error) {
+    console.error('Failed to get queue:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while fetching the queue' 
+    };
+  }
 }
 
 /**
- * Get appointment reminders
+ * Add patient to queue
  */
-export async function getAppointmentReminders(appointmentId: string) {
-  const response = await authenticatedApi(`/appointments/${appointmentId}/reminders`);
-  return response.data;
+export async function addToQueue(data: {
+  patientId: string;
+  appointmentId?: string;
+  queueType: string;
+  priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+}): Promise<{ success: boolean; queueEntry?: QueueEntry; error?: string }> {
+  try {
+    const { sessionId, userId } = await getSessionData();
+
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'queue.create');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
+
+    // Add to queue via API
+    const response = await clinicApiClient.addToQueue(data);
+
+    if (!response.success || !response.data) {
+      return { success: false, error: 'Failed to add to queue' };
+    }
+
+    // Audit log
+    await auditLog({
+      userId,
+      action: 'PATIENT_ADDED_TO_QUEUE',
+      resource: 'QUEUE',
+      resourceId: (response.data as any).id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress: await getClientIP(),
+      userAgent: await getUserAgent(),
+      sessionId,
+      metadata: {
+        patientId: data.patientId,
+        queueType: data.queueType,
+        priority: data.priority || 'NORMAL'
+      }
+    });
+
+    // Revalidate cache
+    revalidatePath('/dashboard/queue');
+    revalidateTag('queue');
+    
+    return { success: true, queueEntry: response.data as QueueEntry };
+    
+  } catch (error) {
+    console.error('Failed to add to queue:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while adding to queue' 
+    };
+  }
 }
 
 /**
- * Send appointment reminder
+ * Call next patient from queue
  */
-export async function sendAppointmentReminder(appointmentId: string, type: 'sms' | 'email' | 'whatsapp' = 'sms') {
-  const response = await authenticatedApi(`/appointments/${appointmentId}/reminders`, {
-    method: 'POST',
-    body: JSON.stringify({ type }),
-  });
-  return response.data;
+export async function callNextPatient(queueType: string): Promise<{ success: boolean; patient?: any; error?: string }> {
+  try {
+    const { sessionId, userId } = await getSessionData();
+
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'queue.update');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
+
+    // Call next patient via API
+    const response = await clinicApiClient.callNextPatient(queueType);
+
+    if (!response.success || !response.data) {
+      return { success: false, error: 'Failed to call next patient' };
+    }
+
+    // Audit log
+    await auditLog({
+      userId,
+      action: 'NEXT_PATIENT_CALLED',
+      resource: 'QUEUE',
+      resourceId: 'next',
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress: await getClientIP(),
+      userAgent: await getUserAgent(),
+      sessionId,
+      metadata: {
+        queueType,
+        patientId: (response.data as any).patientId
+      }
+    });
+
+    // Revalidate cache
+    revalidatePath('/dashboard/queue');
+    revalidateTag('queue');
+    
+    return { success: true, patient: response.data };
+    
+  } catch (error) {
+    console.error('Failed to call next patient:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while calling next patient' 
+    };
+  }
 }
 
 /**
- * Get appointment conflicts
+ * Get queue statistics
  */
-export async function getAppointmentConflicts(data: {
-  doctorId: string;
-  startTime: string;
-  endTime: string;
-  excludeAppointmentId?: string;
-}) {
-  const response = await authenticatedApi('/appointments/conflicts', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return response.data;
-}
+export async function getQueueStats(): Promise<{ success: boolean; stats?: QueueStats; error?: string }> {
+  try {
+    const { sessionId, userId } = await getSessionData();
 
-/**
- * Get recurring appointment templates
- */
-export async function getRecurringAppointmentTemplates() {
-  const response = await authenticatedApi('/appointments/recurring-templates');
-  return response.data;
-}
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'queue.read');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
 
-/**
- * Create recurring appointments
- */
-export async function createRecurringAppointments(data: {
-  template: CreateAppointmentData;
-  recurrence: {
-    frequency: 'daily' | 'weekly' | 'monthly';
-    interval: number;
-    endDate: string;
-    daysOfWeek?: number[];
-  };
-}) {
-  const response = await authenticatedApi('/appointments/recurring', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return response.data;
-}
+    // Get queue stats via API
+    const response = await clinicApiClient.getQueueStats();
 
-/**
- * Get appointment history for patient
- */
-export async function getPatientAppointmentHistory(patientId: string, limit: number = 50) {
-  const response = await authenticatedApi(`/appointments/patient/${patientId}/history?limit=${limit}`);
-  return response.data;
-}
+    if (!response.success) {
+      return { success: false, error: 'Failed to fetch queue statistics' };
+    }
 
-/**
- * Get doctor schedule
- */
-export async function getDoctorSchedule(doctorId: string, date: string) {
-  const response = await authenticatedApi(`/appointments/doctor/${doctorId}/schedule?date=${date}`);
-  return response.data;
-}
-
-/**
- * Update doctor availability
- */
-export async function updateDoctorAvailability(doctorId: string, availability: {
-  date: string;
-  timeSlots: Array<{
-    startTime: string;
-    endTime: string;
-    isAvailable: boolean;
-  }>;
-}) {
-  const response = await authenticatedApi(`/appointments/doctor/${doctorId}/availability`, {
-    method: 'PUT',
-    body: JSON.stringify(availability),
-  });
-  return response.data;
-}
-
-/**
- * Get appointment notifications
- */
-export async function getAppointmentNotifications(userId: string) {
-  const response = await authenticatedApi(`/appointments/notifications?userId=${userId}`);
-  return response.data;
-}
-
-/**
- * Mark notification as read
- */
-export async function markNotificationAsRead(notificationId: string) {
-  const response = await authenticatedApi(`/appointments/notifications/${notificationId}/read`, {
-    method: 'PATCH',
-  });
-  return response.data;
+    return { success: true, stats: response.data as QueueStats };
+    
+  } catch (error) {
+    console.error('Failed to get queue stats:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while fetching queue statistics' 
+    };
+  }
 }

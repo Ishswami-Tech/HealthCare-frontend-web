@@ -39,11 +39,11 @@ const ComprehensiveServices = () => {
         "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
       conditions: [
         "Autism",
-        "Cerebral Palsy", 
+        "Cerebral Palsy",
         "Mental Health Disorders",
         "Neurological Rehabilitation",
         "Paralysis",
-        "Stroke Recovery"
+        "Stroke Recovery",
       ],
       description: t("services.neurologicalDesc"),
     },
@@ -60,7 +60,7 @@ const ComprehensiveServices = () => {
         "Spinal Disorders",
         "Gout",
         "Sports Injuries",
-        "Muscular Disorders"
+        "Muscular Disorders",
       ],
       description: t("services.jointBoneDesc"),
     },
@@ -77,9 +77,10 @@ const ComprehensiveServices = () => {
         "Disc Problems",
         "Spinal Stenosis",
         "Scoliosis",
-        "Neck Pain"
+        "Neck Pain",
       ],
-      description: "Comprehensive spinal care using traditional Ayurvedic methods.",
+      description:
+        "Comprehensive spinal care using traditional Ayurvedic methods.",
     },
     {
       id: "respiratory",
@@ -94,7 +95,7 @@ const ComprehensiveServices = () => {
         "Sinusitis",
         "Allergic Rhinitis",
         "Cough",
-        "Breathing Difficulties"
+        "Breathing Difficulties",
       ],
       description: t("services.respiratoryDesc"),
     },
@@ -111,7 +112,7 @@ const ComprehensiveServices = () => {
         "Constipation",
         "IBS",
         "Ulcers",
-        "Digestive Disorders"
+        "Digestive Disorders",
       ],
       description: t("services.digestiveDesc"),
     },
@@ -128,7 +129,7 @@ const ComprehensiveServices = () => {
         "Urinary Problems",
         "Kidney Disorders",
         "Bladder Issues",
-        "Stone Prevention"
+        "Stone Prevention",
       ],
       description: t("services.kidneyStonesDesc"),
     },
@@ -145,7 +146,7 @@ const ComprehensiveServices = () => {
         "Fungal Infections",
         "Acne",
         "Vitiligo",
-        "Skin Allergies"
+        "Skin Allergies",
       ],
       description: t("services.skinDiseasesDesc"),
     },
@@ -162,7 +163,7 @@ const ComprehensiveServices = () => {
         "Metabolic Disorders",
         "Thyroid Issues",
         "Diabetes Management",
-        "Lifestyle Diseases"
+        "Lifestyle Diseases",
       ],
       description: "Natural weight management and metabolic health solutions.",
     },
@@ -179,7 +180,7 @@ const ComprehensiveServices = () => {
         "Metabolic Syndrome",
         "Cholesterol Issues",
         "Blood Pressure",
-        "Hormonal Imbalances"
+        "Hormonal Imbalances",
       ],
       description: t("services.metabolicDesc"),
     },
@@ -196,7 +197,7 @@ const ComprehensiveServices = () => {
         "Depression",
         "Insomnia",
         "Mental Fatigue",
-        "Emotional Balance"
+        "Emotional Balance",
       ],
       description: "Holistic approach to mental health and stress management.",
     },
@@ -213,7 +214,7 @@ const ComprehensiveServices = () => {
         "PCOS",
         "Menopause",
         "Pregnancy Care",
-        "Women's Health"
+        "Women's Health",
       ],
       description: t("services.gynecologicalDesc"),
     },
@@ -230,7 +231,7 @@ const ComprehensiveServices = () => {
         "Scalp Disorders",
         "Premature Greying",
         "Hair Growth",
-        "Hair Care"
+        "Hair Care",
       ],
       description: t("services.hairProblemsDesc"),
     },
@@ -247,7 +248,7 @@ const ComprehensiveServices = () => {
         "Preventive Care",
         "Chronic Diseases",
         "Stress Relief",
-        "Anti-aging"
+        "Anti-aging",
       ],
       description: t("treatments.panchakarma.description"),
     },
@@ -264,7 +265,7 @@ const ComprehensiveServices = () => {
         "Beauty Treatments",
         "Natural Glow",
         "Youthful Skin",
-        "Beauty Care"
+        "Beauty Care",
       ],
       description: t("services.beautyAntiAgingDesc"),
     },
@@ -281,9 +282,10 @@ const ComprehensiveServices = () => {
         "Energy Enhancement",
         "Sleep Disorders",
         "Chronic Fatigue",
-        "Custom Treatments"
+        "Custom Treatments",
       ],
-      description: "Comprehensive care for various health conditions and general wellness.",
+      description:
+        "Comprehensive care for various health conditions and general wellness.",
     },
   ];
 

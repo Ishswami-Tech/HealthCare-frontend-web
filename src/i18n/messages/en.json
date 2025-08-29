@@ -613,7 +613,8 @@
     "subtitle": "Bridging Ancient Wisdom with Modern Healthcare",
     "description": "For over two decades, we have been dedicated to providing authentic Ayurvedic treatments that heal not just the body, but the mind and soul. Our journey is one of continuous learning, innovation, and unwavering commitment to patient wellness.",
     "milestones": {
-      "title": "Our Journey",
+      "title": "Our Journey of Excellence",
+      "subtitle": "Two decades of milestones in authentic Ayurvedic healthcare",
       "2003": {
         "event": "Founded Shri Vishwamurthi Ayurvedalay",
         "description": "Started with a vision to bring authentic Ayurveda to modern healthcare"
@@ -687,6 +688,10 @@
         "title": "Holistic Healing",
         "description": "Treating the root cause for complete mind-body-soul wellness"
       }
+    },
+    "legacy": {
+      "title": "Be Part of Our Healing Legacy",
+      "description": "Join thousands who have experienced authentic Ayurvedic transformation. Your journey to complete wellness begins with a single step."
     }
   },
   "treatments": {
@@ -1747,5 +1752,58 @@
     "bookFreeConsultation": "Book Free Consultation",
     "callNow": "Call Now: +91-XXXX-XXXX",
     "todayOnly": "TODAY ONLY: Free Ayurvedic consultation + dosha assessment"
+  },
+  "landing": {
+    "brandName": "HealthCare App",
+    "welcome": "Welcome to HealthCare App",
+    "loginButton": "Login",
+    "getStartedButton": "Get Started",
+    "signInButton": "Sign In",
+    "goToDashboard": "Go to Dashboard",
+    "heroTitle": "Modern Healthcare Management",
+    "heroPriority": "Streamline your healthcare operations",
+    "heroDescription": "Comprehensive healthcare management platform for clinics, doctors, and patients",
+    "activeDoctors": "Active Doctors",
+    "happyPatients": "Happy Patients",
+    "specialties": "Specialties",
+    "userRating": "User Rating",
+    "featuresTitle": "Features",
+    "featuresSubtitle": "Everything you need for modern healthcare",
+    "featuresDescription": "Our platform provides comprehensive tools for healthcare management",
+    "onlineAppointments": "Online Appointments",
+    "onlineAppointmentsDesc": "Schedule and manage appointments seamlessly",
+    "medicalRecords": "Medical Records",
+    "medicalRecordsDesc": "Secure and organized patient records",
+    "secureMessaging": "Secure Messaging",
+    "secureMessagingDesc": "Private communication between doctors and patients",
+    "prescriptionManagement": "Prescription Management",
+    "prescriptionManagementDesc": "Digital prescription and medication tracking",
+    "labResults": "Lab Results",
+    "labResultsDesc": "Access and manage laboratory results",
+    "telemedicine": "Telemedicine",
+    "telemedicineDesc": "Virtual consultations and remote care",
+    "testimonialsTitle": "Testimonials",
+    "testimonialsSubtitle": "What our users say",
+    "ctaTitle": "Ready to get started?",
+    "ctaDescription": "Join thousands of healthcare professionals",
+    "companySection": "Company",
+    "servicesSection": "Services",
+    "legalSection": "Legal",
+    "connectSection": "Connect",
+    "about": "About",
+    "careers": "Careers",
+    "contact": "Contact",
+    "appointments": "Appointments",
+    "telemedicineFooter": "Telemedicine",
+    "labTests": "Lab Tests",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "security": "Security",
+    "twitter": "Twitter",
+    "facebook": "Facebook",
+    "linkedin": "LinkedIn",
+    "copyright": "© 2024 HealthCare App. All rights reserved.",
+    "loginRequired": "Please login to access this feature",
+    "invalidSession": "Invalid session. Please login again."
   }
 }

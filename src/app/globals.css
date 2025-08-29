@@ -288,6 +288,27 @@
   outline-offset: 2px !important;
 }
 
+/* Screen Reader Mode */
+.screen-reader-mode {
+  /* Enhanced focus indicators for screen readers */
+}
+
+.screen-reader-mode *:focus {
+  outline: 3px solid #ff6b35 !important;
+  outline-offset: 3px !important;
+  background-color: rgba(255, 107, 53, 0.1) !important;
+}
+
+.screen-reader-mode button:focus,
+.screen-reader-mode a:focus,
+.screen-reader-mode input:focus,
+.screen-reader-mode select:focus,
+.screen-reader-mode textarea:focus {
+  outline: 4px solid #ff6b35 !important;
+  outline-offset: 4px !important;
+  box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.3) !important;
+}
+
 /* Screen Reader Only */
 .sr-only {
   position: absolute;
@@ -347,10 +368,17 @@ html[lang="mr"] span {
 }
 
 /* ============================================================================
-   CUSTOM COMPONENT STYLES
+   ENHANCED COMPONENT STYLES & UTILITIES
    ============================================================================ */
 
 /* Line clamp utility */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -370,20 +398,323 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
+/* Enhanced custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
+  @apply bg-muted-foreground/20 rounded-full;
+  transition: background-color 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  @apply bg-muted-foreground/40;
+}
+
+::-webkit-scrollbar-corner {
+  @apply bg-transparent;
+}
+
+/* Text selection */
+::selection {
+  @apply bg-primary/20 text-primary;
+}
+
+/* Focus styles for better accessibility */
+:focus-visible {
+  @apply outline-2 outline-offset-2 outline-primary;
+}
+
+/* Custom animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+/* Animation utility classes */
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.5s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slideInFromLeft 0.3s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Enhanced glass morphism */
+.glass {
+  @apply bg-background/80 backdrop-blur-md border border-border/50;
+  backdrop-filter: blur(12px);
+}
+
+.glass-dark {
+  @apply bg-background/60 backdrop-blur-lg border border-border/30;
+  backdrop-filter: blur(16px);
+}
+
+/* Card hover effects */
+.card-hover {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+.card-hover:hover {
+  @apply shadow-lg transform scale-[1.02];
+}
+
+/* Interactive elements */
+.interactive {
+  @apply transition-all duration-200 ease-in-out;
+  @apply hover:scale-105 active:scale-95;
+}
+
+/* Gradient text utility */
+.gradient-text {
+  @apply bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent;
+}
+
+.gradient-text-success {
+  @apply bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent;
+}
+
+.gradient-text-warning {
+  @apply bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent;
+}
+
+.gradient-text-danger {
+  @apply bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent;
+}
+
+/* Ayurveda themed gradients */
+.ayurveda-gradient {
+  @apply bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50;
+}
+
+.ayurveda-gradient-dark {
+  @apply bg-gradient-to-br from-green-900/10 via-emerald-900/10 to-teal-900/10;
+}
+
+/* Status indicators */
+.status-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+.status-dot.online {
+  @apply bg-green-500 animate-pulse;
+}
+
+.status-dot.busy {
+  @apply bg-yellow-500;
+}
+
+.status-dot.offline {
+  @apply bg-gray-400;
+}
+
+/* Loading skeleton improvements */
+.skeleton {
+  @apply bg-muted rounded;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  background-size: 200px 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+/* Medical-themed colors */
+.medical-blue {
+  @apply text-blue-600 bg-blue-50 border-blue-200;
+}
+
+.medical-green {
+  @apply text-green-600 bg-green-50 border-green-200;
+}
+
+.medical-red {
+  @apply text-red-600 bg-red-50 border-red-200;
+}
+
+.medical-yellow {
+  @apply text-yellow-600 bg-yellow-50 border-yellow-200;
+}
+
+/* Enhanced button styles */
+.btn-medical {
+  @apply bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800;
+  @apply text-white font-medium px-4 py-2 rounded-lg shadow-sm;
+  @apply transition-all duration-200 ease-in-out;
+  @apply hover:shadow-md active:scale-95;
+}
+
+.btn-ayurveda {
+  @apply bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700;
+  @apply text-white font-medium px-4 py-2 rounded-lg shadow-sm;
+  @apply transition-all duration-200 ease-in-out;
+  @apply hover:shadow-md active:scale-95;
+}
+
+/* Form enhancements */
+.form-floating {
+  @apply relative;
+}
+
+.form-floating input:focus + label,
+.form-floating input:not(:placeholder-shown) + label {
+  @apply transform -translate-y-3 scale-75 text-primary;
+}
+
+.form-floating label {
+  @apply absolute left-3 top-3 text-muted-foreground pointer-events-none;
+  @apply transition-all duration-200 ease-in-out origin-left;
+}
+
+/* Dark mode enhancements */
+.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+}
+
+.dark .shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-break {
+    page-break-after: always;
+  }
+
+  .print-avoid-break {
+    page-break-inside: avoid;
+  }
+}
+
+/* Mobile-specific styles */
+@media (max-width: 640px) {
+  .mobile-full {
+    @apply w-full;
+  }
+
+  .mobile-hide {
+    @apply hidden;
+  }
+
+  .mobile-text-sm {
+    @apply text-sm;
+  }
+}
+
+/* Tablet-specific styles */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .tablet-hide {
+    @apply hidden;
+  }
+}
+
+/* Desktop-specific styles */
+@media (min-width: 1025px) {
+  .desktop-only {
+    @apply block;
+  }
 }

@@ -40,7 +40,7 @@ export const useAppStore = create<AppState>()(
       setTheme: (theme) => set({ theme }),
       session: null,
       setSession: (session) => set({ session }),
-      queryClient: null as any,
+      queryClient: null as QueryClient | null,
       setQueryClient: (client) => set({ queryClient: client }),
       lastServerActionResult: undefined,
       setServerActionResult: (result) => set({ lastServerActionResult: result }),

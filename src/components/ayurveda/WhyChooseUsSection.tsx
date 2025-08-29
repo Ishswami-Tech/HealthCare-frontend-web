@@ -27,50 +27,64 @@ const WhyChooseUsSection = () => {
       title: t("whyChooseUs.features.governmentCertified.title"),
       description: t("whyChooseUs.features.governmentCertified.description"),
       color: "from-blue-500 to-cyan-600",
-      bgColor: "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
+      bgColor:
+        "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
     },
     {
       icon: Heart,
       title: t("whyChooseUs.features.authenticAyurveda.title"),
       description: t("whyChooseUs.features.authenticAyurveda.description"),
       color: "from-red-500 to-pink-600",
-      bgColor: "from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20",
+      bgColor:
+        "from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20",
     },
     {
       icon: Users,
       title: t("whyChooseUs.features.personalizedCare.title"),
       description: t("whyChooseUs.features.personalizedCare.description"),
       color: "from-green-500 to-emerald-600",
-      bgColor: "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
+      bgColor:
+        "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
     },
     {
       icon: Leaf,
       title: t("whyChooseUs.features.naturalTreatment.title"),
       description: t("whyChooseUs.features.naturalTreatment.description"),
       color: "from-orange-500 to-red-600",
-      bgColor: "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
+      bgColor:
+        "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
     },
     {
       icon: Award,
       title: t("whyChooseUs.features.provenResults.title"),
       description: t("whyChooseUs.features.provenResults.description"),
       color: "from-purple-500 to-indigo-600",
-      bgColor: "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
+      bgColor:
+        "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
     },
     {
       icon: CheckCircle,
       title: t("whyChooseUs.features.expertTeam.title"),
       description: t("whyChooseUs.features.expertTeam.description"),
       color: "from-teal-500 to-cyan-600",
-      bgColor: "from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20",
+      bgColor:
+        "from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20",
     },
   ];
 
   const stats = [
-    { number: "5000+", label: t("whyChooseUs.stats.livesTransformed"), icon: Users },
+    {
+      number: "5000+",
+      label: t("whyChooseUs.stats.livesTransformed"),
+      icon: Users,
+    },
     { number: "20+", label: t("whyChooseUs.stats.yearsLegacy"), icon: Clock },
     { number: "95%", label: t("whyChooseUs.stats.successRate"), icon: Star },
-    { number: "4.9/5", label: t("whyChooseUs.stats.patientRating"), icon: Star },
+    {
+      number: "4.9/5",
+      label: t("whyChooseUs.stats.patientRating"),
+      icon: Star,
+    },
   ];
 
   return (
@@ -78,9 +92,7 @@ const WhyChooseUsSection = () => {
       <div className="container mx-auto px-4">
         {/* Header */}
         <ScrollReveal direction="up" className="text-center mb-16">
-          <div
-            className="inline-flex items-center gap-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-4 py-2 rounded-full text-sm font-medium mb-4"
-          >
+          <div className="inline-flex items-center gap-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-4 py-2 rounded-full text-sm font-medium mb-4">
             <Award className="w-4 h-4" />
             {t("whyChooseUs.title")}
           </div>
@@ -125,8 +137,12 @@ const WhyChooseUsSection = () => {
           {features.map((feature, index) => (
             <StaggerItem key={index}>
               <HoverAnimation type="glow">
-                <div className={`p-8 rounded-2xl ${feature.bgColor} border-2 h-full group cursor-pointer`}>
-                  <div className={`w-16 h-16 bg-gradient-to-r ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                <div
+                  className={`p-8 rounded-2xl ${feature.bgColor} border-2 h-full group cursor-pointer`}
+                >
+                  <div
+                    className={`w-16 h-16 bg-gradient-to-r ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}
+                  >
                     <feature.icon className="w-8 h-8 text-white" />
                   </div>
 

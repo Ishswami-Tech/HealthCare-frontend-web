@@ -139,7 +139,7 @@ function LandingPageContent() {
                       onClick={() => router.push("/auth/register")}
                       className="text-lg px-8"
                     >
-                      Get Started
+                      {t("landing.getStartedButton")}
                     </Button>
                     <Button
                       size="lg"
@@ -147,7 +147,7 @@ function LandingPageContent() {
                       onClick={() => router.push("/auth/login")}
                       className="text-lg px-8"
                     >
-                      Sign In
+                      {t("landing.loginButton")}
                     </Button>
                   </>
                 )}

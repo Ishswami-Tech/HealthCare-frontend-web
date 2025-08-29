@@ -28,8 +28,10 @@ const DoctorExpertise = () => {
     {
       icon: Brain,
       title: "Autism Treatment",
-      description: "Specialized Viddhakarma treatment for autism spectrum disorders with proven results in improving communication and social skills.",
-      highlight: "Unique energy restoration technique that shows remarkable improvement in 2-4 weeks",
+      description:
+        "Specialized Viddhakarma treatment for autism spectrum disorders with proven results in improving communication and social skills.",
+      highlight:
+        "Unique energy restoration technique that shows remarkable improvement in 2-4 weeks",
       color: "from-purple-500 to-indigo-600",
       bgColor:
         "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
@@ -37,8 +39,10 @@ const DoctorExpertise = () => {
     {
       icon: Heart,
       title: "Cerebral Palsy Care",
-      description: "Comprehensive treatment approach for cerebral palsy using Viddhakarma techniques to improve mobility and quality of life.",
-      highlight: "Significant improvement in motor skills and coordination within 6-8 weeks",
+      description:
+        "Comprehensive treatment approach for cerebral palsy using Viddhakarma techniques to improve mobility and quality of life.",
+      highlight:
+        "Significant improvement in motor skills and coordination within 6-8 weeks",
       color: "from-red-500 to-pink-600",
       bgColor:
         "from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20",
@@ -46,8 +50,10 @@ const DoctorExpertise = () => {
     {
       icon: Stethoscope,
       title: "Mental Health Disorders",
-      description: "Holistic treatment for various mental health conditions including anxiety, depression, and stress-related disorders.",
-      highlight: "Natural healing approach that addresses root causes without side effects",
+      description:
+        "Holistic treatment for various mental health conditions including anxiety, depression, and stress-related disorders.",
+      highlight:
+        "Natural healing approach that addresses root causes without side effects",
       color: "from-green-500 to-emerald-600",
       bgColor:
         "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
@@ -257,7 +263,9 @@ const DoctorExpertise = () => {
                   Affordable Care
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                  We believe in making authentic Ayurvedic treatments accessible to everyone. Our pricing is transparent and affordable without compromising on quality.
+                  We believe in making authentic Ayurvedic treatments accessible
+                  to everyone. Our pricing is transparent and affordable without
+                  compromising on quality.
                 </p>
               </CardContent>
             </Card>
@@ -271,7 +279,9 @@ const DoctorExpertise = () => {
                   Wellness Retreats
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                  Experience comprehensive wellness programs that combine traditional treatments with modern comfort for complete health rejuvenation.
+                  Experience comprehensive wellness programs that combine
+                  traditional treatments with modern comfort for complete health
+                  rejuvenation.
                 </p>
               </CardContent>
             </Card>

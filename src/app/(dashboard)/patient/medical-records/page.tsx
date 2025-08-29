@@ -647,7 +647,7 @@ export default function PatientMedicalRecords() {
                   <span className="text-sm">Lab Report</span>
                 </Button>
                 <Button variant="outline" className="h-20 flex flex-col items-center justify-center gap-2">
-                  <Image className="w-6 h-6" />
+                  <Image className="w-6 h-6" aria-label="Medical imaging icon" />
                   <span className="text-sm">X-Ray/Scan</span>
                 </Button>
                 <Button variant="outline" className="h-20 flex flex-col items-center justify-center gap-2">

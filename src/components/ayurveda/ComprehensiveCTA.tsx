@@ -42,12 +42,16 @@ const ComprehensiveCTA = () => {
         "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
       actions: [
         {
-          label: t("comprehensiveCTA.engagementLevels.urgent.features.helpline"),
+          label: t(
+            "comprehensiveCTA.engagementLevels.urgent.features.helpline"
+          ),
           subtext: "24/7 immediate response",
           urgent: true,
         },
         {
-          label: t("comprehensiveCTA.engagementLevels.urgent.features.consultation"),
+          label: t(
+            "comprehensiveCTA.engagementLevels.urgent.features.consultation"
+          ),
           subtext: "Same day appointment",
           urgent: true,
         },
@@ -57,7 +61,9 @@ const ComprehensiveCTA = () => {
           urgent: false,
         },
         {
-          label: t("comprehensiveCTA.engagementLevels.urgent.features.whatsapp"),
+          label: t(
+            "comprehensiveCTA.engagementLevels.urgent.features.whatsapp"
+          ),
           subtext: "Quick guidance",
           urgent: false,
         },
@@ -74,22 +80,30 @@ const ComprehensiveCTA = () => {
         "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
       actions: [
         {
-          label: t("comprehensiveCTA.engagementLevels.moderate.features.consultation"),
+          label: t(
+            "comprehensiveCTA.engagementLevels.moderate.features.consultation"
+          ),
           subtext: "Within 48 hours",
           urgent: false,
         },
         {
-          label: t("comprehensiveCTA.engagementLevels.moderate.features.assessment"),
+          label: t(
+            "comprehensiveCTA.engagementLevels.moderate.features.assessment"
+          ),
           subtext: "Comprehensive evaluation",
           urgent: false,
         },
         {
-          label: t("comprehensiveCTA.engagementLevels.moderate.features.planning"),
+          label: t(
+            "comprehensiveCTA.engagementLevels.moderate.features.planning"
+          ),
           subtext: "Personalized approach",
           urgent: false,
         },
         {
-          label: t("comprehensiveCTA.engagementLevels.moderate.features.followup"),
+          label: t(
+            "comprehensiveCTA.engagementLevels.moderate.features.followup"
+          ),
           subtext: "Ongoing support",
           urgent: false,
         },
@@ -99,29 +113,39 @@ const ComprehensiveCTA = () => {
       id: "low",
       title: t("comprehensiveCTA.engagementLevels.preventive.title"),
       subtitle: t("comprehensiveCTA.engagementLevels.preventive.subtitle"),
-      description: t("comprehensiveCTA.engagementLevels.preventive.description"),
+      description: t(
+        "comprehensiveCTA.engagementLevels.preventive.description"
+      ),
       icon: Brain,
       color: "from-green-500 to-emerald-600",
       bgColor:
         "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
       actions: [
         {
-          label: t("comprehensiveCTA.engagementLevels.preventive.features.consultation"),
+          label: t(
+            "comprehensiveCTA.engagementLevels.preventive.features.consultation"
+          ),
           subtext: "Preventive care",
           urgent: false,
         },
         {
-          label: t("comprehensiveCTA.engagementLevels.preventive.features.guidance"),
+          label: t(
+            "comprehensiveCTA.engagementLevels.preventive.features.guidance"
+          ),
           subtext: "Health optimization",
           urgent: false,
         },
         {
-          label: t("comprehensiveCTA.engagementLevels.preventive.features.checkups"),
+          label: t(
+            "comprehensiveCTA.engagementLevels.preventive.features.checkups"
+          ),
           subtext: "Maintenance care",
           urgent: false,
         },
         {
-          label: t("comprehensiveCTA.engagementLevels.preventive.features.resources"),
+          label: t(
+            "comprehensiveCTA.engagementLevels.preventive.features.resources"
+          ),
           subtext: "Health knowledge",
           urgent: false,
         },
@@ -133,28 +157,36 @@ const ComprehensiveCTA = () => {
     {
       channel: t("comprehensiveCTA.contactChannels.channels.whatsapp.title"),
       number: t("comprehensiveCTA.contactChannels.channels.whatsapp.number"),
-      response: t("comprehensiveCTA.contactChannels.channels.whatsapp.description"),
+      response: t(
+        "comprehensiveCTA.contactChannels.channels.whatsapp.description"
+      ),
       icon: MessageCircle,
       color: "bg-green-500",
     },
     {
       channel: t("comprehensiveCTA.contactChannels.channels.helpline.title"),
       number: t("comprehensiveCTA.contactChannels.channels.helpline.number"),
-      response: t("comprehensiveCTA.contactChannels.channels.helpline.description"),
+      response: t(
+        "comprehensiveCTA.contactChannels.channels.helpline.description"
+      ),
       icon: Phone,
       color: "bg-blue-500",
     },
     {
       channel: t("comprehensiveCTA.contactChannels.channels.emergency.title"),
       number: t("comprehensiveCTA.contactChannels.channels.emergency.number"),
-      response: t("comprehensiveCTA.contactChannels.channels.emergency.description"),
+      response: t(
+        "comprehensiveCTA.contactChannels.channels.emergency.description"
+      ),
       icon: Shield,
       color: "bg-red-500",
     },
     {
       channel: t("comprehensiveCTA.contactChannels.channels.video.title"),
       number: t("comprehensiveCTA.contactChannels.channels.video.action"),
-      response: t("comprehensiveCTA.contactChannels.channels.video.description"),
+      response: t(
+        "comprehensiveCTA.contactChannels.channels.video.description"
+      ),
       icon: Video,
       color: "bg-purple-500",
     },
@@ -312,7 +344,9 @@ const ComprehensiveCTA = () => {
                       <Button
                         className={`w-full bg-gradient-to-r ${contact.color} hover:opacity-90 text-white`}
                       >
-                        {t("comprehensiveCTA.contactChannels.channels.whatsapp.button")}
+                        {t(
+                          "comprehensiveCTA.contactChannels.channels.whatsapp.button"
+                        )}
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
                     </CardContent>
@@ -365,7 +399,9 @@ const ComprehensiveCTA = () => {
                   30 Minutes
                 </div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">
-                  {t("comprehensiveCTA.contactChannels.responseTimes.confirmation")}
+                  {t(
+                    "comprehensiveCTA.contactChannels.responseTimes.confirmation"
+                  )}
                 </div>
               </div>
             </div>
@@ -393,29 +429,41 @@ const ComprehensiveCTA = () => {
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>{t("comprehensiveCTA.transformLife.benefits.0")}</span>
+                    <span>
+                      {t("comprehensiveCTA.transformLife.benefits.0")}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>{t("comprehensiveCTA.transformLife.benefits.1")}</span>
+                    <span>
+                      {t("comprehensiveCTA.transformLife.benefits.1")}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>{t("comprehensiveCTA.transformLife.benefits.2")}</span>
+                    <span>
+                      {t("comprehensiveCTA.transformLife.benefits.2")}
+                    </span>
                   </div>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>{t("comprehensiveCTA.transformLife.benefits.3")}</span>
+                    <span>
+                      {t("comprehensiveCTA.transformLife.benefits.3")}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>{t("comprehensiveCTA.transformLife.benefits.4")}</span>
+                    <span>
+                      {t("comprehensiveCTA.transformLife.benefits.4")}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span>{t("comprehensiveCTA.transformLife.benefits.5")}</span>
+                    <span>
+                      {t("comprehensiveCTA.transformLife.benefits.5")}
+                    </span>
                   </div>
                 </div>
               </div>

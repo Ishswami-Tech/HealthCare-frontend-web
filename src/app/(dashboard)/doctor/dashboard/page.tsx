@@ -217,7 +217,7 @@ export default function DoctorDashboard() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Today's Appointments
+                  Today&apos;s Appointments
                 </CardTitle>
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -326,12 +326,12 @@ export default function DoctorDashboard() {
             </Card>
           </div>
 
-          {/* Today's Queue */}
+          {/* Today&apos;s Queue */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="w-5 h-5" />
-                Today's Patient Queue
+                Today&apos;s Patient Queue
               </CardTitle>
             </CardHeader>
             <CardContent>

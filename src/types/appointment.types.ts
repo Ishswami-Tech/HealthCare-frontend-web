@@ -97,45 +97,74 @@ export interface AppointmentWithRelations {
   location: AppointmentLocation;
 }
 
-export interface DoctorAvailability {
-  doctorId: string;
-  date: string;
-  availableSlots: string[];
-  bookedSlots: string[];
-}
-
-export interface QueuePosition {
-  appointmentId: string;
-  position: number;
-  estimatedWaitTime: number;
-  totalInQueue: number;
-}
-
-export interface AppointmentQueue {
-  doctorId: string;
-  date: string;
-  appointments: AppointmentWithRelations[];
-  currentPosition?: number;
-}
-
-export interface QRCodeResponse {
-  qrCode: string;
-}
-
-export interface AppointmentConfirmation {
-  appointmentId: string;
-  status: string;
-  message: string;
+// ✅ Add missing types for server actions
+export interface Appointment extends AppointmentWithRelations {
+  // Base appointment interface for server actions
 }
 
 export interface AppointmentFilters {
+  status?: string;
   date?: string;
   doctorId?: string;
-  locationId?: string;
-  status?: string;
-  type?: string;
   patientId?: string;
+  locationId?: string;
   clinicId?: string;
+  type?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  search?: string;
+}
+
+export interface QueueEntry {
+  id: string;
+  patientId: string;
+  appointmentId?: string;
+  queueType: string;
+  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  status: string;
+  position: number;
+  estimatedWaitTime?: number;
+  createdAt: string;
+  updatedAt: string;
+  patient?: PatientWithUser;
+}
+
+export interface QueueStats {
+  totalInQueue: number;
+  averageWaitTime: number;
+  estimatedWaitTime: number;
+  queueType: string;
+  lastUpdated: string;
+  byPriority?: {
+    LOW: number;
+    NORMAL: number;
+    HIGH: number;
+    URGENT: number;
+  };
+}
+
+export interface DoctorAvailability {
+  doctorId: string;
+  date: string;
+  slots: Array<{
+    startTime: string;
+    endTime: string;
+    isAvailable: boolean;
+    appointmentId?: string;
+  }>;
+  workingHours: {
+    start: string;
+    end: string;
+  };
+  breaks: Array<{
+    start: string;
+    end: string;
+    reason?: string;
+  }>;
 }
 
 export interface AppointmentStats {
@@ -145,7 +174,56 @@ export interface AppointmentStats {
   inProgress: number;
   completed: number;
   cancelled: number;
-  checkedIn: number;
+  noShow: number;
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  averageDuration: number;
+  completionRate: number;
+}
+
+export interface AppointmentReminder {
+  id: string;
+  appointmentId: string;
+  type: 'SMS' | 'EMAIL' | 'PUSH';
+  scheduledFor: string;
+  sentAt?: string;
+  status: 'PENDING' | 'SENT' | 'FAILED';
+  recipient: string;
+  message: string;
+}
+
+export interface AppointmentNotification {
+  id: string;
+  userId: string;
+  type: 'APPOINTMENT_CREATED' | 'APPOINTMENT_UPDATED' | 'APPOINTMENT_CANCELLED' | 'REMINDER' | 'QUEUE_UPDATE';
+  title: string;
+  message: string;
+  data?: Record<string, any>;
+  isRead: boolean;
+  createdAt: string;
+  readAt?: string;
+}
+
+export interface AppointmentQR {
+  appointmentId: string;
+  qrCode: string;
+  expiresAt: string;
+  isUsed: boolean;
+  usedAt?: string;
+  locationId: string;
+}
+
+export interface AppointmentReport {
+  clinicId: string;
+  startDate: string;
+  endDate: string;
+  stats: AppointmentStats;
+  appointments: AppointmentWithRelations[];
+  doctors: DoctorWithUser[];
+  locations: AppointmentLocation[];
+  generatedAt: string;
+  generatedBy: string;
 }
 
 export type AppointmentStatus = 

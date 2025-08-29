@@ -632,7 +632,7 @@ export default function PatientDashboard() {
                   </div>
                   <p className="text-sm text-green-700">
                     Excellent progress in your Panchakarma program. Continue
-                    following your doctor's recommendations.
+                    following your doctor&apos;s recommendations.
                   </p>
                 </div>
               </div>

@@ -72,9 +72,15 @@ const Navigation = () => {
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center space-x-2"
+                >
                   <Globe className="w-4 h-4" />
-                  <span className="hidden sm:inline">{t("navigation.language")}</span>
+                  <span className="hidden sm:inline">
+                    {t("navigation.language")}
+                  </span>
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
@@ -83,21 +89,27 @@ const Navigation = () => {
                   <span className="text-lg">🇺🇸</span>
                   <div className="flex flex-col ml-3">
                     <span className="font-medium">English</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">English</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      English
+                    </span>
                   </div>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setLanguage("hi")}>
                   <span className="text-lg">🇮🇳</span>
                   <div className="flex flex-col ml-3">
                     <span className="font-medium">हिंदी</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Hindi</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Hindi
+                    </span>
                   </div>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setLanguage("mr")}>
                   <span className="text-lg">🇮🇳</span>
                   <div className="flex flex-col ml-3">
                     <span className="font-medium">मराठी</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Marathi</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Marathi
+                    </span>
                   </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -129,8 +141,8 @@ const Navigation = () => {
                   whileHover={{ rotate: 360 }}
                   transition={{ duration: 0.5, ease: "easeInOut" }}
                 >
-                  <img 
-                    src="/logo.svg" 
+                  <img
+                    src="/logo.svg"
                     alt={t("navigation.clinicName")}
                     className="w-full h-full object-cover"
                   />

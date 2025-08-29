@@ -1,52 +1,43 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import * as React from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
-  Accessibility,
-  EyeOff,
-  Type,
-  Contrast,
   Volume2,
+  VolumeX,
+  Eye,
+  EyeOff,
+  Minus,
+  Plus,
+  RotateCcw,
+  Pause,
+  Play,
   Settings,
-  X,
+  Contrast,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
 
-// ============================================================================
-// ACCESSIBILITY SETTINGS CONTEXT
-// ============================================================================
-
-interface AccessibilitySettings {
-  highContrast: boolean;
-  largeText: boolean;
+// Accessibility Context
+interface AccessibilityContextType {
+  fontSize: number;
+  contrast: "normal" | "high";
   reducedMotion: boolean;
-  screenReader: boolean;
-  keyboardNavigation: boolean;
+  screenReaderMode: boolean;
+  focusVisible: boolean;
+  announcements: string[];
+  setFontSize: (size: number) => void;
+  setContrast: (contrast: "normal" | "high") => void;
+  setReducedMotion: (enabled: boolean) => void;
+  setScreenReaderMode: (enabled: boolean) => void;
+  setFocusVisible: (visible: boolean) => void;
+  announce: (message: string) => void;
+  resetSettings: () => void;
 }
 
-const AccessibilityContext = React.createContext<{
-  settings: AccessibilitySettings;
-  updateSetting: (key: keyof AccessibilitySettings, value: boolean) => void;
-}>({
-  settings: {
-    highContrast: false,
-    largeText: false,
-    reducedMotion: false,
-    screenReader: false,
-    keyboardNavigation: false,
-  },
-  updateSetting: () => {},
-});
+const AccessibilityContext =
+  React.createContext<AccessibilityContextType | null>(null);
 
-export const useAccessibility = () => React.useContext(AccessibilityContext);
-
-// ============================================================================
-// ACCESSIBILITY PROVIDER
-// ============================================================================
-
+// Accessibility Provider
 interface AccessibilityProviderProps {
   children: React.ReactNode;
 }
@@ -54,316 +45,320 @@ interface AccessibilityProviderProps {
 export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({
   children,
 }) => {
-  const [settings, setSettings] = useState<AccessibilitySettings>({
-    highContrast: false,
-    largeText: false,
-    reducedMotion: false,
-    screenReader: false,
-    keyboardNavigation: false,
-  });
+  const [fontSize, setFontSize] = React.useState(16);
+  const [contrast, setContrast] = React.useState<"normal" | "high">("normal");
+  const [reducedMotion, setReducedMotion] = React.useState(false);
+  const [screenReaderMode, setScreenReaderMode] = React.useState(false);
+  const [focusVisible, setFocusVisible] = React.useState(false);
+  const [announcements, setAnnouncements] = React.useState<string[]>([]);
 
-  const updateSetting = (key: keyof AccessibilitySettings, value: boolean) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
-
-    // Apply settings to document
-    const root = document.documentElement;
-
-    switch (key) {
-      case "highContrast":
-        root.classList.toggle("high-contrast", value);
-        break;
-      case "largeText":
-        root.classList.toggle("large-text", value);
-        break;
-      case "reducedMotion":
-        root.classList.toggle("reduced-motion", value);
-        break;
-      case "screenReader":
-        root.setAttribute("aria-live", value ? "polite" : "off");
-        break;
-      case "keyboardNavigation":
-        root.classList.toggle("keyboard-navigation", value);
-        break;
-    }
-
-    // Save to localStorage
-    localStorage.setItem(
-      "accessibility-settings",
-      JSON.stringify({ ...settings, [key]: value })
-    );
-  };
-
-  useEffect(() => {
-    // Load saved settings
-    const saved = localStorage.getItem("accessibility-settings");
-    if (saved) {
-      const parsedSettings = JSON.parse(saved);
-      setSettings(parsedSettings);
-
-      // Apply saved settings
-      Object.entries(parsedSettings).forEach(([key, value]) => {
-        updateSetting(key as keyof AccessibilitySettings, value as boolean);
-      });
-    }
-
-    // Detect system preferences
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-    const prefersHighContrast = window.matchMedia(
-      "(prefers-contrast: high)"
-    ).matches;
-
-    if (prefersReducedMotion) {
-      updateSetting("reducedMotion", true);
-    }
-    if (prefersHighContrast) {
-      updateSetting("highContrast", true);
-    }
+  const announce = React.useCallback((message: string) => {
+    setAnnouncements((prev) => [...prev, message]);
+    setTimeout(() => {
+      setAnnouncements((prev) => prev.filter((msg) => msg !== message));
+    }, 5000);
   }, []);
 
+  const resetSettings = React.useCallback(() => {
+    setFontSize(16);
+    setContrast("normal");
+    setReducedMotion(false);
+    setScreenReaderMode(false);
+    setFocusVisible(false);
+    announce("Accessibility settings reset to default");
+  }, [announce]);
+
+  React.useEffect(() => {
+    const root = document.documentElement;
+    root.style.fontSize = `${fontSize}px`;
+
+    if (contrast === "high") {
+      document.body.classList.add("high-contrast");
+    } else {
+      document.body.classList.remove("high-contrast");
+    }
+
+    if (reducedMotion) {
+      document.body.classList.add("reduced-motion");
+    } else {
+      document.body.classList.remove("reduced-motion");
+    }
+
+    if (focusVisible) {
+      document.body.classList.add("focus-visible");
+    } else {
+      document.body.classList.remove("focus-visible");
+    }
+
+    if (screenReaderMode) {
+      document.body.classList.add("screen-reader-mode");
+    } else {
+      document.body.classList.remove("screen-reader-mode");
+    }
+  }, [fontSize, contrast, reducedMotion, screenReaderMode, focusVisible]);
+
+  const value = {
+    fontSize,
+    contrast,
+    reducedMotion,
+    screenReaderMode,
+    focusVisible,
+    announcements,
+    setFontSize,
+    setContrast,
+    setReducedMotion,
+    setScreenReaderMode,
+    setFocusVisible,
+    announce,
+    resetSettings,
+  };
+
   return (
-    <AccessibilityContext.Provider value={{ settings, updateSetting }}>
+    <AccessibilityContext.Provider value={value}>
       {children}
     </AccessibilityContext.Provider>
   );
 };
 
-// ============================================================================
-// ACCESSIBILITY TOOLBAR
-// ============================================================================
+export const useAccessibility = () => {
+  const context = React.useContext(AccessibilityContext);
+  if (!context) {
+    throw new Error(
+      "useAccessibility must be used within AccessibilityProvider"
+    );
+  }
+  return context;
+};
 
-export const AccessibilityToolbar: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const { settings, updateSetting } = useAccessibility();
-  const t = useTranslations("ui.accessibility");
+// Safe version that doesn't throw
+export const useAccessibilitySafe = () => {
+  const context = React.useContext(AccessibilityContext);
+  return context;
+};
 
-  const toggles = [
-    {
-      key: "highContrast" as const,
-      label: t("highContrast"),
-      icon: Contrast,
-      description: t("highContrastDesc"),
-    },
-    {
-      key: "largeText" as const,
-      label: t("largeText"),
-      icon: Type,
-      description: t("largeTextDesc"),
-    },
-    {
-      key: "reducedMotion" as const,
-      label: t("reducedMotion"),
-      icon: EyeOff,
-      description: t("reducedMotionDesc"),
-    },
-    {
-      key: "screenReader" as const,
-      label: t("screenReader"),
-      icon: Volume2,
-      description: t("screenReaderDesc"),
-    },
-    {
-      key: "keyboardNavigation" as const,
-      label: t("keyboardNavigation"),
-      icon: Settings,
-      description: t("keyboardNavigationDesc"),
-    },
-  ];
+export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
+  className,
+}) => {
+  // Add error boundary for accessibility context
+  let accessibilityContext;
+  try {
+    accessibilityContext = useAccessibility();
+  } catch (error) {
+    // If accessibility context is not available, render a fallback
+    console.warn("AccessibilityProvider not found, rendering fallback toolbar");
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn("fixed top-4 right-4 z-50", className)}
+        aria-label="Accessibility settings (unavailable)"
+        disabled
+      >
+        <Settings className="h-4 w-4" />
+      </Button>
+    );
+  }
+
+  const {
+    fontSize,
+    contrast,
+    reducedMotion,
+    screenReaderMode,
+    focusVisible,
+    setFontSize,
+    setContrast,
+    setReducedMotion,
+    setScreenReaderMode,
+    setFocusVisible,
+    announce,
+    resetSettings,
+  } = accessibilityContext;
+
+  const [isOpen, setIsOpen] = React.useState(false);
 
   return (
     <>
-      {/* Accessibility Button */}
-      <motion.div
-        className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50"
-        initial={{ x: -100, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ delay: 2, duration: 0.5 }}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn("fixed top-4 right-4 z-50", className)}
+        aria-label="Toggle accessibility toolbar"
       >
-        <Button
-          onClick={() => setIsOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg"
-          aria-label={t("openSettings")}
-        >
-          <Accessibility className="w-5 h-5" />
-        </Button>
-      </motion.div>
+        <Settings className="h-4 w-4" />
+      </Button>
 
-      {/* Accessibility Panel */}
-      <AnimatePresence>
-        {isOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              className="fixed inset-0 bg-black/50 z-50"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-            />
+      {isOpen && (
+        <div className="fixed top-16 right-4 bg-background border rounded-lg shadow-lg p-4 z-50 w-80">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Accessibility Settings</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={resetSettings}
+                aria-label="Reset accessibility settings"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </div>
 
-            {/* Panel */}
-            <motion.div
-              className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50"
-              initial={{ x: -400, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -400, opacity: 0 }}
-              transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            >
-              <Card className="w-80 shadow-2xl">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      {t("title")}
-                    </h2>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsOpen(false)}
-                      aria-label={t("closeSettings")}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Font Size: {fontSize}px
+              </label>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newSize = Math.max(fontSize - 2, 12);
+                    setFontSize(newSize);
+                    announce(`Font size decreased to ${newSize}px`);
+                  }}
+                  disabled={fontSize <= 12}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="flex-1 text-center text-sm">{fontSize}px</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newSize = Math.min(fontSize + 2, 24);
+                    setFontSize(newSize);
+                    announce(`Font size increased to ${newSize}px`);
+                  }}
+                  disabled={fontSize >= 24}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
 
-                  <div className="space-y-4">
-                    {toggles.map((toggle) => {
-                      const IconComponent = toggle.icon;
-                      const isEnabled = settings[toggle.key];
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">High Contrast</label>
+              <Button
+                variant={contrast === "high" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  const newContrast = contrast === "normal" ? "high" : "normal";
+                  setContrast(newContrast);
+                  announce(
+                    `High contrast ${
+                      newContrast === "high" ? "enabled" : "disabled"
+                    }`
+                  );
+                }}
+              >
+                <Contrast className="h-4 w-4" />
+              </Button>
+            </div>
 
-                      return (
-                        <div
-                          key={toggle.key}
-                          className="flex items-start space-x-3"
-                        >
-                          <Button
-                            variant={isEnabled ? "default" : "outline"}
-                            size="sm"
-                            onClick={() =>
-                              updateSetting(toggle.key, !isEnabled)
-                            }
-                            className={`flex-shrink-0 ${
-                              isEnabled
-                                ? "bg-blue-600 hover:bg-blue-700 text-white"
-                                : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                            }`}
-                            aria-pressed={isEnabled}
-                          >
-                            <IconComponent className="w-4 h-4" />
-                          </Button>
-                          <div className="flex-1">
-                            <div className="font-medium text-sm text-gray-900">
-                              {toggle.label}
-                            </div>
-                            <div className="text-xs text-gray-600 mt-1">
-                              {toggle.description}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Reduced Motion</label>
+              <Button
+                variant={reducedMotion ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  const newMotion = !reducedMotion;
+                  setReducedMotion(newMotion);
+                  announce(
+                    `Reduced motion ${newMotion ? "enabled" : "disabled"}`
+                  );
+                }}
+              >
+                {reducedMotion ? (
+                  <Pause className="h-4 w-4" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
 
-                  <div className="mt-6 pt-4 border-t border-gray-200">
-                    <p className="text-xs text-gray-500">
-                      Settings are automatically saved and will persist across
-                      sessions.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Screen Reader Mode</label>
+              <Button
+                variant={screenReaderMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  const newMode = !screenReaderMode;
+                  setScreenReaderMode(newMode);
+                  announce(
+                    `Screen reader mode ${newMode ? "enabled" : "disabled"}`
+                  );
+                }}
+              >
+                {screenReaderMode ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Enhanced Focus</label>
+              <Button
+                variant={focusVisible ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  const newFocus = !focusVisible;
+                  setFocusVisible(newFocus);
+                  announce(
+                    `Enhanced focus indicators ${
+                      newFocus ? "enabled" : "disabled"
+                    }`
+                  );
+                }}
+              >
+                {focusVisible ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <EyeOff className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
 
-// ============================================================================
-// SKIP NAVIGATION LINKS
-// ============================================================================
-
-export const SkipNavigation: React.FC = () => {
-  return (
-    <div className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-50">
-      <a
-        href="#main-content"
-        className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      >
-        Skip to main content
-      </a>
-    </div>
-  );
-};
-
-// ============================================================================
-// ARIA LIVE REGION
-// ============================================================================
-
-interface AriaLiveRegionProps {
-  message: string;
-  priority?: "polite" | "assertive";
-}
-
-export const AriaLiveRegion: React.FC<AriaLiveRegionProps> = ({
-  message,
-  priority = "polite",
+// Skip Navigation Component
+export const SkipNavigation: React.FC<{ className?: string }> = ({
+  className,
 }) => {
   return (
-    <div aria-live={priority} aria-atomic="true" className="sr-only">
-      {message}
-    </div>
+    <a
+      href="#main-content"
+      className={cn(
+        "sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-50",
+        "bg-primary text-primary-foreground px-4 py-2 rounded-md",
+        "focus:ring-2 focus:ring-ring focus:ring-offset-2",
+        className
+      )}
+    >
+      Skip to main content
+    </a>
   );
 };
 
-// ============================================================================
-// FOCUS TRAP
-// ============================================================================
-
-interface FocusTrapProps {
-  children: React.ReactNode;
-  isActive: boolean;
-}
-
-export const FocusTrap: React.FC<FocusTrapProps> = ({ children, isActive }) => {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isActive || !containerRef.current) return;
-
-    const container = containerRef.current;
-    const focusableElements = container.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    const firstElement = focusableElements[0] as HTMLElement;
-    const lastElement = focusableElements[
-      focusableElements.length - 1
-    ] as HTMLElement;
-
-    const handleTabKey = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-
-      if (e.shiftKey) {
-        if (document.activeElement === firstElement) {
-          e.preventDefault();
-          lastElement.focus();
-        }
-      } else {
-        if (document.activeElement === lastElement) {
-          e.preventDefault();
-          firstElement.focus();
-        }
-      }
-    };
-
-    container.addEventListener("keydown", handleTabKey);
-    firstElement?.focus();
-
-    return () => {
-      container.removeEventListener("keydown", handleTabKey);
-    };
-  }, [isActive]);
-
-  return <div ref={containerRef}>{children}</div>;
+// Fallback Accessibility Toolbar (when provider is not available)
+export const AccessibilityToolbarFallback: React.FC<{ className?: string }> = ({
+  className,
+}) => {
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className={cn("fixed top-4 right-4 z-50", className)}
+      aria-label="Accessibility settings (unavailable)"
+      disabled
+      title="Accessibility settings are not available on this page"
+    >
+      <Settings className="h-4 w-4" />
+    </Button>
+  );
 };

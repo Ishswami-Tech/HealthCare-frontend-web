@@ -8,6 +8,7 @@ import {
 } from "@/lib/seo";
 
 import { LanguageProvider } from "@/lib/i18n/context";
+import { AccessibilityProvider } from "@/components/ui/accessibility";
 import AyurvedaLayoutContent from "./AyurvedaLayoutContent";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -28,26 +29,28 @@ export default function AyurvedaLayout({
 
   return (
     <LanguageProvider initialLanguage="en">
-      <>
-        {/* SEO Schema Markup */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify([
-              organizationSchema,
-              localBusinessSchema,
-              websiteSchema,
-            ]),
-          }}
-        />
+      <AccessibilityProvider>
+        <>
+          {/* SEO Schema Markup */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify([
+                organizationSchema,
+                localBusinessSchema,
+                websiteSchema,
+              ]),
+            }}
+          />
 
-        <AyurvedaLayoutContent
-          inter={inter.variable}
-          playfair={playfair.variable}
-        >
-          {children}
-        </AyurvedaLayoutContent>
-      </>
+          <AyurvedaLayoutContent
+            inter={inter.variable}
+            playfair={playfair.variable}
+          >
+            {children}
+          </AyurvedaLayoutContent>
+        </>
+      </AccessibilityProvider>
     </LanguageProvider>
   );
 }

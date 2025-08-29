@@ -5,7 +5,10 @@ import { cn } from "@/lib/utils";
 import Navigation from "@/components/ayurveda/Navigation";
 import Footer from "@/components/ayurveda/Footer";
 import { WhatsAppButton } from "@/components/contact/whatsapp-button";
-import { AccessibilityToolbar } from "@/components/ui/accessibility";
+import {
+  AccessibilityToolbar,
+  AccessibilityToolbarFallback,
+} from "@/components/ui/accessibility";
 import { useTranslation } from "@/lib/i18n/context";
 
 interface AyurvedaLayoutContentProps {
