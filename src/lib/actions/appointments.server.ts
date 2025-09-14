@@ -4,7 +4,6 @@
 'use server';
 
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { clinicApiClient } from '@/lib/api/client';
@@ -114,8 +113,8 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{ 
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Create appointment via API - match the expected API client signature
-    const apiData = {
+    // Create appointment via API client
+    const appointmentData: any = {
       patientId: validatedData.patientId,
       doctorId: validatedData.doctorId,
       date: validatedData.date,
@@ -123,10 +122,16 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{ 
       duration: validatedData.duration,
       type: validatedData.type,
       notes: validatedData.notes || '',
-      clinicId: clinicId || validatedData.clinicId
+      clinicId: clinicId || validatedData.clinicId,
+      symptoms: validatedData.symptoms,
+      priority: validatedData.priority,
     };
 
-    const response = await clinicApiClient.createAppointment(apiData);
+    if (validatedData.locationId) {
+      appointmentData.locationId = validatedData.locationId;
+    }
+
+    const response = await clinicApiClient.createAppointment(appointmentData);
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Failed to create appointment' };
@@ -178,9 +183,9 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{ 
 /**
  * Get appointments for a clinic
  */
-export async function getAppointments(clinicId: string, filters?: AppointmentFilters): Promise<{ success: boolean; appointments?: Appointment[]; meta?: any; error?: string }> {
+export async function getAppointments(_clinicId: string, filters?: AppointmentFilters): Promise<{ success: boolean; appointments?: Appointment[]; meta?: any; error?: string }> {
   try {
-    const { sessionId, userId } = await getSessionData();
+    const { userId } = await getSessionData();
 
     // Validate permissions
     const hasAccess = await validateClinicAccess(userId, 'appointments.read');
@@ -188,27 +193,19 @@ export async function getAppointments(clinicId: string, filters?: AppointmentFil
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Convert AppointmentFilters to PaginationParams for API client
-    const paginationParams = {
+
+    // Get appointments via API client (clinic context is handled by the API client)
+    const appointmentFilters: any = {
       page: filters?.page || 1,
       limit: filters?.limit || 10,
-      sortBy: filters?.sortBy || 'createdAt',
-      sortOrder: filters?.sortOrder || 'desc',
-      search: filters?.search || '',
-      filters: {
-        status: filters?.status || '',
-        date: filters?.date || '',
-        doctorId: filters?.doctorId || '',
-        patientId: filters?.patientId || '',
-        locationId: filters?.locationId || '',
-        type: filters?.type || '',
-        startDate: filters?.startDate || '',
-        endDate: filters?.endDate || '',
-      }
     };
+    
+    if (filters?.doctorId) appointmentFilters.doctorId = filters.doctorId;
+    if (filters?.status) appointmentFilters.status = filters.status;
+    if (filters?.date) appointmentFilters.date = filters.date;
+    if (filters?.locationId) appointmentFilters.locationId = filters.locationId;
 
-    // Get appointments via API
-    const response = await clinicApiClient.getAppointments(clinicId, paginationParams);
+    const response = await clinicApiClient.getAppointments(appointmentFilters);
 
     if (!response.success) {
       return { success: false, error: 'Failed to fetch appointments' };
@@ -234,7 +231,7 @@ export async function getAppointments(clinicId: string, filters?: AppointmentFil
  */
 export async function getAppointmentById(id: string): Promise<{ success: boolean; appointment?: Appointment; error?: string }> {
   try {
-    const { sessionId, userId } = await getSessionData();
+    const { userId } = await getSessionData();
 
     // Validate permissions
     const hasAccess = await validateClinicAccess(userId, 'appointments.read');
@@ -242,7 +239,7 @@ export async function getAppointmentById(id: string): Promise<{ success: boolean
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Get appointment via API
+    // Get appointment via enhanced API client
     const response = await clinicApiClient.getAppointmentById(id);
 
     if (!response.success || !response.data) {
@@ -289,18 +286,21 @@ export async function updateAppointment(id: string, data: UpdateAppointmentData)
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Convert validated data to match API client signature
-    const apiData = {
-      date: validatedData.date || '',
-      time: validatedData.time || '',
-      duration: validatedData.duration || 30,
-      type: validatedData.type || '',
-      notes: validatedData.notes || '',
-      status: validatedData.status || '',
-    };
+    // Update appointment via enhanced API client
+    const updateData: any = {};
+    
+    if (validatedData.date) updateData.date = validatedData.date;
+    if (validatedData.time) updateData.time = validatedData.time;
+    if (validatedData.duration) updateData.duration = validatedData.duration;
+    if (validatedData.type) updateData.type = validatedData.type;
+    if (validatedData.notes) updateData.notes = validatedData.notes;
+    if (validatedData.status) updateData.status = validatedData.status;
+    if (validatedData.symptoms) updateData.symptoms = validatedData.symptoms;
+    if (validatedData.diagnosis) updateData.diagnosis = validatedData.diagnosis;
+    if (validatedData.prescription) updateData.prescription = validatedData.prescription;
+    if (validatedData.followUpDate) updateData.followUpDate = validatedData.followUpDate;
 
-    // Update appointment via API
-    const response = await clinicApiClient.updateAppointment(id, apiData);
+    const response = await clinicApiClient.updateAppointment(id, updateData);
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Failed to update appointment' };
@@ -359,8 +359,8 @@ export async function cancelAppointment(id: string, reason?: string): Promise<{ 
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Cancel appointment via API
-    const response = await clinicApiClient.cancelAppointment(id, reason);
+    // Cancel appointment via enhanced API client
+    const response = await clinicApiClient.cancelAppointment(id);
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Failed to cancel appointment' };
@@ -410,7 +410,7 @@ export async function confirmAppointment(id: string): Promise<{ success: boolean
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Confirm appointment via API
+    // Confirm appointment via enhanced API client
     const response = await clinicApiClient.confirmAppointment(id);
 
     if (!response.success || !response.data) {
@@ -458,7 +458,7 @@ export async function checkInAppointment(id: string): Promise<{ success: boolean
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Check in appointment via API
+    // Check in appointment via enhanced API client
     const response = await clinicApiClient.checkInAppointment(id);
 
     if (!response.success || !response.data) {
@@ -506,7 +506,7 @@ export async function startAppointment(id: string): Promise<{ success: boolean; 
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Start appointment via API
+    // Start appointment via enhanced API client
     const response = await clinicApiClient.startAppointment(id);
 
     if (!response.success || !response.data) {
@@ -563,16 +563,15 @@ export async function completeAppointment(id: string, data: {
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Convert validated data to match API client signature
-    const apiData = {
-      diagnosis: validatedData.diagnosis || '',
-      prescription: validatedData.prescription || '',
-      notes: validatedData.notes || '',
-      followUpDate: validatedData.followUpDate || '',
-    };
+    // Complete appointment via enhanced API client
+    const completionData: any = {};
+    
+    if (validatedData.diagnosis) completionData.diagnosis = validatedData.diagnosis;
+    if (validatedData.prescription) completionData.prescription = validatedData.prescription;
+    if (validatedData.notes) completionData.notes = validatedData.notes;
+    if (validatedData.followUpDate) completionData.followUpDate = validatedData.followUpDate;
 
-    // Complete appointment via API
-    const response = await clinicApiClient.completeAppointment(id, apiData);
+    const response = await clinicApiClient.completeAppointment(id, completionData);
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Failed to complete appointment' };
@@ -626,7 +625,7 @@ export async function completeAppointment(id: string, data: {
  */
 export async function getQueue(queueType: string): Promise<{ success: boolean; queue?: QueueEntry[]; error?: string }> {
   try {
-    const { sessionId, userId } = await getSessionData();
+    const { userId } = await getSessionData();
 
     // Validate permissions
     const hasAccess = await validateClinicAccess(userId, 'queue.read');
@@ -634,7 +633,7 @@ export async function getQueue(queueType: string): Promise<{ success: boolean; q
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Get queue via API
+    // Get queue via enhanced API client
     const response = await clinicApiClient.getQueue(queueType);
 
     if (!response.success) {
@@ -670,7 +669,7 @@ export async function addToQueue(data: {
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Add to queue via API
+    // Add to queue via enhanced API client
     const response = await clinicApiClient.addToQueue(data);
 
     if (!response.success || !response.data) {
@@ -723,7 +722,7 @@ export async function callNextPatient(queueType: string): Promise<{ success: boo
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Call next patient via API
+    // Call next patient via enhanced API client
     const response = await clinicApiClient.callNextPatient(queueType);
 
     if (!response.success || !response.data) {
@@ -767,7 +766,7 @@ export async function callNextPatient(queueType: string): Promise<{ success: boo
  */
 export async function getQueueStats(): Promise<{ success: boolean; stats?: QueueStats; error?: string }> {
   try {
-    const { sessionId, userId } = await getSessionData();
+    const { userId } = await getSessionData();
 
     // Validate permissions
     const hasAccess = await validateClinicAccess(userId, 'queue.read');
@@ -775,7 +774,7 @@ export async function getQueueStats(): Promise<{ success: boolean; stats?: Queue
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Get queue stats via API
+    // Get queue stats via enhanced API client
     const response = await clinicApiClient.getQueueStats();
 
     if (!response.success) {
@@ -789,6 +788,143 @@ export async function getQueueStats(): Promise<{ success: boolean; stats?: Queue
     return { 
       success: false, 
       error: 'An unexpected error occurred while fetching queue statistics' 
+    };
+  }
+}
+
+// ✅ Additional Server Actions for Missing Backend Endpoints
+
+/**
+ * Get doctor availability
+ */
+export async function getDoctorAvailability(doctorId: string, date: string): Promise<{ 
+  success: boolean; 
+  availability?: any; 
+  error?: string;
+}> {
+  try {
+    const { userId } = await getSessionData();
+
+    // Validate permissions
+    const hasAccess = await validateClinicAccess(userId, 'appointments.read');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions' };
+    }
+
+    // Get doctor availability via enhanced API client
+    const response = await clinicApiClient.getDoctorAvailability(doctorId, date);
+
+    if (!response.success) {
+      return { success: false, error: response.message || 'Failed to get doctor availability' };
+    }
+
+    return { success: true, availability: response.data };
+    
+  } catch (error) {
+    console.error('Failed to get doctor availability:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while fetching doctor availability' 
+    };
+  }
+}
+
+/**
+ * Get user upcoming appointments
+ */
+export async function getUserUpcomingAppointments(userId: string): Promise<{ 
+  success: boolean; 
+  appointments?: Appointment[]; 
+  error?: string;
+}> {
+  try {
+    const { userId: currentUserId } = await getSessionData();
+
+    // Validate permissions (users can only access their own upcoming appointments unless they're staff)
+    const hasAccess = await validateClinicAccess(currentUserId, 'appointments.read');
+    if (!hasAccess && currentUserId !== userId) {
+      return { success: false, error: 'Access denied: Can only access your own appointments' };
+    }
+
+    // Get user upcoming appointments via enhanced API client
+    const response = await clinicApiClient.getUserUpcomingAppointments(userId);
+
+    if (!response.success) {
+      return { success: false, error: response.message || 'Failed to get upcoming appointments' };
+    }
+
+    return { success: true, appointments: response.data as Appointment[] };
+    
+  } catch (error) {
+    console.error('Failed to get upcoming appointments:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while fetching upcoming appointments' 
+    };
+  }
+}
+
+/**
+ * Get my appointments (for current user)
+ */
+export async function getMyAppointments(filters?: {
+  status?: string;
+  date?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ 
+  success: boolean; 
+  appointments?: Appointment[]; 
+  meta?: any;
+  error?: string;
+}> {
+  try {
+    // Get my appointments via enhanced API client
+    const response = await clinicApiClient.getMyAppointments(filters);
+
+    if (!response.success) {
+      return { success: false, error: (response as any).message || 'Failed to fetch my appointments' };
+    }
+
+    const responseData = response as any;
+    return { 
+      success: true, 
+      appointments: responseData.data?.data || [], 
+      meta: responseData.data?.meta 
+    };
+    
+  } catch (error) {
+    console.error('Failed to get my appointments:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while fetching your appointments' 
+    };
+  }
+}
+
+/**
+ * Test appointment context (for debugging)
+ */
+export async function testAppointmentContext(): Promise<{ 
+  success: boolean; 
+  context?: any; 
+  error?: string;
+}> {
+  try {
+    // Test appointment context via enhanced API client
+    const response = await clinicApiClient.testAppointmentContext();
+
+    if (!response.success) {
+      return { success: false, error: response.message || 'Failed to test appointment context' };
+    }
+
+    return { success: true, context: response.data };
+    
+  } catch (error) {
+    console.error('Failed to test appointment context:', error);
+    return { 
+      success: false, 
+      error: 'An unexpected error occurred while testing appointment context' 
     };
   }
 }

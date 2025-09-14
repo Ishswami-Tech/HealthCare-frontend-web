@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo, memo } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "../../ui/sidebar";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -15,7 +15,7 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { Separator } from "@/components/ui/separator";
 import { useTranslations } from "next-intl";
@@ -33,7 +33,7 @@ export interface GlobalSidebarProps {
   children: React.ReactNode;
 }
 
-const Logo = () => (
+const Logo = memo(() => (
   <Link
     href="#"
     className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
@@ -42,9 +42,9 @@ const Logo = () => (
       Ishswami
     </span>
   </Link>
-);
+));
 
-const LogoIcon = () => (
+const LogoIcon = memo(() => (
   <Link
     href="#"
     className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black"
@@ -52,7 +52,7 @@ const LogoIcon = () => (
     {/* <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-red-500 dark:bg-white" /> */}
     I
   </Link>
-);
+));
 
 export default function GlobalSidebar({
   links,
@@ -69,20 +69,23 @@ export default function GlobalSidebar({
   const t = useTranslations();
 
   // Translate sidebar links
-  const translatedLinks = translateSidebarLinks(links, t);
+  const translatedLinks = useMemo(
+    () => translateSidebarLinks(links, t),
+    [links, t]
+  );
 
   // Memoize a random color for this user (based on their name)
   const avatarColor = React.useMemo(() => {
     const COLORS = [
-      "bg-blue-400",
-      "bg-green-400",
-      "bg-pink-400",
-      "bg-yellow-400",
-      "bg-purple-400",
-      "bg-red-400",
-      "bg-indigo-400",
-      "bg-teal-400",
-      "bg-orange-400",
+      "bg-primary",
+      "bg-primary",
+      "bg-primary",
+      "bg-primary",
+      "bg-primary",
+      "bg-primary",
+      "bg-primary",
+      "bg-primary",
+      "bg-primary",
     ];
     if (!user.name) return COLORS[0];
     const hash = user.name
@@ -91,14 +94,17 @@ export default function GlobalSidebar({
     return COLORS[hash % COLORS.length];
   }, [user.name]);
 
-  const handleLinkClick = (link: SidebarLinkItem, e: React.MouseEvent) => {
-    if (link.label === "Logout") {
-      e.preventDefault();
-      setShowLogoutDialog(true);
-    }
-  };
+  const handleLinkClick = useCallback(
+    (link: SidebarLinkItem, e: React.MouseEvent) => {
+      if (link.label === "Logout") {
+        e.preventDefault();
+        setShowLogoutDialog(true);
+      }
+    },
+    []
+  );
 
-  const handleLogoutConfirm = async () => {
+  const handleLogoutConfirm = useCallback(async () => {
     setOverlay({ show: true, variant: "logout" }); // Show global overlay
     try {
       await logout();
@@ -110,18 +116,18 @@ export default function GlobalSidebar({
     } finally {
       setShowLogoutDialog(false);
     }
-  };
+  }, [logout, router, setOverlay]);
 
   return (
     <>
       <div
         className={cn(
-          "flex w-full flex-1 flex-col overflow-hidden border-gray-200 bg-gray-50 md:flex-row",
+          "flex w-full flex-1 flex-col overflow-hidden border-border bg-muted md:flex-row",
           "h-screen"
         )}
       >
         <Sidebar open={open} setOpen={setOpen}>
-          <SidebarBody className="justify-between gap-10 bg-gray-50 text-gray-900 rounded-lg border-1 m-1 border-gray-200 ">
+          <SidebarBody className="justify-between gap-10 bg-muted text-foreground rounded-lg border-1 m-1 border-border ">
             <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
               <div className="bg-white rounded-lg shadow p-3 my-6 flex items-center justify-center">
                 {open ? <Logo /> : <LogoIcon />}
@@ -146,8 +152,8 @@ export default function GlobalSidebar({
                         link={{ ...link, href: isLogout ? "#" : link.href }}
                         className={
                           isLogout
-                            ? "bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 font-semibold  transition-colors duration-200 rounded-lg px-2 py-2"
-                            : "hover:bg-gray-100 active:bg-gray-200 transition-colors duration-200 rounded-lg px-2  py-2 text-gray-900 "
+                            ? "bg-destructive/10 hover:bg-destructive/20 active:bg-destructive/30 text-destructive font-semibold  transition-colors duration-200 rounded-lg px-2 py-2"
+                            : "hover:bg-muted active:bg-muted/80 transition-colors duration-200 rounded-lg px-2  py-2 text-foreground "
                         }
                       />
                     </button>
@@ -164,13 +170,13 @@ export default function GlobalSidebar({
                       <span className="text-xs font-medium text-muted-foreground">
                         {t("theme.toggleTheme")}
                       </span>
-                      <ThemeToggle />
+                      <ThemeSwitcher />
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">
                         {t("language.changeLanguage")}
                       </span>
-                      <LanguageSwitcher />
+                      <LanguageSwitcher showLabel={true} />
                     </div>
                   </div>
                 </div>
@@ -199,12 +205,12 @@ export default function GlobalSidebar({
                       </div>
                     ),
                 }}
-                className="bg-gray-100 rounded-lg px-3 py-2 text-gray-900 transition-colors duration-200 hover:bg-gray-200"
+                className="bg-muted rounded-lg px-3 py-2 text-foreground transition-colors duration-200 hover:bg-muted/80"
               />
             </div>
           </SidebarBody>
         </Sidebar>
-        <div className=" bg-gray-50 flex-1 overflow-x-auto ">{children}</div>
+        <div className=" bg-background flex-1 overflow-x-auto ">{children}</div>
       </div>
 
       {/* Dialog moved outside sidebar structure to ensure it appears above mobile sidebar */}
@@ -222,14 +228,14 @@ export default function GlobalSidebar({
           <DialogFooter>
             <button
               type="button"
-              className="bg-gray-200 text-gray-900 rounded px-4 py-2 mr-2"
+              className="bg-muted text-foreground rounded px-4 py-2 mr-2"
               onClick={() => setShowLogoutDialog(false)}
             >
               {t("common.cancel")}
             </button>
             <button
               type="button"
-              className="bg-red-600 text-white rounded px-4 py-2 flex items-center gap-2"
+              className="bg-destructive text-destructive-foreground rounded px-4 py-2 flex items-center gap-2"
               onClick={handleLogoutConfirm}
             >
               {t("sidebar.logout")}

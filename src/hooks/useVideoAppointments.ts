@@ -93,7 +93,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
     if (!query.data) return;
 
     // Subscribe to video appointment updates
-    const unsubscribeAppointments = subscribeToVideoAppointments((data) => {
+    const unsubscribeAppointments = subscribeToVideoAppointments(() => {
       queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
     });
 
@@ -195,7 +195,7 @@ export function useCreateVideoAppointment() {
       
       return result;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
       
       // Send WebSocket event
@@ -237,7 +237,7 @@ export function useUpdateVideoAppointment() {
       
       return result;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
       queryClient.invalidateQueries({ queryKey: ['video-appointment', variables.appointmentId] });
       
@@ -279,7 +279,7 @@ export function useJoinVideoAppointment() {
       
       return result;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_, variables) => {
       // Send WebSocket event for participant joined
       sendParticipantJoined(variables.appointmentId, {
         userId: variables.userId,
@@ -307,7 +307,7 @@ export function useEndVideoAppointment() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { hasPermission } = useRBAC();
-  const { sendVideoAppointmentEvent, sendParticipantLeft } = useVideoAppointmentWebSocket();
+  const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
 
   return useMutation({
     mutationFn: async (appointmentId: string) => {
@@ -319,7 +319,7 @@ export function useEndVideoAppointment() {
       
       return result;
     },
-    onSuccess: (data, appointmentId) => {
+    onSuccess: (_, appointmentId) => {
       queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
       queryClient.invalidateQueries({ queryKey: ['video-appointment', appointmentId] });
       
@@ -360,7 +360,7 @@ export function useDeleteVideoAppointment() {
       
       return result;
     },
-    onSuccess: (data, appointmentId) => {
+    onSuccess: (_, appointmentId) => {
       queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
       queryClient.removeQueries({ queryKey: ['video-appointment', appointmentId] });
       toast({

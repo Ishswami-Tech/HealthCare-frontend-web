@@ -30,8 +30,9 @@ export default function SuperAdminDashboard() {
   const { data: users } = useUsers();
 
   // Calculate real stats from fetched data
+  const clinicsArray = clinics?.clinics || [];
   const stats = {
-    totalClinics: clinics?.length || 12,
+    totalClinics: clinicsArray.length || 12,
     totalUsers: users?.length || 485,
     totalAppointments: 2847, // TODO: Add useAppointments hook for all appointments
     monthlyRevenue: 125000, // TODO: Add useRevenue hook

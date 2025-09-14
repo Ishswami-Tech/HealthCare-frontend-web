@@ -38,13 +38,14 @@ export default function ClinicAdminDashboard() {
   const { data: appointments } = useMyAppointments();
 
   // Calculate real stats from fetched data
+  const appointmentsArray = appointments?.appointments || [];
   const stats = {
-    totalAppointments: appointments?.length || 156,
+    totalAppointments: appointmentsArray.length || 156,
     todayAppointments:
-      appointments?.filter((apt) => {
+      appointmentsArray.filter((apt) => {
         const today = new Date().toDateString();
         return new Date(apt.date).toDateString() === today;
-      })?.length || 24,
+      }).length || 24,
     totalStaff: users?.filter((u) => u.role !== "PATIENT")?.length || 18,
     activePatients: 89,
     monthlyRevenue: 45000,

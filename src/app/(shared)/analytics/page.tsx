@@ -65,7 +65,7 @@ export default function AnalyticsDashboard() {
   const { clinicId } = useClinicContext();
 
   // Get period from timeRange
-  const getPeriod = (range: string) => {
+  const getPeriod = (range: string): "day" | "week" | "month" | "year" => {
     switch (range) {
       case "7d":
         return "week";
@@ -82,7 +82,7 @@ export default function AnalyticsDashboard() {
 
   // Fetch real analytics data
   const { data: dashboardData, isPending: dashboardLoading } =
-    useDashboardAnalytics(clinicId || "", getPeriod(timeRange));
+    useDashboardAnalytics(getPeriod(timeRange), clinicId || "");
 
   const { data: appointmentData, isPending: appointmentLoading } =
     useAppointmentAnalytics({ clinicId: clinicId || "", period: getPeriod(timeRange) });

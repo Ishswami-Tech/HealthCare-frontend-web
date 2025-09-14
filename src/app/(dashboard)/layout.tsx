@@ -9,6 +9,7 @@ import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 import React from "react";
 import { getUserProfile } from "@/lib/actions/users.server";
 import { useRouter } from "next/navigation";
+import { DashboardStatusBar, FloatingStatusWidget } from "@/components/layout/DashboardStatusBar";
 
 
 interface UserProfile {
@@ -105,14 +106,28 @@ export default function DashboardLayout({
   }));
 
   return (
-    <GlobalSidebar
-      links={updatedSidebarLinks}
-      user={{
-        name: displayName,
-        avatarUrl: userAvatar,
-      }}
-    >
-      <main className="w-full p-8">{children}</main>
-    </GlobalSidebar>
+    <div className="relative min-h-screen">
+      <GlobalSidebar
+        links={updatedSidebarLinks}
+        user={{
+          name: displayName,
+          avatarUrl: userAvatar,
+        }}
+      >
+        <div className="flex flex-col min-h-screen">
+          {/* Main status bar at the top */}
+          <DashboardStatusBar variant="compact" position="top" />
+          
+          {/* Main content area */}
+          <main className="flex-1 p-8">{children}</main>
+          
+          {/* Footer status bar */}
+          <DashboardStatusBar variant="minimal" position="bottom" />
+        </div>
+      </GlobalSidebar>
+      
+      {/* Floating status widget for critical issues */}
+      <FloatingStatusWidget />
+    </div>
   );
 }

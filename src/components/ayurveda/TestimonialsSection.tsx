@@ -107,37 +107,37 @@ const TestimonialsSection = () => {
   const current = testimonials[currentTestimonial] || testimonials[0]!;
 
   return (
-    <section className="py-20 bg-gradient-to-br from-orange-50 to-red-50">
+    <section className="py-20 bg-gradient-to-br from-background to-muted/50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <Badge className="bg-orange-100 text-orange-800 border-orange-200 mb-4">
+          <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
             <Heart className="w-4 h-4 mr-2" />
             {t("testimonials.title")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
             {t("testimonials.subtitle")}
           </h2>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
             {t("testimonials.description")}
           </p>
         </div>
 
         {/* Main Testimonial */}
         <div className="max-w-4xl mx-auto mb-12">
-          <Card className="bg-white shadow-2xl border-0 overflow-hidden">
+          <Card className="bg-card shadow-2xl border-0 overflow-hidden glass card-hover animate-fade-in-up">
             <CardContent className="p-0">
               <div className="grid lg:grid-cols-2">
                 {/* Left Side - Patient Info */}
-                <div className="p-8 bg-gradient-to-br from-orange-500 to-red-600 text-white">
+                <div className="p-8 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
                   <div className="flex items-center space-x-4 mb-6">
-                    <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
+                    <div className="w-20 h-20 bg-primary-foreground/20 rounded-full flex items-center justify-center interactive">
                       <span className="text-2xl font-bold">
                         {current.name.charAt(0)}
                       </span>
                     </div>
                     <div>
                       <h3 className="text-xl font-bold">{current.name}</h3>
-                      <p className="text-orange-100">
+                      <p className="text-primary-foreground/80">
                         {t("testimonials.age")} {current.age},{" "}
                         {current.location}
                       </p>
@@ -145,7 +145,7 @@ const TestimonialsSection = () => {
                         {[...Array(current.rating)].map((_, i) => (
                           <Star
                             key={i}
-                            className="w-4 h-4 fill-current text-yellow-300"
+                            className="w-4 h-4 fill-current text-primary-foreground"
                           />
                         ))}
                       </div>
@@ -154,19 +154,19 @@ const TestimonialsSection = () => {
 
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-semibold text-orange-100 mb-1">
+                      <h4 className="font-semibold text-primary-foreground/80 mb-1">
                         {t("testimonials.conditionTreated")}:
                       </h4>
                       <p className="font-medium">{current.condition}</p>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-orange-100 mb-1">
+                      <h4 className="font-semibold text-primary-foreground/80 mb-1">
                         {t("testimonials.treatmentReceived")}:
                       </h4>
                       <p className="font-medium">{current.treatment}</p>
                     </div>
-                    <div className="bg-white/20 rounded-lg p-4">
-                      <h4 className="font-semibold text-orange-100 mb-1">
+                    <div className="bg-primary-foreground/20 rounded-lg p-4">
+                      <h4 className="font-semibold text-primary-foreground/80 mb-1">
                         {t("testimonials.resultAchieved")}:
                       </h4>
                       <p className="font-bold text-lg">{current.result}</p>
@@ -175,7 +175,7 @@ const TestimonialsSection = () => {
 
                   <Button
                     variant="secondary"
-                    className="mt-6 bg-white text-orange-600 hover:bg-orange-50"
+                    className="mt-6 bg-primary-foreground text-primary hover:bg-primary-foreground/90 interactive"
                   >
                     <Play className="w-4 h-4 mr-2" />
                     {t("testimonials.watchVideo")}
@@ -184,15 +184,15 @@ const TestimonialsSection = () => {
 
                 {/* Right Side - Testimonial */}
                 <div className="p-8 flex flex-col justify-center">
-                  <Quote className="w-12 h-12 text-orange-300 mb-6" />
-                  <blockquote className="text-lg text-gray-700 leading-relaxed mb-6 italic">
+                  <Quote className="w-12 h-12 text-primary/60 mb-6 animate-pulse-soft" />
+                  <blockquote className="text-lg text-card-foreground leading-relaxed mb-6 italic">
                     &quot;{current.quote}&quot;
                   </blockquote>
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                      <span className="text-sm font-medium text-green-700">
+                      <CheckCircle className="w-5 h-5 text-primary" />
+                      <span className="text-sm font-medium text-primary">
                         {t("testimonials.verifiedPatient")}
                       </span>
                     </div>
@@ -232,8 +232,8 @@ const TestimonialsSection = () => {
               onClick={() => setCurrentTestimonial(index)}
               className={`w-3 h-3 rounded-full transition-all duration-300 ${
                 index === currentTestimonial
-                  ? "bg-orange-500 w-8"
-                  : "bg-orange-200 hover:bg-orange-300"
+                  ? "bg-primary w-8"
+                  : "bg-primary/20 hover:bg-primary/30"
               }`}
               aria-label={`Go to testimonial ${index + 1}`}
             />
@@ -241,45 +241,59 @@ const TestimonialsSection = () => {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600 mb-1">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto animate-fade-in-up">
+          <div className="text-center glass p-4 rounded-lg interactive">
+            <div className="text-2xl font-bold text-primary mb-1 gradient-text">
               4,200+
             </div>
-            <div className="text-sm text-gray-600">Patient Reviews</div>
+            <div className="text-sm text-muted-foreground">
+              {t("testimonials.stats.patientReviews")}
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600 mb-1">4.9★</div>
-            <div className="text-sm text-gray-600">Average Rating</div>
+          <div className="text-center glass p-4 rounded-lg interactive">
+            <div className="text-2xl font-bold text-primary mb-1 gradient-text">
+              4.9★
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {t("testimonials.stats.averageRating")}
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600 mb-1">95%</div>
-            <div className="text-sm text-gray-600">Success Rate</div>
+          <div className="text-center glass p-4 rounded-lg interactive">
+            <div className="text-2xl font-bold text-primary mb-1 gradient-text">
+              95%
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {t("testimonials.stats.successRate")}
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600 mb-1">100%</div>
-            <div className="text-sm text-gray-600">Verified Stories</div>
+          <div className="text-center glass p-4 rounded-lg interactive">
+            <div className="text-2xl font-bold text-primary mb-1 gradient-text">
+              100%
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {t("testimonials.stats.verifiedStories")}
+            </div>
           </div>
         </div>
 
         {/* Call to Action */}
         <div className="text-center mt-12">
-          <p className="text-gray-600 mb-6">
-            Ready to start your own healing journey?
+          <p className="text-muted-foreground mb-6">
+            {t("testimonials.cta.title")}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
-              className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground interactive"
             >
-              Book Your Consultation
+              {t("testimonials.cta.bookConsultation")}
             </Button>
             <Button
               size="lg"
               variant="outline"
-              className="border-orange-300 text-orange-600 hover:bg-orange-50"
+              className="border-primary/20 text-primary hover:bg-primary/5 interactive"
             >
-              View All Success Stories
+              {t("testimonials.cta.viewStories")}
             </Button>
           </div>
         </div>

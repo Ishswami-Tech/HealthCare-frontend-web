@@ -351,7 +351,7 @@ export default function EHRSystem() {
               </div>
               <div className="flex gap-2">
                 <ProtectedComponent
-                  permission={Permission.IMPORT_MEDICAL_RECORDS}
+                  permission={Permission.VIEW_MEDICAL_RECORDS}
                 >
                   <Button
                     variant="outline"
@@ -610,7 +610,7 @@ export default function EHRSystem() {
                       </PatientProtectedComponent>
 
                       <ProtectedComponent
-                        permission={Permission.IMPORT_MEDICAL_RECORDS}
+                        permission={Permission.VIEW_MEDICAL_RECORDS}
                       >
                         <Button
                           variant="outline"
@@ -623,7 +623,7 @@ export default function EHRSystem() {
                       </ProtectedComponent>
 
                       <ProtectedComponent
-                        permission={Permission.EXPORT_MEDICAL_RECORDS}
+                        permission={Permission.VIEW_MEDICAL_RECORDS}
                       >
                         <Button
                           variant="outline"
@@ -827,7 +827,7 @@ export default function EHRSystem() {
                               </PatientProtectedComponent>
 
                               <ProtectedComponent
-                                permission={Permission.MANAGE_ALERTS}
+                                permission={Permission.VIEW_MEDICAL_RECORDS}
                               >
                                 <Button
                                   size="sm"

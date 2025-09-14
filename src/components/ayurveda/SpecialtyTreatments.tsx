@@ -28,8 +28,7 @@ const SpecialtyTreatments = () => {
         "Specialized Viddhakarma treatment for autism spectrum disorders with proven results in improving communication and social skills.",
       icon: Brain,
       color: "from-purple-500 to-indigo-600",
-      bgColor:
-        "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       features: [
         "Unique energy restoration technique",
         "Improves communication skills",
@@ -45,8 +44,7 @@ const SpecialtyTreatments = () => {
         "Comprehensive treatment approach for cerebral palsy using Viddhakarma techniques to improve mobility and quality of life.",
       icon: Heart,
       color: "from-red-500 to-pink-600",
-      bgColor:
-        "from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       features: [
         "Improves motor skills",
         "Enhances coordination",
@@ -62,8 +60,7 @@ const SpecialtyTreatments = () => {
         "Holistic treatment for various mental health conditions including anxiety, depression, and stress-related disorders.",
       icon: Zap,
       color: "from-green-500 to-emerald-600",
-      bgColor:
-        "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       features: [
         "Natural healing approach",
         "Addresses root causes",
@@ -79,8 +76,7 @@ const SpecialtyTreatments = () => {
         "Complete detoxification and rejuvenation through five traditional cleansing procedures for overall wellness.",
       icon: Droplets,
       color: "from-blue-500 to-cyan-600",
-      bgColor:
-        "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       features: [
         "Deep detoxification",
         "Improved immunity",
@@ -96,8 +92,7 @@ const SpecialtyTreatments = () => {
         "We believe in making authentic Ayurvedic treatments accessible to everyone without compromising on quality.",
       icon: DollarSign,
       color: "from-orange-500 to-red-600",
-      bgColor:
-        "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       features: [
         "Transparent pricing",
         "No hidden costs",
@@ -113,8 +108,7 @@ const SpecialtyTreatments = () => {
         "Comprehensive wellness programs that combine traditional treatments with modern comfort for complete health rejuvenation.",
       icon: Mountain,
       color: "from-teal-500 to-cyan-600",
-      bgColor:
-        "from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       features: [
         "Comprehensive programs",
         "Modern amenities",
@@ -126,17 +120,17 @@ const SpecialtyTreatments = () => {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-50 via-white to-orange-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-orange-900/10">
+    <section className="py-20 bg-gradient-to-br from-background to-muted/50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800 mb-4">
+          <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
             <Star className="w-4 h-4 mr-2" />
             Our Specialties
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
             Specialized Treatments
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
             Experience the power of authentic Ayurvedic treatments, each
             designed to address specific health challenges with proven results
             and lasting transformation.
@@ -150,44 +144,41 @@ const SpecialtyTreatments = () => {
             return (
               <Card
                 key={specialty.id}
-                className="group hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden bg-white dark:bg-gray-800"
+                className="group hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden bg-card h-full flex flex-col"
               >
                 <CardHeader
-                  className={`bg-gradient-to-br ${specialty.bgColor} relative overflow-hidden`}
+                  className={`bg-gradient-to-br ${specialty.bgColor} relative overflow-hidden p-6`}
                 >
                   <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
                     <IconComponent className="w-full h-full" />
                   </div>
                   <div className="relative z-10">
                     <div
-                      className={`w-16 h-16 bg-gradient-to-r ${specialty.color} rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                      className={`w-14 h-14 bg-gradient-to-r ${specialty.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
                     >
-                      <IconComponent className="w-8 h-8 text-white" />
+                      <IconComponent className="w-7 h-7 text-white" />
                     </div>
-                    <CardTitle className="text-xl font-playfair font-bold text-gray-900 dark:text-white mb-2">
+                    <CardTitle className="text-lg font-playfair font-bold text-foreground mb-2 line-clamp-2">
                       {specialty.title}
                     </CardTitle>
                   </div>
                 </CardHeader>
 
-                <CardContent className="p-6">
-                  <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+                <CardContent className="p-6 flex-grow flex flex-col">
+                  <p className="text-card-foreground mb-6 leading-relaxed text-sm line-clamp-3 flex-grow">
                     {specialty.description}
                   </p>
 
                   {/* Key Features */}
                   <div className="mb-6">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                    <h4 className="font-semibold text-foreground mb-3 text-sm">
                       Key Features
                     </h4>
                     <div className="grid grid-cols-1 gap-2">
                       {specialty.features.map((feature, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center space-x-2"
-                        >
-                          <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-600 dark:text-gray-300">
+                        <div key={index} className="flex items-start space-x-2">
+                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                          <span className="text-xs text-muted-foreground line-clamp-2">
                             {feature}
                           </span>
                         </div>
@@ -198,27 +189,27 @@ const SpecialtyTreatments = () => {
                   {/* Stats */}
                   <div className="mb-6">
                     <div className="grid grid-cols-3 gap-4 text-center">
-                      <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="font-bold text-lg text-gray-900 dark:text-white">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <div className="font-bold text-lg text-foreground">
                           {specialty.stats.patients}
                         </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                        <div className="text-xs text-muted-foreground">
                           Patients
                         </div>
                       </div>
-                      <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="font-bold text-lg text-green-600 dark:text-green-400">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <div className="font-bold text-lg text-primary">
                           {specialty.stats.successRate}
                         </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                        <div className="text-xs text-muted-foreground">
                           Success Rate
                         </div>
                       </div>
-                      <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="font-bold text-lg text-blue-600 dark:text-blue-400">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <div className="font-bold text-lg text-primary">
                           {specialty.stats.experience}
                         </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                        <div className="text-xs text-muted-foreground">
                           Experience
                         </div>
                       </div>
@@ -226,16 +217,16 @@ const SpecialtyTreatments = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex space-x-2">
+                  <div className="space-y-2">
                     <Button
                       size="sm"
-                      className="flex-1"
+                      className="w-full"
                       onClick={() => window.open("tel:+919860370961", "_self")}
                     >
                       <Phone className="w-3 h-3 mr-1" />
                       Consult Now
                     </Button>
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" className="w-full">
                       <Calendar className="w-3 h-3 mr-1" />
                       Book
                     </Button>
@@ -248,16 +239,16 @@ const SpecialtyTreatments = () => {
 
         {/* Call to Action */}
         <div className="text-center">
-          <Card className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 border-orange-200 dark:border-orange-800 shadow-xl">
+          <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 shadow-xl">
             <CardContent className="p-8">
               <div className="max-w-3xl mx-auto">
-                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Award className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                <h3 className="text-2xl font-bold text-foreground mb-4">
                   Ready to Start Your Healing Journey?
                 </h3>
-                <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
+                <p className="text-lg text-card-foreground mb-6">
                   Take the first step towards complete wellness with our proven
                   Ayurvedic treatments. Our expert team is here to guide you
                   every step of the way.
@@ -265,7 +256,7 @@ const SpecialtyTreatments = () => {
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button
                     size="lg"
-                    className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
                     onClick={() => window.open("tel:+919860370961", "_self")}
                   >
                     <Phone className="w-4 h-4 mr-2" />

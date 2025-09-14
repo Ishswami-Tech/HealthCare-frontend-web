@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, CheckCircle, XCircle, AlertCircle, Wifi, WifiOff } from 'lucide-react';
-import { LoadingSpinner, ErrorState } from '@/components/ui/loading-states';
+import { LoadingSpinner } from '@/components/ui/loading-states';
 
 interface BackendHealthCheckProps {
   showDetails?: boolean;
@@ -20,9 +20,9 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
   const { data: health, isPending, error, refetch, isFetching } = useHealthStatus();
 
   const getStatusColor = () => {
-    if (isPending || isFetching) return 'warning';
+    if (isPending || isFetching) return 'secondary';
     if (error) return 'destructive';
-    return health?.status === 'healthy' ? 'success' : 'destructive';
+    return health?.status === 'healthy' ? 'default' : 'destructive';
   };
 
   const getStatusIcon = () => {
@@ -81,9 +81,9 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
           <div>
             <strong>Clinic ID:</strong> {process.env.NEXT_PUBLIC_CLINIC_ID || 'Not configured'}
           </div>
-          {health?.details && (
+          {(health?.details as any) && (
             <div>
-              <strong>Details:</strong> {JSON.stringify(health.details, null, 2)}
+              <strong>Details:</strong> {JSON.stringify(health?.details as any, null, 2)}
             </div>
           )}
         </div>

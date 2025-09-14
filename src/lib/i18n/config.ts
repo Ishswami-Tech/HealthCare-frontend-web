@@ -71,6 +71,10 @@ export interface TranslationKeys {
     whatsappMessage: string;
     noCharges: string;
     freeConsultation: string;
+    theme: string;
+    lightTheme: string;
+    darkTheme: string;
+    systemTheme: string;
   };
   navigation: {
     logo: string;
@@ -361,6 +365,102 @@ export interface TranslationKeys {
         support: string;
       };
     };
+    trust: {
+      title: string;
+      faq: {
+        title: string;
+        subtitle: string;
+        questions: {
+          different: string;
+          results: string;
+          safe: string;
+          guarantees: string;
+          certifications: string;
+        };
+        answers: {
+          different: string;
+          results: string;
+          safe: string;
+          guarantees: string;
+          certifications: string;
+        };
+      };
+      guarantees: {
+        title: string;
+        subtitle: string;
+        description: string;
+        table: {
+          condition: string;
+          guarantee: string;
+          timeframe: string;
+          measurement: string;
+          successRate: string;
+        };
+        conditions: {
+          chronicPain: {
+            condition: string;
+            guarantee: string;
+            timeframe: string;
+            measurement: string;
+            successRate: string;
+          };
+          neurological: {
+            condition: string;
+            guarantee: string;
+            timeframe: string;
+            measurement: string;
+            successRate: string;
+          };
+          stress: {
+            condition: string;
+            guarantee: string;
+            timeframe: string;
+            measurement: string;
+            successRate: string;
+          };
+          digestive: {
+            condition: string;
+            guarantee: string;
+            timeframe: string;
+            measurement: string;
+            successRate: string;
+          };
+          sleep: {
+            condition: string;
+            guarantee: string;
+            timeframe: string;
+            measurement: string;
+            successRate: string;
+          };
+          energy: {
+            condition: string;
+            guarantee: string;
+            timeframe: string;
+            measurement: string;
+            successRate: string;
+          };
+          immunity: {
+            condition: string;
+            guarantee: string;
+            timeframe: string;
+            measurement: string;
+            successRate: string;
+          };
+          wellness: {
+            condition: string;
+            guarantee: string;
+            timeframe: string;
+            measurement: string;
+            successRate: string;
+          };
+        };
+      };
+      instantResults: {
+        title: string;
+        description: string;
+        features: string[];
+      };
+    };
   };
   doctor: {
     name: string;
@@ -504,6 +604,17 @@ export interface TranslationKeys {
     resultAchieved: string;
     watchVideo: string;
     verifiedPatient: string;
+    stats: {
+      patientReviews: string;
+      averageRating: string;
+      successRate: string;
+      verifiedStories: string;
+    };
+    cta: {
+      title: string;
+      bookConsultation: string;
+      viewStories: string;
+    };
     patients: {
       rekha: {
         name: string;
@@ -1056,6 +1167,131 @@ export interface TranslationKeys {
       description: string;
       duration: string;
       category: string;
+    };
+  };
+  trust: {
+    title: string;
+    faq: {
+      title: string;
+      subtitle: string;
+      questions: {
+        different: string;
+        results: string;
+        safe: string;
+        guarantees: string;
+        certifications: string;
+      };
+      answers: {
+        different: string;
+        results: string;
+        safe: string;
+        guarantees: string;
+        certifications: string;
+      };
+    };
+    guarantees: {
+      title: string;
+      subtitle: string;
+      description: string;
+      table: {
+        condition: string;
+        guarantee: string;
+        timeframe: string;
+        measurement: string;
+        successRate: string;
+      };
+      conditions: {
+        chronicPain: {
+          condition: string;
+          guarantee: string;
+          timeframe: string;
+          measurement: string;
+          successRate: string;
+        };
+        neurological: {
+          condition: string;
+          guarantee: string;
+          timeframe: string;
+          measurement: string;
+          successRate: string;
+        };
+        stress: {
+          condition: string;
+          guarantee: string;
+          timeframe: string;
+          measurement: string;
+          successRate: string;
+        };
+        digestive: {
+          condition: string;
+          guarantee: string;
+          timeframe: string;
+          measurement: string;
+          successRate: string;
+        };
+        sleep: {
+          condition: string;
+          guarantee: string;
+          timeframe: string;
+          measurement: string;
+          successRate: string;
+        };
+        energy: {
+          condition: string;
+          guarantee: string;
+          timeframe: string;
+          measurement: string;
+          successRate: string;
+        };
+        immunity: {
+          condition: string;
+          guarantee: string;
+          timeframe: string;
+          measurement: string;
+          successRate: string;
+        };
+        wellness: {
+          condition: string;
+          guarantee: string;
+          timeframe: string;
+          measurement: string;
+          successRate: string;
+        };
+      };
+    };
+    instantResults: {
+      title: string;
+      description: string;
+      features: string[];
+    };
+    certifications: {
+      title: string;
+      subtitle: string;
+      description: string;
+      items: {
+        governmentCertified: {
+          title: string;
+          description: string;
+        };
+        isoAccredited: {
+          title: string;
+          description: string;
+        };
+        excellenceAward: {
+          title: string;
+          description: string;
+        };
+        safetyCertified: {
+          title: string;
+          description: string;
+        };
+      };
+      stats: {
+        treatments: string;
+        satisfaction: string;
+        publications: string;
+        support: string;
+      };
     };
   };
 }

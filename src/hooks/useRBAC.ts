@@ -139,10 +139,10 @@ export const usePatientPermissions = () => {
     canCreatePatients: rbac.hasPermission(Permission.CREATE_PATIENTS),
     canUpdatePatients: rbac.hasPermission(Permission.UPDATE_PATIENTS),
     canDeletePatients: rbac.hasPermission(Permission.DELETE_PATIENTS),
-    canViewMedicalRecords: rbac.hasPermission(Permission.VIEW_PATIENT_MEDICAL_RECORDS),
-    canCreateMedicalRecords: rbac.hasPermission(Permission.CREATE_PATIENT_MEDICAL_RECORDS),
-    canUpdateMedicalRecords: rbac.hasPermission(Permission.UPDATE_PATIENT_MEDICAL_RECORDS),
-    canDeleteMedicalRecords: rbac.hasPermission(Permission.DELETE_PATIENT_MEDICAL_RECORDS),
+    canViewMedicalRecords: rbac.hasPermission(Permission.VIEW_MEDICAL_RECORDS),
+    canCreateMedicalRecords: rbac.hasPermission(Permission.CREATE_MEDICAL_RECORDS),
+    canUpdateMedicalRecords: rbac.hasPermission(Permission.UPDATE_MEDICAL_RECORDS),
+    canDeleteMedicalRecords: rbac.hasPermission(Permission.DELETE_MEDICAL_RECORDS),
   };
 };
 
@@ -157,7 +157,7 @@ export const useDoctorPermissions = () => {
     canCreateDoctors: rbac.hasPermission(Permission.CREATE_DOCTORS),
     canUpdateDoctors: rbac.hasPermission(Permission.UPDATE_DOCTORS),
     canDeleteDoctors: rbac.hasPermission(Permission.DELETE_DOCTORS),
-    canManageSchedule: rbac.hasPermission(Permission.MANAGE_DOCTOR_SCHEDULE),
+    canManageSchedule: rbac.hasPermission(Permission.UPDATE_DOCTORS),
   };
 };
 
@@ -172,8 +172,8 @@ export const useClinicPermissions = () => {
     canCreateClinics: rbac.hasPermission(Permission.CREATE_CLINICS),
     canUpdateClinics: rbac.hasPermission(Permission.UPDATE_CLINICS),
     canDeleteClinics: rbac.hasPermission(Permission.DELETE_CLINICS),
-    canManageSettings: rbac.hasPermission(Permission.MANAGE_CLINIC_SETTINGS),
-    canManageStaff: rbac.hasPermission(Permission.MANAGE_CLINIC_STAFF),
+    canManageSettings: rbac.hasPermission(Permission.UPDATE_CLINICS),
+    canManageStaff: rbac.hasPermission(Permission.UPDATE_CLINICS),
   };
 };
 

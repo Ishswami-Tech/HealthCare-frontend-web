@@ -81,27 +81,25 @@ export default function GalleryPage() {
   return (
     <div className="min-h-screen">
       {/* Language Switcher */}
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50">
         <LanguageSwitcher variant="compact" />
       </div>
 
       {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <Badge className="bg-pink-100 text-pink-800 border-pink-200 mb-6">
+            <Badge className="bg-primary/10 text-primary border-primary/20 mb-6 glass animate-fade-in-down">
               <Instagram className="w-4 h-4 mr-2" />
               {t("gallery.badge")}
             </Badge>
 
-            <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-6 gradient-text">
               {t("gallery.hero.title1")}{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">
-                {t("gallery.hero.title2")}
-              </span>
+              <span className="text-primary">{t("gallery.hero.title2")}</span>
             </h1>
 
-            <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+            <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
               {t("gallery.hero.description")}
             </p>
 
@@ -110,7 +108,7 @@ export default function GalleryPage() {
                 href="https://instagram.com/vishwamurthiayurveda"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2"
+                className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2 interactive"
               >
                 <Instagram className="w-5 h-5" />
                 {t("gallery.followInstagram")}
@@ -121,26 +119,28 @@ export default function GalleryPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {galleryStats.map((stat, index) => {
               const IconComponent = stat.icon;
               return (
                 <Card
                   key={index}
-                  className="text-center hover:shadow-lg transition-shadow duration-300 border-0 bg-gradient-to-br from-white to-gray-50"
+                  className="text-center hover:shadow-lg transition-shadow duration-300 border-0 bg-gradient-to-br from-card to-muted/50 glass card-hover"
                 >
                   <CardContent className="p-6">
                     <div
-                      className={`w-16 h-16 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center mx-auto mb-4`}
+                      className={`w-16 h-16 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center mx-auto mb-4 interactive`}
                     >
                       <IconComponent className="w-8 h-8 text-white" />
                     </div>
-                    <div className="text-3xl font-bold text-gray-900 mb-2">
+                    <div className="text-3xl font-bold text-foreground mb-2 gradient-text">
                       {stat.number}
                     </div>
-                    <div className="text-gray-600 text-sm">{stat.label}</div>
+                    <div className="text-muted-foreground text-sm">
+                      {stat.label}
+                    </div>
                   </CardContent>
                 </Card>
               );
@@ -150,13 +150,13 @@ export default function GalleryPage() {
       </section>
 
       {/* Instagram Feed Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-muted/50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl font-bold text-foreground mb-4 gradient-text">
               {t("gallery.instagram.title")}
             </h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
               {t("gallery.instagram.description")}
             </p>
           </div>
@@ -173,7 +173,7 @@ export default function GalleryPage() {
               href="https://instagram.com/vishwamurthiayurveda"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 interactive"
             >
               <Instagram className="w-5 h-5" />
               {t("gallery.viewMoreInstagram")}
@@ -183,19 +183,19 @@ export default function GalleryPage() {
       </section>
 
       {/* Call to Action */}
-      <section className="py-20 bg-gradient-to-r from-green-600 to-green-700 text-white">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             {t("gallery.cta.title")}
           </h2>
-          <p className="text-xl mb-8 text-green-100 max-w-3xl mx-auto">
+          <p className="text-xl mb-8 text-primary-foreground/80 max-w-3xl mx-auto">
             {t("gallery.cta.description")}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
-              href="/ayurveda/contact"
-              className="bg-white text-green-600 hover:bg-gray-100 px-8 py-4 rounded-lg font-semibold text-lg transition-colors"
+              href="/contact"
+              className="bg-background text-primary hover:bg-primary/10 px-8 py-4 rounded-lg font-semibold text-lg transition-colors interactive"
             >
               {t("gallery.cta.shareStory")}
             </a>
@@ -203,7 +203,7 @@ export default function GalleryPage() {
               href="https://wa.me/9860370961?text=I would like to share my healing story"
               target="_blank"
               rel="noopener noreferrer"
-              className="border-2 border-white text-white hover:bg-white hover:text-green-600 px-8 py-4 rounded-lg font-semibold text-lg transition-colors"
+              className="border-2 border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary px-8 py-4 rounded-lg font-semibold text-lg transition-colors interactive"
             >
               {t("gallery.cta.whatsappUs")}
             </a>

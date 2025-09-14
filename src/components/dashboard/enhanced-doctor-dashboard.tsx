@@ -46,14 +46,14 @@ export default function EnhancedDoctorDashboard() {
   // Enhanced stats with better calculations
   const stats = {
     todayAppointments:
-      appointments?.filter((apt) => {
+      appointments?.appointments?.filter((apt) => {
         const today = new Date().toDateString();
         return new Date(apt.date).toDateString() === today;
       })?.length || 8,
     checkedInPatients:
-      appointments?.filter((apt) => apt.status === "CHECKED_IN")?.length || 3,
+      appointments?.appointments?.filter((apt) => apt.status === "CHECKED_IN")?.length || 3,
     completedToday:
-      appointments?.filter((apt) => {
+      appointments?.appointments?.filter((apt) => {
         const today = new Date().toDateString();
         return (
           new Date(apt.date).toDateString() === today &&
@@ -61,7 +61,7 @@ export default function EnhancedDoctorDashboard() {
         );
       })?.length || 5,
     totalPatients:
-      appointments?.reduce((acc: any[], apt: any) => {
+      appointments?.appointments?.reduce((acc: any[], apt: any) => {
         const patientIds = new Set(acc.map((p) => p.patientId));
         if (!patientIds.has(apt.patientId)) {
           acc.push(apt);

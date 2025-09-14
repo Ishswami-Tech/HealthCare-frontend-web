@@ -36,24 +36,25 @@ export default function ReceptionistDashboard() {
   const { data: appointments } = useMyAppointments();
 
   // Calculate real stats from fetched data
+  const appointmentsArray = appointments?.appointments || [];
   const stats = {
     todayAppointments:
-      appointments?.filter((apt) => {
+      appointmentsArray.filter((apt) => {
         const today = new Date().toDateString();
         return new Date(apt.date).toDateString() === today;
-      })?.length || 0,
+      }).length || 0,
     checkedInPatients:
-      appointments?.filter((apt) => apt.status === "CHECKED_IN")?.length || 0,
+      appointmentsArray.filter((apt) => apt.status === "CHECKED_IN").length || 0,
     waitingPatients:
-      appointments?.filter((apt) => apt.status === "WAITING")?.length || 0,
+      appointmentsArray.filter((apt) => apt.status === "SCHEDULED").length || 0,
     completedToday:
-      appointments?.filter((apt) => {
+      appointmentsArray.filter((apt) => {
         const today = new Date().toDateString();
         return (
           new Date(apt.date).toDateString() === today &&
           apt.status === "COMPLETED"
         );
-      })?.length || 15,
+      }).length || 15,
     walkInsToday: 4,
     averageWaitTime: 18,
   };

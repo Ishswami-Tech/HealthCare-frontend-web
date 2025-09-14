@@ -99,40 +99,38 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen">
       {/* Language Switcher */}
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50">
         <LanguageSwitcher variant="compact" />
       </div>
       {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-br from-orange-50 via-amber-50 to-red-50 dark:from-gray-900 dark:via-gray-800 dark:to-orange-900/10">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800 mb-6">
+            <Badge className="bg-primary/10 text-primary border-primary/20 mb-6 glass animate-fade-in-down">
               <Heart className="w-4 h-4 mr-2" />
               About Shri Vishwamurthi Ayurvedalay
             </Badge>
 
-            <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 dark:text-white mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-6 gradient-text">
               20+ Years of{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-400 dark:to-red-400">
-                Authentic Healing
-              </span>
+              <span className="text-primary">Authentic Healing</span>
             </h1>
 
-            <p className="text-xl text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
+            <p className="text-lg sm:text-xl lg:text-2xl text-muted-foreground mb-8 leading-relaxed">
               Where ancient Ayurvedic wisdom meets modern healthcare excellence.
               Our journey of transformation, one life at a time.
             </p>
 
             <div className="flex flex-wrap justify-center gap-4">
-              <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800">
+              <Badge className="bg-secondary text-secondary-foreground border-border glass interactive">
                 <CheckCircle className="w-4 h-4 mr-2" />
                 Government Certified
               </Badge>
-              <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800">
+              <Badge className="bg-accent text-accent-foreground border-border glass interactive">
                 <Shield className="w-4 h-4 mr-2" />
                 ISO 9001:2015
               </Badge>
-              <Badge className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800">
+              <Badge className="bg-muted text-muted-foreground border-border glass interactive">
                 <Award className="w-4 h-4 mr-2" />
                 Teaching Hospital
               </Badge>
@@ -142,15 +140,15 @@ export default function AboutPage() {
       </section>
 
       {/* Our Story */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
               <div>
-                <h2 className="text-3xl font-playfair font-bold text-gray-900 mb-6">
+                <h2 className="text-3xl font-playfair font-bold text-foreground mb-6 gradient-text">
                   Our Story
                 </h2>
-                <div className="space-y-6 text-gray-700 leading-relaxed">
+                <div className="space-y-6 text-muted-foreground leading-relaxed">
                   <p>
                     Founded in 2003 with a sacred mission to preserve and
                     practice authentic Ayurveda, Shri Vishwamurthi Ayurvedalay
@@ -180,16 +178,16 @@ export default function AboutPage() {
               </div>
 
               <div className="relative">
-                <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-200 shadow-xl">
+                <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 shadow-xl glass card-hover">
                   <CardContent className="p-8">
                     <div className="text-center">
-                      <div className="w-24 h-24 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <div className="w-24 h-24 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center mx-auto mb-6 interactive">
                         <span className="text-4xl">🕉️</span>
                       </div>
-                      <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                      <h3 className="text-2xl font-bold text-foreground mb-4 gradient-text">
                         Our Mission
                       </h3>
-                      <p className="text-gray-700 mb-6">
+                      <p className="text-muted-foreground mb-6">
                         To make authentic Ayurvedic healing accessible to
                         everyone, combining ancient wisdom with modern
                         excellence for complete wellness transformation.
@@ -198,14 +196,17 @@ export default function AboutPage() {
                         {achievements.map((achievement, index) => {
                           const IconComponent = achievement.icon;
                           return (
-                            <div key={index} className="text-center">
+                            <div
+                              key={index}
+                              className="text-center glass p-3 rounded-lg interactive"
+                            >
                               <div className="flex items-center justify-center space-x-1 mb-1">
-                                <IconComponent className="w-4 h-4 text-orange-600" />
-                                <span className="font-bold text-lg text-orange-600">
+                                <IconComponent className="w-4 h-4 text-primary" />
+                                <span className="font-bold text-lg text-primary gradient-text">
                                   {achievement.number}
                                 </span>
                               </div>
-                              <span className="text-xs text-gray-600">
+                              <span className="text-xs text-muted-foreground">
                                 {achievement.label}
                               </span>
                             </div>
@@ -222,37 +223,37 @@ export default function AboutPage() {
       </section>
 
       {/* Our Values */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-orange-50">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-muted/50 to-primary/5">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
                 Our Core Values
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 The principles that guide every aspect of our healing practice
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
               {values.map((value, index) => {
                 const IconComponent = value.icon;
 
                 return (
                   <Card
                     key={index}
-                    className="text-center hover:shadow-lg transition-shadow duration-300 border-0 bg-white"
+                    className="text-center hover:shadow-lg transition-shadow duration-300 border-0 bg-card glass card-hover"
                   >
                     <CardContent className="p-8">
                       <div
-                        className={`w-16 h-16 bg-gradient-to-r ${value.color} rounded-full flex items-center justify-center mx-auto mb-6`}
+                        className={`w-16 h-16 bg-gradient-to-r ${value.color} rounded-full flex items-center justify-center mx-auto mb-6 interactive`}
                       >
                         <IconComponent className="w-8 h-8 text-white" />
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">
+                      <h3 className="text-xl font-bold text-foreground mb-4 gradient-text">
                         {value.title}
                       </h3>
-                      <p className="text-gray-600 leading-relaxed">
+                      <p className="text-muted-foreground leading-relaxed">
                         {value.description}
                       </p>
                     </CardContent>
@@ -265,14 +266,14 @@ export default function AboutPage() {
       </section>
 
       {/* Journey Timeline */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
                 {t("about.milestones.title")}
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 {t("about.milestones.subtitle")}
               </p>
             </div>
@@ -281,19 +282,21 @@ export default function AboutPage() {
               {milestones.map((milestone, index) => (
                 <div key={index} className="flex items-start space-x-6">
                   <div className="flex-shrink-0">
-                    <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center">
+                    <div className="w-16 h-16 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center interactive">
                       <span className="text-white font-bold">
                         {milestone.year}
                       </span>
                     </div>
                   </div>
                   <div className="flex-1">
-                    <Card className="bg-gradient-to-r from-orange-50 to-red-50 border-orange-200">
+                    <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 glass card-hover">
                       <CardContent className="p-6">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        <h3 className="text-xl font-bold text-foreground mb-2 gradient-text">
                           {milestone.event}
                         </h3>
-                        <p className="text-gray-700">{milestone.description}</p>
+                        <p className="text-muted-foreground">
+                          {milestone.description}
+                        </p>
                       </CardContent>
                     </Card>
                   </div>
@@ -305,45 +308,55 @@ export default function AboutPage() {
       </section>
 
       {/* Call to Action */}
-      <section className="py-20 bg-gradient-to-r from-orange-600 to-red-700">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-r from-primary to-primary/80">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center text-white">
             <h2 className="text-3xl md:text-4xl font-playfair font-bold mb-6">
               {t("about.legacy.title")}
             </h2>
-            <p className="text-xl text-orange-100 mb-8">
+            <p className="text-xl text-primary-foreground/80 mb-8">
               {t("about.legacy.description")}
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <Button
                 size="lg"
                 variant="secondary"
-                className="bg-white text-orange-600 hover:bg-orange-50 text-lg px-8"
+                className="bg-background text-primary hover:bg-primary/10 text-base sm:text-lg px-6 sm:px-8 interactive"
               >
                 {t("navigation.bookConsultation")}
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white text-white hover:bg-white/10 text-lg px-8"
+                className="border-white text-white hover:bg-white/10 text-base sm:text-lg px-6 sm:px-8 interactive"
               >
                 {t("treatments.cta.assessmentButton")}
               </Button>
             </div>
 
-            <div className="mt-8 flex flex-wrap justify-center gap-6 text-orange-100">
+            <div className="mt-8 flex flex-wrap justify-center gap-6 text-primary-foreground/80">
               <div className="flex items-center space-x-2">
                 <CheckCircle className="w-4 h-4" />
-                <span>{t("trustBuilding.certifications.items.governmentCertified.title")}</span>
+                <span>
+                  {t(
+                    "trustBuilding.certifications.items.governmentCertified.title"
+                  )}
+                </span>
               </div>
               <div className="flex items-center space-x-2">
                 <Shield className="w-4 h-4" />
-                <span>{t("trustBuilding.certifications.items.isoAccredited.title")}</span>
+                <span>
+                  {t("trustBuilding.certifications.items.isoAccredited.title")}
+                </span>
               </div>
               <div className="flex items-center space-x-2">
                 <Award className="w-4 h-4" />
-                <span>{t("trustBuilding.certifications.items.excellenceAward.title")}</span>
+                <span>
+                  {t(
+                    "trustBuilding.certifications.items.excellenceAward.title"
+                  )}
+                </span>
               </div>
             </div>
           </div>
@@ -351,8 +364,8 @@ export default function AboutPage() {
       </section>
 
       {/* Clinic Information Section */}
-      <section className="py-20 bg-white dark:bg-gray-900">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <ClinicInfo
             variant="full"
             showDoctor={true}

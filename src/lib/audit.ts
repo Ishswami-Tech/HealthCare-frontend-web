@@ -64,7 +64,7 @@ export async function auditLog(data: AuditLogData): Promise<AuditLogResponse> {
 /**
  * Get audit logs for a user
  */
-export async function getAuditLogs(userId: string, filters?: {
+export async function getAuditLogs(_userId: string, _filters?: {
   startDate?: string;
   endDate?: string;
   action?: string;
@@ -94,7 +94,7 @@ export async function getAuditLogs(userId: string, filters?: {
 /**
  * Export audit logs for compliance reporting
  */
-export async function exportAuditLogs(filters: {
+export async function exportAuditLogs(_filters: {
   startDate: string;
   endDate: string;
   format?: 'csv' | 'json' | 'pdf';

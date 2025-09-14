@@ -199,9 +199,9 @@ export const MedicalRecordsProtectedComponent: React.FC<MedicalRecordsProtectedC
       case 'delete':
         return Permission.DELETE_MEDICAL_RECORDS;
       case 'export':
-        return Permission.EXPORT_MEDICAL_RECORDS;
+        return Permission.VIEW_MEDICAL_RECORDS;
       case 'import':
-        return Permission.IMPORT_MEDICAL_RECORDS;
+        return Permission.VIEW_MEDICAL_RECORDS;
       default:
         return Permission.VIEW_MEDICAL_RECORDS;
     }

@@ -62,15 +62,15 @@ export function AppointmentCard({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "scheduled":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-primary/10 text-primary border-primary/20";
       case "completed":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-primary/10 text-primary border-primary/20";
       case "cancelled":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-destructive/10 text-destructive border-destructive/20";
       case "in-progress":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "bg-primary/10 text-primary border-primary/20";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-muted text-muted-foreground border-border";
     }
   };
 
@@ -121,10 +121,10 @@ export function AppointmentCard({
     <Card
       className={cn(
         "hover:shadow-md transition-all duration-300 border-l-4",
-        appointment.status === "scheduled" && "border-l-blue-500",
-        appointment.status === "completed" && "border-l-green-500",
-        appointment.status === "cancelled" && "border-l-red-500",
-        appointment.status === "in-progress" && "border-l-yellow-500",
+        appointment.status === "scheduled" && "border-l-primary",
+        appointment.status === "completed" && "border-l-primary",
+        appointment.status === "cancelled" && "border-l-destructive",
+        appointment.status === "in-progress" && "border-l-primary",
         className
       )}
     >
@@ -305,7 +305,9 @@ export function AppointmentList({
           appointment={appointment}
           showPatient={showPatient}
           showDoctor={showDoctor}
-          {...(onReschedule && { onReschedule: () => onReschedule(appointment.id) })}
+          {...(onReschedule && {
+            onReschedule: () => onReschedule(appointment.id),
+          })}
           {...(onCancel && { onCancel: () => onCancel(appointment.id) })}
           {...(onJoin && { onJoin: () => onJoin(appointment.id) })}
         />

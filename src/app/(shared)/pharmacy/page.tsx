@@ -134,7 +134,7 @@ export default function PharmacySystem() {
     return (
       <DashboardLayout
         title="Pharmacy Management System"
-        requiredPermission={Permission.VIEW_PHARMACY}
+        requiredPermission={Permission.VIEW_PATIENTS}
         showPermissionWarnings={true}
       >
         <div className="flex items-center justify-center min-h-screen">
@@ -152,7 +152,7 @@ export default function PharmacySystem() {
     return (
       <DashboardLayout
         title="Pharmacy Management System"
-        requiredPermission={Permission.VIEW_PHARMACY}
+        requiredPermission={Permission.VIEW_PATIENTS}
       >
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">

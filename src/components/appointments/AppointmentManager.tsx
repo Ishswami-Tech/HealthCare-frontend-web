@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useWebSocketIntegration, useRealTimeAppointments, useRealTimeAppointmentMutation } from "@/hooks/useWebSocketIntegration";
+import { useAppointmentsStore } from "@/stores";
 import {
   useAppointments,
   useCreateAppointment,
@@ -33,14 +35,26 @@ import {
   CreateAppointmentData,
 } from "@/types/appointment.types";
 import { useClinicLocations, useClinicDoctors } from "@/hooks/useClinics";
-import { useClinicContext } from "@/hooks/useClinic";
 
 export default function AppointmentManager() {
   const { toast } = useToast();
-  const { clinicId } = useClinicContext();
+  
+  // Real-time WebSocket integration
+  const { isConnected, isReady: isRealTimeEnabled } = useWebSocketIntegration({
+    subscribeToAppointments: true,
+    autoConnect: true,
+  });
+  
+  // Enhanced appointment hooks with real-time updates
+  const { data: realTimeAppointments } = useRealTimeAppointments();
+  const { createAppointment: createRealTimeAppointment } = useRealTimeAppointmentMutation();
+  
+  // Zustand store integration
+  const { setSelectedAppointment: setStoreSelectedAppointment } = useAppointmentsStore();
   const [selectedAppointment, setSelectedAppointment] =
     useState<AppointmentWithRelations | null>(null);
   const [newAppointment, setNewAppointment] = useState<CreateAppointmentData>({
+    patientId: "",
     doctorId: "",
     locationId: "",
     date: "",
@@ -50,9 +64,13 @@ export default function AppointmentManager() {
     notes: "",
   });
 
-  // Appointment CRUD hooks
+  // Appointment CRUD hooks (fallback for non-real-time)
   const { data: appointments, isPending: appointmentsLoading } =
-    useAppointments(clinicId || "");
+    useAppointments();
+    
+  // Use real-time data if available, otherwise fallback to regular data
+  const appointmentData = realTimeAppointments?.success ? realTimeAppointments : appointments;
+  const isAppointmentsLoading = isRealTimeEnabled ? false : appointmentsLoading;
   const { mutate: createAppointment, isPending: creatingAppointment } =
     useCreateAppointment();
   const { mutate: cancelAppointment, isPending: cancellingAppointment } =
@@ -67,8 +85,8 @@ export default function AppointmentManager() {
   // User appointments
   const { data: upcomingAppointments } = useUserUpcomingAppointments("user-id");
 
-  // Location and doctor data
-  const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID!;
+  // Location and doctor data (memoized)
+  const CLINIC_ID = useMemo(() => process.env.NEXT_PUBLIC_CLINIC_ID!, []);
   const { data: locations } = useClinicLocations(CLINIC_ID);
   const { data: doctors } = useClinicDoctors(CLINIC_ID);
 
@@ -76,7 +94,8 @@ export default function AppointmentManager() {
   const { mutate: processCheckIn, isPending: processingCheckIn } =
     useProcessCheckIn();
   const { data: queuePosition } = usePatientQueuePosition(
-    selectedAppointment?.id || ""
+    selectedAppointment?.patientId || "",
+    "appointment"
   );
 
   // Queue management
@@ -89,21 +108,21 @@ export default function AppointmentManager() {
     useStartConsultation();
 
   // Utility hooks
-  const canCancelData = useCanCancelAppointment(selectedAppointment || undefined);
+  const canCancelData = useCanCancelAppointment(selectedAppointment?.id || "");
   
-  // Utility function to get status color
-  const getStatusColor = (status: string) => {
+  // Utility function to get status color (memoized)
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'SCHEDULED': return 'bg-blue-100 text-blue-800';
       case 'CONFIRMED': return 'bg-green-100 text-green-800';
       case 'CHECKED_IN': return 'bg-yellow-100 text-yellow-800';
       case 'IN_PROGRESS': return 'bg-purple-100 text-purple-800';
-      case 'COMPLETED': return 'bg-gray-100 text-gray-800';
-      case 'CANCELLED': return 'bg-red-100 text-red-800';
-      case 'NO_SHOW': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'COMPLETED': return 'bg-muted text-muted-foreground';
+      case 'CANCELLED': return 'bg-destructive/10 text-destructive';
+      case 'NO_SHOW': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
+      default: return 'bg-muted text-muted-foreground';
     }
-  };
+  }, []);
 
   // Utility function to format date and time
   const formatDateTime = (date: string, time: string) => {
@@ -120,34 +139,70 @@ export default function AppointmentManager() {
   };
 
   const handleCreateAppointment = () => {
-    createAppointment(newAppointment, {
-      onSuccess: () => {
-        toast({
-          title: "Success",
-          description: "Appointment created successfully",
-        });
-        setNewAppointment({
-          doctorId: "",
-          locationId: "",
-          date: "",
-          time: "",
-          duration: 30,
-          type: "CONSULTATION",
-          notes: "",
-        });
-      },
-      onError: () => {
-        toast({
-          title: "Error",
-          description: "Failed to create appointment",
-          variant: "destructive",
-        });
-      },
-    });
+    if (isRealTimeEnabled) {
+      createRealTimeAppointment.mutate(newAppointment as any, {
+        onSuccess: (data) => {
+          toast({
+            title: "Success",
+            description: "Appointment created successfully (real-time updated)",
+          });
+          
+          // Reset form
+          setNewAppointment({
+            patientId: "",
+            doctorId: "",
+            locationId: "",
+            date: "",
+            time: "",
+            duration: 30,
+            type: "CONSULTATION",
+            notes: "",
+          });
+          
+          // Update Zustand store
+          if (data?.data) {
+            useAppointmentsStore.getState().addAppointment(data.data);
+          }
+        },
+        onError: () => {
+          toast({
+            title: "Error",
+            description: "Failed to create appointment",
+            variant: "destructive",
+          });
+        },
+      });
+    } else {
+      createAppointment(newAppointment, {
+        onSuccess: () => {
+          toast({
+            title: "Success",
+            description: "Appointment created successfully",
+          });
+          setNewAppointment({
+            patientId: "",
+            doctorId: "",
+            locationId: "",
+            date: "",
+            time: "",
+            duration: 30,
+            type: "CONSULTATION",
+            notes: "",
+          });
+        },
+        onError: () => {
+          toast({
+            title: "Error",
+            description: "Failed to create appointment",
+            variant: "destructive",
+          });
+        },
+      });
+    }
   };
 
-  const handleCancelAppointment = (id: string) => {
-    cancelAppointment(id, {
+  const handleCancelAppointment = useCallback((id: string) => {
+    cancelAppointment({ id }, {
       onSuccess: () => {
         toast({
           title: "Success",
@@ -162,12 +217,10 @@ export default function AppointmentManager() {
         });
       },
     });
-  };
+  }, [cancelAppointment, toast]);
 
-  const handleProcessCheckIn = (appointmentId: string) => {
-    processCheckIn(
-      { appointmentId },
-      {
+  const handleProcessCheckIn = useCallback((appointmentId: string) => {
+    processCheckIn(appointmentId, {
         onSuccess: () => {
           toast({
             title: "Success",
@@ -183,9 +236,9 @@ export default function AppointmentManager() {
         },
       }
     );
-  };
+  }, [processCheckIn, toast]);
 
-  const handleConfirmAppointment = (appointmentId: string) => {
+  const handleConfirmAppointment = useCallback((appointmentId: string) => {
     confirmAppointment(appointmentId, {
       onSuccess: () => {
         toast({
@@ -201,12 +254,10 @@ export default function AppointmentManager() {
         });
       },
     });
-  };
+  }, [confirmAppointment, toast]);
 
-  const handleStartConsultation = (appointmentId: string, doctorId: string) => {
-    startConsultation(
-      { appointmentId, data: { doctorId } },
-      {
+  const handleStartConsultation = (appointmentId: string) => {
+    startConsultation(appointmentId, {
         onSuccess: () => {
           toast({
             title: "Success",
@@ -224,13 +275,46 @@ export default function AppointmentManager() {
     );
   };
 
-  if (appointmentsLoading) {
-    return <div>Loading appointments...</div>;
+  // Show real-time connection status
+  useEffect(() => {
+    if (isRealTimeEnabled && isConnected) {
+      toast({
+        title: "Real-time Updates Active",
+        description: "Appointment updates will appear instantly",
+        duration: 3000,
+      });
+    }
+  }, [isRealTimeEnabled, isConnected, toast]);
+  
+  if (isAppointmentsLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p>Loading appointments...</p>
+          {isRealTimeEnabled && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Real-time updates {isConnected ? 'connected' : 'connecting...'}
+            </p>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-3xl font-bold">Appointment Manager</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Appointment Manager</h1>
+        {isRealTimeEnabled && (
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+            <span className="text-sm text-muted-foreground">
+              {isConnected ? 'Real-time connected' : 'Connecting...'}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Appointment Statistics */}
       {/* {appointmentStats && (
@@ -271,7 +355,6 @@ export default function AppointmentManager() {
             <div>
               <Label htmlFor="location">Location</Label>
               <Select
-                value={newAppointment.locationId}
                 onValueChange={(value) =>
                   setNewAppointment({ ...newAppointment, locationId: value })
                 }
@@ -415,7 +498,7 @@ export default function AppointmentManager() {
                   <div>
                     <span className="font-medium">Available Slots:</span>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {doctorAvailability.availableSlots.map((slot, index) => (
+                      {doctorAvailability.availableSlots.map((slot: string, index: number) => (
                         <Badge key={index} variant="outline">
                           {slot}
                         </Badge>
@@ -435,11 +518,16 @@ export default function AppointmentManager() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {appointments?.map((appointment) => (
+            {appointmentData?.appointments?.map((appointment: any) => (
               <div
                 key={appointment.id}
-                className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer"
-                onClick={() => setSelectedAppointment(appointment)}
+                className="border border-border rounded-lg p-4 hover:bg-muted cursor-pointer"
+                onClick={() => {
+                  setSelectedAppointment(appointment as AppointmentWithRelations);
+                  if (isRealTimeEnabled) {
+                    setStoreSelectedAppointment(appointment);
+                  }
+                }}
               >
                 <div className="flex justify-between items-start">
                   <div>
@@ -447,10 +535,10 @@ export default function AppointmentManager() {
                       {appointment.doctor.user.firstName}{" "}
                       {appointment.doctor.user.lastName}
                     </h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       {formatDateTime(appointment.date, appointment.time)}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       {appointment.location.name}
                     </p>
                   </div>
@@ -463,7 +551,10 @@ export default function AppointmentManager() {
                       variant="outline"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedAppointment(appointment);
+                        setSelectedAppointment(appointment as AppointmentWithRelations);
+                        if (isRealTimeEnabled) {
+                          setStoreSelectedAppointment(appointment);
+                        }
                       }}
                     >
                       Actions
@@ -535,10 +626,7 @@ export default function AppointmentManager() {
                 {selectedAppointment?.status === 'IN_PROGRESS' && (
                   <Button
                     onClick={() =>
-                      handleStartConsultation(
-                        selectedAppointment.id,
-                        selectedAppointment.doctorId
-                      )
+                      handleStartConsultation(selectedAppointment.id)
                     }
                     disabled={startingConsultation}
                   >

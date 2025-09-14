@@ -44,7 +44,7 @@ const TreatmentOverview = () => {
       ],
       successRate: t("treatments.panchakarma.successRate"),
       duration: t("treatments.panchakarma.duration"),
-      href: "/ayurveda/panchakarma",
+      href: "/panchakarma",
     },
     {
       id: "agnikarma",
@@ -69,7 +69,7 @@ const TreatmentOverview = () => {
       ],
       successRate: t("treatments.agnikarma.successRate"),
       duration: t("treatments.agnikarma.duration"),
-      href: "/ayurveda/agnikarma",
+      href: "/agnikarma",
     },
     {
       id: "viddha-karma",
@@ -94,22 +94,22 @@ const TreatmentOverview = () => {
       ],
       successRate: t("treatments.viddhakarma.successRate"),
       duration: t("treatments.viddhakarma.duration"),
-      href: "/ayurveda/viddha-karma",
+      href: "/viddha-karma",
     },
   ];
 
   return (
-    <section className="py-20 bg-white dark:bg-gray-900">
+    <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800 mb-4">
+          <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
             <Heart className="w-4 h-4 mr-2" />
             {t("treatments.title")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
             {t("treatments.subtitle")}
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
             {t("treatments.description")}
           </p>
         </div>
@@ -121,7 +121,7 @@ const TreatmentOverview = () => {
             return (
               <Card
                 key={treatment.id}
-                className="group hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900"
+                className="group hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden bg-card"
               >
                 <CardHeader
                   className={`bg-gradient-to-br ${treatment.bgColor} relative overflow-hidden`}
@@ -135,10 +135,10 @@ const TreatmentOverview = () => {
                     >
                       <IconComponent className="w-8 h-8 text-white" />
                     </div>
-                    <CardTitle className="text-2xl font-playfair font-bold text-gray-900 dark:text-white mb-2">
+                    <CardTitle className="text-2xl font-playfair font-bold text-card-foreground mb-2">
                       {treatment.title}
                     </CardTitle>
-                    <p className="text-gray-600 dark:text-gray-300 font-medium">
+                    <p className="text-muted-foreground font-medium">
                       {treatment.subtitle}
                     </p>
                   </div>

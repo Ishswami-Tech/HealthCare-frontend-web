@@ -71,24 +71,24 @@ const DoctorExpertise = () => {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900/10">
+    <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
         <div className="max-w-7xl mx-auto">
           {/* Doctor Introduction */}
           <div className="text-center mb-16">
-            <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 mb-4">
+            <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
               <Award className="w-4 h-4 mr-2" />
               {t("doctor.title")}
             </Badge>
-            <h2 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-4xl md:text-5xl font-playfair font-bold text-foreground mb-4">
               {t("doctor.name")}
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 mb-6">
+            <p className="text-xl text-muted-foreground mb-6">
               {t("doctor.specialization")}
             </p>
             <div className="flex items-center justify-center gap-2 mb-8">
-              <Star className="w-5 h-5 text-yellow-500 fill-current" />
-              <span className="text-lg font-semibold text-gray-900 dark:text-white">
+              <Star className="w-5 h-5 text-primary fill-current" />
+              <span className="text-lg font-semibold text-foreground">
                 {t("doctor.experience")}
               </span>
             </div>
@@ -101,7 +101,7 @@ const DoctorExpertise = () => {
               return (
                 <Card
                   key={index}
-                  className="group hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden bg-white dark:bg-gray-800"
+                  className="group hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden bg-card"
                 >
                   <CardHeader
                     className={`bg-gradient-to-br ${spec.bgColor} relative overflow-hidden`}
@@ -115,17 +115,17 @@ const DoctorExpertise = () => {
                       >
                         <IconComponent className="w-8 h-8 text-white" />
                       </div>
-                      <CardTitle className="text-xl font-playfair font-bold text-gray-900 dark:text-white mb-2">
+                      <CardTitle className="text-xl font-playfair font-bold text-card-foreground mb-2">
                         {spec.title}
                       </CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent className="p-6">
-                    <p className="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
+                    <p className="text-muted-foreground mb-4 leading-relaxed">
                       {spec.description}
                     </p>
-                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border-l-4 border-orange-500">
-                      <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                    <div className="p-3 bg-primary/10 rounded-lg border-l-4 border-primary">
+                      <p className="text-sm font-medium text-primary">
                         {spec.highlight}
                       </p>
                     </div>
@@ -138,49 +138,49 @@ const DoctorExpertise = () => {
           {/* Contact & Location Info */}
           <div className="grid lg:grid-cols-2 gap-8 mb-16">
             {/* Contact Information */}
-            <Card className="bg-white dark:bg-gray-800 shadow-xl">
+            <Card className="bg-card shadow-xl">
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-gray-900 dark:text-white">
-                  <Phone className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                <CardTitle className="flex items-center gap-3 text-card-foreground">
+                  <Phone className="w-6 h-6 text-primary" />
                   Contact Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <Phone className="w-5 h-5 text-primary" />
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">
+                    <p className="font-semibold text-card-foreground">
                       {t("clinic.phone")}
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-muted-foreground">
                       Primary Contact
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <Phone className="w-5 h-5 text-primary" />
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">
+                    <p className="font-semibold text-card-foreground">
                       {t("clinic.phone")}
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-muted-foreground">
                       Secondary Contact
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-red-600 dark:text-red-400 mt-1" />
+                  <MapPin className="w-5 h-5 text-destructive mt-1" />
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">
+                    <p className="font-semibold text-card-foreground">
                       Clinic Location
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
                       {t("clinic.address")}
                     </p>
                   </div>
                 </div>
                 <div className="pt-4 space-y-2">
-                  <Button className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700">
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
                     <Phone className="w-4 h-4 mr-2" />
                     Call Now: {t("clinic.phone")}
                   </Button>
@@ -193,10 +193,10 @@ const DoctorExpertise = () => {
             </Card>
 
             {/* OPD Timing */}
-            <Card className="bg-white dark:bg-gray-800 shadow-xl">
+            <Card className="bg-card shadow-xl">
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-gray-900 dark:text-white">
-                  <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <CardTitle className="flex items-center gap-3 text-card-foreground">
+                  <Clock className="w-6 h-6 text-primary" />
                   OPD Timing
                 </CardTitle>
               </CardHeader>
@@ -208,22 +208,22 @@ const DoctorExpertise = () => {
                       className={cn(
                         "flex items-center justify-between p-3 rounded-lg",
                         schedule.available
-                          ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                          : "bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
+                          ? "bg-primary/10 border border-primary/20"
+                          : "bg-muted border border-border"
                       )}
                     >
                       <div className="flex items-center gap-3">
                         {schedule.available ? (
-                          <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          <CheckCircle className="w-5 h-5 text-primary" />
                         ) : (
-                          <div className="w-5 h-5 rounded-full bg-gray-400 dark:bg-gray-500" />
+                          <div className="w-5 h-5 rounded-full bg-muted-foreground" />
                         )}
                         <span
                           className={cn(
                             "font-medium",
                             schedule.available
-                              ? "text-green-800 dark:text-green-200"
-                              : "text-gray-600 dark:text-gray-400"
+                              ? "text-primary"
+                              : "text-muted-foreground"
                           )}
                         >
                           {schedule.day}
@@ -233,8 +233,8 @@ const DoctorExpertise = () => {
                         className={cn(
                           "text-sm font-medium",
                           schedule.available
-                            ? "text-green-700 dark:text-green-300"
-                            : "text-gray-500 dark:text-gray-400"
+                            ? "text-primary"
+                            : "text-muted-foreground"
                         )}
                       >
                         {schedule.hours}
@@ -243,7 +243,7 @@ const DoctorExpertise = () => {
                   ))}
                 </div>
                 <div className="mt-6">
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
                     <Calendar className="w-4 h-4 mr-2" />
                     Book Appointment
                   </Button>
@@ -254,15 +254,15 @@ const DoctorExpertise = () => {
 
           {/* Affordability & Wellness Features */}
           <div className="grid md:grid-cols-2 gap-8">
-            <Card className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800">
+            <Card className="bg-primary/5 border-primary/20">
               <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Heart className="w-8 h-8 text-white" />
+                <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Heart className="w-8 h-8 text-primary-foreground" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                <h3 className="text-2xl font-bold text-foreground mb-4">
                   Affordable Care
                 </h3>
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   We believe in making authentic Ayurvedic treatments accessible
                   to everyone. Our pricing is transparent and affordable without
                   compromising on quality.
@@ -270,15 +270,15 @@ const DoctorExpertise = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 border-orange-200 dark:border-orange-800">
+            <Card className="bg-primary/5 border-primary/20">
               <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Users className="w-8 h-8 text-white" />
+                <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Users className="w-8 h-8 text-primary-foreground" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                <h3 className="text-2xl font-bold text-foreground mb-4">
                   Wellness Retreats
                 </h3>
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   Experience comprehensive wellness programs that combine
                   traditional treatments with modern comfort for complete health
                   rejuvenation.

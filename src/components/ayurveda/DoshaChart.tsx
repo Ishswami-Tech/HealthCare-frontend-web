@@ -88,9 +88,21 @@ export default function DoshaChart({
 
   // Prepare data for pie chart
   const pieData = [
-    { name: t("doshas.vata.name"), value: doshaData.vata, color: DOSHA_COLORS.vata },
-    { name: t("doshas.pitta.name"), value: doshaData.pitta, color: DOSHA_COLORS.pitta },
-    { name: t("doshas.kapha.name"), value: doshaData.kapha, color: DOSHA_COLORS.kapha },
+    {
+      name: t("doshas.vata.name"),
+      value: doshaData.vata,
+      color: DOSHA_COLORS.vata,
+    },
+    {
+      name: t("doshas.pitta.name"),
+      value: doshaData.pitta,
+      color: DOSHA_COLORS.pitta,
+    },
+    {
+      name: t("doshas.kapha.name"),
+      value: doshaData.kapha,
+      color: DOSHA_COLORS.kapha,
+    },
   ];
 
   // Find dominant dosha
@@ -183,7 +195,7 @@ export default function DoshaChart({
                   className={`p-3 rounded-lg border-2 transition-all ${
                     isHighest
                       ? "border-current bg-opacity-10"
-                      : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
+                      : "border-border bg-muted"
                   }`}
                   style={{
                     borderColor: isHighest ? dosha.color : undefined,
@@ -208,19 +220,23 @@ export default function DoshaChart({
                   >
                     {value}%
                   </div>
-                  <div className="text-xs text-gray-600 mb-1">
+                  <div className="text-xs text-muted-foreground mb-1">
                     {t(dosha.element)}
                   </div>
-                  <div className="text-xs text-gray-500">{t(dosha.qualities)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {t(dosha.qualities)}
+                  </div>
                 </div>
               );
             })}
           </div>
 
           {/* Balance Indicator */}
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-medium mb-2">{t("doshas.constitutionAnalysis")}</h4>
-            <div className="text-sm text-gray-600">
+          <div className="p-4 bg-muted rounded-lg">
+            <h4 className="font-medium mb-2">
+              {t("doshas.constitutionAnalysis")}
+            </h4>
+            <div className="text-sm text-muted-foreground">
               {dominantDosha.value > 50 ? (
                 <p>
                   <span
@@ -234,12 +250,12 @@ export default function DoshaChart({
                   >
                     {dominantDosha.name}
                   </span>{" "}
-                  {t("doshas.dominantConstitution", { dosha: dominantDosha.name.toLowerCase() })}
+                  {t("doshas.dominantConstitution", {
+                    dosha: dominantDosha.name.toLowerCase(),
+                  })}
                 </p>
               ) : (
-                <p>
-                  {t("doshas.balancedConstitution")}
-                </p>
+                <p>{t("doshas.balancedConstitution")}</p>
               )}
             </div>
           </div>

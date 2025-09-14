@@ -1,19 +1,86 @@
+// ✅ Enhanced Appointment Types to Match Backend API
+
+export type AppointmentStatus = 
+  | 'SCHEDULED'
+  | 'CONFIRMED' 
+  | 'CHECKED_IN'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'NO_SHOW';
+
+export type AppointmentPriority = 
+  | 'LOW'
+  | 'NORMAL'
+  | 'HIGH'
+  | 'URGENT';
+
 export interface CreateAppointmentData {
+  patientId: string;
   doctorId: string;
-  locationId: string;
   date: string;
   time: string;
   duration: number;
   type: string;
   notes?: string;
+  clinicId?: string;
+  locationId?: string;
+  symptoms?: string[];
+  priority?: AppointmentPriority;
 }
 
 export interface UpdateAppointmentData {
   date?: string;
   time?: string;
   duration?: number;
-  status?: string;
+  type?: string;
   notes?: string;
+  status?: AppointmentStatus;
+  symptoms?: string[];
+  diagnosis?: string;
+  prescription?: string;
+  followUpDate?: string;
+}
+
+export interface CompleteAppointmentData {
+  diagnosis?: string;
+  prescription?: string;
+  notes?: string;
+  followUpDate?: string;
+  followUpNotes?: string;
+}
+
+export interface Appointment {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  date: string;
+  time: string;
+  duration: number;
+  type: string;
+  status: AppointmentStatus;
+  priority: AppointmentPriority;
+  notes?: string;
+  symptoms?: string[];
+  diagnosis?: string;
+  prescription?: string;
+  followUpDate?: string;
+  clinicId?: string;
+  locationId?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Relations
+  patient?: Patient;
+  doctor?: Doctor;
+  clinic?: Clinic;
+  location?: ClinicLocation;
+}
+
+export interface AppointmentWithRelations extends Appointment {
+  patient: Patient;
+  doctor: Doctor;
+  clinic?: Clinic;
+  location?: ClinicLocation;
 }
 
 export interface ProcessCheckInData {
@@ -98,9 +165,7 @@ export interface AppointmentWithRelations {
 }
 
 // ✅ Add missing types for server actions
-export interface Appointment extends AppointmentWithRelations {
-  // Base appointment interface for server actions
-}
+export type Appointment = AppointmentWithRelations;
 
 export interface AppointmentFilters {
   status?: string;

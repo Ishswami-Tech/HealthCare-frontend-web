@@ -35,8 +35,7 @@ const ComprehensiveServices = () => {
       title: t("services.neurological"),
       icon: Brain,
       color: "from-purple-500 to-indigo-600",
-      bgColor:
-        "from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Autism",
         "Cerebral Palsy",
@@ -52,8 +51,7 @@ const ComprehensiveServices = () => {
       title: t("services.jointBone"),
       icon: Bone,
       color: "from-orange-500 to-red-600",
-      bgColor:
-        "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Arthritis",
         "Joint Pain",
@@ -69,8 +67,7 @@ const ComprehensiveServices = () => {
       title: "Spinal Care",
       icon: Zap,
       color: "from-yellow-500 to-orange-600",
-      bgColor:
-        "from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Sciatica",
         "Back Pain",
@@ -87,8 +84,7 @@ const ComprehensiveServices = () => {
       title: t("services.respiratory"),
       icon: Wind,
       color: "from-cyan-500 to-blue-600",
-      bgColor:
-        "from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Asthma",
         "Bronchitis",
@@ -104,8 +100,7 @@ const ComprehensiveServices = () => {
       title: "Digestive Health",
       icon: Heart,
       color: "from-green-500 to-emerald-600",
-      bgColor:
-        "from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Acidity",
         "Piles",
@@ -121,8 +116,7 @@ const ComprehensiveServices = () => {
       title: t("services.kidneyStones"),
       icon: Heart,
       color: "from-teal-500 to-cyan-600",
-      bgColor:
-        "from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Kidney Stones",
         "Gallbladder Stones",
@@ -138,8 +132,7 @@ const ComprehensiveServices = () => {
       title: t("services.skinDiseases"),
       icon: Sparkles,
       color: "from-pink-500 to-rose-600",
-      bgColor:
-        "from-pink-50 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Psoriasis",
         "Eczema",
@@ -155,8 +148,7 @@ const ComprehensiveServices = () => {
       title: "Weight Management",
       icon: Scale,
       color: "from-indigo-500 to-purple-600",
-      bgColor:
-        "from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Obesity",
         "Weight Loss",
@@ -172,8 +164,7 @@ const ComprehensiveServices = () => {
       title: t("services.metabolic"),
       icon: Activity,
       color: "from-red-500 to-pink-600",
-      bgColor:
-        "from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Diabetes",
         "Thyroid Disorders",
@@ -189,8 +180,7 @@ const ComprehensiveServices = () => {
       title: "Stress & Mental Health",
       icon: Heart,
       color: "from-emerald-500 to-teal-600",
-      bgColor:
-        "from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Stress",
         "Anxiety",
@@ -206,8 +196,7 @@ const ComprehensiveServices = () => {
       title: t("services.gynecological"),
       icon: Baby,
       color: "from-violet-500 to-purple-600",
-      bgColor:
-        "from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Menstrual Problems",
         "Infertility",
@@ -223,8 +212,7 @@ const ComprehensiveServices = () => {
       title: t("services.hairProblems"),
       icon: Scissors,
       color: "from-amber-500 to-orange-600",
-      bgColor:
-        "from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Hair Fall",
         "Dandruff",
@@ -240,8 +228,7 @@ const ComprehensiveServices = () => {
       title: t("services.panchakarma"),
       icon: Droplets,
       color: "from-blue-500 to-cyan-600",
-      bgColor:
-        "from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Detoxification",
         "Rejuvenation",
@@ -257,8 +244,7 @@ const ComprehensiveServices = () => {
       title: t("services.beautyAntiAging"),
       icon: Star,
       color: "from-rose-500 to-pink-600",
-      bgColor:
-        "from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "Anti-aging",
         "Skin Rejuvenation",
@@ -274,8 +260,7 @@ const ComprehensiveServices = () => {
       title: "Other Conditions",
       icon: Plus,
       color: "from-gray-500 to-slate-600",
-      bgColor:
-        "from-gray-50 to-slate-50 dark:from-gray-900/20 dark:to-slate-900/20",
+      bgColor: "from-primary/5 to-primary/10",
       conditions: [
         "General Wellness",
         "Immunity Boost",
@@ -290,17 +275,17 @@ const ComprehensiveServices = () => {
   ];
 
   return (
-    <section className="py-20 bg-white dark:bg-gray-900">
+    <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800 mb-4">
+          <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
             <Heart className="w-4 h-4 mr-2" />
             {t("services.title")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
             {t("services.subtitle")}
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
             {t("services.description")}
           </p>
         </div>
@@ -316,9 +301,9 @@ const ComprehensiveServices = () => {
                 className={cn(
                   "group cursor-pointer transition-all duration-300 border-0 overflow-hidden",
                   isSelected
-                    ? "ring-2 ring-orange-500 dark:ring-orange-400 shadow-xl scale-105"
+                    ? "ring-2 ring-primary shadow-xl scale-105"
                     : "hover:shadow-lg hover:scale-102",
-                  "bg-white dark:bg-gray-800"
+                  "bg-card"
                 )}
                 onClick={() =>
                   setSelectedCategory(isSelected ? null : category.id)
@@ -336,10 +321,10 @@ const ComprehensiveServices = () => {
                     >
                       <IconComponent className="w-6 h-6 text-white" />
                     </div>
-                    <CardTitle className="text-lg font-playfair font-bold text-gray-900 dark:text-white mb-2">
+                    <CardTitle className="text-lg font-playfair font-bold text-card-foreground mb-2">
                       {category.title}
                     </CardTitle>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                    <p className="text-sm text-muted-foreground">
                       {category.description}
                     </p>
                   </div>
@@ -354,14 +339,14 @@ const ComprehensiveServices = () => {
                           key={index}
                           className="flex items-center space-x-2"
                         >
-                          <ChevronRight className="w-3 h-3 text-orange-500 dark:text-orange-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                          <ChevronRight className="w-3 h-3 text-primary flex-shrink-0" />
+                          <span className="text-sm text-card-foreground">
                             {condition}
                           </span>
                         </div>
                       ))}
                     {!isSelected && category.conditions.length > 3 && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      <div className="text-xs text-muted-foreground mt-2">
                         +{category.conditions.length - 3} more conditions
                       </div>
                     )}
@@ -388,17 +373,17 @@ const ComprehensiveServices = () => {
 
         {/* Call to Action */}
         <div className="text-center">
-          <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-2xl p-8 border border-orange-200 dark:border-orange-800">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+          <div className="bg-primary/5 rounded-2xl p-8 border border-primary/20">
+            <h3 className="text-2xl font-bold text-foreground mb-4">
               {t("treatments.cta.title")}
             </h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
+            <p className="text-muted-foreground mb-6">
               {t("treatments.cta.subtitle")}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 size="lg"
-                className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 onClick={() => window.open("tel:+919860370961", "_self")}
               >
                 <Phone className="w-4 h-4 mr-2" />
@@ -410,7 +395,7 @@ const ComprehensiveServices = () => {
               </Button>
             </div>
             <div className="text-center mt-4">
-              <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800">
+              <Badge className="bg-primary/10 text-primary border-primary/20">
                 {t("common.noCharges")} - Viddhakarma & Agnikarma
               </Badge>
             </div>

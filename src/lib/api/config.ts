@@ -5,10 +5,10 @@ import { z } from 'zod';
 
 // ✅ Environment Configuration Schema
 const envSchema = z.object({
-  // Backend API Configuration
-  NEXT_PUBLIC_API_BASE_URL: z.string().url().default('http://localhost:4001'),
+  // Backend API Configuration - Updated for Docker development
+  NEXT_PUBLIC_API_BASE_URL: z.string().url().default('http://localhost:8088'),
   NEXT_PUBLIC_API_VERSION: z.string().default('v1'),
-  NEXT_PUBLIC_CLINIC_API_URL: z.string().url().default('http://localhost:4001/api/v1'),
+  NEXT_PUBLIC_CLINIC_API_URL: z.string().url().default('http://localhost:8088'),
   NEXT_PUBLIC_FASHION_API_URL: z.string().url().default('http://localhost:4002/api/v1'),
   
   // Authentication Configuration

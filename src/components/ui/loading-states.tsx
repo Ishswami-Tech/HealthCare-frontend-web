@@ -195,9 +195,9 @@ const NetworkErrorState: React.FC<{ onRetry?: () => void; className?: string }> 
     title="Connection Error"
     message="Unable to connect to the server. Please check your internet connection and try again."
     icon={<WifiOff className="w-12 h-12" />}
-    onRetry={onRetry || undefined}
+    {...(onRetry && { onRetry })}
     retryLabel="Reconnect"
-    className={className}
+    {...(className && { className })}
   />
 );
 

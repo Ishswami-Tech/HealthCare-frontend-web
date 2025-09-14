@@ -333,8 +333,9 @@
     "enterAddress": "Enter your address"
   },
   "hero": {
-    "title1": "Ancient Wisdom",
-    "title2": "Modern Healing",
+    "title1": "Ancient Healing",
+    "title2": "Modern Results",
+    "title": "Pain-Free Life",
     "subtitle": "Experience the power of traditional Ayurvedic medicine with Dr. Chandrakumar Deshmukh's expert care in Panchakarma, Agnikarma, and Viddhakarma treatments.",
     "cta": "Book Consultation",
     "learnMore": "Learn More",
@@ -772,8 +773,9 @@
     }
   },
   "hero": {
-    "title1": "Ancient Wisdom",
-    "title2": "Modern Healing",
+    "title1": "Ancient Healing",
+    "title2": "Modern Results",
+    "title": "Pain-Free Life",
     "subtitle": "Experience the power of traditional Ayurvedic medicine with Panchakarma, Agnikarma, and Viddha Karma treatments under the expert care of Dr. Chandrakumar Deshmukh.",
     "learnMore": "Learn More",
     "testimonials": {
@@ -1115,7 +1117,7 @@
       "subtitle": "Comprehensive healing for a wide range of health challenges",
       "chronicDiseases": {
         "category": "Chronic Diseases",
-      "items": [
+        "items": [
           "Diabetes",
           "Hypertension",
           "Arthritis",

@@ -132,17 +132,17 @@ const MediaShowcase = () => {
   };
 
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900/10">
+    <section className="py-20 bg-gradient-to-br from-background to-muted/50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <Badge className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800 mb-4">
+          <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
             <Play className="w-4 h-4 mr-2" />
             {t("mediaShowcase.title")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
             {t("mediaShowcase.subtitle")}
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
             {t("mediaShowcase.description")}
           </p>
         </div>
@@ -150,8 +150,8 @@ const MediaShowcase = () => {
         {/* YouTube Videos Section */}
         <div className="mb-16">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-              <Video className="w-6 h-6 mr-2 text-red-600" />
+            <h3 className="text-2xl font-bold text-foreground flex items-center">
+              <Video className="w-6 h-6 mr-2 text-primary" />
               {t("mediaShowcase.youtube.title")}
             </h3>
             <Button
@@ -172,10 +172,10 @@ const MediaShowcase = () => {
             {youtubeVideos.map((video) => (
               <Card
                 key={video.id}
-                className="group hover:shadow-xl transition-all duration-300 border-0 overflow-hidden bg-white dark:bg-gray-800"
+                className="group hover:shadow-xl transition-all duration-300 border-0 overflow-hidden bg-card"
               >
                 <div className="relative">
-                  <div className="aspect-video bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+                  <div className="aspect-video bg-muted relative overflow-hidden">
                     {activeVideo === video.videoId ? (
                       <iframe
                         src={`https://www.youtube.com/embed/${video.videoId}?autoplay=1`}
@@ -199,7 +199,7 @@ const MediaShowcase = () => {
                           className="absolute inset-0 flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
                           aria-label={`Play video: ${video.title}`}
                         >
-                          <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-lg">
+                          <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-lg">
                             <Play className="w-6 h-6 text-white ml-1" />
                           </div>
                         </button>
@@ -207,7 +207,7 @@ const MediaShowcase = () => {
                           {video.duration}
                         </div>
                         <div className="absolute top-2 left-2">
-                          <Badge className="bg-red-600 text-white border-0">
+                          <Badge className="bg-primary text-primary-foreground border-0">
                             {video.category}
                           </Badge>
                         </div>
@@ -216,13 +216,13 @@ const MediaShowcase = () => {
                   </div>
                 </div>
                 <CardContent className="p-4">
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
+                  <h4 className="font-semibold text-foreground mb-2 line-clamp-2">
                     {video.title}
                   </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                     {video.description}
                   </p>
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Eye className="w-3 h-3" />
                       <span>{video.views} views</span>
@@ -240,8 +240,8 @@ const MediaShowcase = () => {
         {/* Instagram Posts Section */}
         <div>
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-              <Camera className="w-6 h-6 mr-2 text-pink-600" />
+            <h3 className="text-2xl font-bold text-foreground flex items-center">
+              <Camera className="w-6 h-6 mr-2 text-primary" />
               {t("mediaShowcase.instagram.title")}
             </h3>
             <Button
@@ -262,10 +262,10 @@ const MediaShowcase = () => {
             {instagramPosts.map((post) => (
               <Card
                 key={post.id}
-                className="group hover:shadow-xl transition-all duration-300 border-0 overflow-hidden bg-white dark:bg-gray-800 cursor-pointer"
+                className="group hover:shadow-xl transition-all duration-300 border-0 overflow-hidden bg-card cursor-pointer"
                 onClick={() => handleInstagramClick(post.id)}
               >
-                <div className="aspect-square bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+                <div className="aspect-square bg-muted relative overflow-hidden">
                   <img
                     src={post.image}
                     alt={t("mediaShowcase.instagram.altText")}
@@ -277,10 +277,10 @@ const MediaShowcase = () => {
                   </div>
                 </div>
                 <CardContent className="p-4">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-3 line-clamp-3">
+                  <p className="text-sm text-card-foreground mb-3 line-clamp-3">
                     {post.caption}
                   </p>
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                     <div className="flex items-center space-x-3">
                       <div className="flex items-center space-x-1">
                         <Heart className="w-3 h-3" />
@@ -300,7 +300,7 @@ const MediaShowcase = () => {
                     {post.hashtags.slice(0, 2).map((tag, index) => (
                       <span
                         key={index}
-                        className="text-xs text-blue-600 dark:text-blue-400"
+                        className="text-xs text-primary"
                       >
                         {tag}
                       </span>
@@ -314,18 +314,18 @@ const MediaShowcase = () => {
 
         {/* Call to Action */}
         <div className="text-center mt-16">
-          <Card className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 border-orange-200 dark:border-orange-800 shadow-xl">
+          <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 shadow-xl">
             <CardContent className="p-8">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              <h3 className="text-2xl font-bold text-foreground mb-4">
                 {t("mediaShowcase.cta.title")}
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
+              <p className="text-muted-foreground mb-6">
                 {t("mediaShowcase.cta.description")}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
                   onClick={() => window.open("tel:+919860370961", "_self")}
                 >
                   <Play className="w-4 h-4 mr-2" />

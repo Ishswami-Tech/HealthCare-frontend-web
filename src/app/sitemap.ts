@@ -8,49 +8,49 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // Static routes with priorities and change frequencies
   const staticRoutes = [
     {
-      url: `${baseUrl}/ayurveda`,
+      url: `${baseUrl}/`,
       lastModified: currentDate,
       changeFrequency: 'weekly' as const,
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/ayurveda/treatments`,
+      url: `${baseUrl}/treatments`,
       lastModified: currentDate,
       changeFrequency: 'weekly' as const,
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/ayurveda/panchakarma`,
+      url: `${baseUrl}/panchakarma`,
       lastModified: currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/ayurveda/agnikarma`,
+      url: `${baseUrl}/agnikarma`,
       lastModified: currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/ayurveda/viddha-karma`,
+      url: `${baseUrl}/viddha-karma`,
       lastModified: currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/ayurveda/team`,
+      url: `${baseUrl}/team`,
       lastModified: currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/ayurveda/about`,
+      url: `${baseUrl}/about`,
       lastModified: currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/ayurveda/contact`,
+      url: `${baseUrl}/contact`,
       lastModified: currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.8,

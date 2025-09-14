@@ -16,8 +16,6 @@ export {
   useDoctorAvailability,
   useUserUpcomingAppointments,
   useCanCancelAppointment,
-  useFormatAppointmentDateTime,
-  useAppointmentStatusColor,
 } from './useAppointments';
 
 // Clinic hooks
@@ -255,9 +253,6 @@ export {
   useHasClinicAccess,
   useClinicAwareQuery,
   useClinicPatients,
-  useClinicDoctors,
-  useClinicMedicines,
-  useClinicAppointments,
   useClinicContext,
 } from './useClinic';
 

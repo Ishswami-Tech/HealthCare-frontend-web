@@ -127,85 +127,85 @@ const HealthAssessment = () => {
     const results = getResults();
 
     return (
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
-              <Badge className="bg-green-100 text-green-800 border-green-200 mb-4">
+              <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
                 <CheckCircle className="w-4 h-4 mr-2" />
                 {t("healthAssessment.results.assessmentComplete")}
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
                 {t("healthAssessment.results.title")}
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 {t("healthAssessment.results.subtitle")}
               </p>
             </div>
 
-            <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-200 shadow-xl">
+            <Card className="bg-card border-border shadow-xl">
               <CardHeader>
-                <CardTitle className="text-2xl text-center text-gray-900">
+                <CardTitle className="text-2xl text-center text-card-foreground">
                   📊 {t("healthAssessment.results.cardTitle")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">
+                    <h4 className="font-semibold text-card-foreground mb-2">
                       {t("healthAssessment.results.primaryDosha")}
                     </h4>
-                    <p className="text-orange-600 font-medium">
+                    <p className="text-primary font-medium">
                       {results.primaryDosha}
                     </p>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">
+                    <h4 className="font-semibold text-card-foreground mb-2">
                       {t("healthAssessment.results.currentImbalance")}
                     </h4>
-                    <p className="text-gray-700">{results.imbalance}</p>
+                    <p className="text-muted-foreground">{results.imbalance}</p>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">
+                    <h4 className="font-semibold text-card-foreground mb-2">
                       {t("healthAssessment.results.recommendedTreatment")}
                     </h4>
-                    <p className="text-blue-600 font-medium">
+                    <p className="text-primary font-medium">
                       {results.treatment}
                     </p>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">
+                    <h4 className="font-semibold text-card-foreground mb-2">
                       {t("healthAssessment.results.supportingTherapies")}
                     </h4>
-                    <p className="text-gray-700">
+                    <p className="text-muted-foreground">
                       {results.supportingTherapies}
                     </p>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">
+                    <h4 className="font-semibold text-card-foreground mb-2">
                       {t("healthAssessment.results.expectedTimeline")}
                     </h4>
-                    <p className="text-green-600 font-medium">
+                    <p className="text-primary font-medium">
                       {results.timeline}{" "}
                       {t("healthAssessment.results.timelineText")}
                     </p>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">
+                    <h4 className="font-semibold text-card-foreground mb-2">
                       {t("healthAssessment.results.successProbability")}
                     </h4>
                     <div className="flex items-center space-x-3">
-                      <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div className="flex-1 bg-muted rounded-full h-2">
                         <div
-                          className="bg-green-500 h-2 rounded-full"
+                          className="bg-primary h-2 rounded-full"
                           style={{ width: `${results.successRate}%` }}
                         />
                       </div>
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium text-muted-foreground">
                         {results.successRate}%
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {t("healthAssessment.results.basedOnCases")}
                     </p>
                   </div>
@@ -214,14 +214,14 @@ const HealthAssessment = () => {
                 <div className="flex flex-col sm:flex-row gap-4 pt-6">
                   <Button
                     size="lg"
-                    className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
                     {t("healthAssessment.results.bookConsultation")}
                   </Button>
                   <Button
                     variant="outline"
                     size="lg"
-                    className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                    className="border-primary text-primary hover:bg-primary/10"
                   >
                     {t("healthAssessment.results.downloadReport")}
                   </Button>
@@ -240,10 +240,10 @@ const HealthAssessment = () => {
   // Early return if no current question (shouldn't happen but TypeScript safety)
   if (!currentQuestion) {
     return (
-      <section className="py-20 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-blue-900/10">
+      <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
-            <p className="text-lg text-gray-600 dark:text-gray-300">
+            <p className="text-lg text-muted-foreground">
               Loading assessment...
             </p>
           </div>
@@ -253,24 +253,24 @@ const HealthAssessment = () => {
   }
 
   return (
-    <section className="py-20 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-blue-900/10">
+    <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 mb-4">
+            <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
               <Brain className="w-4 h-4 mr-2" />
               {t("healthAssessment.main.interactiveAssessment")}
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
               {t("healthAssessment.main.title")}
             </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
+            <p className="text-lg text-muted-foreground mb-8">
               {t("healthAssessment.main.subtitle")}
             </p>
 
             {/* Progress Bar */}
             <div className="max-w-md mx-auto mb-8">
-              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
+              <div className="flex justify-between text-sm text-muted-foreground mb-2">
                 <span>
                   {t("healthAssessment.main.step")} {currentStep + 1}{" "}
                   {t("healthAssessment.main.of")} {questions.length}
@@ -283,22 +283,22 @@ const HealthAssessment = () => {
             </div>
           </div>
 
-          <Card className="bg-white dark:bg-gray-800 shadow-xl border-0">
+          <Card className="bg-card shadow-xl border-0">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold">
+                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                  <span className="text-primary-foreground font-bold">
                     {currentStep + 1}
                   </span>
                 </div>
                 <div>
                   <Badge
                     variant="outline"
-                    className="text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700 mb-2"
+                    className="text-primary border-primary/20 mb-2"
                   >
                     {currentQuestion.title}
                   </Badge>
-                  <CardTitle className="text-xl text-gray-900 dark:text-white">
+                  <CardTitle className="text-xl text-card-foreground">
                     {currentQuestion.question}
                   </CardTitle>
                 </div>
@@ -312,8 +312,8 @@ const HealthAssessment = () => {
                     variant="outline"
                     className={`w-full justify-start text-left p-4 h-auto ${
                       answers[currentQuestion.id] === option
-                        ? "border-orange-500 dark:border-orange-400 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300"
-                        : "border-gray-200 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/10"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50 hover:bg-primary/5"
                     }`}
                     onClick={() => handleAnswer(currentQuestion.id, option)}
                   >
@@ -321,12 +321,12 @@ const HealthAssessment = () => {
                       <div
                         className={`w-4 h-4 rounded-full border-2 ${
                           answers[currentQuestion.id] === option
-                            ? "border-orange-500 dark:border-orange-400 bg-orange-500 dark:bg-orange-400"
-                            : "border-gray-300 dark:border-gray-600"
+                            ? "border-primary bg-primary"
+                            : "border-border"
                         }`}
                       >
                         {answers[currentQuestion.id] === option && (
-                          <CheckCircle className="w-4 h-4 text-white" />
+                          <CheckCircle className="w-4 h-4 text-primary-foreground" />
                         )}
                       </div>
                       <span>{option}</span>
@@ -336,7 +336,7 @@ const HealthAssessment = () => {
               </div>
 
               <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                   <Clock className="w-4 h-4" />
                   <span>
                     ~{questions.length - currentStep}{" "}
@@ -347,7 +347,7 @@ const HealthAssessment = () => {
                 <Button
                   onClick={nextStep}
                   disabled={!answers[currentQuestion.id]}
-                  className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   {currentStep === questions.length - 1
                     ? t("healthAssessment.main.getResults")
@@ -359,21 +359,21 @@ const HealthAssessment = () => {
           </Card>
 
           {/* Trust Indicators */}
-          <div className="flex flex-wrap justify-center gap-6 mt-12 text-sm text-gray-600">
+          <div className="flex flex-wrap justify-center gap-6 mt-12 text-sm text-muted-foreground">
             <div className="flex items-center space-x-2">
-              <Star className="w-4 h-4 text-yellow-500" />
+              <Star className="w-4 h-4 text-primary" />
               <span>
                 {t("healthAssessment.trustIndicators.usedByPatients")}
               </span>
             </div>
             <div className="flex items-center space-x-2">
-              <CheckCircle className="w-4 h-4 text-green-500" />
+              <CheckCircle className="w-4 h-4 text-primary" />
               <span>
                 {t("healthAssessment.trustIndicators.scientificallyValidated")}
               </span>
             </div>
             <div className="flex items-center space-x-2">
-              <Target className="w-4 h-4 text-blue-500" />
+              <Target className="w-4 h-4 text-primary" />
               <span>{t("healthAssessment.trustIndicators.accuracyRate")}</span>
             </div>
           </div>

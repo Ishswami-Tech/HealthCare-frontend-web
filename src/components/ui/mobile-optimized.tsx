@@ -123,8 +123,7 @@ function MobileCardStack<T>({
   className,
   onSwipeLeft,
   onSwipeRight,
-  keyExtractor,
-}: MobileCardStackProps<T>) {
+}: Omit<MobileCardStackProps<T>, 'keyExtractor'>) {
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const touchStartX = React.useRef<number>(0);
   const touchEndX = React.useRef<number>(0);

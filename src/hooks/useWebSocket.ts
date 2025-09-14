@@ -1,7 +1,7 @@
 // ✅ WebSocket Hooks for Healthcare Frontend
 // This file provides React hooks for real-time WebSocket communication
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import { 
@@ -50,7 +50,7 @@ export function useWebSocket() {
             description: `Attempt ${attempt} to reconnect...`,
           });
         },
-        onError: (error) => {
+        onError: () => {
           setError('WebSocket connection error');
           toast({
             title: 'Connection Error',
@@ -136,7 +136,6 @@ export function useWebSocket() {
 // ✅ Video Appointment WebSocket Hook
 export function useVideoAppointmentWebSocket() {
   const { subscribe, sendMessage } = useWebSocket();
-  const { toast } = useToast();
 
   // ✅ Subscribe to video appointment events
   const subscribeToVideoAppointments = useCallback((callback: (data: any) => void) => {
@@ -242,7 +241,6 @@ export function useVideoAppointmentWebSocket() {
 // ✅ Queue WebSocket Hook
 export function useQueueWebSocket() {
   const { subscribe, sendMessage } = useWebSocket();
-  const { toast } = useToast();
 
   // ✅ Subscribe to queue events
   const subscribeToQueueEvents = useCallback((callback: (data: any) => void) => {
@@ -297,7 +295,6 @@ export function useQueueWebSocket() {
 // ✅ Notification WebSocket Hook
 export function useNotificationWebSocket() {
   const { subscribe, sendMessage } = useWebSocket();
-  const { toast } = useToast();
 
   // ✅ Subscribe to notifications
   const subscribeToNotifications = useCallback((callback: (data: any) => void) => {
@@ -354,7 +351,6 @@ export function useNotificationWebSocket() {
 // ✅ Appointment WebSocket Hook
 export function useAppointmentWebSocket() {
   const { subscribe, sendMessage } = useWebSocket();
-  const { toast } = useToast();
 
   // ✅ Subscribe to appointment events
   const subscribeToAppointmentEvents = useCallback((callback: (data: any) => void) => {
@@ -419,7 +415,6 @@ export function useAppointmentWebSocket() {
 // ✅ System WebSocket Hook
 export function useSystemWebSocket() {
   const { subscribe } = useWebSocket();
-  const { toast } = useToast();
 
   // ✅ Subscribe to system maintenance events
   const subscribeToSystemMaintenance = useCallback((callback: (data: any) => void) => {

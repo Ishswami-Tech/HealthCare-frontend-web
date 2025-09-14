@@ -56,17 +56,17 @@ const DoctorProfile = () => {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-blue-900/10">
+    <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800 mb-4">
+          <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
             <User className="w-4 h-4 mr-2" />
             Expert Physician
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
             {t("doctor.name")}
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
             {t("doctor.title")}
           </p>
         </div>
@@ -74,26 +74,26 @@ const DoctorProfile = () => {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Doctor Info Card */}
           <div className="lg:col-span-2">
-            <Card className="bg-white dark:bg-gray-800 shadow-xl border-0 overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
+            <Card className="bg-card shadow-xl border-0 overflow-hidden">
+              <CardHeader className="bg-primary/5">
                 <div className="flex items-start space-x-6">
-                  <div className="w-24 h-24 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <Stethoscope className="w-12 h-12 text-white" />
+                  <div className="w-24 h-24 bg-primary rounded-full flex items-center justify-center">
+                    <Stethoscope className="w-12 h-12 text-primary-foreground" />
                   </div>
                   <div className="flex-1">
-                    <CardTitle className="text-2xl font-playfair font-bold text-gray-900 dark:text-white mb-2">
+                    <CardTitle className="text-2xl font-playfair font-bold text-card-foreground mb-2">
                       {t("doctor.name")}
                     </CardTitle>
-                    <p className="text-blue-600 dark:text-blue-400 font-semibold mb-2">
+                    <p className="text-primary font-semibold mb-2">
                       {t("doctor.specialization")}
                     </p>
-                    <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-300">
+                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                       <div className="flex items-center space-x-1">
                         <Award className="w-4 h-4" />
                         <span>{t("doctor.experience")}</span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <Star className="w-4 h-4 text-yellow-500" />
+                        <Star className="w-4 h-4 text-primary" />
                         <span>4.9/5 Rating</span>
                       </div>
                     </div>
@@ -103,17 +103,17 @@ const DoctorProfile = () => {
 
               <CardContent className="p-6">
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  <h3 className="text-lg font-semibold text-card-foreground mb-3">
                     About Dr. Deshmukh
                   </h3>
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                  <p className="text-muted-foreground leading-relaxed">
                     {t("doctor.about")}
                   </p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+                    <h4 className="font-semibold text-card-foreground mb-3 flex items-center">
                       <GraduationCap className="w-4 h-4 mr-2" />
                       Specializations
                     </h4>
@@ -123,8 +123,8 @@ const DoctorProfile = () => {
                           key={index}
                           className="flex items-center space-x-2"
                         >
-                          <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-600 dark:text-gray-300">
+                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+                          <span className="text-sm text-muted-foreground">
                             {spec}
                           </span>
                         </div>
@@ -133,7 +133,7 @@ const DoctorProfile = () => {
                   </div>
 
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+                    <h4 className="font-semibold text-card-foreground mb-3 flex items-center">
                       <Award className="w-4 h-4 mr-2" />
                       Achievements
                     </h4>
@@ -143,8 +143,8 @@ const DoctorProfile = () => {
                           key={index}
                           className="flex items-center space-x-2"
                         >
-                          <Star className="w-4 h-4 text-yellow-500 flex-shrink-0" />
-                          <span className="text-sm text-gray-600 dark:text-gray-300">
+                          <Star className="w-4 h-4 text-primary flex-shrink-0" />
+                          <span className="text-sm text-muted-foreground">
                             {achievement}
                           </span>
                         </div>
@@ -159,33 +159,33 @@ const DoctorProfile = () => {
           {/* Contact & Schedule Card */}
           <div className="space-y-6">
             {/* Contact Info */}
-            <Card className="bg-white dark:bg-gray-800 shadow-xl border-0">
+            <Card className="bg-card shadow-xl border-0">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <CardTitle className="text-lg font-semibold text-card-foreground flex items-center">
                   <Phone className="w-5 h-5 mr-2" />
                   Contact Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-start space-x-3">
-                  <MapPin className="w-5 h-5 text-orange-500 dark:text-orange-400 mt-1 flex-shrink-0" />
+                  <MapPin className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
+                    <p className="font-medium text-card-foreground">
                       Clinic Location
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {t("clinic.address")}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-3">
-                  <Phone className="w-5 h-5 text-green-500 dark:text-green-400 flex-shrink-0" />
+                  <Phone className="w-5 h-5 text-primary flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
+                    <p className="font-medium text-card-foreground">
                       Phone Numbers
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                    <p className="text-sm text-muted-foreground">
                       {t("clinic.phone")}
                     </p>
                   </div>
@@ -193,7 +193,7 @@ const DoctorProfile = () => {
 
                 <div className="pt-4 space-y-2">
                   <Button
-                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                     onClick={() => window.open("tel:+919860370961", "_self")}
                   >
                     <Phone className="w-4 h-4 mr-2" />
@@ -208,9 +208,9 @@ const DoctorProfile = () => {
             </Card>
 
             {/* OPD Schedule */}
-            <Card className="bg-white dark:bg-gray-800 shadow-xl border-0">
+            <Card className="bg-card shadow-xl border-0">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <CardTitle className="text-lg font-semibold text-card-foreground flex items-center">
                   <Clock className="w-5 h-5 mr-2" />
                   OPD Timing
                 </CardTitle>
@@ -220,16 +220,14 @@ const DoctorProfile = () => {
                   {opdSchedule.map((schedule, index) => (
                     <div
                       key={index}
-                      className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                      className="flex justify-between items-center py-2 border-b border-border last:border-b-0"
                     >
-                      <span className="font-medium text-gray-900 dark:text-white">
+                      <span className="font-medium text-card-foreground">
                         {schedule.day}
                       </span>
                       <span
                         className={`text-sm ${
-                          schedule.isOpen
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-red-500 dark:text-red-400"
+                          schedule.isOpen ? "text-primary" : "text-destructive"
                         }`}
                       >
                         {schedule.time}
@@ -238,8 +236,8 @@ const DoctorProfile = () => {
                   ))}
                 </div>
 
-                <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                  <p className="text-sm text-orange-800 dark:text-orange-200 flex items-center">
+                <div className="mt-4 p-3 bg-primary/10 rounded-lg">
+                  <p className="text-sm text-primary flex items-center">
                     <Heart className="w-4 h-4 mr-2" />
                     Emergency consultations available 24/7
                   </p>

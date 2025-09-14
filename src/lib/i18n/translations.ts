@@ -199,9 +199,9 @@ export const translations: Record<Language, Translation> = {
     },
     hero: {
       title: {
-        line1: "Ancient Wisdom.",
-        line2: "Complete Healing.",
-        line3: "Transform Your Life"
+        line1: "Ancient Healing.",
+        line2: "Modern Results.",
+        line3: "Pain-Free Life"
       },
       subtitle: "Experience Authentic Panchakarma, Agnikarma, Viddhakarma & Complete Ayurvedic Solutions",
       description: "Where 5000-Year Healing Wisdom Meets Modern Excellence",
@@ -374,9 +374,9 @@ export const translations: Record<Language, Translation> = {
     },
     hero: {
       title: {
-        line1: "प्राचीन ज्ञान।",
-        line2: "संपूर्ण उपचार।",
-        line3: "अपना जीवन बदलें"
+        line1: "प्राचीन उपचार।",
+        line2: "आधुनिक परिणाम।",
+        line3: "दर्द-मुक्त जीवन"
       },
       subtitle: "प्रामाणिक पंचकर्म, अग्निकर्म, विद्धकर्म और संपूर्ण आयुर्वेदिक समाधान का अनुभव करें",
       description: "जहाँ 5000 साल का उपचार ज्ञान आधुनिक उत्कृष्टता से मिलता है",
@@ -549,9 +549,9 @@ export const translations: Record<Language, Translation> = {
     },
     hero: {
       title: {
-        line1: "प्राचीन ज्ञान।",
-        line2: "संपूर्ण उपचार।",
-        line3: "तुमचे जीवन बदला"
+        line1: "प्राचीन उपचार।",
+        line2: "आधुनिक परिणाम।",
+        line3: "वेदना-मुक्त जीवन"
       },
       subtitle: "प्रामाणिक पंचकर्म, अग्निकर्म, विद्धकर्म आणि संपूर्ण आयुर्वेदिक उपायांचा अनुभव घ्या",
       description: "जिथे 5000 वर्षांचे उपचार ज्ञान आधुनिक उत्कृष्टतेला भेटते",

@@ -6,10 +6,10 @@ interface ActionButtonProps {
 }
 
 const variantClasses = {
-  blue: "bg-blue-500 hover:bg-blue-600 focus:ring-blue-200",
-  green: "bg-green-500 hover:bg-green-600 focus:ring-green-200",
-  purple: "bg-purple-500 hover:bg-purple-600 focus:ring-purple-200",
-  yellow: "bg-yellow-500 hover:bg-yellow-600 focus:ring-yellow-200",
+  blue: "bg-primary hover:bg-primary/90 focus:ring-primary/20",
+  green: "bg-primary hover:bg-primary/90 focus:ring-primary/20",
+  purple: "bg-primary hover:bg-primary/90 focus:ring-primary/20",
+  yellow: "bg-primary hover:bg-primary/90 focus:ring-primary/20",
 };
 
 export function ActionButton({
@@ -23,7 +23,7 @@ export function ActionButton({
       onClick={onClick}
       className={`w-full ${
         variantClasses[variant]
-      } text-white px-4 py-2 rounded-md transition-all duration-200 focus:outline-none focus:ring-2 ${
+      } text-primary-foreground px-4 py-2 rounded-md transition-all duration-200 focus:outline-none focus:ring-2 ${
         className || ""
       }`}
     >

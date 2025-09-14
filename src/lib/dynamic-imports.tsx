@@ -242,20 +242,20 @@ export function preloadComponents(
  */
 export function preloadRouteComponents(pathname: string) {
   switch (pathname) {
-    case "/ayurveda":
+    case "/":
       preloadComponents([
         () => import("@/components/ayurveda/TreatmentOverview"),
         () => import("@/components/ayurveda/HealthAssessment"),
         () => import("@/components/ayurveda/TestimonialsSection"),
       ]);
       break;
-    case "/ayurveda/treatments":
+    case "/treatments":
       preloadComponents([
         () => import("@/components/ayurveda/TreatmentOverview"),
         () => import("@/components/ayurveda/TrustBuilding"),
       ]);
       break;
-    case "/ayurveda/contact":
+    case "/contact":
       // Contact form will be created later
       break;
   }

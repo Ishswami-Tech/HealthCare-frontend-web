@@ -31,28 +31,28 @@ const StatsSection = () => {
       number: "5000+",
       label: t("stats.livesTransformed"),
       description: t("stats.patientsSuccessfullyTreated"),
-      color: "from-blue-500 to-cyan-600",
+      color: "from-primary to-primary/80",
     },
     {
       icon: Clock,
       number: "20+",
       label: t("stats.yearsLegacy"),
       description: t("stats.authenticAyurvedicPractice"),
-      color: "from-green-500 to-emerald-600",
+      color: "from-primary to-primary/80",
     },
     {
       icon: Star,
       number: "4.9★",
       label: t("stats.patientRating"),
       description: t("stats.basedOnReviews"),
-      color: "from-yellow-500 to-orange-600",
+      color: "from-primary to-primary/80",
     },
     {
       icon: Award,
       number: "95%",
       label: t("stats.successRate"),
       description: t("stats.chronicConditions"),
-      color: "from-purple-500 to-indigo-600",
+      color: "from-primary to-primary/80",
     },
   ];
 
@@ -80,17 +80,17 @@ const StatsSection = () => {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+    <section className="py-20 bg-gradient-to-br from-background to-muted/50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <Badge className="bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-700 mb-4">
+          <Badge className="bg-primary/10 text-primary border-primary/20 mb-4 glass animate-fade-in-down">
             <TrendingUp className="w-4 h-4 mr-2" />
             Proven Results & Excellence
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
             Transforming Lives Through Authentic Ayurveda
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Two decades of healing excellence with measurable results and
             international recognition
           </p>
@@ -103,14 +103,14 @@ const StatsSection = () => {
             return (
               <StaggerItem key={index}>
                 <HoverAnimation type="lift">
-                  <Card className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-white dark:bg-gray-800">
+                  <Card className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-card glass card-hover">
                     <CardContent className="p-6">
                       <div
-                        className={`w-16 h-16 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center mx-auto mb-4`}
+                        className={`w-16 h-16 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center mx-auto mb-4 interactive`}
                       >
                         <IconComponent className="w-8 h-8 text-white" />
                       </div>
-                      <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                      <div className="text-3xl font-bold text-foreground mb-2 gradient-text">
                         {stat.number.includes("+") ? (
                           <>
                             <CounterAnimation
@@ -131,10 +131,10 @@ const StatsSection = () => {
                           stat.number
                         )}
                       </div>
-                      <div className="font-semibold text-gray-800 dark:text-gray-200 mb-1">
+                      <div className="font-semibold text-foreground mb-1">
                         {stat.label}
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                      <div className="text-sm text-muted-foreground">
                         {stat.description}
                       </div>
                     </CardContent>
@@ -149,12 +149,12 @@ const StatsSection = () => {
         <ScrollReveal direction="up">
           <div className="text-center mb-12">
             <HoverAnimation type="scale">
-              <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700 mb-4">
+              <Badge className="bg-primary/10 text-primary border-primary/20 mb-4 glass interactive">
                 <CheckCircle className="w-4 h-4 mr-2" />
                 {t("stats.trustedCertified")}
               </Badge>
             </HoverAnimation>
-            <h3 className="text-2xl font-playfair font-bold text-gray-900 dark:text-white mb-8">
+            <h3 className="text-2xl font-playfair font-bold text-foreground mb-8 gradient-text">
               {t("stats.recognizedExcellence")}
             </h3>
           </div>
@@ -167,14 +167,14 @@ const StatsSection = () => {
             return (
               <StaggerItem key={index}>
                 <HoverAnimation type="lift">
-                  <div className="text-center p-6 rounded-lg bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-orange-200 dark:hover:border-orange-600 hover:shadow-md transition-all duration-300">
-                    <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="text-center p-6 rounded-lg bg-card border border-border hover:border-primary/20 hover:shadow-md transition-all duration-300 glass card-hover">
+                    <div className="w-12 h-12 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center mx-auto mb-4 interactive">
                       <IconComponent className="w-6 h-6 text-white" />
                     </div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                    <h4 className="font-semibold text-foreground mb-2">
                       {cert.title}
                     </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-muted-foreground">
                       {cert.description}
                     </p>
                   </div>
@@ -186,22 +186,22 @@ const StatsSection = () => {
 
         {/* Trust Indicators */}
         <div className="mt-16 text-center">
-          <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-8 border border-orange-100">
-            <div className="flex flex-wrap justify-center items-center gap-8 text-sm text-gray-700">
+          <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-2xl p-8 border border-primary/20 glass">
+            <div className="flex flex-wrap justify-center items-center gap-8 text-sm text-muted-foreground">
               <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <div className="w-3 h-3 bg-primary rounded-full animate-pulse"></div>
                 <span>{t("stats.currentlyTreating")}</span>
               </div>
               <div className="flex items-center space-x-2">
-                <TrendingUp className="w-4 h-4 text-orange-600" />
+                <TrendingUp className="w-4 h-4 text-primary" />
                 <span>{t("stats.bookingIncrease")}</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Heart className="w-4 h-4 text-red-500" />
+                <Heart className="w-4 h-4 text-primary" />
                 <span>{t("stats.featuredChannels")}</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4 text-blue-600" />
+                <Users className="w-4 h-4 text-primary" />
                 <span>{t("stats.peopleViewing")}</span>
               </div>
             </div>

@@ -142,24 +142,24 @@ export default function AgnikarmaPage() {
   return (
     <div className="min-h-screen">
       {/* Language Switcher */}
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50">
         <LanguageSwitcher variant="compact" />
       </div>
 
       {/* Hero Section */}
-      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-orange-50 via-red-50 to-pink-50">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <Badge className="bg-orange-100 text-orange-800 border-orange-200 mb-4 sm:mb-6">
+            <Badge className="bg-primary/10 text-primary border-primary/20 mb-4 sm:mb-6">
               <Flame className="w-4 h-4 mr-2" />
               {t("agnikarma.badge")}
             </Badge>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-4 sm:mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-4 sm:mb-6">
               {t("agnikarma.title")}
             </h1>
 
-            <p className="text-lg sm:text-xl text-gray-700 mb-6 sm:mb-8 leading-relaxed px-4">
+            <p className="text-lg sm:text-xl text-muted-foreground mb-6 sm:mb-8 leading-relaxed px-4">
               {t("agnikarma.subtitle")}
             </p>
 
@@ -199,14 +199,14 @@ export default function AgnikarmaPage() {
       </section>
 
       {/* Scientific Foundation */}
-      <section className="py-12 sm:py-16 md:py-20 bg-white">
+      <section className="py-12 sm:py-16 md:py-20 bg-white dark:bg-gray-900">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-playfair font-bold text-gray-900 dark:text-white mb-4">
                 {t("agnikarma.scientificFoundation.title")}
               </h2>
-              <p className="text-base sm:text-lg text-gray-600">
+              <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400">
                 {t("agnikarma.scientificFoundation.subtitle")}
               </p>
             </div>

@@ -43,8 +43,6 @@ const PUBLIC_ROUTES = [
   // Public content
   '/(public)',
   '/',               // Root path should be public
-  // Ayurveda website (public pages)
-  '/ayurveda',
 ];
 
 // Define routes that require authentication but don't need profile completion

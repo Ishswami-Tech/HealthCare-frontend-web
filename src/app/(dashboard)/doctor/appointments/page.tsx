@@ -168,10 +168,12 @@ export default function DoctorAppointments() {
   const startConsultation = (appointmentId: string) => {
     // Update appointment status to "In Progress"
     // TODO: Implement consultation start logic
+    console.log('Starting consultation for appointment:', appointmentId);
   };
 
   const completeConsultation = (appointmentId: string) => {
-    // Update appointment status to "Completed" 
+    // Update appointment status to "Completed"
+    console.log('Completing consultation for appointment:', appointmentId); 
     // TODO: Implement consultation completion logic
   };
 

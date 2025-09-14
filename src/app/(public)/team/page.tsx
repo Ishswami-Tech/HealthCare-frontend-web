@@ -145,36 +145,36 @@ export default function TeamPage() {
   return (
     <div className="min-h-screen">
       {/* Language Switcher */}
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50">
         <LanguageSwitcher variant="compact" />
       </div>
       {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <Badge className="bg-blue-100 text-blue-800 border-blue-200 mb-6">
+            <Badge className="bg-primary/10 text-primary border-primary/20 mb-6 glass animate-fade-in-down">
               <Users className="w-4 h-4 mr-2" />
               {t("team.badge")}
             </Badge>
 
-            <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-6 gradient-text">
               {t("team.title")}
             </h1>
 
-            <p className="text-xl text-gray-700 mb-8 leading-relaxed">
+            <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
               {t("team.description")}
             </p>
 
             <div className="flex flex-wrap justify-center gap-4">
-              <Badge className="bg-green-100 text-green-800 border-green-200">
+              <Badge className="bg-green-100 text-green-800 border-green-200 glass interactive">
                 <CheckCircle className="w-4 h-4 mr-2" />
                 Government Certified
               </Badge>
-              <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+              <Badge className="bg-purple-100 text-purple-800 border-purple-200 glass interactive">
                 <Award className="w-4 h-4 mr-2" />
                 Published Researchers
               </Badge>
-              <Badge className="bg-orange-100 text-orange-800 border-orange-200">
+              <Badge className="bg-orange-100 text-orange-800 border-orange-200 glass interactive">
                 <GraduationCap className="w-4 h-4 mr-2" />
                 Certified Teachers
               </Badge>
@@ -184,8 +184,8 @@ export default function TeamPage() {
       </section>
 
       {/* Team Stats */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
               {teamStats.map((stat, index) => {
@@ -194,16 +194,18 @@ export default function TeamPage() {
                 return (
                   <Card
                     key={index}
-                    className="text-center hover:shadow-lg transition-shadow duration-300 border-0 bg-gradient-to-br from-white to-gray-50"
+                    className="text-center hover:shadow-lg transition-shadow duration-300 border-0 bg-gradient-to-br from-card to-muted/50 glass card-hover"
                   >
                     <CardContent className="p-6">
-                      <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 h-16 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center mx-auto mb-4 interactive">
                         <IconComponent className="w-8 h-8 text-white" />
                       </div>
-                      <div className="text-3xl font-bold text-gray-900 mb-2">
+                      <div className="text-3xl font-bold text-foreground mb-2 gradient-text">
                         {stat.number}
                       </div>
-                      <div className="text-sm text-gray-600">{stat.label}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {stat.label}
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -214,14 +216,14 @@ export default function TeamPage() {
       </section>
 
       {/* Chief Medical Officers */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-blue-50">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-muted/50 to-primary/5">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
                 Chief Medical Officers
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 Leading experts in their respective specializations
               </p>
             </div>
@@ -230,14 +232,14 @@ export default function TeamPage() {
               {chiefMedicalOfficers.map((doctor, index) => (
                 <Card
                   key={index}
-                  className="bg-white shadow-xl border-0 overflow-hidden"
+                  className="bg-card shadow-xl border-0 overflow-hidden glass card-hover"
                 >
                   <CardContent className="p-0">
                     <div className="grid md:grid-cols-3">
                       <div
                         className={`bg-gradient-to-br ${doctor.color} text-white p-6 flex flex-col justify-center items-center`}
                       >
-                        <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-4">
+                        <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-4 interactive">
                           <User className="w-12 h-12 text-white" />
                         </div>
                         <div className="text-center">
@@ -249,54 +251,58 @@ export default function TeamPage() {
                       </div>
 
                       <div className="md:col-span-2 p-6">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        <h3 className="text-xl font-bold text-foreground mb-2 gradient-text">
                           {doctor.name}
                         </h3>
-                        <p className="text-gray-600 mb-2">{doctor.title}</p>
-                        <Badge className="bg-blue-100 text-blue-800 mb-4">
+                        <p className="text-muted-foreground mb-2">
+                          {doctor.title}
+                        </p>
+                        <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
                           {doctor.specialization}
                         </Badge>
 
                         <div className="space-y-3">
                           <div>
-                            <h4 className="font-semibold text-gray-900 mb-2">
+                            <h4 className="font-semibold text-foreground mb-2">
                               Credentials:
                             </h4>
                             <ul className="space-y-1">
-                              {(Array.isArray(doctor.credentials) ? doctor.credentials : [doctor.credentials]).map(
-                                (credential, credIndex) => (
-                                  <li
-                                    key={credIndex}
-                                    className="flex items-center space-x-2"
-                                  >
-                                    <CheckCircle className="w-3 h-3 text-green-500" />
-                                    <span className="text-sm text-gray-700">
-                                      {credential}
-                                    </span>
-                                  </li>
-                                )
-                              )}
+                              {(Array.isArray(doctor.credentials)
+                                ? doctor.credentials
+                                : [doctor.credentials]
+                              ).map((credential, credIndex) => (
+                                <li
+                                  key={credIndex}
+                                  className="flex items-center space-x-2"
+                                >
+                                  <CheckCircle className="w-3 h-3 text-green-500" />
+                                  <span className="text-sm text-muted-foreground">
+                                    {credential}
+                                  </span>
+                                </li>
+                              ))}
                             </ul>
                           </div>
 
                           <div>
-                            <h4 className="font-semibold text-gray-900 mb-2">
+                            <h4 className="font-semibold text-foreground mb-2">
                               Key Achievements:
                             </h4>
                             <ul className="space-y-1">
-                              {(Array.isArray(doctor.achievements) ? doctor.achievements : [doctor.achievements]).map(
-                                (achievement, achIndex) => (
-                                  <li
-                                    key={achIndex}
-                                    className="flex items-center space-x-2"
-                                  >
-                                    <Star className="w-3 h-3 text-yellow-500" />
-                                    <span className="text-sm text-gray-700">
-                                      {achievement}
-                                    </span>
-                                  </li>
-                                )
-                              )}
+                              {(Array.isArray(doctor.achievements)
+                                ? doctor.achievements
+                                : [doctor.achievements]
+                              ).map((achievement, achIndex) => (
+                                <li
+                                  key={achIndex}
+                                  className="flex items-center space-x-2"
+                                >
+                                  <Star className="w-3 h-3 text-yellow-500" />
+                                  <span className="text-sm text-muted-foreground">
+                                    {achievement}
+                                  </span>
+                                </li>
+                              ))}
                             </ul>
                           </div>
                         </div>
@@ -311,14 +317,14 @@ export default function TeamPage() {
       </section>
 
       {/* Medical Advisory Board */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
                 Medical Advisory Board
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 Distinguished experts guiding our clinical excellence and
                 research initiatives
               </p>
@@ -328,26 +334,26 @@ export default function TeamPage() {
               {advisoryBoard.map((advisor, index) => (
                 <Card
                   key={index}
-                  className="hover:shadow-lg transition-shadow duration-300 border border-gray-100"
+                  className="hover:shadow-lg transition-shadow duration-300 border border-border glass card-hover"
                 >
                   <CardHeader>
                     <div className="flex items-center space-x-4">
-                      <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                      <div className="w-16 h-16 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center interactive">
                         <User className="w-8 h-8 text-white" />
                       </div>
                       <div>
-                        <CardTitle className="text-lg text-gray-900">
+                        <CardTitle className="text-lg text-foreground">
                           {advisor.name}
                         </CardTitle>
-                        <p className="text-gray-600">{advisor.title}</p>
-                        <Badge className="bg-blue-100 text-blue-800 mt-1">
+                        <p className="text-muted-foreground">{advisor.title}</p>
+                        <Badge className="bg-primary/10 text-primary border-primary/20 mt-1">
                           {advisor.role}
                         </Badge>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-gray-700">{advisor.expertise}</p>
+                    <p className="text-muted-foreground">{advisor.expertise}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -357,13 +363,13 @@ export default function TeamPage() {
       </section>
 
       {/* Call to Action */}
-      <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-700">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-r from-primary to-primary/80">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center text-white">
             <h2 className="text-3xl md:text-4xl font-playfair font-bold mb-6">
               Consult with Our Expert Team
             </h2>
-            <p className="text-xl text-blue-100 mb-8">
+            <p className="text-xl text-primary-foreground/80 mb-8">
               Get personalized treatment recommendations from our world-class
               medical team. Your healing journey begins with expert guidance.
             </p>
@@ -372,20 +378,20 @@ export default function TeamPage() {
               <Button
                 size="lg"
                 variant="secondary"
-                className="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8"
+                className="bg-background text-primary hover:bg-primary/10 text-lg px-8 interactive"
               >
                 Book Expert Consultation
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white text-white hover:bg-white/10 text-lg px-8"
+                className="border-white text-white hover:bg-white/10 text-lg px-8 interactive"
               >
                 Schedule Team Meeting
               </Button>
             </div>
 
-            <div className="mt-8 flex flex-wrap justify-center gap-6 text-blue-100">
+            <div className="mt-8 flex flex-wrap justify-center gap-6 text-primary-foreground/80">
               <div className="flex items-center space-x-2">
                 <Users className="w-4 h-4" />
                 <span>150+ Years Combined Experience</span>
@@ -404,13 +410,13 @@ export default function TeamPage() {
       </section>
 
       {/* Treatment Demonstration Videos */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl font-bold text-foreground mb-4 gradient-text">
               Treatment Demonstrations
             </h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
               Watch Dr. Chandrakumar Deshmukh demonstrate various Ayurvedic
               treatments and explain their benefits for different health
               conditions.

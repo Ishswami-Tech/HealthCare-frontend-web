@@ -34,6 +34,10 @@ export const en: TranslationKeys = {
     whatsappMessage: 'Message on WhatsApp',
     noCharges: 'No Charges',
     freeConsultation: 'Free Consultation',
+    theme: 'Theme',
+    lightTheme: 'Light',
+    darkTheme: 'Dark',
+    systemTheme: 'System',
   },
   navigation: {
     logo: 'Shri',
@@ -61,9 +65,9 @@ export const en: TranslationKeys = {
     bookConsultation: 'Book Consultation',
   },
   hero: {
-    title: 'Authentic Ayurvedic Healing',
-    title1: 'Ancient Wisdom',
-    title2: 'Modern Healing',
+    title: 'Pain-Free Life',
+    title1: 'Ancient Healing',
+    title2: 'Modern Results',
     subtitle: 'With Dr. Chandrakumar Deshmukh',
     description: 'Experience traditional Ayurvedic treatments including Panchakarma, Viddhakarma, and Agnikarma therapies for holistic wellness and natural healing.',
     primaryCta: 'Book Consultation',
@@ -303,6 +307,237 @@ export const en: TranslationKeys = {
           'Public transparency in outcomes'
         ]
       }
+    },
+    certifications: {
+      title: 'Certifications & Accreditations',
+      subtitle: 'Internationally Recognized Excellence',
+      description: 'Our commitment to quality validated by leading healthcare authorities',
+      items: {
+        governmentCertified: {
+          title: 'Government Certified',
+          description: 'Officially recognized by health authorities'
+        },
+        isoAccredited: {
+          title: 'ISO Accredited',
+          description: 'International quality standards certified'
+        },
+        excellenceAward: {
+          title: 'Ayurvedic Excellence Award',
+          description: 'Recognized for outstanding Ayurvedic care'
+        },
+        safetyCertified: {
+          title: 'Patient Safety Certified',
+          description: 'Highest standards of patient safety'
+        }
+      },
+      stats: {
+        treatments: '20,000+ Treatments with Zero Major Adverse Events',
+        satisfaction: '95% Patient Satisfaction Rate',
+        publications: '50+ Research Publications',
+        support: '24/7 Emergency Support Available'
+      }
+    },
+    trust: {
+      title: 'Trust & Transparency',
+      faq: {
+        title: 'Frequently Asked Questions',
+        subtitle: 'Everything you need to know about our treatments and guarantees',
+        questions: {
+          different: 'What makes your treatments different from other Ayurvedic centers?',
+          results: 'How long does it take to see results?',
+          safe: 'Are your treatments safe for all ages?',
+          guarantees: 'Do you provide treatment guarantees?',
+          certifications: 'What certifications do you have?'
+        },
+        answers: {
+          different: 'We combine traditional authentic Ayurveda with modern scientific validation. Our treatments are research-backed, government certified, and have documented success rates of 90%+.',
+          results: 'Results vary by condition and treatment type. Agnikarma shows immediate relief within 1-3 sessions. Viddhakarma typically shows improvement in 2-4 weeks.',
+          safe: 'Yes, our treatments are completely natural and safe for all ages. We have successfully treated children as young as 3 years and patients over 80 years old.',
+          guarantees: 'We provide specific measurable guarantees for each condition with defined timelines. If you do not achieve the promised improvement, we provide additional sessions at no cost.',
+          certifications: 'We are government certified, ISO accredited, and have received the Ayurvedic Excellence Award. We maintain the highest standards of patient safety with 20,000+ treatments and zero major adverse events.'
+        }
+      },
+      guarantees: {
+        title: 'Comprehensive Guarantee Matrix',
+        subtitle: 'Our Promise to You - Guaranteed Results',
+        description: 'Measurable outcomes with specific timelines for every condition',
+        table: {
+          condition: 'Condition',
+          guarantee: 'Our Guarantee',
+          timeframe: 'Timeframe',
+          measurement: 'Measurement Method',
+          successRate: 'Success Rate'
+        },
+        conditions: {
+          chronicPain: {
+            condition: 'Chronic Pain Relief',
+            guarantee: '50% reduction in pain',
+            timeframe: 'Within 2 weeks',
+            measurement: 'Pain scale assessment',
+            successRate: '90%'
+          },
+          neurological: {
+            condition: 'Neurological Disorders',
+            guarantee: 'Significant improvement',
+            timeframe: 'Within 4 weeks',
+            measurement: 'Neurological evaluation',
+            successRate: '90%'
+          },
+          stress: {
+            condition: 'Stress & Anxiety',
+            guarantee: 'Calm and peaceful mind',
+            timeframe: 'Within 1 week',
+            measurement: 'Stress level assessment',
+            successRate: '90%'
+          },
+          digestive: {
+            condition: 'Digestive Issues',
+            guarantee: 'Improved digestion',
+            timeframe: 'Within 3 days',
+            measurement: 'Digestive health evaluation',
+            successRate: '90%'
+          },
+          sleep: {
+            condition: 'Sleep Quality',
+            guarantee: 'Better sleep patterns',
+            timeframe: 'Within 1 week',
+            measurement: 'Sleep quality assessment',
+            successRate: '90%'
+          },
+          energy: {
+            condition: 'Energy Levels',
+            guarantee: 'Increased vitality',
+            timeframe: 'Within 2 weeks',
+            measurement: 'Energy level assessment',
+            successRate: '90%'
+          },
+          immunity: {
+            condition: 'Immunity Boost',
+            guarantee: 'Stronger immune system',
+            timeframe: 'Within 3 weeks',
+            measurement: 'Immunity assessment',
+            successRate: '90%'
+          },
+          wellness: {
+            condition: 'Overall Wellness',
+            guarantee: 'Complete transformation',
+            timeframe: 'Within 21 days',
+            measurement: 'Comprehensive health evaluation',
+            successRate: '90%'
+          }
+        }
+      },
+      instantResults: {
+        title: 'Instant Results Challenge',
+        description: '"Feel 50% better after first session or receive additional support"',
+        features: [
+          'Live pain scale rating with witnesses',
+          'Immediate mobility tests documented',
+          'Patient satisfaction survey',
+          'Public transparency in outcomes'
+        ]
+      }
+    }
+  },
+  trust: {
+    title: 'Trust & Transparency',
+    faq: {
+      title: 'Frequently Asked Questions',
+      subtitle: 'Everything you need to know about our treatments and guarantees',
+      questions: {
+        different: 'What makes your treatments different from other Ayurvedic centers?',
+        results: 'How long does it take to see results?',
+        safe: 'Are your treatments safe for all ages?',
+        guarantees: 'Do you provide treatment guarantees?',
+        certifications: 'What certifications do you have?'
+      },
+      answers: {
+        different: 'We combine traditional authentic Ayurveda with modern scientific validation. Our treatments are research-backed, government certified, and have documented success rates of 90%+.',
+        results: 'Results vary by condition and treatment type. Agnikarma shows immediate relief within 1-3 sessions. Viddhakarma typically shows improvement in 2-4 weeks.',
+        safe: 'Yes, our treatments are completely natural and safe for all ages. We have successfully treated children as young as 3 years and patients over 80 years old.',
+        guarantees: 'We provide specific measurable guarantees for each condition with defined timelines. If you do not achieve the promised improvement, we provide additional sessions at no cost.',
+        certifications: 'We are government certified, ISO accredited, and have received the Ayurvedic Excellence Award. We maintain the highest standards of patient safety with 20,000+ treatments and zero major adverse events.'
+      }
+    },
+    guarantees: {
+      title: 'Comprehensive Guarantee Matrix',
+      subtitle: 'Our Promise to You - Guaranteed Results',
+      description: 'Measurable outcomes with specific timelines for every condition',
+      table: {
+        condition: 'Condition',
+        guarantee: 'Our Guarantee',
+        timeframe: 'Timeframe',
+        measurement: 'Measurement Method',
+        successRate: 'Success Rate'
+      },
+      conditions: {
+        chronicPain: {
+          condition: 'Chronic Pain Relief',
+          guarantee: '50% reduction in pain',
+          timeframe: 'Within 2 weeks',
+          measurement: 'Pain scale assessment',
+          successRate: '90%'
+        },
+        neurological: {
+          condition: 'Neurological Disorders',
+          guarantee: 'Significant improvement',
+          timeframe: 'Within 4 weeks',
+          measurement: 'Neurological evaluation',
+          successRate: '90%'
+        },
+        stress: {
+          condition: 'Stress & Anxiety',
+          guarantee: 'Calm and peaceful mind',
+          timeframe: 'Within 1 week',
+          measurement: 'Stress level assessment',
+          successRate: '90%'
+        },
+        digestive: {
+          condition: 'Digestive Issues',
+          guarantee: 'Improved digestion',
+          timeframe: 'Within 3 days',
+          measurement: 'Digestive health evaluation',
+          successRate: '90%'
+        },
+        sleep: {
+          condition: 'Sleep Quality',
+          guarantee: 'Better sleep patterns',
+          timeframe: 'Within 1 week',
+          measurement: 'Sleep quality assessment',
+          successRate: '90%'
+        },
+        energy: {
+          condition: 'Energy Levels',
+          guarantee: 'Increased vitality',
+          timeframe: 'Within 2 weeks',
+          measurement: 'Energy level assessment',
+          successRate: '90%'
+        },
+        immunity: {
+          condition: 'Immunity Boost',
+          guarantee: 'Stronger immune system',
+          timeframe: 'Within 3 weeks',
+          measurement: 'Immunity assessment',
+          successRate: '90%'
+        },
+        wellness: {
+          condition: 'Overall Wellness',
+          guarantee: 'Complete transformation',
+          timeframe: 'Within 21 days',
+          measurement: 'Comprehensive health evaluation',
+          successRate: '90%'
+        }
+      }
+    },
+    instantResults: {
+      title: 'Instant Results Challenge',
+      description: '"Feel 50% better after first session or receive additional support"',
+      features: [
+        'Live pain scale rating with witnesses',
+        'Immediate mobility tests documented',
+        'Patient satisfaction survey',
+        'Public transparency in outcomes'
+      ]
     },
     certifications: {
       title: 'Certifications & Accreditations',
@@ -669,6 +904,17 @@ export const en: TranslationKeys = {
     resultAchieved: 'Result Achieved',
     watchVideo: 'Watch Video',
     verifiedPatient: 'Verified Patient',
+    stats: {
+      patientReviews: 'Patient Reviews',
+      averageRating: 'Average Rating',
+      successRate: 'Success Rate',
+      verifiedStories: 'Verified Stories'
+    },
+    cta: {
+      title: 'Ready to start your own healing journey?',
+      bookConsultation: 'Book Your Consultation',
+      viewStories: 'View All Success Stories'
+    },
     patients: {
       rekha: {
         name: 'Rekha Sharma',

@@ -11,6 +11,8 @@ import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeContextProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/lib/i18n/context";
+import { WebSocketProvider } from "@/components/websocket/WebSocketProvider";
+import { StoreProvider } from "@/stores";
 
 function ErrorFallback({
   error,
@@ -85,23 +87,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
         >
           <ThemeContextProvider>
             <LanguageProvider>
-              <LoadingOverlayProvider>
-                <QueryProvider>
-                  <GlobalLoadingOverlayListener />
-                  {children}
-                  <Toaster
-                    richColors
-                    position="top-right"
-                    expand={false}
-                    visibleToasts={4}
-                    closeButton
-                    toastOptions={{
-                      duration: 4000,
-                      className: "text-sm",
-                    }}
-                  />
-                </QueryProvider>
-              </LoadingOverlayProvider>
+              <StoreProvider>
+                <LoadingOverlayProvider>
+                  <QueryProvider>
+                    <WebSocketProvider 
+                      autoConnect={true} 
+                      enableRetry={true} 
+                      enableErrorBoundary={true}
+                    >
+                      <GlobalLoadingOverlayListener />
+                      {children}
+                      <Toaster
+                        richColors
+                        position="top-right"
+                        expand={false}
+                        visibleToasts={4}
+                        closeButton
+                        toastOptions={{
+                          duration: 4000,
+                          className: "text-sm",
+                        }}
+                      />
+                    </WebSocketProvider>
+                  </QueryProvider>
+                </LoadingOverlayProvider>
+              </StoreProvider>
             </LanguageProvider>
           </ThemeContextProvider>
         </ThemeProvider>

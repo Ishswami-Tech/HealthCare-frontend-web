@@ -7,24 +7,45 @@ import { motion, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HoverAnimation } from "@/components/ui/animated-wrapper";
-import { ThemeToggle } from "@/components/theme/theme-provider";
 import { useTranslation, useLanguageSwitcher } from "@/lib/i18n/context";
-import { Globe, ChevronDown } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
+import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
+import { Globe, ChevronDown, ChevronRight, User, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Phone, MessageCircle, Menu, X } from "lucide-react";
+import { Phone, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isTreatmentsDropdownOpen, setIsTreatmentsDropdownOpen] =
+    useState(false);
+  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
   const pathname = usePathname();
   const { t } = useTranslation();
-  const { setLanguage } = useLanguageSwitcher();
+  const { setLanguage, language: currentLanguage } = useLanguageSwitcher();
+  const { session, isAuthenticated, logout } = useAuth();
+  const router = useRouter();
+
+  // Get current language name
+  const getCurrentLanguageName = () => {
+    switch (currentLanguage) {
+      case "en":
+        return "English";
+      case "hi":
+        return "हिंदी";
+      case "mr":
+        return "मराठी";
+      default:
+        return "English";
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -34,39 +55,101 @@ const Navigation = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Enhanced hover handlers with timeout
+  const handleMouseEnter = () => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      setHoverTimeout(null);
+    }
+    setIsTreatmentsDropdownOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setIsTreatmentsDropdownOpen(false);
+    }, 150); // Small delay to prevent accidental closes
+    setHoverTimeout(timeout);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+    };
+  }, [hoverTimeout]);
+
+  // Authentication handlers
+  const handleLogin = () => {
+    router.push("/auth/login");
+  };
+
+  const handleRegister = () => {
+    router.push("/auth/register");
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push("/");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  const handleDashboardNavigation = () => {
+    if (!isAuthenticated || !session) {
+      router.push("/auth/login");
+      return;
+    }
+    const dashboardPath = `/${session.user.role.toLowerCase()}/dashboard`;
+    router.push(dashboardPath);
+  };
+
+  const treatmentsSubItems = [
+    { name: t("navigation.agnikarma"), href: "/agnikarma" },
+    { name: t("navigation.viddhakarma"), href: "/viddha-karma" },
+    { name: t("navigation.panchakarma"), href: "/panchakarma" },
+  ];
+
   const navItems = [
-    { name: t("navigation.home"), href: "/ayurveda" },
-    { name: t("navigation.treatments"), href: "/ayurveda/treatments" },
-    { name: t("navigation.panchakarma"), href: "/ayurveda/panchakarma" },
-    { name: t("navigation.agnikarma"), href: "/ayurveda/agnikarma" },
-    { name: t("navigation.viddhakarma"), href: "/ayurveda/viddha-karma" },
-    { name: t("navigation.ourTeam"), href: "/ayurveda/team" },
-    { name: t("navigation.about"), href: "/ayurveda/about" },
-    { name: t("navigation.contact"), href: "/ayurveda/contact" },
+    { name: t("navigation.home"), href: "/" },
+    {
+      name: t("navigation.treatments"),
+      href: "/treatments",
+      hasDropdown: true,
+      subItems: treatmentsSubItems,
+    },
+    { name: t("navigation.ourTeam"), href: "/team" },
+    { name: t("navigation.about"), href: "/about" },
+    { name: t("navigation.contact"), href: "/contact" },
   ];
 
   return (
     <>
       {/* Top Trust Bar */}
-      <div className="bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4">
-        <div className="container mx-auto flex flex-wrap items-center justify-between text-xs md:text-sm">
-          <div className="flex items-center space-x-4">
+      <div className="bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4 relative z-40">
+        <div className="container mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs md:text-sm gap-2 sm:gap-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <Badge
               variant="secondary"
-              className="bg-white/20 text-white border-white/30"
+              className="bg-white/20 text-white border-white/30 text-xs"
             >
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></div>
+              <div className="w-2 h-2 bg-destructive rounded-full animate-pulse mr-1"></div>
               {t("navigation.livePatients")}
             </Badge>
-            <span className="hidden md:inline">
+            <span className="hidden sm:inline text-xs">
               {t("navigation.livesTransformed")}
             </span>
-            <span className="hidden lg:inline">{t("navigation.rating")}</span>
+            <span className="hidden lg:inline text-xs">
+              {t("navigation.rating")}
+            </span>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Phone className="w-4 h-4" />
-              <span className="font-semibold">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              <Phone className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="font-semibold text-xs sm:text-sm">
                 {t("navigation.phoneNumber")}
               </span>
             </div>
@@ -75,17 +158,20 @@ const Navigation = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="flex items-center space-x-2"
+                  className="flex items-center space-x-1 sm:space-x-2 h-7 sm:h-8 px-2 sm:px-3 hover:bg-white/20 dark:hover:bg-gray-700/50 transition-all duration-200 hover:scale-110 z-50 relative"
                 >
-                  <Globe className="w-4 h-4" />
-                  <span className="hidden sm:inline">
-                    {t("navigation.language")}
+                  <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline text-xs">
+                    {getCurrentLanguageName()}
                   </span>
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setLanguage("en")}>
+              <DropdownMenuContent align="end" className="w-48 z-[9999]">
+                <DropdownMenuItem
+                  onClick={() => setLanguage("en")}
+                  className="cursor-pointer"
+                >
                   <span className="text-lg">🇺🇸</span>
                   <div className="flex flex-col ml-3">
                     <span className="font-medium">English</span>
@@ -94,7 +180,10 @@ const Navigation = () => {
                     </span>
                   </div>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLanguage("hi")}>
+                <DropdownMenuItem
+                  onClick={() => setLanguage("hi")}
+                  className="cursor-pointer"
+                >
                   <span className="text-lg">🇮🇳</span>
                   <div className="flex flex-col ml-3">
                     <span className="font-medium">हिंदी</span>
@@ -103,7 +192,10 @@ const Navigation = () => {
                     </span>
                   </div>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLanguage("mr")}>
+                <DropdownMenuItem
+                  onClick={() => setLanguage("mr")}
+                  className="cursor-pointer"
+                >
                   <span className="text-lg">🇮🇳</span>
                   <div className="flex flex-col ml-3">
                     <span className="font-medium">मराठी</span>
@@ -114,7 +206,9 @@ const Navigation = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <ThemeToggle />
+
+            {/* Theme Switcher */}
+            <CompactThemeSwitcher />
           </div>
         </div>
       </div>
@@ -132,12 +226,15 @@ const Navigation = () => {
         transition={{ duration: 0.5, ease: [0.0, 0.0, 0.2, 1] }}
       >
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16 md:h-20">
+          <div className="flex items-center justify-between h-16 md:h-20 min-h-[4rem]">
             {/* Logo */}
             <HoverAnimation type="scale">
-              <Link href="/ayurveda" className="flex items-center space-x-3">
+              <Link
+                href="/"
+                className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0"
+              >
                 <motion.div
-                  className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden"
+                  className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden"
                   whileHover={{ rotate: 360 }}
                   transition={{ duration: 0.5, ease: "easeInOut" }}
                 >
@@ -147,11 +244,11 @@ const Navigation = () => {
                     className="w-full h-full object-cover"
                   />
                 </motion.div>
-                <div className="hidden md:block">
-                  <h1 className="font-playfair text-xl font-bold text-gray-900 dark:text-white">
+                <div className="hidden sm:block">
+                  <h1 className="font-playfair text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-tight">
                     {t("navigation.clinicName")}
                   </h1>
-                  <p className="text-sm text-orange-600 dark:text-orange-400 -mt-1">
+                  <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 -mt-1">
                     {t("navigation.clinicSubtitle")}
                   </p>
                 </div>
@@ -159,7 +256,7 @@ const Navigation = () => {
             </HoverAnimation>
 
             {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center space-x-8">
+            <div className="hidden lg:flex items-center space-x-4 xl:space-x-6 flex-1 justify-center max-w-2xl">
               {navItems.map((item, index) => (
                 <motion.div
                   key={item.name}
@@ -170,50 +267,195 @@ const Navigation = () => {
                     delay: index * 0.1,
                     ease: [0.0, 0.0, 0.2, 1],
                   }}
+                  className="relative"
                 >
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group",
-                      pathname === item.href &&
-                        "text-orange-600 dark:text-orange-400"
-                    )}
-                  >
-                    {item.name}
-                    <motion.span
-                      className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
-                      initial={{ width: 0 }}
-                      whileHover={{ width: "100%" }}
-                      animate={{ width: pathname === item.href ? "100%" : 0 }}
-                      transition={{ duration: 0.3, ease: [0.0, 0.0, 0.2, 1] }}
-                    />
-                  </Link>
+                  {item.hasDropdown ? (
+                    <div
+                      className="relative rounded-lg transition-all duration-200 hover:bg-orange-50/50 dark:hover:bg-orange-900/10 px-2 py-1"
+                      onMouseEnter={handleMouseEnter}
+                      onMouseLeave={handleMouseLeave}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          setIsTreatmentsDropdownOpen(
+                            !isTreatmentsDropdownOpen
+                          );
+                        }
+                      }}
+                    >
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-all duration-200 relative group text-sm xl:text-base whitespace-nowrap flex items-center space-x-1 hover:scale-105",
+                          (pathname === item.href ||
+                            item.subItems?.some(
+                              (subItem) => pathname === subItem.href
+                            )) &&
+                            "text-orange-600 dark:text-orange-400"
+                        )}
+                      >
+                        <span>{item.name}</span>
+                        <motion.div
+                          animate={{
+                            rotate: isTreatmentsDropdownOpen ? 90 : 0,
+                            scale: isTreatmentsDropdownOpen ? 1.1 : 1,
+                          }}
+                          transition={{
+                            duration: 0.2,
+                            ease: [0.0, 0.0, 0.2, 1],
+                          }}
+                        >
+                          <ChevronRight className="w-3 h-3" />
+                        </motion.div>
+                        <motion.span
+                          className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
+                          initial={{ width: 0 }}
+                          whileHover={{ width: "100%" }}
+                          animate={{
+                            width:
+                              pathname === item.href ||
+                              item.subItems?.some(
+                                (subItem) => pathname === subItem.href
+                              )
+                                ? "100%"
+                                : 0,
+                          }}
+                          transition={{
+                            duration: 0.3,
+                            ease: [0.0, 0.0, 0.2, 1],
+                          }}
+                        />
+                      </Link>
+
+                      {/* Animated Dropdown */}
+                      <AnimatePresence>
+                        {isTreatmentsDropdownOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                            transition={{
+                              duration: 0.2,
+                              ease: [0.0, 0.0, 0.2, 1],
+                            }}
+                            className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50"
+                            onMouseEnter={handleMouseEnter}
+                            onMouseLeave={handleMouseLeave}
+                          >
+                            {item.subItems?.map((subItem, subIndex) => (
+                              <motion.div
+                                key={subItem.name}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{
+                                  duration: 0.2,
+                                  delay: subIndex * 0.05,
+                                  ease: [0.0, 0.0, 0.2, 1],
+                                }}
+                              >
+                                <Link
+                                  href={subItem.href}
+                                  className={cn(
+                                    "block px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0",
+                                    pathname === subItem.href &&
+                                      "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
+                                  )}
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                                    <span>{subItem.name}</span>
+                                  </div>
+                                </Link>
+                              </motion.div>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm xl:text-base whitespace-nowrap",
+                        pathname === item.href &&
+                          "text-orange-600 dark:text-orange-400"
+                      )}
+                    >
+                      {item.name}
+                      <motion.span
+                        className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
+                        initial={{ width: 0 }}
+                        whileHover={{ width: "100%" }}
+                        animate={{ width: pathname === item.href ? "100%" : 0 }}
+                        transition={{ duration: 0.3, ease: [0.0, 0.0, 0.2, 1] }}
+                      />
+                    </Link>
+                  )}
                 </motion.div>
               ))}
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center space-x-3">
-              <HoverAnimation type="glow">
-                <Button
-                  size="sm"
-                  className="hidden md:flex bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
-                >
-                  <motion.div
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                  </motion.div>
-                  {t("navigation.liveChat")}
-                </Button>
-              </HoverAnimation>
+            <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+              {/* Authentication Buttons */}
+              {isAuthenticated && session ? (
+                <div className="flex items-center space-x-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center space-x-2 h-8 px-3"
+                      >
+                        <User className="w-4 h-4" />
+                        <span className="hidden sm:inline text-sm">
+                          {session.user.firstName || "User"}
+                        </span>
+                        <ChevronDown className="w-3 h-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={handleDashboardNavigation}>
+                        <User className="w-4 h-4 mr-2" />
+                        Dashboard
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleLogout}>
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Logout
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <HoverAnimation type="scale">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleLogin}
+                      className="text-orange-600 hover:bg-orange-50 text-xs sm:text-sm px-3"
+                    >
+                      Login
+                    </Button>
+                  </HoverAnimation>
+                  <HoverAnimation type="scale">
+                    <Button
+                      size="sm"
+                      onClick={handleRegister}
+                      className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3"
+                    >
+                      Register
+                    </Button>
+                  </HoverAnimation>
+                </div>
+              )}
 
               <HoverAnimation type="scale">
                 <Button
                   size="sm"
                   variant="outline"
-                  className="hidden sm:flex border-orange-300 text-orange-600 hover:bg-orange-50"
+                  className="hidden lg:flex border-orange-300 text-orange-600 hover:bg-orange-50 text-xs sm:text-sm px-3 sm:px-4"
                 >
                   {t("navigation.bookConsultation")}
                 </Button>
@@ -227,7 +469,7 @@ const Navigation = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="lg:hidden"
+                  className="lg:hidden h-8 w-8 p-0"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 >
                   <AnimatePresence mode="wait">
@@ -239,7 +481,7 @@ const Navigation = () => {
                         exit={{ rotate: 90, opacity: 0 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <X className="w-5 h-5" />
+                        <X className="w-4 h-4" />
                       </motion.div>
                     ) : (
                       <motion.div
@@ -249,7 +491,7 @@ const Navigation = () => {
                         exit={{ rotate: -90, opacity: 0 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <Menu className="w-5 h-5" />
+                        <Menu className="w-4 h-4" />
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -263,7 +505,7 @@ const Navigation = () => {
         <AnimatePresence>
           {isMobileMenuOpen && (
             <motion.div
-              className="lg:hidden bg-white border-t border-orange-100 shadow-lg overflow-hidden"
+              className="lg:hidden bg-white dark:bg-gray-900 border-t border-orange-100 dark:border-gray-700 shadow-lg overflow-hidden"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -287,16 +529,95 @@ const Navigation = () => {
                         ease: [0.0, 0.0, 0.2, 1],
                       }}
                     >
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          "text-gray-700 hover:text-orange-600 font-medium py-2 border-b border-gray-100 last:border-b-0 block transition-colors duration-200",
-                          pathname === item.href && "text-orange-600"
-                        )}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        {item.name}
-                      </Link>
+                      {item.hasDropdown ? (
+                        <div>
+                          <button
+                            onClick={() =>
+                              setIsTreatmentsDropdownOpen(
+                                !isTreatmentsDropdownOpen
+                              )
+                            }
+                            className={cn(
+                              "w-full text-left text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium py-2 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between transition-colors duration-200",
+                              (pathname === item.href ||
+                                item.subItems?.some(
+                                  (subItem) => pathname === subItem.href
+                                )) &&
+                                "text-orange-600 dark:text-orange-400"
+                            )}
+                          >
+                            <span>{item.name}</span>
+                            <motion.div
+                              animate={{
+                                rotate: isTreatmentsDropdownOpen ? 90 : 0,
+                              }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </motion.div>
+                          </button>
+
+                          {/* Mobile Accordion */}
+                          <AnimatePresence>
+                            {isTreatmentsDropdownOpen && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{
+                                  duration: 0.3,
+                                  ease: [0.0, 0.0, 0.2, 1],
+                                }}
+                                className="overflow-hidden"
+                              >
+                                <div className="pl-4 space-y-2 py-2">
+                                  {item.subItems?.map((subItem, subIndex) => (
+                                    <motion.div
+                                      key={subItem.name}
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      transition={{
+                                        duration: 0.2,
+                                        delay: subIndex * 0.05,
+                                        ease: [0.0, 0.0, 0.2, 1],
+                                      }}
+                                    >
+                                      <Link
+                                        href={subItem.href}
+                                        className={cn(
+                                          "block text-sm text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 py-1 transition-colors duration-200",
+                                          pathname === subItem.href &&
+                                            "text-orange-600 dark:text-orange-400"
+                                        )}
+                                        onClick={() =>
+                                          setIsMobileMenuOpen(false)
+                                        }
+                                      >
+                                        <div className="flex items-center space-x-2">
+                                          <div className="w-1.5 h-1.5 bg-orange-400 rounded-full"></div>
+                                          <span>{subItem.name}</span>
+                                        </div>
+                                      </Link>
+                                    </motion.div>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0 block transition-colors duration-200",
+                            pathname === item.href &&
+                              "text-orange-600 dark:text-orange-400"
+                          )}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          {item.name}
+                        </Link>
+                      )}
                     </motion.div>
                   ))}
                   <motion.div
@@ -305,12 +626,57 @@ const Navigation = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.5 }}
                   >
-                    <HoverAnimation type="scale">
-                      <Button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-                        <MessageCircle className="w-4 h-4 mr-2" />
-                        {t("navigation.liveChat")}
-                      </Button>
-                    </HoverAnimation>
+                    {/* Mobile Authentication Buttons */}
+                    {isAuthenticated && session ? (
+                      <div className="flex flex-col space-y-2">
+                        <div className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg">
+                          <User className="w-4 h-4 text-orange-600" />
+                          <span className="text-sm font-medium text-orange-800">
+                            {session.user.firstName || "User"}
+                          </span>
+                        </div>
+                        <HoverAnimation type="scale">
+                          <Button
+                            onClick={handleDashboardNavigation}
+                            className="bg-gradient-to-r from-orange-500 to-red-600 text-white"
+                          >
+                            <User className="w-4 h-4 mr-2" />
+                            Dashboard
+                          </Button>
+                        </HoverAnimation>
+                        <HoverAnimation type="scale">
+                          <Button
+                            variant="outline"
+                            onClick={handleLogout}
+                            className="border-red-300 text-red-600"
+                          >
+                            <LogOut className="w-4 h-4 mr-2" />
+                            Logout
+                          </Button>
+                        </HoverAnimation>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col space-y-2">
+                        <HoverAnimation type="scale">
+                          <Button
+                            onClick={handleLogin}
+                            variant="outline"
+                            className="border-orange-300 text-orange-600"
+                          >
+                            Login
+                          </Button>
+                        </HoverAnimation>
+                        <HoverAnimation type="scale">
+                          <Button
+                            onClick={handleRegister}
+                            className="bg-gradient-to-r from-orange-500 to-red-600 text-white"
+                          >
+                            Register
+                          </Button>
+                        </HoverAnimation>
+                      </div>
+                    )}
+
                     <HoverAnimation type="scale">
                       <Button
                         variant="outline"
@@ -326,47 +692,6 @@ const Navigation = () => {
           )}
         </AnimatePresence>
       </motion.nav>
-
-      {/* Floating Chat Button */}
-      <motion.div
-        className="fixed bottom-6 right-6 z-50"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{
-          duration: 0.5,
-          delay: 1,
-          type: "spring",
-          stiffness: 200,
-          damping: 10,
-        }}
-      >
-        <HoverAnimation type="lift">
-          <Button
-            size="lg"
-            className="rounded-full w-14 h-14 bg-blue-500 hover:bg-blue-600 shadow-lg group relative"
-          >
-            {/* Online indicator */}
-            <motion.div
-              className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-            <motion.div
-              animate={{
-                scale: [1, 1.2, 1],
-                rotate: [0, 10, -10, 0],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                repeatDelay: 3,
-              }}
-            >
-              <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform duration-200" />
-            </motion.div>
-          </Button>
-        </HoverAnimation>
-      </motion.div>
     </>
   );
 };

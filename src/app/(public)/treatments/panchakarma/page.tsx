@@ -98,24 +98,24 @@ export default function PanchakarmaPage() {
   return (
     <div className="min-h-screen">
       {/* Language Switcher */}
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50">
         <LanguageSwitcher variant="compact" />
       </div>
 
       {/* Hero Section */}
-      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <Badge className="bg-blue-100 text-blue-800 border-blue-200 mb-4 sm:mb-6">
+            <Badge className="bg-primary/10 text-primary border-primary/20 mb-4 sm:mb-6">
               <Droplets className="w-4 h-4 mr-2" />
               {t("panchakarma.badge")}
             </Badge>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-4 sm:mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-4 sm:mb-6">
               {t("panchakarma.title")}
             </h1>
 
-            <p className="text-lg sm:text-xl text-gray-700 mb-6 sm:mb-8 leading-relaxed px-4">
+            <p className="text-lg sm:text-xl text-muted-foreground mb-6 sm:mb-8 leading-relaxed px-4">
               {t("panchakarma.subtitle")}
             </p>
 
@@ -155,7 +155,7 @@ export default function PanchakarmaPage() {
       </section>
 
       {/* What is Panchakarma */}
-      <section className="py-12 sm:py-16 md:py-20 bg-white">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 items-center">
@@ -279,7 +279,7 @@ export default function PanchakarmaPage() {
               {phases.map((phase, index) => (
                 <Card
                   key={index}
-                  className="bg-white shadow-lg border-0 overflow-hidden"
+                  className="bg-background shadow-lg border-0 overflow-hidden"
                 >
                   <CardContent className="p-0">
                     <div className="grid grid-cols-1 lg:grid-cols-3">
@@ -296,7 +296,7 @@ export default function PanchakarmaPage() {
                           <p className="text-base sm:text-lg opacity-90 mb-3 sm:mb-4">
                             {phase.subtitle}
                           </p>
-                          <Badge className="bg-white/20 text-white border-white/30 text-xs sm:text-sm">
+                          <Badge className="bg-background/20 text-white border-white/30 text-xs sm:text-sm">
                             <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                             {phase.duration}
                           </Badge>
@@ -331,7 +331,7 @@ export default function PanchakarmaPage() {
       </section>
 
       {/* Conditions Treated */}
-      <section className="py-12 sm:py-16 md:py-20 bg-white">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12 sm:mb-16">
@@ -394,14 +394,14 @@ export default function PanchakarmaPage() {
               <Button
                 size="lg"
                 variant="secondary"
-                className="bg-white text-blue-600 hover:bg-blue-50 text-base sm:text-lg px-6 sm:px-8"
+                className="bg-background text-blue-600 hover:bg-blue-50 text-base sm:text-lg px-6 sm:px-8"
               >
                 {t("panchakarma.cta.bookProgram")}
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white text-white hover:bg-white/10 text-base sm:text-lg px-6 sm:px-8"
+                className="border-white text-white hover:bg-background/10 text-base sm:text-lg px-6 sm:px-8"
               >
                 {t("panchakarma.cta.freeConsultation")}
               </Button>

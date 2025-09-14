@@ -41,81 +41,71 @@ const THERAPY_CONFIG = {
     label: "therapies.agnikarma.name",
     description: "therapies.agnikarma.description",
     icon: Flame,
-    color:
-      "bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800",
-    iconColor: "text-orange-600 dark:text-orange-400",
+    color: "bg-primary/10 text-primary border-primary/20",
+    iconColor: "text-primary",
   },
   VIDDHAKARMA: {
     label: "therapies.viddhakarma.name",
     description: "therapies.viddhakarma.description",
     icon: Zap,
-    color:
-      "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800",
-    iconColor: "text-red-600 dark:text-red-400",
+    color: "bg-primary/10 text-primary border-primary/20",
+    iconColor: "text-primary",
   },
   PANCHAKARMA: {
     label: "therapies.panchakarma.name",
     description: "therapies.panchakarma.description",
     icon: Droplets,
-    color:
-      "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800",
-    iconColor: "text-blue-600 dark:text-blue-400",
+    color: "bg-primary/10 text-primary border-primary/20",
+    iconColor: "text-primary",
   },
   SHIRODHARA: {
     label: "therapies.shirodhara.name",
     description: "therapies.shirodhara.description",
     icon: Leaf,
-    color:
-      "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800",
-    iconColor: "text-green-600 dark:text-green-400",
+    color: "bg-primary/10 text-primary border-primary/20",
+    iconColor: "text-primary",
   },
   CONSULTATION: {
     label: "therapies.consultation.name",
     description: "therapies.consultation.description",
     icon: Stethoscope,
-    color:
-      "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700",
-    iconColor: "text-gray-600 dark:text-gray-400",
+    color: "bg-muted text-muted-foreground border-border",
+    iconColor: "text-muted-foreground",
   },
   NADI_PARIKSHA: {
     label: "therapies.nadiPariksha.name",
     description: "therapies.nadiPariksha.description",
     icon: Wind,
-    color:
-      "bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800",
-    iconColor: "text-purple-600 dark:text-purple-400",
+    color: "bg-primary/10 text-primary border-primary/20",
+    iconColor: "text-primary",
   },
   ABHYANGA: {
     label: "therapies.abhyanga.name",
     description: "therapies.abhyanga.description",
     icon: Sun,
-    color:
-      "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
-    iconColor: "text-yellow-600 dark:text-yellow-400",
+    color: "bg-primary/10 text-primary border-primary/20",
+    iconColor: "text-primary",
   },
   SWEDANA: {
     label: "therapies.swedana.name",
     description: "therapies.swedana.description",
     icon: Droplets,
-    color:
-      "bg-cyan-100 dark:bg-cyan-900/20 text-cyan-800 dark:text-cyan-200 border-cyan-200 dark:border-cyan-800",
-    iconColor: "text-cyan-600 dark:text-cyan-400",
+    color: "bg-primary/10 text-primary border-primary/20",
+    iconColor: "text-primary",
   },
   VIRECHANA: {
     label: "therapies.virechana.name",
     description: "therapies.virechana.description",
     icon: Leaf,
-    color:
-      "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800",
-    iconColor: "text-emerald-600 dark:text-emerald-400",
+    color: "bg-primary/10 text-primary border-primary/20",
+    iconColor: "text-primary",
   },
   BASTI: {
     label: "therapies.basti.name",
     description: "therapies.basti.description",
     icon: Moon,
-    color:
-      "bg-indigo-100 dark:bg-indigo-900/20 text-indigo-800 dark:text-indigo-200 border-indigo-200 dark:border-indigo-800",
-    iconColor: "text-indigo-600 dark:text-indigo-400",
+    color: "bg-primary/10 text-primary border-primary/20",
+    iconColor: "text-primary",
   },
 };
 

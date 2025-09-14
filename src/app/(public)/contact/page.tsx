@@ -119,36 +119,36 @@ export default function ContactPage() {
   return (
     <div className="min-h-screen">
       {/* Language Switcher */}
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50">
         <LanguageSwitcher variant="compact" />
       </div>
       {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-br from-orange-50 via-amber-50 to-red-50">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <Badge className="bg-orange-100 text-orange-800 border-orange-200 mb-6">
+            <Badge className="bg-primary/10 text-primary border-primary/20 mb-6 glass animate-fade-in-down">
               <Heart className="w-4 h-4 mr-2" />
               {t("contact.badge")}
             </Badge>
 
-            <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-6 gradient-text">
               {t("contact.title")}
             </h1>
 
-            <p className="text-xl text-gray-700 mb-8 leading-relaxed">
+            <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
               {t("contact.subtitle")}
             </p>
 
             <div className="flex flex-wrap justify-center gap-4">
-              <Badge className="bg-green-100 text-green-800 border-green-200">
+              <Badge className="bg-secondary text-secondary-foreground border-border glass interactive">
                 <CheckCircle className="w-4 h-4 mr-2" />
                 24/7 Support Available
               </Badge>
-              <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+              <Badge className="bg-accent text-accent-foreground border-border glass interactive">
                 <Star className="w-4 h-4 mr-2" />
                 4.9/5 Patient Rating
               </Badge>
-              <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+              <Badge className="bg-muted text-muted-foreground border-border glass interactive">
                 <User className="w-4 h-4 mr-2" />
                 Expert Consultation
               </Badge>
@@ -158,14 +158,14 @@ export default function ContactPage() {
       </section>
 
       {/* Quick Actions */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl font-playfair font-bold text-foreground mb-4 gradient-text">
                 Quick Actions
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 Choose the fastest way to connect with us
               </p>
             </div>
@@ -177,20 +177,22 @@ export default function ContactPage() {
                 return (
                   <Card
                     key={index}
-                    className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-gray-50"
+                    className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-card to-muted/50 glass card-hover"
                   >
                     <CardContent className="p-8">
                       <div
-                        className={`w-16 h-16 bg-gradient-to-r ${action.color} rounded-full flex items-center justify-center mx-auto mb-6`}
+                        className={`w-16 h-16 bg-gradient-to-r ${action.color} rounded-full flex items-center justify-center mx-auto mb-6 interactive`}
                       >
                         <IconComponent className="w-8 h-8 text-white" />
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">
+                      <h3 className="text-xl font-bold text-foreground mb-4 gradient-text">
                         {action.title}
                       </h3>
-                      <p className="text-gray-600 mb-6">{action.description}</p>
+                      <p className="text-muted-foreground mb-6">
+                        {action.description}
+                      </p>
                       <Button
-                        className={`bg-gradient-to-r ${action.color} hover:opacity-90 text-white w-full`}
+                        className={`bg-gradient-to-r ${action.color} hover:opacity-90 text-white w-full interactive`}
                       >
                         {action.action}
                       </Button>
@@ -204,18 +206,18 @@ export default function ContactPage() {
       </section>
 
       {/* Contact Form & Info */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-orange-50">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-muted/50 to-primary/5">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-12">
               {/* Contact Form */}
               <div>
-                <Card className="bg-white shadow-xl border-0">
+                <Card className="bg-card shadow-xl border-0 glass">
                   <CardHeader>
-                    <CardTitle className="text-2xl font-playfair font-bold text-gray-900">
+                    <CardTitle className="text-2xl font-playfair font-bold text-foreground gradient-text">
                       {t("contact.form.title")}
                     </CardTitle>
-                    <p className="text-gray-600">
+                    <p className="text-muted-foreground">
                       {t("contact.form.subtitle")}
                     </p>
                   </CardHeader>
@@ -223,7 +225,7 @@ export default function ContactPage() {
                     <form onSubmit={handleSubmit} className="space-y-6">
                       <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-foreground mb-2">
                             {t("contact.form.fields.fullName")}
                           </label>
                           <Input
@@ -237,7 +239,7 @@ export default function ContactPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-foreground mb-2">
                             {t("contact.form.fields.phoneNumber")}
                           </label>
                           <Input
@@ -297,7 +299,7 @@ export default function ContactPage() {
 
                       <Button
                         type="submit"
-                        className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-lg py-6"
+                        className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground text-lg py-6 interactive"
                       >
                         <Send className="w-5 h-5 mr-2" />
                         {t("contact.form.submitButton")}
@@ -313,16 +315,19 @@ export default function ContactPage() {
                   const IconComponent = info.icon;
 
                   return (
-                    <Card key={index} className="bg-white shadow-lg border-0">
+                    <Card
+                      key={index}
+                      className="bg-card shadow-lg border-0 glass card-hover"
+                    >
                       <CardContent className="p-6">
                         <div className="flex items-start space-x-4">
                           <div
-                            className={`w-12 h-12 bg-gradient-to-r ${info.color} rounded-full flex items-center justify-center flex-shrink-0`}
+                            className={`w-12 h-12 bg-gradient-to-r ${info.color} rounded-full flex items-center justify-center flex-shrink-0 interactive`}
                           >
                             <IconComponent className="w-6 h-6 text-white" />
                           </div>
                           <div>
-                            <h3 className="text-lg font-bold text-gray-900 mb-3">
+                            <h3 className="text-lg font-bold text-foreground mb-3 gradient-text">
                               {info.title}
                             </h3>
                             <div className="space-y-1">
@@ -330,7 +335,10 @@ export default function ContactPage() {
                                 ? info.details
                                 : [info.details]
                               ).map((detail: string, detailIndex: number) => (
-                                <p key={detailIndex} className="text-gray-700">
+                                <p
+                                  key={detailIndex}
+                                  className="text-muted-foreground"
+                                >
                                   {detail}
                                 </p>
                               ))}
@@ -343,22 +351,22 @@ export default function ContactPage() {
                 })}
 
                 {/* Emergency Notice */}
-                <Card className="bg-gradient-to-r from-red-50 to-pink-50 border-red-200">
+                <Card className="bg-gradient-to-r from-destructive/5 to-destructive/10 border-destructive/20 glass card-hover">
                   <CardContent className="p-6">
                     <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 bg-gradient-to-r from-destructive to-destructive/80 rounded-full flex items-center justify-center flex-shrink-0 interactive">
                         <Phone className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-bold text-red-900 mb-2">
+                        <h3 className="text-lg font-bold text-destructive mb-2 gradient-text">
                           Emergency Consultation
                         </h3>
-                        <p className="text-red-700 mb-4">
+                        <p className="text-destructive/80 mb-4">
                           For urgent health concerns, our expert doctors are
                           available 24/7 for immediate consultation and
                           guidance.
                         </p>
-                        <Button className="bg-red-600 hover:bg-red-700 text-white">
+                        <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground interactive">
                           <Phone className="w-4 h-4 mr-2" />
                           Call Emergency Line
                         </Button>
@@ -373,13 +381,13 @@ export default function ContactPage() {
       </section>
 
       {/* Google Maps Section */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl font-bold text-foreground mb-4 gradient-text">
               Visit Our Clinic
             </h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
               Located in the heart of Chinchwad, our clinic is easily accessible
               and provides a peaceful environment for healing.
             </p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +30,8 @@ import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
 import { Loader2 } from "lucide-react";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { BackendStatusWidget, DetailedBackendStatus } from "@/components/common/BackendStatusIndicator";
+import { SystemStatusBar } from "@/components/common/StatusIndicator";
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"password" | "otp">("password");
@@ -52,7 +54,7 @@ export default function LoginPage() {
     }
   }, [showOTPInput]);
 
-  const handleSuccess = (response: AuthResponse | null) => {
+  const handleSuccess = useCallback((response: AuthResponse | null) => {
     if (!response || !response.user) {
       toast.error(ERROR_MESSAGES.LOGIN_FAILED);
       return;
@@ -76,36 +78,35 @@ export default function LoginPage() {
           getDashboardByRole(response.user.role as Role);
 
     router.push(finalRedirectUrl || "/dashboard");
-  };
+  }, [router]);
 
-  const loginMutation = async (
+  const loginMutation = useCallback(async (
     data: z.infer<typeof loginSchema>
   ): Promise<AuthResponse> => {
     try {
       setOverlay({ show: true, variant: "login" });
-      toast.loading("Signing in...", {
-        id: "login",
-      });
+      const toastId = toast.loading("Signing in...");
+      
       const response = await login({
         email: data.email,
         password: data.password,
         rememberMe: data.rememberMe,
       });
       const authResponse = response as unknown as AuthResponse;
-      toast.dismiss("login");
+      
+      toast.dismiss(toastId);
       toast.success("Successfully signed in!");
       setOverlay({ show: false });
       handleSuccess(authResponse);
       return authResponse;
     } catch (error) {
-      toast.dismiss("login");
       toast.error(
         error instanceof Error ? error.message : ERROR_MESSAGES.LOGIN_FAILED
       );
       setOverlay({ show: false });
       throw error;
     }
-  };
+  }, [login, handleSuccess, setOverlay]);
 
   const otpMutation = async (
     data: z.infer<typeof otpSchema>
@@ -182,13 +183,25 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <h2 className="text-2xl font-bold text-center">Welcome back</h2>
-        <p className="text-sm text-gray-600 text-center mt-2">
-          Sign in to access your account
-        </p>
-      </CardHeader>
+    <div className="space-y-4">
+      {/* Backend Status Indicators */}
+      <div className="w-full max-w-md mx-auto space-y-3">
+        <SystemStatusBar className="justify-center" />
+        <DetailedBackendStatus />
+      </div>
+
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader>
+          <h2 className="text-2xl font-bold text-center">Welcome back</h2>
+          <p className="text-sm text-gray-600 text-center mt-2">
+            Sign in to access your account
+          </p>
+          
+          {/* Live status indicator in header */}
+          <div className="flex justify-center mt-3">
+            <BackendStatusWidget />
+          </div>
+        </CardHeader>
       <CardContent>
         <SocialLogin
           className="mb-6 w-full"
@@ -481,6 +494,7 @@ export default function LoginPage() {
           </Link>
         </div>
       </CardFooter>
-    </Card>
+      </Card>
+    </div>
   );
 }

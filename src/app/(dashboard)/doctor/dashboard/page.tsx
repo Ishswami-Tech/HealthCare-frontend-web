@@ -39,30 +39,31 @@ export default function DoctorDashboard() {
   const { data: appointments } = useMyAppointments();
 
   // Calculate real stats from fetched data
+  const appointmentsArray = appointments?.appointments || [];
   const stats = {
     todayAppointments:
-      appointments?.filter((apt) => {
+      appointmentsArray.filter((apt) => {
         const today = new Date().toDateString();
         return new Date(apt.date).toDateString() === today;
-      })?.length || 8,
+      }).length || 8,
     checkedInPatients:
-      appointments?.filter((apt) => apt.status === "CHECKED_IN")?.length || 3,
+      appointmentsArray.filter((apt) => apt.status === "CHECKED_IN").length || 3,
     completedToday:
-      appointments?.filter((apt) => {
+      appointmentsArray.filter((apt) => {
         const today = new Date().toDateString();
         return (
           new Date(apt.date).toDateString() === today &&
           apt.status === "COMPLETED"
         );
-      })?.length || 5,
+      }).length || 5,
     totalPatients:
-      appointments?.reduce((acc: any[], apt: any) => {
-        const patientIds = new Set(acc.map((p) => p.patientId));
+      appointmentsArray.reduce((acc: { patientId: string }[], apt) => {
+        const patientIds = new Set(acc.map(p => p.patientId));
         if (!patientIds.has(apt.patientId)) {
-          acc.push(apt);
+          acc.push({ patientId: apt.patientId });
         }
         return acc;
-      }, [])?.length || 124,
+      }, []).length || 124,
     avgConsultationTime: 25,
     patientSatisfaction: 4.8,
     nextAppointment: "10:30 AM",

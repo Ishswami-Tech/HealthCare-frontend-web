@@ -133,19 +133,19 @@ export default function ViddhaKarmaPage() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <Badge className="bg-purple-100 text-purple-800 border-purple-200 mb-6">
+            <Badge className="bg-primary/10 text-primary border-primary/20 mb-6">
               <Zap className="w-4 h-4 mr-2" />
               {t("viddhakarma.badge")}
             </Badge>
 
-            <h1 className="text-4xl md:text-5xl font-playfair font-bold text-gray-900 mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-6">
               {t("viddhakarma.title")}
             </h1>
 
-            <p className="text-xl text-gray-700 mb-8 leading-relaxed">
+            <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
               {t("viddhakarma.subtitle")}
             </p>
 
@@ -184,14 +184,14 @@ export default function ViddhaKarmaPage() {
       </section>
 
       {/* Understanding Viddha Karma */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
                 Understanding Viddha Karma
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 The science behind precision needling therapy
               </p>
             </div>
@@ -202,10 +202,10 @@ export default function ViddhaKarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Brain className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">
+                  <h3 className="font-bold text-foreground mb-2">
                     Scientific Definition
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Therapeutic needling technique using specialized instruments
                   </p>
                 </CardContent>
@@ -216,10 +216,10 @@ export default function ViddhaKarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Award className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">
+                  <h3 className="font-bold text-foreground mb-2">
                     Historical Significance
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Foundation of Ayurvedic para-surgery from classical texts
                   </p>
                 </CardContent>
@@ -230,10 +230,10 @@ export default function ViddhaKarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircle className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">
+                  <h3 className="font-bold text-foreground mb-2">
                     Modern Relevance
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Scientifically proven method for chronic pain management
                   </p>
                 </CardContent>
@@ -244,10 +244,10 @@ export default function ViddhaKarmaPage() {
                   <div className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Target className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2">
+                  <h3 className="font-bold text-foreground mb-2">
                     Marma Science
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Targeting 107 vital energy points for maximum healing
                   </p>
                 </CardContent>
@@ -258,14 +258,14 @@ export default function ViddhaKarmaPage() {
       </section>
 
       {/* Treatment Process */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-purple-50">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-gray-50 to-purple-50 dark:from-gray-800 dark:to-purple-900/10">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
                 Viddha Karma Treatment Process
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 Precision healing through strategic energy point stimulation
               </p>
             </div>
@@ -293,10 +293,10 @@ export default function ViddhaKarmaPage() {
                         </div>
 
                         <div className="lg:col-span-3 p-8 flex flex-col justify-center">
-                          <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                          <h3 className="text-2xl font-bold text-foreground mb-4">
                             {step.title}
                           </h3>
-                          <p className="text-lg text-gray-700 leading-relaxed">
+                          <p className="text-lg text-muted-foreground leading-relaxed">
                             {step.description}
                           </p>
                         </div>
@@ -311,14 +311,14 @@ export default function ViddhaKarmaPage() {
       </section>
 
       {/* Specialized Applications */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
                 Specialized Applications
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 Targeted healing for specific health conditions
               </p>
             </div>
@@ -335,7 +335,7 @@ export default function ViddhaKarmaPage() {
                     >
                       <Activity className="w-6 h-6 text-white" />
                     </div>
-                    <CardTitle className="text-xl text-gray-900 mb-2">
+                    <CardTitle className="text-xl text-foreground mb-2">
                       {application.category}
                     </CardTitle>
                     <Badge className="bg-green-100 text-green-800 w-fit">
@@ -345,7 +345,7 @@ export default function ViddhaKarmaPage() {
                   <CardContent>
                     <div className="space-y-4">
                       <div>
-                        <h4 className="font-semibold text-gray-900 mb-2">
+                        <h4 className="font-semibold text-foreground mb-2">
                           Specific Treatments:
                         </h4>
                         <ul className="space-y-1">
@@ -356,7 +356,7 @@ export default function ViddhaKarmaPage() {
                                 className="flex items-center space-x-2"
                               >
                                 <CheckCircle className="w-4 h-4 text-green-500" />
-                                <span className="text-gray-700">
+                                <span className="text-muted-foreground">
                                   {treatment}
                                 </span>
                               </li>
@@ -366,15 +366,15 @@ export default function ViddhaKarmaPage() {
                       </div>
 
                       <div>
-                        <h4 className="font-semibold text-gray-900 mb-2">
+                        <h4 className="font-semibold text-foreground mb-2">
                           Unique Benefits:
                         </h4>
-                        <p className="text-gray-700">{application.benefits}</p>
+                        <p className="text-muted-foreground">{application.benefits}</p>
                       </div>
 
                       <div className="pt-4">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium text-muted-foreground">
                             Success Rate
                           </span>
                           <span className="text-sm font-bold text-green-600">
@@ -396,14 +396,14 @@ export default function ViddhaKarmaPage() {
       </section>
 
       {/* Advanced Techniques */}
-      <section className="py-20 bg-gradient-to-br from-purple-50 to-indigo-50">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-purple-900/10">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
                 Advanced Viddha Karma Techniques
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 Specialized approaches for different conditions and patient
                 needs
               </p>
@@ -424,10 +424,10 @@ export default function ViddhaKarmaPage() {
                       >
                         <IconComponent className="w-8 h-8 text-white" />
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">
+                      <h3 className="text-xl font-bold text-foreground mb-4">
                         {technique.name}
                       </h3>
-                      <p className="text-gray-600 leading-relaxed">
+                      <p className="text-muted-foreground leading-relaxed">
                         {technique.description}
                       </p>
                     </CardContent>
@@ -440,14 +440,14 @@ export default function ViddhaKarmaPage() {
       </section>
 
       {/* Treatment Packages */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
                 Viddha Karma Treatment Packages
               </h2>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-muted-foreground">
                 Choose the program that best fits your healing needs
               </p>
             </div>
@@ -455,7 +455,7 @@ export default function ViddhaKarmaPage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               <Card className="hover:shadow-xl transition-all duration-300 border-2 border-gray-200">
                 <CardHeader className="text-center">
-                  <CardTitle className="text-lg text-gray-900">
+                  <CardTitle className="text-lg text-foreground">
                     Essential Treatment
                   </CardTitle>
                   <div className="text-2xl font-bold text-purple-600">
@@ -463,9 +463,9 @@ export default function ViddhaKarmaPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <p className="text-gray-600">Stress-related conditions</p>
+                  <p className="text-muted-foreground">Stress-related conditions</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Success Rate</span>
+                    <span className="text-sm text-muted-foreground">Success Rate</span>
                     <span className="font-bold text-green-600">85%</span>
                   </div>
                   <Button className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
@@ -479,7 +479,7 @@ export default function ViddhaKarmaPage() {
                   Most Popular
                 </Badge>
                 <CardHeader className="text-center">
-                  <CardTitle className="text-lg text-gray-900">
+                  <CardTitle className="text-lg text-foreground">
                     Comprehensive Care
                   </CardTitle>
                   <div className="text-2xl font-bold text-purple-600">
@@ -487,9 +487,9 @@ export default function ViddhaKarmaPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <p className="text-gray-600">Chronic pain conditions</p>
+                  <p className="text-muted-foreground">Chronic pain conditions</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Success Rate</span>
+                    <span className="text-sm text-muted-foreground">Success Rate</span>
                     <span className="font-bold text-green-600">90%</span>
                   </div>
                   <Button className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white">
@@ -500,7 +500,7 @@ export default function ViddhaKarmaPage() {
 
               <Card className="hover:shadow-xl transition-all duration-300 border-2 border-gray-200">
                 <CardHeader className="text-center">
-                  <CardTitle className="text-lg text-gray-900">
+                  <CardTitle className="text-lg text-foreground">
                     Advanced Healing
                   </CardTitle>
                   <div className="text-2xl font-bold text-purple-600">
@@ -508,9 +508,9 @@ export default function ViddhaKarmaPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <p className="text-gray-600">Complex disorders + medicines</p>
+                  <p className="text-muted-foreground">Complex disorders + medicines</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Success Rate</span>
+                    <span className="text-sm text-muted-foreground">Success Rate</span>
                     <span className="font-bold text-green-600">92%</span>
                   </div>
                   <Button className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
@@ -524,7 +524,7 @@ export default function ViddhaKarmaPage() {
                   Premium
                 </Badge>
                 <CardHeader className="text-center">
-                  <CardTitle className="text-lg text-gray-900">
+                  <CardTitle className="text-lg text-foreground">
                     Holistic Transformation
                   </CardTitle>
                   <div className="text-2xl font-bold text-purple-600">
@@ -532,9 +532,9 @@ export default function ViddhaKarmaPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <p className="text-gray-600">Total mind-body wellness</p>
+                  <p className="text-muted-foreground">Total mind-body wellness</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Success Rate</span>
+                    <span className="text-sm text-muted-foreground">Success Rate</span>
                     <span className="font-bold text-green-600">95%</span>
                   </div>
                   <Button className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 text-white">
@@ -548,8 +548,8 @@ export default function ViddhaKarmaPage() {
       </section>
 
       {/* Call to Action */}
-      <section className="py-20 bg-gradient-to-r from-purple-600 to-indigo-700">
-        <div className="container mx-auto px-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-r from-purple-600 to-indigo-700">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center text-white">
             <h2 className="text-3xl md:text-4xl font-playfair font-bold mb-6">
               Unlock Your Body&apos;s Natural Healing Power

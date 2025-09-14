@@ -1,33 +1,36 @@
 "use client";
 
-import React, { useState } from 'react';
-import { ChevronDown, Globe, Check } from 'lucide-react';
-import { useLanguageSwitcher } from '@/lib/i18n/context';
-import { SupportedLanguage } from '@/lib/i18n/config';
-import { cn } from '@/lib/utils';
+import React, { useState } from "react";
+import { ChevronDown, Globe, Check } from "lucide-react";
+import { useLanguageSwitcher } from "@/lib/i18n/context";
+import { SupportedLanguage } from "@/lib/i18n/config";
+import { cn } from "@/lib/utils";
 
 interface LanguageSwitcherProps {
-  variant?: 'default' | 'compact' | 'mobile';
+  variant?: "default" | "compact" | "mobile";
   className?: string;
   showFlag?: boolean;
   showNativeName?: boolean;
 }
 
 export function LanguageSwitcher({
-  variant = 'default',
+  variant = "default",
   className,
   showFlag = true,
   showNativeName = true,
 }: LanguageSwitcherProps) {
-  const { language, setLanguage, supportedLanguages, isLoading } = useLanguageSwitcher();
+  const { language, setLanguage, supportedLanguages, isLoading } =
+    useLanguageSwitcher();
   const [isOpen, setIsOpen] = useState(false);
 
   if (isLoading) {
     return (
-      <div className={cn(
-        "flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 animate-pulse",
-        className
-      )}>
+      <div
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 animate-pulse",
+          className
+        )}
+      >
         <Globe className="w-4 h-4" />
         <div className="w-16 h-4 bg-gray-200 rounded"></div>
       </div>
@@ -41,33 +44,47 @@ export function LanguageSwitcher({
     setIsOpen(false);
   };
 
-  if (variant === 'compact') {
+  if (variant === "compact") {
     return (
       <div className={cn("relative", className)}>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
+          className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors z-50 relative"
           aria-label="Select language"
         >
           {showFlag && <span className="text-sm">{currentLanguage.flag}</span>}
-          <span className="text-sm font-medium">{currentLanguage.code.toUpperCase()}</span>
-          <ChevronDown className={cn(
-            "w-3 h-3 transition-transform",
-            isOpen && "rotate-180"
-          )} />
+          <span className="text-sm font-medium">
+            {currentLanguage.code.toUpperCase()}
+          </span>
+          <ChevronDown
+            className={cn(
+              "w-3 h-3 transition-transform",
+              isOpen && "rotate-180"
+            )}
+          />
         </button>
 
         {isOpen && (
           <>
-            <div 
-              className="fixed inset-0 z-40" 
+            <div
+              className="fixed inset-0 z-40"
               onClick={() => setIsOpen(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setIsOpen(false);
+                }
+              }}
+              role="button"
+              tabIndex={-1}
+              aria-label="Close language menu"
             />
-            <div className="absolute right-0 top-full mt-1 z-50 min-w-[120px] bg-white border border-gray-200 rounded-md shadow-lg py-1">
+            <div className="absolute right-0 top-full mt-1 z-[9999] min-w-[120px] bg-white border border-gray-200 rounded-md shadow-lg py-1">
               {Object.entries(supportedLanguages).map(([code, lang]) => (
                 <button
                   key={code}
-                  onClick={() => handleLanguageChange(code as SupportedLanguage)}
+                  onClick={() =>
+                    handleLanguageChange(code as SupportedLanguage)
+                  }
                   className={cn(
                     "w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors",
                     language === code && "bg-blue-50 text-blue-600"
@@ -85,12 +102,12 @@ export function LanguageSwitcher({
     );
   }
 
-  if (variant === 'mobile') {
+  if (variant === "mobile") {
     return (
       <div className={cn("w-full", className)}>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors z-50 relative"
         >
           <div className="flex items-center gap-3">
             <Globe className="w-5 h-5 text-gray-500" />
@@ -98,14 +115,18 @@ export function LanguageSwitcher({
               <div className="font-medium text-gray-900">Language</div>
               <div className="text-sm text-gray-500">
                 {showFlag && `${currentLanguage.flag} `}
-                {showNativeName ? currentLanguage.nativeName : currentLanguage.name}
+                {showNativeName
+                  ? currentLanguage.nativeName
+                  : currentLanguage.name}
               </div>
             </div>
           </div>
-          <ChevronDown className={cn(
-            "w-5 h-5 text-gray-400 transition-transform",
-            isOpen && "rotate-180"
-          )} />
+          <ChevronDown
+            className={cn(
+              "w-5 h-5 text-gray-400 transition-transform",
+              isOpen && "rotate-180"
+            )}
+          />
         </button>
 
         {isOpen && (
@@ -123,7 +144,9 @@ export function LanguageSwitcher({
                 <div className="flex-1">
                   <div className="font-medium">{lang.name}</div>
                   {showNativeName && lang.nativeName !== lang.name && (
-                    <div className="text-sm text-gray-500">{lang.nativeName}</div>
+                    <div className="text-sm text-gray-500">
+                      {lang.nativeName}
+                    </div>
                   )}
                 </div>
                 {language === code && <Check className="w-5 h-5" />}
@@ -140,7 +163,7 @@ export function LanguageSwitcher({
     <div className={cn("relative", className)}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors z-50 relative"
         aria-label="Select language"
       >
         <Globe className="w-4 h-4 text-gray-500" />
@@ -148,19 +171,29 @@ export function LanguageSwitcher({
         <span className="font-medium">
           {showNativeName ? currentLanguage.nativeName : currentLanguage.name}
         </span>
-        <ChevronDown className={cn(
-          "w-4 h-4 text-gray-400 transition-transform",
-          isOpen && "rotate-180"
-        )} />
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 text-gray-400 transition-transform",
+            isOpen && "rotate-180"
+          )}
+        />
       </button>
 
       {isOpen && (
         <>
-          <div 
-            className="fixed inset-0 z-40" 
+          <div
+            className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setIsOpen(false);
+              }
+            }}
+            role="button"
+            tabIndex={-1}
+            aria-label="Close language menu"
           />
-          <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] bg-white border border-gray-200 rounded-md shadow-lg py-1">
+          <div className="absolute right-0 top-full mt-1 z-[9999] min-w-[180px] bg-white border border-gray-200 rounded-md shadow-lg py-1">
             {Object.entries(supportedLanguages).map(([code, lang]) => (
               <button
                 key={code}
@@ -174,7 +207,9 @@ export function LanguageSwitcher({
                 <div className="flex-1">
                   <div className="font-medium">{lang.name}</div>
                   {showNativeName && lang.nativeName !== lang.name && (
-                    <div className="text-sm text-gray-500">{lang.nativeName}</div>
+                    <div className="text-sm text-gray-500">
+                      {lang.nativeName}
+                    </div>
                   )}
                 </div>
                 {language === code && <Check className="w-4 h-4" />}

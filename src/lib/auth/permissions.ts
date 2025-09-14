@@ -24,7 +24,7 @@ export interface PermissionResult {
 export async function validateClinicAccess(
   userId: string, 
   permission: string,
-  clinicId?: string
+  _clinicId?: string
 ): Promise<boolean> {
   try {
     // TODO: Implement actual permission checking against your backend
@@ -131,7 +131,7 @@ export async function hasAllPermissions(
 /**
  * Get user's permissions
  */
-export async function getUserPermissions(userId: string): Promise<Permission[]> {
+export async function getUserPermissions(_userId: string): Promise<Permission[]> {
   try {
     // TODO: Implement actual permission retrieval from your backend
     // const response = await fetch(`/api/auth/permissions/${userId}`);
@@ -157,12 +157,12 @@ export async function checkResourcePermission(
   userId: string,
   resource: string,
   action: string,
-  resourceId?: string,
-  clinicId?: string
+  _resourceId?: string,
+  _clinicId?: string
 ): Promise<boolean> {
   try {
     const permissionString = `${resource}:${action}`;
-    return await validateClinicAccess(userId, permissionString, clinicId);
+    return await validateClinicAccess(userId, permissionString, _clinicId);
   } catch (error) {
     console.error('Resource permission check failed:', error);
     return false;

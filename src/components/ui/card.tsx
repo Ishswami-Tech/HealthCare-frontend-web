@@ -2,51 +2,89 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+// Optimized Card components for 100K users with React.memo
+
+const Card = React.memo(React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div">
+>(function Card({ className, ...props }, ref) {
+  const computedClassName = React.useMemo(
+    () => cn(
+      "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+      className
+    ),
+    [className]
+  )
+  
   return (
     <div
+      ref={ref}
       data-slot="card"
-      className={cn(
-        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
-        className
-      )}
+      className={computedClassName}
       {...props}
     />
   )
-}
+}))
 
-function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+const CardHeader = React.memo(React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div">
+>(function CardHeader({ className, ...props }, ref) {
+  const computedClassName = React.useMemo(
+    () => cn(
+      "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+      className
+    ),
+    [className]
+  )
+  
   return (
     <div
+      ref={ref}
       data-slot="card-header"
-      className={cn(
-        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
-        className
-      )}
+      className={computedClassName}
       {...props}
     />
   )
-}
+}))
 
-function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+const CardTitle = React.memo(React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div">
+>(function CardTitle({ className, ...props }, ref) {
+  const computedClassName = React.useMemo(
+    () => cn("leading-none font-semibold", className),
+    [className]
+  )
+  
   return (
     <div
+      ref={ref}
       data-slot="card-title"
-      className={cn("leading-none font-semibold", className)}
+      className={computedClassName}
       {...props}
     />
   )
-}
+}))
 
-function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
+const CardDescription = React.memo(React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div">
+>(function CardDescription({ className, ...props }, ref) {
+  const computedClassName = React.useMemo(
+    () => cn("text-muted-foreground text-sm", className),
+    [className]
+  )
+  
   return (
     <div
+      ref={ref}
       data-slot="card-description"
-      className={cn("text-muted-foreground text-sm", className)}
+      className={computedClassName}
       {...props}
     />
   )
-}
+}))
 
 function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -61,15 +99,24 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+const CardContent = React.memo(React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div">
+>(function CardContent({ className, ...props }, ref) {
+  const computedClassName = React.useMemo(
+    () => cn("px-6", className),
+    [className]
+  )
+  
   return (
     <div
+      ref={ref}
       data-slot="card-content"
-      className={cn("px-6", className)}
+      className={computedClassName}
       {...props}
     />
   )
-}
+}))
 
 function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (

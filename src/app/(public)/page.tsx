@@ -16,13 +16,12 @@ import {
 import WhyChooseUsSection from "@/components/ayurveda/WhyChooseUsSection";
 import SpecializationsSection from "@/components/ayurveda/SpecializationsSection";
 
-
 // Generate SEO metadata using our SEO utility
 export const metadata = generateSEOMetadata({
   title: pageSEO.home.title,
   description: pageSEO.home.description,
   keywords: [...pageSEO.home.keywords],
-  url: "/ayurveda",
+  url: "/",
   image: "/images/ayurveda-hero.jpg",
 });
 

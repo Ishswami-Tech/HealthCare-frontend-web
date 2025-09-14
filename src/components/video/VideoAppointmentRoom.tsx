@@ -26,8 +26,6 @@ import {
   Clock,
   User,
   UserCheck,
-  AlertCircle,
-  CheckCircle,
   XCircle,
   Wifi,
   WifiOff,
@@ -57,11 +55,7 @@ export function VideoAppointmentRoom({
   const {
     startCall,
     endCall,
-    getCurrentCall,
     isInCall,
-    leaveCall,
-    startRecording,
-    stopRecording,
   } = useVideoCall();
   const { getCallControls } = useVideoCallControls();
   const {
@@ -82,9 +76,7 @@ export function VideoAppointmentRoom({
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [participants, setParticipants] = useState<any[]>([]);
   const [callDuration, setCallDuration] = useState(0);
-  const [showParticipants, setShowParticipants] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const [isWebSocketConnected] = useState(false);
 
   // ✅ Subscribe to WebSocket events
   useEffect(() => {
