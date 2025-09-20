@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import useZodForm from "@/hooks/useZodForm";
-import { AuthResponse, loginSchema, otpSchema, Role } from "@/types/auth.types";
+import { AuthResponse, loginSchema, otpSchema, OTPFormData, Role } from "@/types/auth.types";
 import { getDashboardByRole } from "@/config/routes";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -117,7 +117,7 @@ export default function LoginPage() {
         id: "otp-verify",
       });
 
-      const response = await verifyOTP(data);
+      const response = await verifyOTP(data as OTPFormData);
       const authResponse = response as unknown as AuthResponse;
 
       // Dismiss loading toast and show success

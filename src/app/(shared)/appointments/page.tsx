@@ -69,12 +69,7 @@ export default function AppointmentsPage() {
   );
 
   // Fetch appointments data with proper permissions
-  const {
-    data: appointments,
-    isPending: isLoading,
-    error,
-    refetch: refetchAppointments,
-  } = shouldFetchAllAppointments
+  const appointmentsQuery = shouldFetchAllAppointments
     ? useAppointments(clinicId || "", {
         search: searchTerm,
         doctorId: filterDoctor || undefined,
@@ -82,16 +77,18 @@ export default function AppointmentsPage() {
         status: filterStatus || undefined,
       })
     : useMyAppointments({
-        search: searchTerm,
-        doctorId: filterDoctor || undefined,
-        type: filterType || undefined,
         status: filterStatus || undefined,
       });
 
+  const appointments = shouldFetchAllAppointments
+    ? appointmentsQuery.data?.appointments
+    : appointmentsQuery.data;
+  const isLoading = appointmentsQuery.isPending;
+  const error = appointmentsQuery.error;
+  const refetchAppointments = appointmentsQuery.refetch;
+
   // Fetch appointment statistics for authorized users
-  const { data: appointmentStats } = useAppointmentStats({
-    enabled: appointmentPermissions.canViewAllAppointments,
-  });
+  const { data: appointmentStats } = useAppointmentStats();
 
   // Mutation hooks for appointment actions
   const updateAppointmentMutation = useUpdateAppointment();
@@ -99,11 +96,12 @@ export default function AppointmentsPage() {
 
   // Separate upcoming and past appointments
   const now = new Date();
+  const appointmentsList = Array.isArray(appointments) ? appointments : [];
   const upcomingAppointments =
-    appointments?.filter((apt) => new Date(apt.date) >= now) || [];
+    appointmentsList.filter((apt) => new Date(apt.date) >= now);
 
   const pastAppointments =
-    appointments?.filter((apt) => new Date(apt.date) < now) || [];
+    appointmentsList.filter((apt) => new Date(apt.date) < now);
 
   // Show loading state
   if (isLoading) {
@@ -238,7 +236,7 @@ export default function AppointmentsPage() {
     updates: any
   ) => {
     try {
-      await updateAppointmentMutation.mutateAsync({ appointmentId, updates });
+      await updateAppointmentMutation.mutateAsync({ id: appointmentId, data: updates });
       refetchAppointments();
     } catch (error) {
       console.error("Failed to update appointment:", error);
@@ -247,7 +245,7 @@ export default function AppointmentsPage() {
 
   const handleCancelAppointment = async (appointmentId: string) => {
     try {
-      await cancelAppointmentMutation.mutateAsync(appointmentId);
+      await cancelAppointmentMutation.mutateAsync({ id: appointmentId });
       refetchAppointments();
     } catch (error) {
       console.error("Failed to cancel appointment:", error);
@@ -410,7 +408,7 @@ export default function AppointmentsPage() {
                       Total Today
                     </p>
                     <p className="text-2xl font-bold">
-                      {appointmentStats.todayTotal || 0}
+                      {appointmentStats?.todayAppointments || 0}
                     </p>
                   </div>
                   <Calendar className="h-8 w-8 text-blue-600" />
@@ -425,7 +423,7 @@ export default function AppointmentsPage() {
                       Confirmed
                     </p>
                     <p className="text-2xl font-bold text-green-600">
-                      {appointmentStats.confirmed || 0}
+                      {appointmentStats?.completedAppointments || 0}
                     </p>
                   </div>
                   <CheckCircle className="h-8 w-8 text-green-600" />
@@ -438,7 +436,7 @@ export default function AppointmentsPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Pending</p>
                     <p className="text-2xl font-bold text-yellow-600">
-                      {appointmentStats.pending || 0}
+                      {appointmentStats?.totalAppointments || 0}
                     </p>
                   </div>
                   <AlertCircle className="h-8 w-8 text-yellow-600" />
@@ -453,7 +451,7 @@ export default function AppointmentsPage() {
                       Cancelled
                     </p>
                     <p className="text-2xl font-bold text-red-600">
-                      {appointmentStats.cancelled || 0}
+                      {appointmentStats?.cancelledAppointments || 0}
                     </p>
                   </div>
                   <XCircle className="h-8 w-8 text-red-600" />

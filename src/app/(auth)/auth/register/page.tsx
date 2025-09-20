@@ -26,7 +26,7 @@ import {
   type RegisterFormData,
 } from "@/lib/schema/login-schema";
 import useZodForm from "@/hooks/useZodForm";
-import { Role } from "@/types/auth.types";
+import { Role, RegisterFormData as AuthRegisterFormData } from "@/types/auth.types";
 import { toast } from "sonner";
 import { useState } from "react";
 import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
@@ -58,7 +58,7 @@ export default function RegisterPage() {
           gender: values.gender || "male",
           age: values.age || 18, // Ensure age has a default value
         };
-        await registerUser(formData);
+        await registerUser(formData as AuthRegisterFormData & { clinicId?: string; });
         toast.dismiss("register");
         toast.success("Account created successfully!");
         setOverlay({ show: false });

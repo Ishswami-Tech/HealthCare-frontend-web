@@ -324,10 +324,16 @@ export function BackendStatusIndicator() {
         const baseService = Object.values(backendStatus).find(s => s.name === serviceName) as BackendService;
         if (!baseService) return healthResponse;
 
-        const healthData = healthResponse.status === 'active' ? 
+        const healthData = healthResponse.status === 'active' ?
           (healthResponse.healthData || healthResponse) : null;
 
-        return parseHealthDataForService(serviceName, healthData, baseService, healthResponse.responseTime);
+        return {
+          ...baseService,
+          status: healthResponse.status === 'active' ? 'active' as StatusType : 'error' as StatusType,
+          lastChecked: new Date(),
+          responseTime: healthResponse.responseTime || 0,
+          error: healthResponse.status !== 'active' ? 'Service unavailable' : undefined
+        };
       };
 
       const apiService = parseServiceHealth('API Server', healthData);
@@ -337,41 +343,11 @@ export function BackendStatusIndicator() {
 
       const newStatus = {
         ...backendStatus,
-        api: apiResult.status === 'fulfilled' ? apiResult.value : { 
-          ...backendStatus.api, 
-          status: 'error' as StatusType, 
-          error: 'Health check failed',
-          lastChecked: new Date(),
-          responseTime: 0
-        },
-        database: dbResult.status === 'fulfilled' ? dbResult.value : { 
-          ...backendStatus.database, 
-          status: 'error' as StatusType, 
-          error: 'Health check failed',
-          lastChecked: new Date(),
-          responseTime: 0
-        },
-        auth: authResult.status === 'fulfilled' ? authResult.value : { 
-          ...backendStatus.auth, 
-          status: 'error' as StatusType, 
-          error: 'Health check failed',
-          lastChecked: new Date(),
-          responseTime: 0
-        },
-        realtime: realtimeResult.status === 'fulfilled' ? realtimeResult.value : { 
-          ...backendStatus.realtime, 
-          status: 'error' as StatusType, 
-          error: 'Health check failed',
-          lastChecked: new Date(),
-          responseTime: 0
-        },
-        websocket: wsResult.status === 'fulfilled' ? wsResult.value : { 
-          ...backendStatus.websocket, 
-          status: 'error' as StatusType, 
-          error: 'WebSocket check failed',
-          lastChecked: new Date(),
-          responseTime: 0
-        },
+        api: apiService,
+        database: dbService,
+        auth: authService,
+        realtime: realtimeService,
+        websocket: wsResult,
         lastGlobalCheck: new Date(),
         isChecking: false,
       };
