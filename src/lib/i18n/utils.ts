@@ -21,6 +21,26 @@ export function getNestedTranslation(
   return typeof current === 'string' ? current : fallback || path;
 }
 
+// Helper function to get nested translation value as array
+export function getNestedTranslationArray(
+  obj: Record<string, unknown>,
+  path: string,
+  fallback?: string[]
+): string[] {
+  const keys = path.split('.');
+  let current = obj;
+  
+  for (const key of keys) {
+    if (current && typeof current === 'object' && key in current) {
+      current = current[key] as Record<string, unknown>;
+    } else {
+      return fallback || [];
+    }
+  }
+  
+  return Array.isArray(current) ? current as string[] : fallback || [];
+}
+
 // Helper function to interpolate variables in translations
 export function interpolateTranslation(
   template: string,
@@ -48,4 +68,21 @@ export function getTranslationWithFallback(
   }
   
   return variables ? interpolateTranslation(primaryTranslation, variables) : primaryTranslation;
+}
+
+// Helper function to get array translation with fallback
+export function getArrayTranslationWithFallback(
+  language: SupportedLanguage,
+  path: string,
+  fallbackLanguage: SupportedLanguage = 'en'
+): string[] {
+  const primaryTranslation = getNestedTranslationArray(translations[language] as unknown as Record<string, unknown>, path);
+  
+  // If primary translation is empty, try fallback
+  if (primaryTranslation.length === 0 && language !== fallbackLanguage) {
+    const fallbackTranslation = getNestedTranslationArray(translations[fallbackLanguage] as unknown as Record<string, unknown>, path);
+    return fallbackTranslation.length > 0 ? fallbackTranslation : [];
+  }
+  
+  return primaryTranslation;
 }

@@ -404,36 +404,41 @@ export function ServicesCatalog({
         {serviceCategories.map((service) => (
           <div
             key={service.id}
-            className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+            className="bg-card/80 dark:bg-card/90 backdrop-blur-sm shadow-xl border border-border/50 dark:border-border/30 rounded-2xl p-6 sm:p-8 hover:shadow-2xl transition-all duration-300 glass card-hover"
           >
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-3 sm:gap-4">
               <div
-                className={cn("p-3 rounded-lg", getColorClasses(service.color))}
+                className={cn(
+                  "p-3 sm:p-4 rounded-2xl shadow-lg",
+                  getColorClasses(service.color)
+                )}
               >
                 {service.icon}
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-base sm:text-lg font-playfair font-bold text-foreground dark:text-foreground/95 mb-2 sm:mb-3 gradient-text">
                   {service.name}
                 </h3>
-                <p className="text-gray-600 mb-3">{service.description}</p>
-                <div className="flex flex-wrap gap-2">
+                <p className="text-sm sm:text-base text-muted-foreground dark:text-muted-foreground/90 mb-3 sm:mb-4 leading-relaxed">
+                  {service.description}
+                </p>
+                <div className="flex flex-wrap gap-1 sm:gap-2">
                   {service.treatments.slice(0, 4).map((treatment, index) => (
                     <span
                       key={index}
-                      className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                      className="px-2 sm:px-3 py-1 sm:py-2 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 text-xs sm:text-sm rounded-full border border-primary/20 dark:border-primary/30 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200"
                     >
                       {treatment}
                     </span>
                   ))}
                   {service.treatments.length > 4 && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                    <span className="px-2 sm:px-3 py-1 sm:py-2 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 text-xs sm:text-sm rounded-full border border-primary/20 dark:border-primary/30 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200">
                       +{service.treatments.length - 4} more
                     </span>
                   )}
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground dark:text-muted-foreground/70 hover:text-primary dark:hover:text-primary/90 transition-colors duration-200" />
             </div>
           </div>
         ))}
@@ -443,11 +448,11 @@ export function ServicesCatalog({
 
   return (
     <div className={cn("space-y-6", className)}>
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">
+      <div className="text-center mb-16">
+        <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold text-foreground dark:text-foreground/95 mb-6 gradient-text">
           {t("services.title")}
         </h2>
-        <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+        <p className="text-lg text-muted-foreground dark:text-muted-foreground/90 max-w-3xl mx-auto leading-relaxed">
           {t("services.subtitle")}
         </p>
       </div>
@@ -456,36 +461,47 @@ export function ServicesCatalog({
         {serviceCategories.map((service) => (
           <div
             key={service.id}
+            role="button"
+            tabIndex={0}
             className={cn(
-              "bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer",
-              selectedService === service.id && "ring-2 ring-green-500"
+              "bg-card/80 dark:bg-card/90 backdrop-blur-sm shadow-2xl border border-border/50 dark:border-border/30 rounded-2xl overflow-hidden hover:shadow-3xl transition-all duration-500 cursor-pointer glass card-hover group",
+              selectedService === service.id &&
+                "ring-2 ring-primary/50 shadow-primary/20"
             )}
             onClick={() =>
               setSelectedService(
                 selectedService === service.id ? null : service.id
               )
             }
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setSelectedService(
+                  selectedService === service.id ? null : service.id
+                );
+              }
+            }}
           >
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
+            <div className="p-6 sm:p-8">
+              <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div
                   className={cn(
-                    "p-3 rounded-lg",
+                    "p-3 sm:p-4 rounded-2xl shadow-lg transition-all duration-300 group-hover:scale-110",
                     getColorClasses(service.color)
                   )}
                 >
                   {service.icon}
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-base sm:text-lg md:text-xl font-playfair font-bold text-foreground dark:text-foreground/95 gradient-text">
                   {service.name}
                 </h3>
               </div>
 
-              <p className="text-gray-600 mb-4 line-clamp-2">
+              <p className="text-sm sm:text-base text-muted-foreground dark:text-muted-foreground/90 mb-4 sm:mb-6 leading-relaxed line-clamp-2">
                 {service.description}
               </p>
 
-              <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+              <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground dark:text-muted-foreground/80 mb-4 sm:mb-6">
                 <div className="flex items-center gap-1">
                   <Clock className="w-4 h-4" />
                   <span>{service.duration}</span>
@@ -497,16 +513,16 @@ export function ServicesCatalog({
               </div>
 
               {showDetails && selectedService === service.id && (
-                <div className="border-t border-gray-200 pt-4 space-y-4">
+                <div className="border-t border-border/20 dark:border-border/30 pt-4 sm:pt-6 space-y-4 sm:space-y-6">
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">
+                    <h4 className="text-sm sm:text-base font-playfair font-semibold text-foreground dark:text-foreground/95 mb-3 sm:mb-4">
                       Treatments Included:
                     </h4>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1 sm:gap-2">
                       {service.treatments.map((treatment, index) => (
                         <span
                           key={index}
-                          className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                          className="px-2 sm:px-3 py-1 sm:py-2 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/90 text-xs sm:text-sm rounded-full border border-primary/20 dark:border-primary/30 hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors duration-200"
                         >
                           {treatment}
                         </span>
@@ -515,16 +531,16 @@ export function ServicesCatalog({
                   </div>
 
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">
+                    <h4 className="text-sm sm:text-base font-playfair font-semibold text-foreground dark:text-foreground/95 mb-3 sm:mb-4">
                       Key Benefits:
                     </h4>
-                    <div className="space-y-1">
+                    <div className="space-y-2 sm:space-y-3">
                       {service.benefits.slice(0, 3).map((benefit, index) => (
                         <div
                           key={index}
-                          className="flex items-center gap-2 text-sm text-gray-600"
+                          className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground dark:text-muted-foreground/90"
                         >
-                          <CheckCircle className="w-3 h-3 text-green-500" />
+                          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 dark:text-green-400 flex-shrink-0" />
                           <span>{benefit}</span>
                         </div>
                       ))}

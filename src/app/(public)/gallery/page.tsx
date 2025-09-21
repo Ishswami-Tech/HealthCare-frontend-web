@@ -8,6 +8,7 @@ import { useTranslation } from "@/lib/i18n/context";
 
 import { InstagramGrid } from "@/components/media/instagram-post";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
+import { getIconColorScheme } from "@/lib/color-palette";
 
 export default function GalleryPage() {
   const { t } = useTranslation();
@@ -56,25 +57,25 @@ export default function GalleryPage() {
       icon: Instagram,
       number: "10K+",
       label: t("gallery.stats.instagramFollowers"),
-      color: "from-pink-500 to-purple-600",
+      colorScheme: getIconColorScheme("Instagram"),
     },
     {
       icon: Camera,
       number: "500+",
       label: t("gallery.stats.treatmentPhotos"),
-      color: "from-blue-500 to-indigo-600",
+      colorScheme: getIconColorScheme("Camera"),
     },
     {
       icon: Heart,
       number: "1000+",
       label: t("gallery.stats.patientStories"),
-      color: "from-red-500 to-pink-600",
+      colorScheme: getIconColorScheme("Heart"),
     },
     {
       icon: Star,
       number: "4.9★",
       label: t("gallery.stats.averageRating"),
-      color: "from-yellow-500 to-orange-600",
+      colorScheme: getIconColorScheme("Star"),
     },
   ];
 
@@ -131,7 +132,7 @@ export default function GalleryPage() {
                 >
                   <CardContent className="p-6">
                     <div
-                      className={`w-16 h-16 bg-gradient-to-r ${stat.color} rounded-full flex items-center justify-center mx-auto mb-4 interactive`}
+                      className={`w-16 h-16 bg-gradient-to-r ${stat.colorScheme.gradient} rounded-full flex items-center justify-center mx-auto mb-4 interactive hover:${stat.colorScheme.hover} transition-all duration-300`}
                     >
                       <IconComponent className="w-8 h-8 text-white" />
                     </div>

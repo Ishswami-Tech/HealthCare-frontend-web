@@ -453,6 +453,14 @@
       "teachingHospital": {
         "title": "शिक्षण अस्पताल",
         "description": "शैक्षणिक उत्कृष्टता स्थिति"
+      },
+      "safetyCertified": {
+        "title": "सुरक्षा प्रमाणित",
+        "description": "रोगी सुरक्षा और गुणवत्ता मानक"
+      },
+      "excellenceAward": {
+        "title": "उत्कृष्टता पुरस्कार",
+        "description": "स्वास्थ्य सेवा उत्कृष्टता मान्यता"
       }
     }
   },
@@ -664,7 +672,42 @@
       "duration": "अवधि",
       "learnMore": "और जानें",
       "bookConsultation": "परामर्श बुक करें",
-      "keyBenefits": "मुख्य लाभ:"
+      "keyBenefits": "मुख्य लाभ:",
+      "ultimatePainRelief": "अंतिम दर्द निवारण",
+      "treatmentsIncluded": "शामिल उपचार:",
+      "transformationPromise": "परिवर्तन प्रतिज्ञा:",
+      "painFreeLiving": "दर्द रहित जीवन",
+      "popularity": "लोकप्रियता:",
+      "choosePackage": "पैकेज चुनें",
+      "completeWellness": "संपूर्ण कल्याण",
+      "totalHealthTransformation": "संपूर्ण स्वास्थ्य परिवर्तन",
+      "familyHealingPlan": "पारिवारिक उपचार योजना",
+      "familyWellnessEcosystem": "पारिवारिक कल्याण पारिस्थितिकी तंत्र",
+      "executiveHealth": "कार्यकारी स्वास्थ्य",
+      "lifetimeWellnessPartnership": "जीवनभर कल्याण साझेदारी",
+      "fertilityHealth": "प्रजनन स्वास्थ्य",
+      "fertilityDescription": "व्यापक प्रजनन स्वास्थ्य उपचार",
+      "maleFertility": "पुरुष प्रजनन क्षमता वृद्धि",
+      "femaleFertility": "महिला प्रजनन उपचार",
+      "pcodTreatment": "पीसीओडी/पीसीओएस उपचार",
+      "ivfSupport": "आईवीएफ सहायता चिकित्सा",
+      "corporateWellness": "कॉर्पोरेट कल्याण",
+      "corporateDescription": "कार्यक्षेत्र स्वास्थ्य और कल्याण कार्यक्रम",
+      "workplaceStress": "कार्यक्षेत्र तनाव प्रबंधन",
+      "employeeWellness": "कर्मचारी कल्याण कार्यक्रम",
+      "ergonomicConsultations": "एर्गोनॉमिक परामर्श",
+      "ayurvedaEducation": "आयुर्वेद शिक्षा",
+      "educationDescription": "व्यावसायिक आयुर्वेद प्रशिक्षण और प्रमाणन",
+      "certificateCourses": "प्रमाणपत्र पाठ्यक्रम",
+      "diplomaPrograms": "डिप्लोमा कार्यक्रम",
+      "advancedSpecialization": "उन्नत विशेषज्ञता",
+      "internationalCertification": "अंतर्राष्ट्रीय प्रमाणन",
+      "communitySeva": "समुदायिक सेवा",
+      "sevaDescription": "निःशुल्क सामुदायिक स्वास्थ्य सेवाएं और पहुंच",
+      "freeTreatmentDays": "निःशुल्क उपचार दिवस",
+      "ruralHealthMissions": "ग्रामीण स्वास्थ्य मिशन",
+      "seniorCitizenCare": "वरिष्ठ नागरिक देखभाल",
+      "educationalWorkshops": "शैक्षिक कार्यशालाएं"
     },
     "cta": {
       "title": "निश्चित नहीं कि कौन सा उपचार आपके लिए सही है?",
@@ -1702,5 +1745,23 @@
     "copyright": "© 2024 हेल्थकेयर ऐप। सर्वाधिकार सुरक्षित।",
     "loginRequired": "कृपया इस सुविधा का उपयोग करने के लिए लॉगिन करें",
     "invalidSession": "अमान्य सत्र। कृपया फिर से लॉगिन करें।"
+  },
+  "homepage": {
+    "specializations": {
+      "title": "हमारी विशेषताएं",
+      "subtitle": "हमारे विशेष उपचारों के साथ प्रामाणिक आयुर्वेदिक चिकित्सा का अनुभव करें",
+      "panchakarma": {
+        "title": "पंचकर्म",
+        "description": "संपूर्ण विषहरण और कायाकल्प चिकित्सा"
+      },
+      "agnikarma": {
+        "title": "अग्निकर्म",
+        "description": "तत्काल दर्द निवारण के लिए सटीक थर्मल चिकित्सा"
+      },
+      "viddhakarma": {
+        "title": "विद्ध कर्म",
+        "description": "न्यूरोलॉजिकल स्थितियों के लिए विशेष उपचार"
+      }
+    }
   }
 }

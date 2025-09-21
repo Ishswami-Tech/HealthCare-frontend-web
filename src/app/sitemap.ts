@@ -20,19 +20,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/panchakarma`,
+      url: `${baseUrl}/treatments/panchakarma`,
       lastModified: currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/agnikarma`,
+      url: `${baseUrl}/treatments/agnikarma`,
       lastModified: currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/viddha-karma`,
+      url: `${baseUrl}/treatments/viddha-karma`,
       lastModified: currentDate,
       changeFrequency: 'monthly' as const,
       priority: 0.9,

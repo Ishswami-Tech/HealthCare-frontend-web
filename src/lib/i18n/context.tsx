@@ -14,12 +14,16 @@ import {
   LANGUAGE_STORAGE_KEY,
   SUPPORTED_LANGUAGES,
 } from "./config";
-import { getTranslationWithFallback } from "./utils";
+import {
+  getTranslationWithFallback,
+  getArrayTranslationWithFallback,
+} from "./utils";
 
 interface LanguageContextType {
   language: SupportedLanguage;
   setLanguage: (lang: SupportedLanguage) => void;
   t: (path: string, variables?: Record<string, string | number>) => string;
+  tArray: (path: string) => string[];
   isLoading: boolean;
   supportedLanguages: typeof SUPPORTED_LANGUAGES;
 }
@@ -146,10 +150,15 @@ export function LanguageProvider({
     return getTranslationWithFallback(language, path, variables);
   };
 
+  const tArray = (path: string): string[] => {
+    return getArrayTranslationWithFallback(language, path);
+  };
+
   const value: LanguageContextType = {
     language,
     setLanguage,
     t,
+    tArray,
     isLoading,
     supportedLanguages: SUPPORTED_LANGUAGES,
   };
@@ -171,8 +180,8 @@ export function useLanguage(): LanguageContextType {
 
 // Hook for translation only (lighter than useLanguage)
 export function useTranslation() {
-  const { t, language } = useLanguage();
-  return { t, language };
+  const { t, tArray, language } = useLanguage();
+  return { t, tArray, language };
 }
 
 // Hook for language switching

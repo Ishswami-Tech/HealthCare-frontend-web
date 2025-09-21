@@ -108,9 +108,9 @@ const Navigation = () => {
   };
 
   const treatmentsSubItems = [
-    { name: t("navigation.agnikarma"), href: "/agnikarma" },
-    { name: t("navigation.viddhakarma"), href: "/viddha-karma" },
-    { name: t("navigation.panchakarma"), href: "/panchakarma" },
+    { name: t("navigation.agnikarma"), href: "/treatments/agnikarma" },
+    { name: t("navigation.viddhakarma"), href: "/treatments/viddha-karma" },
+    { name: t("navigation.panchakarma"), href: "/treatments/panchakarma" },
   ];
 
   const navItems = [
@@ -218,45 +218,65 @@ const Navigation = () => {
         className={cn(
           "sticky top-0 z-50 transition-all duration-300",
           isScrolled
-            ? "bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg border-b border-orange-100 dark:border-gray-700"
-            : "bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm"
+            ? "backdrop-blur-md shadow-lg border-b border-border"
+            : "backdrop-blur-sm"
         )}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: [0.0, 0.0, 0.2, 1] }}
       >
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16 md:h-20 min-h-[4rem]">
-            {/* Logo */}
-            <HoverAnimation type="scale">
-              <Link
-                href="/"
-                className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0"
-              >
-                <motion.div
-                  className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden"
-                  whileHover={{ rotate: 360 }}
-                  transition={{ duration: 0.5, ease: "easeInOut" }}
-                >
-                  <img
-                    src="/logo.svg"
-                    alt={t("navigation.clinicName")}
-                    className="w-full h-full object-cover"
-                  />
-                </motion.div>
-                <div className="hidden sm:block">
-                  <h1 className="font-playfair text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-tight">
-                    {t("navigation.clinicName")}
-                  </h1>
-                  <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 -mt-1">
-                    {t("navigation.clinicSubtitle")}
-                  </p>
-                </div>
-              </Link>
-            </HoverAnimation>
+        {/* Background Elements - Same as Hero */}
+        <div className="absolute inset-0 z-0">
+          {/* Base Background */}
+          <div className="absolute inset-0 bg-background" />
 
-            {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center space-x-4 xl:space-x-6 flex-1 justify-center max-w-2xl">
+          {/* Elegant Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-background via-background/95 to-muted/20 dark:from-background dark:via-background/95 dark:to-muted/30" />
+
+          {/* Secondary Gradient for Depth */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-primary/3 to-secondary/8 dark:via-primary/5 dark:to-secondary/12" />
+
+          {/* Subtle Geometric Pattern */}
+          <div className="absolute inset-0 opacity-[0.01] dark:opacity-[0.04]">
+            <div className="w-full h-full bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23000000%22%20fill-opacity%3D%220.1%22%3E%3Cpath%20d%3D%22M30%2030c0-8.284-6.716-15-15-15s-15%206.716-15%2015%206.716%2015%2015%2015%2015-6.716%2015-15zm0%200c0%208.284%206.716%2015%2015%2015s15-6.716%2015-15-6.716-15-15-15-15%206.716-15%2015z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]" />
+          </div>
+        </div>
+
+        {/* Navigation Content */}
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="flex items-center justify-between h-16 md:h-20 min-h-[4rem]">
+            {/* Left Section - Logo Only */}
+            <div className="flex items-center flex-shrink-0">
+              <HoverAnimation type="scale">
+                <Link
+                  href="/"
+                  className="flex items-center space-x-2 sm:space-x-3"
+                >
+                  <motion.div
+                    className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden"
+                    whileHover={{ rotate: 360 }}
+                    transition={{ duration: 0.5, ease: "easeInOut" }}
+                  >
+                    <img
+                      src="/logo.svg"
+                      alt={t("navigation.clinicName")}
+                      className="w-full h-full object-cover"
+                    />
+                  </motion.div>
+                  <div className="hidden sm:block">
+                    <h1 className="font-playfair text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-tight">
+                      {t("navigation.clinicName")}
+                    </h1>
+                    <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 -mt-1">
+                      {t("navigation.clinicSubtitle")}
+                    </p>
+                  </div>
+                </Link>
+              </HoverAnimation>
+            </div>
+
+            {/* Center Navigation */}
+            <div className="hidden lg:flex items-center space-x-4 xl:space-x-6 flex-1 justify-center max-w-3xl">
               {navItems.map((item, index) => (
                 <motion.div
                   key={item.name}
@@ -396,7 +416,7 @@ const Navigation = () => {
               ))}
             </div>
 
-            {/* Action Buttons */}
+            {/* Right Section - Clean and Simple */}
             <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
               {/* Authentication Buttons */}
               {isAuthenticated && session ? (
@@ -451,12 +471,13 @@ const Navigation = () => {
                 </div>
               )}
 
+              {/* Primary CTA Button */}
               <HoverAnimation type="scale">
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="hidden lg:flex border-orange-300 text-orange-600 hover:bg-orange-50 text-xs sm:text-sm px-3 sm:px-4"
+                  className="hidden lg:flex bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
                 >
+                  <Phone className="w-3 h-3 mr-1" />
                   {t("navigation.bookConsultation")}
                 </Button>
               </HoverAnimation>

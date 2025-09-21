@@ -107,7 +107,12 @@ const WhyChooseUsSection = () => {
               <StaggerItem key={index}>
                 <HoverAnimation type="scale">
                   <div className="text-center p-6 bg-card rounded-2xl shadow-lg border border-border glass card-hover">
-                    <div className="w-12 h-12 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center mx-auto mb-3 interactive">
+                    <div className={`w-12 h-12 bg-gradient-to-r ${
+                      index === 0 ? 'from-sky-500 to-blue-700' :
+                      index === 1 ? 'from-lime-500 to-green-800' :
+                      index === 2 ? 'from-fuchsia-500 to-purple-800' :
+                      'from-zinc-500 to-stone-700'
+                    } rounded-full flex items-center justify-center mx-auto mb-3 interactive`}>
                       <stat.icon className="w-6 h-6 text-white" />
                     </div>
                     <div className="text-3xl font-bold text-foreground mb-1 gradient-text">

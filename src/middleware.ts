@@ -40,9 +40,18 @@ const PUBLIC_ROUTES = [
   '/auth/verify-otp',
   '/auth/verify-email',
   '/auth/callback',
-  // Public content
+  // Public content routes
+  '/',
+  '/treatments',
+  '/about',
+  '/contact',
+  '/team',
+  '/gallery',
+  '/treatments/panchakarma',
+  '/treatments/agnikarma',
+  '/treatments/viddha-karma',
+  // Public folder pattern
   '/(public)',
-  '/',               // Root path should be public
 ];
 
 // Define routes that require authentication but don't need profile completion
@@ -131,8 +140,28 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Allow public routes
-  if (PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+  // Allow public routes - check for exact matches and patterns
+  const isPublicRoute = PUBLIC_ROUTES.some(route => {
+    // Handle exact matches
+    if (pathname === route) return true;
+    
+    // Handle route patterns with trailing slash
+    if (pathname.startsWith(route + '/')) return true;
+    
+    // Handle public folder pattern - any route that should be public
+    if (route === '/(public)' && (
+      pathname === '/' ||
+      pathname.startsWith('/treatments') ||
+      pathname.startsWith('/about') ||
+      pathname.startsWith('/contact') ||
+      pathname.startsWith('/team') ||
+      pathname.startsWith('/gallery')
+    )) return true;
+    
+    return false;
+  });
+
+  if (isPublicRoute) {
     return NextResponse.next();
   }
 
@@ -227,11 +256,12 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files (public directory)
+     * Match specific paths that need authentication/authorization:
+     * - Dashboard routes
+     * - Shared routes (appointments, queue, ehr, etc.)
+     * - Settings
+     * - Profile completion
+     * - Auth routes (for redirects)
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],

@@ -31,9 +31,9 @@ const Footer = () => {
   ];
 
   const treatments = [
-    { name: t("navigation.panchakarma"), href: "/panchakarma" },
-    { name: t("navigation.agnikarma"), href: "/agnikarma" },
-    { name: t("navigation.viddhakarma"), href: "/viddha-karma" },
+    { name: t("navigation.panchakarma"), href: "/treatments/panchakarma" },
+    { name: t("navigation.agnikarma"), href: "/treatments/agnikarma" },
+    { name: t("navigation.viddhakarma"), href: "/treatments/viddha-karma" },
     { name: t("footer.services.fertility"), href: "/fertility" },
   ];
 

@@ -128,7 +128,13 @@ const TestimonialsSection = () => {
             <CardContent className="p-0">
               <div className="grid lg:grid-cols-2">
                 {/* Left Side - Patient Info */}
-                <div className="p-8 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
+                <div className={`p-8 bg-gradient-to-br ${
+                  currentTestimonial === 0 ? 'from-violet-600 to-indigo-800' :
+                  currentTestimonial === 1 ? 'from-teal-600 to-cyan-800' :
+                  currentTestimonial === 2 ? 'from-emerald-600 to-green-800' :
+                  currentTestimonial === 3 ? 'from-amber-600 to-orange-800' :
+                  'from-red-600 to-rose-800'
+                } text-white`}>
                   <div className="flex items-center space-x-4 mb-6">
                     <div className="w-20 h-20 bg-primary-foreground/20 rounded-full flex items-center justify-center interactive">
                       <span className="text-2xl font-bold">

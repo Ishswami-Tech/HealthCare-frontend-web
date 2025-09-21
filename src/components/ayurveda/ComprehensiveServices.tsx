@@ -35,14 +35,15 @@ const ComprehensiveServices = () => {
       title: t("services.neurological"),
       icon: Brain,
       color: "from-purple-500 to-indigo-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Autism",
-        "Cerebral Palsy",
-        "Mental Health Disorders",
-        "Neurological Rehabilitation",
-        "Paralysis",
-        "Stroke Recovery",
+        t("services.conditions.autism"),
+        t("services.conditions.cerebralPalsy"),
+        t("services.conditions.mentalHealthDisorders"),
+        t("services.conditions.neurologicalRehabilitation"),
+        t("services.conditions.paralysis"),
+        t("services.conditions.strokeRecovery"),
       ],
       description: t("services.neurologicalDesc"),
     },
@@ -51,63 +52,66 @@ const ComprehensiveServices = () => {
       title: t("services.jointBone"),
       icon: Bone,
       color: "from-orange-500 to-red-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Arthritis",
-        "Joint Pain",
-        "Spinal Disorders",
-        "Gout",
-        "Sports Injuries",
-        "Muscular Disorders",
+        t("services.conditions.arthritis"),
+        t("services.conditions.jointPain"),
+        t("services.conditions.spinalDisorders"),
+        t("services.conditions.gout"),
+        t("services.conditions.sportsInjuries"),
+        t("services.conditions.muscularDisorders"),
       ],
       description: t("services.jointBoneDesc"),
     },
     {
       id: "spinal",
-      title: "Spinal Care",
+      title: t("services.spinalCare"),
       icon: Zap,
       color: "from-yellow-500 to-orange-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Sciatica",
-        "Back Pain",
-        "Disc Problems",
-        "Spinal Stenosis",
-        "Scoliosis",
-        "Neck Pain",
+        t("services.conditions.sciatica"),
+        t("services.conditions.backPain"),
+        t("services.conditions.discProblems"),
+        t("services.conditions.spinalStenosis"),
+        t("services.conditions.scoliosis"),
+        t("services.conditions.neckPain"),
       ],
-      description:
-        "Comprehensive spinal care using traditional Ayurvedic methods.",
+      description: t("services.spinalCareDesc"),
     },
     {
       id: "respiratory",
       title: t("services.respiratory"),
       icon: Wind,
       color: "from-cyan-500 to-blue-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Asthma",
-        "Bronchitis",
-        "Sinusitis",
-        "Allergic Rhinitis",
-        "Cough",
-        "Breathing Difficulties",
+        t("services.conditions.asthma"),
+        t("services.conditions.bronchitis"),
+        t("services.conditions.sinusitis"),
+        t("services.conditions.allergicRhinitis"),
+        t("services.conditions.cough"),
+        t("services.conditions.breathingDifficulties"),
       ],
       description: t("services.respiratoryDesc"),
     },
     {
       id: "digestive",
-      title: "Digestive Health",
+      title: t("services.digestive"),
       icon: Heart,
       color: "from-green-500 to-emerald-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Acidity",
-        "Piles",
-        "Constipation",
-        "IBS",
-        "Ulcers",
-        "Digestive Disorders",
+        t("services.conditions.acidity"),
+        t("services.conditions.piles"),
+        t("services.conditions.constipation"),
+        t("services.conditions.ibs"),
+        t("services.conditions.ulcers"),
+        t("services.conditions.digestiveDisorders"),
       ],
       description: t("services.digestiveDesc"),
     },
@@ -116,14 +120,15 @@ const ComprehensiveServices = () => {
       title: t("services.kidneyStones"),
       icon: Heart,
       color: "from-teal-500 to-cyan-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Kidney Stones",
-        "Gallbladder Stones",
-        "Urinary Problems",
-        "Kidney Disorders",
-        "Bladder Issues",
-        "Stone Prevention",
+        t("services.conditions.kidneyStones"),
+        t("services.conditions.gallbladderStones"),
+        t("services.conditions.urinaryProblems"),
+        t("services.conditions.kidneyDisorders"),
+        t("services.conditions.bladderIssues"),
+        t("services.conditions.stonePrevention"),
       ],
       description: t("services.kidneyStonesDesc"),
     },
@@ -132,78 +137,83 @@ const ComprehensiveServices = () => {
       title: t("services.skinDiseases"),
       icon: Sparkles,
       color: "from-pink-500 to-rose-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Psoriasis",
-        "Eczema",
-        "Fungal Infections",
-        "Acne",
-        "Vitiligo",
-        "Skin Allergies",
+        t("services.conditions.psoriasis"),
+        t("services.conditions.eczema"),
+        t("services.conditions.fungalInfections"),
+        t("services.conditions.acne"),
+        t("services.conditions.vitiligo"),
+        t("services.conditions.skinAllergies"),
       ],
       description: t("services.skinDiseasesDesc"),
     },
     {
       id: "obesity",
-      title: "Weight Management",
+      title: t("services.weightManagement"),
       icon: Scale,
       color: "from-indigo-500 to-purple-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Obesity",
-        "Weight Loss",
-        "Metabolic Disorders",
-        "Thyroid Issues",
-        "Diabetes Management",
-        "Lifestyle Diseases",
+        t("services.conditions.obesity"),
+        t("services.conditions.weightLoss"),
+        t("services.conditions.metabolicDisorders"),
+        t("services.conditions.thyroidIssues"),
+        t("services.conditions.diabetesManagement"),
+        t("services.conditions.lifestyleDiseases"),
       ],
-      description: "Natural weight management and metabolic health solutions.",
+      description: t("services.weightManagementDesc"),
     },
     {
       id: "metabolic",
       title: t("services.metabolic"),
       icon: Activity,
       color: "from-red-500 to-pink-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Diabetes",
-        "Thyroid Disorders",
-        "Metabolic Syndrome",
-        "Cholesterol Issues",
-        "Blood Pressure",
-        "Hormonal Imbalances",
+        t("services.conditions.diabetes"),
+        t("services.conditions.thyroidDisorders"),
+        t("services.conditions.metabolicSyndrome"),
+        t("services.conditions.cholesterolIssues"),
+        t("services.conditions.bloodPressure"),
+        t("services.conditions.hormonalImbalances"),
       ],
       description: t("services.metabolicDesc"),
     },
     {
       id: "stress",
-      title: "Stress & Mental Health",
+      title: t("services.stressMentalHealth"),
       icon: Heart,
       color: "from-emerald-500 to-teal-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Stress",
-        "Anxiety",
-        "Depression",
-        "Insomnia",
-        "Mental Fatigue",
-        "Emotional Balance",
+        t("services.conditions.stress"),
+        t("services.conditions.anxiety"),
+        t("services.conditions.depression"),
+        t("services.conditions.insomnia"),
+        t("services.conditions.mentalFatigue"),
+        t("services.conditions.emotionalBalance"),
       ],
-      description: "Holistic approach to mental health and stress management.",
+      description: t("services.stressMentalHealthDesc"),
     },
     {
       id: "gynecological",
       title: t("services.gynecological"),
       icon: Baby,
       color: "from-violet-500 to-purple-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Menstrual Problems",
-        "Infertility",
-        "PCOS",
-        "Menopause",
-        "Pregnancy Care",
-        "Women's Health",
+        t("services.conditions.menstrualProblems"),
+        t("services.conditions.infertility"),
+        t("services.conditions.pcos"),
+        t("services.conditions.menopause"),
+        t("services.conditions.pregnancyCare"),
+        t("services.conditions.womensHealth"),
       ],
       description: t("services.gynecologicalDesc"),
     },
@@ -212,14 +222,15 @@ const ComprehensiveServices = () => {
       title: t("services.hairProblems"),
       icon: Scissors,
       color: "from-amber-500 to-orange-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Hair Fall",
-        "Dandruff",
-        "Scalp Disorders",
-        "Premature Greying",
-        "Hair Growth",
-        "Hair Care",
+        t("services.conditions.hairFall"),
+        t("services.conditions.dandruff"),
+        t("services.conditions.scalpDisorders"),
+        t("services.conditions.prematureGreying"),
+        t("services.conditions.hairGrowth"),
+        t("services.conditions.hairCare"),
       ],
       description: t("services.hairProblemsDesc"),
     },
@@ -228,14 +239,15 @@ const ComprehensiveServices = () => {
       title: t("services.panchakarma"),
       icon: Droplets,
       color: "from-blue-500 to-cyan-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Detoxification",
-        "Rejuvenation",
-        "Preventive Care",
-        "Chronic Diseases",
-        "Stress Relief",
-        "Anti-aging",
+        t("services.conditions.detoxification"),
+        t("services.conditions.rejuvenation"),
+        t("services.conditions.preventiveCare"),
+        t("services.conditions.chronicDiseases"),
+        t("services.conditions.stressRelief"),
+        t("services.conditions.antiAging"),
       ],
       description: t("treatments.panchakarma.description"),
     },
@@ -244,33 +256,34 @@ const ComprehensiveServices = () => {
       title: t("services.beautyAntiAging"),
       icon: Star,
       color: "from-rose-500 to-pink-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "Anti-aging",
-        "Skin Rejuvenation",
-        "Beauty Treatments",
-        "Natural Glow",
-        "Youthful Skin",
-        "Beauty Care",
+        t("services.conditions.antiAging"),
+        t("services.conditions.skinRejuvenation"),
+        t("services.conditions.beautyTreatments"),
+        t("services.conditions.naturalGlow"),
+        t("services.conditions.youthfulSkin"),
+        t("services.conditions.beautyCare"),
       ],
       description: t("services.beautyAntiAgingDesc"),
     },
     {
       id: "other",
-      title: "Other Conditions",
+      title: t("services.otherConditions"),
       icon: Plus,
       color: "from-gray-500 to-slate-600",
-      bgColor: "from-primary/5 to-primary/10",
+      bgColor:
+        "from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20",
       conditions: [
-        "General Wellness",
-        "Immunity Boost",
-        "Energy Enhancement",
-        "Sleep Disorders",
-        "Chronic Fatigue",
-        "Custom Treatments",
+        t("services.conditions.generalWellness"),
+        t("services.conditions.immunityBoost"),
+        t("services.conditions.energyEnhancement"),
+        t("services.conditions.sleepDisorders"),
+        t("services.conditions.chronicFatigue"),
+        t("services.conditions.customTreatments"),
       ],
-      description:
-        "Comprehensive care for various health conditions and general wellness.",
+      description: t("services.otherConditionsDesc"),
     },
   ];
 
@@ -282,7 +295,7 @@ const ComprehensiveServices = () => {
             <Heart className="w-4 h-4 mr-2" />
             {t("services.title")}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4">
+          <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
             {t("services.subtitle")}
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -319,7 +332,7 @@ const ComprehensiveServices = () => {
                     <div
                       className={`w-12 h-12 bg-gradient-to-r ${category.color} rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
                     >
-                      <IconComponent className="w-6 h-6 text-white" />
+                      <IconComponent className="w-6 h-6 text-white drop-shadow-sm" />
                     </div>
                     <CardTitle className="text-lg font-playfair font-bold text-card-foreground mb-2">
                       {category.title}
@@ -347,7 +360,8 @@ const ComprehensiveServices = () => {
                       ))}
                     {!isSelected && category.conditions.length > 3 && (
                       <div className="text-xs text-muted-foreground mt-2">
-                        +{category.conditions.length - 3} more conditions
+                        +{category.conditions.length - 3}{" "}
+                        {t("services.moreConditions")}
                       </div>
                     )}
                   </div>
@@ -373,8 +387,8 @@ const ComprehensiveServices = () => {
 
         {/* Call to Action */}
         <div className="text-center">
-          <div className="bg-primary/5 rounded-2xl p-8 border border-primary/20">
-            <h3 className="text-2xl font-bold text-foreground mb-4">
+          <div className="bg-primary/5 dark:bg-primary/10 rounded-2xl p-8 border border-primary/20 dark:border-primary/30">
+            <h3 className="text-2xl font-playfair font-bold text-foreground mb-4">
               {t("treatments.cta.title")}
             </h3>
             <p className="text-muted-foreground mb-6">
@@ -396,7 +410,7 @@ const ComprehensiveServices = () => {
             </div>
             <div className="text-center mt-4">
               <Badge className="bg-primary/10 text-primary border-primary/20">
-                {t("common.noCharges")} - Viddhakarma & Agnikarma
+                {t("common.noCharges")} - {t("services.viddhakarmaAgnikarma")}
               </Badge>
             </div>
           </div>

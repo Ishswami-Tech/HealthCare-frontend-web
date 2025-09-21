@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useTranslations } from "next-intl";
+import React, { useState, Suspense } from "react";
+import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,9 +23,14 @@ import {
 import { ClinicInfo } from "@/components/clinic/clinic-info";
 import { GoogleMaps } from "@/components/maps/google-maps";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
+import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
+import { PageTransition } from "@/components/ui/animated-wrapper";
+import { LazySection } from "@/components/ui/lazy-section";
+import { SectionSkeleton } from "@/lib/dynamic-imports";
+import { getIconColorScheme } from "@/lib/color-palette";
 
 export default function ContactPage() {
-  const t = useTranslations();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -58,7 +63,7 @@ export default function ContactPage() {
         t("contact.contactInfo.phoneNumbers.details.1"),
         t("contact.contactInfo.phoneNumbers.details.2"),
       ],
-      color: "from-green-500 to-emerald-600",
+      colorScheme: getIconColorScheme("Phone"),
     },
     {
       icon: Mail,
@@ -68,7 +73,7 @@ export default function ContactPage() {
         t("contact.contactInfo.emailAddresses.details.1"),
         t("contact.contactInfo.emailAddresses.details.2"),
       ],
-      color: "from-blue-500 to-cyan-600",
+      colorScheme: getIconColorScheme("Mail"),
     },
     {
       icon: MapPin,
@@ -78,7 +83,7 @@ export default function ContactPage() {
         t("contact.contactInfo.location.details.1"),
         t("contact.contactInfo.location.details.2"),
       ],
-      color: "from-orange-500 to-red-600",
+      colorScheme: getIconColorScheme("MapPin"),
     },
     {
       icon: Clock,
@@ -88,7 +93,7 @@ export default function ContactPage() {
         t("contact.contactInfo.workingHours.details.1"),
         t("contact.contactInfo.workingHours.details.2"),
       ],
-      color: "from-purple-500 to-indigo-600",
+      colorScheme: getIconColorScheme("Clock"),
     },
   ];
 
@@ -98,329 +103,418 @@ export default function ContactPage() {
       description: t("contact.quickActions.bookConsultation.description"),
       icon: Calendar,
       action: t("contact.quickActions.bookConsultation.action"),
-      color: "from-orange-500 to-red-600",
+      colorScheme: getIconColorScheme("Calendar"),
     },
     {
       title: t("contact.quickActions.whatsappSupport.title"),
       description: t("contact.quickActions.whatsappSupport.description"),
       icon: MessageCircle,
       action: t("contact.quickActions.whatsappSupport.action"),
-      color: "from-green-500 to-emerald-600",
+      colorScheme: getIconColorScheme("MessageCircle"),
     },
     {
       title: t("contact.quickActions.emergencyCare.title"),
       description: t("contact.quickActions.emergencyCare.description"),
       icon: Phone,
       action: t("contact.quickActions.emergencyCare.action"),
-      color: "from-red-500 to-pink-600",
+      colorScheme: getIconColorScheme("Phone"),
     },
   ];
 
   return (
-    <div className="min-h-screen">
-      {/* Language Switcher */}
-      <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50">
-        <LanguageSwitcher variant="compact" />
-      </div>
-      {/* Hero Section */}
-      <section className="py-12 sm:py-16 md:py-20 bg-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center">
-            <Badge className="bg-primary/10 text-primary border-primary/20 mb-6 glass animate-fade-in-down">
-              <Heart className="w-4 h-4 mr-2" />
-              {t("contact.badge")}
-            </Badge>
+    <PageTransition>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 dark:from-background dark:via-background dark:to-muted/30 relative overflow-hidden">
+        {/* Advanced Animated Background Elements */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          {/* Primary floating orbs */}
+          <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-r from-secondary/10 to-secondary/5 dark:from-secondary/20 dark:to-secondary/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-gradient-to-r from-accent/5 to-accent/3 dark:from-accent/10 dark:to-accent/8 rounded-full blur-3xl animate-pulse delay-500"></div>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-6 gradient-text">
-              {t("contact.title")}
-            </h1>
+          {/* Secondary floating elements */}
+          <div className="absolute top-1/3 right-1/3 w-16 h-16 bg-gradient-to-r from-accent/20 to-accent/10 dark:from-accent/30 dark:to-accent/20 rounded-full animate-bounce-slow"></div>
+          <div className="absolute bottom-1/4 left-1/4 w-12 h-12 bg-gradient-to-r from-primary/15 to-primary/10 dark:from-primary/25 dark:to-primary/15 rounded-full animate-bounce-slow delay-700"></div>
 
-            <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-              {t("contact.subtitle")}
-            </p>
+          {/* Geometric patterns */}
+          <div className="absolute top-20 left-20 w-32 h-32 border border-primary/10 dark:border-primary/20 rounded-full animate-spin-slow"></div>
+          <div className="absolute bottom-20 right-20 w-24 h-24 border border-secondary/10 dark:border-secondary/20 rounded-full animate-spin-slow delay-1000"></div>
 
-            <div className="flex flex-wrap justify-center gap-4">
-              <Badge className="bg-secondary text-secondary-foreground border-border glass interactive">
-                <CheckCircle className="w-4 h-4 mr-2" />
-                24/7 Support Available
-              </Badge>
-              <Badge className="bg-accent text-accent-foreground border-border glass interactive">
-                <Star className="w-4 h-4 mr-2" />
-                4.9/5 Patient Rating
-              </Badge>
-              <Badge className="bg-muted text-muted-foreground border-border glass interactive">
-                <User className="w-4 h-4 mr-2" />
-                Expert Consultation
-              </Badge>
-            </div>
-          </div>
+          {/* Grid pattern overlay */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] dark:bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)]"></div>
         </div>
-      </section>
 
-      {/* Quick Actions */}
-      <section className="py-12 sm:py-16 md:py-20 bg-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-playfair font-bold text-foreground mb-4 gradient-text">
-                Quick Actions
-              </h2>
-              <p className="text-lg text-muted-foreground">
-                Choose the fastest way to connect with us
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-8 mb-16">
-              {quickActions.map((action, index) => {
-                const IconComponent = action.icon;
-
-                return (
-                  <Card
-                    key={index}
-                    className="text-center hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-card to-muted/50 glass card-hover"
-                  >
-                    <CardContent className="p-8">
-                      <div
-                        className={`w-16 h-16 bg-gradient-to-r ${action.color} rounded-full flex items-center justify-center mx-auto mb-6 interactive`}
-                      >
-                        <IconComponent className="w-8 h-8 text-white" />
-                      </div>
-                      <h3 className="text-xl font-bold text-foreground mb-4 gradient-text">
-                        {action.title}
-                      </h3>
-                      <p className="text-muted-foreground mb-6">
-                        {action.description}
-                      </p>
-                      <Button
-                        className={`bg-gradient-to-r ${action.color} hover:opacity-90 text-white w-full interactive`}
-                      >
-                        {action.action}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
+        {/* Language Switcher & Theme Switcher */}
+        <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50 flex gap-2">
+          <LanguageSwitcher variant="compact" />
+          <CompactThemeSwitcher />
         </div>
-      </section>
 
-      {/* Contact Form & Info */}
-      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-muted/50 to-primary/5">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-12">
-              {/* Contact Form */}
-              <div>
-                <Card className="bg-card shadow-xl border-0 glass">
-                  <CardHeader>
-                    <CardTitle className="text-2xl font-playfair font-bold text-foreground gradient-text">
-                      {t("contact.form.title")}
-                    </CardTitle>
-                    <p className="text-muted-foreground">
-                      {t("contact.form.subtitle")}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">
-                            {t("contact.form.fields.fullName")}
-                          </label>
-                          <Input
-                            name="name"
-                            value={formData.name}
-                            onChange={handleInputChange}
-                            placeholder={t(
-                              "contact.form.placeholders.fullName"
-                            )}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">
-                            {t("contact.form.fields.phoneNumber")}
-                          </label>
-                          <Input
-                            name="phone"
-                            value={formData.phone}
-                            onChange={handleInputChange}
-                            placeholder={t(
-                              "contact.form.placeholders.phoneNumber"
-                            )}
-                            required
-                          />
-                        </div>
-                      </div>
+        {/* Hero Section */}
+        <section className="relative py-8 sm:py-12 md:py-16 overflow-hidden">
+          {/* Section-specific background overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 dark:from-primary/10 dark:via-transparent dark:to-secondary/10"></div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {t("contact.form.fields.emailAddress")}
-                        </label>
-                        <Input
-                          name="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          placeholder={t(
-                            "contact.form.placeholders.emailAddress"
-                          )}
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {t("contact.form.fields.healthCondition")}
-                        </label>
-                        <Input
-                          name="condition"
-                          value={formData.condition}
-                          onChange={handleInputChange}
-                          placeholder={t(
-                            "contact.form.placeholders.healthCondition"
-                          )}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {t("contact.form.fields.message")}
-                        </label>
-                        <Textarea
-                          name="message"
-                          value={formData.message}
-                          onChange={handleInputChange}
-                          placeholder={t("contact.form.placeholders.message")}
-                          rows={4}
-                        />
-                      </div>
-
-                      <Button
-                        type="submit"
-                        className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground text-lg py-6 interactive"
-                      >
-                        <Send className="w-5 h-5 mr-2" />
-                        {t("contact.form.submitButton")}
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="max-w-6xl mx-auto text-center">
+              <div className="animate-fade-in-down">
+                <div className="relative inline-block">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-full blur-xl animate-pulse"></div>
+                  <Badge className="relative bg-gradient-to-r from-primary/20 to-primary/15 dark:from-primary/30 dark:to-primary/20 text-primary dark:text-primary-foreground border-primary/40 dark:border-primary/50 glass shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 text-sm font-semibold hover:scale-105 hover:-translate-y-1">
+                    <Heart className="w-5 h-5 mr-2 animate-pulse" />
+                    {t("contact.badge")}
+                  </Badge>
+                </div>
               </div>
 
-              {/* Contact Information */}
-              <div className="space-y-8">
-                {contactInfo.map((info, index) => {
-                  const IconComponent = info.icon;
+              <div className="animate-fade-in-up delay-200">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 rounded-2xl blur-2xl animate-pulse"></div>
+                  <h1 className="relative text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-4 gradient-text leading-tight drop-shadow-lg">
+                    {t("contact.title")}
+                  </h1>
+                </div>
+              </div>
 
-                  return (
-                    <Card
-                      key={index}
-                      className="bg-card shadow-lg border-0 glass card-hover"
-                    >
-                      <CardContent className="p-6">
-                        <div className="flex items-start space-x-4">
-                          <div
-                            className={`w-12 h-12 bg-gradient-to-r ${info.color} rounded-full flex items-center justify-center flex-shrink-0 interactive`}
-                          >
-                            <IconComponent className="w-6 h-6 text-white" />
-                          </div>
-                          <div>
+              <div className="animate-fade-in-up delay-400">
+                <p className="text-base sm:text-lg lg:text-xl text-muted-foreground mb-6 leading-relaxed max-w-3xl mx-auto drop-shadow-sm">
+                  {t("contact.subtitle")}
+                </p>
+              </div>
+
+              <div className="animate-fade-in-up delay-600">
+                <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+                  <Badge className="bg-gradient-to-r from-emerald-100 to-emerald-50 dark:from-emerald-900/50 dark:to-emerald-800/40 text-emerald-800 dark:text-emerald-100 border-emerald-200 dark:border-emerald-700/60 glass interactive hover:scale-105 transition-all duration-300 px-3 py-2 shadow-sm hover:shadow-md dark:shadow-emerald-900/20">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    {t("contact.badges.support24x7")}
+                  </Badge>
+                  <Badge className="bg-gradient-to-r from-blue-100 to-blue-50 dark:from-blue-900/50 dark:to-blue-800/40 text-blue-800 dark:text-blue-100 border-blue-200 dark:border-blue-700/60 glass interactive hover:scale-105 transition-all duration-300 px-3 py-2 shadow-sm hover:shadow-md dark:shadow-blue-900/20">
+                    <Star className="w-4 h-4 mr-2" />
+                    {t("contact.badges.patientRating")}
+                  </Badge>
+                  <Badge className="bg-gradient-to-r from-purple-100 to-purple-50 dark:from-purple-900/50 dark:to-purple-800/40 text-purple-800 dark:text-purple-100 border-purple-200 dark:border-purple-700/60 glass interactive hover:scale-105 transition-all duration-300 px-3 py-2 shadow-sm hover:shadow-md dark:shadow-purple-900/20">
+                    <User className="w-4 h-4 mr-2" />
+                    {t("contact.badges.expertConsultation")}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Quick Actions */}
+        <LazySection fallback={<SectionSkeleton />}>
+          <section className="relative py-8 sm:py-12 md:py-16 bg-gradient-to-br from-muted/30 via-background to-primary/5 dark:from-muted/40 dark:via-background dark:to-primary/10 overflow-hidden">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="max-w-7xl mx-auto">
+                <div className="text-center mb-8 animate-fade-in-up">
+                  <h2 className="text-2xl sm:text-3xl font-playfair font-bold text-foreground mb-3 gradient-text">
+                    {t("contact.quickActions.title")}
+                  </h2>
+                  <p className="text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                    {t("contact.quickActions.subtitle")}
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4 lg:gap-6">
+                  {quickActions.map((action, index) => {
+                    const IconComponent = action.icon;
+
+                    return (
+                      <div
+                        key={index}
+                        className="animate-fade-in-up"
+                        style={{ animationDelay: `${index * 150}ms` }}
+                      >
+                        <Card className="group text-center hover:shadow-xl dark:hover:shadow-2xl transition-all duration-300 border-0 bg-gradient-to-br from-card/90 to-muted/30 dark:from-card/95 dark:to-muted/40 glass backdrop-blur-sm hover:scale-110 hover:-translate-y-3 relative overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                          <CardContent className="p-4 lg:p-6">
+                            <div className="relative mb-4">
+                              <div
+                                className={`w-14 h-14 bg-gradient-to-r ${action.colorScheme.gradient} rounded-xl flex items-center justify-center mx-auto shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110`}
+                              >
+                                <IconComponent className="w-7 h-7 text-white" />
+                              </div>
+                              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            </div>
                             <h3 className="text-lg font-bold text-foreground mb-3 gradient-text">
-                              {info.title}
+                              {action.title}
                             </h3>
+                            <p className="text-muted-foreground mb-4 leading-relaxed">
+                              {action.description}
+                            </p>
+                            <Button
+                              className={`bg-gradient-to-r ${action.colorScheme.gradient} hover:${action.colorScheme.hover} text-white w-full py-2 text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105`}
+                            >
+                              {action.action}
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+        </LazySection>
+
+        {/* Contact Form & Info */}
+        <LazySection fallback={<SectionSkeleton />}>
+          <section className="relative py-8 sm:py-12 md:py-16 bg-gradient-to-br from-background via-muted/20 to-secondary/5 dark:from-background dark:via-muted/30 dark:to-secondary/10 overflow-hidden">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="max-w-7xl mx-auto">
+                <div className="grid lg:grid-cols-2 gap-6 lg:gap-12">
+                  {/* Contact Form */}
+                  <div className="animate-fade-in-left">
+                    <Card className="bg-gradient-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-lg dark:shadow-xl glass backdrop-blur-sm">
+                      <CardHeader className="p-4 pb-3">
+                        <CardTitle className="text-xl font-playfair font-bold text-foreground gradient-text mb-2">
+                          {t("contact.form.title")}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {t("contact.form.subtitle")}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <form onSubmit={handleSubmit} className="space-y-3">
+                          <div className="grid md:grid-cols-2 gap-3">
                             <div className="space-y-1">
-                              {(Array.isArray(info.details)
-                                ? info.details
-                                : [info.details]
-                              ).map((detail: string, detailIndex: number) => (
-                                <p
-                                  key={detailIndex}
-                                  className="text-muted-foreground"
-                                >
-                                  {detail}
-                                </p>
-                              ))}
+                              <label className="block text-xs font-semibold text-foreground">
+                                {t("contact.form.fields.fullName")}
+                              </label>
+                              <Input
+                                name="name"
+                                value={formData.name}
+                                onChange={handleInputChange}
+                                placeholder={t(
+                                  "contact.form.placeholders.fullName"
+                                )}
+                                required
+                                className="h-9 rounded-lg border-border/50 dark:border-border/60 focus:border-primary transition-colors duration-300"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="block text-xs font-semibold text-foreground">
+                                {t("contact.form.fields.phoneNumber")}
+                              </label>
+                              <Input
+                                name="phone"
+                                value={formData.phone}
+                                onChange={handleInputChange}
+                                placeholder={t(
+                                  "contact.form.placeholders.phoneNumber"
+                                )}
+                                required
+                                className="h-9 rounded-lg border-border/50 dark:border-border/60 focus:border-primary transition-colors duration-300"
+                              />
                             </div>
                           </div>
-                        </div>
+
+                          <div className="space-y-2">
+                            <label className="block text-sm font-semibold text-foreground">
+                              {t("contact.form.fields.emailAddress")}
+                            </label>
+                            <Input
+                              name="email"
+                              type="email"
+                              value={formData.email}
+                              onChange={handleInputChange}
+                              placeholder={t(
+                                "contact.form.placeholders.emailAddress"
+                              )}
+                              required
+                              className="h-9 rounded-lg border-border/50 dark:border-border/60 focus:border-primary transition-colors duration-300"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="block text-sm font-semibold text-foreground">
+                              {t("contact.form.fields.healthCondition")}
+                            </label>
+                            <Input
+                              name="condition"
+                              value={formData.condition}
+                              onChange={handleInputChange}
+                              placeholder={t(
+                                "contact.form.placeholders.healthCondition"
+                              )}
+                              className="h-9 rounded-lg border-border/50 dark:border-border/60 focus:border-primary transition-colors duration-300"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="block text-sm font-semibold text-foreground">
+                              {t("contact.form.fields.message")}
+                            </label>
+                            <Textarea
+                              name="message"
+                              value={formData.message}
+                              onChange={handleInputChange}
+                              placeholder={t(
+                                "contact.form.placeholders.message"
+                              )}
+                              rows={4}
+                              className="rounded-lg border-border/50 dark:border-border/60 focus:border-primary transition-colors duration-300 resize-none"
+                            />
+                          </div>
+
+                          <Button
+                            type="submit"
+                            className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] font-semibold"
+                          >
+                            <Send className="w-4 h-4 mr-2" />
+                            {t("contact.form.submitButton")}
+                          </Button>
+                        </form>
                       </CardContent>
                     </Card>
-                  );
-                })}
+                  </div>
 
-                {/* Emergency Notice */}
-                <Card className="bg-gradient-to-r from-destructive/5 to-destructive/10 border-destructive/20 glass card-hover">
-                  <CardContent className="p-6">
-                    <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-destructive to-destructive/80 rounded-full flex items-center justify-center flex-shrink-0 interactive">
-                        <Phone className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-destructive mb-2 gradient-text">
-                          Emergency Consultation
-                        </h3>
-                        <p className="text-destructive/80 mb-4">
-                          For urgent health concerns, our expert doctors are
-                          available 24/7 for immediate consultation and
-                          guidance.
-                        </p>
-                        <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground interactive">
-                          <Phone className="w-4 h-4 mr-2" />
-                          Call Emergency Line
-                        </Button>
-                      </div>
+                  {/* Contact Information */}
+                  <div className="space-y-4 animate-fade-in-right">
+                    {contactInfo.map((info, index) => {
+                      const IconComponent = info.icon;
+
+                      return (
+                        <div
+                          key={index}
+                          className="animate-fade-in-up"
+                          style={{ animationDelay: `${index * 150}ms` }}
+                        >
+                          <Card className="group bg-gradient-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                            <CardContent className="p-4">
+                              <div className="flex items-start space-x-4">
+                                <div className="relative">
+                                  <div
+                                    className={`w-10 h-10 bg-gradient-to-r ${info.colorScheme.gradient} rounded-xl flex items-center justify-center flex-shrink-0 shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110`}
+                                  >
+                                    <IconComponent className="w-5 h-5 text-white" />
+                                  </div>
+                                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="text-base font-bold text-foreground mb-2 gradient-text">
+                                    {info.title}
+                                  </h3>
+                                  <div className="space-y-1">
+                                    {(Array.isArray(info.details)
+                                      ? info.details
+                                      : [info.details]
+                                    ).map(
+                                      (detail: string, detailIndex: number) => (
+                                        <p
+                                          key={detailIndex}
+                                          className="text-muted-foreground leading-relaxed"
+                                        >
+                                          {detail}
+                                        </p>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      );
+                    })}
+
+                    {/* Emergency Notice */}
+                    <div
+                      className="animate-fade-in-up"
+                      style={{
+                        animationDelay: `${contactInfo.length * 150}ms`,
+                      }}
+                    >
+                      <Card className="group bg-gradient-to-br from-destructive/10 to-destructive/5 dark:from-destructive/20 dark:to-destructive/10 border-destructive/30 dark:border-destructive/40 shadow-md glass backdrop-blur-sm hover:shadow-lg dark:hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                        <CardContent className="p-4">
+                          <div className="flex items-start space-x-4">
+                            <div className="relative">
+                              <div className="w-10 h-10 bg-gradient-to-r from-destructive to-destructive/80 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110">
+                                <Phone className="w-5 h-5 text-white" />
+                              </div>
+                              <div className="absolute inset-0 bg-gradient-to-r from-destructive/30 to-destructive/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-base font-bold text-destructive mb-2 gradient-text">
+                                {t("contact.emergency.title")}
+                              </h3>
+                              <p className="text-destructive/80 mb-3 leading-relaxed">
+                                {t("contact.emergency.description")}
+                              </p>
+                              <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 px-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 font-semibold text-xs">
+                                <Phone className="w-4 h-4 mr-2" />
+                                {t("contact.emergency.action")}
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        </LazySection>
 
-      {/* Google Maps Section */}
-      <section className="py-12 sm:py-16 md:py-20 bg-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4 gradient-text">
-              Visit Our Clinic
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              Located in the heart of Chinchwad, our clinic is easily accessible
-              and provides a peaceful environment for healing.
-            </p>
-          </div>
+        {/* Google Maps Section */}
+        <LazySection fallback={<SectionSkeleton />}>
+          <section className="relative py-8 sm:py-12 md:py-16 bg-gradient-to-br from-muted/20 via-background to-primary/5 dark:from-muted/30 dark:via-background dark:to-primary/10 overflow-hidden">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-8 animate-fade-in-up">
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3 gradient-text">
+                  {t("contact.visitClinic.title")}
+                </h2>
+                <p className="text-base text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                  {t("contact.visitClinic.description")}
+                </p>
+              </div>
 
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
-            {/* Map */}
-            <div>
-              <GoogleMaps
-                address="Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India"
-                latitude={18.6298}
-                longitude={73.7997}
-                zoom={15}
-                height="400px"
-                showInfoWindow={true}
-                clinicName="Shri Vishwamurthi Ayurvedalay"
-                clinicPhone="9860370961, 7709399925"
-                clinicHours="Mon-Fri: 11:45 AM – 11:30 PM"
-              />
+              <div className="max-w-7xl mx-auto">
+                <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 items-start">
+                  {/* Map */}
+                  <div className="animate-fade-in-left">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20 rounded-2xl blur-xl"></div>
+                      <div className="relative bg-gradient-to-br from-card/80 to-muted/20 dark:from-card/90 dark:to-muted/30 border-primary/20 dark:border-primary/30 shadow-lg dark:shadow-xl glass backdrop-blur-sm rounded-2xl p-2">
+                        <Suspense fallback={<SectionSkeleton />}>
+                          <GoogleMaps
+                            address="Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India"
+                            latitude={18.6298}
+                            longitude={73.7997}
+                            zoom={15}
+                            height="350px"
+                            showInfoWindow={true}
+                            clinicName="Shri Vishwamurthi Ayurvedalay"
+                            clinicPhone="9860370961, 7709399925"
+                            clinicHours="Mon-Fri: 11:45 AM – 11:30 PM"
+                          />
+                        </Suspense>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="animate-fade-in-right">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20 rounded-2xl blur-xl"></div>
+                      <div className="relative">
+                        <ClinicInfo
+                          variant="card"
+                          showDoctor={false}
+                          showTimings={true}
+                          showContact={true}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            {/* Contact Info */}
-            <div>
-              <ClinicInfo
-                variant="card"
-                showDoctor={false}
-                showTimings={true}
-                showContact={true}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
+          </section>
+        </LazySection>
+      </div>
+    </PageTransition>
   );
 }

@@ -59,6 +59,9 @@ export interface TranslationKeys {
     phoneNumber: string;
     email: string;
     address: string;
+    patients: string;
+    treated: string;
+    scientificallyValidated: string;
     name: string;
     message: string;
     contactUs: string;
@@ -75,6 +78,17 @@ export interface TranslationKeys {
     lightTheme: string;
     darkTheme: string;
     systemTheme: string;
+    chooseThis: string;
+    governmentCertified: string;
+    login: string;
+    register: string;
+    successRate: string;
+    duration: string;
+    sessions: string;
+    program: string;
+    treatments: string;
+    months: string;
+    days: string;
   };
   navigation: {
     logo: string;
@@ -141,6 +155,21 @@ export interface TranslationKeys {
       rating: string;
       patientsTreated: string;
     };
+    transformHealth: string;
+    ancientWisdom: string;
+    peopleViewingText: string;
+    bookingsIncreasedText: string;
+    watchJourneysText: string;
+    virtualTourText: string;
+    healthAssessmentText: string;
+    govCertified: string;
+    iso9001Short: string;
+    ratingShort: string;
+    natural: string;
+    noSideEffects: string;
+    provenResults: string;
+    ayurvedicWisdomText: string;
+    discoverAncient: string;
   };
   heroSection: {
     completeHealing: string;
@@ -175,6 +204,9 @@ export interface TranslationKeys {
     bookingIncrease: string;
     featuredChannels: string;
     peopleViewing: string;
+    provenResultsExcellence: string;
+    transformingLives: string;
+    twoDecadesExcellence: string;
     certifications: {
       governmentCertified: {
         title: string;
@@ -189,6 +221,14 @@ export interface TranslationKeys {
         description: string;
       };
       teachingHospital: {
+        title: string;
+        description: string;
+      };
+      excellenceAward: {
+        title: string;
+        description: string;
+      };
+      safetyCertified: {
         title: string;
         description: string;
       };
@@ -236,6 +276,111 @@ export interface TranslationKeys {
       subtitle: string;
       description: string;
       button: string;
+    };
+  };
+  team: {
+    badge: string;
+    title: string;
+    description: string;
+    teamStats: {
+      experience: {
+        value: string;
+        label: string;
+      };
+      patients: {
+        value: string;
+        label: string;
+      };
+      publications: {
+        value: string;
+        label: string;
+      };
+      conferences: {
+        value: string;
+        label: string;
+      };
+    };
+    teamMembers: {
+      drDeshmukh: {
+        name: string;
+        title: string;
+        specialization: string;
+        experience: string;
+        credentials: string;
+        achievements: string;
+      };
+      vaidyaKrishnamurthy: {
+        name: string;
+        title: string;
+        specialization: string;
+        experience: string;
+        credentials: string;
+        achievements: string;
+      };
+      drPriyaSharma: {
+        name: string;
+        title: string;
+        specialization: string;
+        experience: string;
+        credentials: string;
+        achievements: string;
+      };
+    };
+    advisoryBoard: {
+      title: string;
+      subtitle: string;
+      drAshokKumar: {
+        name: string;
+        title: string;
+        role: string;
+        expertise: string;
+      };
+      drMeeraJoshi: {
+        name: string;
+        title: string;
+        role: string;
+        expertise: string;
+      };
+      drJamesWilson: {
+        name: string;
+        title: string;
+        role: string;
+        expertise: string;
+      };
+      drRaviGupta: {
+        name: string;
+        title: string;
+        role: string;
+        expertise: string;
+      };
+    };
+    videos: {
+      title: string;
+      subtitle: string;
+      panchakarma: {
+        title: string;
+        description: string;
+      };
+      viddhakarma: {
+        title: string;
+        description: string;
+      };
+      agnikarma: {
+        title: string;
+        description: string;
+      };
+    };
+    cta: {
+      title: string;
+      subtitle: string;
+      description: string;
+      bookConsultation: string;
+      scheduleMeeting: string;
+      features: {
+        experience: string;
+        research: string;
+        recognition: string;
+      };
     };
   };
   homepage: {
@@ -518,6 +663,122 @@ export interface TranslationKeys {
     hairProblemsDesc: string;
     beautyAntiAgingDesc: string;
     wellnessRetreatsDesc: string;
+    // Additional service titles
+    spinalCare: string;
+    weightManagement: string;
+    stressMentalHealth: string;
+    otherConditions: string;
+    // Additional service descriptions
+    spinalCareDesc: string;
+    weightManagementDesc: string;
+    stressMentalHealthDesc: string;
+    otherConditionsDesc: string;
+    moreConditions: string;
+    // Service conditions
+    conditions: {
+      autism: string;
+      cerebralPalsy: string;
+      mentalHealthDisorders: string;
+      neurologicalRehabilitation: string;
+      paralysis: string;
+      strokeRecovery: string;
+      arthritis: string;
+      jointPain: string;
+      spinalDisorders: string;
+      gout: string;
+      sportsInjuries: string;
+      muscularDisorders: string;
+      sciatica: string;
+      backPain: string;
+      discProblems: string;
+      spinalStenosis: string;
+      scoliosis: string;
+      neckPain: string;
+      // Respiratory conditions
+      asthma: string;
+      bronchitis: string;
+      sinusitis: string;
+      allergicRhinitis: string;
+      cough: string;
+      breathingDifficulties: string;
+      // Digestive conditions
+      acidity: string;
+      piles: string;
+      constipation: string;
+      ibs: string;
+      ulcers: string;
+      digestiveDisorders: string;
+      // Kidney/Gallbladder conditions
+      kidneyStones: string;
+      gallbladderStones: string;
+      urinaryProblems: string;
+      kidneyDisorders: string;
+      bladderIssues: string;
+      stonePrevention: string;
+      // Skin conditions
+      psoriasis: string;
+      eczema: string;
+      fungalInfections: string;
+      acne: string;
+      vitiligo: string;
+      skinAllergies: string;
+      // Weight management conditions
+      obesity: string;
+      weightLoss: string;
+      metabolicDisorders: string;
+      thyroidIssues: string;
+      diabetesManagement: string;
+      lifestyleDiseases: string;
+      // Metabolic conditions
+      diabetes: string;
+      thyroidDisorders: string;
+      metabolicSyndrome: string;
+      cholesterolIssues: string;
+      bloodPressure: string;
+      hormonalImbalances: string;
+      // Stress/Mental health conditions
+      stress: string;
+      anxiety: string;
+      depression: string;
+      insomnia: string;
+      mentalFatigue: string;
+      emotionalBalance: string;
+      // Gynecological conditions
+      menstrualProblems: string;
+      infertility: string;
+      pcos: string;
+      menopause: string;
+      pregnancyCare: string;
+      womensHealth: string;
+      // Hair conditions
+      hairFall: string;
+      dandruff: string;
+      scalpDisorders: string;
+      prematureGreying: string;
+      hairGrowth: string;
+      hairCare: string;
+      // Panchakarma conditions
+      detoxification: string;
+      rejuvenation: string;
+      preventiveCare: string;
+      chronicDiseases: string;
+      stressRelief: string;
+      antiAging: string;
+      // Beauty conditions
+      skinRejuvenation: string;
+      beautyTreatments: string;
+      naturalGlow: string;
+      youthfulSkin: string;
+      beautyCare: string;
+      // Other conditions
+      generalWellness: string;
+      immunityBoost: string;
+      energyEnhancement: string;
+      sleepDisorders: string;
+      chronicFatigue: string;
+      customTreatments: string;
+    };
+    viddhakarmaAgnikarma: string;
   };
 
   // Landing Page Content
@@ -706,6 +967,58 @@ export interface TranslationKeys {
       learnMore: string;
       bookConsultation: string;
       keyBenefits: string;
+      treatmentsIncluded: string;
+      transformationPromise: string;
+      popularity: string;
+      choosePackage: string;
+      signatureTherapies: string;
+      coreTreatments: string;
+      coreTreatmentsDescription: string;
+      mainTreatments: string;
+      mainTreatmentsTitle: string;
+      mainTreatmentsDescription: string;
+      specializedCare: string;
+      specializedPrograms: string;
+      specializedProgramsTitle: string;
+      specializedProgramsDescription: string;
+      combinationPackages: string;
+      combinationPackagesTitle: string;
+      combinationPackagesDescription: string;
+      fertilityHealth: string;
+      fertilityDescription: string;
+      corporateWellness: string;
+      corporateDescription: string;
+      ayurvedaEducation: string;
+      educationDescription: string;
+      communitySeva: string;
+      sevaDescription: string;
+      maleFertility: string;
+      femaleFertility: string;
+      pcodTreatment: string;
+      ivfSupport: string;
+      executiveHealth: string;
+      workplaceStress: string;
+      employeeWellness: string;
+      ergonomicConsultations: string;
+      certificateCourses: string;
+      diplomaPrograms: string;
+      advancedSpecialization: string;
+      internationalCertification: string;
+      freeTreatmentDays: string;
+      ruralHealthMissions: string;
+      seniorCitizenCare: string;
+      educationalWorkshops: string;
+      ultimatePainRelief: string;
+      completeWellness: string;
+      familyHealingPlan: string;
+      painFreeLiving: string;
+      totalHealthTransformation: string;
+      familyWellnessEcosystem: string;
+      lifetimeWellnessPartnership: string;
+      agnikarmaViddhaKarma: string;
+      allTherapiesLifestyle: string;
+      familyTreatmentMultiple: string;
+      vipTreatmentAnnual: string;
     };
     cta: {
       title: string;
@@ -713,8 +1026,18 @@ export interface TranslationKeys {
       assessmentButton: string;
       expertButton: string;
     };
+    conditions: {
+      title: string;
+      chronicPain: string;
+      diabetes: string;
+      arthritis: string;
+      stress: string;
+      digestive: string;
+      skin: string;
+    };
   };
   contact: {
+    badge: string;
     title: string;
     subtitle: string;
     getInTouch: string;
@@ -722,6 +1045,76 @@ export interface TranslationKeys {
     callUs: string;
     messageUs: string;
     followUs: string;
+    quickActions: {
+      title: string;
+      subtitle: string;
+      bookConsultation: {
+        title: string;
+        description: string;
+        action: string;
+      };
+      whatsappSupport: {
+        title: string;
+        description: string;
+        action: string;
+      };
+      emergencyCare: {
+        title: string;
+        description: string;
+        action: string;
+      };
+    };
+    badges: {
+      support24x7: string;
+      patientRating: string;
+      expertConsultation: string;
+    };
+    form: {
+      title: string;
+      subtitle: string;
+      fields: {
+        fullName: string;
+        phoneNumber: string;
+        emailAddress: string;
+        healthCondition: string;
+        message: string;
+      };
+      placeholders: {
+        fullName: string;
+        phoneNumber: string;
+        emailAddress: string;
+        healthCondition: string;
+        message: string;
+      };
+      submitButton: string;
+    };
+    contactInfo: {
+      phoneNumbers: {
+        title: string;
+        details: string[];
+      };
+      emailAddresses: {
+        title: string;
+        details: string[];
+      };
+      location: {
+        title: string;
+        details: string[];
+      };
+      workingHours: {
+        title: string;
+        details: string[];
+      };
+    };
+    emergency: {
+      title: string;
+      description: string;
+      action: string;
+    };
+    visitClinic: {
+      title: string;
+      description: string;
+    };
     formTitle: string;
     formSubtitle: string;
     nameLabel: string;
@@ -1292,6 +1685,610 @@ export interface TranslationKeys {
         publications: string;
         support: string;
       };
+    };
+  };
+  agnikarma: {
+    badge: string;
+    title: string;
+    subtitle: string;
+    comparison: {
+      successRate: string;
+      condition: string;
+      avgSessions: string;
+      recoveryTime: string;
+      patientStory: string;
+      title: string;
+      treatmentMethod: string;
+      duration: string;
+      sideEffects: string;
+      cost: string;
+      agnikarma: string;
+      sessions: string;
+      surgery: string;
+      months: string;
+      highRisk: string;
+      veryHigh: string;
+      medications: string;
+      ongoing: string;
+      multiple: string;
+      highOngoing: string;
+      physiotherapy: string;
+      minimal: string;
+      moderate: string;
+    };
+    scientificFoundation: {
+      title: string;
+      subtitle: string;
+      ancientText: {
+        title: string;
+        description: string;
+      };
+      modernValidation: {
+        title: string;
+        description: string;
+      };
+      precisionTechnology: {
+        title: string;
+        description: string;
+      };
+      zeroSideEffects: {
+        title: string;
+        description: string;
+      };
+    };
+    processSteps: {
+      title: string;
+      subtitle: string;
+      steps: {
+        1: {
+          title: string;
+          description: string;
+        };
+        2: {
+          title: string;
+          description: string;
+        };
+        3: {
+          title: string;
+          description: string;
+        };
+        4: {
+          title: string;
+          description: string;
+        };
+        5: {
+          title: string;
+          description: string;
+        };
+      };
+    };
+    conditions: {
+      title: string;
+      subtitle: string;
+      chronicKneePain: {
+        condition: string;
+        successRate: string;
+        avgSessions: string;
+        recoveryTime: string;
+        patientStory: string;
+      };
+      sciatica: {
+        condition: string;
+        successRate: string;
+        avgSessions: string;
+        recoveryTime: string;
+        patientStory: string;
+      };
+      frozenShoulder: {
+        condition: string;
+        successRate: string;
+        avgSessions: string;
+        recoveryTime: string;
+        patientStory: string;
+      };
+      tennisElbow: {
+        condition: string;
+        successRate: string;
+        avgSessions: string;
+        recoveryTime: string;
+        patientStory: string;
+      };
+      plantarFasciitis: {
+        condition: string;
+        successRate: string;
+        avgSessions: string;
+        recoveryTime: string;
+        patientStory: string;
+      };
+      cervicalSpondylosis: {
+        condition: string;
+        successRate: string;
+        avgSessions: string;
+        recoveryTime: string;
+        patientStory: string;
+      };
+      arthritis: {
+        condition: string;
+        successRate: string;
+        avgSessions: string;
+        recoveryTime: string;
+        patientStory: string;
+      };
+    };
+    advantages: {
+      title: string;
+      subtitle: string;
+      instantResults: {
+        title: string;
+        description: string;
+      };
+      precisionTargeting: {
+        title: string;
+        description: string;
+      };
+      zeroSideEffects: {
+        title: string;
+        description: string;
+      };
+      costEffective: {
+        title: string;
+        description: string;
+      };
+    };
+    cta: {
+      title: string;
+      subtitle: string;
+      bookSession: string;
+      freeAssessment: string;
+      features: {
+        instantRelief: string;
+        zeroSideEffects: string;
+        successRate: string;
+      };
+    };
+  };
+  panchakarma: {
+    badge: string;
+    title: string;
+    subtitle: string;
+    whatIs: {
+      title: string;
+      ancientScience: {
+        title: string;
+        description: string;
+      };
+      fiveProcedures: {
+        title: string;
+        description: string;
+      };
+      holisticApproach: {
+        title: string;
+        description: string;
+      };
+      modernApplication: {
+        title: string;
+        description: string;
+      };
+      completeTransformation: string;
+      completeTransformationDesc: string;
+      daysProgram: string;
+    };
+    processGallery: {
+      title: string;
+      subtitle: string;
+      abhyanga: {
+        title: string;
+        description: string;
+      };
+      swedana: {
+        title: string;
+        description: string;
+      };
+      vamana: {
+        title: string;
+        description: string;
+      };
+      virechana: {
+        title: string;
+        description: string;
+      };
+      basti: {
+        title: string;
+        description: string;
+      };
+      nasya: {
+        title: string;
+        description: string;
+      };
+    };
+    testimonials: {
+      title: string;
+      subtitle: string;
+      patient1: {
+        name: string;
+        condition: string;
+        testimonial: string;
+      };
+      patient2: {
+        name: string;
+        condition: string;
+        testimonial: string;
+      };
+      patient3: {
+        name: string;
+        condition: string;
+        testimonial: string;
+      };
+    };
+    faq: {
+      title: string;
+      subtitle: string;
+      question1: {
+        question: string;
+        answer: string;
+      };
+      question2: {
+        question: string;
+        answer: string;
+      };
+      question3: {
+        question: string;
+        answer: string;
+      };
+      question4: {
+        question: string;
+        answer: string;
+      };
+      question5: {
+        question: string;
+        answer: string;
+      };
+    };
+    phases: {
+      title: string;
+      subtitle: string;
+      keyActivities: string;
+      purvaKarma: {
+        name: string;
+        subtitle: string;
+        duration: string;
+        activities: string[];
+      };
+      pradhanaKarma: {
+        name: string;
+        subtitle: string;
+        duration: string;
+        activities: string[];
+      };
+      paschatKarma: {
+        name: string;
+        subtitle: string;
+        duration: string;
+        activities: string[];
+      };
+    };
+    benefits: {
+      title: string;
+      subtitle: string;
+      detoxification: {
+        title: string;
+        description: string;
+      };
+      rejuvenation: {
+        title: string;
+        description: string;
+      };
+      immunity: {
+        title: string;
+        description: string;
+      };
+      mentalClarity: {
+        title: string;
+        description: string;
+      };
+    };
+    conditions: {
+      title: string;
+      subtitle: string;
+      chronicDiseases: {
+        category: string;
+        successRate: string;
+        duration: string;
+        description: string;
+        items: string[];
+      };
+      digestiveDisorders: {
+        category: string;
+        successRate: string;
+        duration: string;
+        description: string;
+        items: string[];
+      };
+      skinConditions: {
+        category: string;
+        successRate: string;
+        duration: string;
+        description: string;
+        items: string[];
+      };
+      mentalHealth: {
+        category: string;
+        successRate: string;
+        duration: string;
+        description: string;
+        items: string[];
+      };
+      respiratoryIssues: {
+        category: string;
+        successRate: string;
+        duration: string;
+        description: string;
+        items: string[];
+      };
+      hormonalImbalances: {
+        category: string;
+        successRate: string;
+        duration: string;
+        description: string;
+        items: string[];
+      };
+    };
+    cta: {
+      title: string;
+      subtitle: string;
+      bookProgram: string;
+      freeConsultation: string;
+      features: {
+        successRate: string;
+        patientsTreated: string;
+        governmentCertified: string;
+      };
+    };
+  };
+  viddhakarma: {
+    badge: string;
+    title: string;
+    subtitle: string;
+    processSteps: {
+      title: string;
+      subtitle: string;
+      steps: {
+        1: {
+          title: string;
+          description: string;
+        };
+        2: {
+          title: string;
+          description: string;
+        };
+        3: {
+          title: string;
+          description: string;
+        };
+        4: {
+          title: string;
+          description: string;
+        };
+        5: {
+          title: string;
+          description: string;
+        };
+      };
+    };
+    specializedApplications: {
+      title: string;
+      subtitle: string;
+      specificTreatments: string;
+      uniqueBenefits: string;
+      successRate: string;
+      autism: {
+        title: string;
+        description: string;
+        treatments: string;
+      };
+      cerebralPalsy: {
+        title: string;
+        description: string;
+        treatments: string;
+      };
+      stroke: {
+        title: string;
+        description: string;
+        treatments: string;
+      };
+      parkinsons: {
+        title: string;
+        description: string;
+        treatments: string;
+      };
+      stressMentalHealth: {
+        title: string;
+        description: string;
+        treatments: string;
+      };
+      womensHealth: {
+        title: string;
+        description: string;
+        treatments: string;
+      };
+    };
+    patientSuccessStories: {
+      title: string;
+      subtitle: string;
+      description: string;
+    };
+    advancedTechniques: {
+      title: string;
+      subtitle: string;
+      marmaTherapy: {
+        title: string;
+        description: string;
+      };
+      pranayama: {
+        title: string;
+        description: string;
+      };
+      meditation: {
+        title: string;
+        description: string;
+      };
+      herbalSupport: {
+        title: string;
+        description: string;
+      };
+    };
+    conditions: {
+      title: string;
+      subtitle: string;
+      autism: {
+        condition: string;
+        successRate: string;
+        duration: string;
+        description: string;
+      };
+      cerebralPalsy: {
+        condition: string;
+        successRate: string;
+        duration: string;
+        description: string;
+      };
+      stroke: {
+        condition: string;
+        successRate: string;
+        duration: string;
+        description: string;
+      };
+      developmental: {
+        condition: string;
+        successRate: string;
+        duration: string;
+        description: string;
+      };
+    };
+    treatmentPackages: {
+      title: string;
+      subtitle: string;
+      successRate: string;
+      essential: {
+        title: string;
+        sessions: string;
+        description: string;
+        successRate: string;
+      };
+      comprehensive: {
+        title: string;
+        sessions: string;
+        description: string;
+        successRate: string;
+        badge: string;
+      };
+      advanced: {
+        title: string;
+        sessions: string;
+        description: string;
+        successRate: string;
+      };
+      holistic: {
+        title: string;
+        sessions: string;
+        description: string;
+        successRate: string;
+        badge: string;
+      };
+      choosePackage: string;
+    };
+    cta: {
+      title: string;
+      subtitle: string;
+      bookConsultation: string;
+      freeAssessment: string;
+    };
+  };
+  about: {
+    hero: {
+      badge: string;
+      title: string;
+      subtitle: string;
+      certifications: {
+        governmentCertified: string;
+        iso9001: string;
+        teachingHospital: string;
+      };
+    };
+    story: {
+      title: string;
+      paragraphs: {
+        p1: string;
+        p2: string;
+        p3: string;
+        p4: string;
+      };
+    };
+    mission: {
+      title: string;
+      description: string;
+    };
+    achievements: {
+      livesTransformed: string;
+      yearsOfExcellence: string;
+      successRate: string;
+      patientRating: string;
+    };
+    coreValues: {
+      title: string;
+      subtitle: string;
+      compassionateCare: {
+        title: string;
+        description: string;
+      };
+      authenticAyurveda: {
+        title: string;
+        description: string;
+      };
+      scientificApproach: {
+        title: string;
+        description: string;
+      };
+      holisticHealing: {
+        title: string;
+        description: string;
+      };
+    };
+    milestones: {
+      title: string;
+      subtitle: string;
+      "2003": {
+        event: string;
+        description: string;
+      };
+      "2008": {
+        event: string;
+        description: string;
+      };
+      "2012": {
+        event: string;
+        description: string;
+      };
+      "2015": {
+        event: string;
+        description: string;
+      };
+      "2018": {
+        event: string;
+        description: string;
+      };
+      "2020": {
+        event: string;
+        description: string;
+      };
+      "2023": {
+        event: string;
+        description: string;
+      };
+    };
+    legacy: {
+      title: string;
+      description: string;
     };
   };
 }

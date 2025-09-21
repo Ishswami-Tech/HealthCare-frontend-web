@@ -31,28 +31,28 @@ const StatsSection = () => {
       number: "5000+",
       label: t("stats.livesTransformed"),
       description: t("stats.patientsSuccessfullyTreated"),
-      color: "from-primary to-primary/80",
+      color: "from-blue-600 to-indigo-700",
     },
     {
       icon: Clock,
       number: "20+",
       label: t("stats.yearsLegacy"),
       description: t("stats.authenticAyurvedicPractice"),
-      color: "from-primary to-primary/80",
+      color: "from-emerald-500 to-green-700",
     },
     {
       icon: Star,
       number: "4.9★",
       label: t("stats.patientRating"),
       description: t("stats.basedOnReviews"),
-      color: "from-primary to-primary/80",
+      color: "from-amber-400 to-yellow-600",
     },
     {
       icon: Award,
       number: "95%",
       label: t("stats.successRate"),
       description: t("stats.chronicConditions"),
-      color: "from-primary to-primary/80",
+      color: "from-purple-600 to-violet-800",
     },
   ];
 
@@ -85,14 +85,13 @@ const StatsSection = () => {
         <div className="text-center mb-16">
           <Badge className="bg-primary/10 text-primary border-primary/20 mb-4 glass animate-fade-in-down">
             <TrendingUp className="w-4 h-4 mr-2" />
-            Proven Results & Excellence
+            {t("stats.provenResultsExcellence")}
           </Badge>
           <h2 className="text-3xl md:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
-            Transforming Lives Through Authentic Ayurveda
+            {t("stats.transformingLives")}
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Two decades of healing excellence with measurable results and
-            international recognition
+            {t("stats.twoDecadesExcellence")}
           </p>
         </div>
         {/* Main Stats */}
@@ -168,7 +167,17 @@ const StatsSection = () => {
               <StaggerItem key={index}>
                 <HoverAnimation type="lift">
                   <div className="text-center p-6 rounded-lg bg-card border border-border hover:border-primary/20 hover:shadow-md transition-all duration-300 glass card-hover">
-                    <div className="w-12 h-12 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center mx-auto mb-4 interactive">
+                    <div
+                      className={`w-12 h-12 bg-gradient-to-r ${
+                        index === 0
+                          ? "from-cyan-500 to-teal-700"
+                          : index === 1
+                          ? "from-rose-500 to-pink-700"
+                          : index === 2
+                          ? "from-orange-500 to-red-700"
+                          : "from-slate-600 to-gray-800"
+                      } rounded-full flex items-center justify-center mx-auto mb-4 interactive`}
+                    >
                       <IconComponent className="w-6 h-6 text-white" />
                     </div>
                     <h4 className="font-semibold text-foreground mb-2">

@@ -11,9 +11,9 @@ export default function robots(): MetadataRoute.Robots {
         allow: [
           '/',
           '/treatments',
-          '/panchakarma',
-          '/agnikarma',
-          '/viddha-karma',
+          '/treatments/panchakarma',
+          '/treatments/agnikarma',
+          '/treatments/viddha-karma',
           '/team',
           '/about',
           '/contact',

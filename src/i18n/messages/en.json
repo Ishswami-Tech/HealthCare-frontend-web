@@ -453,6 +453,14 @@
       "teachingHospital": {
         "title": "Teaching Hospital",
         "description": "Academic Excellence Status"
+      },
+      "safetyCertified": {
+        "title": "Safety Certified",
+        "description": "Patient Safety & Quality Standards"
+      },
+      "excellenceAward": {
+        "title": "Excellence Award",
+        "description": "Healthcare Excellence Recognition"
       }
     }
   },
@@ -763,7 +771,42 @@
       "duration": "Duration",
       "learnMore": "Learn More",
       "bookConsultation": "Book Consultation",
-      "keyBenefits": "Key Benefits:"
+      "keyBenefits": "Key Benefits:",
+      "ultimatePainRelief": "Ultimate Pain Relief",
+      "treatmentsIncluded": "Treatments Included:",
+      "transformationPromise": "Transformation Promise:",
+      "painFreeLiving": "Pain-Free Living",
+      "popularity": "Popularity:",
+      "choosePackage": "Choose Package",
+      "completeWellness": "Complete Wellness",
+      "totalHealthTransformation": "Total Health Transformation",
+      "familyHealingPlan": "Family Healing Plan",
+      "familyWellnessEcosystem": "Family Wellness Ecosystem",
+      "executiveHealth": "Executive Health",
+      "lifetimeWellnessPartnership": "Lifetime Wellness Partnership",
+      "fertilityHealth": "Fertility Health",
+      "fertilityDescription": "Comprehensive reproductive health treatment",
+      "maleFertility": "Male Fertility Enhancement",
+      "femaleFertility": "Female Fertility Treatment",
+      "pcodTreatment": "PCOD/PCOS Treatment",
+      "ivfSupport": "IVF Support Therapy",
+      "corporateWellness": "Corporate Wellness",
+      "corporateDescription": "Workplace health and wellness programs",
+      "workplaceStress": "Workplace Stress Management",
+      "employeeWellness": "Employee Wellness Programs",
+      "ergonomicConsultations": "Ergonomic Consultations",
+      "ayurvedaEducation": "Ayurveda Education",
+      "educationDescription": "Professional Ayurveda training and certification",
+      "certificateCourses": "Certificate Courses",
+      "diplomaPrograms": "Diploma Programs",
+      "advancedSpecialization": "Advanced Specialization",
+      "internationalCertification": "International Certification",
+      "communitySeva": "Community Seva",
+      "sevaDescription": "Free community health services and outreach",
+      "freeTreatmentDays": "Free Treatment Days",
+      "ruralHealthMissions": "Rural Health Missions",
+      "seniorCitizenCare": "Senior Citizen Care",
+      "educationalWorkshops": "Educational Workshops"
     },
     "cta": {
       "title": "Not Sure Which Treatment is Right for You?",

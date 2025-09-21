@@ -44,7 +44,7 @@ const TreatmentOverview = () => {
       ],
       successRate: t("treatments.panchakarma.successRate"),
       duration: t("treatments.panchakarma.duration"),
-      href: "/panchakarma",
+      href: "/treatments/panchakarma",
     },
     {
       id: "agnikarma",
@@ -69,7 +69,7 @@ const TreatmentOverview = () => {
       ],
       successRate: t("treatments.agnikarma.successRate"),
       duration: t("treatments.agnikarma.duration"),
-      href: "/agnikarma",
+      href: "/treatments/agnikarma",
     },
     {
       id: "viddha-karma",
@@ -94,7 +94,7 @@ const TreatmentOverview = () => {
       ],
       successRate: t("treatments.viddhakarma.successRate"),
       duration: t("treatments.viddhakarma.duration"),
-      href: "/viddha-karma",
+      href: "/treatments/viddha-karma",
     },
   ];
 

@@ -40,16 +40,22 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
       name: t("common.lightTheme"),
       value: "light",
       icon: Sun,
+      activeColor: "bg-yellow-500 text-white",
+      hoverColor: "hover:bg-yellow-400 hover:text-white",
     },
     {
       name: t("common.darkTheme"),
       value: "dark",
       icon: Moon,
+      activeColor: "bg-gray-800 text-white",
+      hoverColor: "hover:bg-gray-700 hover:text-white",
     },
     {
       name: t("common.systemTheme"),
       value: "system",
       icon: Monitor,
+      activeColor: "bg-blue-500 text-white",
+      hoverColor: "hover:bg-blue-400 hover:text-white",
     },
   ];
 
@@ -67,10 +73,10 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
               onClick={() => setTheme(themeOption.value)}
               className={cn(
                 "relative flex items-center justify-center w-10 h-10 rounded-md transition-all duration-200",
-                "hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800",
+                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800",
                 isActive
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-400 hover:text-gray-200"
+                  ? `${themeOption.activeColor} shadow-sm`
+                  : `text-gray-400 ${themeOption.hoverColor}`
               )}
               aria-label={`Switch to ${themeOption.name} theme`}
               title={themeOption.name}
@@ -115,16 +121,22 @@ export function ThemeSwitcherWithLabels({ className }: ThemeSwitcherProps) {
       name: t("common.lightTheme"),
       value: "light",
       icon: Sun,
+      activeColor: "bg-yellow-500 text-white",
+      hoverColor: "hover:bg-yellow-400 hover:text-white",
     },
     {
       name: t("common.darkTheme"),
       value: "dark",
       icon: Moon,
+      activeColor: "bg-gray-800 text-white",
+      hoverColor: "hover:bg-gray-700 hover:text-white",
     },
     {
       name: t("common.systemTheme"),
       value: "system",
       icon: Monitor,
+      activeColor: "bg-blue-500 text-white",
+      hoverColor: "hover:bg-blue-400 hover:text-white",
     },
   ];
 
@@ -142,10 +154,10 @@ export function ThemeSwitcherWithLabels({ className }: ThemeSwitcherProps) {
               onClick={() => setTheme(themeOption.value)}
               className={cn(
                 "relative flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-200",
-                "hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800",
+                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800",
                 isActive
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-400 hover:text-gray-200"
+                  ? `${themeOption.activeColor} shadow-sm`
+                  : `text-gray-400 ${themeOption.hoverColor}`
               )}
               aria-label={`Switch to ${themeOption.name} theme`}
             >
@@ -185,9 +197,24 @@ export function CompactThemeSwitcher({ className }: ThemeSwitcherProps) {
   }
 
   const themes = [
-    { value: "system", icon: Monitor },
-    { value: "light", icon: Sun },
-    { value: "dark", icon: Moon },
+    {
+      value: "system",
+      icon: Monitor,
+      activeColor: "bg-blue-500 text-white",
+      hoverColor: "hover:bg-blue-400 hover:text-white",
+    },
+    {
+      value: "light",
+      icon: Sun,
+      activeColor: "bg-yellow-500 text-white",
+      hoverColor: "hover:bg-yellow-400 hover:text-white",
+    },
+    {
+      value: "dark",
+      icon: Moon,
+      activeColor: "bg-gray-800 text-white",
+      hoverColor: "hover:bg-gray-700 hover:text-white",
+    },
   ];
 
   return (
@@ -204,10 +231,10 @@ export function CompactThemeSwitcher({ className }: ThemeSwitcherProps) {
               onClick={() => setTheme(themeOption.value)}
               className={cn(
                 "relative flex items-center justify-center w-6 h-6 rounded-full transition-all duration-300 ease-in-out",
-                "hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1",
+                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1",
                 isActive
-                  ? "bg-white dark:bg-gray-100 text-gray-900 shadow-md scale-105"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+                  ? `${themeOption.activeColor} shadow-md scale-105`
+                  : `text-gray-500 dark:text-gray-400 ${themeOption.hoverColor}`
               )}
               aria-label={`Switch to ${themeOption.value} theme`}
             >

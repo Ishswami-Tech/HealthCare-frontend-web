@@ -82,8 +82,8 @@ export function ClinicInfo({
         <div className="flex items-start gap-3">
           <MapPin className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium text-gray-900">{clinicData.name}</p>
-            <p className="text-sm text-gray-600 leading-relaxed">
+            <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">{clinicData.name}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
               {clinicData.address}
             </p>
           </div>
@@ -96,18 +96,18 @@ export function ClinicInfo({
     return (
       <div
         className={cn(
-          "bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden",
+          "bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden",
           className
         )}
       >
         <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6">
-          <h2 className="text-xl font-bold mb-2">{clinicData.name}</h2>
-          <p className="text-green-100 text-sm">
+          <h2 className="text-lg font-bold mb-2">{clinicData.name}</h2>
+          <p className="text-green-100 text-xs">
             {clinicData.doctor.specialization}
           </p>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 bg-white dark:bg-gray-800">
           {showDoctor && (
             <div>
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -118,7 +118,7 @@ export function ClinicInfo({
                 <p className="font-medium text-lg text-gray-900">
                   {clinicData.doctor.name}
                 </p>
-                <p className="text-green-600 font-medium">
+                <p className="text-green-600 dark:text-green-400 font-medium text-sm">
                   {clinicData.doctor.specialization}
                 </p>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -189,10 +189,10 @@ export function ClinicInfo({
     <div className={cn("space-y-8", className)}>
       {/* Clinic Header */}
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
           {clinicData.name}
         </h1>
-        <p className="text-lg text-green-600 font-medium">
+        <p className="text-sm text-green-600 dark:text-green-400 font-medium">
           {clinicData.doctor.specialization}
         </p>
       </div>

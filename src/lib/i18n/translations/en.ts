@@ -22,6 +22,9 @@ export const en: TranslationKeys = {
     phoneNumber: 'Phone Number',
     email: 'Email',
     address: 'Address',
+    patients: 'Patients',
+    treated: 'Treated',
+    scientificallyValidated: 'Scientifically Validated',
     name: 'Name',
     message: 'Message',
     contactUs: 'Contact Us',
@@ -38,6 +41,17 @@ export const en: TranslationKeys = {
     lightTheme: 'Light',
     darkTheme: 'Dark',
     systemTheme: 'System',
+    chooseThis: 'Choose This',
+    governmentCertified: 'Government Certified',
+    login: 'Login',
+    register: 'Register',
+    successRate: 'Success Rate',
+    duration: 'Duration',
+    sessions: 'sessions',
+    program: 'program',
+    treatments: 'treatments',
+    months: 'months',
+    days: 'days',
   },
   navigation: {
     logo: 'Shri',
@@ -70,6 +84,21 @@ export const en: TranslationKeys = {
     title2: 'Modern Results',
     subtitle: 'With Dr. Chandrakumar Deshmukh',
     description: 'Experience traditional Ayurvedic treatments including Panchakarma, Viddhakarma, and Agnikarma therapies for holistic wellness and natural healing.',
+    transformHealth: 'Transform Your Health with',
+    ancientWisdom: 'Ancient Wisdom',
+    peopleViewingText: 'people viewing',
+    bookingsIncreasedText: '📈 Bookings Increased',
+    watchJourneysText: 'Watch Journeys',
+    virtualTourText: 'Virtual Tour',
+    healthAssessmentText: 'Health Assessment',
+    govCertified: 'Gov Certified',
+    iso9001Short: 'ISO 9001',
+    ratingShort: '4.9★',
+    natural: '100% Natural',
+    noSideEffects: 'No Side Effects',
+    provenResults: 'Proven Results',
+    ayurvedicWisdomText: 'Ayurvedic Wisdom',
+    discoverAncient: 'Discover the ancient art of Ayurveda and its modern application for complete wellness.',
     primaryCta: 'Book Consultation',
     secondaryCta: 'Learn About Treatments',
     benefits: {
@@ -77,10 +106,15 @@ export const en: TranslationKeys = {
       patientsHealed: '5000+ Patients Healed',
       governmentCertified: 'Government Certified',
     },
+    testimonials: [
+      'Incredible treatment with Viddha Karma',
+      'Life-changing Panchakarma experience',
+      'Agnikarma gave me instant pain relief'
+    ],
     trustIndicators: {
-      governmentCertified: 'Government Certified',
-      iso9001: 'ISO 9001:2015',
-      rating: '4.9/5 Rating',
+      governmentCertified: 'Gov Certified',
+      iso9001: 'ISO 9001',
+      rating: '4.9★',
       liveActivity: 'Live Activity',
       highDemand: 'High Demand',
       peopleViewing: '153 people viewing',
@@ -96,11 +130,6 @@ export const en: TranslationKeys = {
       ayurvedicWisdom: '🕉️',
       wisdomDescription: 'Ayurvedic Wisdom'
     },
-    testimonials: [
-      'Amazing results with Panchakarma treatment',
-      'Life-changing experience with Agnikarma',
-      'Incredible healing with Viddha Karma'
-    ],
     schedule: 'Clinic Hours',
     emergency: '24/7 Emergency Support',
     imageAlt: 'Ayurvedic healing and wellness',
@@ -142,6 +171,9 @@ export const en: TranslationKeys = {
     bookingIncrease: 'Booking Increase',
     featuredChannels: 'Featured Channels',
     peopleViewing: 'People Viewing',
+    provenResultsExcellence: 'Proven Results & Excellence',
+    transformingLives: 'Transforming Lives Through Authentic Ayurveda',
+    twoDecadesExcellence: 'Two decades of healing excellence with measurable results and international recognition',
     certifications: {
       governmentCertified: {
         title: 'Government Certified',
@@ -159,6 +191,14 @@ export const en: TranslationKeys = {
         title: 'Teaching Hospital',
         description: 'Recognized as a center for medical education and training',
       },
+      excellenceAward: {
+        title: 'Excellence Award',
+        description: 'Healthcare Excellence Recognition'
+      },
+      safetyCertified: {
+        title: 'Safety Certified',
+        description: 'Patient Safety and Quality Standards'
+      }
     },
   },
   whyChooseUs: {
@@ -203,6 +243,111 @@ export const en: TranslationKeys = {
       subtitle: 'Book your appointment today and experience the power of Ayurveda.',
       description: 'Take the first step towards complete wellness and experience the power of authentic Ayurvedic healing',
       button: 'Book Now'
+    }
+  },
+  team: {
+    badge: 'Our Expert Team',
+    title: 'Meet Our Expert Team',
+    description: 'Highly qualified practitioners with decades of combined experience in authentic Ayurvedic healing',
+    teamStats: {
+      experience: {
+        value: '150+',
+        label: 'Years Combined Experience'
+      },
+      patients: {
+        value: '10,000+',
+        label: 'Patients Treated'
+      },
+      publications: {
+        value: '25+',
+        label: 'Research Publications'
+      },
+      conferences: {
+        value: '50+',
+        label: 'International Conferences'
+      }
+    },
+    teamMembers: {
+      drDeshmukh: {
+        name: 'Dr. Chandrakumar Deshmukh',
+        title: 'Chief Medical Officer & Founder',
+        specialization: 'Neurological Disorders Specialist',
+        experience: '25+ years',
+        credentials: 'BAMS, MD (Ayurveda), PhD in Neurology',
+        achievements: '5000+ successful treatments, Published researcher, Government certified practitioner'
+      },
+      vaidyaKrishnamurthy: {
+        name: 'Vaidya Krishnamurthy',
+        title: 'Senior Ayurvedic Physician',
+        specialization: 'Panchakarma & Detoxification Expert',
+        experience: '30+ years',
+        credentials: 'BAMS, Panchakarma Specialist, Traditional Medicine Expert',
+        achievements: '8000+ detox treatments, Master of traditional techniques, International trainer'
+      },
+      drPriyaSharma: {
+        name: 'Dr. Priya Sharma',
+        title: 'Women\'s Health & Fertility Specialist',
+        specialization: 'Reproductive Health & Hormonal Balance',
+        experience: '15+ years',
+        credentials: 'BAMS, Fertility Specialist, Hormonal Balance Expert',
+        achievements: '500+ successful pregnancies, PCOD treatment expert, Women wellness advocate'
+      }
+    },
+    advisoryBoard: {
+      title: 'Medical Advisory Board',
+      subtitle: 'Distinguished experts guiding our clinical excellence and research initiatives',
+      drAshokKumar: {
+        name: 'Dr. Ashok Kumar',
+        title: 'Retired AIIMS Professor',
+        role: 'Modern Medicine Integration',
+        expertise: 'Bridging Ayurveda with modern medicine'
+      },
+      drMeeraJoshi: {
+        name: 'Dr. Meera Joshi',
+        title: 'Government Ayurveda College Principal',
+        role: 'Academic Excellence',
+        expertise: 'Educational standards and curriculum development'
+      },
+      drJamesWilson: {
+        name: 'Dr. James Wilson',
+        title: 'International Ayurveda Expert',
+        role: 'Global Best Practices',
+        expertise: 'International standards and protocols'
+      },
+      drRaviGupta: {
+        name: 'Dr. Ravi Gupta',
+        title: 'Research Director',
+        role: 'Clinical Studies & Innovation',
+        expertise: 'Scientific validation and research methodology'
+      }
+    },
+    videos: {
+      title: 'Treatment Demonstrations',
+      subtitle: 'Watch our experts demonstrate various Ayurvedic treatments and explain their benefits',
+      panchakarma: {
+        title: 'Panchakarma Treatment Process',
+        description: 'Complete detoxification and rejuvenation therapy demonstration'
+      },
+      viddhakarma: {
+        title: 'Viddha Karma Neurological Treatment',
+        description: 'Specialized treatment for neurological conditions'
+      },
+      agnikarma: {
+        title: 'Agnikarma Thermal Therapy',
+        description: 'Precision thermal therapy for instant pain relief'
+      }
+    },
+    cta: {
+      title: 'Consult with Our Expert Team',
+      subtitle: 'Get personalized treatment recommendations from our world-class medical team',
+      description: 'Your healing journey begins with expert guidance',
+      bookConsultation: 'Book Expert Consultation',
+      scheduleMeeting: 'Schedule Team Meeting',
+      features: {
+        experience: '150+ Years Combined Experience',
+        research: 'Published Researchers',
+        recognition: 'International Recognition'
+      }
     }
   },
   homepage: {
@@ -620,6 +765,122 @@ export const en: TranslationKeys = {
     hairProblemsDesc: 'Natural solutions for hair loss, dandruff, and scalp disorders.',
     beautyAntiAgingDesc: 'Natural beauty treatments and anti-aging therapy for glowing skin.',
     wellnessRetreatsDesc: 'Comprehensive wellness programs for complete health rejuvenation.',
+    // Additional service titles
+    spinalCare: 'Spinal Care',
+    weightManagement: 'Weight Management',
+    stressMentalHealth: 'Stress & Mental Health',
+    otherConditions: 'Other Conditions',
+    // Additional service descriptions
+    spinalCareDesc: 'Comprehensive spinal care using traditional Ayurvedic methods.',
+    weightManagementDesc: 'Natural weight management and metabolic health solutions.',
+    stressMentalHealthDesc: 'Holistic approach to mental health and stress management.',
+    otherConditionsDesc: 'Comprehensive care for various health conditions and general wellness.',
+    moreConditions: 'more conditions',
+    // Service conditions
+    conditions: {
+      autism: 'Autism',
+      cerebralPalsy: 'Cerebral Palsy',
+      mentalHealthDisorders: 'Mental Health Disorders',
+      neurologicalRehabilitation: 'Neurological Rehabilitation',
+      paralysis: 'Paralysis',
+      strokeRecovery: 'Stroke Recovery',
+      arthritis: 'Arthritis',
+      jointPain: 'Joint Pain',
+      spinalDisorders: 'Spinal Disorders',
+      gout: 'Gout',
+      sportsInjuries: 'Sports Injuries',
+      muscularDisorders: 'Muscular Disorders',
+      sciatica: 'Sciatica',
+      backPain: 'Back Pain',
+      discProblems: 'Disc Problems',
+      spinalStenosis: 'Spinal Stenosis',
+      scoliosis: 'Scoliosis',
+      neckPain: 'Neck Pain',
+      // Respiratory conditions
+      asthma: 'Asthma',
+      bronchitis: 'Bronchitis',
+      sinusitis: 'Sinusitis',
+      allergicRhinitis: 'Allergic Rhinitis',
+      cough: 'Cough',
+      breathingDifficulties: 'Breathing Difficulties',
+      // Digestive conditions
+      acidity: 'Acidity',
+      piles: 'Piles',
+      constipation: 'Constipation',
+      ibs: 'IBS',
+      ulcers: 'Ulcers',
+      digestiveDisorders: 'Digestive Disorders',
+      // Kidney/Gallbladder conditions
+      kidneyStones: 'Kidney Stones',
+      gallbladderStones: 'Gallbladder Stones',
+      urinaryProblems: 'Urinary Problems',
+      kidneyDisorders: 'Kidney Disorders',
+      bladderIssues: 'Bladder Issues',
+      stonePrevention: 'Stone Prevention',
+      // Skin conditions
+      psoriasis: 'Psoriasis',
+      eczema: 'Eczema',
+      fungalInfections: 'Fungal Infections',
+      acne: 'Acne',
+      vitiligo: 'Vitiligo',
+      skinAllergies: 'Skin Allergies',
+      // Weight management conditions
+      obesity: 'Obesity',
+      weightLoss: 'Weight Loss',
+      metabolicDisorders: 'Metabolic Disorders',
+      thyroidIssues: 'Thyroid Issues',
+      diabetesManagement: 'Diabetes Management',
+      lifestyleDiseases: 'Lifestyle Diseases',
+      // Metabolic conditions
+      diabetes: 'Diabetes',
+      thyroidDisorders: 'Thyroid Disorders',
+      metabolicSyndrome: 'Metabolic Syndrome',
+      cholesterolIssues: 'Cholesterol Issues',
+      bloodPressure: 'Blood Pressure',
+      hormonalImbalances: 'Hormonal Imbalances',
+      // Stress/Mental health conditions
+      stress: 'Stress',
+      anxiety: 'Anxiety',
+      depression: 'Depression',
+      insomnia: 'Insomnia',
+      mentalFatigue: 'Mental Fatigue',
+      emotionalBalance: 'Emotional Balance',
+      // Gynecological conditions
+      menstrualProblems: 'Menstrual Problems',
+      infertility: 'Infertility',
+      pcos: 'PCOS',
+      menopause: 'Menopause',
+      pregnancyCare: 'Pregnancy Care',
+      womensHealth: 'Women\'s Health',
+      // Hair conditions
+      hairFall: 'Hair Fall',
+      dandruff: 'Dandruff',
+      scalpDisorders: 'Scalp Disorders',
+      prematureGreying: 'Premature Greying',
+      hairGrowth: 'Hair Growth',
+      hairCare: 'Hair Care',
+      // Panchakarma conditions
+      detoxification: 'Detoxification',
+      rejuvenation: 'Rejuvenation',
+      preventiveCare: 'Preventive Care',
+      chronicDiseases: 'Chronic Diseases',
+      stressRelief: 'Stress Relief',
+      antiAging: 'Anti-aging',
+      // Beauty conditions
+      skinRejuvenation: 'Skin Rejuvenation',
+      beautyTreatments: 'Beauty Treatments',
+      naturalGlow: 'Natural Glow',
+      youthfulSkin: 'Youthful Skin',
+      beautyCare: 'Beauty Care',
+      // Other conditions
+      generalWellness: 'General Wellness',
+      immunityBoost: 'Immunity Boost',
+      energyEnhancement: 'Energy Enhancement',
+      sleepDisorders: 'Sleep Disorders',
+      chronicFatigue: 'Chronic Fatigue',
+      customTreatments: 'Custom Treatments',
+    },
+    viddhakarmaAgnikarma: 'Viddhakarma & Agnikarma',
   },
 
   // Landing Page Content
@@ -804,6 +1065,58 @@ export const en: TranslationKeys = {
       learnMore: 'Learn More',
       bookConsultation: 'Book Consultation',
       keyBenefits: 'Key Benefits',
+      treatmentsIncluded: 'Treatments Included:',
+      transformationPromise: 'Transformation Promise:',
+      popularity: 'Popularity',
+      choosePackage: 'Choose This Package',
+      signatureTherapies: 'Signature Therapies',
+      coreTreatments: 'Core Ayurvedic Treatments',
+      coreTreatmentsDescription: 'Our signature therapies with proven healing results and thousands of successful transformations',
+      mainTreatments: 'Main Treatments',
+      mainTreatmentsTitle: 'Core Ayurvedic Therapies',
+      mainTreatmentsDescription: 'Our signature treatments with proven healing results and thousands of successful transformations',
+      specializedCare: 'Specialized Care',
+      specializedPrograms: 'Specialized Programs & Services',
+      specializedProgramsTitle: 'Specialized Programs & Services',
+      specializedProgramsDescription: 'Comprehensive wellness solutions for every aspect of life and health',
+      combinationPackages: 'Combination Treatment Packages',
+      combinationPackagesTitle: 'Combination Treatment Packages',
+      combinationPackagesDescription: 'Most popular - 90% of patients choose these comprehensive programs',
+      fertilityHealth: 'Fertility & Reproductive Health',
+      fertilityDescription: 'Natural solutions for creating new life with comprehensive fertility services.',
+      corporateWellness: 'Corporate Wellness',
+      corporateDescription: 'Executive health programs and workplace stress management solutions.',
+      ayurvedaEducation: 'Ayurveda Education',
+      educationDescription: 'Professional training programs to become certified Ayurvedic healers.',
+      communitySeva: 'Community Seva',
+      sevaDescription: 'Free healing services to humanity as our sacred duty to society.',
+      maleFertility: 'Male Fertility Enhancement',
+      femaleFertility: 'Female Fertility Optimization',
+      pcodTreatment: 'PCOD/PCOS Treatment',
+      ivfSupport: 'IVF Support',
+      executiveHealth: 'Executive Health Programs',
+      workplaceStress: 'Workplace Stress Management',
+      employeeWellness: 'Employee Wellness Days',
+      ergonomicConsultations: 'Ergonomic Consultations',
+      certificateCourses: 'Certificate Courses',
+      diplomaPrograms: 'Diploma Programs',
+      advancedSpecialization: 'Advanced Specialization',
+      internationalCertification: 'International Certification',
+      freeTreatmentDays: 'Free Treatment Days',
+      ruralHealthMissions: 'Rural Health Missions',
+      seniorCitizenCare: 'Senior Citizen Care',
+      educationalWorkshops: 'Educational Workshops',
+      ultimatePainRelief: 'Ultimate Pain Relief',
+      completeWellness: 'Complete Wellness',
+      familyHealingPlan: 'Family Healing Plan',
+      painFreeLiving: 'Pain-free living guarantee',
+      totalHealthTransformation: 'Total health transformation',
+      familyWellnessEcosystem: 'Family wellness ecosystem',
+      lifetimeWellnessPartnership: 'Lifetime wellness partnership',
+      agnikarmaViddhaKarma: 'Agnikarma + Viddha Karma',
+      allTherapiesLifestyle: 'All therapies + lifestyle coaching',
+      familyTreatmentMultiple: 'Treatment for multiple family members',
+      vipTreatmentAnnual: 'VIP treatment + annual maintenance',
     },
     cta: {
       title: 'Ready to Start Your Healing Journey?',
@@ -811,15 +1124,111 @@ export const en: TranslationKeys = {
       assessmentButton: 'Free Health Assessment',
       expertButton: 'Consult Expert',
     },
+    conditions: {
+      title: 'Conditions Treated:',
+      chronicPain: 'Chronic Pain',
+      diabetes: 'Diabetes',
+      arthritis: 'Arthritis',
+      stress: 'Stress',
+      digestive: 'Digestive Issues',
+      skin: 'Skin Problems'
+    },
   },
   contact: {
-    title: 'Get in Touch',
-    subtitle: 'We are here to help you on your journey to wellness',
+    badge: "Get in Touch",
+    title: "Contact Us",
+    subtitle: "We're here to help you on your healing journey. Reach out to us for consultation, support, or any questions you may have.",
     getInTouch: 'Contact Information',
     visitUs: 'Visit Our Clinic',
     callUs: 'Call Us',
     messageUs: 'Message Us',
     followUs: 'Follow Us',
+    quickActions: {
+      title: "Quick Actions",
+      subtitle: "Choose the fastest way to connect with us",
+      bookConsultation: {
+        title: "Book Consultation",
+        description: "Schedule a personalized consultation with our expert Ayurvedic doctors",
+        action: "Book Now"
+      },
+      whatsappSupport: {
+        title: "WhatsApp Support",
+        description: "Get instant answers and support through our WhatsApp helpline",
+        action: "Chat Now"
+      },
+      emergencyCare: {
+        title: "Emergency Care",
+        description: "24/7 emergency consultation for urgent health concerns",
+        action: "Call Now"
+      }
+    },
+    badges: {
+      support24x7: "24/7 Support Available",
+      patientRating: "4.9/5 Patient Rating",
+      expertConsultation: "Expert Consultation"
+    },
+    form: {
+      title: "Send us a Message",
+      subtitle: "Fill out the form below and we'll get back to you within 24 hours",
+      fields: {
+        fullName: "Full Name",
+        phoneNumber: "Phone Number",
+        emailAddress: "Email Address",
+        healthCondition: "Health Condition",
+        message: "Message"
+      },
+      placeholders: {
+        fullName: "Enter your full name",
+        phoneNumber: "Enter your phone number",
+        emailAddress: "Enter your email address",
+        healthCondition: "Describe your health condition (optional)",
+        message: "Tell us how we can help you"
+      },
+      submitButton: "Send Message"
+    },
+    contactInfo: {
+      phoneNumbers: {
+        title: "Phone Numbers",
+        details: [
+          "+91 9860370961",
+          "+91 7709399925",
+          "24/7 Emergency Support"
+        ]
+      },
+      emailAddresses: {
+        title: "Email Addresses",
+        details: [
+          "vishwamurthiayurveda@gmail.com",
+          "support@vishwamurthiayurveda.com",
+          "emergency@vishwamurthiayurveda.com"
+        ]
+      },
+      location: {
+        title: "Location",
+        details: [
+          "Moraya Ganapati Mandir Road",
+          "Gandhi Peth, Chinchwad Gaon",
+          "Chinchwad, Pimpri-Chinchwad, Maharashtra, India"
+        ]
+      },
+      workingHours: {
+        title: "Working Hours",
+        details: [
+          "Monday - Friday: 11:45 AM - 11:30 PM",
+          "Saturday: 9:00 AM - 8:00 PM",
+          "Sunday: 9:00 AM - 6:00 PM"
+        ]
+      }
+    },
+    emergency: {
+      title: "Emergency Consultation",
+      description: "For urgent health concerns, our expert doctors are available 24/7 for immediate consultation and guidance.",
+      action: "Call Emergency Line"
+    },
+    visitClinic: {
+      title: "Visit Our Clinic",
+      description: "Located in the heart of Chinchwad, our clinic is easily accessible and provides a peaceful environment for healing."
+    },
     formTitle: 'Send us a Message',
     formSubtitle: 'Fill out the form below and we will get back to you soon',
     nameLabel: 'Full Name',
@@ -856,7 +1265,7 @@ export const en: TranslationKeys = {
       fertility: 'Fertility Treatment'
     },
     conditions: {
-      title: 'Conditions Treated',
+      title: 'Conditions Treated:',
       chronicPain: 'Chronic Pain',
       diabetes: 'Diabetes',
       arthritis: 'Arthritis',
@@ -1362,4 +1771,623 @@ export const en: TranslationKeys = {
       privacy: 'We respect your privacy. Unsubscribe at any time.'
     }
   },
+  agnikarma: {
+    badge: 'Agnikarma',
+    title: 'Agnikarma Therapy',
+    subtitle: 'Precision Heat Therapy for Instant Pain Relief',
+    comparison: {
+      successRate: '95% Success Rate',
+      condition: 'Condition',
+      avgSessions: 'Avg Sessions',
+      recoveryTime: 'Recovery Time',
+      patientStory: 'Patient Story',
+      title: 'Agnikarma vs Other Treatments',
+      treatmentMethod: 'Treatment Method',
+      duration: 'Duration',
+      sideEffects: 'Side Effects',
+      cost: 'Cost',
+      agnikarma: 'Agnikarma',
+      sessions: 'sessions',
+      surgery: 'Surgery',
+      months: 'months',
+      highRisk: 'High Risk',
+      veryHigh: 'Very High',
+      medications: 'Medications',
+      ongoing: 'Ongoing',
+      multiple: 'Multiple',
+      highOngoing: 'High Ongoing',
+      physiotherapy: 'Physiotherapy',
+      minimal: 'Minimal',
+      moderate: 'Moderate'
+    },
+    scientificFoundation: {
+      title: 'Scientific Foundation',
+      subtitle: 'Ancient Wisdom Meets Modern Validation',
+      ancientText: {
+        title: 'Ancient Ayurvedic Texts',
+        description: 'Agnikarma is mentioned in classical texts like Charaka Samhita and Sushruta Samhita as a precise thermal therapy for musculoskeletal conditions.'
+      },
+      modernValidation: {
+        title: 'Modern Scientific Validation',
+        description: 'Recent studies show that controlled heat application can reduce inflammation, improve blood circulation, and accelerate tissue healing.'
+      },
+      precisionTechnology: {
+        title: 'Precision Technology',
+        description: 'Advanced thermal control systems ensure precise temperature application for optimal therapeutic results.'
+      },
+      zeroSideEffects: {
+        title: 'Zero Side Effects',
+        description: 'Unlike medications or surgery, Agnikarma has no systemic side effects and works by stimulating the body\'s natural healing mechanisms.'
+      }
+    },
+    processSteps: {
+      title: 'Agnikarma Process',
+      subtitle: 'Precise 5-Step Treatment Protocol',
+      steps: {
+        1: {
+          title: 'Assessment & Diagnosis',
+          description: 'Comprehensive evaluation of the condition and identification of precise treatment points'
+        },
+        2: {
+          title: 'Preparation',
+          description: 'Cleaning and preparation of the treatment area with natural antiseptics'
+        },
+        3: {
+          title: 'Heat Application',
+          description: 'Controlled application of heat using traditional instruments at precise points'
+        },
+        4: {
+          title: 'Monitoring',
+          description: 'Continuous monitoring of patient response and adjustment of treatment intensity'
+        },
+        5: {
+          title: 'Post-Treatment Care',
+          description: 'Application of healing herbs and guidance for optimal recovery'
+        }
+      }
+    },
+    conditions: {
+      title: 'Conditions Treated',
+      subtitle: 'Proven Results for Various Musculoskeletal Conditions',
+      chronicKneePain: {
+        condition: 'Chronic Knee Pain',
+        successRate: '95%',
+        avgSessions: '3-5 sessions',
+        recoveryTime: '2-4 weeks',
+        patientStory: 'Complete pain relief and restored mobility'
+      },
+      sciatica: {
+        condition: 'Sciatica',
+        successRate: '92%',
+        avgSessions: '4-6 sessions',
+        recoveryTime: '3-5 weeks',
+        patientStory: 'Eliminated nerve pain and improved quality of life'
+      },
+      frozenShoulder: {
+        condition: 'Frozen Shoulder',
+        successRate: '90%',
+        avgSessions: '5-7 sessions',
+        recoveryTime: '4-6 weeks',
+        patientStory: 'Restored full range of motion'
+      },
+      tennisElbow: {
+        condition: 'Tennis Elbow',
+        successRate: '94%',
+        avgSessions: '3-4 sessions',
+        recoveryTime: '2-3 weeks',
+        patientStory: 'Returned to sports activities'
+      },
+      plantarFasciitis: {
+        condition: 'Plantar Fasciitis',
+        successRate: '91%',
+        avgSessions: '4-5 sessions',
+        recoveryTime: '3-4 weeks',
+        patientStory: 'Pain-free walking and running'
+      },
+      cervicalSpondylosis: {
+        condition: 'Cervical Spondylosis',
+        successRate: '88%',
+        avgSessions: '6-8 sessions',
+        recoveryTime: '5-7 weeks',
+        patientStory: 'Improved neck mobility and reduced stiffness'
+      },
+      arthritis: {
+        condition: 'Arthritis',
+        successRate: '87%',
+        avgSessions: '5-7 sessions',
+        recoveryTime: '4-6 weeks',
+        patientStory: 'Reduced inflammation and improved joint function'
+      }
+    },
+    advantages: {
+      title: 'Why Choose Agnikarma',
+      subtitle: 'Unique Benefits of Precision Heat Therapy',
+      instantResults: {
+        title: 'Instant Pain Relief',
+        description: 'Experience immediate pain reduction after the first session'
+      },
+      precisionTargeting: {
+        title: 'Precision Targeting',
+        description: 'Targets specific pain points without affecting surrounding healthy tissue'
+      },
+      zeroSideEffects: {
+        title: 'Zero Side Effects',
+        description: 'No medications, no chemicals, no systemic side effects'
+      },
+      costEffective: {
+        title: 'Cost Effective',
+        description: 'More affordable than surgery or long-term medication'
+      }
+    },
+    cta: {
+      title: 'Ready to Experience Agnikarma?',
+      subtitle: 'Book your session today and start your pain-free journey',
+      bookSession: 'Book Agnikarma Session',
+      freeAssessment: 'Free Assessment',
+      features: {
+        instantRelief: 'Instant Pain Relief',
+        zeroSideEffects: 'Zero Side Effects',
+        successRate: '95% Success Rate'
+      }
+    }
+  },
+  panchakarma: {
+    badge: 'Panchakarma',
+    title: 'Panchakarma Therapy',
+    subtitle: 'Complete Detoxification and Rejuvenation',
+    whatIs: {
+      title: 'What is Panchakarma?',
+      ancientScience: {
+        title: 'Ancient Science',
+        description: '5000-year-old traditional Ayurvedic detoxification system'
+      },
+      fiveProcedures: {
+        title: 'Five Procedures',
+        description: 'Comprehensive cleansing through five specialized treatments'
+      },
+      holisticApproach: {
+        title: 'Holistic Approach',
+        description: 'Treats body, mind, and spirit as interconnected systems'
+      },
+      modernApplication: {
+        title: 'Modern Application',
+        description: 'Scientifically validated treatments for contemporary health challenges'
+      },
+      completeTransformation: 'Complete Transformation',
+      completeTransformationDesc: 'Total body, mind, and spirit rejuvenation',
+      daysProgram: '21-day program'
+    },
+    benefits: {
+      title: 'Benefits of Panchakarma',
+      subtitle: 'Holistic health and wellness through natural healing',
+      detoxification: {
+        title: 'Natural Detoxification',
+        description: 'Safe and effective removal of toxins from the body'
+      },
+      rejuvenation: {
+        title: 'Complete Rejuvenation',
+        description: 'Restoring vitality and energy through natural healing processes'
+      },
+      immunity: {
+        title: 'Immune System Strengthening',
+        description: 'Boosting natural immunity and disease resistance'
+      },
+      mentalClarity: {
+        title: 'Mental Clarity',
+        description: 'Enhancing cognitive function and mental peace through holistic healing'
+      }
+    },
+    processGallery: {
+      title: 'Treatment Process Gallery',
+      subtitle: 'Detailed view of various Panchakarma procedures',
+      abhyanga: {
+        title: 'Abhyanga (Oil Massage)',
+        description: 'Deep full-body massage with medicinal oils'
+      },
+      swedana: {
+        title: 'Swedana (Steam Therapy)',
+        description: 'Removing toxins through medicinal steam therapy'
+      },
+      vamana: {
+        title: 'Vamana (Therapeutic Vomiting)',
+        description: 'Eliminating Kapha dosha through medicinal substances'
+      },
+      virechana: {
+        title: 'Virechana (Purgation)',
+        description: 'Purification of Pitta dosha through natural laxatives'
+      },
+      basti: {
+        title: 'Basti (Enema)',
+        description: 'Treatment of Vata dosha through medicinal oils and decoctions'
+      },
+      nasya: {
+        title: 'Nasya (Nasal Administration)',
+        description: 'Administration of medicinal oils through the nose'
+      }
+    },
+    testimonials: {
+      title: 'Patient Testimonials',
+      subtitle: 'Success stories of patients who benefited from Panchakarma treatment',
+      patient1: {
+        name: 'Rajesh Sharma',
+        condition: 'Chronic constipation and digestive issues',
+        testimonial: 'After Panchakarma treatment, my digestive problems were completely resolved. I now feel healthy and energetic.'
+      },
+      patient2: {
+        name: 'Priya Patil',
+        condition: 'Skin problems and allergies',
+        testimonial: 'My skin problems and allergies disappeared after Panchakarma. My skin is now glowing and healthy.'
+      },
+      patient3: {
+        name: 'Amit Kumar',
+        condition: 'Stress and insomnia',
+        testimonial: 'Panchakarma reduced my stress and improved sleep quality. I now feel calm and refreshed.'
+      }
+    },
+    faq: {
+      title: 'Frequently Asked Questions',
+      subtitle: 'Answers to all your questions about Panchakarma treatment',
+      question1: {
+        question: 'How long does Panchakarma treatment last?',
+        answer: 'Panchakarma treatment typically lasts 21-28 days, including three phases: Purva Karma (3-7 days), Pradhana Karma (7-14 days), and Paschat Karma (7-14 days).'
+      },
+      question2: {
+        question: 'Is Panchakarma treatment safe?',
+        answer: 'Yes, Panchakarma treatment is completely safe when performed under the supervision of a qualified Ayurvedic physician. It uses only natural elements.'
+      },
+      question3: {
+        question: 'What should I eat during Panchakarma?',
+        answer: 'During Panchakarma, you should eat light, easily digestible food. Fresh vegetables, lentils, rice, and herbal teas are recommended. Avoid oil, spices, and heavy foods.'
+      },
+      question4: {
+        question: 'What results can I expect after Panchakarma?',
+        answer: 'After Panchakarma, you will experience better digestion, increased energy, clear skin, reduced stress, and overall health improvement.'
+      },
+      question5: {
+        question: 'Is Panchakarma suitable for everyone?',
+        answer: 'Panchakarma is safe for most people, but pregnant women, children, and those with certain health conditions should consult a physician.'
+      }
+    },
+    phases: {
+      title: 'Panchakarma Phases',
+      subtitle: 'Comprehensive 5-Phase Detoxification Process',
+      keyActivities: 'Key Activities',
+      purvaKarma: {
+        name: 'Purvakarma (Preparation)',
+        subtitle: 'Pre-treatment preparation phase',
+        duration: '3-7 days',
+        activities: [
+          'Internal oleation (Snehana)',
+          'External oleation (Abhyanga)',
+          'Steam therapy (Swedana)',
+          'Diet modifications'
+        ]
+      },
+      pradhanaKarma: {
+        name: 'Pradhana Karma (Main Treatment)',
+        subtitle: 'Core detoxification procedures',
+        duration: '7-14 days',
+        activities: [
+          'Vamana (Therapeutic vomiting)',
+          'Virechana (Purgation)',
+          'Basti (Medicated enema)',
+          'Nasya (Nasal administration)'
+        ]
+      },
+      paschatKarma: {
+        name: 'Paschat Karma (Post-treatment)',
+        subtitle: 'Recovery and rejuvenation phase',
+        duration: '7-14 days',
+        activities: [
+          'Gradual diet reintroduction',
+          'Lifestyle counseling',
+          'Herbal supplements',
+          'Follow-up care'
+        ]
+      }
+    },
+    conditions: {
+      title: 'Conditions Treated',
+      subtitle: 'Comprehensive Healing for Various Health Conditions',
+      chronicDiseases: {
+        category: 'Chronic Diseases',
+        successRate: '92%',
+        duration: '21-28 days',
+        description: 'Diabetes, hypertension, arthritis, and other chronic conditions',
+        items: ['Diabetes', 'Hypertension', 'Arthritis', 'Autoimmune disorders']
+      },
+      digestiveDisorders: {
+        category: 'Digestive Disorders',
+        successRate: '95%',
+        duration: '14-21 days',
+        description: 'IBS, constipation, acidity, and digestive imbalances',
+        items: ['IBS', 'Chronic constipation', 'Liver diseases', 'Acidity']
+      },
+      skinConditions: {
+        category: 'Skin Conditions',
+        successRate: '88%',
+        duration: '21-28 days',
+        description: 'Psoriasis, eczema, acne, and other skin disorders',
+        items: ['Eczema', 'Psoriasis', 'Chronic allergies', 'Dermatitis']
+      },
+      mentalHealth: {
+        category: 'Mental Health',
+        successRate: '90%',
+        duration: '28-35 days',
+        description: 'Anxiety, depression, stress, and emotional imbalances',
+        items: ['Stress', 'Anxiety', 'Depression', 'Insomnia']
+      },
+      respiratoryIssues: {
+        category: 'Respiratory Issues',
+        successRate: '87%',
+        duration: '14-21 days',
+        description: 'Asthma, bronchitis, chronic cough, and allergies',
+        items: ['Asthma', 'Bronchitis', 'Chronic cough', 'Allergies']
+      },
+      hormonalImbalances: {
+        category: 'Hormonal Imbalances',
+        successRate: '89%',
+        duration: '21-28 days',
+        description: 'PCOD, thyroid disorders, fertility issues',
+        items: ['PCOD', 'Thyroid disorders', 'Fertility issues']
+      }
+    },
+    cta: {
+      title: 'Begin Your Panchakarma Journey',
+      subtitle: 'Experience the ultimate detoxification and rejuvenation',
+      bookProgram: 'Book Panchakarma Program',
+      freeConsultation: 'Free Health Assessment',
+      features: {
+        successRate: '95% Success Rate',
+        patientsTreated: '5000+ Patients Treated',
+        governmentCertified: 'Government Certified'
+      }
+    }
+  },
+  viddhakarma: {
+    badge: 'Viddhakarma',
+    title: 'Viddhakarma Therapy',
+    subtitle: 'Specialized Neurological Treatment',
+    processSteps: {
+      title: 'Viddhakarma Process',
+      subtitle: 'Advanced Neurological Treatment Protocol',
+      steps: {
+        1: {
+          title: 'Neurological Assessment',
+          description: 'Comprehensive evaluation of neurological function and condition severity'
+        },
+        2: {
+          title: 'Point Selection',
+          description: 'Identification of specific neurological points for treatment'
+        },
+        3: {
+          title: 'Precision Application',
+          description: 'Controlled application of specialized techniques at neurological points'
+        },
+        4: {
+          title: 'Monitoring & Adjustment',
+          description: 'Continuous monitoring of neurological responses and treatment adjustments'
+        },
+        5: {
+          title: 'Rehabilitation Support',
+          description: 'Ongoing support and rehabilitation exercises for optimal recovery'
+        }
+      }
+    },
+    specializedApplications: {
+      title: 'Specialized Applications',
+      subtitle: 'Targeted Treatment for Neurological Conditions',
+      specificTreatments: 'Specific Treatments:',
+      uniqueBenefits: 'Unique Benefits:',
+      successRate: 'Success Rate',
+      autism: {
+        title: 'Autism Spectrum Disorders',
+        description: 'Improves communication, social interaction, and behavioral patterns',
+        treatments: 'Facial paralysis, Trigeminal neuralgia'
+      },
+      cerebralPalsy: {
+        title: 'Cerebral Palsy',
+        description: 'Enhances motor function, coordination, and muscle control',
+        treatments: 'Arthritis, Fibromyalgia, Spasms'
+      },
+      stroke: {
+        title: 'Post-Stroke Recovery',
+        description: 'Accelerates neurological recovery and functional improvement',
+        treatments: 'IBS, Constipation, Acidity'
+      },
+      parkinsons: {
+        title: 'Parkinson\'s Disease',
+        description: 'Reduces tremors and improves motor control',
+        treatments: 'Asthma, Bronchitis, Chronic cough'
+      },
+      stressMentalHealth: {
+        title: 'Stress & Mental Health',
+        description: 'Nervous system balancing and mental wellness',
+        treatments: 'Anxiety, Insomnia, Depression'
+      },
+      womensHealth: {
+        title: 'Women\'s Health',
+        description: 'Hormonal harmony and reproductive wellness',
+        treatments: 'PCOD, Irregular periods, Fertility'
+      }
+    },
+    patientSuccessStories: {
+      title: 'Patient Success Stories',
+      subtitle: 'Real Results, Real Stories',
+      description: 'Discover how Viddha Karma has transformed lives and brought relief to patients suffering from various neurological conditions.'
+    },
+    advancedTechniques: {
+      title: 'Advanced Techniques',
+      subtitle: 'Cutting-Edge Neurological Treatment Methods',
+      marmaTherapy: {
+        title: 'Marma Therapy',
+        description: 'Stimulation of vital energy points for neurological healing'
+      },
+      pranayama: {
+        title: 'Pranayama Integration',
+        description: 'Breathing techniques to enhance neurological function'
+      },
+      meditation: {
+        title: 'Meditation Therapy',
+        description: 'Mindfulness practices for neurological rehabilitation'
+      },
+      herbalSupport: {
+        title: 'Herbal Support',
+        description: 'Specialized herbal formulations for neurological health'
+      }
+    },
+    conditions: {
+      title: 'Neurological Conditions Treated',
+      subtitle: 'Comprehensive Care for Complex Neurological Disorders',
+      autism: {
+        condition: 'Autism Spectrum Disorders',
+        successRate: '85%',
+        duration: '6-12 months',
+        description: 'Improvement in communication, social skills, and behavioral patterns'
+      },
+      cerebralPalsy: {
+        condition: 'Cerebral Palsy',
+        successRate: '80%',
+        duration: '8-15 months',
+        description: 'Enhanced motor function, coordination, and independence'
+      },
+      stroke: {
+        condition: 'Post-Stroke Recovery',
+        successRate: '75%',
+        duration: '3-8 months',
+        description: 'Accelerated neurological recovery and functional improvement'
+      },
+      developmental: {
+        condition: 'Developmental Delays',
+        successRate: '90%',
+        duration: '4-10 months',
+        description: 'Improved cognitive and motor development'
+      }
+    },
+    treatmentPackages: {
+      title: 'Viddha Karma Treatment Packages',
+      subtitle: 'Choose the program that best fits your healing needs',
+      successRate: 'Success Rate',
+      essential: {
+        title: 'Essential Treatment',
+        sessions: '4 Sessions',
+        description: 'Stress-related conditions',
+        successRate: '85%'
+      },
+      comprehensive: {
+        title: 'Comprehensive Care',
+        sessions: '6 Sessions',
+        description: 'Chronic pain conditions',
+        successRate: '90%',
+        badge: 'Most Popular'
+      },
+      advanced: {
+        title: 'Advanced Healing',
+        sessions: '8 Sessions',
+        description: 'Complex disorders + medicines',
+        successRate: '92%'
+      },
+      holistic: {
+        title: 'Holistic Transformation',
+        sessions: 'Complete Program',
+        description: 'Total mind-body wellness',
+        successRate: '95%',
+        badge: 'Premium'
+      },
+      choosePackage: 'Choose Package'
+    },
+    cta: {
+      title: 'Start Your Neurological Healing Journey',
+      subtitle: 'Specialized care for complex neurological conditions',
+      bookConsultation: 'Book Viddhakarma Consultation',
+      freeAssessment: 'Free Neurological Assessment'
+    }
+  },
+  about: {
+    hero: {
+      badge: "About Shri Vishwamurthi Ayurvedalay",
+      title: "20+ Years of Authentic Healing",
+      subtitle: "Where ancient Ayurvedic wisdom meets modern healthcare excellence. Our journey of transformation, one life at a time.",
+      certifications: {
+        governmentCertified: "Government Certified",
+        iso9001: "ISO 9001:2015",
+        teachingHospital: "Teaching Hospital"
+      }
+    },
+    story: {
+      title: "Our Story",
+      paragraphs: {
+        p1: "Founded in 2003 with a sacred mission to preserve and practice authentic Ayurveda, Shri Vishwamurthi Ayurvedalay has been a beacon of hope for thousands seeking natural healing and complete wellness.",
+        p2: "Our founder, Dr. Vishwamurthi, envisioned a place where the timeless wisdom of Ayurveda could be practiced in its purest form while embracing the benefits of modern healthcare infrastructure and scientific validation.",
+        p3: "Over two decades, we have grown from a small clinic to a renowned Ayurvedic hospital, treating complex chronic conditions that conventional medicine often struggles to address. Our success lies in treating the root cause, not just symptoms.",
+        p4: "Today, we stand proud as a government-certified, ISO-accredited institution that has transformed over 5000 lives through authentic Panchakarma, Agnikarma, Viddha Karma, and comprehensive Ayurvedic treatments."
+      }
+    },
+    mission: {
+      title: "Our Mission",
+      description: "To make authentic Ayurvedic healing accessible to everyone, combining ancient wisdom with modern excellence for complete wellness transformation."
+    },
+    achievements: {
+      livesTransformed: "Lives Transformed",
+      yearsOfExcellence: "Years of Excellence",
+      successRate: "Success Rate",
+      patientRating: "Patient Rating"
+    },
+    coreValues: {
+      title: "Our Core Values",
+      subtitle: "The principles that guide every aspect of our healing practice",
+      compassionateCare: {
+        title: "Compassionate Care",
+        description: "Every patient is treated with empathy, respect, and genuine concern for their wellbeing and recovery journey."
+      },
+      authenticAyurveda: {
+        title: "Authentic Ayurveda",
+        description: "We practice traditional Ayurvedic principles in their purest form, preserving ancient wisdom while ensuring modern safety standards."
+      },
+      scientificApproach: {
+        title: "Scientific Approach",
+        description: "Our treatments are backed by scientific research and evidence-based practices, ensuring effective and safe healing outcomes."
+      },
+      holisticHealing: {
+        title: "Holistic Healing",
+        description: "We address the root cause of illness, treating mind, body, and spirit as an interconnected system for complete wellness."
+      }
+    },
+    milestones: {
+      title: "Our Journey Through Time",
+      subtitle: "Key milestones that shaped our legacy of healing excellence",
+      "2003": {
+        event: "Foundation Established",
+        description: "Shri Vishwamurthi Ayurvedalay was founded with a vision to provide authentic Ayurvedic healing to the community."
+      },
+      "2008": {
+        event: "Government Recognition",
+        description: "Received official government certification, establishing our credibility as a legitimate Ayurvedic healthcare provider."
+      },
+      "2012": {
+        event: "ISO 9001:2015 Certification",
+        description: "Achieved international quality standards certification, ensuring consistent service excellence and patient safety."
+      },
+      "2015": {
+        event: "Teaching Hospital Status",
+        description: "Recognized as a teaching hospital, training the next generation of Ayurvedic practitioners and healers."
+      },
+      "2018": {
+        event: "5000+ Lives Transformed",
+        description: "Reached the milestone of transforming over 5000 lives through our comprehensive Ayurvedic treatment programs."
+      },
+      "2020": {
+        event: "Digital Healthcare Integration",
+        description: "Successfully integrated modern healthcare technology with traditional Ayurvedic practices for enhanced patient care."
+      },
+      "2023": {
+        event: "20 Years of Excellence",
+        description: "Celebrated two decades of dedicated service, innovation, and commitment to authentic Ayurvedic healing."
+      }
+    },
+    legacy: {
+      title: "Join Our Legacy of Healing",
+      description: "Experience the transformative power of authentic Ayurvedic care and become part of our success story."
+    }
+  }
 };
