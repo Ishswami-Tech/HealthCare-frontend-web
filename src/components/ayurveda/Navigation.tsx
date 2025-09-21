@@ -18,8 +18,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Phone, Menu, X } from "lucide-react";
+import { Phone, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -33,17 +40,17 @@ const Navigation = () => {
   const { session, isAuthenticated, logout } = useAuth();
   const router = useRouter();
 
-  // Get current language name
-  const getCurrentLanguageName = () => {
+  // Get current language short form
+  const getCurrentLanguageShort = () => {
     switch (currentLanguage) {
       case "en":
-        return "English";
+        return "EN";
       case "hi":
-        return "हिंदी";
+        return "HI";
       case "mr":
-        return "मराठी";
+        return "MR";
       default:
-        return "English";
+        return "EN";
     }
   };
 
@@ -54,6 +61,42 @@ const Navigation = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Handle body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+    } else {
+      document.body.style.overflow = "unset";
+      document.body.style.position = "unset";
+      document.body.style.width = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+      document.body.style.position = "unset";
+      document.body.style.width = "unset";
+    };
+  }, [isMobileMenuOpen]);
+
+  // Handle escape key to close mobile menu
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    if (isMobileMenuOpen) {
+      document.addEventListener("keydown", handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isMobileMenuOpen]);
 
   // Enhanced hover handlers with timeout
   const handleMouseEnter = () => {
@@ -130,7 +173,7 @@ const Navigation = () => {
     <>
       {/* Top Trust Bar */}
       <div className="bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4 relative z-40">
-        <div className="container mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs md:text-sm gap-2 sm:gap-0">
+        <div className="container mx-auto max-w-7xl flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs md:text-sm gap-2 sm:gap-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <Badge
               variant="secondary"
@@ -161,8 +204,8 @@ const Navigation = () => {
                   className="flex items-center space-x-1 sm:space-x-2 h-7 sm:h-8 px-2 sm:px-3 hover:bg-white/20 dark:hover:bg-gray-700/50 transition-all duration-200 hover:scale-110 z-50 relative"
                 >
                   <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline text-xs">
-                    {getCurrentLanguageName()}
+                  <span className="text-xs font-semibold">
+                    {getCurrentLanguageShort()}
                   </span>
                   <ChevronDown className="w-3 h-3" />
                 </Button>
@@ -224,6 +267,7 @@ const Navigation = () => {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: [0.0, 0.0, 0.2, 1] }}
+        style={{ zIndex: 40 }}
       >
         {/* Background Elements - Same as Hero */}
         <div className="absolute inset-0 z-0">
@@ -244,16 +288,16 @@ const Navigation = () => {
 
         {/* Navigation Content */}
         <div className="container mx-auto px-4 relative z-10">
-          <div className="flex items-center justify-between h-16 md:h-20 min-h-[4rem]">
+          <div className="flex items-center justify-between h-16 md:h-20 min-h-[4rem] max-w-7xl mx-auto">
             {/* Left Section - Logo Only */}
-            <div className="flex items-center flex-shrink-0">
+            <div className="flex items-center flex-shrink-0 min-w-0">
               <HoverAnimation type="scale">
                 <Link
                   href="/"
-                  className="flex items-center space-x-2 sm:space-x-3"
+                  className="flex items-center space-x-2 sm:space-x-3 touch-manipulation"
                 >
                   <motion.div
-                    className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden"
+                    className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
                     whileHover={{ rotate: 360 }}
                     transition={{ duration: 0.5, ease: "easeInOut" }}
                   >
@@ -263,11 +307,11 @@ const Navigation = () => {
                       className="w-full h-full object-cover"
                     />
                   </motion.div>
-                  <div className="hidden sm:block">
-                    <h1 className="font-playfair text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-tight">
+                  <div className="hidden sm:block min-w-0">
+                    <h1 className="font-playfair text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-tight truncate">
                       {t("navigation.clinicName")}
                     </h1>
-                    <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 -mt-1">
+                    <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 -mt-1 truncate">
                       {t("navigation.clinicSubtitle")}
                     </p>
                   </div>
@@ -417,7 +461,7 @@ const Navigation = () => {
             </div>
 
             {/* Right Section - Clean and Simple */}
-            <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-shrink-0">
               {/* Authentication Buttons */}
               {isAuthenticated && session ? (
                 <div className="flex items-center space-x-2">
@@ -426,13 +470,13 @@ const Navigation = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="flex items-center space-x-2 h-8 px-3"
+                        className="flex items-center space-x-1 sm:space-x-2 h-8 px-2 sm:px-3 touch-manipulation"
                       >
-                        <User className="w-4 h-4" />
-                        <span className="hidden sm:inline text-sm">
+                        <User className="w-4 h-4 flex-shrink-0" />
+                        <span className="hidden sm:inline text-sm truncate max-w-20">
                           {session.user.firstName || "User"}
                         </span>
-                        <ChevronDown className="w-3 h-3" />
+                        <ChevronDown className="w-3 h-3 flex-shrink-0" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
@@ -448,24 +492,26 @@ const Navigation = () => {
                   </DropdownMenu>
                 </div>
               ) : (
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 sm:space-x-2">
                   <HoverAnimation type="scale">
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={handleLogin}
-                      className="text-orange-600 hover:bg-orange-50 text-xs sm:text-sm px-3"
+                      className="text-orange-600 hover:bg-orange-50 text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
                     >
-                      Login
+                      <span className="hidden sm:inline">Login</span>
+                      <span className="sm:hidden">Login</span>
                     </Button>
                   </HoverAnimation>
                   <HoverAnimation type="scale">
                     <Button
                       size="sm"
                       onClick={handleRegister}
-                      className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3"
+                      className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
                     >
-                      Register
+                      <span className="hidden sm:inline">Register</span>
+                      <span className="sm:hidden">Sign Up</span>
                     </Button>
                   </HoverAnimation>
                 </div>
@@ -482,133 +528,99 @@ const Navigation = () => {
                 </Button>
               </HoverAnimation>
 
-              {/* Mobile Menu Button */}
-              <motion.div
-                whileTap={{ scale: 0.95 }}
-                transition={{ duration: 0.1 }}
-              >
+              {/* Mobile Book Consultation Button */}
+              <HoverAnimation type="scale">
                 <Button
-                  variant="ghost"
                   size="sm"
-                  className="lg:hidden h-8 w-8 p-0"
-                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  className="lg:hidden bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
                 >
-                  <AnimatePresence mode="wait">
-                    {isMobileMenuOpen ? (
-                      <motion.div
-                        key="close"
-                        initial={{ rotate: -90, opacity: 0 }}
-                        animate={{ rotate: 0, opacity: 1 }}
-                        exit={{ rotate: 90, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <X className="w-4 h-4" />
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="menu"
-                        initial={{ rotate: 90, opacity: 0 }}
-                        animate={{ rotate: 0, opacity: 1 }}
-                        exit={{ rotate: -90, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <Menu className="w-4 h-4" />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <Phone className="w-3 h-3 mr-1" />
+                  <span className="hidden sm:inline">
+                    {t("navigation.bookConsultation")}
+                  </span>
+                  <span className="sm:hidden">Book</span>
                 </Button>
-              </motion.div>
-            </div>
-          </div>
-        </div>
+              </HoverAnimation>
 
-        {/* Mobile Menu */}
-        <AnimatePresence>
-          {isMobileMenuOpen && (
-            <motion.div
-              className="lg:hidden bg-white dark:bg-gray-900 border-t border-orange-100 dark:border-gray-700 shadow-lg overflow-hidden"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: [0.0, 0.0, 0.2, 1] }}
-            >
-              <div className="container mx-auto px-4 py-4">
-                <motion.div
-                  className="flex flex-col space-y-4"
-                  initial={{ y: -20 }}
-                  animate={{ y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.1 }}
+              {/* Mobile Menu Button */}
+              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="lg:hidden h-10 w-10 p-0 touch-manipulation hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                    aria-label="Toggle mobile menu"
+                  >
+                    <Menu className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                  </Button>
+                </SheetTrigger>
+
+                <SheetContent
+                  side="left"
+                  className="w-80 p-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
                 >
-                  {navItems.map((item, index) => (
-                    <motion.div
-                      key={item.name}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{
-                        duration: 0.3,
-                        delay: index * 0.1 + 0.2,
-                        ease: [0.0, 0.0, 0.2, 1],
-                      }}
-                    >
-                      {item.hasDropdown ? (
-                        <div>
-                          <button
-                            onClick={() =>
-                              setIsTreatmentsDropdownOpen(
-                                !isTreatmentsDropdownOpen
-                              )
-                            }
-                            className={cn(
-                              "w-full text-left text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium py-2 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between transition-colors duration-200",
-                              (pathname === item.href ||
-                                item.subItems?.some(
-                                  (subItem) => pathname === subItem.href
-                                )) &&
-                                "text-orange-600 dark:text-orange-400"
-                            )}
-                          >
-                            <span>{item.name}</span>
-                            <motion.div
-                              animate={{
-                                rotate: isTreatmentsDropdownOpen ? 90 : 0,
-                              }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <ChevronRight className="w-4 h-4" />
-                            </motion.div>
-                          </button>
+                  <SheetHeader className="p-8 pb-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
+                    <SheetTitle className="text-left text-xl font-bold text-orange-600 dark:text-orange-400 leading-tight tracking-wide flex items-center space-x-3">
+                      <div className="w-7 h-7 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <img
+                          src="/logo.svg"
+                          alt={t("navigation.clinicName")}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <span>{t("navigation.clinicName")}</span>
+                    </SheetTitle>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 font-medium">
+                      Navigate to your destination
+                    </p>
+                  </SheetHeader>
 
-                          {/* Mobile Accordion */}
-                          <AnimatePresence>
-                            {isTreatmentsDropdownOpen && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{
-                                  duration: 0.3,
-                                  ease: [0.0, 0.0, 0.2, 1],
-                                }}
-                                className="overflow-hidden"
-                              >
-                                <div className="pl-4 space-y-2 py-2">
-                                  {item.subItems?.map((subItem, subIndex) => (
-                                    <motion.div
-                                      key={subItem.name}
-                                      initial={{ opacity: 0, x: -10 }}
-                                      animate={{ opacity: 1, x: 0 }}
-                                      transition={{
-                                        duration: 0.2,
-                                        delay: subIndex * 0.05,
-                                        ease: [0.0, 0.0, 0.2, 1],
-                                      }}
-                                    >
+                  <div className="flex flex-col h-full overflow-y-auto">
+                    {/* Navigation Items */}
+                    <div className="flex-1 px-8 py-6">
+                      <div className="flex flex-col space-y-3">
+                        {navItems.map((item) => (
+                          <div key={item.name}>
+                            {item.hasDropdown ? (
+                              <div>
+                                <button
+                                  onClick={() =>
+                                    setIsTreatmentsDropdownOpen(
+                                      !isTreatmentsDropdownOpen
+                                    )
+                                  }
+                                  className={cn(
+                                    "w-full text-left text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center justify-between transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
+                                    (pathname === item.href ||
+                                      item.subItems?.some(
+                                        (subItem) => pathname === subItem.href
+                                      )) &&
+                                      "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+                                  )}
+                                >
+                                  <span>{item.name}</span>
+                                  <div
+                                    className={`transform transition-transform duration-150 ${
+                                      isTreatmentsDropdownOpen
+                                        ? "rotate-90"
+                                        : "rotate-0"
+                                    }`}
+                                  >
+                                    <ChevronRight className="w-4 h-4" />
+                                  </div>
+                                </button>
+
+                                {/* Mobile Accordion */}
+                                {isTreatmentsDropdownOpen && (
+                                  <div className="ml-4 space-y-1 py-2">
+                                    {item.subItems?.map((subItem) => (
                                       <Link
+                                        key={subItem.name}
                                         href={subItem.href}
                                         className={cn(
-                                          "block text-sm text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 py-1 transition-colors duration-200",
+                                          "block text-sm text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 py-2 px-3 rounded-lg transition-all duration-200 border border-transparent hover:border-orange-200 dark:hover:border-orange-800",
                                           pathname === subItem.href &&
-                                            "text-orange-600 dark:text-orange-400"
+                                            "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
                                         )}
                                         onClick={() =>
                                           setIsMobileMenuOpen(false)
@@ -619,99 +631,86 @@ const Navigation = () => {
                                           <span>{subItem.name}</span>
                                         </div>
                                       </Link>
-                                    </motion.div>
-                                  ))}
-                                </div>
-                              </motion.div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <Link
+                                href={item.href}
+                                className={cn(
+                                  "text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
+                                  pathname === item.href &&
+                                    "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+                                )}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                              >
+                                {item.name}
+                              </Link>
                             )}
-                          </AnimatePresence>
-                        </div>
-                      ) : (
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0 block transition-colors duration-200",
-                            pathname === item.href &&
-                              "text-orange-600 dark:text-orange-400"
-                          )}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          {item.name}
-                        </Link>
-                      )}
-                    </motion.div>
-                  ))}
-                  <motion.div
-                    className="flex flex-col space-y-2 pt-4"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.5 }}
-                  >
-                    {/* Mobile Authentication Buttons */}
-                    {isAuthenticated && session ? (
-                      <div className="flex flex-col space-y-2">
-                        <div className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg">
-                          <User className="w-4 h-4 text-orange-600" />
-                          <span className="text-sm font-medium text-orange-800">
-                            {session.user.firstName || "User"}
-                          </span>
-                        </div>
-                        <HoverAnimation type="scale">
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Authentication Section */}
+                    <div className="p-8 pt-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                      {isAuthenticated && session ? (
+                        <div className="flex flex-col space-y-4">
+                          <div className="flex items-center space-x-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                            <User className="w-4 h-4 text-orange-600" />
+                            <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                              {session.user.firstName || "User"}
+                            </span>
+                          </div>
                           <Button
                             onClick={handleDashboardNavigation}
-                            className="bg-gradient-to-r from-orange-500 to-red-600 text-white"
+                            className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
                           >
                             <User className="w-4 h-4 mr-2" />
                             Dashboard
                           </Button>
-                        </HoverAnimation>
-                        <HoverAnimation type="scale">
                           <Button
                             variant="outline"
                             onClick={handleLogout}
-                            className="border-red-300 text-red-600"
+                            className="border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 h-12 text-base touch-manipulation"
                           >
                             <LogOut className="w-4 h-4 mr-2" />
                             Logout
                           </Button>
-                        </HoverAnimation>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col space-y-2">
-                        <HoverAnimation type="scale">
+                        </div>
+                      ) : (
+                        <div className="flex flex-col space-y-4">
                           <Button
                             onClick={handleLogin}
                             variant="outline"
-                            className="border-orange-300 text-orange-600"
+                            className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation"
                           >
                             Login
                           </Button>
-                        </HoverAnimation>
-                        <HoverAnimation type="scale">
                           <Button
                             onClick={handleRegister}
-                            className="bg-gradient-to-r from-orange-500 to-red-600 text-white"
+                            className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
                           >
                             Register
                           </Button>
-                        </HoverAnimation>
-                      </div>
-                    )}
+                        </div>
+                      )}
 
-                    <HoverAnimation type="scale">
                       <Button
                         variant="outline"
-                        className="border-orange-300 text-orange-600"
+                        className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation mt-3 w-full"
                       >
+                        <Phone className="w-4 h-4 mr-2" />
                         {t("navigation.bookConsultation")}
                       </Button>
-                    </HoverAnimation>
-                  </motion.div>
-                </motion.div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+          </div>
+        </div>
       </motion.nav>
     </>
   );

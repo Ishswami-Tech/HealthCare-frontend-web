@@ -49,21 +49,23 @@ export function HeroSection({
 
   if (variant === "minimal") {
     return (
-      <section className={cn("py-20 bg-background", className)}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section
+        className={cn("py-16 sm:py-20 lg:py-24 bg-background", className)}
+      >
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
+            <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-8 sm:mb-10">
               {t("hero.title")}
             </h1>
-            <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+            <p className="text-xl text-muted-foreground mb-10 sm:mb-12 max-w-3xl mx-auto">
               {t("hero.subtitle")}
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-4 rounded-lg font-semibold text-lg transition-colors flex items-center justify-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 justify-center">
+              <button className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-5 rounded-lg font-semibold text-lg transition-colors flex items-center justify-center gap-2">
                 {t("hero.primaryCta")}
                 <ArrowRight className="w-5 h-5" />
               </button>
-              <button className="border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground px-8 py-4 rounded-lg font-semibold text-lg transition-colors">
+              <button className="border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground px-10 py-5 rounded-lg font-semibold text-lg transition-colors">
                 {t("hero.secondaryCta")}
               </button>
             </div>
@@ -87,20 +89,20 @@ export function HeroSection({
           <div className="absolute inset-0 bg-black bg-opacity-50" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
+        <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 text-center text-white">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+            <h1 className="text-5xl md:text-7xl font-bold mb-8 sm:mb-10 leading-tight">
               {t("hero.title")}
             </h1>
-            <p className="text-xl md:text-2xl mb-4 text-primary/80">
+            <p className="text-xl md:text-2xl mb-6 sm:mb-8 text-primary/80">
               {t("hero.subtitle")}
             </p>
-            <p className="text-lg mb-8 text-white/80 max-w-2xl mx-auto">
+            <p className="text-lg mb-10 sm:mb-12 text-white/80 max-w-2xl mx-auto">
               {t("hero.description")}
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
-              <button className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-4 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-8 sm:gap-10 justify-center items-center mb-16 sm:mb-20">
+              <button className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-5 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 flex items-center gap-2">
                 {t("hero.primaryCta")}
                 <ArrowRight className="w-5 h-5" />
               </button>
@@ -154,10 +156,10 @@ export function HeroSection({
       {/* Background */}
       <div className="absolute inset-0 bg-background" />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <div className="relative max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-16 sm:py-20 lg:py-24">
+        <div className="grid lg:grid-cols-2 gap-12 sm:gap-16 lg:gap-20 items-center">
           {/* Content */}
-          <div className="space-y-8">
+          <div className="space-y-8 sm:space-y-10 lg:space-y-12">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
               <Award className="w-4 h-4" />
@@ -198,18 +200,18 @@ export function HeroSection({
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-4 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg">
+            <div className="flex flex-col sm:flex-row gap-6 sm:gap-8">
+              <button className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-5 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg">
                 {t("hero.primaryCta")}
                 <ArrowRight className="w-5 h-5" />
               </button>
-              <button className="border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground px-8 py-4 rounded-lg font-semibold text-lg transition-colors">
+              <button className="border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground px-10 py-5 rounded-lg font-semibold text-lg transition-colors">
                 {t("hero.secondaryCta")}
               </button>
             </div>
 
             {/* Contact Info */}
-            <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
+            <div className="flex flex-wrap gap-6 sm:gap-8 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
                   <Clock className="w-4 h-4 text-primary" />
@@ -266,7 +268,7 @@ export function HeroSection({
 
         {/* Stats Section */}
         {showStats && (
-          <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="mt-16 sm:mt-20 lg:mt-24 grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 lg:gap-12">
             {stats.map((stat, index) => (
               <div key={index} className="text-center">
                 <div

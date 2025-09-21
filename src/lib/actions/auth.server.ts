@@ -27,7 +27,7 @@ if (process.env.NODE_ENV === 'development') {
 async function checkApiConnection(): Promise<boolean> {
   try {
     // Try multiple endpoints that might be available
-    const endpoints = ['/health', '/api-health', '/api', '/'];
+    const endpoints = ['/health', '/health/api-health', '/health/api', '/'];
 
     for (const endpoint of endpoints) {
       try {
