@@ -9,7 +9,14 @@ interface LogContext {
 }
 
 class Logger {
-  private isDevelopment = process.env.NODE_ENV === 'development';
+  private isDevelopment = (() => {
+    try {
+      const { APP_CONFIG } = require('@/lib/config/config');
+      return APP_CONFIG.IS_DEVELOPMENT;
+    } catch {
+      return process.env.NODE_ENV === 'development';
+    }
+  })();
 
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
     const timestamp = new Date().toISOString();

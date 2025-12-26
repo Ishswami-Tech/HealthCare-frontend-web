@@ -9,9 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
-// TODO: Create pharmacy server actions
-// import { usePrescriptions } from "@/hooks/usePrescriptions";
-// import { useInventory } from "@/hooks/useInventory";
+import {
+  usePrescriptions,
+  useInventory,
+  usePharmacyStats,
+} from "@/hooks/usePharmacy";
+import { useClinicContext } from "@/hooks/useClinic";
+import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
 import {
   Activity,
   Pill,
@@ -32,95 +37,107 @@ export default function PharmacistDashboard() {
   const { session } = useAuth();
   const user = session?.user;
 
-  // TODO: Fetch real data using existing hooks and server actions when available
-  // const { data: profile } = useQueryData(
-  //   ["user-profile"],
-  //   () => getUserProfile(),
-  //   { enabled: !!session?.user?.id }
-  // );
+  // Enable real-time WebSocket sync
+  useWebSocketQuerySync();
 
-  // TODO: Create pharmacy-specific hooks when server actions are ready
-  // const { data: prescriptions, isLoading: prescriptionsLoading } = usePrescriptions();
-  // const { data: inventory, isLoading: inventoryLoading } = useInventory();
+  // Clinic context
+  const { clinicId } = useClinicContext();
 
-  // Mock data for demonstration (replace with real data when hooks are available)
+  // Fetch real data using pharmacy hooks
+  const { data: prescriptions = [], isLoading: prescriptionsLoading } =
+    usePrescriptions(clinicId || "", {
+      status: undefined, // Get all prescriptions
+      limit: 100,
+    });
+
+  const { data: inventory = [], isLoading: inventoryLoading } = useInventory(
+    clinicId || "",
+    {
+      limit: 100,
+    }
+  );
+
+  const { data: pharmacyStats } = usePharmacyStats(clinicId || "");
+
+  // Calculate real stats from fetched data
   const stats = {
-    pendingPrescriptions: 12, // TODO: prescriptions?.filter(p => p.status === 'PENDING')?.length || 12
-    preparedPrescriptions: 8, // TODO: prescriptions?.filter(p => p.status === 'PREPARED')?.length || 8
-    lowStockItems: 5, // TODO: inventory?.filter(i => i.quantity < i.minThreshold)?.length || 5
-    totalHandovers: 156,
-    monthlyDispensed: 1240,
-    inventoryValue: 85000,
-    expiringItems: 3,
-    averagePreparationTime: 15,
+    pendingPrescriptions:
+      prescriptions.filter(
+        (p: any) => p.status === "PENDING" || p.status === "pending"
+      )?.length || 0,
+    preparedPrescriptions:
+      prescriptions.filter(
+        (p: any) => p.status === "PREPARED" || p.status === "prepared"
+      )?.length || 0,
+    lowStockItems:
+      inventory.filter((i: any) => i.currentStock < i.minStock)?.length || 0,
+    totalHandovers: pharmacyStats?.totalHandovers || 0,
+    monthlyDispensed: pharmacyStats?.monthlyDispensed || 0,
+    inventoryValue:
+      pharmacyStats?.inventoryValue ||
+      inventory.reduce(
+        (sum: number, item: any) => sum + item.costPerUnit * item.currentStock,
+        0
+      ),
+    expiringItems:
+      inventory.filter((i: any) => {
+        if (!i.expiryDate) return false;
+        const expiry = new Date(i.expiryDate);
+        const in30Days = new Date();
+        in30Days.setDate(in30Days.getDate() + 30);
+        return expiry <= in30Days;
+      })?.length || 0,
+    averagePreparationTime: pharmacyStats?.averagePreparationTime || 15,
   };
 
-  const pendingPrescriptions = [
-    {
-      id: "RX001",
-      patientName: "Rajesh Kumar",
-      doctorName: "Dr. Priya Sharma",
-      prescribedAt: "10:30 AM",
-      medicines: ["Triphala Churna", "Ashwagandha Capsules", "Brahmi Ghrita"],
-      status: "pending",
-      priority: "normal",
-    },
-    {
-      id: "RX002",
-      patientName: "Aarti Singh",
-      doctorName: "Dr. Amit Patel",
-      prescribedAt: "11:15 AM",
-      medicines: ["Chyawanprash", "Arjuna Tablets"],
-      status: "pending",
-      priority: "urgent",
-    },
-    {
-      id: "RX003",
-      patientName: "Vikram Gupta",
-      doctorName: "Dr. Ravi Mehta",
-      prescribedAt: "12:00 PM",
-      medicines: ["Saraswatarishta", "Medhya Rasayana"],
-      status: "preparing",
-      priority: "normal",
-    },
-  ];
+  // Use real prescriptions data
+  const pendingPrescriptions = prescriptions
+    .filter(
+      (p: any) => (p.status === "PENDING" || p.status === "pending") && p.id
+    )
+    .slice(0, 10)
+    .map((p: any) => ({
+      id: p.id,
+      patientName: p.patient?.name || p.patientName || "Unknown Patient",
+      doctorName: p.doctor?.name || p.doctorName || "Unknown Doctor",
+      prescribedAt: p.prescribedAt || p.createdAt || new Date().toISOString(),
+      medicines:
+        p.medicines?.map((m: any) => m.name || m.medicineName) ||
+        p.medicines ||
+        [],
+      status: p.status?.toLowerCase() || "pending",
+      priority: p.priority?.toLowerCase() || "normal",
+    }));
 
-  const lowStockItems = [
-    { name: "Triphala Churna", currentStock: 5, minStock: 20, unit: "kg" },
-    {
-      name: "Ashwagandha Capsules",
-      currentStock: 50,
-      minStock: 100,
-      unit: "bottles",
-    },
-    { name: "Brahmi Ghrita", currentStock: 2, minStock: 10, unit: "bottles" },
-    { name: "Chyawanprash", currentStock: 8, minStock: 25, unit: "jars" },
-    { name: "Arjuna Tablets", currentStock: 15, minStock: 50, unit: "bottles" },
-  ];
+  // Use real inventory data
+  const lowStockItems = inventory
+    .filter((i: any) => i.currentStock < i.minStock)
+    .slice(0, 10)
+    .map((i: any) => ({
+      name: i.name || i.medicineName,
+      currentStock: i.currentStock || i.quantity,
+      minStock: i.minStock || i.minThreshold,
+      unit: i.unit || "units",
+    }));
 
-  const recentHandovers = [
-    {
-      id: "RX098",
-      patientName: "Sunita Devi",
-      handedOverAt: "2:30 PM",
-      medicines: 3,
-      status: "completed",
-    },
-    {
-      id: "RX097",
-      patientName: "Manoj Tiwari",
-      handedOverAt: "2:15 PM",
-      medicines: 2,
-      status: "completed",
-    },
-    {
-      id: "RX096",
-      patientName: "Kavita Sharma",
-      handedOverAt: "1:45 PM",
-      medicines: 4,
-      status: "completed",
-    },
-  ];
+  // Recent handovers from completed prescriptions
+  const recentHandovers = useMemo(() => {
+    return prescriptions
+      .filter((p: any) => p.status === "COMPLETED" || p.status === "completed")
+      .slice(0, 5)
+      .map((p: any) => ({
+        id: p.id,
+        patientName: p.patient?.name || p.patientName || "Unknown Patient",
+        handedOverAt: p.dispensedAt
+          ? new Date(p.dispensedAt).toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "N/A",
+        medicines: p.medicines?.length || 0,
+        status: "completed",
+      }));
+  }, [prescriptions]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {

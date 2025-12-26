@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
@@ -17,6 +17,10 @@ import {
 } from "@/components/ui/select";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
+import { useUsers } from "@/hooks/useUsers";
+import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { Loader2 } from "lucide-react";
 import {
   Building2,
   Users,
@@ -40,64 +44,52 @@ export default function SuperAdminUsers() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Mock user data - in real app, fetch with server action
-  const users = [
-    {
-      id: "1",
-      name: "Dr. Rajesh Kumar",
-      email: "rajesh.kumar@ayurvedacenter.com",
-      phone: "+91 9876543210",
-      role: Role.DOCTOR,
-      status: "Active",
-      clinic: "Ayurveda Center Mumbai",
-      lastLogin: "2024-01-15T10:30:00Z",
-      createdAt: "2023-06-15T00:00:00Z",
-    },
-    {
-      id: "2",
-      name: "Sarah Wilson",
-      email: "sarah.wilson@wellnessclinic.com",
-      phone: "+91 9876543211",
-      role: Role.CLINIC_ADMIN,
-      status: "Active",
-      clinic: "Wellness Clinic Delhi",
-      lastLogin: "2024-01-14T15:45:00Z",
-      createdAt: "2023-05-20T00:00:00Z",
-    },
-    {
-      id: "3",
-      name: "Priya Sharma",
-      email: "priya.sharma@patient.com",
-      phone: "+91 9876543212",
-      role: Role.PATIENT,
-      status: "Active",
-      clinic: "Ayurveda Center Mumbai",
-      lastLogin: "2024-01-13T09:15:00Z",
-      createdAt: "2023-08-10T00:00:00Z",
-    },
-    {
-      id: "4",
-      name: "Amit Singh",
-      email: "amit.singh@holistichealth.com",
-      phone: "+91 9876543213",
-      role: Role.RECEPTIONIST,
-      status: "Inactive",
-      clinic: "Holistic Health Bangalore",
-      lastLogin: "2024-01-10T14:20:00Z",
-      createdAt: "2023-09-05T00:00:00Z",
-    },
-  ];
+  // Fetch real user data
+  const { data: usersData, isPending: isLoadingUsers } = useUsers();
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    const matchesStatus =
-      statusFilter === "all" || user.status.toLowerCase() === statusFilter;
+  // Sync with WebSocket for real-time updates
+  useWebSocketQuerySync();
 
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  // Transform users data
+  const users = useMemo(() => {
+    if (!usersData) return [];
+    const data = usersData as any;
+    const usersArray = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.users)
+      ? data.users
+      : Array.isArray(data?.data)
+      ? data.data
+      : [];
+
+    return usersArray.map((user: any) => ({
+      id: user.id,
+      name:
+        user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+      email: user.email,
+      phone: user.phone,
+      role: user.role || user.roles?.[0]?.name || "UNKNOWN",
+      status: user.isActive !== false ? "Active" : "Inactive",
+      clinic: user.clinic?.name || "N/A",
+      lastLogin: user.lastLogin || user.lastLoginAt,
+      createdAt: user.createdAt,
+    }));
+  }, [usersData]);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((user: any) => {
+      const matchesSearch =
+        !searchTerm ||
+        user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      const statusKey = user.status?.toLowerCase() || "";
+      const matchesStatus =
+        statusFilter === "all" || statusKey === statusFilter;
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, searchTerm, roleFilter, statusFilter]);
 
   const getRoleColor = (role: Role) => {
     switch (role) {
@@ -116,21 +108,23 @@ export default function SuperAdminUsers() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.SUPER_ADMIN).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
+  const sidebarLinks = getRoutesByRole(Role.SUPER_ADMIN).map((route) => {
+    let icon = <Activity className="w-5 h-5" />;
+    if (route.path.includes("dashboard")) {
+      icon = <Activity className="w-5 h-5" />;
+    } else if (route.path.includes("clinics")) {
+      icon = <Building2 className="w-5 h-5" />;
+    } else if (route.path.includes("users")) {
+      icon = <Users className="w-5 h-5" />;
+    } else if (route.path.includes("settings")) {
+      icon = <Settings className="w-5 h-5" />;
+    }
+    return {
+      ...route,
+      href: route.path,
+      icon,
+    };
+  });
 
   sidebarLinks.push({
     label: "Logout",
@@ -138,6 +132,27 @@ export default function SuperAdminUsers() {
     path: "/auth/login",
     icon: <LogOut className="w-5 h-5" />,
   });
+
+  if (isLoadingUsers) {
+    return (
+      <DashboardLayout title="User Management" allowedRole={Role.SUPER_ADMIN}>
+        <GlobalSidebar
+          links={sidebarLinks}
+          user={{
+            name:
+              user?.name ||
+              `${user?.firstName} ${user?.lastName}` ||
+              "Super Admin",
+            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
+          }}
+        >
+          <div className="p-6 flex items-center justify-center min-h-[400px]">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        </GlobalSidebar>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="User Management" allowedRole={Role.SUPER_ADMIN}>
@@ -154,10 +169,13 @@ export default function SuperAdminUsers() {
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">User Management</h1>
-            <Button className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Add New User
-            </Button>
+            <div className="flex items-center gap-2">
+              <WebSocketStatusIndicator />
+              <Button className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Add New User
+              </Button>
+            </div>
           </div>
 
           {/* Stats Overview */}

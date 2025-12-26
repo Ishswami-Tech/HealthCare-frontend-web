@@ -16,20 +16,12 @@ import {
 } from "@/hooks/useQueue";
 import { useClinicContext } from "@/hooks/useClinic";
 import { Permission } from "@/types/rbac.types";
+import { useRealTimeQueueStatus } from "@/hooks/useRealTimeQueries";
+import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { toast } from "sonner";
 
-// Local interface for mock queue data (different from API QueueItem)
-interface MockQueueItem {
-  id: string;
-  patientName: string;
-  doctorName: string;
-  appointmentTime: string;
-  status: string;
-  type: string;
-  checkedInAt: string;
-  startedAt?: string;
-  estimatedWait?: string;
-  estimatedDuration?: string;
-}
+// Real-time queue data interface
 import {
   Clock,
   User,
@@ -52,6 +44,8 @@ export default function QueuePage() {
   useAuth();
   const [activeQueue, setActiveQueue] = useState("consultations");
 
+  // Enable real-time WebSocket sync
+  useWebSocketQuerySync();
 
   // RBAC permissions
   const queuePermissions = useQueuePermissions();
@@ -70,6 +64,15 @@ export default function QueuePage() {
     enabled: !!clinicId && queuePermissions.canViewQueue,
   });
 
+  // Real-time queue status with WebSocket updates
+  const realTimeQueueStatus = useRealTimeQueueStatus(activeQueue);
+
+  // Use real-time data if available
+  const queueData =
+    realTimeQueueStatus.isRealTimeEnabled && realTimeQueueStatus.data
+      ? realTimeQueueStatus.data
+      : _queueData;
+
   // Fetch queue statistics for authorized users
   const { data: queueStats } = useQueueStats({
     enabled: queuePermissions.canManageQueue,
@@ -81,25 +84,33 @@ export default function QueuePage() {
 
   // Handle queue actions
   const handleUpdateQueueStatus = (patientId: string, status: string) => {
-    updateQueueStatusMutation.mutate({ patientId, status }, {
-      onSuccess: () => {
-        refetchQueue();
-      },
-      onError: (error) => {
-        console.error("Failed to update queue status:", error);
+    updateQueueStatusMutation.mutate(
+      { patientId, status },
+      {
+        onSuccess: () => {
+          refetchQueue();
+          toast.success("Queue status updated successfully");
+        },
+        onError: (error: any) => {
+          toast.error(error?.message || "Failed to update queue status");
+        },
       }
-    });
+    );
   };
 
   const handleCallNextPatient = (queueType: string) => {
-    callNextPatientMutation.mutate({ queueType }, {
-      onSuccess: () => {
-        refetchQueue();
-      },
-      onError: (error) => {
-        console.error("Failed to call next patient:", error);
+    callNextPatientMutation.mutate(
+      { queueType },
+      {
+        onSuccess: () => {
+          refetchQueue();
+          toast.success("Next patient called successfully");
+        },
+        onError: (error: any) => {
+          toast.error(error?.message || "Failed to call next patient");
+        },
       }
-    });
+    );
   };
 
   // Show loading state
@@ -128,39 +139,25 @@ export default function QueuePage() {
     );
   }
 
-  // Mock queue data (fallback)
-  const consultationQueue = [
-    {
-      id: "1",
-      patientName: "Rajesh Kumar",
-      doctorName: "Dr. Priya Sharma",
-      appointmentTime: "10:00 AM",
-      status: "waiting",
-      type: "Consultation",
-      checkedInAt: "9:45 AM",
-      estimatedWait: "15 min",
-    },
-    {
-      id: "2",
-      patientName: "Aarti Singh",
-      doctorName: "Dr. Amit Patel",
-      appointmentTime: "10:30 AM",
-      status: "in-progress",
-      type: "Follow-up",
-      checkedInAt: "10:15 AM",
-      startedAt: "10:25 AM",
-    },
-    {
-      id: "3",
-      patientName: "Vikram Gupta",
-      doctorName: "Dr. Ravi Mehta",
-      appointmentTime: "11:00 AM",
-      status: "checked-in",
-      type: "Consultation",
-      checkedInAt: "10:45 AM",
-      estimatedWait: "20 min",
-    },
-  ];
+  // Real-time queue data from API - filter by queue type
+  const getQueueByType = (type: string) => {
+    if (!queueData) return [];
+    const data = Array.isArray(queueData?.data)
+      ? queueData.data
+      : Array.isArray(queueData)
+      ? queueData
+      : [];
+    return data.filter(
+      (item: any) =>
+        item.type?.toLowerCase() === type.toLowerCase() ||
+        item.queueType?.toLowerCase() === type.toLowerCase()
+    );
+  };
+
+  const consultationQueue = getQueueByType("consultations");
+  const agnikarmaQueue = getQueueByType("agnikarma");
+  const panchakarmaQueue = getQueueByType("panchakarma");
+  const shirodharaQueue = getQueueByType("shirodhara");
 
   const therapyQueues = {
     agnikarma: [
@@ -232,12 +229,11 @@ export default function QueuePage() {
     }
   };
 
-
   const QueueCard = ({
     item,
     showActions = true,
   }: {
-    item: MockQueueItem;
+    item: any; // Real queue item from API
     showActions?: boolean;
   }) => (
     <Card className="hover:shadow-md transition-shadow">
@@ -369,7 +365,7 @@ export default function QueuePage() {
     icon,
   }: {
     title: string;
-    items: MockQueueItem[];
+    items: any[]; // Real queue items from API
     icon: React.ReactNode;
   }) => (
     <div className="space-y-4">
@@ -399,6 +395,19 @@ export default function QueuePage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Real-time WebSocket Status Indicator */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-3xl font-bold">Queue Management</h1>
+          <p className="text-gray-600">
+            {queuePermissions.canManageQueue
+              ? "Monitor and manage patient queues"
+              : "View patient queue status"}
+          </p>
+        </div>
+        <WebSocketStatusIndicator />
+      </div>
+
       {/* Queue Statistics for authorized users */}
       <ProtectedComponent
         permission={Permission.MANAGE_QUEUE}
@@ -567,17 +576,17 @@ export default function QueuePage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <TherapyQueueSection
               title="Agnikarma"
-              items={therapyQueues.agnikarma}
+              items={agnikarmaQueue}
               icon={<Flame className="w-5 h-5 text-orange-600" />}
             />
             <TherapyQueueSection
               title="Panchakarma"
-              items={therapyQueues.panchakarma}
+              items={panchakarmaQueue}
               icon={<Droplets className="w-5 h-5 text-blue-600" />}
             />
             <TherapyQueueSection
               title="Shirodhara"
-              items={therapyQueues.shirodhara}
+              items={shirodharaQueue}
               icon={<Leaf className="w-5 h-5 text-green-600" />}
             />
           </div>

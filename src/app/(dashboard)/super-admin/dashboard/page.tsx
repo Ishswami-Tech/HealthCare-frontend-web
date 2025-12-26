@@ -10,6 +10,8 @@ import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
 import { useClinics } from "@/hooks/useClinics";
 import { useUsers } from "@/hooks/useUsers";
+import { useAppointments } from "@/hooks/useAppointments";
+import { useRevenueAnalytics } from "@/hooks/useAnalytics";
 import {
   Building2,
   Users,
@@ -28,20 +30,34 @@ export default function SuperAdminDashboard() {
   // Fetch real data using existing hooks and server actions
   const { data: clinics } = useClinics();
   const { data: users } = useUsers();
+  const { data: appointmentsData } = useAppointments({ limit: 1 }); // Just to get total count
+  const { data: revenueData } = useRevenueAnalytics({ period: "month" });
 
   // Calculate real stats from fetched data
   const clinicsArray = clinics?.clinics || [];
+  const usersArray = Array.isArray(users) ? users : users?.users || [];
+  const appointments = appointmentsData?.appointments || [];
+  const revenue = revenueData?.totalRevenue || revenueData?.monthlyRevenue || 0;
+
   const stats = {
-    totalClinics: clinicsArray.length || 12,
-    totalUsers: users?.length || 485,
-    totalAppointments: 2847, // TODO: Add useAppointments hook for all appointments
-    monthlyRevenue: 125000, // TODO: Add useRevenue hook
+    totalClinics: clinicsArray.length || 0,
+    totalUsers: usersArray.length || 0,
+    totalAppointments: appointmentsData?.total || appointments.length || 0,
+    monthlyRevenue: revenue || 0,
     activePatients:
-      users?.filter((user) => user.role === "PATIENT")?.length || 342,
+      usersArray.filter(
+        (user: any) =>
+          user.role === "PATIENT" ||
+          user.roles?.some((r: any) => r.name === "PATIENT")
+      ).length || 0,
     activeDoctors:
-      users?.filter((user) => user.role === "DOCTOR")?.length || 48,
+      usersArray.filter(
+        (user: any) =>
+          user.role === "DOCTOR" ||
+          user.roles?.some((r: any) => r.name === "DOCTOR")
+      ).length || 0,
     systemHealth: "Excellent", // TODO: Add system health monitoring
-    avgSatisfaction: 4.6, // TODO: Add satisfaction metrics
+    avgSatisfaction: revenueData?.avgSatisfaction || 4.6, // TODO: Add satisfaction metrics
   };
 
   const recentActivities = [
@@ -294,5 +310,3 @@ export default function SuperAdminDashboard() {
     </DashboardLayout>
   );
 }
-
-

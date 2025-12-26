@@ -127,6 +127,8 @@ export {
   useScheduleMessage,
   useCancelScheduledMessage,
   useScheduledMessages,
+  useSubmitContactForm,
+  useSubmitConsultationBooking,
 } from './useNotifications';
 
 // Analytics hooks
@@ -175,6 +177,23 @@ export {
   useQueueUtils,
   useRealTimeQueue,
   useQueueNotifications,
+  useUpdateQueuePosition,
+  usePauseQueue,
+  useResumeQueue,
+  useQueueConfig,
+  useUpdateQueueConfig,
+  useMarkQueueNotificationAsRead,
+  useSendQueueNotification,
+  useQueueWaitTimes,
+  useEstimateWaitTime,
+  useQueueCapacity,
+  useUpdateQueueCapacity,
+  useQueuePerformanceMetrics,
+  useExportQueueData,
+  useQueueAlerts,
+  useCreateQueueAlert,
+  useUpdateQueueAlert,
+  useDeleteQueueAlert,
 } from './useQueue';
 
 // Doctors hooks
@@ -269,6 +288,9 @@ export {
   useRoleBasedNavigation,
   useContextualPermissions,
 } from './useRBAC';
+
+// Firebase Cloud Messaging hooks
+export { useFCM } from './useFCM';
 
 // Utility hooks
 export { useToast } from './use-toast';

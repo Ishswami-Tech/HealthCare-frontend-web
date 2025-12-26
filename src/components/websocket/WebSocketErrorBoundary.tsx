@@ -1,12 +1,12 @@
 "use client";
 
-import React, { Component, ReactNode, ErrorInfo } from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
-import { useWebSocketStore } from '@/stores/websocket.store';
-import { useAppStore } from '@/stores/app.store';
+import React, { Component, ReactNode, ErrorInfo } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertTriangle, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { useWebSocketStore } from "@/stores/websocket.store";
+import { useAppStore } from "@/stores/app.store";
 
 interface Props {
   children: ReactNode;
@@ -43,8 +43,12 @@ export class WebSocketErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('WebSocket Error Boundary caught an error:', error, errorInfo);
-    
+    console.error(
+      "WebSocket Error Boundary caught an error:",
+      error,
+      errorInfo
+    );
+
     this.setState({
       error,
       errorInfo,
@@ -61,9 +65,9 @@ export class WebSocketErrorBoundary extends Component<Props, State> {
 
   private reportError = (error: Error, errorInfo: ErrorInfo) => {
     // In production, send to error reporting service
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       // Example: Send to Sentry, LogRocket, etc.
-      console.error('Production error report:', {
+      console.error("Production error report:", {
         error: error.message,
         stack: error.stack,
         componentStack: errorInfo.componentStack,
@@ -74,13 +78,13 @@ export class WebSocketErrorBoundary extends Component<Props, State> {
 
   private handleRetry = () => {
     if (this.state.retryCount < this.maxRetries) {
-      this.setState(prevState => ({
+      this.setState((prevState) => ({
         retryCount: prevState.retryCount + 1,
       }));
 
       // Exponential backoff
       const delay = this.retryDelay * Math.pow(2, this.state.retryCount);
-      
+
       setTimeout(() => {
         this.setState({
           hasError: false,
@@ -121,7 +125,8 @@ export class WebSocketErrorBoundary extends Component<Props, State> {
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Connection Failed</AlertTitle>
               <AlertDescription>
-                {this.state.error?.message || 'An unexpected error occurred with the real-time connection.'}
+                {this.state.error?.message ||
+                  "An unexpected error occurred with the real-time connection."}
               </AlertDescription>
             </Alert>
 
@@ -132,22 +137,28 @@ export class WebSocketErrorBoundary extends Component<Props, State> {
                   variant="outline"
                   size="sm"
                   className="flex items-center gap-2"
+                  asChild={false}
                 >
-                  <RefreshCw className="h-4 w-4" />
-                  Retry ({this.maxRetries - this.state.retryCount} left)
+                  <span className="flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4" />
+                    <span>
+                      Retry ({this.maxRetries - this.state.retryCount} left)
+                    </span>
+                  </span>
                 </Button>
               )}
-              
+
               <Button
                 onClick={this.handleReset}
                 size="sm"
                 className="flex items-center gap-2"
+                asChild={false}
               >
-                Reset Connection
+                <span>Reset Connection</span>
               </Button>
             </div>
 
-            {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
+            {process.env.NODE_ENV === "development" && this.state.errorInfo && (
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-medium">
                   Error Details (Development)
@@ -169,22 +180,23 @@ export class WebSocketErrorBoundary extends Component<Props, State> {
 
 // Hook-based WebSocket Status Indicator
 export function WebSocketStatusIndicator() {
-  const { connectionStatus, error, reconnect, clearError } = useWebSocketStore();
+  const { connectionStatus, error, reconnect, clearError } =
+    useWebSocketStore();
   const { addNotification } = useAppStore();
 
   React.useEffect(() => {
     // Notify user of connection status changes
-    if (connectionStatus === 'connected' && !error) {
+    if (connectionStatus === "connected" && !error) {
       addNotification({
-        type: 'success',
-        title: 'Connected',
-        message: 'Real-time updates are active',
+        type: "success",
+        title: "Connected",
+        message: "Real-time updates are active",
         read: false,
       });
-    } else if (connectionStatus === 'error' && error) {
+    } else if (connectionStatus === "error" && error) {
       addNotification({
-        type: 'error',
-        title: 'Connection Error',
+        type: "error",
+        title: "Connection Error",
         message: error,
         persistent: true,
         read: false,
@@ -197,7 +209,7 @@ export function WebSocketStatusIndicator() {
     reconnect();
   }, [clearError, reconnect]);
 
-  if (connectionStatus === 'connected') {
+  if (connectionStatus === "connected") {
     return (
       <div className="flex items-center gap-2 text-green-600 text-sm">
         <Wifi className="h-4 w-4" />
@@ -206,7 +218,10 @@ export function WebSocketStatusIndicator() {
     );
   }
 
-  if (connectionStatus === 'connecting' || connectionStatus === 'reconnecting') {
+  if (
+    connectionStatus === "connecting" ||
+    connectionStatus === "reconnecting"
+  ) {
     return (
       <div className="flex items-center gap-2 text-yellow-600 text-sm">
         <RefreshCw className="h-4 w-4 animate-spin" />
@@ -215,7 +230,7 @@ export function WebSocketStatusIndicator() {
     );
   }
 
-  if (connectionStatus === 'error') {
+  if (connectionStatus === "error") {
     return (
       <div className="flex items-center gap-2 text-red-600 text-sm">
         <WifiOff className="h-4 w-4" />
@@ -225,8 +240,9 @@ export function WebSocketStatusIndicator() {
           variant="outline"
           onClick={handleReconnect}
           className="h-6 px-2 text-xs"
+          asChild={false}
         >
-          Retry
+          <span>Retry</span>
         </Button>
       </div>
     );
@@ -247,11 +263,12 @@ export function WebSocketGlobalErrorHandler() {
 
   React.useEffect(() => {
     // Handle global WebSocket errors
-    if (error && connectionStatus === 'error') {
+    if (error && connectionStatus === "error") {
       addNotification({
-        type: 'error',
-        title: 'Real-time Connection Lost',
-        message: 'Some features may not update automatically. The app will continue to work normally.',
+        type: "error",
+        title: "Real-time Connection Lost",
+        message:
+          "Some features may not update automatically. The app will continue to work normally.",
         persistent: false,
         read: false,
       });
@@ -277,7 +294,7 @@ export function useWebSocketRetry() {
   const { connectionStatus, error, reconnect } = useWebSocketStore();
   const [retryCount, setRetryCount] = React.useState(0);
   const [isRetrying, setIsRetrying] = React.useState(false);
-  
+
   const maxRetries = 5;
   const baseDelay = 1000; // 1 second
 
@@ -287,17 +304,17 @@ export function useWebSocketRetry() {
     }
 
     setIsRetrying(true);
-    
+
     // Exponential backoff with jitter
     const delay = baseDelay * Math.pow(2, retryCount) + Math.random() * 1000;
-    
+
     try {
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
       reconnect();
-      setRetryCount(prev => prev + 1);
+      setRetryCount((prev) => prev + 1);
       return true;
     } catch (err) {
-      console.error('Retry attempt failed:', err);
+      console.error("Retry attempt failed:", err);
       return false;
     } finally {
       setIsRetrying(false);
@@ -306,7 +323,12 @@ export function useWebSocketRetry() {
 
   // Auto-retry on connection errors
   React.useEffect(() => {
-    if (connectionStatus === 'error' && error && retryCount < maxRetries && !isRetrying) {
+    if (
+      connectionStatus === "error" &&
+      error &&
+      retryCount < maxRetries &&
+      !isRetrying
+    ) {
       const timer = setTimeout(() => {
         retryConnection();
       }, 1000);
@@ -315,11 +337,18 @@ export function useWebSocketRetry() {
     }
 
     return undefined;
-  }, [connectionStatus, error, retryCount, maxRetries, isRetrying, retryConnection]);
+  }, [
+    connectionStatus,
+    error,
+    retryCount,
+    maxRetries,
+    isRetrying,
+    retryConnection,
+  ]);
 
   // Reset retry count on successful connection
   React.useEffect(() => {
-    if (connectionStatus === 'connected') {
+    if (connectionStatus === "connected") {
       setRetryCount(0);
       setIsRetrying(false);
     }

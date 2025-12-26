@@ -662,20 +662,27 @@ export async function getHealthStatus(): Promise<{ success: boolean; status?: an
  */
 export async function getHealthReady(): Promise<{ success: boolean; status?: any; error?: string }> {
   try {
-    // Mock health ready check - implement actual API call when available
-    const response = { success: true, status: 'ready' };
-
-    if (!response.success) {
-      return { success: false, error: 'Health ready check failed' };
+    // Use real API health check endpoint (public endpoint, no auth required)
+    const { API_ENDPOINTS, APP_CONFIG } = await import('../config/config');
+    const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.HEALTH.READY}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Health check failed: ${response.statusText}`);
     }
-
-    return { success: true, status: response.status };
+    
+    const data = await response.json();
+    return { success: true, status: data };
     
   } catch (error) {
     console.error('Health ready check failed:', error);
     return { 
       success: false, 
-      error: 'Health ready check failed' 
+      error: error instanceof Error ? error.message : 'Health ready check failed' 
     };
   }
 }

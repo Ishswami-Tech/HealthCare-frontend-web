@@ -6,19 +6,26 @@ import { getDashboardByRole } from '@/config/routes';
 import { cookies } from 'next/headers';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 
-// API URL configuration with fallback for local development
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+// Import central configuration
+import { APP_CONFIG } from '@/lib/config/config';
+
+// API URL configuration from central config
+const API_URL = APP_CONFIG.API.BASE_URL;
 if (!API_URL) {
   throw new Error('API URL is not configured. Please set NEXT_PUBLIC_API_URL environment variable.');
 }
 
-// Clinic ID from environment
-const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID;
+// API prefix - backend uses /api/v1 as global prefix
+const API_PREFIX = '/api/v1';
 
-// Development logging
-if (process.env.NODE_ENV === 'development') {
-  console.log('Using API URL:', API_URL);
-  console.log('Using Clinic ID:', CLINIC_ID);
+// Clinic ID from central config
+const CLINIC_ID = APP_CONFIG.CLINIC.ID;
+
+// Environment-aware logging
+if (APP_CONFIG.IS_DEVELOPMENT || APP_CONFIG.FEATURES.DEBUG) {
+  console.log('🌍 Environment:', APP_CONFIG.ENVIRONMENT);
+  console.log('🔗 Using API URL:', API_URL);
+  console.log('🏥 Using Clinic ID:', CLINIC_ID);
 }
 
 /**
@@ -210,7 +217,7 @@ export async function getServerSession(): Promise<Session | null> {
 
       // Fall back to API call if JWT parsing fails
       console.log('getServerSession - Attempting to fetch user data from API');
-      const response = await fetch(`${API_URL}/user/profile`, {
+      const response = await fetch(`${API_URL}${API_PREFIX}/user/profile`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'X-Session-ID': sessionId || '',
@@ -415,7 +422,7 @@ export async function login(data: {
       headers['X-Clinic-ID'] = CLINIC_ID;
     }
 
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/login`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
@@ -537,7 +544,7 @@ export async function register(data: RegisterFormData & { clinicId?: string }) {
     console.log('Final request headers:', headers);
     console.log('Final request body keys:', Object.keys(formattedData));
 
-    const response = await fetch(`${API_URL}/auth/register`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/register`, {
       method: 'POST',
       headers,
       body: JSON.stringify(formattedData),
@@ -576,7 +583,7 @@ export async function registerWithClinic(data: {
   clinicId: string;
   appName: string;
 }) {
-  const response = await fetch(`${API_URL}/auth/register-with-clinic`, {
+  const response = await fetch(`${API_URL}${API_PREFIX}/auth/register-with-clinic`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -624,7 +631,7 @@ export async function requestOTP(identifier: string) {
     console.log('Final request headers:', headers);
     console.log('Final request body keys:', Object.keys(requestBody));
     
-    const response = await fetch(`${API_URL}/auth/request-otp`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/request-otp`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
@@ -659,7 +666,7 @@ export async function verifyOTP(data: {
     headers['X-Clinic-ID'] = CLINIC_ID;
   }
   const requestBody = { ...data, clinicId: CLINIC_ID };
-  const response = await fetch(`${API_URL}/auth/verify-otp`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/verify-otp`, {
     method: 'POST',
     headers,
     body: JSON.stringify(requestBody),
@@ -679,7 +686,7 @@ export async function verifyOTP(data: {
  * Check OTP Status
  */
 export async function checkOTPStatus(email: string) {
-  const response = await fetch(`${API_URL}/auth/check-otp-status`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/check-otp-status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -697,7 +704,7 @@ export async function checkOTPStatus(email: string) {
  * Invalidate OTP
  */
 export async function invalidateOTP(email: string) {
-  const response = await fetch(`${API_URL}/auth/invalidate-otp`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/invalidate-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -715,7 +722,7 @@ export async function invalidateOTP(email: string) {
  * Request Magic Link
  */
 export async function requestMagicLink(email: string) {
-  const response = await fetch(`${API_URL}/auth/magic-link`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/magic-link`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -733,7 +740,7 @@ export async function requestMagicLink(email: string) {
  * Verify Magic Link
  */
 export async function verifyMagicLink(token: string) {
-  const response = await fetch(`${API_URL}/auth/verify-magic-link`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/verify-magic-link`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
@@ -781,7 +788,7 @@ export async function socialLogin({ provider, token }: { provider: string; token
     console.log('Final request headers:', headers);
     console.log('Final request body keys:', Object.keys(requestBody));
     
-    const response = await fetch(`${API_URL}/auth/${provider}`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/${provider}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
@@ -806,7 +813,7 @@ export async function socialLogin({ provider, token }: { provider: string; token
  * Forgot Password
  */
 export async function forgotPassword(email: string) {
-  const response = await fetch(`${API_URL}/auth/forgot-password`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -824,7 +831,7 @@ export async function forgotPassword(email: string) {
  * Reset Password
  */
 export async function resetPassword(data: { token: string; newPassword: string }) {
-  const response = await fetch(`${API_URL}/auth/reset-password`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/reset-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -847,7 +854,7 @@ export async function changePassword(formData: FormData) {
     throw new Error('Not authenticated');
   }
 
-  const response = await fetch(`${API_URL}/auth/change-password`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/change-password`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${session.access_token}`,
@@ -877,7 +884,7 @@ export async function refreshToken(): Promise<Session | null> {
       throw new Error('No token to refresh');
     }
 
-    const response = await fetch(`${API_URL}/auth/refresh`, {
+      const response = await fetch(`${API_URL}${API_PREFIX}/auth/refresh`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${currentToken}`,
@@ -916,7 +923,7 @@ export async function logout() {
         deviceId: session.session_id // Use session ID as device ID
       };
 
-      const response = await fetch(`${API_URL}/auth/logout`, {
+      const response = await fetch(`${API_URL}${API_PREFIX}/auth/logout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -971,7 +978,7 @@ async function logoutAllDevices() {
   const session = await getServerSession();
   if (!session) return;
 
-  const response = await fetch(`${API_URL}/auth/logout`, {
+  const response = await fetch(`${API_URL}${API_PREFIX}/auth/logout`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1002,7 +1009,7 @@ export async function terminateAllSessions() {
     throw new Error('Not authenticated');
   }
 
-  const response = await fetch(`${API_URL}/auth/logout`, {
+  const response = await fetch(`${API_URL}${API_PREFIX}/auth/logout`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${session.access_token}`,
@@ -1112,8 +1119,8 @@ export async function authenticatedApi<T>(
   const cookieStore = await cookies();
   const accessToken = cookieStore.get('access_token')?.value;
   const sessionId = cookieStore.get('session_id')?.value;
-  const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID;
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+  const CLINIC_ID = APP_CONFIG.CLINIC.ID;
+  const API_URL = APP_CONFIG.API.BASE_URL;
 
   if (!accessToken) {
     throw new Error('No access token found');
@@ -1199,7 +1206,7 @@ export async function checkAuth() {
  * Verify Email
  */
 export async function verifyEmail(token: string) {
-  const response = await fetch(`${API_URL}/auth/verify-email`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/verify-email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
@@ -1266,7 +1273,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       console.log('Final request headers:', headers);
       console.log('Final request body keys:', Object.keys(requestBody));
       
-      const response = await fetch(`${API_URL}/auth/google`, {
+      const response = await fetch(`${API_URL}${API_PREFIX}/auth/google`, {
         method: 'POST',
         headers,
         body: JSON.stringify(requestBody),
@@ -1383,7 +1390,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
           console.log('Fetching additional user profile data from:', `${API_URL}/user/${userId}`);
           console.log('Using auth token:', result.access_token.substring(0, 15) + '...');
           
-          const profileResponse = await fetch(`${API_URL}/user/${userId}`, {
+          const profileResponse = await fetch(`${API_URL}${API_PREFIX}/user/${userId}`, {
             headers: {
               'Authorization': `Bearer ${result.access_token}`,
               'X-Session-ID': result.session_id || '',
@@ -1462,7 +1469,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
  * Facebook Login
  */
 export async function facebookLogin(token: string) {
-  const response = await fetch(`${API_URL}/auth/facebook`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/facebook`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
@@ -1482,7 +1489,7 @@ export async function facebookLogin(token: string) {
  * Apple Login
  */
 export async function appleLogin(token: string) {
-  const response = await fetch(`${API_URL}/auth/apple`, {
+    const response = await fetch(`${API_URL}${API_PREFIX}/auth/apple`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),

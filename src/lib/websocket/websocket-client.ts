@@ -1,6 +1,8 @@
 // ✅ WebSocket Client for Healthcare Frontend
 // This module provides real-time communication with the backend using WebSockets
 
+import { APP_CONFIG } from '@/lib/config/config';
+
 export interface WebSocketMessage {
   type: string;
   action: string;
@@ -312,12 +314,15 @@ export class HealthcareWebSocketService {
   private config: WebSocketConfig;
 
   private constructor() {
+    // Use environment-aware API config for WebSocket URL
+    const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || APP_CONFIG.WEBSOCKET.URL;
+    
     this.config = {
-      url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3001/ws',
-      reconnectAttempts: 5,
+      url: wsUrl,
+      reconnectAttempts: APP_CONFIG.WEBSOCKET.MAX_RECONNECT_ATTEMPTS,
       reconnectDelay: 1000,
       heartbeatInterval: 30000, // 30 seconds
-      timeout: 10000, // 10 seconds
+      timeout: APP_CONFIG.WEBSOCKET.TIMEOUT,
     };
   }
 

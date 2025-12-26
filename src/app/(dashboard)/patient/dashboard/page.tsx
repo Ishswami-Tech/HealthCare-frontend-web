@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
@@ -10,10 +10,21 @@ import { Button } from "@/components/ui/button";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyAppointments } from "@/hooks/useAppointments";
-
+import { useClinicContext } from "@/hooks/useClinic";
+import {
+  usePatientMedicalRecords,
+  usePatientVitalSigns,
+} from "@/hooks/usePatients";
+import {
+  usePatientPrescriptions,
+  useComprehensiveHealthRecord,
+} from "@/hooks/useMedicalRecords";
+import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
 
 import { useTranslations } from "next-intl";
 import { translateSidebarLinks } from "@/utils/sidebarTranslations";
+import { theme } from "@/lib/theme-utils";
 import {
   Activity,
   Calendar,
@@ -39,122 +50,132 @@ export default function PatientDashboard() {
   const user = session?.user;
   const t = useTranslations();
 
-  // Fetch real data using your existing hooks
-  useMyAppointments();
+  // Enable real-time WebSocket sync
+  useWebSocketQuerySync();
 
-  // Mock patient data (replace with real data from your backend)
-  const patientData = {
-    personalInfo: {
-      name:
-        user?.name || `${user?.firstName} ${user?.lastName}` || "Rajesh Kumar",
-      age: 45,
-      gender: "Male",
-      phone: "+91 9876543210",
-      email: user?.email || "rajesh.kumar@email.com",
-    },
-    healthOverview: {
-      primaryDosha: "Vata-Pitta",
-      currentTreatment: "Panchakarma Therapy",
-      treatmentProgress: 75,
-      nextAppointment: "2024-01-22T10:00:00Z",
-      lastVisit: "2024-01-15T14:30:00Z",
-    },
-    upcomingAppointments: [
-      {
-        id: "1",
-        doctor: "Dr. Priya Sharma",
-        type: "Panchakarma Session",
-        date: "2024-01-22",
-        time: "10:00 AM",
-        location: "Ayurveda Center Mumbai",
-        status: "Confirmed",
-        isOnline: false,
+  const { clinicId } = useClinicContext();
+  const patientId = user?.id || "";
+
+  // Fetch real data using hooks
+  const { data: appointmentsData } = useMyAppointments();
+  const { data: medicalRecordsData } = usePatientMedicalRecords(
+    clinicId || "",
+    patientId
+  );
+  const { data: vitalSignsData } = usePatientVitalSigns(patientId);
+  const { data: prescriptionsData } = usePatientPrescriptions(
+    patientId,
+    "active"
+  );
+  const { data: comprehensiveData } = useComprehensiveHealthRecord(patientId);
+
+  // Transform real data
+  const patientData = useMemo(() => {
+    const appointments = appointmentsData?.appointments || [];
+    const upcomingAppointments = appointments
+      .filter((apt: any) => new Date(apt.startTime || apt.date) >= new Date())
+      .slice(0, 5)
+      .map((apt: any) => ({
+        id: apt.id,
+        doctor:
+          apt.doctor?.name ||
+          `${apt.doctor?.firstName || ""} ${
+            apt.doctor?.lastName || ""
+          }`.trim() ||
+          "Unknown Doctor",
+        type: apt.type || apt.appointmentType || "Consultation",
+        date: apt.startTime
+          ? new Date(apt.startTime).toISOString().split("T")[0]
+          : "",
+        time: apt.startTime
+          ? new Date(apt.startTime).toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "",
+        location: apt.location || apt.clinic?.name || "Clinic",
+        status: apt.status || "Scheduled",
+        isOnline: apt.isOnline || false,
+      }));
+
+    const latestVitals = vitalSignsData?.[0] || {};
+    const latestPrescriptions = prescriptionsData || [];
+
+    return {
+      personalInfo: {
+        name:
+          user?.name ||
+          `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
+          "Patient",
+        age: user?.dateOfBirth
+          ? Math.floor(
+              (new Date().getTime() - new Date(user.dateOfBirth).getTime()) /
+                (1000 * 60 * 60 * 24 * 365)
+            )
+          : null,
+        gender: user?.gender || "Unknown",
+        phone: user?.phone || "",
+        email: user?.email || "",
       },
-      {
-        id: "2",
-        doctor: "Dr. Amit Singh",
-        type: "Follow-up Consultation",
-        date: "2024-01-25",
-        time: "3:00 PM",
-        location: "Online",
-        status: "Confirmed",
-        isOnline: true,
+      healthOverview: {
+        primaryDosha: comprehensiveData?.doshaBalance?.dominant || "Unknown",
+        currentTreatment: medicalRecordsData?.[0]?.treatment || "None",
+        treatmentProgress: 0, // TODO: Calculate from treatment history
+        nextAppointment: upcomingAppointments[0]?.date || null,
+        lastVisit:
+          appointments
+            .filter(
+              (apt: any) =>
+                apt.status === "COMPLETED" || apt.status === "completed"
+            )
+            .sort(
+              (a: any, b: any) =>
+                new Date(b.startTime || b.date).getTime() -
+                new Date(a.startTime || a.date).getTime()
+            )[0]?.startTime || null,
       },
-    ],
-    recentActivity: [
-      {
-        type: "appointment",
-        message: "Completed Shirodhara session with Dr. Priya",
-        time: "2 days ago",
+      upcomingAppointments,
+      recentActivity: [], // TODO: Implement activity feed from medical records
+      currentTreatments: [], // TODO: Extract from medical records
+      medications: latestPrescriptions.slice(0, 5).map((presc: any) => ({
+        name: presc.medicineName || presc.name || "Unknown",
+        dosage: presc.dosage || "As prescribed",
+        nextRefill: presc.nextRefillDate || null,
+      })),
+      vitalStats: {
+        bloodPressure: latestVitals.bloodPressure || "N/A",
+        heartRate: latestVitals.heartRate || "N/A",
+        weight: latestVitals.weight || "N/A",
+        lastUpdated: latestVitals.recordedAt
+          ? new Date(latestVitals.recordedAt).toLocaleDateString()
+          : "N/A",
       },
-      {
-        type: "prescription",
-        message: "New Ayurvedic prescription added",
-        time: "3 days ago",
+      doshaBalance: comprehensiveData?.doshaBalance || {
+        vata: 0,
+        pitta: 0,
+        kapha: 0,
+        dominant: "Unknown",
       },
-      {
-        type: "report",
-        message: "Blood test results uploaded",
-        time: "1 week ago",
-      },
-    ],
-    currentTreatments: [
-      {
-        name: "Panchakarma Detox Program",
-        doctor: "Dr. Priya Sharma",
-        progress: 75,
-        nextSession: "2024-01-22",
-        type: "Therapy",
-      },
-      {
-        name: "Stress Management Program",
-        doctor: "Dr. Amit Singh",
-        progress: 60,
-        nextSession: "2024-01-25",
-        type: "Consultation",
-      },
-    ],
-    medications: [
-      {
-        name: "Triphala Churna",
-        dosage: "1 tsp twice daily",
-        nextRefill: "2024-02-01",
-      },
-      {
-        name: "Ashwagandha Capsules",
-        dosage: "2 capsules at bedtime",
-        nextRefill: "2024-01-28",
-      },
-      {
-        name: "Brahmi Ghrita",
-        dosage: "5 drops morning",
-        nextRefill: "2024-02-05",
-      },
-    ],
-    vitalStats: {
-      bloodPressure: "128/82 mmHg",
-      heartRate: "72 bpm",
-      weight: "70 kg",
-      lastUpdated: "2024-01-15",
-    },
-    doshaBalance: {
-      vata: 45,
-      pitta: 35,
-      kapha: 20,
-      dominant: "Vata-Pitta",
-    },
-  };
+    };
+  }, [
+    appointmentsData,
+    medicalRecordsData,
+    vitalSignsData,
+    prescriptionsData,
+    comprehensiveData,
+    user,
+  ]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Confirmed":
-        return "bg-green-100 text-green-800";
+        return theme.badges.green;
       case "Pending":
-        return "bg-yellow-100 text-yellow-800";
+        return theme.badges.yellow;
       case "Cancelled":
-        return "bg-red-100 text-red-800";
+        return theme.badges.red;
       default:
-        return "bg-gray-100 text-gray-800";
+        return theme.badges.gray;
     }
   };
 
@@ -174,12 +195,19 @@ export default function PatientDashboard() {
   const sidebarLinks = getRoutesByRole(Role.PATIENT).map((route) => ({
     ...route,
     href: route.path,
-    icon: route.path.includes("dashboard") ? <Activity className="size-6" />
-    : route.path.includes("appointments") ? <Calendar className="size-6" />
-    : route.path.includes("medical-records") ? <FileText className="size-6" />
-    : route.path.includes("prescriptions") ? <Pill className="size-6" />
-    : route.path.includes("profile") ? <User className="size-6" />
-    : <Activity className="size-6" />,
+    icon: route.path.includes("dashboard") ? (
+      <Activity className="size-6" />
+    ) : route.path.includes("appointments") ? (
+      <Calendar className="size-6" />
+    ) : route.path.includes("medical-records") ? (
+      <FileText className="size-6" />
+    ) : route.path.includes("prescriptions") ? (
+      <Pill className="size-6" />
+    ) : route.path.includes("profile") ? (
+      <User className="size-6" />
+    ) : (
+      <Activity className="size-6" />
+    ),
   }));
 
   sidebarLinks.push({
@@ -204,11 +232,15 @@ export default function PatientDashboard() {
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <h1
+                className={`text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent`}
+              >
                 {t("dashboard.welcomeBack")},{" "}
                 {patientData.personalInfo.name.split(" ")[0]}
               </h1>
-              <p className="text-muted-foreground">{t("dashboard.overview")}</p>
+              <p className={theme.textColors.muted}>
+                {t("dashboard.overview")}
+              </p>
             </div>
             <div className="flex gap-2">
               <Button
@@ -218,7 +250,7 @@ export default function PatientDashboard() {
                 <Video className="w-4 h-4" />
                 {t("appointments.bookNew")}
               </Button>
-              <Button className="flex items-center gap-2 hover:scale-105 transition-transform bg-gradient-to-r from-blue-600 to-purple-600">
+              <Button className="flex items-center gap-2 hover:scale-105 transition-transform bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500">
                 <Plus className="w-4 h-4" />
                 {t("dashboard.bookAppointment")}
               </Button>
@@ -227,49 +259,61 @@ export default function PatientDashboard() {
 
           {/* Health Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="hover:shadow-lg transition-shadow duration-300 border-l-4 border-l-green-500">
+            <Card
+              className={`hover:shadow-lg transition-shadow duration-300 border-l-4 ${theme.borders.green}`}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle
+                  className={`text-sm font-medium ${theme.textColors.heading}`}
+                >
                   {t("healthcare.diagnosis")}
                 </CardTitle>
-                <Leaf className="h-4 w-4 text-green-600" />
+                <Leaf className={`h-4 w-4 ${theme.iconColors.green}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
+                <div className={`text-2xl font-bold ${theme.iconColors.green}`}>
                   {patientData.doshaBalance.dominant}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className={`text-xs ${theme.textColors.muted}`}>
                   {t("patients.personalInfo")}
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow duration-300 border-l-4 border-l-blue-500">
+            <Card
+              className={`hover:shadow-lg transition-shadow duration-300 border-l-4 ${theme.borders.blue}`}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle
+                  className={`text-sm font-medium ${theme.textColors.heading}`}
+                >
                   {t("healthcare.treatment")}
                 </CardTitle>
-                <Activity className="h-4 w-4 text-blue-600" />
+                <Activity className={`h-4 w-4 ${theme.iconColors.blue}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
+                <div className={`text-2xl font-bold ${theme.iconColors.blue}`}>
                   {patientData.healthOverview.treatmentProgress}%
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className={`text-xs ${theme.textColors.muted}`}>
                   {patientData.healthOverview.currentTreatment}
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow duration-300 border-l-4 border-l-purple-500">
+            <Card
+              className={`hover:shadow-lg transition-shadow duration-300 border-l-4 ${theme.borders.purple}`}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle
+                  className={`text-sm font-medium ${theme.textColors.heading}`}
+                >
                   {t("appointments.upcoming")}
                 </CardTitle>
-                <Calendar className="h-4 w-4 text-purple-600" />
+                <Calendar className={`h-4 w-4 ${theme.iconColors.purple}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-lg font-bold text-purple-600">
+                <div className={`text-lg font-bold ${theme.iconColors.purple}`}>
                   {new Date(
                     patientData.healthOverview.nextAppointment
                   ).toLocaleDateString("en-IN", {
@@ -277,7 +321,7 @@ export default function PatientDashboard() {
                     day: "numeric",
                   })}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className={`text-xs ${theme.textColors.muted}`}>
                   {new Date(
                     patientData.healthOverview.nextAppointment
                   ).toLocaleTimeString("en-IN", {
@@ -291,16 +335,18 @@ export default function PatientDashboard() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle
+                  className={`text-sm font-medium ${theme.textColors.heading}`}
+                >
                   Vital Stats
                 </CardTitle>
-                <Heart className="h-4 w-4 text-red-600" />
+                <Heart className={`h-4 w-4 ${theme.iconColors.red}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-lg font-bold text-red-600">
+                <div className={`text-lg font-bold ${theme.iconColors.red}`}>
                   {patientData.vitalStats.bloodPressure}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className={`text-xs ${theme.textColors.muted}`}>
                   HR: {patientData.vitalStats.heartRate}
                 </p>
               </CardContent>
@@ -328,9 +374,11 @@ export default function PatientDashboard() {
                         {patientData.doshaBalance.vata}%
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`w-full ${theme.backgrounds.tertiary} rounded-full h-2`}
+                    >
                       <div
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                        className="bg-blue-500 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${patientData.doshaBalance.vata}%` }}
                       />
                     </div>
@@ -348,9 +396,11 @@ export default function PatientDashboard() {
                         {patientData.doshaBalance.pitta}%
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`w-full ${theme.backgrounds.tertiary} rounded-full h-2`}
+                    >
                       <div
-                        className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                        className="bg-orange-500 dark:bg-orange-400 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${patientData.doshaBalance.pitta}%` }}
                       />
                     </div>
@@ -368,16 +418,20 @@ export default function PatientDashboard() {
                         {patientData.doshaBalance.kapha}%
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`w-full ${theme.backgrounds.tertiary} rounded-full h-2`}
+                    >
                       <div
-                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                        className="bg-green-500 dark:bg-green-400 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${patientData.doshaBalance.kapha}%` }}
                       />
                     </div>
                   </div>
 
-                  <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                    <p className="text-sm text-green-800">
+                  <div
+                    className={`mt-4 p-3 ${theme.containers.featureGreen} rounded-lg`}
+                  >
+                    <p className={`text-sm ${theme.textColors.success}`}>
                       <strong>Dominant Type:</strong>{" "}
                       {patientData.doshaBalance.dominant} constitution indicates
                       a balanced combination of air/space and fire/water
@@ -401,22 +455,36 @@ export default function PatientDashboard() {
                   {patientData.upcomingAppointments.map((appointment) => (
                     <div
                       key={appointment.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                      className={`flex items-center justify-between p-4 border rounded-lg ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <div
+                          className={`w-10 h-10 ${theme.containers.featureBlue} rounded-full flex items-center justify-center`}
+                        >
                           {appointment.isOnline ? (
-                            <Video className="w-5 h-5 text-blue-600" />
+                            <Video
+                              className={`w-5 h-5 ${theme.iconColors.blue}`}
+                            />
                           ) : (
-                            <Stethoscope className="w-5 h-5 text-blue-600" />
+                            <Stethoscope
+                              className={`w-5 h-5 ${theme.iconColors.blue}`}
+                            />
                           )}
                         </div>
                         <div>
-                          <h4 className="font-semibold">{appointment.type}</h4>
-                          <p className="text-sm text-gray-600">
+                          <h4
+                            className={`font-semibold ${theme.textColors.heading}`}
+                          >
+                            {appointment.type}
+                          </h4>
+                          <p
+                            className={`text-sm ${theme.textColors.secondary}`}
+                          >
                             {appointment.doctor}
                           </p>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <div
+                            className={`flex items-center gap-2 text-xs ${theme.textColors.tertiary}`}
+                          >
                             {appointment.isOnline ? (
                               <div className="flex items-center gap-1">
                                 <Video className="w-3 h-3" />
@@ -441,7 +509,9 @@ export default function PatientDashboard() {
                             }
                           )}
                         </div>
-                        <div className="text-sm text-gray-600">
+                        <div
+                          className={`text-sm ${theme.textColors.secondary}`}
+                        >
                           {appointment.time}
                         </div>
                         <Badge className={getStatusColor(appointment.status)}>
@@ -477,7 +547,7 @@ export default function PatientDashboard() {
                       <Badge variant="outline">{treatment.type}</Badge>
                     </div>
 
-                    <p className="text-sm text-gray-600 mb-3">
+                    <p className={`text-sm ${theme.textColors.secondary} mb-3`}>
                       with {treatment.doctor}
                     </p>
 
@@ -486,13 +556,15 @@ export default function PatientDashboard() {
                         <span>Progress</span>
                         <span>{treatment.progress}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`w-full ${theme.backgrounds.tertiary} rounded-full h-2`}
+                      >
                         <div
-                          className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                          className="bg-green-500 dark:bg-green-400 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${treatment.progress}%` }}
                         />
                       </div>
-                      <p className="text-xs text-gray-500">
+                      <p className={`text-xs ${theme.textColors.tertiary}`}>
                         Next session:{" "}
                         {new Date(treatment.nextSession).toLocaleDateString()}
                       </p>
@@ -520,18 +592,30 @@ export default function PatientDashboard() {
                       className="flex items-center justify-between p-3 border rounded-lg"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                          <Pill className="w-4 h-4 text-green-600" />
+                        <div
+                          className={`w-8 h-8 ${theme.containers.featureGreen} rounded-full flex items-center justify-center`}
+                        >
+                          <Pill
+                            className={`w-4 h-4 ${theme.iconColors.green}`}
+                          />
                         </div>
                         <div>
-                          <h4 className="font-medium">{medication.name}</h4>
-                          <p className="text-sm text-gray-600">
+                          <h4
+                            className={`font-medium ${theme.textColors.heading}`}
+                          >
+                            {medication.name}
+                          </h4>
+                          <p
+                            className={`text-sm ${theme.textColors.secondary}`}
+                          >
                             {medication.dosage}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-gray-500">Refill due:</p>
+                        <p className={`text-xs ${theme.textColors.tertiary}`}>
+                          Refill due:
+                        </p>
                         <p className="text-sm font-medium">
                           {new Date(medication.nextRefill).toLocaleDateString()}
                         </p>
@@ -561,20 +645,30 @@ export default function PatientDashboard() {
                     <div key={index} className="flex items-start gap-3">
                       <div className="flex-shrink-0">
                         {activity.type === "appointment" && (
-                          <Calendar className="w-4 h-4 text-blue-600" />
+                          <Calendar
+                            className={`w-4 h-4 ${theme.iconColors.blue}`}
+                          />
                         )}
                         {activity.type === "prescription" && (
-                          <Pill className="w-4 h-4 text-green-600" />
+                          <Pill
+                            className={`w-4 h-4 ${theme.iconColors.green}`}
+                          />
                         )}
                         {activity.type === "report" && (
-                          <FileText className="w-4 h-4 text-purple-600" />
+                          <FileText
+                            className={`w-4 h-4 ${theme.iconColors.purple}`}
+                          />
                         )}
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium">
+                        <p
+                          className={`text-sm font-medium ${theme.textColors.heading}`}
+                        >
                           {activity.message}
                         </p>
-                        <p className="text-xs text-gray-600">{activity.time}</p>
+                        <p className={`text-xs ${theme.textColors.secondary}`}>
+                          {activity.time}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -597,40 +691,48 @@ export default function PatientDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
+                <div
+                  className={`p-4 ${theme.containers.featureBlue} rounded-lg`}
+                >
                   <div className="flex items-center gap-2 mb-2">
-                    <Waves className="w-5 h-5 text-blue-600" />
-                    <h4 className="font-semibold text-blue-800">
+                    <Waves className={`w-5 h-5 ${theme.iconColors.blue}`} />
+                    <h4 className={`font-semibold ${theme.textColors.info}`}>
                       Vata Balance
                     </h4>
                   </div>
-                  <p className="text-sm text-blue-700">
+                  <p className={`text-sm ${theme.textColors.info}`}>
                     Your elevated Vata suggests focusing on grounding
                     activities. Continue with oil massages and warm foods.
                   </p>
                 </div>
 
-                <div className="p-4 bg-orange-50 rounded-lg">
+                <div
+                  className={`p-4 ${theme.containers.featureOrange} rounded-lg`}
+                >
                   <div className="flex items-center gap-2 mb-2">
-                    <Sun className="w-5 h-5 text-orange-600" />
-                    <h4 className="font-semibold text-orange-800">
+                    <Sun className={`w-5 h-5 ${theme.iconColors.orange}`} />
+                    <h4 className={`font-semibold ${theme.textColors.warning}`}>
                       Pitta Management
                     </h4>
                   </div>
-                  <p className="text-sm text-orange-700">
+                  <p className={`text-sm ${theme.textColors.warning}`}>
                     Moderate Pitta levels are good. Avoid excessive heat and
                     spicy foods. Include cooling herbs in your routine.
                   </p>
                 </div>
 
-                <div className="p-4 bg-green-50 rounded-lg">
+                <div
+                  className={`p-4 ${theme.containers.featureGreen} rounded-lg`}
+                >
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <h4 className="font-semibold text-green-800">
+                    <CheckCircle
+                      className={`w-5 h-5 ${theme.iconColors.green}`}
+                    />
+                    <h4 className={`font-semibold ${theme.textColors.success}`}>
                       Treatment Progress
                     </h4>
                   </div>
-                  <p className="text-sm text-green-700">
+                  <p className={`text-sm ${theme.textColors.success}`}>
                     Excellent progress in your Panchakarma program. Continue
                     following your doctor&apos;s recommendations.
                   </p>

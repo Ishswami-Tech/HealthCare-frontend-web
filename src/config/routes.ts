@@ -46,6 +46,7 @@ export const ROLE_ROUTES: Record<Role, RoleRoutes> = {
       { path: '/(dashboard)/clinic-admin/dashboard', label: 'Dashboard' },
       { path: '/(dashboard)/clinic-admin/staff', label: 'Staff Management' },
       { path: '/(dashboard)/clinic-admin/schedule', label: 'Schedule' },
+      { path: '/(dashboard)/clinic-admin/locations', label: 'Locations' },
       { path: '/(dashboard)/clinic-admin/settings', label: 'Clinic Settings' },
       { path: '/(dashboard)/clinic-admin/profile', label: 'Profile' },
     ],

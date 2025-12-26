@@ -6,6 +6,8 @@ import { defaultLocale } from '@/i18n/config';
 // import createIntlMiddleware from 'next-intl/middleware';
 // import { locales, defaultLocale } from '@/i18n/config';
 
+// Authentication is now enforced - no bypass flag
+
 // Define protected routes and their allowed roles
 const PROTECTED_ROUTES = {
   '/dashboard': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
@@ -112,6 +114,8 @@ export async function middleware(request: NextRequest) {
   ) {
     return NextResponse.next();
   }
+
+  // Authentication is now enforced - all routes require proper authentication
 
   // Handle i18n for non-auth routes
   // Skip i18n middleware for auth routes to avoid conflicts

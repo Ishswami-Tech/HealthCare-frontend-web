@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
+import { useClinics } from "@/hooks/useClinics";
+import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
 import {
   Building2,
   Users,
@@ -23,6 +26,7 @@ import {
   Mail,
   Edit,
   Trash2,
+  Loader2,
 } from "lucide-react";
 
 export default function SuperAdminClinics() {
@@ -30,48 +34,37 @@ export default function SuperAdminClinics() {
   const user = session?.user;
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Mock clinic data - in real app, fetch with server action
-  const clinics = [
-    {
-      id: "1",
-      name: "Ayurveda Center Mumbai",
-      address: "123 Health Street, Mumbai, MH 400001",
-      phone: "+91 9876543210",
-      email: "mumbai@ayurvedacenter.com",
-      status: "Active",
-      doctorsCount: 8,
-      patientsCount: 245,
-      establishedDate: "2020-01-15",
-    },
-    {
-      id: "2",
-      name: "Wellness Clinic Delhi",
-      address: "456 Care Avenue, Delhi, DL 110001",
-      phone: "+91 9876543211",
-      email: "delhi@wellnessclinic.com",
-      status: "Active",
-      doctorsCount: 12,
-      patientsCount: 389,
-      establishedDate: "2019-08-22",
-    },
-    {
-      id: "3",
-      name: "Holistic Health Bangalore",
-      address: "789 Therapy Road, Bangalore, KA 560001",
-      phone: "+91 9876543212",
-      email: "bangalore@holistichealth.com",
-      status: "Pending",
-      doctorsCount: 5,
-      patientsCount: 156,
-      establishedDate: "2023-03-10",
-    },
-  ];
+  // Fetch real clinic data
+  const { data: clinicsData, isLoading: isLoadingClinics } = useClinics();
 
-  const filteredClinics = clinics.filter(
-    (clinic) =>
-      clinic.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      clinic.address.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Sync with WebSocket for real-time updates
+  useWebSocketQuerySync(["clinics"]);
+
+  // Transform clinics data
+  const clinics = useMemo(() => {
+    if (!clinicsData) return [];
+    const clinicsArray = clinicsData.clinics || [];
+
+    return clinicsArray.map((clinic: any) => ({
+      id: clinic.id,
+      name: clinic.name,
+      address: clinic.address || clinic.location?.address || "N/A",
+      phone: clinic.phone,
+      email: clinic.email,
+      status: clinic.isActive !== false ? "Active" : "Inactive",
+      doctorsCount: clinic.doctorsCount || 0,
+      patientsCount: clinic.patientsCount || 0,
+      establishedDate: clinic.createdAt || clinic.establishedDate,
+    }));
+  }, [clinicsData]);
+
+  const filteredClinics = useMemo(() => {
+    return clinics.filter(
+      (clinic: any) =>
+        clinic.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        clinic.address?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [clinics, searchTerm]);
 
   const sidebarLinks = getRoutesByRole(Role.SUPER_ADMIN).map((route) => ({
     ...route,
@@ -96,6 +89,27 @@ export default function SuperAdminClinics() {
     icon: <LogOut className="w-5 h-5" />,
   });
 
+  if (isLoadingClinics) {
+    return (
+      <DashboardLayout title="Clinic Management" allowedRole={Role.SUPER_ADMIN}>
+        <GlobalSidebar
+          links={sidebarLinks}
+          user={{
+            name:
+              user?.name ||
+              `${user?.firstName} ${user?.lastName}` ||
+              "Super Admin",
+            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
+          }}
+        >
+          <div className="p-6 flex items-center justify-center min-h-[400px]">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        </GlobalSidebar>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout title="Clinic Management" allowedRole={Role.SUPER_ADMIN}>
       <GlobalSidebar
@@ -111,10 +125,13 @@ export default function SuperAdminClinics() {
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Clinic Management</h1>
-            <Button className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Add New Clinic
-            </Button>
+            <div className="flex items-center gap-4">
+              <WebSocketStatusIndicator />
+              <Button className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Add New Clinic
+              </Button>
+            </div>
           </div>
 
           {/* Stats Overview */}
@@ -129,7 +146,10 @@ export default function SuperAdminClinics() {
               <CardContent>
                 <div className="text-2xl font-bold">{clinics.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  2 active, 1 pending
+                  {clinics.filter((c: any) => c.status === "Active").length}{" "}
+                  active,{" "}
+                  {clinics.filter((c: any) => c.status !== "Active").length}{" "}
+                  inactive
                 </p>
               </CardContent>
             </Card>
@@ -144,7 +164,8 @@ export default function SuperAdminClinics() {
               <CardContent>
                 <div className="text-2xl font-bold">
                   {clinics.reduce(
-                    (sum, clinic) => sum + clinic.doctorsCount,
+                    (sum: number, clinic: any) =>
+                      sum + (clinic.doctorsCount || 0),
                     0
                   )}
                 </div>
@@ -164,7 +185,8 @@ export default function SuperAdminClinics() {
               <CardContent>
                 <div className="text-2xl font-bold">
                   {clinics.reduce(
-                    (sum, clinic) => sum + clinic.patientsCount,
+                    (sum: number, clinic: any) =>
+                      sum + (clinic.patientsCount || 0),
                     0
                   )}
                 </div>
@@ -211,7 +233,7 @@ export default function SuperAdminClinics() {
 
           {/* Clinics List */}
           <div className="grid gap-6">
-            {filteredClinics.map((clinic) => (
+            {filteredClinics.map((clinic: any) => (
               <Card key={clinic.id}>
                 <CardHeader>
                   <div className="flex items-center justify-between">

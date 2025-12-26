@@ -48,36 +48,46 @@ export function WebSocketProvider({
 }: WebSocketProviderProps) {
   const { user, currentClinic } = useAppStore();
 
-  // Initialize WebSocket integration
+  // Real-time WebSocket enabled - using Docker backend
+  const shouldConnect = autoConnect;
+
+  // Initialize WebSocket integration (disabled in mock mode)
   const webSocketIntegration = useWebSocketIntegration({
-    autoConnect,
-    subscribeToQueues: true,
-    subscribeToAppointments: true,
+    autoConnect: shouldConnect,
+    subscribeToQueues: shouldConnect,
+    subscribeToAppointments: shouldConnect,
     tenantId: currentClinic?.id || undefined,
     userId: user?.id || undefined,
   });
 
-  // Set up retry logic
+  // Set up retry logic (hooks must be called unconditionally)
   useWebSocketRetry();
 
   // Initialize WebSocket manager
   useEffect(() => {
-    if (autoConnect && user) {
-      try {
-        websocketManager.initialize({
-          url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:3000",
-          autoConnect: false, // We handle connection through the integration hook
-        });
-      } catch (error) {
-        console.error("Failed to initialize WebSocket manager:", error);
-      }
+    if (shouldConnect && user) {
+      const initializeWebSocket = async () => {
+        try {
+          // Use environment-aware WebSocket URL
+          const { APP_CONFIG } = await import("@/lib/config/config");
+          websocketManager.initialize({
+            url:
+              process.env.NEXT_PUBLIC_WEBSOCKET_URL || APP_CONFIG.WEBSOCKET.URL,
+            autoConnect: false, // We handle connection through the integration hook
+          });
+        } catch (error) {
+          console.error("Failed to initialize WebSocket manager:", error);
+        }
+      };
+
+      initializeWebSocket();
     }
 
     // Cleanup on unmount
     return () => {
       websocketManager.destroy();
     };
-  }, [autoConnect, user]);
+  }, [shouldConnect, user]);
 
   // Context value
   const contextValue: WebSocketContextType = {

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
+import { theme } from "@/lib/theme-utils";
 import { 
   Activity,
   Calendar, 
@@ -156,28 +157,28 @@ export default function PatientMedicalRecords() {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'normal': return 'bg-green-100 text-green-800';
-      case 'high': case 'attention required': return 'bg-yellow-100 text-yellow-800';
-      case 'critical': case 'abnormal': return 'bg-red-100 text-red-800';
-      case 'active': return 'bg-blue-100 text-blue-800';
-      case 'completed': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'normal': return theme.badges.green;
+      case 'high': case 'attention required': return theme.badges.yellow;
+      case 'critical': case 'abnormal': return theme.badges.red;
+      case 'active': return theme.badges.blue;
+      case 'completed': return theme.badges.gray;
+      default: return theme.badges.gray;
     }
   };
 
   const getSeverityColor = (severity: string) => {
     switch (severity.toLowerCase()) {
-      case 'mild': return 'bg-yellow-100 text-yellow-800';
-      case 'moderate': return 'bg-orange-100 text-orange-800';
-      case 'severe': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'mild': return theme.badges.yellow;
+      case 'moderate': return theme.badges.orange;
+      case 'severe': return theme.badges.red;
+      default: return theme.badges.gray;
     }
   };
 
   const getTrendIcon = (current: number, previous: number) => {
-    if (current > previous) return <TrendingUp className="w-4 h-4 text-red-500" />;
-    if (current < previous) return <TrendingDown className="w-4 h-4 text-green-500" />;
-    return <Minus className="w-4 h-4 text-gray-500" />;
+    if (current > previous) return <TrendingUp className={`w-4 h-4 ${theme.iconColors.red}`} />;
+    if (current < previous) return <TrendingDown className={`w-4 h-4 ${theme.iconColors.green}`} />;
+    return <Minus className={`w-4 h-4 ${theme.iconColors.gray}`} />;
   };
 
   const sidebarLinks = getRoutesByRole(Role.PATIENT).map(route => ({
@@ -245,7 +246,7 @@ export default function PatientMedicalRecords() {
                     <div className="space-y-4">
                       <div className="flex gap-4">
                         <div className="relative flex-1">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme.textColors.muted}`} />
                           <Input
                             placeholder="Search medical history..."
                             value={searchTerm}
@@ -261,7 +262,7 @@ export default function PatientMedicalRecords() {
 
                       <div className="space-y-4">
                         {medicalHistory.map((record) => (
-                          <div key={record.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                          <div key={record.id} className={`border rounded-lg p-4 ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}>
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
@@ -281,8 +282,8 @@ export default function PatientMedicalRecords() {
                                   </div>
                                 </div>
                                 {record.notes && (
-                                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                                    <p className="text-sm"><strong>Notes:</strong> {record.notes}</p>
+                                  <div className={`mt-3 p-3 ${theme.containers.featureBlue} rounded-lg`}>
+                                    <p className={`text-sm ${theme.textColors.heading}`}><strong>Notes:</strong> {record.notes}</p>
                                   </div>
                                 )}
                               </div>
@@ -320,7 +321,7 @@ export default function PatientMedicalRecords() {
                           <div className="flex items-center justify-between mb-4">
                             <div>
                               <h3 className="font-semibold">Prescription - {new Date(prescription.date).toLocaleDateString()}</h3>
-                              <p className="text-sm text-gray-600">Prescribed by {prescription.doctor}</p>
+                              <p className={`text-sm ${theme.textColors.secondary}`}>Prescribed by {prescription.doctor}</p>
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge className={getStatusColor(prescription.status)}>
@@ -335,15 +336,15 @@ export default function PatientMedicalRecords() {
                           <div className="space-y-3">
                             <h4 className="font-medium">Medications:</h4>
                             {prescription.medications.map((med, index) => (
-                              <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                              <div key={index} className={`flex items-center justify-between p-3 ${theme.containers.featureGreen} rounded-lg`}>
                                 <div className="flex items-center gap-3">
-                                  <Leaf className="w-4 h-4 text-green-600" />
+                                  <Leaf className={`w-4 h-4 ${theme.iconColors.green}`} />
                                   <div>
-                                    <h5 className="font-medium text-green-800">{med.name}</h5>
-                                    <p className="text-sm text-green-700">{med.dosage}</p>
+                                    <h5 className={`font-medium ${theme.textColors.success}`}>{med.name}</h5>
+                                    <p className={`text-sm ${theme.textColors.success}`}>{med.dosage}</p>
                                   </div>
                                 </div>
-                                <Badge variant="outline" className="bg-green-100 text-green-800">
+                                <Badge variant="outline" className={theme.badges.green}>
                                   {med.duration}
                                 </Badge>
                               </div>
@@ -351,9 +352,9 @@ export default function PatientMedicalRecords() {
                           </div>
 
                           {prescription.instructions && (
-                            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                              <h4 className="font-medium text-blue-800 mb-1">Instructions:</h4>
-                              <p className="text-sm text-blue-700">{prescription.instructions}</p>
+                            <div className={`mt-4 p-3 ${theme.containers.featureBlue} rounded-lg`}>
+                              <h4 className={`font-medium ${theme.textColors.info} mb-1`}>Instructions:</h4>
+                              <p className={`text-sm ${theme.textColors.info}`}>{prescription.instructions}</p>
                             </div>
                           )}
                         </div>
@@ -380,7 +381,7 @@ export default function PatientMedicalRecords() {
                           <div className="flex items-center justify-between mb-4">
                             <div>
                               <h3 className="font-semibold">{report.testName}</h3>
-                              <p className="text-sm text-gray-600">{new Date(report.date).toLocaleDateString()} • {report.doctor}</p>
+                              <p className={`text-sm ${theme.textColors.secondary}`}>{new Date(report.date).toLocaleDateString()} • {report.doctor}</p>
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge className={getStatusColor(report.status)}>
@@ -404,7 +405,7 @@ export default function PatientMedicalRecords() {
                                     </Badge>
                                   </div>
                                   <p className="text-lg font-bold">{result.value}</p>
-                                  <p className="text-xs text-gray-500">Normal: {result.normalRange}</p>
+                                  <p className={`text-xs ${theme.textColors.tertiary}`}>Normal: {result.normalRange}</p>
                                 </div>
                               ))}
                             </div>
@@ -429,48 +430,48 @@ export default function PatientMedicalRecords() {
                   <CardContent>
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="p-4 bg-red-50 rounded-lg">
+                        <div className={`p-4 ${theme.containers.featureRed} rounded-lg`}>
                           <div className="flex items-center gap-2 mb-2">
-                            <Heart className="w-5 h-5 text-red-600" />
-                            <span className="font-medium">Latest BP</span>
+                            <Heart className={`w-5 h-5 ${theme.iconColors.red}`} />
+                            <span className={`font-medium ${theme.textColors.heading}`}>Latest BP</span>
                           </div>
-                          <div className="text-2xl font-bold text-red-600">{vitalSigns[0]?.bp || 'N/A'}</div>
-                          <div className="text-sm text-gray-600">mmHg</div>
+                          <div className={`text-2xl font-bold ${theme.iconColors.red}`}>{vitalSigns[0]?.bp || 'N/A'}</div>
+                          <div className={`text-sm ${theme.textColors.secondary}`}>mmHg</div>
                         </div>
                         
-                        <div className="p-4 bg-blue-50 rounded-lg">
+                        <div className={`p-4 ${theme.containers.featureBlue} rounded-lg`}>
                           <div className="flex items-center gap-2 mb-2">
-                            <Pulse className="w-5 h-5 text-blue-600" />
-                            <span className="font-medium">Heart Rate</span>
+                            <Pulse className={`w-5 h-5 ${theme.iconColors.blue}`} />
+                            <span className={`font-medium ${theme.textColors.heading}`}>Heart Rate</span>
                           </div>
-                          <div className="text-2xl font-bold text-blue-600">{vitalSigns[0]?.hr || 'N/A'}</div>
-                          <div className="text-sm text-gray-600">bpm</div>
+                          <div className={`text-2xl font-bold ${theme.iconColors.blue}`}>{vitalSigns[0]?.hr || 'N/A'}</div>
+                          <div className={`text-sm ${theme.textColors.secondary}`}>bpm</div>
                         </div>
 
-                        <div className="p-4 bg-green-50 rounded-lg">
+                        <div className={`p-4 ${theme.containers.featureGreen} rounded-lg`}>
                           <div className="flex items-center gap-2 mb-2">
-                            <Scale className="w-5 h-5 text-green-600" />
-                            <span className="font-medium">Weight</span>
+                            <Scale className={`w-5 h-5 ${theme.iconColors.green}`} />
+                            <span className={`font-medium ${theme.textColors.heading}`}>Weight</span>
                           </div>
-                          <div className="text-2xl font-bold text-green-600">{vitalSigns[0]?.weight || 'N/A'}</div>
-                          <div className="text-sm text-gray-600">kg</div>
+                          <div className={`text-2xl font-bold ${theme.iconColors.green}`}>{vitalSigns[0]?.weight || 'N/A'}</div>
+                          <div className={`text-sm ${theme.textColors.secondary}`}>kg</div>
                         </div>
 
-                        <div className="p-4 bg-purple-50 rounded-lg">
+                        <div className={`p-4 ${theme.containers.featurePurple} rounded-lg`}>
                           <div className="flex items-center gap-2 mb-2">
-                            <Thermometer className="w-5 h-5 text-purple-600" />
-                            <span className="font-medium">BMI</span>
+                            <Thermometer className={`w-5 h-5 ${theme.iconColors.purple}`} />
+                            <span className={`font-medium ${theme.textColors.heading}`}>BMI</span>
                           </div>
-                          <div className="text-2xl font-bold text-purple-600">{vitalSigns[0]?.bmi || 'N/A'}</div>
-                          <div className="text-sm text-gray-600">Normal</div>
+                          <div className={`text-2xl font-bold ${theme.iconColors.purple}`}>{vitalSigns[0]?.bmi || 'N/A'}</div>
+                          <div className={`text-sm ${theme.textColors.secondary}`}>Normal</div>
                         </div>
                       </div>
 
                       <div className="border rounded-lg overflow-hidden">
-                        <div className="px-4 py-2 bg-gray-50 font-medium">Vital Signs History</div>
+                        <div className={`px-4 py-2 ${theme.backgrounds.secondary} font-medium ${theme.textColors.heading}`}>Vital Signs History</div>
                         <div className="overflow-x-auto">
                           <table className="w-full">
-                            <thead className="bg-gray-50">
+                            <thead className={theme.backgrounds.secondary}>
                               <tr>
                                 <th className="px-4 py-2 text-left">Date</th>
                                 <th className="px-4 py-2 text-left">Blood Pressure</th>

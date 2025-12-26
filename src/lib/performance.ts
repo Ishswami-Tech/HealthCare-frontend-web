@@ -136,10 +136,11 @@ export function memoizeClassName(
     ? `${baseClasses} ${conditionalClasses}` 
     : baseClasses;
     
-  // Limit cache size to prevent memory leaks
-  if (classNameCache.size > 1000) {
-    const firstKey = classNameCache.keys().next().value;
-    classNameCache.delete(firstKey);
+  // Limit cache size to prevent memory leaks (optimized for 10M users)
+  if (classNameCache.size > 5000) {
+    // Remove oldest 1000 entries when limit reached
+    const keysToDelete = Array.from(classNameCache.keys()).slice(0, 1000);
+    keysToDelete.forEach(key => classNameCache.delete(key));
   }
   
   classNameCache.set(key, result);

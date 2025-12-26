@@ -143,6 +143,16 @@ export const sidebarLinksByRole: Record<Role, SidebarLink[]> = {
       path: "/patient/appointments",
       icon: iconWrapper(Calendar),
     },
+    {
+      label: "Medical Records",
+      path: "/patient/medical-records",
+      icon: iconWrapper(FileText),
+    },
+    {
+      label: "Prescriptions",
+      path: "/patient/prescriptions",
+      icon: iconWrapper(Pill),
+    },
     { label: "Profile", path: "/patient/profile", icon: iconWrapper(User) },
     { label: "Logout", path: "#", icon: iconWrapper(LogOut) },
   ],

@@ -6,6 +6,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import { PerformanceProvider } from "@/components/performance/web-vitals";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Suspense } from "react";
+import { APP_CONFIG } from "@/lib/config/config";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -33,9 +34,7 @@ export const metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  ),
+  metadataBase: new URL(APP_CONFIG.APP.URL),
   openGraph: {
     title: "Ishswami Healthcare - Your Health, Our Priority",
     description:

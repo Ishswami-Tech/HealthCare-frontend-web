@@ -99,7 +99,7 @@ export function useWebSocket() {
     return () => {}; // No-op if not connected
   }, []);
 
-  // ✅ Auto-connect on mount
+  // ✅ Auto-connect on mount - Real-time enabled
   useEffect(() => {
     if (user) {
       connect();

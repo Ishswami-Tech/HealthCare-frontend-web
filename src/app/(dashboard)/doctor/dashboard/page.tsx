@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  useMyAppointments,
-} from "@/hooks/useAppointments";
+import { useMyAppointments } from "@/hooks/useAppointments";
 import { useClinicContext } from "@/hooks/useClinic";
+import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
 import {
   Activity,
   Calendar,
@@ -32,6 +32,9 @@ export default function DoctorDashboard() {
   const { session } = useAuth();
   const user = session?.user;
 
+  // Enable real-time WebSocket sync
+  useWebSocketQuerySync();
+
   // Clinic context
   useClinicContext();
 
@@ -47,7 +50,8 @@ export default function DoctorDashboard() {
         return new Date(apt.date).toDateString() === today;
       }).length || 8,
     checkedInPatients:
-      appointmentsArray.filter((apt) => apt.status === "CHECKED_IN").length || 3,
+      appointmentsArray.filter((apt) => apt.status === "CHECKED_IN").length ||
+      3,
     completedToday:
       appointmentsArray.filter((apt) => {
         const today = new Date().toDateString();
@@ -58,7 +62,7 @@ export default function DoctorDashboard() {
       }).length || 5,
     totalPatients:
       appointmentsArray.reduce((acc: { patientId: string }[], apt) => {
-        const patientIds = new Set(acc.map(p => p.patientId));
+        const patientIds = new Set(acc.map((p) => p.patientId));
         if (!patientIds.has(apt.patientId)) {
           acc.push({ patientId: apt.patientId });
         }

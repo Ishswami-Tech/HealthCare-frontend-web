@@ -1,43 +1,64 @@
 "use client";
 
-import React from 'react';
-import { useHealthStatus } from '@/hooks/useHealth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { RefreshCw, CheckCircle, XCircle, AlertCircle, Wifi, WifiOff } from 'lucide-react';
-import { LoadingSpinner } from '@/components/ui/loading-states';
+import React, { useMemo } from "react";
+import { useHealthStatus } from "@/hooks/useHealth";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-states";
+import { APP_CONFIG } from "@/lib/config/config";
 
 interface BackendHealthCheckProps {
   showDetails?: boolean;
   className?: string;
 }
 
-export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({ 
+export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
   showDetails = false,
-  className 
+  className,
 }) => {
-  const { data: health, isPending, error, refetch, isFetching } = useHealthStatus();
+  const {
+    data: health,
+    isPending,
+    error,
+    refetch,
+    isFetching,
+  } = useHealthStatus();
+
+  // Get environment-aware configuration
+  const apiUrl = useMemo(() => APP_CONFIG.API.BASE_URL, []);
+  const environment = useMemo(() => APP_CONFIG.ENVIRONMENT, []);
 
   const getStatusColor = () => {
-    if (isPending || isFetching) return 'secondary';
-    if (error) return 'destructive';
-    return health?.status === 'healthy' ? 'default' : 'destructive';
+    if (isPending || isFetching) return "secondary";
+    if (error) return "destructive";
+    return health?.status === "healthy" ? "default" : "destructive";
   };
 
   const getStatusIcon = () => {
-    if (isPending || isFetching) return <RefreshCw className="w-4 h-4 animate-spin" />;
+    if (isPending || isFetching)
+      return <RefreshCw className="w-4 h-4 animate-spin" />;
     if (error) return <WifiOff className="w-4 h-4" />;
-    return health?.status === 'healthy' ? 
-      <CheckCircle className="w-4 h-4" /> : 
-      <XCircle className="w-4 h-4" />;
+    return health?.status === "healthy" ? (
+      <CheckCircle className="w-4 h-4" />
+    ) : (
+      <XCircle className="w-4 h-4" />
+    );
   };
 
   const getStatusText = () => {
-    if (isPending) return 'Checking...';
-    if (isFetching) return 'Refreshing...';
-    if (error) return 'Connection Error';
-    return health?.status === 'healthy' ? 'Backend Connected' : 'Backend Error';
+    if (isPending) return "Checking...";
+    if (isFetching) return "Refreshing...";
+    if (error) return "Connection Error";
+    return health?.status === "healthy" ? "Backend Connected" : "Backend Error";
   };
 
   if (!showDetails) {
@@ -45,9 +66,7 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
     return (
       <div className={`flex items-center gap-2 ${className}`}>
         {getStatusIcon()}
-        <Badge variant={getStatusColor()}>
-          {getStatusText()}
-        </Badge>
+        <Badge variant={getStatusColor()}>{getStatusText()}</Badge>
       </div>
     );
   }
@@ -69,21 +88,26 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
             <span className="font-medium">{getStatusText()}</span>
           </div>
           <Badge variant={getStatusColor()}>
-            {health?.status || 'Unknown'}
+            {health?.status || "Unknown"}
           </Badge>
         </div>
 
         {/* Connection Details */}
         <div className="space-y-2 text-sm text-muted-foreground">
           <div>
-            <strong>API Endpoint:</strong> {process.env.NEXT_PUBLIC_API_URL || 'Not configured'}
+            <strong>API Endpoint:</strong> {apiUrl || "Not configured"}
           </div>
           <div>
-            <strong>Clinic ID:</strong> {process.env.NEXT_PUBLIC_CLINIC_ID || 'Not configured'}
+            <strong>Environment:</strong> {environment || "unknown"}
+          </div>
+          <div>
+            <strong>Clinic ID:</strong>{" "}
+            {process.env.NEXT_PUBLIC_CLINIC_ID || "Not configured"}
           </div>
           {(health?.details as any) && (
             <div>
-              <strong>Details:</strong> {JSON.stringify(health?.details as any, null, 2)}
+              <strong>Details:</strong>{" "}
+              {JSON.stringify(health?.details as any, null, 2)}
             </div>
           )}
         </div>
@@ -94,9 +118,13 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
             <div className="flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-destructive">Connection Error</p>
+                <p className="text-sm font-medium text-destructive">
+                  Connection Error
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {error instanceof Error ? error.message : 'Unknown error occurred'}
+                  {error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred"}
                 </p>
               </div>
             </div>
@@ -104,9 +132,9 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
         )}
 
         {/* Refresh Button */}
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => refetch()}
           disabled={isFetching}
           className="w-full"
@@ -116,7 +144,7 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
           ) : (
             <RefreshCw className="w-4 h-4 mr-2" />
           )}
-          {isFetching ? 'Checking...' : 'Check Connection'}
+          {isFetching ? "Checking..." : "Check Connection"}
         </Button>
 
         {/* Integration Checklist */}
@@ -136,7 +164,7 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
               <span>RBAC System Integrated</span>
             </div>
             <div className="flex items-center gap-2">
-              {health?.status === 'healthy' ? (
+              {health?.status === "healthy" ? (
                 <CheckCircle className="w-3 h-3 text-green-500" />
               ) : (
                 <XCircle className="w-3 h-3 text-red-500" />

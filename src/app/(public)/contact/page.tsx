@@ -8,6 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Phone,
   Mail,
   MapPin,
@@ -19,6 +27,7 @@ import {
   CheckCircle,
   Send,
   Star,
+  Loader2,
 } from "lucide-react";
 import { ClinicInfo } from "@/components/clinic/clinic-info";
 import { GoogleMaps } from "@/components/maps/google-maps";
@@ -28,6 +37,11 @@ import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
 import { SectionSkeleton } from "@/lib/dynamic-imports";
 import { getIconColorScheme } from "@/lib/color-palette";
+import { toast } from "sonner";
+import {
+  useSubmitContactForm,
+  useSubmitConsultationBooking,
+} from "@/hooks/useNotifications";
 
 export default function ContactPage() {
   const { t } = useTranslation();
@@ -37,6 +51,15 @@ export default function ContactPage() {
     phone: "",
     condition: "",
     message: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const [bookingData, setBookingData] = useState({
+    name: "",
+    phone: "",
+    preferredDate: "",
+    preferredTime: "",
+    reason: "",
   });
 
   const handleInputChange = (
@@ -48,10 +71,187 @@ export default function ContactPage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleBookingInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setBookingData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  // Validate email format
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Validate phone number (basic validation)
+  const validatePhone = (phone: string) => {
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    return phoneRegex.test(phone) && phone.replace(/\D/g, "").length >= 10;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    // TODO: Implement form submission logic
+
+    // Validation
+    if (!formData.name.trim()) {
+      toast.error(
+        t("contact.form.validation.nameRequired") || "Name is required"
+      );
+      return;
+    }
+
+    if (!validateEmail(formData.email)) {
+      toast.error(
+        t("contact.form.validation.emailInvalid") ||
+          "Please enter a valid email address"
+      );
+      return;
+    }
+
+    if (!validatePhone(formData.phone)) {
+      toast.error(
+        t("contact.form.validation.phoneInvalid") ||
+          "Please enter a valid phone number"
+      );
+      return;
+    }
+
+    // Submit using React Query mutation
+    submitContactFormMutation.mutate(
+      {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        condition: formData.condition || undefined,
+        message: formData.message,
+        type: "contact",
+      },
+      {
+        onSuccess: () => {
+          // Reset form
+          setFormData({
+            name: "",
+            email: "",
+            phone: "",
+            condition: "",
+            message: "",
+          });
+
+          toast.success(
+            t("contact.form.success.title") || "Message Sent Successfully!",
+            {
+              description:
+                t("contact.form.success.description") ||
+                "We'll get back to you soon.",
+            }
+          );
+        },
+        onError: (error: any) => {
+          toast.error(
+            t("contact.form.error.title") || "Failed to send message",
+            {
+              description:
+                error?.message ||
+                t("contact.form.error.description") ||
+                "Please try again later.",
+            }
+          );
+        },
+      }
+    );
+  };
+
+  const handleBookConsultation = () => {
+    setIsBookingDialogOpen(true);
+  };
+
+  const handleBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!bookingData.name.trim() || !bookingData.phone.trim()) {
+      toast.error(
+        t("contact.booking.validation.required") ||
+          "Name and phone number are required"
+      );
+      return;
+    }
+
+    if (!validatePhone(bookingData.phone)) {
+      toast.error(
+        t("contact.form.validation.phoneInvalid") ||
+          "Please enter a valid phone number"
+      );
+      return;
+    }
+
+    // Submit using React Query mutation
+    submitConsultationBookingMutation.mutate(
+      {
+        name: bookingData.name,
+        phone: bookingData.phone,
+        preferredDate: bookingData.preferredDate || undefined,
+        preferredTime: bookingData.preferredTime || undefined,
+        reason: bookingData.reason || undefined,
+      },
+      {
+        onSuccess: () => {
+          // Reset booking form
+          setBookingData({
+            name: "",
+            phone: "",
+            preferredDate: "",
+            preferredTime: "",
+            reason: "",
+          });
+
+          setIsBookingDialogOpen(false);
+
+          toast.success(
+            t("contact.booking.success.title") || "Consultation Requested!",
+            {
+              description:
+                t("contact.booking.success.description") ||
+                "We'll contact you soon to confirm your appointment.",
+            }
+          );
+        },
+        onError: (error: any) => {
+          toast.error(
+            t("contact.booking.error.title") ||
+              "Failed to request consultation",
+            {
+              description:
+                error?.message ||
+                t("contact.booking.error.description") ||
+                "Please try again later.",
+            }
+          );
+        },
+      }
+    );
+  };
+
+  const handleWhatsAppSupport = () => {
+    // Extract phone number from translation (first phone number)
+    const firstPhoneNumber =
+      t("contact.contactInfo.phoneNumbers.details.0") || "9860370961";
+    const firstPhone = firstPhoneNumber.replace(/\D/g, "") || "9860370961";
+    const whatsappNumber = firstPhone.startsWith("91")
+      ? firstPhone
+      : `91${firstPhone}`;
+    const whatsappUrl = `https://wa.me/${whatsappNumber}`;
+    window.open(whatsappUrl, "_blank");
+  };
+
+  const handleEmergencyCall = () => {
+    // Extract phone number from translation (first phone number)
+    const firstPhoneNumber =
+      t("contact.contactInfo.phoneNumbers.details.0") || "9860370961";
+    const firstPhone = firstPhoneNumber.replace(/\D/g, "") || "9860370961";
+    window.location.href = `tel:+${firstPhone}`;
   };
 
   const contactInfo = [
@@ -104,6 +304,7 @@ export default function ContactPage() {
       icon: Calendar,
       action: t("contact.quickActions.bookConsultation.action"),
       colorScheme: getIconColorScheme("Calendar"),
+      onClick: handleBookConsultation,
     },
     {
       title: t("contact.quickActions.whatsappSupport.title"),
@@ -111,6 +312,7 @@ export default function ContactPage() {
       icon: MessageCircle,
       action: t("contact.quickActions.whatsappSupport.action"),
       colorScheme: getIconColorScheme("MessageCircle"),
+      onClick: handleWhatsAppSupport,
     },
     {
       title: t("contact.quickActions.emergencyCare.title"),
@@ -118,6 +320,7 @@ export default function ContactPage() {
       icon: Phone,
       action: t("contact.quickActions.emergencyCare.action"),
       colorScheme: getIconColorScheme("Phone"),
+      onClick: handleEmergencyCall,
     },
   ];
 
@@ -243,6 +446,7 @@ export default function ContactPage() {
                               {action.description}
                             </p>
                             <Button
+                              onClick={action.onClick}
                               className={`bg-gradient-to-r ${action.colorScheme.gradient} hover:${action.colorScheme.hover} text-white w-full py-2 text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105`}
                             >
                               {action.action}
@@ -360,10 +564,20 @@ export default function ContactPage() {
 
                           <Button
                             type="submit"
-                            className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] font-semibold"
+                            disabled={submitContactFormMutation.isPending}
+                            className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            <Send className="w-4 h-4 mr-2" />
-                            {t("contact.form.submitButton")}
+                            {submitContactFormMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                {t("contact.form.submitting") || "Sending..."}
+                              </>
+                            ) : (
+                              <>
+                                <Send className="w-4 h-4 mr-2" />
+                                {t("contact.form.submitButton")}
+                              </>
+                            )}
                           </Button>
                         </form>
                       </CardContent>
@@ -442,7 +656,10 @@ export default function ContactPage() {
                               <p className="text-destructive/80 mb-3 leading-relaxed">
                                 {t("contact.emergency.description")}
                               </p>
-                              <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 px-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 font-semibold text-xs">
+                              <Button
+                                onClick={handleEmergencyCall}
+                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 px-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 font-semibold text-xs"
+                              >
                                 <Phone className="w-4 h-4 mr-2" />
                                 {t("contact.emergency.action")}
                               </Button>
@@ -514,6 +731,124 @@ export default function ContactPage() {
             </div>
           </section>
         </LazySection>
+
+        {/* Booking Consultation Dialog */}
+        <Dialog
+          open={isBookingDialogOpen}
+          onOpenChange={setIsBookingDialogOpen}
+        >
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-playfair font-bold gradient-text">
+                {t("contact.booking.title") || "Book a Consultation"}
+              </DialogTitle>
+              <DialogDescription>
+                {t("contact.booking.description") ||
+                  "Fill in your details and we'll contact you to confirm your appointment."}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleBookingSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-foreground">
+                  {t("contact.form.fields.fullName") || "Full Name"} *
+                </label>
+                <Input
+                  name="name"
+                  value={bookingData.name}
+                  onChange={handleBookingInputChange}
+                  placeholder={
+                    t("contact.form.placeholders.fullName") ||
+                    "Enter your full name"
+                  }
+                  required
+                  className="h-9 rounded-lg"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-foreground">
+                  {t("contact.form.fields.phoneNumber") || "Phone Number"} *
+                </label>
+                <Input
+                  name="phone"
+                  type="tel"
+                  value={bookingData.phone}
+                  onChange={handleBookingInputChange}
+                  placeholder={
+                    t("contact.form.placeholders.phoneNumber") ||
+                    "Enter your phone number"
+                  }
+                  required
+                  className="h-9 rounded-lg"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-foreground">
+                    {t("contact.booking.preferredDate") || "Preferred Date"}
+                  </label>
+                  <Input
+                    name="preferredDate"
+                    type="date"
+                    value={bookingData.preferredDate}
+                    onChange={handleBookingInputChange}
+                    min={new Date().toISOString().split("T")[0]}
+                    className="h-9 rounded-lg"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-foreground">
+                    {t("contact.booking.preferredTime") || "Preferred Time"}
+                  </label>
+                  <Input
+                    name="preferredTime"
+                    type="time"
+                    value={bookingData.preferredTime}
+                    onChange={handleBookingInputChange}
+                    className="h-9 rounded-lg"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-foreground">
+                  {t("contact.booking.reason") || "Reason for Consultation"}
+                </label>
+                <Textarea
+                  name="reason"
+                  value={bookingData.reason}
+                  onChange={handleBookingInputChange}
+                  placeholder={
+                    t("contact.booking.reasonPlaceholder") ||
+                    "Briefly describe your reason for consultation"
+                  }
+                  rows={3}
+                  className="rounded-lg resize-none"
+                />
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsBookingDialogOpen(false)}
+                  className="rounded-lg"
+                >
+                  {t("contact.booking.cancel") || "Cancel"}
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground rounded-lg"
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  {t("contact.booking.submit") || "Request Consultation"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </PageTransition>
   );

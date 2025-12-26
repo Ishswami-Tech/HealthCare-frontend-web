@@ -13,6 +13,7 @@ import { ThemeContextProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/lib/i18n/context";
 import { WebSocketProvider } from "@/components/websocket/WebSocketProvider";
 import { StoreProvider } from "@/stores";
+import { PushNotificationProvider } from "@/components/push-notifications/PushNotificationProvider";
 
 function ErrorFallback({
   error,
@@ -90,24 +91,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
               <StoreProvider>
                 <LoadingOverlayProvider>
                   <QueryProvider>
-                    <WebSocketProvider 
-                      autoConnect={true} 
-                      enableRetry={true} 
+                    <WebSocketProvider
+                      autoConnect={true}
+                      enableRetry={true}
                       enableErrorBoundary={true}
                     >
-                      <GlobalLoadingOverlayListener />
-                      {children}
-                      <Toaster
-                        richColors
-                        position="top-right"
-                        expand={false}
-                        visibleToasts={4}
-                        closeButton
-                        toastOptions={{
-                          duration: 4000,
-                          className: "text-sm",
-                        }}
-                      />
+                      <PushNotificationProvider>
+                        <GlobalLoadingOverlayListener />
+                        {children}
+                        <Toaster
+                          richColors
+                          position="top-right"
+                          expand={false}
+                          visibleToasts={4}
+                          closeButton
+                          toastOptions={{
+                            duration: 4000,
+                            className: "text-sm",
+                          }}
+                        />
+                      </PushNotificationProvider>
                     </WebSocketProvider>
                   </QueryProvider>
                 </LoadingOverlayProvider>

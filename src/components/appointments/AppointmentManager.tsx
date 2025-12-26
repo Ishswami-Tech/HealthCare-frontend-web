@@ -15,7 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useWebSocketIntegration, useRealTimeAppointments, useRealTimeAppointmentMutation } from "@/hooks/useWebSocketIntegration";
+import {
+  useWebSocketIntegration,
+  useRealTimeAppointments,
+  useRealTimeAppointmentMutation,
+} from "@/hooks/useWebSocketIntegration";
 import { useAppointmentsStore } from "@/stores";
 import {
   useAppointments,
@@ -35,22 +39,25 @@ import {
   CreateAppointmentData,
 } from "@/types/appointment.types";
 import { useClinicLocations, useClinicDoctors } from "@/hooks/useClinics";
+import { APP_CONFIG } from "@/lib/config/config";
 
 export default function AppointmentManager() {
   const { toast } = useToast();
-  
+
   // Real-time WebSocket integration
   const { isConnected, isReady: isRealTimeEnabled } = useWebSocketIntegration({
     subscribeToAppointments: true,
     autoConnect: true,
   });
-  
+
   // Enhanced appointment hooks with real-time updates
   const { data: realTimeAppointments } = useRealTimeAppointments();
-  const { createAppointment: createRealTimeAppointment } = useRealTimeAppointmentMutation();
-  
+  const { createAppointment: createRealTimeAppointment } =
+    useRealTimeAppointmentMutation();
+
   // Zustand store integration
-  const { setSelectedAppointment: setStoreSelectedAppointment } = useAppointmentsStore();
+  const { setSelectedAppointment: setStoreSelectedAppointment } =
+    useAppointmentsStore();
   const [selectedAppointment, setSelectedAppointment] =
     useState<AppointmentWithRelations | null>(null);
   const [newAppointment, setNewAppointment] = useState<CreateAppointmentData>({
@@ -67,9 +74,11 @@ export default function AppointmentManager() {
   // Appointment CRUD hooks (fallback for non-real-time)
   const { data: appointments, isPending: appointmentsLoading } =
     useAppointments();
-    
+
   // Use real-time data if available, otherwise fallback to regular data
-  const appointmentData = realTimeAppointments?.success ? realTimeAppointments : appointments;
+  const appointmentData = realTimeAppointments?.success
+    ? realTimeAppointments
+    : appointments;
   const isAppointmentsLoading = isRealTimeEnabled ? false : appointmentsLoading;
   const { mutate: createAppointment, isPending: creatingAppointment } =
     useCreateAppointment();
@@ -86,7 +95,11 @@ export default function AppointmentManager() {
   const { data: upcomingAppointments } = useUserUpcomingAppointments("user-id");
 
   // Location and doctor data (memoized)
-  const CLINIC_ID = useMemo(() => process.env.NEXT_PUBLIC_CLINIC_ID!, []);
+  // Use environment-aware clinic ID with fallback
+  const CLINIC_ID = useMemo(
+    () => process.env.NEXT_PUBLIC_CLINIC_ID || "CL0002",
+    []
+  );
   const { data: locations } = useClinicLocations(CLINIC_ID);
   const { data: doctors } = useClinicDoctors(CLINIC_ID);
 
@@ -109,32 +122,40 @@ export default function AppointmentManager() {
 
   // Utility hooks
   const canCancelData = useCanCancelAppointment(selectedAppointment?.id || "");
-  
+
   // Utility function to get status color (memoized)
   const getStatusColor = useCallback((status: string) => {
     switch (status) {
-      case 'SCHEDULED': return 'bg-blue-100 text-blue-800';
-      case 'CONFIRMED': return 'bg-green-100 text-green-800';
-      case 'CHECKED_IN': return 'bg-yellow-100 text-yellow-800';
-      case 'IN_PROGRESS': return 'bg-purple-100 text-purple-800';
-      case 'COMPLETED': return 'bg-muted text-muted-foreground';
-      case 'CANCELLED': return 'bg-destructive/10 text-destructive';
-      case 'NO_SHOW': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
-      default: return 'bg-muted text-muted-foreground';
+      case "SCHEDULED":
+        return "bg-blue-100 text-blue-800";
+      case "CONFIRMED":
+        return "bg-green-100 text-green-800";
+      case "CHECKED_IN":
+        return "bg-yellow-100 text-yellow-800";
+      case "IN_PROGRESS":
+        return "bg-purple-100 text-purple-800";
+      case "COMPLETED":
+        return "bg-muted text-muted-foreground";
+      case "CANCELLED":
+        return "bg-destructive/10 text-destructive";
+      case "NO_SHOW":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400";
+      default:
+        return "bg-muted text-muted-foreground";
     }
   }, []);
 
   // Utility function to format date and time
   const formatDateTime = (date: string, time: string) => {
     const dateObj = new Date(`${date}T${time}`);
-    return dateObj.toLocaleString('en-IN', {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
+    return dateObj.toLocaleString("en-IN", {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
     });
   };
 
@@ -146,7 +167,7 @@ export default function AppointmentManager() {
             title: "Success",
             description: "Appointment created successfully (real-time updated)",
           });
-          
+
           // Reset form
           setNewAppointment({
             patientId: "",
@@ -158,7 +179,7 @@ export default function AppointmentManager() {
             type: "CONSULTATION",
             notes: "",
           });
-          
+
           // Update Zustand store
           if (data?.data) {
             useAppointmentsStore.getState().addAppointment(data.data);
@@ -201,26 +222,33 @@ export default function AppointmentManager() {
     }
   };
 
-  const handleCancelAppointment = useCallback((id: string) => {
-    cancelAppointment({ id }, {
-      onSuccess: () => {
-        toast({
-          title: "Success",
-          description: "Appointment cancelled successfully",
-        });
-      },
-      onError: () => {
-        toast({
-          title: "Error",
-          description: "Failed to cancel appointment",
-          variant: "destructive",
-        });
-      },
-    });
-  }, [cancelAppointment, toast]);
+  const handleCancelAppointment = useCallback(
+    (id: string) => {
+      cancelAppointment(
+        { id },
+        {
+          onSuccess: () => {
+            toast({
+              title: "Success",
+              description: "Appointment cancelled successfully",
+            });
+          },
+          onError: () => {
+            toast({
+              title: "Error",
+              description: "Failed to cancel appointment",
+              variant: "destructive",
+            });
+          },
+        }
+      );
+    },
+    [cancelAppointment, toast]
+  );
 
-  const handleProcessCheckIn = useCallback((appointmentId: string) => {
-    processCheckIn(appointmentId, {
+  const handleProcessCheckIn = useCallback(
+    (appointmentId: string) => {
+      processCheckIn(appointmentId, {
         onSuccess: () => {
           toast({
             title: "Success",
@@ -234,45 +262,48 @@ export default function AppointmentManager() {
             variant: "destructive",
           });
         },
-      }
-    );
-  }, [processCheckIn, toast]);
+      });
+    },
+    [processCheckIn, toast]
+  );
 
-  const handleConfirmAppointment = useCallback((appointmentId: string) => {
-    confirmAppointment(appointmentId, {
-      onSuccess: () => {
-        toast({
-          title: "Success",
-          description: "Appointment confirmed successfully",
-        });
-      },
-      onError: () => {
-        toast({
-          title: "Error",
-          description: "Failed to confirm appointment",
-          variant: "destructive",
-        });
-      },
-    });
-  }, [confirmAppointment, toast]);
-
-  const handleStartConsultation = (appointmentId: string) => {
-    startConsultation(appointmentId, {
+  const handleConfirmAppointment = useCallback(
+    (appointmentId: string) => {
+      confirmAppointment(appointmentId, {
         onSuccess: () => {
           toast({
             title: "Success",
-            description: "Consultation started successfully",
+            description: "Appointment confirmed successfully",
           });
         },
         onError: () => {
           toast({
             title: "Error",
-            description: "Failed to start consultation",
+            description: "Failed to confirm appointment",
             variant: "destructive",
           });
         },
-      }
-    );
+      });
+    },
+    [confirmAppointment, toast]
+  );
+
+  const handleStartConsultation = (appointmentId: string) => {
+    startConsultation(appointmentId, {
+      onSuccess: () => {
+        toast({
+          title: "Success",
+          description: "Consultation started successfully",
+        });
+      },
+      onError: () => {
+        toast({
+          title: "Error",
+          description: "Failed to start consultation",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   // Show real-time connection status
@@ -285,7 +316,7 @@ export default function AppointmentManager() {
       });
     }
   }, [isRealTimeEnabled, isConnected, toast]);
-  
+
   if (isAppointmentsLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -294,7 +325,7 @@ export default function AppointmentManager() {
           <p>Loading appointments...</p>
           {isRealTimeEnabled && (
             <p className="text-sm text-muted-foreground mt-1">
-              Real-time updates {isConnected ? 'connected' : 'connecting...'}
+              Real-time updates {isConnected ? "connected" : "connecting..."}
             </p>
           )}
         </div>
@@ -308,9 +339,13 @@ export default function AppointmentManager() {
         <h1 className="text-3xl font-bold">Appointment Manager</h1>
         {isRealTimeEnabled && (
           <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+            <div
+              className={`w-2 h-2 rounded-full ${
+                isConnected ? "bg-green-500" : "bg-yellow-500"
+              }`}
+            ></div>
             <span className="text-sm text-muted-foreground">
-              {isConnected ? 'Real-time connected' : 'Connecting...'}
+              {isConnected ? "Real-time connected" : "Connecting..."}
             </span>
           </div>
         )}
@@ -498,11 +533,13 @@ export default function AppointmentManager() {
                   <div>
                     <span className="font-medium">Available Slots:</span>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {doctorAvailability.availableSlots.map((slot: string, index: number) => (
-                        <Badge key={index} variant="outline">
-                          {slot}
-                        </Badge>
-                      ))}
+                      {doctorAvailability.availableSlots.map(
+                        (slot: string, index: number) => (
+                          <Badge key={index} variant="outline">
+                            {slot}
+                          </Badge>
+                        )
+                      )}
                     </div>
                   </div>
                 )}
@@ -523,7 +560,9 @@ export default function AppointmentManager() {
                 key={appointment.id}
                 className="border border-border rounded-lg p-4 hover:bg-muted cursor-pointer"
                 onClick={() => {
-                  setSelectedAppointment(appointment as AppointmentWithRelations);
+                  setSelectedAppointment(
+                    appointment as AppointmentWithRelations
+                  );
                   if (isRealTimeEnabled) {
                     setStoreSelectedAppointment(appointment);
                   }
@@ -551,7 +590,9 @@ export default function AppointmentManager() {
                       variant="outline"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedAppointment(appointment as AppointmentWithRelations);
+                        setSelectedAppointment(
+                          appointment as AppointmentWithRelations
+                        );
                         if (isRealTimeEnabled) {
                           setStoreSelectedAppointment(appointment);
                         }
@@ -603,7 +644,7 @@ export default function AppointmentManager() {
                   </Button>
                 )}
 
-                {selectedAppointment?.status === 'CONFIRMED' && (
+                {selectedAppointment?.status === "CONFIRMED" && (
                   <Button
                     onClick={() => handleProcessCheckIn(selectedAppointment.id)}
                     disabled={processingCheckIn}
@@ -612,7 +653,7 @@ export default function AppointmentManager() {
                   </Button>
                 )}
 
-                {selectedAppointment?.status === 'CHECKED_IN' && (
+                {selectedAppointment?.status === "CHECKED_IN" && (
                   <Button
                     onClick={() =>
                       handleConfirmAppointment(selectedAppointment.id)
@@ -623,7 +664,7 @@ export default function AppointmentManager() {
                   </Button>
                 )}
 
-                {selectedAppointment?.status === 'IN_PROGRESS' && (
+                {selectedAppointment?.status === "IN_PROGRESS" && (
                   <Button
                     onClick={() =>
                       handleStartConsultation(selectedAppointment.id)
@@ -649,7 +690,10 @@ export default function AppointmentManager() {
                 {doctorQueue && (
                   <div className="mt-4 p-4 bg-green-50 rounded-lg">
                     <h4 className="font-semibold mb-2">Doctor Queue</h4>
-                    <p>Appointments in Queue: {Array.isArray(doctorQueue) ? doctorQueue.length : 0}</p>
+                    <p>
+                      Appointments in Queue:{" "}
+                      {Array.isArray(doctorQueue) ? doctorQueue.length : 0}
+                    </p>
                     <p>Queue Status: Active</p>
                   </div>
                 )}

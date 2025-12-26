@@ -10,7 +10,25 @@ import {
   addToQueue,
   removeFromQueue,
   reorderQueue,
-  getQueueAnalytics
+  getQueueAnalytics,
+  updateQueuePosition,
+  pauseQueue,
+  resumeQueue,
+  getQueueConfig,
+  updateQueueConfig,
+  getQueueNotifications,
+  markQueueNotificationAsRead,
+  sendQueueNotification,
+  getQueueWaitTimes,
+  estimateWaitTime,
+  getQueueCapacity,
+  updateQueueCapacity,
+  getQueuePerformanceMetrics,
+  exportQueueData,
+  getQueueAlerts,
+  createQueueAlert,
+  updateQueueAlert,
+  deleteQueueAlert,
 } from '@/lib/actions/queue.server';
 
 // ===== QUEUE MANAGEMENT HOOKS =====
@@ -273,27 +291,228 @@ export const useRealTimeQueue = (queueType?: string) => {
 };
 
 /**
- * Hook for queue notifications
+ * Hook to update queue position
  */
-export const useQueueNotifications = () => {
-  const [notifications, setNotifications] = React.useState<any[]>([]);
+export const useUpdateQueuePosition = () => {
+  return useMutationData(['updateQueuePosition'], async ({ queueId, newPosition }: {
+    queueId: string;
+    newPosition: number;
+  }) => {
+    const result = await updateQueuePosition(queueId, newPosition);
+    return { status: 200, data: result };
+  }, 'queue');
+};
 
-  const addNotification = (notification: any) => {
-    setNotifications(prev => [notification, ...prev.slice(0, 9)]); // Keep last 10
-  };
+/**
+ * Hook to pause queue
+ */
+export const usePauseQueue = () => {
+  return useMutationData(['pauseQueue'], async ({ queueType, reason }: {
+    queueType: string;
+    reason?: string;
+  }) => {
+    const result = await pauseQueue(queueType, reason);
+    return { status: 200, data: result };
+  }, 'queue');
+};
 
-  const removeNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
+/**
+ * Hook to resume queue
+ */
+export const useResumeQueue = () => {
+  return useMutationData(['resumeQueue'], async ({ queueType }: {
+    queueType: string;
+  }) => {
+    const result = await resumeQueue(queueType);
+    return { status: 200, data: result };
+  }, 'queue');
+};
 
-  const clearNotifications = () => {
-    setNotifications([]);
-  };
+/**
+ * Hook to get queue configuration
+ */
+export const useQueueConfig = () => {
+  return useQueryData(['queueConfig'], async () => {
+    return await getQueueConfig();
+  });
+};
 
-  return {
-    notifications,
-    addNotification,
-    removeNotification,
-    clearNotifications,
-  };
+/**
+ * Hook to update queue configuration
+ */
+export const useUpdateQueueConfig = () => {
+  return useMutationData(['updateQueueConfig'], async (config: {
+    maxWaitTime?: number;
+    averageConsultationTime?: number;
+    autoCallNext?: boolean;
+    allowWalkIns?: boolean;
+    priorityEnabled?: boolean;
+  }) => {
+    const result = await updateQueueConfig(config);
+    return { status: 200, data: result };
+  }, 'queue');
+};
+
+/**
+ * Hook to get queue notifications
+ */
+export const useQueueNotifications = (userId?: string) => {
+  return useQueryData(['queueNotifications', userId], async () => {
+    return await getQueueNotifications(userId);
+  }, {
+    enabled: true,
+  });
+};
+
+/**
+ * Hook to mark queue notification as read
+ */
+export const useMarkQueueNotificationAsRead = () => {
+  return useMutationData(['markQueueNotificationAsRead'], async ({ notificationId }: {
+    notificationId: string;
+  }) => {
+    const result = await markQueueNotificationAsRead(notificationId);
+    return { status: 200, data: result };
+  }, 'queueNotifications');
+};
+
+/**
+ * Hook to send queue notification
+ */
+export const useSendQueueNotification = () => {
+  return useMutationData(['sendQueueNotification'], async (notificationData: {
+    patientId: string;
+    type: 'CALLED' | 'DELAYED' | 'CANCELLED' | 'REMINDER';
+    message: string;
+    channels?: ('sms' | 'email' | 'push')[];
+  }) => {
+    const result = await sendQueueNotification(notificationData);
+    return { status: 200, data: result };
+  });
+};
+
+/**
+ * Hook to get queue wait times
+ */
+export const useQueueWaitTimes = (queueType?: string) => {
+  return useQueryData(['queueWaitTimes', queueType], async () => {
+    return await getQueueWaitTimes(queueType);
+  });
+};
+
+/**
+ * Hook to estimate wait time
+ */
+export const useEstimateWaitTime = () => {
+  return useMutationData(['estimateWaitTime'], async ({ queueType, priority }: {
+    queueType: string;
+    priority?: string;
+  }) => {
+    const result = await estimateWaitTime(queueType, priority);
+    return { status: 200, data: result };
+  });
+};
+
+/**
+ * Hook to get queue capacity
+ */
+export const useQueueCapacity = (queueType: string) => {
+  return useQueryData(['queueCapacity', queueType], async () => {
+    return await getQueueCapacity(queueType);
+  }, {
+    enabled: !!queueType,
+  });
+};
+
+/**
+ * Hook to update queue capacity
+ */
+export const useUpdateQueueCapacity = () => {
+  return useMutationData(['updateQueueCapacity'], async ({ queueType, capacity }: {
+    queueType: string;
+    capacity: number;
+  }) => {
+    const result = await updateQueueCapacity(queueType, capacity);
+    return { status: 200, data: result };
+  }, 'queueCapacity');
+};
+
+/**
+ * Hook to get queue performance metrics
+ */
+export const useQueuePerformanceMetrics = (filters?: {
+  startDate?: string;
+  endDate?: string;
+  queueType?: string;
+}) => {
+  return useQueryData(['queuePerformanceMetrics', filters], async () => {
+    return await getQueuePerformanceMetrics(filters);
+  });
+};
+
+/**
+ * Hook to export queue data
+ */
+export const useExportQueueData = () => {
+  return useMutationData(['exportQueueData'], async (filters: {
+    startDate: string;
+    endDate: string;
+    format: 'csv' | 'excel' | 'pdf';
+    queueType?: string;
+  }) => {
+    const result = await exportQueueData(filters);
+    return { status: 200, data: result };
+  });
+};
+
+/**
+ * Hook to get queue alerts
+ */
+export const useQueueAlerts = () => {
+  return useQueryData(['queueAlerts'], async () => {
+    return await getQueueAlerts();
+  });
+};
+
+/**
+ * Hook to create queue alert
+ */
+export const useCreateQueueAlert = () => {
+  return useMutationData(['createQueueAlert'], async (alertData: {
+    type: 'LONG_WAIT' | 'CAPACITY_FULL' | 'NO_SHOW' | 'DELAY';
+    threshold: number;
+    queueType?: string;
+    enabled: boolean;
+  }) => {
+    const result = await createQueueAlert(alertData);
+    return { status: 200, data: result };
+  }, 'queueAlerts');
+};
+
+/**
+ * Hook to update queue alert
+ */
+export const useUpdateQueueAlert = () => {
+  return useMutationData(['updateQueueAlert'], async ({ alertId, updates }: {
+    alertId: string;
+    updates: {
+      threshold?: number;
+      enabled?: boolean;
+    };
+  }) => {
+    const result = await updateQueueAlert(alertId, updates);
+    return { status: 200, data: result };
+  }, 'queueAlerts');
+};
+
+/**
+ * Hook to delete queue alert
+ */
+export const useDeleteQueueAlert = () => {
+  return useMutationData(['deleteQueueAlert'], async ({ alertId }: {
+    alertId: string;
+  }) => {
+    const result = await deleteQueueAlert(alertId);
+    return { status: 200, data: result };
+  }, 'queueAlerts');
 };

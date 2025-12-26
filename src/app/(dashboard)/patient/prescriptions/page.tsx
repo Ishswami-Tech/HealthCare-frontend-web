@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
+import { theme } from "@/lib/theme-utils";
 import {
   Activity,
   Calendar,
@@ -240,30 +241,30 @@ export default function PatientPrescriptions() {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "active":
-        return "bg-green-100 text-green-800";
+        return theme.badges.green;
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return theme.badges.yellow;
       case "completed":
-        return "bg-gray-100 text-gray-800";
+        return theme.badges.gray;
       case "expired":
-        return "bg-red-100 text-red-800";
+        return theme.badges.red;
       default:
-        return "bg-gray-100 text-gray-800";
+        return theme.badges.gray;
     }
   };
 
   const getReminderStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "completed":
-        return "bg-green-100 text-green-800";
+        return theme.badges.green;
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return theme.badges.yellow;
       case "upcoming":
-        return "bg-blue-100 text-blue-800";
+        return theme.badges.blue;
       case "missed":
-        return "bg-red-100 text-red-800";
+        return theme.badges.red;
       default:
-        return "bg-gray-100 text-gray-800";
+        return theme.badges.gray;
     }
   };
 
@@ -350,7 +351,7 @@ export default function PatientPrescriptions() {
                   <CardContent className="p-4">
                     <div className="flex gap-4">
                       <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme.textColors.muted}`} />
                         <Input
                           placeholder="Search prescriptions or medications..."
                           value={searchTerm}
@@ -387,7 +388,7 @@ export default function PatientPrescriptions() {
                             <h3 className="text-lg font-semibold">
                               Prescription #{prescription.id}
                             </h3>
-                            <p className="text-sm text-gray-600">
+                            <p className={`text-sm ${theme.textColors.secondary}`}>
                               Prescribed by {prescription.doctor} •{" "}
                               {new Date(prescription.date).toLocaleDateString()}
                             </p>
@@ -416,37 +417,37 @@ export default function PatientPrescriptions() {
                                 (medication, index) => (
                                   <div
                                     key={index}
-                                    className="p-4 bg-green-50 rounded-lg border border-green-200"
+                                    className={`p-4 ${theme.containers.featureGreen} rounded-lg border ${theme.borders.green}`}
                                   >
                                     <div className="flex items-start justify-between">
                                       <div className="flex items-start gap-3">
-                                        <Leaf className="w-5 h-5 text-green-600 mt-1" />
+                                        <Leaf className={`w-5 h-5 ${theme.iconColors.green} mt-1`} />
                                         <div className="flex-1">
-                                          <h5 className="font-semibold text-green-800">
+                                          <h5 className={`font-semibold ${theme.textColors.success}`}>
                                             {medication.name}
                                           </h5>
-                                          <p className="text-sm text-green-700 mb-1">
+                                          <p className={`text-sm ${theme.textColors.success} mb-1`}>
                                             {medication.dosage} •{" "}
                                             {medication.duration}
                                           </p>
-                                          <p className="text-xs text-green-600 mb-2">
+                                          <p className={`text-xs ${theme.iconColors.green} mb-2`}>
                                             {medication.instructions}
                                           </p>
                                           <div className="flex items-center gap-4 text-xs">
                                             <Badge
                                               variant="outline"
-                                              className="bg-green-100 text-green-700"
+                                              className={theme.badges.green}
                                             >
                                               {medication.category}
                                             </Badge>
-                                            <span className="text-green-600">
+                                            <span className={theme.iconColors.green}>
                                               Benefits: {medication.benefits}
                                             </span>
                                           </div>
                                         </div>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-sm font-medium text-green-800">
+                                        <p className={`text-sm font-medium ${theme.textColors.success}`}>
                                           {medication.remaining} remaining
                                         </p>
                                         {parseInt(medication.remaining) <= 5 &&
@@ -454,7 +455,7 @@ export default function PatientPrescriptions() {
                                             0 && (
                                             <Badge
                                               variant="outline"
-                                              className="bg-yellow-50 text-yellow-700 mt-1"
+                                              className={`${theme.badges.yellow} mt-1`}
                                             >
                                               Low Stock
                                             </Badge>
@@ -469,41 +470,41 @@ export default function PatientPrescriptions() {
 
                           {/* Instructions and Notes */}
                           {prescription.notes && (
-                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                              <h5 className="font-medium text-blue-800 mb-1">
+                            <div className={`p-3 ${theme.containers.featureBlue} border ${theme.borders.blue} rounded-lg`}>
+                              <h5 className={`font-medium ${theme.textColors.info} mb-1`}>
                                 Doctor&apos;s Instructions:
                               </h5>
-                              <p className="text-sm text-blue-700">
+                              <p className={`text-sm ${theme.textColors.info}`}>
                                 {prescription.notes}
                               </p>
                             </div>
                           )}
 
                           {/* Prescription Summary */}
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div className={`flex items-center justify-between p-4 ${theme.backgrounds.secondary} rounded-lg`}>
                             <div className="grid grid-cols-2 gap-4 text-sm">
                               <div>
-                                <span className="text-gray-600">
+                                <span className={theme.textColors.secondary}>
                                   Total Cost:
                                 </span>
-                                <span className="font-semibold ml-2">
+                                <span className={`font-semibold ml-2 ${theme.textColors.heading}`}>
                                   ₹{prescription.totalCost}
                                 </span>
                               </div>
                               <div>
-                                <span className="text-gray-600">
+                                <span className={theme.textColors.secondary}>
                                   Refills Remaining:
                                 </span>
-                                <span className="font-semibold ml-2">
+                                <span className={`font-semibold ml-2 ${theme.textColors.heading}`}>
                                   {prescription.refillsRemaining}
                                 </span>
                               </div>
                               {prescription.nextRefill && (
                                 <div className="col-span-2">
-                                  <span className="text-gray-600">
+                                  <span className={theme.textColors.secondary}>
                                     Next Refill Due:
                                   </span>
-                                  <span className="font-semibold ml-2">
+                                  <span className={`font-semibold ml-2 ${theme.textColors.heading}`}>
                                     {new Date(
                                       prescription.nextRefill
                                     ).toLocaleDateString()}
@@ -555,17 +556,17 @@ export default function PatientPrescriptions() {
                           className="flex items-center justify-between p-4 border rounded-lg"
                         >
                           <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                              <Clock className="w-6 h-6 text-blue-600" />
+                            <div className={`w-12 h-12 ${theme.containers.featureBlue} rounded-full flex items-center justify-center`}>
+                              <Clock className={`w-6 h-6 ${theme.iconColors.blue}`} />
                             </div>
                             <div>
-                              <h4 className="font-semibold">
+                              <h4 className={`font-semibold ${theme.textColors.heading}`}>
                                 {reminder.medication}
                               </h4>
-                              <p className="text-sm text-gray-600">
+                              <p className={`text-sm ${theme.textColors.secondary}`}>
                                 {reminder.dosage}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className={`text-xs ${theme.textColors.tertiary}`}>
                                 {reminder.time}
                               </p>
                             </div>
@@ -602,7 +603,7 @@ export default function PatientPrescriptions() {
                           <Label className="font-medium">
                             Push Notifications
                           </Label>
-                          <p className="text-sm text-gray-600">
+                          <p className={`text-sm ${theme.textColors.secondary}`}>
                             Get notified when it&apos;s time to take your
                             medicine
                           </p>
@@ -616,7 +617,7 @@ export default function PatientPrescriptions() {
                       <div className="flex items-center justify-between">
                         <div>
                           <Label className="font-medium">SMS Reminders</Label>
-                          <p className="text-sm text-gray-600">
+                          <p className={`text-sm ${theme.textColors.secondary}`}>
                             Receive SMS alerts for important medications
                           </p>
                         </div>
@@ -629,7 +630,7 @@ export default function PatientPrescriptions() {
                       <div className="flex items-center justify-between">
                         <div>
                           <Label className="font-medium">Smart Reminders</Label>
-                          <p className="text-sm text-gray-600">
+                          <p className={`text-sm ${theme.textColors.secondary}`}>
                             Adjust reminder timing based on your routine
                           </p>
                         </div>
@@ -660,7 +661,7 @@ export default function PatientPrescriptions() {
                       {nearbyPharmacies.map((pharmacy) => (
                         <div
                           key={pharmacy.id}
-                          className="p-4 border rounded-lg hover:bg-gray-50"
+                          className={`p-4 border rounded-lg ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -671,13 +672,13 @@ export default function PatientPrescriptions() {
                                 {!pharmacy.inStock && (
                                   <Badge
                                     variant="outline"
-                                    className="bg-red-50 text-red-700"
+                                    className={theme.badges.red}
                                   >
                                     Limited Stock
                                   </Badge>
                                 )}
                               </div>
-                              <div className="space-y-1 text-sm text-gray-600">
+                              <div className={`space-y-1 text-sm ${theme.textColors.secondary}`}>
                                 <div className="flex items-center gap-2">
                                   <MapPin className="w-3 h-3" />
                                   <span>{pharmacy.address}</span>
@@ -686,7 +687,7 @@ export default function PatientPrescriptions() {
                                   <div className="flex items-center gap-1">
                                     <Star className="w-3 h-3 text-yellow-500 fill-current" />
                                     <span>{pharmacy.rating}</span>
-                                    <span className="text-gray-400">
+                                    <span className={theme.textColors.muted}>
                                       ({pharmacy.reviews} reviews)
                                     </span>
                                   </div>
@@ -747,7 +748,7 @@ export default function PatientPrescriptions() {
                         <div className="flex items-center justify-between mb-3">
                           <div>
                             <h3 className="font-semibold">Order #ORD12345</h3>
-                            <p className="text-sm text-gray-600">
+                            <p className={`text-sm ${theme.textColors.secondary}`}>
                               Ayurveda Plus Pharmacy • Jan 20, 2024
                             </p>
                           </div>
@@ -757,7 +758,7 @@ export default function PatientPrescriptions() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                           <div>
-                            <span className="text-gray-600">Items:</span>
+                            <span className={theme.textColors.secondary}>Items:</span>
                             <span className="ml-2">
                               Triphala Churna, Ashwagandha
                             </span>
@@ -791,17 +792,17 @@ export default function PatientPrescriptions() {
                         <div className="flex items-center justify-between mb-3">
                           <div>
                             <h3 className="font-semibold">Order #ORD12344</h3>
-                            <p className="text-sm text-gray-600">
+                            <p className={`text-sm ${theme.textColors.secondary}`}>
                               Herbal Care Center • Jan 15, 2024
                             </p>
                           </div>
-                          <Badge className="bg-blue-100 text-blue-800">
+                          <Badge className={theme.badges.blue}>
                             In Transit
                           </Badge>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                           <div>
-                            <span className="text-gray-600">Items:</span>
+                            <span className={theme.textColors.secondary}>Items:</span>
                             <span className="ml-2">
                               Brahmi Ghrita, Saraswatarishta
                             </span>

@@ -19,20 +19,30 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
     queryFn: async () => {
       if (!currentClinic) throw new Error('No clinic selected');
       
-      // This would be your actual API call
-      const response = await fetch(`/api/appointments?${new URLSearchParams({
+      // Use actual API endpoint from config
+      const { API_ENDPOINTS, APP_CONFIG } = await import('@/lib/config/config');
+      const params = new URLSearchParams({
         clinicId: currentClinic.id,
         ...Object.fromEntries(
           Object.entries(filters).map(([key, value]) => [key, String(value)])
         )
-      })}`);
+      });
+      
+      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
+          'X-Clinic-ID': currentClinic.id,
+        },
+      });
       
       if (!response.ok) throw new Error('Failed to fetch appointments');
-      return response.json();
+      const data = await response.json();
+      return { success: true, data: Array.isArray(data) ? data : data.appointments || [] };
     },
     enabled: !!currentClinic,
-    staleTime: 30000, // 30 seconds
-    gcTime: 300000, // 5 minutes
+    staleTime: 60 * 1000, // 1 minute (optimized for 10M users - real-time updates reduce need for frequent refetch)
+    gcTime: 10 * 60 * 1000, // 10 minutes (increased for 10M users)
+    refetchOnWindowFocus: false,
   });
 
   // Set up real-time subscriptions
@@ -122,13 +132,22 @@ export function useRealTimeAppointmentStats() {
     queryFn: async () => {
       if (!currentClinic) throw new Error('No clinic selected');
       
-      const response = await fetch(`/api/appointments/stats?clinicId=${currentClinic.id}`);
+      const { API_ENDPOINTS, APP_CONFIG } = await import('@/lib/config/config');
+      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.ANALYTICS}?clinicId=${currentClinic.id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
+          'X-Clinic-ID': currentClinic.id,
+        },
+      });
       if (!response.ok) throw new Error('Failed to fetch appointment stats');
-      return response.json();
+      const data = await response.json();
+      return { success: true, data };
     },
     enabled: !!currentClinic,
-    staleTime: 60000, // 1 minute
-    refetchInterval: isConnected ? false : 300000, // 5 minutes if not real-time
+    staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchInterval: isConnected ? false : 10 * 60 * 1000, // 10 minutes if not real-time (increased for 10M users)
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -166,16 +185,25 @@ export function useRealTimeQueueStatus(queueName?: string) {
     queryFn: async () => {
       if (!currentClinic) throw new Error('No clinic selected');
       
+      const { API_ENDPOINTS, APP_CONFIG } = await import('@/lib/config/config');
       const params = new URLSearchParams({ clinicId: currentClinic.id });
       if (queueName) params.append('queueName', queueName);
       
-      const response = await fetch(`/api/queue/status?${params}`);
+      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.QUEUE.STATS}?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
+          'X-Clinic-ID': currentClinic.id,
+        },
+      });
       if (!response.ok) throw new Error('Failed to fetch queue status');
-      return response.json();
+      const data = await response.json();
+      return { success: true, data };
     },
     enabled: !!currentClinic,
-    staleTime: 15000, // 15 seconds
-    refetchInterval: isConnected ? false : 30000, // 30 seconds if not real-time
+    staleTime: 30 * 1000, // 30 seconds (optimized for 10M users)
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: isConnected ? false : 60 * 1000, // 1 minute if not real-time (increased for 10M users)
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -221,9 +249,14 @@ export function useRealTimeAppointmentMutation() {
     mutationFn: async (appointmentData: Partial<Appointment>) => {
       if (!currentClinic) throw new Error('No clinic selected');
       
-      const response = await fetch('/api/appointments', {
+      const { API_ENDPOINTS, APP_CONFIG } = await import('@/lib/config/config');
+      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.CREATE}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
+          'X-Clinic-ID': currentClinic.id,
+        },
         body: JSON.stringify({
           ...appointmentData,
           clinicId: currentClinic.id,
@@ -231,7 +264,8 @@ export function useRealTimeAppointmentMutation() {
       });
       
       if (!response.ok) throw new Error('Failed to create appointment');
-      return response.json();
+      const data = await response.json();
+      return { success: true, data };
     },
     onSuccess: (data) => {
       // Optimistically update local cache
@@ -247,14 +281,19 @@ export function useRealTimeAppointmentMutation() {
 
   const updateAppointment = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Appointment> }) => {
-      const response = await fetch(`/api/appointments/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      const { API_ENDPOINTS, APP_CONFIG } = await import('@/lib/config/config');
+      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.UPDATE(id)}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
+        },
         body: JSON.stringify(updates),
       });
       
       if (!response.ok) throw new Error('Failed to update appointment');
-      return response.json();
+      const data = await response.json();
+      return { success: true, data };
     },
     onMutate: async ({ id, updates }) => {
       // Cancel any outgoing refetches
@@ -298,12 +337,17 @@ export function useRealTimeAppointmentMutation() {
 
   const deleteAppointment = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/appointments/${id}`, {
+      const { API_ENDPOINTS, APP_CONFIG } = await import('@/lib/config/config');
+      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.DELETE(id)}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
+        },
       });
       
       if (!response.ok) throw new Error('Failed to delete appointment');
-      return response.json();
+      const data = await response.json();
+      return { success: true, data };
     },
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });

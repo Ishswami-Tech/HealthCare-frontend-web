@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
@@ -20,6 +20,14 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
+import { useClinicContext } from "@/hooks/useClinic";
+import {
+  useDoctors,
+  useDoctorSchedule,
+  useUpdateDoctorSchedule,
+} from "@/hooks/useDoctors";
+import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
 import {
   Activity,
   Users,
@@ -33,19 +41,50 @@ import {
   AlertCircle,
   CheckCircle,
   Stethoscope,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function ClinicAdminSchedule() {
   const { session } = useAuth();
   const user = session?.user;
+  const { clinicId } = useClinicContext();
 
-  // Mock doctor schedule data
-  const [doctorSchedules, setDoctorSchedules] = useState([
-    {
-      id: "1",
-      doctorName: "Dr. Rajesh Kumar",
-      specialization: "Panchakarma",
-      schedules: [
+  // Fetch real doctors data
+  const { data: doctorsData, isLoading: isLoadingDoctors } = useDoctors(
+    clinicId || "",
+    {}
+  );
+
+  // Sync with WebSocket for real-time updates
+  useWebSocketQuerySync(["doctors", clinicId]);
+
+  // Fetch schedule for selected doctor
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
+  const { data: scheduleData, isLoading: isLoadingSchedule } =
+    useDoctorSchedule(selectedDoctorId || "", undefined);
+
+  // Update schedule mutation
+  const updateScheduleMutation = useUpdateDoctorSchedule();
+
+  // Transform doctors data to schedule format
+  const doctors = useMemo(() => {
+    if (!doctorsData) return [];
+    return Array.isArray(doctorsData) ? doctorsData : doctorsData.doctors || [];
+  }, [doctorsData]);
+
+  // Transform schedule data
+  const doctorSchedules = useMemo(() => {
+    if (!doctors.length) return [];
+
+    return doctors.map((doctor: any) => {
+      const doctorSchedule =
+        scheduleData && selectedDoctorId === doctor.id ? scheduleData : null;
+      const schedules =
+        doctorSchedule?.schedules || doctorSchedule?.weeklySchedule || [];
+
+      // Default schedule structure if none exists
+      const defaultSchedule = [
         {
           day: "Monday",
           startTime: "09:00",
@@ -95,101 +134,57 @@ export default function ClinicAdminSchedule() {
           available: false,
           slotDuration: 30,
         },
-      ],
-    },
-    {
-      id: "2",
-      doctorName: "Dr. Priya Sharma",
-      specialization: "Nadi Pariksha",
-      schedules: [
-        {
-          day: "Monday",
-          startTime: "10:00",
-          endTime: "18:00",
-          available: true,
-          slotDuration: 45,
-        },
-        {
-          day: "Tuesday",
-          startTime: "10:00",
-          endTime: "18:00",
-          available: true,
-          slotDuration: 45,
-        },
-        {
-          day: "Wednesday",
-          startTime: "10:00",
-          endTime: "18:00",
-          available: true,
-          slotDuration: 45,
-        },
-        {
-          day: "Thursday",
-          startTime: "10:00",
-          endTime: "18:00",
-          available: true,
-          slotDuration: 45,
-        },
-        {
-          day: "Friday",
-          startTime: "10:00",
-          endTime: "18:00",
-          available: true,
-          slotDuration: 45,
-        },
-        {
-          day: "Saturday",
-          startTime: "10:00",
-          endTime: "14:00",
-          available: true,
-          slotDuration: 45,
-        },
-        {
-          day: "Sunday",
-          startTime: "",
-          endTime: "",
-          available: false,
-          slotDuration: 45,
-        },
-      ],
-    },
-  ]);
+      ];
 
-  // Mock holiday data
-  const [holidays, setHolidays] = useState([
-    {
-      id: "1",
-      date: "2024-01-26",
-      title: "Republic Day",
-      type: "Public Holiday",
-    },
-    { id: "2", date: "2024-03-08", title: "Holi", type: "Festival" },
-    {
-      id: "3",
-      date: "2024-08-15",
-      title: "Independence Day",
-      type: "Public Holiday",
-    },
-  ]);
+      return {
+        id: doctor.id,
+        doctorName:
+          doctor.name ||
+          `${doctor.firstName || ""} ${doctor.lastName || ""}`.trim(),
+        specialization:
+          doctor.specialization || doctor.specializations?.[0] || "General",
+        schedules: schedules.length > 0 ? schedules : defaultSchedule,
+      };
+    });
+  }, [doctors, scheduleData, selectedDoctorId]);
 
-  const [selectedDoctor, setSelectedDoctor] = useState(doctorSchedules[0]);
+  // Local state for editing schedules
+  const [localSchedules, setLocalSchedules] = useState(doctorSchedules);
+
+  // Update local schedules when doctorSchedules change
+  useEffect(() => {
+    setLocalSchedules(doctorSchedules);
+  }, [doctorSchedules]);
+
+  // Holiday data (can be fetched from API later)
+  const [holidays, setHolidays] = useState<any[]>([]);
+
+  const [selectedDoctor, setSelectedDoctor] = useState<any>(
+    localSchedules[0] || null
+  );
+
+  // Update selected doctor when schedules change
+  useEffect(() => {
+    if (localSchedules.length > 0 && !selectedDoctor) {
+      setSelectedDoctor(localSchedules[0]);
+      setSelectedDoctorId(localSchedules[0]?.id || null);
+    }
+  }, [localSchedules, selectedDoctor]);
   const [newHoliday, setNewHoliday] = useState({
     date: "",
     title: "",
     type: "Public Holiday",
   });
 
-
-
   const updateSchedule = (dayIndex: number, field: string, value: any) => {
     if (!selectedDoctor) return;
-    
-    const updatedSchedules = doctorSchedules.map((doctor) => {
+
+    const updatedSchedules = localSchedules.map((doctor) => {
       if (doctor.id === selectedDoctor.id) {
         const updatedDoctor = { ...doctor };
         const currentSchedule = updatedDoctor.schedules[dayIndex];
         if (!currentSchedule) return doctor;
-        
+
         updatedDoctor.schedules[dayIndex] = {
           day: currentSchedule.day,
           startTime: currentSchedule.startTime,
@@ -202,10 +197,44 @@ export default function ClinicAdminSchedule() {
       }
       return doctor;
     });
-    setDoctorSchedules(updatedSchedules);
+    setLocalSchedules(updatedSchedules);
     setSelectedDoctor(
       updatedSchedules.find((d) => d.id === selectedDoctor.id)!
     );
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!selectedDoctor || !selectedDoctorId) {
+      toast.error("Please select a doctor");
+      return;
+    }
+
+    try {
+      const scheduleToSave = selectedDoctor.schedules.map((sched: any) => ({
+        dayOfWeek: [
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+        ].indexOf(sched.day),
+        startTime: sched.startTime,
+        endTime: sched.endTime,
+        isAvailable: sched.available,
+      }));
+
+      await updateScheduleMutation.mutateAsync({
+        doctorId: selectedDoctorId,
+        schedule: scheduleToSave,
+      });
+
+      toast.success("Schedule updated successfully");
+    } catch (error) {
+      toast.error("Failed to update schedule");
+      console.error(error);
+    }
   };
 
   const addHoliday = () => {
@@ -248,6 +277,30 @@ export default function ClinicAdminSchedule() {
     icon: <LogOut className="w-5 h-5" />,
   });
 
+  if (isLoadingDoctors) {
+    return (
+      <DashboardLayout
+        title="Schedule Management"
+        allowedRole={Role.CLINIC_ADMIN}
+      >
+        <GlobalSidebar
+          links={sidebarLinks}
+          user={{
+            name:
+              user?.name ||
+              `${user?.firstName} ${user?.lastName}` ||
+              "Clinic Admin",
+            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
+          }}
+        >
+          <div className="p-6 flex items-center justify-center min-h-[400px]">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        </GlobalSidebar>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout
       title="Schedule Management"
@@ -266,10 +319,26 @@ export default function ClinicAdminSchedule() {
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Schedule Management</h1>
-            <Button className="flex items-center gap-2">
-              <Save className="w-4 h-4" />
-              Save All Changes
-            </Button>
+            <div className="flex items-center gap-4">
+              <WebSocketStatusIndicator />
+              <Button
+                className="flex items-center gap-2"
+                onClick={handleSaveSchedule}
+                disabled={updateScheduleMutation.isPending || !selectedDoctor}
+              >
+                {updateScheduleMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save All Changes
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           <Tabs defaultValue="doctor-schedules" className="space-y-6">
@@ -304,17 +373,19 @@ export default function ClinicAdminSchedule() {
                   <CardContent>
                     <Select
                       value={selectedDoctor?.id || ""}
-                      onValueChange={(value) =>
-                        setSelectedDoctor(
-                          doctorSchedules.find((d) => d.id === value)!
-                        )
-                      }
+                      onValueChange={(value) => {
+                        const doctor = localSchedules.find(
+                          (d) => d.id === value
+                        );
+                        setSelectedDoctor(doctor || null);
+                        setSelectedDoctorId(value);
+                      }}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a doctor" />
                       </SelectTrigger>
                       <SelectContent>
-                        {doctorSchedules.map((doctor) => (
+                        {localSchedules.map((doctor) => (
                           <SelectItem key={doctor.id} value={doctor.id}>
                             {doctor.doctorName} - {doctor.specialization}
                           </SelectItem>
@@ -329,7 +400,8 @@ export default function ClinicAdminSchedule() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Calendar className="w-5 h-5" />
-                      Weekly Schedule - {selectedDoctor?.doctorName || 'No Doctor Selected'}
+                      Weekly Schedule -{" "}
+                      {selectedDoctor?.doctorName || "No Doctor Selected"}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -694,4 +766,3 @@ export default function ClinicAdminSchedule() {
     </DashboardLayout>
   );
 }
-

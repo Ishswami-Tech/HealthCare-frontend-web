@@ -96,6 +96,45 @@ const Button = React.memo(React.forwardRef<
     [variant, size, glow, className]
   )
 
+  // When using asChild with Slot, we need exactly one child element
+  // If asChild is true, we cannot use loading state (Slot expects single child)
+  // In that case, just pass children directly
+  if (asChild) {
+    // When asChild is true, Slot will clone the child element
+    // The child (e.g., Link) must be a single React element
+    // If children has multiple elements, React.Children.only will fail
+    // So we ensure children is a single element by checking
+    const childCount = React.Children.count(children);
+    if (childCount !== 1) {
+      console.warn('Button with asChild prop must have exactly one child element. Wrapping children in a span.');
+      return (
+        <Comp
+          ref={ref}
+          data-slot="button"
+          className={computedClassName}
+          disabled={disabled || loading}
+          {...props}
+        >
+          <span className="inline-flex items-center justify-center">{children}</span>
+        </Comp>
+      );
+    }
+    
+    // Single child - pass directly to Slot
+    return (
+      <Comp
+        ref={ref}
+        data-slot="button"
+        className={computedClassName}
+        disabled={disabled || loading}
+        {...props}
+      >
+        {children}
+      </Comp>
+    );
+  }
+
+  // Normal button (not asChild) - can have multiple children
   return (
     <Comp
       ref={ref}

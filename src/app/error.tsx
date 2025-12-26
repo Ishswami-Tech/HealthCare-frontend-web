@@ -33,13 +33,15 @@ export default function Error({
         </div>
 
         <div className="space-y-4">
-          <Button onClick={reset} className="w-full">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Try Again
+          <Button onClick={reset} className="w-full" asChild={false}>
+            <span className="flex items-center justify-center">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </span>
           </Button>
           
           <Button variant="outline" asChild className="w-full">
-            <Link href="/">
+            <Link href="/" className="flex items-center justify-center">
               <Home className="w-4 h-4 mr-2" />
               Go Home
             </Link>

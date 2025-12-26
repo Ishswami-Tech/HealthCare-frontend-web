@@ -23,6 +23,7 @@ import {
   verifyEmail as verifyEmailAction,
   googleLogin as googleLoginAction,
   facebookLogin as facebookLoginAction,
+  appleLogin as appleLoginAction,
   refreshToken,
   clearSession,
 } from '@/lib/actions/auth.server';
@@ -558,7 +559,26 @@ export function useAuth() {
     mutateAsync: appleLogin,
     isPending: isAppleLoggingIn
   } = useMutation({
-    mutationFn: () => Promise.resolve() // TODO: Implement Apple login
+    mutationFn: async (token: string) => {
+      const result = await appleLoginAction(token);
+      if (!result.success) {
+        throw new Error(result.error || 'Apple login failed');
+      }
+      return result;
+    },
+    onSuccess: (data) => {
+      // Handle successful Apple login
+      if (data?.user) {
+        // Invalidate auth queries to refresh session
+        queryClient.invalidateQueries({ queryKey: ['auth', 'session'] });
+        // Redirect to dashboard
+        router.push(getDashboardByRole(data.user.role as Role));
+        toast.success('Successfully logged in with Apple');
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || 'Apple login failed');
+    },
   });
 
   return {

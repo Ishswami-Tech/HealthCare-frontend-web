@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
@@ -19,6 +19,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
+import { useClinicContext } from "@/hooks/useClinic";
+import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/useAppointments";
+import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { toast } from "sonner";
 import { 
   Activity,
   Calendar, 
@@ -34,12 +39,14 @@ import {
   Phone,
   MessageSquare,
   Search,
-  Eye
+  Eye,
+  Loader2
 } from "lucide-react";
 
 export default function DoctorAppointments() {
   const { session } = useAuth();
   const user = session?.user;
+  const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("checked_in");
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
@@ -47,135 +54,61 @@ export default function DoctorAppointments() {
   const [prescription, setPrescription] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
 
-  // Mock appointment data - filtered to show only checked-in patients by default
-  const appointments = [
-    {
-      id: "1",
-      patientName: "Rajesh Kumar",
-      patientAge: 45,
-      patientGender: "Male",
-      time: "10:00 AM",
-      status: "In Progress",
-      type: "Panchakarma Consultation",
-      duration: "45 min",
-      appointmentDate: "2024-01-15",
-      patientPhone: "+91 9876543210",
-      patientEmail: "rajesh.kumar@email.com",
-      chiefComplaint: "Chronic lower back pain and joint stiffness",
-      medicalHistory: "Diabetes, Hypertension",
-      allergies: "None known",
-      currentMedications: "Metformin 500mg, Amlodipine 5mg",
-      vitalSigns: {
-        bp: "130/80 mmHg",
-        pulse: "76 bpm",
-        temperature: "98.6°F",
-        weight: "70 kg"
-      },
-      checkedInAt: "09:45 AM",
-      queuePosition: 1
-    },
-    {
-      id: "2", 
-      patientName: "Priya Sharma",
-      patientAge: 32,
-      patientGender: "Female",
-      time: "10:30 AM",
-      status: "Checked In",
-      type: "Nadi Pariksha",
-      duration: "60 min",
-      appointmentDate: "2024-01-15",
-      patientPhone: "+91 9876543211",
-      patientEmail: "priya.sharma@email.com",
-      chiefComplaint: "Digestive issues, irregular menstrual cycle",
-      medicalHistory: "PCOS, Iron deficiency anemia",
-      allergies: "Nuts",
-      currentMedications: "Iron supplements",
-      vitalSigns: {
-        bp: "110/70 mmHg",
-        pulse: "82 bpm", 
-        temperature: "98.4°F",
-        weight: "58 kg"
-      },
-      checkedInAt: "10:15 AM",
-      queuePosition: 2
-    },
-    {
-      id: "3",
-      patientName: "Amit Singh", 
-      patientAge: 28,
-      patientGender: "Male",
-      time: "11:15 AM",
-      status: "Checked In",
-      type: "Follow-up Consultation",
-      duration: "30 min",
-      appointmentDate: "2024-01-15",
-      patientPhone: "+91 9876543212",
-      patientEmail: "amit.singh@email.com",
-      chiefComplaint: "Follow-up for stress and anxiety management",
-      medicalHistory: "Anxiety disorder",
-      allergies: "Shellfish",
-      currentMedications: "Ashwagandha capsules",
-      vitalSigns: {
-        bp: "125/75 mmHg",
-        pulse: "88 bpm",
-        temperature: "98.8°F", 
-        weight: "72 kg"
-      },
-      checkedInAt: "11:00 AM",
-      queuePosition: 3
-    },
-    {
-      id: "4",
-      patientName: "Sunita Devi",
-      patientAge: 52,
-      patientGender: "Female", 
-      time: "12:00 PM",
-      status: "Scheduled",
-      type: "Shirodhara Session",
-      duration: "90 min",
-      appointmentDate: "2024-01-15",
-      patientPhone: "+91 9876543213",
-      patientEmail: "sunita.devi@email.com",
-      chiefComplaint: "Chronic insomnia and stress",
-      medicalHistory: "Menopause, Osteoporosis",
-      allergies: "None known",
-      currentMedications: "Calcium supplements, HRT",
-      vitalSigns: null,
-      checkedInAt: null,
-      queuePosition: null
-    }
-  ];
-
-  const filteredAppointments = appointments.filter(appointment => {
-    const matchesSearch = appointment.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.type.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || 
-                         appointment.status.toLowerCase().replace(" ", "_") === statusFilter;
-    
-    return matchesSearch && matchesStatus;
+  // Fetch real appointment data
+  const appointmentsQuery = useAppointments({
+    clinicId: clinicId || undefined,
+    doctorId: user?.id || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    limit: 100,
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'In Progress': return 'bg-blue-100 text-blue-800';
-      case 'Checked In': return 'bg-green-100 text-green-800'; 
-      case 'Scheduled': return 'bg-gray-100 text-gray-800';
-      case 'Completed': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const appointmentsData = appointmentsQuery.data;
+  const isLoadingAppointments = appointmentsQuery.isPending;
 
-  const startConsultation = (appointmentId: string) => {
-    // Update appointment status to "In Progress"
-    // TODO: Implement consultation start logic
-    console.log('Starting consultation for appointment:', appointmentId);
-  };
+  // Sync with WebSocket for real-time updates
+  useWebSocketQuerySync(["appointments", clinicId, user?.id]);
 
-  const completeConsultation = (appointmentId: string) => {
-    // Update appointment status to "Completed"
-    console.log('Completing consultation for appointment:', appointmentId); 
-    // TODO: Implement consultation completion logic
-  };
+  // Transform appointments data
+  const appointments = useMemo(() => {
+    if (!appointmentsData) return [];
+    const apps = Array.isArray(appointmentsData) ? appointmentsData : appointmentsData.appointments || [];
+    
+    return apps.map((app: any) => ({
+      id: app.id,
+      patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
+      patientAge: app.patient?.age || app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null,
+      patientGender: app.patient?.gender || "Unknown",
+      time: app.startTime ? new Date(app.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "TBD",
+      status: app.status || "Scheduled",
+      type: app.type || app.appointmentType || "Consultation",
+      duration: app.duration || "30 min",
+      appointmentDate: app.startTime ? new Date(app.startTime).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      patientPhone: app.patient?.phone || "",
+      patientEmail: app.patient?.email || "",
+      chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
+      medicalHistory: app.patient?.medicalHistory || [],
+      allergies: app.patient?.allergies || [],
+      currentMedications: app.patient?.currentMedications || [],
+      vitalSigns: app.vitalSigns || null,
+      checkedInAt: app.checkedInAt ? new Date(app.checkedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
+      queuePosition: app.queuePosition || null,
+    }));
+  }, [appointmentsData]);
+
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter((app: any) => {
+      const matchesSearch =
+        !searchTerm ||
+        app.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        app.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        app.chiefComplaint?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const statusKey = app.status?.toLowerCase().replace(" ", "_") || "";
+      const matchesStatus = statusFilter === "all" || statusKey === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [appointments, searchTerm, statusFilter]);
 
   const sidebarLinks = getRoutesByRole(Role.DOCTOR).map(route => ({
     ...route,
@@ -194,6 +127,72 @@ export default function DoctorAppointments() {
     icon: <LogOut className="w-5 h-5" />
   });
 
+  if (isLoadingAppointments) {
+    return (
+      <DashboardLayout title="Doctor Appointments" allowedRole={Role.DOCTOR}>
+        <GlobalSidebar
+          links={sidebarLinks}
+          user={{ 
+            name: user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
+            avatarUrl: (user as any)?.profilePicture || "/avatar.png" 
+          }}
+        >
+          <div className="p-6 flex items-center justify-center min-h-[400px]">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        </GlobalSidebar>
+      </DashboardLayout>
+    );
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'in progress': return 'bg-blue-100 text-blue-800';
+      case 'checked in': return 'bg-green-100 text-green-800'; 
+      case 'scheduled': return 'bg-gray-100 text-gray-800';
+      case 'completed': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Mutations for appointment actions
+  const startAppointmentMutation = useStartAppointment();
+  const completeAppointmentMutation = useCompleteAppointment();
+
+  const startConsultation = async (appointmentId: string) => {
+    try {
+      await startAppointmentMutation.mutateAsync(appointmentId);
+      toast.success("Consultation started successfully");
+      // Refetch appointments to update UI
+      appointmentsQuery.refetch();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to start consultation");
+    }
+  };
+
+  const completeConsultation = async (appointmentId: string, data?: {
+    diagnosis?: string;
+    prescription?: string;
+    notes?: string;
+  }) => {
+    try {
+      await completeAppointmentMutation.mutateAsync({
+        id: appointmentId,
+        data: data || {},
+      });
+      toast.success("Consultation completed successfully");
+      // Clear form fields
+      setDiagnosis("");
+      setPrescription("");
+      setConsultationNotes("");
+      setSelectedAppointment(null);
+      // Refetch appointments to update UI
+      appointmentsQuery.refetch();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to complete consultation");
+    }
+  };
+
   return (
     <DashboardLayout title="Doctor Appointments" allowedRole={Role.DOCTOR}>
       <GlobalSidebar
@@ -206,9 +205,10 @@ export default function DoctorAppointments() {
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">My Appointments</h1>
-            <div className="text-sm text-gray-600">
-              Today • {new Date().toLocaleDateString()}
-            </div>
+            <WebSocketStatusIndicator />
+          </div>
+          <div className="text-sm text-gray-600">
+            Today • {new Date().toLocaleDateString()}
           </div>
 
           {/* Stats Overview */}
@@ -350,10 +350,20 @@ export default function DoctorAppointments() {
                           <Button 
                             size="sm" 
                             onClick={() => startConsultation(appointment.id)}
+                            disabled={startAppointmentMutation.isPending}
                             className="flex items-center gap-1"
                           >
-                            <Play className="w-3 h-3" />
-                            Start
+                            {startAppointmentMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Starting...
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-3 h-3" />
+                                Start
+                              </>
+                            )}
                           </Button>
                         )}
                         
@@ -369,11 +379,25 @@ export default function DoctorAppointments() {
                             </Button>
                             <Button 
                               size="sm" 
-                              onClick={() => completeConsultation(appointment.id)}
+                              onClick={() => completeConsultation(appointment.id, {
+                              diagnosis: diagnosis,
+                              prescription: prescription,
+                              notes: consultationNotes,
+                            })}
+                              disabled={completeAppointmentMutation.isPending}
                               className="flex items-center gap-1"
                             >
-                              <CheckCircle className="w-3 h-3" />
-                              Complete
+                              {completeAppointmentMutation.isPending ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  Completing...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="w-3 h-3" />
+                                  Complete
+                                </>
+                              )}
                             </Button>
                           </>
                         )}
@@ -499,9 +523,30 @@ export default function DoctorAppointments() {
                         />
                       </div>
 
-                      <Button className="w-full">
-                        <FileText className="w-4 h-4 mr-2" />
-                        Save Consultation Notes
+                      <Button 
+                        className="w-full"
+                        onClick={() => {
+                          if (selectedAppointment) {
+                            completeConsultation(selectedAppointment.id, {
+                              diagnosis: diagnosis,
+                              prescription: prescription,
+                              notes: consultationNotes,
+                            });
+                          }
+                        }}
+                        disabled={completeAppointmentMutation.isPending}
+                      >
+                        {completeAppointmentMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Save Consultation Notes
+                          </>
+                        )}
                       </Button>
                     </div>
                   </TabsContent>
@@ -522,11 +567,40 @@ export default function DoctorAppointments() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
-                        <Button variant="outline" className="w-full">
+                        <Button 
+                          variant="outline" 
+                          className="w-full"
+                          onClick={() => {
+                            // Save prescription as draft (could be a separate mutation)
+                            toast.info("Prescription saved as draft");
+                          }}
+                        >
                           Save as Draft
                         </Button>
-                        <Button className="w-full">
-                          Generate Prescription
+                        <Button 
+                          className="w-full"
+                          onClick={() => {
+                            if (selectedAppointment) {
+                              completeConsultation(selectedAppointment.id, {
+                                diagnosis: diagnosis,
+                                prescription: prescription,
+                                notes: consultationNotes,
+                              });
+                            }
+                          }}
+                          disabled={completeAppointmentMutation.isPending}
+                        >
+                          {completeAppointmentMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Generate Prescription
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>

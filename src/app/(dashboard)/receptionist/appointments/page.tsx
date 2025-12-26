@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
@@ -18,6 +18,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
+import { useClinicContext } from "@/hooks/useClinic";
+import { useAppointments } from "@/hooks/useAppointments";
+import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
 import {
   Activity,
   Calendar,
@@ -38,11 +42,13 @@ import {
   Edit,
   UserPlus,
   Stethoscope,
+  Loader2,
 } from "lucide-react";
 
 export default function ReceptionistAppointments() {
   const { session } = useAuth();
   const user = session?.user;
+  const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [queueFilter, setQueueFilter] = useState("all");
@@ -50,140 +56,161 @@ export default function ReceptionistAppointments() {
     new Date().toISOString().split("T")[0] || ""
   );
 
-  // Mock appointment data with queue management features
-  const appointments = [
-    {
-      id: "1",
-      patientName: "Rajesh Kumar",
-      patientPhone: "+91 9876543210",
-      doctor: "Dr. Priya Sharma",
-      time: "10:00 AM",
-      status: "In Progress",
-      type: "Panchakarma Consultation",
-      queueType: "General",
-      duration: "45 min",
-      checkedInAt: "09:55 AM",
-      waitTime: "5 min",
-      queuePosition: 1,
-      isWalkIn: false,
-      priority: "Normal",
-      notes: "Follow-up for chronic pain treatment",
-    },
-    {
-      id: "2",
-      patientName: "Meera Patel",
-      patientPhone: "+91 9876543211",
-      doctor: "Dr. Amit Singh",
-      time: "10:30 AM",
-      status: "Waiting",
-      type: "Shirodhara Session",
-      queueType: "Panchakarma",
-      duration: "90 min",
-      checkedInAt: "10:15 AM",
-      waitTime: "25 min",
-      queuePosition: 2,
-      isWalkIn: false,
-      priority: "Normal",
-      notes: "Stress management therapy",
-    },
-    {
-      id: "3",
-      patientName: "Suresh Gupta",
-      patientPhone: "+91 9876543212",
-      doctor: "Dr. Priya Sharma",
-      time: "11:00 AM",
-      status: "Checked In",
-      type: "Nadi Pariksha",
-      queueType: "Viddhakarma",
-      duration: "60 min",
-      checkedInAt: "10:52 AM",
-      waitTime: "8 min",
-      queuePosition: 1,
-      isWalkIn: false,
-      priority: "Normal",
-      notes: "Initial dosha analysis consultation",
-    },
-    {
-      id: "4",
-      patientName: "Anita Desai",
-      patientPhone: "+91 9876543213",
-      doctor: "Dr. Ravi Kumar",
-      time: "11:30 AM",
-      status: "Scheduled",
-      type: "Agnikarma Treatment",
-      queueType: "Agnikarma",
-      duration: "75 min",
-      checkedInAt: null,
-      waitTime: "-",
-      queuePosition: null,
-      isWalkIn: false,
-      priority: "High",
-      notes: "Chronic arthritis treatment session",
-    },
-    {
-      id: "5",
-      patientName: "Vikram Singh",
-      patientPhone: "+91 9876543214",
-      doctor: "Dr. Amit Singh",
-      time: "Walk-in",
-      status: "Walk-in",
-      type: "General Consultation",
-      queueType: "General",
-      duration: "30 min",
-      checkedInAt: "11:35 AM",
-      waitTime: "15 min",
-      queuePosition: 3,
-      isWalkIn: true,
-      priority: "Low",
-      notes: "General health consultation",
-    },
-  ];
+  // Fetch real appointment data
+  const { data: appointmentsData, isLoading: isLoadingAppointments } =
+    useAppointments({
+      clinicId: clinicId || undefined,
+      status: statusFilter === "all" ? undefined : statusFilter,
+      date: selectedDate || undefined,
+      limit: 100,
+    });
 
-  const filteredAppointments = appointments.filter((appointment) => {
-    const matchesSearch =
-      appointment.patientName
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      appointment.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.doctor.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" ||
-      appointment.status.toLowerCase().replace(" ", "_") === statusFilter;
-    const matchesQueue =
-      queueFilter === "all" || appointment.queueType === queueFilter;
+  // Sync with WebSocket for real-time updates
+  useWebSocketQuerySync(["appointments", clinicId]);
 
-    return matchesSearch && matchesStatus && matchesQueue;
-  });
+  // Transform appointments data
+  const appointments = useMemo(() => {
+    if (!appointmentsData) return [];
+    const apps = Array.isArray(appointmentsData)
+      ? appointmentsData
+      : appointmentsData.appointments || [];
+
+    return apps.map((app: any) => ({
+      id: app.id,
+      patientName:
+        app.patient?.name ||
+        `${app.patient?.firstName || ""} ${
+          app.patient?.lastName || ""
+        }`.trim() ||
+        "Unknown Patient",
+      patientPhone: app.patient?.phone || "",
+      doctor:
+        app.doctor?.name ||
+        `${app.doctor?.firstName || ""} ${app.doctor?.lastName || ""}`.trim() ||
+        "Unknown Doctor",
+      time: app.startTime
+        ? new Date(app.startTime).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "TBD",
+      status: app.status || "Scheduled",
+      type: app.type || app.appointmentType || "Consultation",
+      queueType: app.queueType || "General",
+      duration: app.duration || "30 min",
+      checkedInAt: app.checkedInAt
+        ? new Date(app.checkedInAt).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : null,
+      waitTime: app.waitTime || "-",
+      queuePosition: app.queuePosition || null,
+      isWalkIn: app.isWalkIn || false,
+      priority: app.priority?.toLowerCase() || "normal",
+      notes: app.notes || app.reason || "",
+    }));
+  }, [appointmentsData]);
+
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter((app: any) => {
+      const matchesSearch =
+        !searchTerm ||
+        app.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        app.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        app.doctor?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const statusKey = app.status?.toLowerCase().replace(" ", "_") || "";
+      const matchesStatus =
+        statusFilter === "all" || statusKey === statusFilter;
+      const matchesQueue =
+        queueFilter === "all" || app.queueType === queueFilter;
+
+      return matchesSearch && matchesStatus && matchesQueue;
+    });
+  }, [appointments, searchTerm, statusFilter, queueFilter]);
 
   // Group appointments by queue type
-  const queueGroups = {
-    General: filteredAppointments.filter((apt) => apt.queueType === "General"),
-    Panchakarma: filteredAppointments.filter(
-      (apt) => apt.queueType === "Panchakarma"
+  const queueGroups = useMemo(
+    () => ({
+      General: filteredAppointments.filter(
+        (apt: any) => apt.queueType === "General"
+      ),
+      Panchakarma: filteredAppointments.filter(
+        (apt: any) => apt.queueType === "Panchakarma"
+      ),
+      Viddhakarma: filteredAppointments.filter(
+        (apt: any) => apt.queueType === "Viddhakarma"
+      ),
+      Agnikarma: filteredAppointments.filter(
+        (apt: any) => apt.queueType === "Agnikarma"
+      ),
+    }),
+    [filteredAppointments]
+  );
+
+  const sidebarLinks = getRoutesByRole(Role.RECEPTIONIST).map((route) => ({
+    ...route,
+    href: route.path,
+    icon: route.path.includes("dashboard") ? (
+      <Activity className="w-5 h-5" />
+    ) : route.path.includes("appointments") ? (
+      <Calendar className="w-5 h-5" />
+    ) : route.path.includes("patients") ? (
+      <Users className="w-5 h-5" />
+    ) : route.path.includes("profile") ? (
+      <UserCheck className="w-5 h-5" />
+    ) : (
+      <Activity className="w-5 h-5" />
     ),
-    Viddhakarma: filteredAppointments.filter(
-      (apt) => apt.queueType === "Viddhakarma"
-    ),
-    Agnikarma: filteredAppointments.filter(
-      (apt) => apt.queueType === "Agnikarma"
-    ),
-  };
+  }));
+
+  sidebarLinks.push({
+    label: "Logout",
+    href: "/(auth)/auth/login",
+    path: "/(auth)/auth/login",
+    icon: <LogOut className="w-5 h-5" />,
+  });
+
+  if (isLoadingAppointments) {
+    return (
+      <DashboardLayout
+        title="Appointment Management"
+        allowedRole={Role.RECEPTIONIST}
+      >
+        <GlobalSidebar
+          links={sidebarLinks}
+          user={{
+            name:
+              user?.name ||
+              `${user?.firstName} ${user?.lastName}` ||
+              "Receptionist",
+            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
+          }}
+        >
+          <div className="p-6 flex items-center justify-center min-h-[400px]">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        </GlobalSidebar>
+      </DashboardLayout>
+    );
+  }
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "In Progress":
+    switch (status?.toLowerCase()) {
+      case "in progress":
         return "bg-blue-100 text-blue-800";
-      case "Waiting":
+      case "waiting":
         return "bg-yellow-100 text-yellow-800";
-      case "Checked In":
+      case "checked in":
         return "bg-green-100 text-green-800";
-      case "Scheduled":
+      case "scheduled":
         return "bg-gray-100 text-gray-800";
-      case "Walk-in":
+      case "walk-in":
         return "bg-purple-100 text-purple-800";
-      case "Completed":
+      case "completed":
         return "bg-emerald-100 text-emerald-800";
-      case "No Show":
+      case "no show":
         return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -191,12 +218,12 @@ export default function ReceptionistAppointments() {
   };
 
   const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "High":
+    switch (priority?.toLowerCase()) {
+      case "high":
         return "bg-red-100 text-red-800";
-      case "Normal":
+      case "normal":
         return "bg-blue-100 text-blue-800";
-      case "Low":
+      case "low":
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -229,22 +256,6 @@ export default function ReceptionistAppointments() {
   const handleMarkNoShow = (appointmentId: string) => {
     console.log("Marking as no-show:", appointmentId);
   };
-
-  const sidebarLinks = getRoutesByRole(Role.RECEPTIONIST).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <UserCheck className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
 
   sidebarLinks.push({
     label: "Logout",
@@ -751,4 +762,3 @@ export default function ReceptionistAppointments() {
     </DashboardLayout>
   );
 }
-

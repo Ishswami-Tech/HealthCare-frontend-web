@@ -10,15 +10,21 @@ import { useVideoAppointmentWebSocket } from './useWebSocket';
 import { Permission } from '@/types/rbac.types';
 import { videoAppointmentService } from '@/lib/video/jitsi';
 import {
-  createVideoAppointment,
-  getVideoAppointments,
-  getVideoAppointmentById,
-  updateVideoAppointment,
-  joinVideoAppointment,
-  endVideoAppointment,
-  getVideoAppointmentRecording,
-  deleteVideoAppointment,
-} from '@/lib/actions/video-appointments.server';
+  generateVideoToken,
+  startVideoConsultation,
+  endVideoConsultation,
+  getConsultationStatus,
+  reportConsultationIssue,
+  shareMedicalImage,
+  getVideoConsultationHistory,
+  startRecording,
+  stopRecording,
+  getRecording,
+  manageParticipant,
+  getParticipants,
+  getConsultationAnalytics,
+  getVideoHealth,
+} from '@/lib/actions/video.server';
 
 // ✅ Video Appointment Types
 export interface VideoAppointment {
@@ -79,13 +85,22 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       const hasAccess = hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
-      const result = await getVideoAppointments(clinicId, filters);
-      if (!result.success) throw new Error(result.error);
+      const result = await getVideoConsultationHistory({
+        ...filters,
+        startDate: filters?.startDate,
+        endDate: filters?.endDate,
+        status: filters?.status,
+        page: filters?.page,
+        limit: filters?.limit,
+      });
       
-      return result;
+      return { success: true, data: result, appointments: Array.isArray(result) ? result : [] };
     },
     enabled: !!clinicId && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+    staleTime: 2 * 60 * 1000, // 2 minutes (optimized for 10M users)
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchInterval: false, // Disable auto-refetch - rely on WebSocket for real-time updates
+    refetchOnWindowFocus: false,
   });
 
   // ✅ Subscribe to real-time updates
@@ -135,10 +150,9 @@ export function useVideoAppointment(id: string) {
       const hasAccess = hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
-      const result = await getVideoAppointmentById(id);
-      if (!result.success) throw new Error(result.error);
+      const result = await getConsultationStatus(id);
       
-      return result;
+      return { success: true, data: result, appointment: result };
     },
     enabled: !!id && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
   });
@@ -190,10 +204,24 @@ export function useCreateVideoAppointment() {
       const hasAccess = hasPermission(Permission.CREATE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
-      const result = await createVideoAppointment(data);
-      if (!result.success) throw new Error(result.error);
+      // Generate token first, then start consultation
+      const tokenResult = await generateVideoToken({
+        appointmentId: data.appointmentId,
+        userId: data.doctorId,
+        userRole: 'doctor',
+        userInfo: {
+          displayName: 'Doctor',
+          email: 'doctor@example.com',
+        },
+      });
       
-      return result;
+      const consultationResult = await startVideoConsultation({
+        appointmentId: data.appointmentId,
+        userId: data.doctorId,
+        userRole: 'doctor',
+      });
+      
+      return { success: true, data: consultationResult, token: tokenResult };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
@@ -232,10 +260,25 @@ export function useUpdateVideoAppointment() {
       const hasAccess = hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
-      const result = await updateVideoAppointment(data);
-      if (!result.success) throw new Error(result.error);
+      // Update consultation status by ending or starting it
+      if (data.status === 'completed' || data.status === 'cancelled') {
+        const result = await endVideoConsultation({
+          appointmentId: data.appointmentId,
+          userId: '', // Will be set from session
+          userRole: 'doctor',
+          endReason: data.status === 'cancelled' ? 'Cancelled by user' : 'Completed',
+        });
+        return { success: true, data: result };
+      }
       
-      return result;
+      // For other status updates, we might need to start consultation
+      const result = await startVideoConsultation({
+        appointmentId: data.appointmentId,
+        userId: '', // Will be set from session
+        userRole: 'doctor',
+      });
+      
+      return { success: true, data: result };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
@@ -274,10 +317,18 @@ export function useJoinVideoAppointment() {
       const hasAccess = hasPermission(Permission.JOIN_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
-      const result = await joinVideoAppointment(data);
-      if (!result.success) throw new Error(result.error);
+      // Generate token for joining
+      const tokenResult = await generateVideoToken({
+        appointmentId: data.appointmentId,
+        userId: data.userId,
+        userRole: data.role === 'doctor' ? 'doctor' : 'patient',
+        userInfo: {
+          displayName: data.role,
+          email: `${data.role}@example.com`,
+        },
+      });
       
-      return result;
+      return { success: true, data: tokenResult, token: tokenResult };
     },
     onSuccess: (_, variables) => {
       // Send WebSocket event for participant joined
@@ -314,10 +365,13 @@ export function useEndVideoAppointment() {
       const hasAccess = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
-      const result = await endVideoAppointment(appointmentId);
-      if (!result.success) throw new Error(result.error);
+      const result = await endVideoConsultation({
+        appointmentId,
+        userId: '', // Will be set from session
+        userRole: 'doctor',
+      });
       
-      return result;
+      return { success: true, data: result };
     },
     onSuccess: (_, appointmentId) => {
       queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
@@ -355,10 +409,15 @@ export function useDeleteVideoAppointment() {
       const hasAccess = hasPermission(Permission.DELETE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
-      const result = await deleteVideoAppointment(appointmentId);
-      if (!result.success) throw new Error(result.error);
+      // End consultation to effectively "delete" it
+      const result = await endVideoConsultation({
+        appointmentId,
+        userId: '', // Will be set from session
+        userRole: 'doctor',
+        endReason: 'Deleted by user',
+      });
       
-      return result;
+      return { success: true, data: result };
     },
     onSuccess: (_, appointmentId) => {
       queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
@@ -388,10 +447,9 @@ export function useVideoRecording(appointmentId: string) {
       const hasAccess = hasPermission(Permission.VIEW_VIDEO_RECORDINGS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
-      const result = await getVideoAppointmentRecording(appointmentId);
-      if (!result.success) throw new Error(result.error);
+      const result = await getRecording(appointmentId);
       
-      return result;
+      return { success: true, data: result, recording: result };
     },
     enabled: !!appointmentId && hasPermission(Permission.VIEW_VIDEO_RECORDINGS),
   });

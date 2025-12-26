@@ -2,6 +2,7 @@
 
 import { useWebSocketStore } from '@/stores/websocket.store';
 import type { ConnectionOptions, SocketEventData } from '@/stores/websocket.store';
+import { APP_CONFIG } from '@/lib/config/config';
 
 export interface WebSocketManagerOptions extends ConnectionOptions {
   url?: string;
@@ -16,7 +17,8 @@ export class WebSocketManager {
   private activeConnections = new Map<string, boolean>();
 
   constructor() {
-    this.defaultUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3000';
+    // Use environment-aware API config for WebSocket URL
+    this.defaultUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || APP_CONFIG.WEBSOCKET.URL;
   }
 
   static getInstance(): WebSocketManager {
@@ -235,13 +237,14 @@ export function useWebSocketManager() {
 
 // Environment-specific configuration
 export const getWebSocketConfig = () => {
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  // Use environment-aware API config for WebSocket URL
+  const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || APP_CONFIG.WEBSOCKET.URL;
   
   return {
-    url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || (isDevelopment ? 'ws://localhost:3000' : 'wss://your-production-domain.com'),
-    reconnectionAttempts: isDevelopment ? 3 : 5,
-    reconnectionDelay: isDevelopment ? 1000 : 2000,
-    timeout: isDevelopment ? 10000 : 20000,
+    url: wsUrl,
+    reconnectionAttempts: APP_CONFIG.WEBSOCKET.MAX_RECONNECT_ATTEMPTS,
+    reconnectionDelay: APP_CONFIG.IS_DEVELOPMENT ? 1000 : 2000,
+    timeout: APP_CONFIG.WEBSOCKET.TIMEOUT,
     autoConnect: true,
   };
 };

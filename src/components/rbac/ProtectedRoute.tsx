@@ -77,11 +77,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     redirect("/auth/login");
   }
 
-  const userRole = user.role as Role;
+  const userRole = user?.role as Role;
 
   // Check role-based access
   if (allowedRoles && allowedRoles.length > 0) {
-    if (!allowedRoles.includes(userRole)) {
+    if (!userRole || !allowedRoles.includes(userRole)) {
       if (redirectTo) {
         redirect(redirectTo);
       }
@@ -94,6 +94,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }
 
+  // Check permission-based access
   if (!hasAccess) {
     if (redirectTo) {
       redirect(redirectTo);

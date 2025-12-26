@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
+import { theme } from "@/lib/theme-utils";
 import { 
   Activity,
   Calendar, 
@@ -144,17 +145,17 @@ export default function PatientProfile() {
   };
 
   const getDoshaIcon = (dosha: string) => {
-    if (dosha.includes('Vata')) return <Waves className="w-4 h-4 text-blue-600" />;
-    if (dosha.includes('Pitta')) return <Sun className="w-4 h-4 text-orange-600" />;
-    if (dosha.includes('Kapha')) return <Moon className="w-4 h-4 text-green-600" />;
-    return <Leaf className="w-4 h-4 text-green-600" />;
+    if (dosha.includes('Vata')) return <Waves className={`w-4 h-4 ${theme.iconColors.blue}`} />;
+    if (dosha.includes('Pitta')) return <Sun className={`w-4 h-4 ${theme.iconColors.orange}`} />;
+    if (dosha.includes('Kapha')) return <Moon className={`w-4 h-4 ${theme.iconColors.green}`} />;
+    return <Leaf className={`w-4 h-4 ${theme.iconColors.green}`} />;
   };
 
   const getDoshaColor = (dosha: string) => {
-    if (dosha.includes('Vata')) return 'bg-blue-50 text-blue-700';
-    if (dosha.includes('Pitta')) return 'bg-orange-50 text-orange-700';
-    if (dosha.includes('Kapha')) return 'bg-green-50 text-green-700';
-    return 'bg-gray-50 text-gray-700';
+    if (dosha.includes('Vata')) return theme.badges.blue;
+    if (dosha.includes('Pitta')) return theme.badges.orange;
+    if (dosha.includes('Kapha')) return theme.badges.green;
+    return theme.badges.gray;
   };
 
   const sidebarLinks = getRoutesByRole(Role.PATIENT).map(route => ({
@@ -199,7 +200,7 @@ export default function PatientProfile() {
               <div className="flex items-center gap-6">
                 <div className="relative">
                   <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-800 font-semibold text-3xl">
+                    <span className={`${theme.textColors.info} font-semibold text-3xl`}>
                       {profileData.personalInfo.firstName.charAt(0)}
                     </span>
                   </div>
@@ -211,10 +212,10 @@ export default function PatientProfile() {
                   </Button>
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-2xl font-bold">
+                  <h2 className={`text-2xl font-bold ${theme.textColors.heading}`}>
                     {profileData.personalInfo.firstName} {profileData.personalInfo.lastName}
                   </h2>
-                  <div className="flex items-center gap-4 mt-2 text-gray-600">
+                  <div className={`flex items-center gap-4 mt-2 ${theme.textColors.secondary}`}>
                     <span className="flex items-center gap-1">
                       <User className="w-4 h-4" />
                       {profileData.personalInfo.occupation}
@@ -238,12 +239,12 @@ export default function PatientProfile() {
                 <div className="text-right">
                   <div className="grid grid-cols-1 gap-4 text-center">
                     <div>
-                      <div className="text-2xl font-bold text-green-600">{profileData.vitals.bmi}</div>
-                      <div className="text-sm text-gray-600">BMI</div>
+                      <div className={`text-2xl font-bold ${theme.iconColors.green}`}>{profileData.vitals.bmi}</div>
+                      <div className={`text-sm ${theme.textColors.secondary}`}>BMI</div>
                     </div>
                     <div>
-                      <div className="text-xl font-bold text-blue-600">{profileData.vitals.bloodPressure}</div>
-                      <div className="text-sm text-gray-600">BP</div>
+                      <div className={`text-xl font-bold ${theme.iconColors.blue}`}>{profileData.vitals.bloodPressure}</div>
+                      <div className={`text-sm ${theme.textColors.secondary}`}>BP</div>
                     </div>
                   </div>
                 </div>
@@ -413,21 +414,21 @@ export default function PatientProfile() {
                   <div className="pt-4 border-t">
                     <h4 className="font-semibold mb-4">Vital Statistics</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="p-3 bg-blue-50 rounded-lg text-center">
-                        <div className="text-sm text-gray-600">Height</div>
-                        <div className="text-lg font-semibold text-blue-600">{profileData.vitals.height}</div>
+                      <div className={`p-3 ${theme.containers.featureBlue} rounded-lg text-center`}>
+                        <div className={`text-sm ${theme.textColors.secondary}`}>Height</div>
+                        <div className={`text-lg font-semibold ${theme.iconColors.blue}`}>{profileData.vitals.height}</div>
                       </div>
-                      <div className="p-3 bg-green-50 rounded-lg text-center">
-                        <div className="text-sm text-gray-600">Weight</div>
-                        <div className="text-lg font-semibold text-green-600">{profileData.vitals.weight}</div>
+                      <div className={`p-3 ${theme.containers.featureGreen} rounded-lg text-center`}>
+                        <div className={`text-sm ${theme.textColors.secondary}`}>Weight</div>
+                        <div className={`text-lg font-semibold ${theme.iconColors.green}`}>{profileData.vitals.weight}</div>
                       </div>
-                      <div className="p-3 bg-purple-50 rounded-lg text-center">
-                        <div className="text-sm text-gray-600">Blood Group</div>
-                        <div className="text-lg font-semibold text-purple-600">{profileData.vitals.bloodGroup}</div>
+                      <div className={`p-3 ${theme.containers.featurePurple} rounded-lg text-center`}>
+                        <div className={`text-sm ${theme.textColors.secondary}`}>Blood Group</div>
+                        <div className={`text-lg font-semibold ${theme.iconColors.purple}`}>{profileData.vitals.bloodGroup}</div>
                       </div>
-                      <div className="p-3 bg-orange-50 rounded-lg text-center">
-                        <div className="text-sm text-gray-600">BMI</div>
-                        <div className="text-lg font-semibold text-orange-600">{profileData.vitals.bmi}</div>
+                      <div className={`p-3 ${theme.containers.featureOrange} rounded-lg text-center`}>
+                        <div className={`text-sm ${theme.textColors.secondary}`}>BMI</div>
+                        <div className={`text-lg font-semibold ${theme.iconColors.orange}`}>{profileData.vitals.bmi}</div>
                       </div>
                     </div>
                   </div>
@@ -481,7 +482,7 @@ export default function PatientProfile() {
                       <Label>Current Imbalances</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {profileData.ayurvedaProfile.currentImbalances.map((imbalance, index) => (
-                          <Badge key={index} variant="outline" className="bg-yellow-50 text-yellow-700">
+                          <Badge key={index} variant="outline" className={theme.badges.yellow}>
                             {imbalance}
                           </Badge>
                         ))}
@@ -492,7 +493,7 @@ export default function PatientProfile() {
                       <Label>Preferred Treatments</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {profileData.ayurvedaProfile.preferredTreatments.map((treatment, index) => (
-                          <Badge key={index} variant="outline" className="bg-green-50 text-green-700">
+                          <Badge key={index} variant="outline" className={theme.badges.green}>
                             {treatment}
                           </Badge>
                         ))}
@@ -503,9 +504,9 @@ export default function PatientProfile() {
                       <Label>Seasonal Tendencies</Label>
                       <div className="space-y-2 mt-2">
                         {profileData.ayurvedaProfile.seasonalTendencies.map((tendency, index) => (
-                          <div key={index} className="flex items-center gap-2 p-2 bg-blue-50 rounded">
-                            <Info className="w-4 h-4 text-blue-600" />
-                            <span className="text-sm text-blue-700">{tendency}</span>
+                          <div key={index} className={`flex items-center gap-2 p-2 ${theme.containers.featureBlue} rounded`}>
+                            <Info className={`w-4 h-4 ${theme.iconColors.blue}`} />
+                            <span className={`text-sm ${theme.textColors.info}`}>{tendency}</span>
                           </div>
                         ))}
                       </div>
@@ -529,7 +530,7 @@ export default function PatientProfile() {
                       <Label>Chronic Conditions</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {profileData.medicalHistory.chronicConditions.map((condition, index) => (
-                          <Badge key={index} variant="outline" className="bg-orange-50 text-orange-700">
+                          <Badge key={index} variant="outline" className={theme.badges.orange}>
                             {condition}
                           </Badge>
                         ))}
@@ -540,7 +541,7 @@ export default function PatientProfile() {
                       <Label>Known Allergies</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {profileData.medicalHistory.allergies.map((allergy, index) => (
-                          <Badge key={index} variant="outline" className="bg-red-50 text-red-700">
+                          <Badge key={index} variant="outline" className={theme.badges.red}>
                             <AlertTriangle className="w-3 h-3 mr-1" />
                             {allergy}
                           </Badge>
@@ -552,10 +553,10 @@ export default function PatientProfile() {
                       <Label>Current Medications</Label>
                       <div className="space-y-2 mt-2">
                         {profileData.medicalHistory.currentMedications.map((medication, index) => (
-                          <div key={index} className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <div key={index} className={`p-3 ${theme.containers.featureGreen} border ${theme.borders.green} rounded-lg`}>
                             <div className="flex items-center gap-2">
-                              <Pill className="w-4 h-4 text-green-600" />
-                              <span className="text-sm text-green-700">{medication}</span>
+                              <Pill className={`w-4 h-4 ${theme.iconColors.green}`} />
+                              <span className={`text-sm ${theme.textColors.success}`}>{medication}</span>
                             </div>
                           </div>
                         ))}
@@ -566,7 +567,7 @@ export default function PatientProfile() {
                       <Label>Family History</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {profileData.medicalHistory.familyHistory.map((history, index) => (
-                          <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700">
+                          <Badge key={index} variant="outline" className={theme.badges.blue}>
                             {history}
                           </Badge>
                         ))}
@@ -577,7 +578,7 @@ export default function PatientProfile() {
                       <Label>Previous Surgeries</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {profileData.medicalHistory.surgeries.map((surgery, index) => (
-                          <Badge key={index} variant="outline" className="bg-purple-50 text-purple-700">
+                          <Badge key={index} variant="outline" className={theme.badges.purple}>
                             {surgery}
                           </Badge>
                         ))}
@@ -585,7 +586,7 @@ export default function PatientProfile() {
                     </div>
 
                     <div className="pt-4 border-t">
-                      <div className="text-sm text-gray-600">
+                      <div className={`text-sm ${theme.textColors.secondary}`}>
                         <strong>Last Health Checkup:</strong> {new Date(profileData.medicalHistory.lastCheckup).toLocaleDateString()}
                       </div>
                     </div>

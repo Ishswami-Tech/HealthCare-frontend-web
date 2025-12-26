@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import {
   Server,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useWebSocketStatus } from "@/components/websocket/WebSocketProvider";
 import { StatusIndicator, StatusType, StatusDot } from "./StatusIndicator";
+import { APP_CONFIG } from "@/lib/config/config";
 
 interface BackendService {
   name: string;
@@ -41,6 +42,9 @@ export function BackendStatusIndicator() {
     error: wsError,
   } = useWebSocketStatus();
   const [consecutiveHealthyChecks, setConsecutiveHealthyChecks] = useState(0);
+
+  // Get environment-aware API URL
+  const apiBaseUrl = useMemo(() => APP_CONFIG.API.BASE_URL, []);
   const [backendStatus, setBackendStatus] = useState<BackendStatusState>({
     api: {
       name: "API Server",
@@ -99,11 +103,7 @@ export function BackendStatusIndicator() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout to reduce server load
 
-        // Get the API base URL from environment or use default
-        const apiBaseUrl =
-          process.env.NEXT_PUBLIC_API_URL ||
-          process.env.NEXT_PUBLIC_BACKEND_URL ||
-          "http://localhost:3001";
+        // Use the memoized API base URL from environment-aware config
 
         const fullEndpoint = service.endpoint.startsWith("http")
           ? service.endpoint
@@ -274,7 +274,7 @@ export function BackendStatusIndicator() {
         };
       }
     },
-    []
+    [apiBaseUrl]
   );
 
   const checkWebSocketService =

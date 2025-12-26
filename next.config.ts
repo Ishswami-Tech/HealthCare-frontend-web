@@ -6,6 +6,94 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const config: NextConfig = {
   // Enable React strict mode for better development experience
   reactStrictMode: true,
+  
+  // ✅ Performance Optimizations for 10M+ Users
+  // Compress output for faster loading
+  compress: true,
+  
+  // Enable experimental features for better performance
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '5mb',
+      allowedOrigins: [
+        'localhost:3000',
+        'localhost:8088',
+        'api.ishswami.in',
+        'staging-api.ishswami.in',
+        'ishswami.in',
+      ],
+    },
+    // Optimize package imports
+    optimizePackageImports: [
+      '@tanstack/react-query',
+      'lucide-react',
+      'date-fns',
+      'sonner',
+    ],
+  },
+  
+  // ✅ Production optimizations
+  productionBrowserSourceMaps: false, // Disable source maps in production for smaller bundles
+  
+  // ✅ Output configuration
+  output: 'standalone', // Optimize for Docker deployment
+  
+  // ✅ Webpack optimizations for 10M users
+  webpack: (config, { dev, isServer }) => {
+    // Existing webpack config
+    if (dev) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+      };
+    }
+    
+    // ✅ Additional optimizations for 10M users (production only)
+    if (!dev && !isServer) {
+      // Optimize chunk splitting
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            default: false,
+            vendors: false,
+            // Vendor chunk for large libraries
+            vendor: {
+              name: 'vendor',
+              chunks: 'all',
+              test: /node_modules/,
+              priority: 20,
+            },
+            // Common chunk for shared code
+            common: {
+              name: 'common',
+              minChunks: 2,
+              chunks: 'all',
+              priority: 10,
+              reuseExistingChunk: true,
+            },
+            // React Query chunk
+            reactQuery: {
+              name: 'react-query',
+              test: /[\\/]node_modules[\\/]@tanstack[\\/]react-query/,
+              chunks: 'all',
+              priority: 30,
+            },
+            // UI components chunk
+            ui: {
+              name: 'ui-components',
+              test: /[\\/]src[\\/]components[\\/]ui/,
+              chunks: 'all',
+              priority: 25,
+            },
+          },
+        },
+      };
+    }
+    
+    return config;
+  },
 
   // Configure image domains for Next.js Image component
   images: {
@@ -80,7 +168,13 @@ const config: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '5mb',
-      allowedOrigins: ['localhost:3000', 'api.ishswami.in', 'ishswami.in'],
+      allowedOrigins: [
+        'localhost:3000',
+        'localhost:8088',
+        'api.ishswami.in',
+        'staging-api.ishswami.in',
+        'ishswami.in',
+      ],
     },
   },
 

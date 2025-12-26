@@ -1,15 +1,14 @@
 // ✅ API Client for Healthcare Frontend - Backend Integration
 // This file provides a comprehensive API client that integrates with the backend clinic app
 
-import { cookies } from 'next/headers';
-import { API_CONFIG, API_ENDPOINTS, HTTP_STATUS, ERROR_CODES } from './config';
+import { APP_CONFIG, API_ENDPOINTS, HTTP_STATUS, ERROR_CODES } from '@/lib/config/config';
 import type { 
   ApiResponse, 
   PaginationParams, 
   PaginatedResponse, 
   ErrorResponse, 
   ApiClientConfig 
-} from './config';
+} from '@/lib/config/config';
 
 // ✅ Custom Error Classes
 export class ApiError extends Error {
@@ -80,11 +79,39 @@ async function getDefaultHeaders(): Promise<Record<string, string>> {
 }
 
 // ✅ Authentication Headers Generator
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get('access_token')?.value;
-  const sessionId = cookieStore.get('session_id')?.value;
-  const clinicId = cookieStore.get('clinic_id')?.value;
+// Requires authentication unless explicitly marked as public
+async function getAuthHeaders(requireAuth: boolean = true): Promise<Record<string, string>> {
+  // Support both server-side (cookies) and client-side (localStorage)
+  let accessToken: string | undefined;
+  let sessionId: string | undefined;
+  let clinicId: string | undefined;
+
+  if (typeof window === 'undefined') {
+    // Server-side: use cookies
+    try {
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      accessToken = cookieStore.get('access_token')?.value;
+      sessionId = cookieStore.get('session_id')?.value;
+      clinicId = cookieStore.get('clinic_id')?.value;
+    } catch {
+      // If cookies() is not available, fall back to empty values
+    }
+  } else {
+    // Client-side: use localStorage
+    accessToken = localStorage.getItem('access_token') || undefined;
+    sessionId = localStorage.getItem('session_id') || undefined;
+    clinicId = localStorage.getItem('clinic_id') || undefined;
+  }
+
+  // ✅ Enforce authentication unless explicitly disabled
+  if (requireAuth && !accessToken) {
+    throw new ApiError(
+      'Authentication required. Please log in to continue.',
+      HTTP_STATUS.UNAUTHORIZED,
+      ERROR_CODES.AUTH_TOKEN_INVALID
+    );
+  }
 
   const headers = await getDefaultHeaders();
 
@@ -106,9 +133,9 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 // ✅ Retry Logic
 async function retryRequest<T>(
   requestFn: () => Promise<T>,
-  maxAttempts: number = API_CONFIG.RETRY.MAX_ATTEMPTS,
-  delay: number = API_CONFIG.RETRY.DELAY,
-  backoffMultiplier: number = API_CONFIG.RETRY.BACKOFF_MULTIPLIER
+  maxAttempts: number = APP_CONFIG.API.RETRY.MAX_ATTEMPTS,
+  delay: number = APP_CONFIG.API.RETRY.DELAY,
+  backoffMultiplier: number = APP_CONFIG.API.RETRY.BACKOFF_MULTIPLIER
 ): Promise<T> {
   let lastError: Error;
   
@@ -209,34 +236,51 @@ interface RequestCache {
   };
 }
 
-// ✅ Base API Client Class (Optimized for 100K users)
+// ✅ Base API Client Class (Optimized for 10M+ users)
 export class ApiClient {
   private baseURL: string;
   private timeout: number;
   private withCredentials: boolean;
   private requestCache: RequestCache = {};
-  private readonly CACHE_DURATION = 1000; // 1 second deduplication window
+  private readonly CACHE_DURATION = 2000; // 2 seconds deduplication window (increased for 10M users)
+  private readonly MAX_CACHE_SIZE = 1000; // Maximum cache entries (optimized for 10M users)
 
   constructor(config: ApiClientConfig) {
     this.baseURL = config.baseURL;
-    this.timeout = config.timeout || API_CONFIG.TIMEOUTS.REQUEST;
+    this.timeout = config.timeout || APP_CONFIG.API.TIMEOUT.REQUEST;
     this.withCredentials = config.withCredentials ?? true;
     
-    // Clean cache every 30 seconds for memory management
+    // Clean cache every 30 seconds for memory management (optimized for 10M users)
     if (typeof window !== 'undefined') {
-      setInterval(() => this.cleanRequestCache(), 30000);
+      setInterval(() => {
+        this.cleanRequestCache();
+      }, 30000);
     }
   }
 
-  // ✅ Request Deduplication for High Load
+  // ✅ Request Deduplication for High Load (Optimized for 10M users)
   private cleanRequestCache(): void {
     const now = Date.now();
-    Object.keys(this.requestCache).forEach(url => {
-      const entry = this.requestCache[url];
+    const keysToDelete: string[] = [];
+    
+    // Collect keys to delete (more efficient than deleting during iteration)
+    Object.keys(this.requestCache).forEach(key => {
+      const entry = this.requestCache[key];
       if (entry && now - entry.timestamp > this.CACHE_DURATION) {
-        delete this.requestCache[url];
+        keysToDelete.push(key);
       }
     });
+    
+    // Delete collected keys
+    keysToDelete.forEach(key => delete this.requestCache[key]);
+    
+    // Limit cache size to prevent memory issues (optimized for 10M users)
+    if (Object.keys(this.requestCache).length > this.MAX_CACHE_SIZE) {
+      const sortedEntries = Object.entries(this.requestCache)
+        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+      const toDelete = sortedEntries.slice(0, sortedEntries.length - this.MAX_CACHE_SIZE);
+      toDelete.forEach(([key]) => delete this.requestCache[key]);
+    }
   }
 
   private getCacheKey(endpoint: string, options: RequestInit): string {
@@ -245,17 +289,16 @@ export class ApiClient {
     return `${method}:${endpoint}:${body}`;
   }
 
-  // ✅ Generic Request Method (Optimized with Request Deduplication)
+  // ✅ Generic Request Method (Optimized with Request Deduplication & Batching for 10M users)
   async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
+    const method = (options.method || 'GET').toUpperCase();
+    const cacheKey = this.getCacheKey(endpoint, options);
     
     // Request deduplication for GET requests to reduce server load
-    const cacheKey = this.getCacheKey(endpoint, options);
-    const method = (options.method || 'GET').toUpperCase();
-    
     if (method === 'GET' && this.requestCache[cacheKey]) {
       const cached = this.requestCache[cacheKey];
       const now = Date.now();
@@ -266,6 +309,7 @@ export class ApiClient {
       delete this.requestCache[cacheKey];
     }
     
+    // Execute request
     const requestPromise = this.executeRequest<T>(url, options);
     
     // Cache GET requests for deduplication
@@ -278,19 +322,25 @@ export class ApiClient {
     
     return requestPromise;
   }
-
-  // ✅ Execute Request with Connection Pooling Optimization
+  
+  // ✅ Execute Request with Connection Pooling Optimization (10M users)
   private async executeRequest<T>(
     url: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    requireAuth: boolean = true
   ): Promise<ApiResponse<T>> {
-    const headers = await getAuthHeaders();
+    // ✅ Authentication is required for all API calls (unless explicitly public)
+    // Check if this is a public endpoint (auth endpoints, health checks, etc.)
+    const isPublicEndpoint = url.includes('/auth/') || url.includes('/health');
+    const shouldRequireAuth = requireAuth && !isPublicEndpoint;
+    const headers = await getAuthHeaders(shouldRequireAuth);
     
     const config: RequestInit = {
       method: 'GET',
       headers: headers as HeadersInit,
       credentials: this.withCredentials ? 'include' : 'omit',
-      keepalive: true, // Optimize for connection reuse
+      keepalive: true, // Optimize for connection reuse (10M users)
+      cache: 'default', // Use browser cache for GET requests
       ...options,
     };
 
@@ -368,6 +418,15 @@ export class ApiClient {
     });
   }
 
+  // ✅ Public Request Method (for unauthenticated endpoints)
+  async publicRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<ApiResponse<T>> {
+    const url = `${this.baseURL}${endpoint}`;
+    return this.executeRequest<T>(url, options, false); // false = don't require auth
+  }
+
   // ✅ File Upload Helper
   async upload<T>(endpoint: string, file: File, additionalData?: Record<string, any>): Promise<ApiResponse<T>> {
     const formData = new FormData();
@@ -379,7 +438,7 @@ export class ApiClient {
       });
     }
 
-    const headers = await getAuthHeaders();
+    const headers = await getAuthHeaders(true); // Require auth for uploads
     delete headers['Content-Type']; // Let browser set content-type for FormData
 
     return this.request<T>(endpoint, {
@@ -417,8 +476,8 @@ export class ClinicApiClient extends ApiClient {
 
   constructor() {
     super({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || API_CONFIG.CLINIC_API_URL,
-      timeout: API_CONFIG.TIMEOUTS.REQUEST,
+      baseURL: APP_CONFIG.API.BASE_URL,
+      timeout: APP_CONFIG.API.TIMEOUT.REQUEST,
       withCredentials: true,
     });
   }

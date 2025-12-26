@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -17,10 +17,14 @@ import {
 } from "@/components/ui/select";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
-import { 
+import { useClinicContext } from "@/hooks/useClinic";
+import { useUsersByClinic } from "@/hooks/useUsers";
+import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import {
   Activity,
-  Users, 
-  Calendar, 
+  Users,
+  Calendar,
   Settings,
   LogOut,
   Plus,
@@ -32,147 +36,179 @@ import {
   Mail,
   Phone,
   Stethoscope,
-  UserCog
+  UserCog,
+  Loader2,
 } from "lucide-react";
 
 export default function ClinicAdminStaff() {
   const { session } = useAuth();
   const user = session?.user;
+  const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Mock staff data
-  const staff = [
-    {
-      id: "1",
-      name: "Dr. Rajesh Kumar",
-      email: "rajesh.kumar@clinic.com",
-      phone: "+91 9876543210",
-      role: Role.DOCTOR,
-      status: "Active",
-      specialization: "Panchakarma Specialist",
-      department: "Ayurveda",
-      joinDate: "2023-01-15",
-      experience: "8 years",
-      schedule: "Mon-Fri, 9AM-5PM"
-    },
-    {
-      id: "2", 
-      name: "Dr. Priya Sharma",
-      email: "priya.sharma@clinic.com",
-      phone: "+91 9876543211",
-      role: Role.DOCTOR,
-      status: "Active",
-      specialization: "Nadi Pariksha Expert",
-      department: "Diagnosis",
-      joinDate: "2022-08-20",
-      experience: "12 years",
-      schedule: "Tue-Sat, 10AM-6PM"
-    },
-    {
-      id: "3",
-      name: "Maya Patel",
-      email: "maya.patel@clinic.com", 
-      phone: "+91 9876543212",
-      role: Role.RECEPTIONIST,
-      status: "Active",
-      specialization: "Patient Coordination",
-      department: "Administration",
-      joinDate: "2023-06-10",
-      experience: "3 years",
-      schedule: "Mon-Sat, 8AM-4PM"
-    },
-    {
-      id: "4",
-      name: "Amit Singh",
-      email: "amit.singh@clinic.com",
-      phone: "+91 9876543213", 
-      role: Role.RECEPTIONIST,
-      status: "On Leave",
-      specialization: "Appointment Management",
-      department: "Administration",
-      joinDate: "2023-03-05",
-      experience: "2 years",
-      schedule: "Mon-Fri, 9AM-5PM"
-    }
-  ];
+  // Fetch real staff data
+  const { data: staffData, isPending: isLoadingStaff } = useUsersByClinic(
+    clinicId || ""
+  );
 
-  const filteredStaff = staff.filter(member => {
-    const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.specialization.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === "all" || member.role === roleFilter;
-    const matchesStatus = statusFilter === "all" || member.status.toLowerCase().replace(" ", "_") === statusFilter;
-    
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  // Sync with WebSocket for real-time updates
+  useWebSocketQuerySync();
+
+  // Transform staff data
+  const staff = useMemo(() => {
+    if (!staffData) return [];
+    const data = staffData as any;
+    const users = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.users)
+      ? data.users
+      : Array.isArray(data?.data)
+      ? data.data
+      : [];
+
+    return users.map((user: any) => ({
+      id: user.id,
+      name:
+        user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+      email: user.email,
+      phone: user.phone,
+      role: user.role || user.roles?.[0]?.name || "UNKNOWN",
+      status: user.isActive !== false ? "Active" : "Inactive",
+      specialization:
+        user.specialization || user.specializations?.[0] || "General",
+      department: user.department || "General",
+      joinDate: user.createdAt || user.joinedAt,
+      experience: user.experience || "N/A",
+      schedule: user.schedule || "Not set",
+    }));
+  }, [staffData]);
+
+  const filteredStaff = useMemo(() => {
+    return staff.filter((member: any) => {
+      const matchesSearch =
+        !searchTerm ||
+        member.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.specialization?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesRole = roleFilter === "all" || member.role === roleFilter;
+      const statusKey = member.status?.toLowerCase().replace(" ", "_") || "";
+      const matchesStatus =
+        statusFilter === "all" || statusKey === statusFilter;
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [staff, searchTerm, roleFilter, statusFilter]);
 
   const getRoleColor = (role: Role) => {
     switch (role) {
-      case Role.DOCTOR: return "bg-blue-100 text-blue-800";
-      case Role.RECEPTIONIST: return "bg-green-100 text-green-800";
-      case Role.CLINIC_ADMIN: return "bg-purple-100 text-purple-800";
-      default: return "bg-gray-100 text-gray-800";
+      case Role.DOCTOR:
+        return "bg-blue-100 text-blue-800";
+      case Role.RECEPTIONIST:
+        return "bg-green-100 text-green-800";
+      case Role.CLINIC_ADMIN:
+        return "bg-purple-100 text-purple-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Active': return 'bg-green-100 text-green-800';
-      case 'On Leave': return 'bg-yellow-100 text-yellow-800';
-      case 'Inactive': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "Active":
+        return "bg-green-100 text-green-800";
+      case "On Leave":
+        return "bg-yellow-100 text-yellow-800";
+      case "Inactive":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map(route => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes('dashboard') ? <Activity className="w-5 h-5" /> :
-          route.path.includes('staff') ? <Users className="w-5 h-5" /> :
-          route.path.includes('schedule') ? <Calendar className="w-5 h-5" /> :
-          route.path.includes('settings') ? <Settings className="w-5 h-5" /> :
-          <UserCheck className="w-5 h-5" />
-  }));
+  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route) => {
+    let icon = <UserCheck className="w-5 h-5" />;
+    if (route.path.includes("dashboard")) {
+      icon = <Activity className="w-5 h-5" />;
+    } else if (route.path.includes("staff")) {
+      icon = <Users className="w-5 h-5" />;
+    } else if (route.path.includes("schedule")) {
+      icon = <Calendar className="w-5 h-5" />;
+    } else if (route.path.includes("settings")) {
+      icon = <Settings className="w-5 h-5" />;
+    }
+    return {
+      ...route,
+      href: route.path,
+      icon,
+    };
+  });
 
   sidebarLinks.push({
     label: "Logout",
     href: "/(auth)/auth/login",
     path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />
+    icon: <LogOut className="w-5 h-5" />,
   });
+
+  if (isLoadingStaff) {
+    return (
+      <DashboardLayout title="Staff Management" allowedRole={Role.CLINIC_ADMIN}>
+        <GlobalSidebar
+          links={sidebarLinks}
+          user={{
+            name:
+              user?.name ||
+              `${user?.firstName} ${user?.lastName}` ||
+              "Clinic Admin",
+            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
+          }}
+        >
+          <div className="p-6 flex items-center justify-center min-h-[400px]">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        </GlobalSidebar>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Staff Management" allowedRole={Role.CLINIC_ADMIN}>
       <GlobalSidebar
         links={sidebarLinks}
-        user={{ 
-          name: user?.name || `${user?.firstName} ${user?.lastName}` || "Clinic Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png" 
+        user={{
+          name:
+            user?.name ||
+            `${user?.firstName} ${user?.lastName}` ||
+            "Clinic Admin",
+          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
         }}
       >
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Staff Management</h1>
-            <Button className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Add New Staff
-            </Button>
+            <div className="flex items-center gap-2">
+              <WebSocketStatusIndicator />
+              <Button className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Add New Staff
+              </Button>
+            </div>
           </div>
 
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Total Staff
+                </CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{staff.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  All departments
-                </p>
+                <p className="text-xs text-muted-foreground">All departments</p>
               </CardContent>
             </Card>
 
@@ -183,31 +219,35 @@ export default function ClinicAdminStaff() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {staff.filter(s => s.role === Role.DOCTOR).length}
+                  {staff.filter((s) => s.role === Role.DOCTOR).length}
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Support Staff</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Support Staff
+                </CardTitle>
                 <UserCog className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {staff.filter(s => s.role === Role.RECEPTIONIST).length}
+                  {staff.filter((s) => s.role === Role.RECEPTIONIST).length}
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Today</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Active Today
+                </CardTitle>
                 <UserCheck className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {staff.filter(s => s.status === 'Active').length}
+                  {staff.filter((s) => s.status === "Active").length}
                 </div>
               </CardContent>
             </Card>
@@ -236,7 +276,9 @@ export default function ClinicAdminStaff() {
                   <SelectContent>
                     <SelectItem value="all">All Roles</SelectItem>
                     <SelectItem value={Role.DOCTOR}>Doctors</SelectItem>
-                    <SelectItem value={Role.RECEPTIONIST}>Receptionists</SelectItem>
+                    <SelectItem value={Role.RECEPTIONIST}>
+                      Receptionists
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -269,27 +311,35 @@ export default function ClinicAdminStaff() {
                       <div className="space-y-1">
                         <h3 className="font-semibold text-lg">{member.name}</h3>
                         <div className="flex items-center gap-2">
-                          <Badge className={getRoleColor(member.role)}>
-                            {member.role.replace('_', ' ')}
+                          <Badge className={getRoleColor(member.role as Role)}>
+                            {member.role?.replace("_", " ") || "Unknown"}
                           </Badge>
                           <Badge className={getStatusColor(member.status)}>
                             {member.status}
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-600 font-medium">{member.specialization}</p>
+                        {member.specialization && (
+                          <p className="text-sm text-gray-600 font-medium">
+                            {member.specialization}
+                          </p>
+                        )}
                         <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <Mail className="w-4 h-4" />
-                            <span>{member.email}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Phone className="w-4 h-4" />
-                            <span>{member.phone}</span>
-                          </div>
+                          {member.email && (
+                            <div className="flex items-center gap-1">
+                              <Mail className="w-4 h-4" />
+                              <span>{member.email}</span>
+                            </div>
+                          )}
+                          {member.phone && (
+                            <div className="flex items-center gap-1">
+                              <Phone className="w-4 h-4" />
+                              <span>{member.phone}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="text-right space-y-2">
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm">
@@ -298,19 +348,44 @@ export default function ClinicAdminStaff() {
                         <Button variant="outline" size="sm">
                           <Trash2 className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
-                          className={member.status === 'Active' ? 'text-yellow-600' : 'text-green-600'}
+                          className={
+                            member.status === "Active"
+                              ? "text-yellow-600"
+                              : "text-green-600"
+                          }
                         >
-                          {member.status === 'Active' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                          {member.status === "Active" ? (
+                            <UserX className="w-4 h-4" />
+                          ) : (
+                            <UserCheck className="w-4 h-4" />
+                          )}
                         </Button>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1">
-                        <div><strong>Department:</strong> {member.department}</div>
-                        <div><strong>Experience:</strong> {member.experience}</div>
-                        <div><strong>Schedule:</strong> {member.schedule}</div>
-                        <div><strong>Joined:</strong> {new Date(member.joinDate).toLocaleDateString()}</div>
+                        {member.department && (
+                          <div>
+                            <strong>Department:</strong> {member.department}
+                          </div>
+                        )}
+                        {member.experience && (
+                          <div>
+                            <strong>Experience:</strong> {member.experience}
+                          </div>
+                        )}
+                        {member.schedule && (
+                          <div>
+                            <strong>Schedule:</strong> {member.schedule}
+                          </div>
+                        )}
+                        {member.joinDate && (
+                          <div>
+                            <strong>Joined:</strong>{" "}
+                            {new Date(member.joinDate).toLocaleDateString()}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -324,7 +399,9 @@ export default function ClinicAdminStaff() {
               <CardContent className="text-center py-8">
                 <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No staff found</h3>
-                <p className="text-gray-600">Try adjusting your search criteria</p>
+                <p className="text-gray-600">
+                  Try adjusting your search criteria
+                </p>
               </CardContent>
             </Card>
           )}
@@ -340,16 +417,19 @@ export default function ClinicAdminStaff() {
                   <Stethoscope className="w-8 h-8 text-blue-600 mx-auto mb-2" />
                   <h3 className="font-semibold">Ayurveda Department</h3>
                   <p className="text-2xl font-bold text-blue-600">
-                    {staff.filter(s => s.department === 'Ayurveda').length}
+                    {staff.filter((s) => s.department === "Ayurveda").length}
                   </p>
                   <p className="text-sm text-gray-600">Specialists</p>
                 </div>
-                
+
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <UserCog className="w-8 h-8 text-green-600 mx-auto mb-2" />
                   <h3 className="font-semibold">Administration</h3>
                   <p className="text-2xl font-bold text-green-600">
-                    {staff.filter(s => s.department === 'Administration').length}
+                    {
+                      staff.filter((s) => s.department === "Administration")
+                        .length
+                    }
                   </p>
                   <p className="text-sm text-gray-600">Support Staff</p>
                 </div>
@@ -358,7 +438,7 @@ export default function ClinicAdminStaff() {
                   <Activity className="w-8 h-8 text-purple-600 mx-auto mb-2" />
                   <h3 className="font-semibold">Diagnosis</h3>
                   <p className="text-2xl font-bold text-purple-600">
-                    {staff.filter(s => s.department === 'Diagnosis').length}
+                    {staff.filter((s) => s.department === "Diagnosis").length}
                   </p>
                   <p className="text-sm text-gray-600">Specialists</p>
                 </div>
@@ -370,4 +450,3 @@ export default function ClinicAdminStaff() {
     </DashboardLayout>
   );
 }
-

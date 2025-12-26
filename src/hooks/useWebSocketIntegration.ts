@@ -47,7 +47,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     clinicId = currentClinic?.id
   } = options;
 
-  // Initialize WebSocket connection
+  // Initialize WebSocket connection - Real-time enabled
   useEffect(() => {
     if (!autoConnect || !user) return;
 

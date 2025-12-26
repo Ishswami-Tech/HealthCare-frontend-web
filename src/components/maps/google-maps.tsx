@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, Navigation, Phone, Clock, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React, { useState, useRef, useEffect } from "react";
+import { MapPin, Navigation, Phone, Clock, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface GoogleMapsProps {
   address: string;
@@ -31,10 +31,11 @@ interface ClinicLocation {
 
 // Default clinic location for Shri Vishwamurthi Ayurvedalay
 const DEFAULT_CLINIC: ClinicLocation = {
-  name: 'Shri Vishwamurthi Ayurvedalay',
-  address: 'Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India',
-  phone: '9860370961, 7709399925',
-  hours: 'Mon-Fri: 11:45 AM – 11:30 PM',
+  name: "Shri Vishwamurthi Ayurvedalay",
+  address:
+    "Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India",
+  phone: "9860370961, 7709399925",
+  hours: "Mon-Fri: 11:45 AM – 11:30 PM",
   coordinates: {
     lat: 18.6298, // Approximate coordinates for Chinchwad, Pune
     lng: 73.7997,
@@ -47,7 +48,7 @@ export function GoogleMaps({
   longitude,
   zoom = 15,
   className,
-  height = '400px',
+  height = "400px",
   showInfoWindow = true,
   clinicName = DEFAULT_CLINIC.name,
   clinicPhone = DEFAULT_CLINIC.phone,
@@ -67,7 +68,7 @@ export function GoogleMaps({
     const initMap = async () => {
       try {
         // Check if Google Maps API is loaded
-        if (typeof window.google === 'undefined') {
+        if (typeof window.google === "undefined") {
           // Load Google Maps API if not already loaded
           await loadGoogleMapsAPI();
         }
@@ -84,9 +85,9 @@ export function GoogleMaps({
           zoomControl: true,
           styles: [
             {
-              featureType: 'poi',
-              elementType: 'labels',
-              stylers: [{ visibility: 'off' }],
+              featureType: "poi",
+              elementType: "labels",
+              stylers: [{ visibility: "off" }],
             },
           ],
         });
@@ -97,7 +98,9 @@ export function GoogleMaps({
           map,
           title: clinicName,
           icon: {
-            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+            url:
+              "data:image/svg+xml;charset=UTF-8," +
+              encodeURIComponent(`
               <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M16 2C11.6 2 8 5.6 8 10C8 16 16 30 16 30S24 16 24 10C24 5.6 20.4 2 16 2ZM16 13C14.3 13 13 11.7 13 10S14.3 7 16 7S19 8.3 19 10S17.7 13 16 13Z" fill="#059669"/>
               </svg>
@@ -133,7 +136,7 @@ export function GoogleMaps({
             `,
           });
 
-          marker.addListener('click', () => {
+          marker.addListener("click", () => {
             infoWindow.open(map, marker);
           });
 
@@ -144,29 +147,41 @@ export function GoogleMaps({
         mapInstanceRef.current = map;
         setIsLoading(false);
       } catch (error) {
-        console.error('Failed to initialize Google Maps:', error);
+        console.error("Failed to initialize Google Maps:", error);
         setHasError(true);
         setIsLoading(false);
       }
     };
 
     initMap();
-  }, [lat, lng, zoom, address, clinicName, clinicPhone, clinicHours, showInfoWindow]);
+  }, [
+    lat,
+    lng,
+    zoom,
+    address,
+    clinicName,
+    clinicPhone,
+    clinicHours,
+    showInfoWindow,
+  ]);
 
   const loadGoogleMapsAPI = (): Promise<void> => {
     return new Promise((resolve, reject) => {
-      if (typeof window.google !== 'undefined') {
+      if (typeof window.google !== "undefined") {
         resolve();
         return;
       }
 
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}&libraries=places`;
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${
+        apiKey || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+      }&libraries=places`;
       script.async = true;
       script.defer = true;
 
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load Google Maps API'));
+      script.onerror = () =>
+        reject(new Error("Failed to load Google Maps API"));
 
       document.head.appendChild(script);
     });
@@ -174,11 +189,12 @@ export function GoogleMaps({
 
   const handleGetDirections = () => {
     const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-    window.open(directionsUrl, '_blank', 'noopener,noreferrer');
+    window.open(directionsUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleCallClinic = () => {
-    const phoneNumber = clinicPhone?.split(',')[0]?.trim().replace(/\s/g, '') || clinicPhone;
+    const phoneNumber =
+      clinicPhone?.split(",")[0]?.trim().replace(/\s/g, "") || clinicPhone;
     if (phoneNumber) {
       window.location.href = `tel:${phoneNumber}`;
     }
@@ -186,15 +202,22 @@ export function GoogleMaps({
 
   if (hasError) {
     return (
-      <div className={cn(
-        "bg-gray-100 rounded-lg overflow-hidden border border-gray-200",
-        className
-      )} style={{ height }}>
+      <div
+        className={cn(
+          "bg-gray-100 rounded-lg overflow-hidden border border-gray-200",
+          className
+        )}
+        style={{ height }}
+      >
         <div className="h-full flex items-center justify-center">
           <div className="text-center">
             <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Map unavailable</h3>
-            <p className="text-gray-600 mb-4">Unable to load the map at this time</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Map unavailable
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Unable to load the map at this time
+            </p>
             <div className="space-y-2">
               <button
                 type="button"
@@ -213,7 +236,12 @@ export function GoogleMaps({
   }
 
   return (
-    <div className={cn("relative bg-gray-100 rounded-lg overflow-hidden", className)}>
+    <div
+      className={cn(
+        "relative bg-gray-100 rounded-lg overflow-hidden",
+        className
+      )}
+    >
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
           <div className="text-center">
@@ -258,7 +286,7 @@ export function GoogleMaps({
               </div>
               <div className="flex items-center gap-1 text-green-600">
                 <Phone className="w-4 h-4" />
-                <span>{clinicPhone?.split(',')[0]?.trim() || clinicPhone}</span>
+                <span>{clinicPhone?.split(",")[0]?.trim() || clinicPhone}</span>
               </div>
             </div>
           </div>

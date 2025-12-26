@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
-
+import { useClinicContext } from "@/hooks/useClinic";
 import { useUsers } from "@/hooks/useUsers";
 import { useMyAppointments } from "@/hooks/useAppointments";
 
@@ -31,9 +31,9 @@ import {
 export default function ClinicAdminDashboard() {
   const { session } = useAuth();
   const user = session?.user;
+  const { clinicId } = useClinicContext();
 
   // Fetch real data using existing hooks and server actions
-  // TODO: Get actual clinic ID from user profile or context
   const { data: users } = useUsers();
   const { data: appointments } = useMyAppointments();
 

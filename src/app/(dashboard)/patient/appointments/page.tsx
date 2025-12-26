@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRoutesByRole } from "@/config/routes";
 import { useAuth } from "@/hooks/useAuth";
+import { theme } from "@/lib/theme-utils";
 import { 
   Activity,
   Calendar, 
@@ -75,7 +76,7 @@ export default function PatientAppointments() {
       duration: 30,
       price: 500,
       icon: <Activity className="w-5 h-5" />,
-      color: "bg-blue-50 text-blue-700",
+      color: theme.badges.blue,
       videoAvailable: true,
       category: "Consultation"
     },
@@ -86,7 +87,7 @@ export default function PatientAppointments() {
       duration: 45,
       price: 800,
       icon: <Heart className="w-5 h-5" />,
-      color: "bg-red-50 text-red-700",
+      color: theme.badges.red,
       videoAvailable: false,
       category: "Diagnosis"
     },
@@ -97,7 +98,7 @@ export default function PatientAppointments() {
       duration: 60,
       price: 1000,
       icon: <Leaf className="w-5 h-5" />,
-      color: "bg-green-50 text-green-700",
+      color: theme.badges.green,
       videoAvailable: true,
       category: "Analysis"
     },
@@ -108,7 +109,7 @@ export default function PatientAppointments() {
       duration: 90,
       price: 2000,
       icon: <Droplets className="w-5 h-5" />,
-      color: "bg-cyan-50 text-cyan-700",
+      color: theme.badges.cyan,
       videoAvailable: false,
       category: "Therapy"
     },
@@ -119,7 +120,7 @@ export default function PatientAppointments() {
       duration: 60,
       price: 1500,
       icon: <Waves className="w-5 h-5" />,
-      color: "bg-indigo-50 text-indigo-700",
+      color: theme.badges.indigo,
       videoAvailable: false,
       category: "Therapy"
     },
@@ -130,7 +131,7 @@ export default function PatientAppointments() {
       duration: 75,
       price: 1200,
       icon: <Wind className="w-5 h-5" />,
-      color: "bg-purple-50 text-purple-700",
+      color: theme.badges.purple,
       videoAvailable: false,
       category: "Therapy"
     },
@@ -141,7 +142,7 @@ export default function PatientAppointments() {
       duration: 45,
       price: 1800,
       icon: <Activity className="w-5 h-5" />,
-      color: "bg-orange-50 text-orange-700",
+      color: theme.badges.orange,
       videoAvailable: false,
       category: "Surgery"
     },
@@ -152,7 +153,7 @@ export default function PatientAppointments() {
       duration: 30,
       price: 1500,
       icon: <Flame className="w-5 h-5" />,
-      color: "bg-red-50 text-red-700",
+      color: theme.badges.red,
       videoAvailable: false,
       category: "Surgery"
     },
@@ -163,7 +164,7 @@ export default function PatientAppointments() {
       duration: 45,
       price: 600,
       icon: <Brain className="w-5 h-5" />,
-      color: "bg-emerald-50 text-emerald-700",
+      color: theme.badges.emerald,
       videoAvailable: true,
       category: "Counseling"
     },
@@ -174,7 +175,7 @@ export default function PatientAppointments() {
       duration: 20,
       price: 300,
       icon: <CheckCircle className="w-5 h-5" />,
-      color: "bg-gray-50 text-gray-700",
+      color: theme.badges.gray,
       videoAvailable: true,
       category: "Consultation"
     }
@@ -262,7 +263,7 @@ export default function PatientAppointments() {
 
                   <TabsContent value="consultation-types">
                     <div className="space-y-4">
-                      <div className="text-sm text-gray-600 mb-4">
+                      <div className={`text-sm ${theme.textColors.secondary} mb-4`}>
                         Choose the type of Ayurvedic consultation or treatment you need:
                       </div>
                       
@@ -272,7 +273,7 @@ export default function PatientAppointments() {
                             key={type.id}
                             className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
                               selectedConsultationType === type.id 
-                                ? 'border-blue-500 bg-blue-50' 
+                                ? `${theme.borders.blue} ${theme.containers.featureBlue}` 
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
                             role="button"
@@ -294,7 +295,7 @@ export default function PatientAppointments() {
                                   <h3 className="font-semibold">{type.name}</h3>
                                   <Badge variant="outline">{type.category}</Badge>
                                 </div>
-                                <p className="text-sm text-gray-600 mb-3">{type.description}</p>
+                                <p className={`text-sm ${theme.textColors.secondary} mb-3`}>{type.description}</p>
                                 <div className="flex items-center justify-between text-sm">
                                   <div className="flex items-center gap-4">
                                     <span className="flex items-center gap-1">
@@ -302,13 +303,13 @@ export default function PatientAppointments() {
                                       {type.duration} min
                                     </span>
                                     {type.videoAvailable && (
-                                      <span className="flex items-center gap-1 text-green-600">
+                                      <span className={`flex items-center gap-1 ${theme.iconColors.green}`}>
                                         <Video className="w-3 h-3" />
                                         Video available
                                       </span>
                                     )}
                                   </div>
-                                  <span className="font-semibold text-blue-600">₹{type.price}</span>
+                                  <span className={`font-semibold ${theme.iconColors.blue}`}>₹{type.price}</span>
                                 </div>
                               </div>
                             </div>
@@ -321,14 +322,14 @@ export default function PatientAppointments() {
                   <TabsContent value="appointment-details">
                     <div className="space-y-6">
                       {selectedType && (
-                        <div className="p-4 bg-blue-50 rounded-lg">
+                        <div className={`p-4 ${theme.containers.featureBlue} rounded-lg`}>
                           <div className="flex items-center gap-3 mb-2">
                             <div className={`p-2 rounded-lg ${selectedType.color}`}>
                               {selectedType.icon}
                             </div>
                             <div>
                               <h3 className="font-semibold">{selectedType.name}</h3>
-                              <p className="text-sm text-gray-600">
+                              <p className={`text-sm ${theme.textColors.secondary}`}>
                                 {selectedType.duration} minutes • ₹{selectedType.price}
                               </p>
                             </div>
@@ -373,7 +374,7 @@ export default function PatientAppointments() {
                                 <Video className="w-4 h-4" />
                                 <Label>Video Consultation</Label>
                               </div>
-                              <p className="text-sm text-gray-600">
+                              <p className={`text-sm ${theme.textColors.secondary}`}>
                                 Consult from the comfort of your home
                               </p>
                             </div>
@@ -384,10 +385,10 @@ export default function PatientAppointments() {
                           </div>
                           
                           {isVideoConsultation && (
-                            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div className={`p-4 ${theme.containers.featureGreen} border ${theme.borders.green} rounded-lg`}>
                               <div className="flex items-start gap-2">
-                                <Info className="w-4 h-4 text-green-600 mt-0.5" />
-                                <div className="text-sm text-green-800">
+                                <Info className={`w-4 h-4 ${theme.iconColors.green} mt-0.5`} />
+                                <div className={`text-sm ${theme.textColors.success}`}>
                                   <p className="font-medium mb-1">Video Consultation Benefits:</p>
                                   <ul className="list-disc list-inside space-y-1">
                                     <li>No travel required</li>
@@ -498,7 +499,7 @@ export default function PatientAppointments() {
                             </div>
                           </div>
 
-                          <div className="p-4 bg-gray-50 rounded-lg space-y-2">
+                          <div className={`p-4 ${theme.backgrounds.secondary} rounded-lg space-y-2`}>
                             <div className="flex items-center justify-between">
                               <span>Consultation Fee:</span>
                               <span>₹{selectedType.price}</span>
@@ -520,19 +521,19 @@ export default function PatientAppointments() {
                           <div className="space-y-3">
                             <h4 className="font-medium">Payment Method</h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              <div className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                              <div className={`p-3 border rounded-lg cursor-pointer ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}>
                                 <div className="flex items-center gap-2">
                                   <CreditCard className="w-4 h-4" />
                                   <span>Credit/Debit Card</span>
                                 </div>
                               </div>
-                              <div className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                              <div className={`p-3 border rounded-lg cursor-pointer ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}>
                                 <div className="flex items-center gap-2">
                                   <Droplets className="w-4 h-4" />
                                   <span>UPI</span>
                                 </div>
                               </div>
-                              <div className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                              <div className={`p-3 border rounded-lg cursor-pointer ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}>
                                 <div className="flex items-center gap-2">
                                   <Activity className="w-4 h-4" />
                                   <span>Net Banking</span>
@@ -579,36 +580,36 @@ export default function PatientAppointments() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-                  <Activity className="w-8 h-8 text-blue-600 mb-3" />
+                  <Activity className={`w-8 h-8 ${theme.iconColors.blue} mb-3`} />
                   <h3 className="font-semibold mb-2">Consultations</h3>
-                  <p className="text-sm text-gray-600 mb-3">General health assessment and follow-ups</p>
+                  <p className={`text-sm ${theme.textColors.secondary} mb-3`}>General health assessment and follow-ups</p>
                   <Button variant="outline" size="sm" className="w-full">
                     Book Now
                   </Button>
                 </div>
 
                 <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
-                  <Droplets className="w-8 h-8 text-green-600 mb-3" />
+                  <Droplets className={`w-8 h-8 ${theme.iconColors.green} mb-3`} />
                   <h3 className="font-semibold mb-2">Panchakarma</h3>
-                  <p className="text-sm text-gray-600 mb-3">Detox and rejuvenation therapies</p>
+                  <p className={`text-sm ${theme.textColors.secondary} mb-3`}>Detox and rejuvenation therapies</p>
                   <Button variant="outline" size="sm" className="w-full">
                     Book Now
                   </Button>
                 </div>
 
                 <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
-                  <Heart className="w-8 h-8 text-purple-600 mb-3" />
+                  <Heart className={`w-8 h-8 ${theme.iconColors.purple} mb-3`} />
                   <h3 className="font-semibold mb-2">Diagnosis</h3>
-                  <p className="text-sm text-gray-600 mb-3">Nadi Pariksha and dosha analysis</p>
+                  <p className={`text-sm ${theme.textColors.secondary} mb-3`}>Nadi Pariksha and dosha analysis</p>
                   <Button variant="outline" size="sm" className="w-full">
                     Book Now
                   </Button>
                 </div>
 
                 <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
-                  <Flame className="w-8 h-8 text-orange-600 mb-3" />
+                  <Flame className={`w-8 h-8 ${theme.iconColors.orange} mb-3`} />
                   <h3 className="font-semibold mb-2">Specialized</h3>
-                  <p className="text-sm text-gray-600 mb-3">Agnikarma, Viddhakarma procedures</p>
+                  <p className={`text-sm ${theme.textColors.secondary} mb-3`}>Agnikarma, Viddhakarma procedures</p>
                   <Button variant="outline" size="sm" className="w-full">
                     Book Now
                   </Button>
@@ -628,24 +629,24 @@ export default function PatientAppointments() {
                   <h4 className="font-semibold text-lg">Traditional Therapies</h4>
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
-                      <Droplets className="w-5 h-5 text-cyan-600 mt-0.5" />
+                      <Droplets className={`w-5 h-5 ${theme.iconColors.cyan} mt-0.5`} />
                       <div>
                         <h5 className="font-medium">Panchakarma</h5>
-                        <p className="text-sm text-gray-600">Five-action detoxification process including Vamana, Virechana, Basti, Nasya, and Raktamokshana</p>
+                        <p className={`text-sm ${theme.textColors.secondary}`}>Five-action detoxification process including Vamana, Virechana, Basti, Nasya, and Raktamokshana</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <Waves className="w-5 h-5 text-indigo-600 mt-0.5" />
+                      <Waves className={`w-5 h-5 ${theme.iconColors.indigo} mt-0.5`} />
                       <div>
                         <h5 className="font-medium">Shirodhara</h5>
-                        <p className="text-sm text-gray-600">Continuous pouring of medicated oils on forehead for stress relief and mental clarity</p>
+                        <p className={`text-sm ${theme.textColors.secondary}`}>Continuous pouring of medicated oils on forehead for stress relief and mental clarity</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <Wind className="w-5 h-5 text-purple-600 mt-0.5" />
+                      <Wind className={`w-5 h-5 ${theme.iconColors.purple} mt-0.5`} />
                       <div>
                         <h5 className="font-medium">Abhyanga</h5>
-                        <p className="text-sm text-gray-600">Full-body therapeutic massage with warm herbal oils to improve circulation and flexibility</p>
+                        <p className={`text-sm ${theme.textColors.secondary}`}>Full-body therapeutic massage with warm herbal oils to improve circulation and flexibility</p>
                       </div>
                     </div>
                   </div>
@@ -655,24 +656,24 @@ export default function PatientAppointments() {
                   <h4 className="font-semibold text-lg">Diagnostic Methods</h4>
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
-                      <Heart className="w-5 h-5 text-red-600 mt-0.5" />
+                      <Heart className={`w-5 h-5 ${theme.iconColors.red} mt-0.5`} />
                       <div>
                         <h5 className="font-medium">Nadi Pariksha</h5>
-                        <p className="text-sm text-gray-600">Pulse diagnosis to assess dosha imbalances and overall health status</p>
+                        <p className={`text-sm ${theme.textColors.secondary}`}>Pulse diagnosis to assess dosha imbalances and overall health status</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <Leaf className="w-5 h-5 text-green-600 mt-0.5" />
+                      <Leaf className={`w-5 h-5 ${theme.iconColors.green} mt-0.5`} />
                       <div>
                         <h5 className="font-medium">Prakriti Analysis</h5>
-                        <p className="text-sm text-gray-600">Constitutional assessment to determine individual body type and treatment approach</p>
+                        <p className={`text-sm ${theme.textColors.secondary}`}>Constitutional assessment to determine individual body type and treatment approach</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <Sun className="w-5 h-5 text-yellow-600 mt-0.5" />
+                      <Sun className={`w-5 h-5 ${theme.iconColors.yellow} mt-0.5`} />
                       <div>
                         <h5 className="font-medium">Vikriti Assessment</h5>
-                        <p className="text-sm text-gray-600">Current health imbalances and deviation from natural constitution</p>
+                        <p className={`text-sm ${theme.textColors.secondary}`}>Current health imbalances and deviation from natural constitution</p>
                       </div>
                     </div>
                   </div>

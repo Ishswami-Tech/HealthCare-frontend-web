@@ -20,14 +20,14 @@ export default function NotFound() {
 
         <div className="space-y-4">
           <Button asChild className="w-full">
-            <Link href="/">
+            <Link href="/" className="flex items-center justify-center">
               <Home className="w-4 h-4 mr-2" />
               Go Home
             </Link>
           </Button>
           
           <Button variant="outline" asChild className="w-full">
-            <Link href="javascript:history.back()">
+            <Link href="javascript:history.back()" className="flex items-center justify-center">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Go Back
             </Link>

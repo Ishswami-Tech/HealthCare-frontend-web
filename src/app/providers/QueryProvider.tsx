@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
 import { toast } from "sonner";
+import { queryClientConfig } from "@/lib/query/query-config";
 
 interface ApiError extends Error {
   response?: {
@@ -19,15 +20,14 @@ export default function QueryProvider({
 }: {
   children: React.ReactNode;
 }) {
+  // ✅ Optimized QueryClient for 10M+ users
   const [queryClient] = useState(
     () =>
       new QueryClient({
+        ...queryClientConfig,
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000, // 5 minutes
-            gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: true,
+            ...queryClientConfig.defaultOptions?.queries,
             retry: (failureCount, error) => {
               const apiError = error as ApiError;
 
@@ -40,13 +40,12 @@ export default function QueryProvider({
                 return false;
               }
 
-              // Retry up to 3 times for server errors (5xx) and network errors
-              return failureCount < 3;
+              // Retry up to 2 times for server errors (5xx) and network errors (reduced for 10M users)
+              return failureCount < 2;
             },
-            retryDelay: (attemptIndex) =>
-              Math.min(1000 * 2 ** attemptIndex, 30000),
           },
           mutations: {
+            ...queryClientConfig.defaultOptions?.mutations,
             retry: (failureCount, error) => {
               const apiError = error as ApiError;
 
