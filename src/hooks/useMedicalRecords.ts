@@ -37,6 +37,29 @@ import {
   getHealthTrends,
   getMedicationAdherence,
 } from '@/lib/actions/ehr.server';
+import {
+  getPatientMedicalRecords,
+  createMedicalRecord,
+  updateMedicalRecord,
+  deleteMedicalRecord,
+  getMedicalRecordById,
+  uploadMedicalRecordFile,
+  getMedicalRecordTemplates,
+  createMedicalRecordTemplate,
+  getPatientPrescriptions,
+  getPrescriptionById,
+  createPrescription,
+  updatePrescription,
+  generatePrescriptionPDF,
+  getMedicines,
+  searchMedicines,
+  createMedicine,
+  updateMedicine,
+  deleteMedicine,
+  getMedicineInteractions,
+  getMedicineInventory,
+  updateMedicineInventory,
+} from '@/lib/actions/medical-records.server';
 
 // ===== COMPREHENSIVE HEALTH RECORD HOOKS =====
 
@@ -528,4 +551,104 @@ export const useUpdateMedicineInventory = () => {
     const result = await updateMedicineInventory(medicineId, inventoryData);
     return { status: 200, data: result };
   }, 'medicineInventory');
+};
+
+// ===== MEDICAL RECORDS HOOKS =====
+
+/**
+ * Hook to get medical record by ID
+ */
+export const useMedicalRecord = (recordId: string) => {
+  return useQueryData(['medicalRecord', recordId], async () => {
+    return await getMedicalRecordById(recordId);
+  }, {
+    enabled: !!recordId,
+  });
+};
+
+/**
+ * Hook to create medical record
+ */
+export const useCreateMedicalRecord = () => {
+  return useMutationData(['createMedicalRecord'], async (recordData: {
+    patientId: string;
+    type: 'LAB_TEST' | 'XRAY' | 'MRI' | 'PRESCRIPTION' | 'DIAGNOSIS_REPORT' | 'PULSE_DIAGNOSIS';
+    title: string;
+    content: string;
+    fileUrl?: string;
+    doctorId?: string;
+    appointmentId?: string;
+  }) => {
+    const result = await createMedicalRecord(recordData);
+    return { status: 200, data: result };
+  }, ['medicalRecords']);
+};
+
+/**
+ * Hook to update medical record
+ */
+export const useUpdateMedicalRecord = () => {
+  return useMutationData(['updateMedicalRecord'], async ({ recordId, updates }: {
+    recordId: string;
+    updates: {
+      title?: string;
+      content?: string;
+      fileUrl?: string;
+    };
+  }) => {
+    const result = await updateMedicalRecord(recordId, updates);
+    return { status: 200, data: result };
+  }, ['medicalRecords']);
+};
+
+/**
+ * Hook to delete medical record
+ */
+export const useDeleteMedicalRecord = () => {
+  return useMutationData(['deleteMedicalRecord'], async (recordId: string) => {
+    const result = await deleteMedicalRecord(recordId);
+    return { status: 200, data: result };
+  }, ['medicalRecords']);
+};
+
+/**
+ * Hook to upload medical record file
+ */
+export const useUploadMedicalRecordFile = () => {
+  return useMutationData(['uploadMedicalRecordFile'], async ({ recordId, file }: {
+    recordId: string;
+    file: File;
+  }) => {
+    const result = await uploadMedicalRecordFile(recordId, file);
+    return { status: 200, data: result };
+  }, ['medicalRecords']);
+};
+
+/**
+ * Hook to get medical record templates
+ */
+export const useMedicalRecordTemplates = (type?: string) => {
+  return useQueryData(['medicalRecordTemplates', type], async () => {
+    return await getMedicalRecordTemplates(type);
+  });
+};
+
+/**
+ * Hook to create medical record template
+ */
+export const useCreateMedicalRecordTemplate = () => {
+  return useMutationData(['createMedicalRecordTemplate'], async (templateData: {
+    name: string;
+    type: string;
+    content: string;
+    fields: Array<{
+      name: string;
+      type: 'text' | 'number' | 'date' | 'select';
+      required: boolean;
+      options?: string[];
+    }>;
+  }) => {
+    const result = await createMedicalRecordTemplate(templateData);
+    return { status: 200, data: result };
+  }, ['medicalRecordTemplates']);
 };

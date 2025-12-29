@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { authenticatedApi } from "@/lib/api/client";
+import { clinicApiClient } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/config/config";
 
 // Declare Razorpay types
@@ -95,12 +95,7 @@ export function RazorpayPaymentButton({
       }
 
       // Create payment intent via backend
-      const response = await authenticatedApi(paymentIntentUrl, {
-        method: "POST",
-        ...(Object.keys(paymentIntentData).length > 0 && {
-          body: JSON.stringify(paymentIntentData),
-        }),
-      });
+      const response = await clinicApiClient.post(paymentIntentUrl, paymentIntentData);
 
       if (!response.success || !response.data) {
         throw new Error(response.message || "Failed to create payment intent");
@@ -136,19 +131,16 @@ export function RazorpayPaymentButton({
         handler: async (response: any) => {
           try {
             // Verify payment with backend
-            const verifyResponse = await authenticatedApi(
+            const verifyResponse = await clinicApiClient.post(
               API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK,
               {
-                method: "POST",
-                body: JSON.stringify({
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  orderId: orderId,
-                  invoiceId,
-                  appointmentId,
-                  subscriptionId,
-                }),
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderId: orderId,
+                invoiceId,
+                appointmentId,
+                subscriptionId,
               }
             );
 

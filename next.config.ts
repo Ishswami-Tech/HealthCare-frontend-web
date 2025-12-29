@@ -13,16 +13,6 @@ const config: NextConfig = {
   
   // Enable experimental features for better performance
   experimental: {
-    serverActions: {
-      bodySizeLimit: '5mb',
-      allowedOrigins: [
-        'localhost:3000',
-        'localhost:8088',
-        'api.ishswami.in',
-        'staging-api.ishswami.in',
-        'ishswami.in',
-      ],
-    },
     // Optimize package imports
     optimizePackageImports: [
       '@tanstack/react-query',
@@ -97,14 +87,35 @@ const config: NextConfig = {
 
   // Configure image domains for Next.js Image component
   images: {
-    domains: [
-      'localhost',
-      'storage.googleapis.com',
-      'lh3.googleusercontent.com',
-      'platform-lookaside.fbsbx.com',
-      'graph.facebook.com',
-      'api.ishswami.in',
-      'ishswami.in'
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'platform-lookaside.fbsbx.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'graph.facebook.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.ishswami.in',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ishswami.in',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
     ],
   },
 
@@ -165,43 +176,11 @@ const config: NextConfig = {
     ];
   },
 
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '5mb',
-      allowedOrigins: [
-        'localhost:3000',
-        'localhost:8088',
-        'api.ishswami.in',
-        'staging-api.ishswami.in',
-        'ishswami.in',
-      ],
-    },
-  },
-
-  // ESLint configuration for build
-  eslint: {
-    // Only run ESLint on specific directories during build
-    ignoreDuringBuilds: true,
-    dirs: ['src'],
-    // Ignore specific files or patterns if needed
-    // ignoreDuringBuilds: true, // Uncomment to skip ESLint during builds
-  },
 
   // TypeScript configuration for build
   typescript: {
     // Disable TypeScript error checking for auth-disabled build
     ignoreBuildErrors: true,
-  },
-
-  // Webpack configuration to ignore TypeScript errors during development
-  webpack: (config, { dev }) => {
-    if (dev) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-      };
-    }
-    return config;
   },
 };
 

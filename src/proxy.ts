@@ -102,10 +102,10 @@ function calculateProfileCompletionFromUserData(userData: Record<string, unknown
 //   localeDetection: false, // We'll handle locale detection manually via cookies
 // });
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for static files and API routes
+  // Skip proxy for static files and API routes
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
@@ -118,7 +118,7 @@ export async function middleware(request: NextRequest) {
   // Authentication is now enforced - all routes require proper authentication
 
   // Handle i18n for non-auth routes
-  // Skip i18n middleware for auth routes to avoid conflicts
+  // Skip i18n proxy for auth routes to avoid conflicts
   if (!pathname.startsWith('/(auth)') && !pathname.startsWith('/auth')) {
     // Get locale from cookie
     const locale = request.cookies.get('locale')?.value || defaultLocale;
@@ -256,7 +256,7 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Configure matcher for middleware
+// Configure matcher for proxy
 export const config = {
   matcher: [
     /*
@@ -270,3 +270,5 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
+
+

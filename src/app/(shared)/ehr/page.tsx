@@ -22,6 +22,8 @@ import {
 } from "@/hooks/useClinic";
 import {
   usePatientMedicalRecords,
+} from "@/hooks/usePatients";
+import {
   useCreateMedicalRecord,
 } from "@/hooks/useMedicalRecords";
 import { usePatientPermissions } from "@/hooks/useRBAC";
@@ -74,7 +76,7 @@ export default function EHRSystem() {
   const patientPermissions = usePatientPermissions();
 
   // Clinic context
-  useClinicContext();
+  const { clinicId } = useClinicContext();
 
   // Zustand store actions
   const medicalRecordsActions = useMedicalRecordsActions();
@@ -92,8 +94,8 @@ export default function EHRSystem() {
 
   // Fetch medical records for selected patient
   const { data: medicalRecords } =
-    usePatientMedicalRecords(selectedPatientId || "", {
-      limit: 50,
+    usePatientMedicalRecords(clinicId || "", selectedPatientId || "", {
+      enabled: !!clinicId && !!selectedPatientId,
     });
 
   // Fetch vital signs for selected patient
