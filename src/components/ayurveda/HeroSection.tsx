@@ -210,6 +210,7 @@ const HeroSection = () => {
                     <Button
                       size="lg"
                       className="relative overflow-hidden bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 hover:from-orange-600 hover:via-amber-600 hover:to-yellow-600 text-white font-bold text-lg sm:text-xl lg:text-2xl px-10 sm:px-12 lg:px-16 py-5 sm:py-6 lg:py-8 rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-0"
+                      onClick={() => window.location.href = "tel:9860370961"}
                     >
                       {/* Animated Background Overlay */}
                       <div className="absolute inset-0 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

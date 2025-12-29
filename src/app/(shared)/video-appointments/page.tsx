@@ -59,7 +59,9 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
 import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
-import { useVideoAppointmentWebSocket } from "@/hooks/useWebSocket";
+import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { ProtectedComponent } from "@/components/rbac/ProtectedComponent";
+import { Permission } from "@/types/rbac.types";
 
 export default function VideoAppointmentsPage() {
   const { session } = useAuth();
@@ -343,7 +345,8 @@ export default function VideoAppointmentsPage() {
   );
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <ProtectedComponent permission={Permission.VIEW_VIDEO_APPOINTMENTS}>
+      <div className="container mx-auto py-8 px-4">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Video Appointments</h1>
@@ -492,6 +495,7 @@ export default function VideoAppointmentsPage() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </ProtectedComponent>
   );
 }

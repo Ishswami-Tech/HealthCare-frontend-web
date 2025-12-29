@@ -9,11 +9,12 @@ import { ReactNode, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ThemeContextProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/lib/i18n/context";
 import { WebSocketProvider } from "@/components/websocket/WebSocketProvider";
 import { StoreProvider } from "@/stores";
 import { PushNotificationProvider } from "@/components/push-notifications/PushNotificationProvider";
+import { GlobalHealthStatusProvider } from "@/components/common/GlobalHealthStatusProvider";
+import { HealthStatusProvider } from "@/components/common/HealthStatusProvider";
 
 function ErrorFallback({
   error,
@@ -86,37 +87,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
           enableSystem
           disableTransitionOnChange
         >
-          <ThemeContextProvider>
-            <LanguageProvider>
-              <StoreProvider>
-                <LoadingOverlayProvider>
-                  <QueryProvider>
-                    <WebSocketProvider
-                      autoConnect={true}
-                      enableRetry={true}
-                      enableErrorBoundary={true}
-                    >
-                      <PushNotificationProvider>
-                        <GlobalLoadingOverlayListener />
-                        {children}
-                        <Toaster
-                          richColors
-                          position="top-right"
-                          expand={false}
-                          visibleToasts={4}
-                          closeButton
-                          toastOptions={{
-                            duration: 4000,
-                            className: "text-sm",
-                          }}
-                        />
-                      </PushNotificationProvider>
-                    </WebSocketProvider>
-                  </QueryProvider>
-                </LoadingOverlayProvider>
-              </StoreProvider>
-            </LanguageProvider>
-          </ThemeContextProvider>
+          <LanguageProvider>
+            <StoreProvider>
+              <LoadingOverlayProvider>
+                <QueryProvider>
+                  <WebSocketProvider
+                    autoConnect={true}
+                    enableRetry={true}
+                    enableErrorBoundary={true}
+                  >
+                    <PushNotificationProvider>
+                      <HealthStatusProvider />
+                      <GlobalLoadingOverlayListener />
+                      {children}
+                      <GlobalHealthStatusProvider />
+                      <Toaster
+                        richColors
+                        position="top-right"
+                        expand={false}
+                        visibleToasts={4}
+                        closeButton
+                        toastOptions={{
+                          duration: 4000,
+                          className: "text-sm",
+                        }}
+                      />
+                    </PushNotificationProvider>
+                  </WebSocketProvider>
+                </QueryProvider>
+              </LoadingOverlayProvider>
+            </StoreProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </Suspense>
     </ErrorBoundary>

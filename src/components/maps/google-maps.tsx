@@ -29,9 +29,9 @@ interface ClinicLocation {
   };
 }
 
-// Default clinic location for Shri Vishwamurthi Ayurvedalay
+// Default clinic location for Shri Vishwamurti Ayurvedalay
 const DEFAULT_CLINIC: ClinicLocation = {
-  name: "Shri Vishwamurthi Ayurvedalay",
+  name: "Shri Vishwamurti Ayurvedalay",
   address:
     "Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India",
   phone: "9860370961, 7709399925",

@@ -2,54 +2,56 @@
 
 // User actions for frontend, matching backend endpoints
 import { authenticatedApi } from './auth.server';
+import { API_ENDPOINTS } from '../config/config';
+
 
 export async function getUserProfile() {
-  const { data } = await authenticatedApi(`/user/profile`, { method: 'GET' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.PROFILE, { method: 'GET' });
   return data;
 }
 
 export async function updateUserProfile(profileData: Record<string, unknown>) {
-  const { data } = await authenticatedApi(`/user/profile`, { method: 'PATCH', body: JSON.stringify(profileData) });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.PROFILE, { method: 'PATCH', body: JSON.stringify(profileData) });
   return { status: 200, data: data };
 }
 
 export async function getUserById(id: string) {
-  const { data } = await authenticatedApi(`/user/${id}`, { method: 'GET' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ID(id), { method: 'GET' });
   return data;
 }
 
 export async function updateUser(id: string, data: Record<string, unknown>) {
-  const { data: updatedData } = await authenticatedApi(`/user/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+  const { data: updatedData } = await authenticatedApi(API_ENDPOINTS.USERS.UPDATE(id), { method: 'PATCH', body: JSON.stringify(data) });
   return updatedData;
 }
 
 export async function deleteUser(id: string) {
-  const { data } = await authenticatedApi(`/user/${id}`, { method: 'DELETE' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.DELETE(id), { method: 'DELETE' });
   return data;
 }
 
 export async function getAllUsers() {
-  const { data } = await authenticatedApi(`/user/all`, { method: 'GET' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_ALL, { method: 'GET' });
   return data;
 }
 
 export async function getPatients() {
-  const { data } = await authenticatedApi(`/user/role/patient`, { method: 'GET' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ROLE('patient'), { method: 'GET' });
   return data;
 }
 
 export async function getDoctors() {
-  const { data } = await authenticatedApi(`/user/role/doctors`, { method: 'GET' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ROLE('doctors'), { method: 'GET' });
   return data;
 }
 
 export async function getReceptionists() {
-  const { data } = await authenticatedApi(`/user/role/receptionists`, { method: 'GET' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ROLE('receptionists'), { method: 'GET' });
   return data;
 }
 
 export async function getClinicAdmins() {
-  const { data } = await authenticatedApi(`/user/role/clinic-admins`, { method: 'GET' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ROLE('clinic-admins'), { method: 'GET' });
   return data;
 }
 
@@ -73,7 +75,7 @@ export async function createUser(userData: {
   country?: string;
   zipCode?: string;
 }) {
-  const { data } = await authenticatedApi('/user', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.BASE, {
     method: 'POST',
     body: JSON.stringify(userData)
   });
@@ -84,7 +86,7 @@ export async function createUser(userData: {
  * Update user role
  */
 export async function updateUserRole(userId: string, role: string) {
-  const { data } = await authenticatedApi(`/user/${userId}/role`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.UPDATE(userId), {
     method: 'PATCH',
     body: JSON.stringify({ role })
   });
@@ -95,7 +97,7 @@ export async function updateUserRole(userId: string, role: string) {
  * Get users by role
  */
 export async function getUsersByRole(role: string) {
-  const { data } = await authenticatedApi(`/user/role/${role}`, { method: 'GET' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ROLE(role), { method: 'GET' });
   return data;
 }
 
@@ -103,7 +105,7 @@ export async function getUsersByRole(role: string) {
  * Get users by clinic
  */
 export async function getUsersByClinic(clinicId: string) {
-  const { data } = await authenticatedApi(`/user/clinic/${clinicId}`, { method: 'GET' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_CLINIC(clinicId), { method: 'GET' });
   return data;
 }
 
@@ -124,7 +126,7 @@ export async function searchUsers(query: string, filters?: {
     });
   }
 
-  const { data } = await authenticatedApi(`/user/search?${params.toString()}`, { method: 'GET' });
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.USERS.SEARCH}?${params.toString()}`, { method: 'GET' });
   return data;
 }
 
@@ -132,7 +134,7 @@ export async function searchUsers(query: string, filters?: {
  * Get user statistics
  */
 export async function getUserStats() {
-  const { data } = await authenticatedApi('/user/stats', { method: 'GET' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.STATS, { method: 'GET' });
   return data;
 }
 
@@ -140,7 +142,7 @@ export async function getUserStats() {
  * Bulk update users
  */
 export async function bulkUpdateUsers(userIds: string[], updates: Record<string, string | number | boolean>) {
-  const { data } = await authenticatedApi('/user/bulk-update', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.BULK_UPDATE, {
     method: 'PATCH',
     body: JSON.stringify({ userIds, updates })
   });
@@ -160,7 +162,7 @@ export async function exportUsers(format: 'csv' | 'excel' = 'csv', filters?: Rec
     });
   }
 
-  const { data } = await authenticatedApi(`/user/export?${params.toString()}`, { method: 'GET' });
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.USERS.EXPORT}?${params.toString()}`, { method: 'GET' });
   return data;
 }
 
@@ -168,7 +170,7 @@ export async function exportUsers(format: 'csv' | 'excel' = 'csv', filters?: Rec
  * Change user password (admin action)
  */
 export async function changeUserPassword(userId: string, newPassword: string) {
-  const { data } = await authenticatedApi(`/user/${userId}/password`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.CHANGE_PASSWORD(userId), {
     method: 'PATCH',
     body: JSON.stringify({ password: newPassword })
   });
@@ -179,7 +181,7 @@ export async function changeUserPassword(userId: string, newPassword: string) {
  * Toggle user verification status
  */
 export async function toggleUserVerification(userId: string, isVerified: boolean) {
-  const { data } = await authenticatedApi(`/user/${userId}/verification`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.TOGGLE_VERIFICATION(userId), {
     method: 'PATCH',
     body: JSON.stringify({ isVerified })
   });
@@ -190,7 +192,7 @@ export async function toggleUserVerification(userId: string, isVerified: boolean
  * Get user activity logs
  */
 export async function getUserActivityLogs(userId: string, limit: number = 50) {
-  const { data } = await authenticatedApi(`/user/${userId}/activity?limit=${limit}`, { method: 'GET' });
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.USERS.ACTIVITY_LOGS(userId)}?limit=${limit}`, { method: 'GET' });
   return data;
 }
 
@@ -198,7 +200,7 @@ export async function getUserActivityLogs(userId: string, limit: number = 50) {
  * Get user sessions
  */
 export async function getUserSessions(userId: string) {
-  const { data } = await authenticatedApi(`/user/${userId}/sessions`, { method: 'GET' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.SESSIONS(userId), { method: 'GET' });
   return data;
 }
 
@@ -206,6 +208,6 @@ export async function getUserSessions(userId: string) {
  * Terminate user session
  */
 export async function terminateUserSession(userId: string, sessionId: string) {
-  const { data } = await authenticatedApi(`/user/${userId}/sessions/${sessionId}`, { method: 'DELETE' });
+  const { data } = await authenticatedApi(API_ENDPOINTS.USERS.TERMINATE_SESSION(userId, sessionId), { method: 'DELETE' });
   return data;
 }

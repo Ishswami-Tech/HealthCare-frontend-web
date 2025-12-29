@@ -55,12 +55,12 @@ export const en: TranslationKeys = {
   },
   navigation: {
     logo: 'Shri',
-    clinicName: 'Shri Vishwamurthi Ayurvedalay',
+    clinicName: 'Shri Vishwamurti Ayurvedalay',
     clinicSubtitle: 'Traditional Healing, Modern Care',
     livePatients: 'Live Patients',
     livesTransformed: 'Lives Transformed',
     rating: '4.9/5',
-    phoneNumber: '+91 98765 43210',
+    phoneNumber: '+91 9860370961',
     language: 'Language',
     home: 'Home',
     about: 'About',
@@ -724,13 +724,13 @@ export const en: TranslationKeys = {
     about: 'Expert in treating neurological conditions through traditional Ayurvedic methods',
   },
   clinic: {
-    name: 'Shri Vishwamurthi Ayurvedalay',
+    name: 'Shri Vishwamurti Ayurvedalay',
     address: 'Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India',
-    phone: '9860370961, 7709399925',
+    phone: '+91 9860370961, +91 79 7254 8944',
     whatsapp: '9860370961',
-    email: 'vishwamurthiayurveda@gmail.com',
+    email: 'Vishwamurtiayurveda@gmail.com',
     timings: 'Clinic Timings',
-    mondayToFriday: 'Monday - Friday: 11:45 AM - 11:30 PM',
+    mondayToFriday: 'Chinchwad - 12 pm to 6 pm (day OPD), 10 pm to 11.45 pm (night OPD)',
     weekends: 'Saturday & Sunday',
     closed: 'Closed',
     emergency: 'For urgent medical consultations outside clinic hours, please call directly at',
@@ -1191,16 +1191,16 @@ export const en: TranslationKeys = {
         title: "Phone Numbers",
         details: [
           "+91 9860370961",
-          "+91 7709399925",
+          "+91 79 7254 8944",
           "24/7 Emergency Support"
         ]
       },
       emailAddresses: {
         title: "Email Addresses",
         details: [
-          "vishwamurthiayurveda@gmail.com",
-          "support@vishwamurthiayurveda.com",
-          "emergency@vishwamurthiayurveda.com"
+          "Vishwamurtiayurveda@gmail.com",
+          "support@Vishwamurtiayurveda.com",
+          "emergency@Vishwamurtiayurveda.com"
         ]
       },
       location: {
@@ -1241,13 +1241,13 @@ export const en: TranslationKeys = {
   },
   footer: {
     logo: 'Shri',
-    clinicName: 'Shri Vishwamurthi Ayurvedalay',
+    clinicName: 'Shri Vishwamurti Ayurvedalay',
     tagline: 'Authentic Ayurvedic Care',
     description: 'Experience the power of traditional Ayurvedic healing with our expert practitioners. We are committed to providing authentic, personalized care for your complete wellness journey.',
     address: 'Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India',
-    phone: '9860370961, 7709399925',
-    email: 'vishwamurthiayurveda@gmail.com',
-    workingHours: 'Monday - Friday: 11:45 AM - 11:30 PM',
+    phone: '+91 9860370961, +91 79 7254 8944',
+    email: 'Vishwamurtiayurveda@gmail.com',
+    workingHours: 'Chinchwad - 12 pm to 6 pm (day OPD), 10 pm to 11.45 pm (night OPD) | Pune - 7-9 pm (only night) | Dehu - Every Wednesday (10 am to 2 pm) | Nanded - Alternate weekend (Saturday & Sunday)',
     ourServices: 'Our Services',
     medicalDisclaimer: 'Government CertifiedISO 9001:20154.9/5 Rating',
     quickLinks: {
@@ -1276,10 +1276,10 @@ export const en: TranslationKeys = {
     contact: {
       title: 'Contact',
       address: 'Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India',
-      phone: '9860370961, 7709399925',
+      phone: '+91 9860370961, +91 79 7254 8944',
       emergency: '24/7 Emergency Support',
-      email: 'vishwamurthiayurveda@gmail.com',
-      hours: 'Monday - Friday: 11:45 AM - 11:30 PM'
+      email: 'Vishwamurtiayurveda@gmail.com',
+      hours: 'Chinchwad - 12 pm to 6 pm (day OPD), 10 pm to 11.45 pm (night OPD) | Pune - 7-9 pm (only night) | Dehu - Every Wednesday (10 am to 2 pm) | Nanded - Alternate weekend (Saturday & Sunday)'
     },
     emergency: {
       title: 'Emergency Consultation',
@@ -1657,19 +1657,19 @@ export const en: TranslationKeys = {
       channels: {
         whatsapp: {
           title: 'WhatsApp Support',
-          number: '+91 98603 70961',
+          number: '+91 79 7254 8944',
           description: 'Instant response within minutes',
           button: 'Contact Now'
         },
         helpline: {
           title: 'Helpline',
-          number: '+91 98603 70961',
+          number: '+91 79 7254 8944',
           description: '24/7 professional support',
           button: 'Contact Now'
         },
         emergency: {
           title: 'Emergency',
-          number: '+91 98603 70961',
+          number: '+91 79 7254 8944',
           description: 'Immediate assistance',
           button: 'Contact Now'
         },
@@ -2305,7 +2305,7 @@ export const en: TranslationKeys = {
   },
   about: {
     hero: {
-      badge: "About Shri Vishwamurthi Ayurvedalay",
+      badge: "About Shri Vishwamurti Ayurvedalay",
       title: "20+ Years of Authentic Healing",
       subtitle: "Where ancient Ayurvedic wisdom meets modern healthcare excellence. Our journey of transformation, one life at a time.",
       certifications: {
@@ -2317,8 +2317,8 @@ export const en: TranslationKeys = {
     story: {
       title: "Our Story",
       paragraphs: {
-        p1: "Founded in 2003 with a sacred mission to preserve and practice authentic Ayurveda, Shri Vishwamurthi Ayurvedalay has been a beacon of hope for thousands seeking natural healing and complete wellness.",
-        p2: "Our founder, Dr. Vishwamurthi, envisioned a place where the timeless wisdom of Ayurveda could be practiced in its purest form while embracing the benefits of modern healthcare infrastructure and scientific validation.",
+        p1: "Founded in 2003 with a sacred mission to preserve and practice authentic Ayurveda, Shri Vishwamurti Ayurvedalay has been a beacon of hope for thousands seeking natural healing and complete wellness.",
+        p2: "Our founder, Dr. Vishwamurti, envisioned a place where the timeless wisdom of Ayurveda could be practiced in its purest form while embracing the benefits of modern healthcare infrastructure and scientific validation.",
         p3: "Over two decades, we have grown from a small clinic to a renowned Ayurvedic hospital, treating complex chronic conditions that conventional medicine often struggles to address. Our success lies in treating the root cause, not just symptoms.",
         p4: "Today, we stand proud as a government-certified, ISO-accredited institution that has transformed over 5000 lives through authentic Panchakarma, Agnikarma, Viddha Karma, and comprehensive Ayurvedic treatments."
       }
@@ -2358,7 +2358,7 @@ export const en: TranslationKeys = {
       subtitle: "Key milestones that shaped our legacy of healing excellence",
       "2003": {
         event: "Foundation Established",
-        description: "Shri Vishwamurthi Ayurvedalay was founded with a vision to provide authentic Ayurvedic healing to the community."
+        description: "Shri Vishwamurti Ayurvedalay was founded with a vision to provide authentic Ayurvedic healing to the community."
       },
       "2008": {
         event: "Government Recognition",

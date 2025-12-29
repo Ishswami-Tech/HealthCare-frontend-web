@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { Checkbox } from "@/components/ui/checkbox";

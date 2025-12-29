@@ -461,7 +461,7 @@ export async function createClinicLocation(clinicId: string, data: {
     }
 
     // Create location via API
-    const response = await clinicApiClient.post(`/clinics/${clinicId}/locations`, data);
+    const response = await clinicApiClient.post(API_ENDPOINTS.CLINIC_LOCATIONS.CREATE(clinicId), data);
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Failed to create clinic location' };
@@ -513,7 +513,7 @@ export async function getClinicLocations(clinicId: string): Promise<{ success: b
     }
 
     // Get locations via API
-    const response = await clinicApiClient.get(`/clinics/${clinicId}/locations`);
+    const response = await clinicApiClient.get(API_ENDPOINTS.CLINIC_LOCATIONS.GET_ALL(clinicId));
 
     if (!response.success) {
       return { success: false, error: 'Failed to fetch clinic locations' };
@@ -544,7 +544,7 @@ export async function updateClinicLocation(clinicId: string, locationId: string,
     }
 
     // Update location via API
-    const response = await clinicApiClient.put(`/clinics/${clinicId}/locations/${locationId}`, data);
+    const response = await clinicApiClient.put(API_ENDPOINTS.CLINIC_LOCATIONS.UPDATE(clinicId, locationId), data);
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Failed to update clinic location' };
@@ -596,7 +596,7 @@ export async function deleteClinicLocation(clinicId: string, locationId: string)
     }
 
     // Delete location via API
-    const response = await clinicApiClient.delete(`/clinics/${clinicId}/locations/${locationId}`);
+    const response = await clinicApiClient.delete(API_ENDPOINTS.CLINIC_LOCATIONS.DELETE(clinicId, locationId));
 
     if (!response.success) {
       return { success: false, error: 'Failed to delete clinic location' };

@@ -141,15 +141,27 @@ export function ClinicInfo({
               </h3>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Monday - Friday</span>
-                  <span className="font-medium text-gray-900">
-                    11:45 AM - 11:30 PM
+                  <span className="text-gray-600">Chinchwad</span>
+                  <span className="font-medium text-gray-900 text-xs">
+                    12 pm-6 pm (day), 10 pm-11.45 pm (night)
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Saturday & Sunday</span>
-                  <span className="font-medium text-red-600">
-                    {t("clinic.closed")}
+                  <span className="text-gray-600">Pune</span>
+                  <span className="font-medium text-gray-900 text-xs">
+                    7-9 pm (night)
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Dehu</span>
+                  <span className="font-medium text-gray-900 text-xs">
+                    Wed (10 am-2 pm)
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Nanded</span>
+                  <span className="font-medium text-gray-900 text-xs">
+                    Alt. weekend
                   </span>
                 </div>
               </div>
@@ -301,25 +313,52 @@ export function ClinicInfo({
               <div className="bg-green-50 rounded-lg p-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-medium text-gray-900">
-                    Monday - Friday
+                    Chinchwad
                   </span>
                   <span className="text-green-600 font-semibold">Open</span>
                 </div>
-                <p className="text-lg font-bold text-gray-900">
-                  11:45 AM - 11:30 PM
+                <p className="text-sm font-bold text-gray-900">
+                  12 pm to 6 pm (day OPD)
+                </p>
+                <p className="text-sm font-bold text-gray-900">
+                  10 pm to 11.45 pm (night OPD)
                 </p>
               </div>
 
-              <div className="bg-red-50 rounded-lg p-4">
+              <div className="bg-blue-50 rounded-lg p-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-medium text-gray-900">
-                    Saturday & Sunday
+                    Pune
                   </span>
-                  <span className="text-red-600 font-semibold">
-                    {t("clinic.closed")}
-                  </span>
+                  <span className="text-blue-600 font-semibold">Open</span>
                 </div>
-                <p className="text-gray-600">{t("clinic.emergency")}</p>
+                <p className="text-sm font-bold text-gray-900">
+                  7-9 pm (only night)
+                </p>
+              </div>
+
+              <div className="bg-amber-50 rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium text-gray-900">
+                    Dehu
+                  </span>
+                  <span className="text-amber-600 font-semibold">Open</span>
+                </div>
+                <p className="text-sm font-bold text-gray-900">
+                  Every Wednesday (10 am to 2 pm)
+                </p>
+              </div>
+
+              <div className="bg-purple-50 rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium text-gray-900">
+                    Nanded
+                  </span>
+                  <span className="text-purple-600 font-semibold">Open</span>
+                </div>
+                <p className="text-sm font-bold text-gray-900">
+                  Alternate weekend (Saturday & Sunday)
+                </p>
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
+import { API_ENDPOINTS } from '../config/config';
 
 // ===== QUEUE MANAGEMENT ACTIONS =====
 
@@ -20,7 +21,7 @@ export async function getQueue(filters?: {
     });
   }
   
-  const endpoint = `/queue${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.QUEUE.GET}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -29,7 +30,7 @@ export async function getQueue(filters?: {
  * Get queue statistics
  */
 export async function getQueueStats() {
-  const { data } = await authenticatedApi('/queue/stats');
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.STATS);
   return data;
 }
 
@@ -37,7 +38,7 @@ export async function getQueueStats() {
  * Update queue status
  */
 export async function updateQueueStatus(patientId: string, status: string) {
-  const { data } = await authenticatedApi(`/queue/${patientId}/status`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.UPDATE_STATUS(patientId), {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
@@ -48,7 +49,7 @@ export async function updateQueueStatus(patientId: string, status: string) {
  * Call next patient in queue
  */
 export async function callNextPatient(queueType: string) {
-  const { data } = await authenticatedApi('/queue/call-next', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.CALL_NEXT, {
     method: 'POST',
     body: JSON.stringify({ queueType }),
   });
@@ -65,7 +66,7 @@ export async function addToQueue(queueData: {
   priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
   estimatedDuration?: number;
 }) {
-  const { data } = await authenticatedApi('/queue', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ADD, {
     method: 'POST',
     body: JSON.stringify(queueData),
   });
@@ -76,7 +77,7 @@ export async function addToQueue(queueData: {
  * Remove patient from queue
  */
 export async function removeFromQueue(queueId: string, reason?: string) {
-  const { data } = await authenticatedApi(`/queue/${queueId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.REMOVE(queueId), {
     method: 'DELETE',
     ...(reason && { body: JSON.stringify({ reason }) }),
   });
@@ -87,7 +88,7 @@ export async function removeFromQueue(queueId: string, reason?: string) {
  * Reorder queue
  */
 export async function reorderQueue(queueType: string, patientIds: string[]) {
-  const { data } = await authenticatedApi('/queue/reorder', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.REORDER, {
     method: 'POST',
     body: JSON.stringify({ queueType, patientIds }),
   });
@@ -113,7 +114,7 @@ export async function getQueueHistory(filters?: {
     });
   }
   
-  const endpoint = `/queue/history${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.QUEUE.HISTORY}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -122,7 +123,7 @@ export async function getQueueHistory(filters?: {
  * Get queue analytics
  */
 export async function getQueueAnalytics(period: 'day' | 'week' | 'month' | 'year' = 'day') {
-  const { data } = await authenticatedApi(`/queue/analytics?period=${period}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.QUEUE.ANALYTICS}?period=${period}`);
   return data;
 }
 
@@ -130,7 +131,7 @@ export async function getQueueAnalytics(period: 'day' | 'week' | 'month' | 'year
  * Update queue position
  */
 export async function updateQueuePosition(queueId: string, newPosition: number) {
-  const { data } = await authenticatedApi(`/queue/${queueId}/position`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.UPDATE_POSITION(queueId), {
     method: 'PATCH',
     body: JSON.stringify({ position: newPosition }),
   });
@@ -141,7 +142,7 @@ export async function updateQueuePosition(queueId: string, newPosition: number) 
  * Pause queue
  */
 export async function pauseQueue(queueType: string, reason?: string) {
-  const { data } = await authenticatedApi('/queue/pause', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.PAUSE, {
     method: 'POST',
     body: JSON.stringify({ queueType, reason }),
   });
@@ -152,7 +153,7 @@ export async function pauseQueue(queueType: string, reason?: string) {
  * Resume queue
  */
 export async function resumeQueue(queueType: string) {
-  const { data } = await authenticatedApi('/queue/resume', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.RESUME, {
     method: 'POST',
     body: JSON.stringify({ queueType }),
   });
@@ -163,7 +164,7 @@ export async function resumeQueue(queueType: string) {
  * Get queue configuration
  */
 export async function getQueueConfig() {
-  const { data } = await authenticatedApi('/queue/config');
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.CONFIG);
   return data;
 }
 
@@ -177,7 +178,7 @@ export async function updateQueueConfig(config: {
   allowWalkIns?: boolean;
   priorityEnabled?: boolean;
 }) {
-  const { data } = await authenticatedApi('/queue/config', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.CONFIG, {
     method: 'PATCH',
     body: JSON.stringify(config),
   });
@@ -189,7 +190,7 @@ export async function updateQueueConfig(config: {
  */
 export async function getQueueNotifications(userId?: string) {
   const params = userId ? `?userId=${userId}` : '';
-  const { data } = await authenticatedApi(`/queue/notifications${params}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.QUEUE.NOTIFICATIONS.GET}${params}`);
   return data;
 }
 
@@ -197,7 +198,7 @@ export async function getQueueNotifications(userId?: string) {
  * Mark queue notification as read
  */
 export async function markQueueNotificationAsRead(notificationId: string) {
-  const { data } = await authenticatedApi(`/queue/notifications/${notificationId}/read`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.NOTIFICATIONS.MARK_READ(notificationId), {
     method: 'PATCH',
   });
   return data;
@@ -212,7 +213,7 @@ export async function sendQueueNotification(notificationData: {
   message: string;
   channels?: ('sms' | 'email' | 'push')[];
 }) {
-  const { data } = await authenticatedApi('/queue/notifications', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.NOTIFICATIONS.SEND, {
     method: 'POST',
     body: JSON.stringify(notificationData),
   });
@@ -224,7 +225,7 @@ export async function sendQueueNotification(notificationData: {
  */
 export async function getQueueWaitTimes(queueType?: string) {
   const params = queueType ? `?type=${queueType}` : '';
-  const { data } = await authenticatedApi(`/queue/wait-times${params}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.QUEUE.WAIT_TIMES}${params}`);
   return data;
 }
 
@@ -232,7 +233,7 @@ export async function getQueueWaitTimes(queueType?: string) {
  * Estimate wait time for new patient
  */
 export async function estimateWaitTime(queueType: string, priority?: string) {
-  const { data } = await authenticatedApi('/queue/estimate-wait-time', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ESTIMATE_WAIT_TIME, {
     method: 'POST',
     body: JSON.stringify({ queueType, priority }),
   });
@@ -243,7 +244,7 @@ export async function estimateWaitTime(queueType: string, priority?: string) {
  * Get queue capacity
  */
 export async function getQueueCapacity(queueType: string) {
-  const { data } = await authenticatedApi(`/queue/capacity?type=${queueType}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.QUEUE.CAPACITY}?type=${queueType}`);
   return data;
 }
 
@@ -251,7 +252,7 @@ export async function getQueueCapacity(queueType: string) {
  * Update queue capacity
  */
 export async function updateQueueCapacity(queueType: string, capacity: number) {
-  const { data } = await authenticatedApi('/queue/capacity', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.CAPACITY, {
     method: 'PATCH',
     body: JSON.stringify({ queueType, capacity }),
   });
@@ -273,7 +274,7 @@ export async function getQueuePerformanceMetrics(filters?: {
     });
   }
   
-  const endpoint = `/queue/performance${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.QUEUE.PERFORMANCE}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -287,7 +288,7 @@ export async function exportQueueData(filters: {
   format: 'csv' | 'excel' | 'pdf';
   queueType?: string;
 }) {
-  const { data } = await authenticatedApi('/queue/export', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.EXPORT, {
     method: 'POST',
     body: JSON.stringify(filters),
   });
@@ -298,7 +299,7 @@ export async function exportQueueData(filters: {
  * Get queue alerts
  */
 export async function getQueueAlerts() {
-  const { data } = await authenticatedApi('/queue/alerts');
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ALERTS.GET);
   return data;
 }
 
@@ -311,7 +312,7 @@ export async function createQueueAlert(alertData: {
   queueType?: string;
   enabled: boolean;
 }) {
-  const { data } = await authenticatedApi('/queue/alerts', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ALERTS.CREATE, {
     method: 'POST',
     body: JSON.stringify(alertData),
   });
@@ -325,7 +326,7 @@ export async function updateQueueAlert(alertId: string, updates: {
   threshold?: number;
   enabled?: boolean;
 }) {
-  const { data } = await authenticatedApi(`/queue/alerts/${alertId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ALERTS.UPDATE(alertId), {
     method: 'PATCH',
     body: JSON.stringify(updates),
   });
@@ -336,7 +337,7 @@ export async function updateQueueAlert(alertId: string, updates: {
  * Delete queue alert
  */
 export async function deleteQueueAlert(alertId: string) {
-  const { data } = await authenticatedApi(`/queue/alerts/${alertId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.ALERTS.DELETE(alertId), {
     method: 'DELETE',
   });
   return data;

@@ -106,7 +106,7 @@ export default function GalleryPage() {
 
             <div className="flex flex-wrap justify-center gap-4">
               <a
-                href="https://instagram.com/vishwamurthiayurveda"
+                href="https://instagram.com/Vishwamurtiayurveda"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2 interactive"
@@ -171,7 +171,7 @@ export default function GalleryPage() {
 
           <div className="text-center mt-12">
             <a
-              href="https://instagram.com/vishwamurthiayurveda"
+              href="https://instagram.com/Vishwamurtiayurveda"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 interactive"

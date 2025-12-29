@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import { Session } from "@/types/auth.types";
 
 // Global App State Types
 export interface User {
@@ -57,6 +58,20 @@ export interface ClinicSettings {
   };
 }
 
+// Loading Overlay Types
+export type LoadingOverlayVariant = "default" | "logout" | "login" | "register";
+
+export interface OverlayConfig {
+  show: boolean;
+  variant: LoadingOverlayVariant;
+  message?: string;
+}
+
+const defaultOverlay: OverlayConfig = {
+  show: false,
+  variant: "default",
+};
+
 export interface AppState {
   // User Management
   user: User | null;
@@ -72,6 +87,12 @@ export interface AppState {
   language: string;
   isLoading: boolean;
   loadingMessage: string;
+  
+  // Loading Overlay
+  overlay: OverlayConfig;
+  
+  // Session Management
+  session: Session | null;
   
   // Notifications
   notifications: AppNotification[];
@@ -99,6 +120,13 @@ export interface AppState {
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setLanguage: (language: string) => void;
   setLoading: (loading: boolean, message?: string) => void;
+  
+  // Overlay Actions
+  setOverlay: (config: Partial<OverlayConfig>) => void;
+  clearOverlay: () => void;
+  
+  // Session Actions
+  setSession: (session: Session | null) => void;
   
   addNotification: (notification: Omit<AppNotification, 'id' | 'timestamp'>) => void;
   removeNotification: (id: string) => void;
@@ -139,6 +167,8 @@ const initialState = {
   language: 'en',
   isLoading: false,
   loadingMessage: '',
+  overlay: defaultOverlay,
+  session: null,
   notifications: [],
   unreadCount: 0,
   error: null,
@@ -226,6 +256,23 @@ export const useAppStore = create<AppState>()(
           set((state) => {
             state.isLoading = loading;
             state.loadingMessage = message;
+          }),
+
+        // Overlay Actions
+        setOverlay: (config) =>
+          set((state) => {
+            state.overlay = { ...state.overlay, ...config };
+          }),
+
+        clearOverlay: () =>
+          set((state) => {
+            state.overlay = defaultOverlay;
+          }),
+
+        // Session Actions
+        setSession: (session) =>
+          set((state) => {
+            state.session = session;
           }),
 
         // Notification Actions

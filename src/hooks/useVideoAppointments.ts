@@ -1,29 +1,23 @@
-// ✅ Video Appointment Hooks - Jitsi Integration with WebSocket
-// This file provides hooks for video appointment management with Jitsi Meet integration and real-time WebSocket updates
+// ✅ Video Appointment Hooks - OpenVidu Integration with WebSocket
+// This file provides hooks for video appointment management with OpenVidu integration and real-time WebSocket updates
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useCallback } from 'react';
 import { useCurrentClinicId } from './useClinic';
 import { useRBAC } from './useRBAC';
 import { useToast } from './use-toast';
-import { useVideoAppointmentWebSocket } from './useWebSocket';
+import { useVideoAppointmentWebSocket } from './useVideoAppointmentSocketIO';
+import { useAuth } from './useAuth';
 import { Permission } from '@/types/rbac.types';
-import { videoAppointmentService } from '@/lib/video/jitsi';
+import { videoAppointmentService } from '@/lib/video/openvidu';
+import { APP_CONFIG } from '@/lib/config/config';
 import {
   generateVideoToken,
   startVideoConsultation,
   endVideoConsultation,
   getConsultationStatus,
-  reportConsultationIssue,
-  shareMedicalImage,
   getVideoConsultationHistory,
-  startRecording,
-  stopRecording,
   getRecording,
-  manageParticipant,
-  getParticipants,
-  getConsultationAnalytics,
-  getVideoHealth,
 } from '@/lib/actions/video.server';
 
 // ✅ Video Appointment Types
@@ -36,7 +30,7 @@ export interface VideoAppointment {
   startTime: string;
   endTime: string;
   status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
-  jitsiRoomId?: string;
+  sessionId?: string;
   recordingUrl?: string;
   notes?: string;
   createdAt: string;
@@ -50,7 +44,7 @@ export interface CreateVideoAppointmentData {
   startTime: string;
   endTime: string;
   notes?: string;
-  jitsiRoomId?: string;
+  sessionId?: string;
 }
 
 export interface UpdateVideoAppointmentData {
@@ -75,7 +69,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
-  const { subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents } = useVideoAppointmentWebSocket();
+  const { subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents, isConnected } = useVideoAppointmentWebSocket();
 
   const query = useQuery({
     queryKey: ['video-appointments', clinicId, filters],
@@ -85,14 +79,26 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       const hasAccess = hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
-      const result = await getVideoConsultationHistory({
-        ...filters,
-        startDate: filters?.startDate,
-        endDate: filters?.endDate,
-        status: filters?.status,
-        page: filters?.page,
-        limit: filters?.limit,
-      });
+      // Build filters object without undefined values (for exactOptionalPropertyTypes)
+      const historyFilters: {
+        userId?: string;
+        appointmentId?: string;
+        startDate?: string;
+        endDate?: string;
+        status?: string;
+        page?: number;
+        limit?: number;
+      } = {};
+      
+      if (filters?.startDate) historyFilters.startDate = filters.startDate;
+      if (filters?.endDate) historyFilters.endDate = filters.endDate;
+      if (filters?.status) historyFilters.status = filters.status;
+      if (filters?.page) historyFilters.page = filters.page;
+      if (filters?.limit) historyFilters.limit = filters.limit;
+      if (filters?.doctorId) historyFilters.userId = filters.doctorId;
+      if (filters?.patientId) historyFilters.userId = filters.patientId;
+
+      const result = await getVideoConsultationHistory(historyFilters);
       
       return { success: true, data: result, appointments: Array.isArray(result) ? result : [] };
     },
@@ -105,7 +111,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
 
   // ✅ Subscribe to real-time updates
   useEffect(() => {
-    if (!query.data) return;
+    if (!query.data || !isConnected) return;
 
     // Subscribe to video appointment updates
     const unsubscribeAppointments = subscribeToVideoAppointments(() => {
@@ -133,7 +139,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       unsubscribeParticipants();
       unsubscribeRecording();
     };
-  }, [query.data, queryClient, subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents]);
+  }, [query.data, isConnected, queryClient, subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents]);
 
   return query;
 }
@@ -155,6 +161,10 @@ export function useVideoAppointment(id: string) {
       return { success: true, data: result, appointment: result };
     },
     enabled: !!id && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
+    staleTime: 1 * 60 * 1000, // 1 minute - WebSocket handles real-time updates
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: false, // Disable polling - WebSocket handles updates
+    refetchOnWindowFocus: false,
   });
 
   // ✅ Subscribe to real-time updates for this specific appointment
@@ -326,7 +336,7 @@ export function useJoinVideoAppointment() {
           displayName: data.role,
           email: `${data.role}@example.com`,
         },
-      });
+      }) as { token: string; roomName: string; roomId: string; meetingUrl: string };
       
       return { success: true, data: tokenResult, token: tokenResult };
     },
@@ -334,8 +344,8 @@ export function useJoinVideoAppointment() {
       // Send WebSocket event for participant joined
       sendParticipantJoined(variables.appointmentId, {
         userId: variables.userId,
+        displayName: variables.role,
         role: variables.role,
-        timestamp: new Date().toISOString(),
       });
       
       toast({
@@ -380,7 +390,6 @@ export function useEndVideoAppointment() {
       // Send WebSocket events
       sendVideoAppointmentEvent('ended', {
         appointmentId,
-        timestamp: new Date().toISOString(),
       });
       
       toast({
@@ -458,25 +467,48 @@ export function useVideoRecording(appointmentId: string) {
 // ✅ Video Call Management Hook with WebSocket Integration
 export function useVideoCall() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { sendVideoAppointmentEvent, sendParticipantJoined, sendParticipantLeft, sendRecordingStarted, sendRecordingStopped } = useVideoAppointmentWebSocket();
 
   // ✅ Start Video Call
-  const startCall = useCallback(async (appointmentData: VideoAppointment, userInfo: any) => {
+  const startCall = useCallback(async (appointmentData: VideoAppointment, userInfo: { userId?: string; role?: string; displayName?: string; email?: string }, container?: HTMLElement) => {
     try {
-      const call = await videoAppointmentService.startVideoAppointment(appointmentData, userInfo);
+      // First, generate token from backend
+      const tokenResult = await generateVideoToken({
+        appointmentId: appointmentData.appointmentId,
+        userId: userInfo.userId || user?.id || '',
+        userRole: userInfo.role === 'doctor' ? 'doctor' : 'patient',
+        userInfo: {
+          displayName: userInfo.displayName,
+          email: userInfo.email,
+        },
+      }) as { token: string; roomName: string; roomId: string; meetingUrl: string };
+
+      // Get OpenVidu server URL from config or environment
+      const openviduServerUrl = APP_CONFIG.VIDEO.OPENVIDU_URL;
+
+      // Start video appointment with token
+      const call = await videoAppointmentService.startVideoAppointment(
+        appointmentData,
+        userInfo,
+        tokenResult.token,
+        openviduServerUrl
+      );
+
+      // Initialize with container if provided
+      if (container) {
+        await call.initialize(container);
+      }
       
       // Send WebSocket events
       sendVideoAppointmentEvent('started', {
         appointmentId: appointmentData.appointmentId,
-        userInfo,
-        timestamp: new Date().toISOString(),
       });
       
       sendParticipantJoined(appointmentData.appointmentId, {
         userId: userInfo.userId,
         displayName: userInfo.displayName,
         role: userInfo.role,
-        timestamp: new Date().toISOString(),
       });
       
       toast({
@@ -493,17 +525,16 @@ export function useVideoCall() {
       });
       throw error;
     }
-  }, [sendVideoAppointmentEvent, sendParticipantJoined, toast]);
+  }, [sendVideoAppointmentEvent, sendParticipantJoined, toast, user]);
 
   // ✅ End Video Call
   const endCall = useCallback(async (appointmentId: string) => {
     try {
-      await videoAppointmentService.endVideoAppointment(appointmentId);
+      await videoAppointmentService.endVideoAppointment();
       
       // Send WebSocket events
       sendVideoAppointmentEvent('ended', {
         appointmentId,
-        timestamp: new Date().toISOString(),
       });
       
       toast({
@@ -531,29 +562,22 @@ export function useVideoCall() {
   }, []);
 
   // ✅ Leave call (participant left)
-  const leaveCall = useCallback((appointmentId: string, userInfo: any) => {
+  const leaveCall = useCallback((appointmentId: string, userInfo: { userId: string; displayName: string; role: string }) => {
     sendParticipantLeft(appointmentId, {
       userId: userInfo.userId,
       displayName: userInfo.displayName,
       role: userInfo.role,
-      timestamp: new Date().toISOString(),
     });
   }, [sendParticipantLeft]);
 
   // ✅ Start recording
-  const startRecording = useCallback((appointmentId: string, recordingData: any) => {
-    sendRecordingStarted(appointmentId, {
-      ...recordingData,
-      timestamp: new Date().toISOString(),
-    });
+  const startRecording = useCallback((appointmentId: string, recordingData?: { recordingId: string; status: string }) => {
+    sendRecordingStarted(appointmentId, recordingData);
   }, [sendRecordingStarted]);
 
   // ✅ Stop recording
-  const stopRecording = useCallback((appointmentId: string, recordingData: any) => {
-    sendRecordingStopped(appointmentId, {
-      ...recordingData,
-      timestamp: new Date().toISOString(),
-    });
+  const stopRecording = useCallback((appointmentId: string, recordingData?: { recordingId: string; status: string }) => {
+    sendRecordingStopped(appointmentId, recordingData);
   }, [sendRecordingStopped]);
 
   return {
@@ -571,7 +595,7 @@ export function useVideoCall() {
 export function useVideoCallControls() {
   const { toast } = useToast();
 
-  const getCallControls = (call: any) => {
+  const getCallControls = (call: OpenViduAPI | null) => {
     if (!call) return null;
 
     return {

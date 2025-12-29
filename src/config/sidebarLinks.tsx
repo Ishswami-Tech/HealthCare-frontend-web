@@ -11,6 +11,8 @@ import {
   Building2,
   Pill,
   Package,
+  Activity,
+  Video,
 } from "lucide-react";
 import { Role } from "@/types/auth.types";
 
@@ -44,9 +46,19 @@ export const sidebarLinksByRole: Record<Role, SidebarLink[]> = {
     },
     { label: "Users", path: "/super-admin/users", icon: iconWrapper(Users) },
     {
+      label: "Video Consultations",
+      path: "/super-admin/video",
+      icon: iconWrapper(Video),
+    },
+    {
       label: "Reports",
       path: "/super-admin/reports",
       icon: iconWrapper(FileText),
+    },
+    {
+      label: "System Health",
+      path: "/super-admin/health",
+      icon: iconWrapper(Activity),
     },
     {
       label: "Settings",
@@ -77,6 +89,11 @@ export const sidebarLinksByRole: Record<Role, SidebarLink[]> = {
       icon: iconWrapper(Calendar),
     },
     {
+      label: "Video Consultations",
+      path: "/clinic-admin/video",
+      icon: iconWrapper(Video),
+    },
+    {
       label: "Reports",
       path: "/clinic-admin/reports",
       icon: iconWrapper(FileText),
@@ -95,6 +112,11 @@ export const sidebarLinksByRole: Record<Role, SidebarLink[]> = {
       path: "/doctor/appointments",
       icon: iconWrapper(Calendar),
     },
+    {
+      label: "Video Consultations",
+      path: "/doctor/video",
+      icon: iconWrapper(Video),
+    },
     { label: "Patients", path: "/doctor/patients", icon: iconWrapper(Users) },
     { label: "Profile", path: "/doctor/profile", icon: iconWrapper(User) },
     { label: "Logout", path: "#", icon: iconWrapper(LogOut) },
@@ -109,6 +131,11 @@ export const sidebarLinksByRole: Record<Role, SidebarLink[]> = {
       label: "Appointments",
       path: "/receptionist/appointments",
       icon: iconWrapper(Calendar),
+    },
+    {
+      label: "Video Consultations",
+      path: "/receptionist/video",
+      icon: iconWrapper(Video),
     },
     {
       label: "Patients",
@@ -142,6 +169,11 @@ export const sidebarLinksByRole: Record<Role, SidebarLink[]> = {
       label: "Appointments",
       path: "/patient/appointments",
       icon: iconWrapper(Calendar),
+    },
+    {
+      label: "Video Consultations",
+      path: "/patient/video",
+      icon: iconWrapper(Video),
     },
     {
       label: "Medical Records",

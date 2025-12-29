@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -242,7 +243,7 @@ interface MobilePatientCardProps {
   className?: string;
 }
 
-const MobilePatientCard: React.FC<MobilePatientCardProps> = ({
+const MobilePatientCardComponent: React.FC<MobilePatientCardProps> = ({
   patient,
   onAction,
   className,
@@ -273,12 +274,15 @@ const MobilePatientCard: React.FC<MobilePatientCardProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3">
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
               {patient.avatar ? (
-                <img 
+                <Image 
                   src={patient.avatar} 
                   alt={patient.name}
+                  width={48}
+                  height={48}
                   className="w-full h-full rounded-full object-cover"
+                  loading="lazy"
                 />
               ) : (
                 <User className="h-6 w-6 text-primary" />
@@ -361,6 +365,9 @@ const MobilePatientCard: React.FC<MobilePatientCardProps> = ({
     </Card>
   );
 };
+
+// Export memoized MobilePatientCard for performance optimization
+const MobilePatientCard = React.memo(MobilePatientCardComponent);
 
 // Mobile Quick Actions FAB
 interface MobileQuickActionsProps {

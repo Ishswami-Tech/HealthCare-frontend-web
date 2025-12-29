@@ -1,6 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
+import { API_ENDPOINTS } from '../config/config';
 
 // ===== ANALYTICS & REPORTING =====
 
@@ -11,7 +12,7 @@ export async function getDashboardAnalytics(period: 'day' | 'week' | 'month' | '
   const params = new URLSearchParams({ period });
   if (clinicId) params.append('clinicId', clinicId);
   
-  const { data } = await authenticatedApi(`/analytics/dashboard?${params.toString()}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.ANALYTICS.DASHBOARD}?${params.toString()}`);
   return data;
 }
 
@@ -32,7 +33,7 @@ export async function getAppointmentAnalytics(filters?: {
     });
   }
   
-  const endpoint = `/analytics/appointments${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.ANALYTICS.APPOINTMENTS}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -55,7 +56,7 @@ export async function getPatientAnalytics(filters?: {
     });
   }
   
-  const endpoint = `/analytics/patients${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.ANALYTICS.PATIENTS}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -77,7 +78,7 @@ export async function getRevenueAnalytics(filters?: {
     });
   }
   
-  const endpoint = `/analytics/revenue${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.ANALYTICS.REVENUE}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -89,7 +90,7 @@ export async function getDoctorPerformanceAnalytics(doctorId?: string, period: '
   const params = new URLSearchParams({ period });
   if (doctorId) params.append('doctorId', doctorId);
   
-  const { data } = await authenticatedApi(`/analytics/doctors/performance?${params.toString()}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.ANALYTICS.DOCTORS_PERFORMANCE}?${params.toString()}`);
   return data;
 }
 
@@ -100,7 +101,7 @@ export async function getClinicPerformanceAnalytics(clinicId?: string, period: '
   const params = new URLSearchParams({ period });
   if (clinicId) params.append('clinicId', clinicId);
   
-  const { data } = await authenticatedApi(`/analytics/clinics/performance?${params.toString()}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.ANALYTICS.CLINICS_PERFORMANCE}?${params.toString()}`);
   return data;
 }
 
@@ -119,7 +120,7 @@ export async function getServiceUtilizationAnalytics(filters?: {
     });
   }
   
-  const endpoint = `/analytics/services/utilization${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.ANALYTICS.SERVICES_UTILIZATION}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -139,7 +140,7 @@ export async function getWaitTimeAnalytics(filters?: {
     });
   }
   
-  const endpoint = `/analytics/wait-times${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.ANALYTICS.WAIT_TIMES}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -159,7 +160,7 @@ export async function getPatientSatisfactionAnalytics(filters?: {
     });
   }
   
-  const endpoint = `/analytics/satisfaction${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.ANALYTICS.SATISFACTION}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -177,7 +178,7 @@ export async function generateAppointmentReport(filters: {
   doctorId?: string;
   status?: string;
 }) {
-  const { data } = await authenticatedApi('/reports/appointments', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.APPOINTMENTS, {
     method: 'POST',
     body: JSON.stringify(filters),
   });
@@ -194,7 +195,7 @@ export async function generatePatientReport(filters: {
   clinicId?: string;
   includeDetails?: boolean;
 }) {
-  const { data } = await authenticatedApi('/reports/patients', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.PATIENTS, {
     method: 'POST',
     body: JSON.stringify(filters),
   });
@@ -211,7 +212,7 @@ export async function generateRevenueReport(filters: {
   clinicId?: string;
   groupBy?: 'day' | 'week' | 'month';
 }) {
-  const { data } = await authenticatedApi('/reports/revenue', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.REVENUE, {
     method: 'POST',
     body: JSON.stringify(filters),
   });
@@ -228,7 +229,7 @@ export async function generateDoctorPerformanceReport(filters: {
   doctorId?: string;
   clinicId?: string;
 }) {
-  const { data } = await authenticatedApi('/reports/doctors/performance', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.DOCTORS_PERFORMANCE, {
     method: 'POST',
     body: JSON.stringify(filters),
   });
@@ -244,7 +245,7 @@ export async function generateClinicSummaryReport(filters: {
   format: 'pdf' | 'excel' | 'csv';
   clinicId?: string;
 }) {
-  const { data } = await authenticatedApi('/reports/clinics/summary', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.CLINICS_SUMMARY, {
     method: 'POST',
     body: JSON.stringify(filters),
   });
@@ -268,7 +269,7 @@ export async function getReportHistory(filters?: {
     });
   }
   
-  const endpoint = `/reports/history${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.REPORTS.HISTORY}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -277,7 +278,7 @@ export async function getReportHistory(filters?: {
  * Download report
  */
 export async function downloadReport(reportId: string) {
-  const { data } = await authenticatedApi(`/reports/${reportId}/download`);
+  const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.DOWNLOAD(reportId));
   return data;
 }
 
@@ -285,7 +286,7 @@ export async function downloadReport(reportId: string) {
  * Delete report
  */
 export async function deleteReport(reportId: string) {
-  const { data } = await authenticatedApi(`/reports/${reportId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.REPORTS.DELETE(reportId), {
     method: 'DELETE',
   });
   return data;
@@ -301,7 +302,7 @@ export async function getCustomAnalytics(query: {
   startDate: string;
   endDate: string;
 }) {
-  const { data } = await authenticatedApi('/analytics/custom', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.ANALYTICS.CUSTOM, {
     method: 'POST',
     body: JSON.stringify(query),
   });
@@ -320,7 +321,7 @@ export async function saveCustomAnalyticsQuery(queryData: {
     filters?: Record<string, any>;
   };
 }) {
-  const { data } = await authenticatedApi('/analytics/custom/queries', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.ANALYTICS.CUSTOM_QUERIES.CREATE, {
     method: 'POST',
     body: JSON.stringify(queryData),
   });
@@ -331,7 +332,7 @@ export async function saveCustomAnalyticsQuery(queryData: {
  * Get saved analytics queries
  */
 export async function getSavedAnalyticsQueries() {
-  const { data } = await authenticatedApi('/analytics/custom/queries');
+  const { data } = await authenticatedApi(API_ENDPOINTS.ANALYTICS.CUSTOM_QUERIES.GET_ALL);
   return data;
 }
 
@@ -353,7 +354,7 @@ export async function getQueueAnalytics(filters?: {
     });
   }
 
-  const endpoint = `/analytics/queue${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.ANALYTICS.QUEUE}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -362,7 +363,7 @@ export async function getQueueAnalytics(filters?: {
  * Export analytics data
  */
 export async function exportAnalyticsData(format: 'csv' | 'excel' | 'pdf', data: any) {
-  const { data: result } = await authenticatedApi('/analytics/export', {
+  const { data: result } = await authenticatedApi(API_ENDPOINTS.ANALYTICS.EXPORT, {
     method: 'POST',
     body: JSON.stringify({ format, data }),
   });

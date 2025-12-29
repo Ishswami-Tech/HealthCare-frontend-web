@@ -761,30 +761,50 @@ export function DetailedBackendStatus({ className }: { className?: string }) {
 export function BackendStatusWidget({ className }: { className?: string }) {
   const backend = BackendStatusIndicator();
   const [showDetails, setShowDetails] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  // Import dynamically to avoid circular dependencies
+  const GlobalHealthStatusModal = React.lazy(() => 
+    import('@/components/admin/GlobalHealthStatusModal').then(m => ({ default: m.GlobalHealthStatusModal }))
+  );
+
+  const handleClick = () => {
+    // Open comprehensive modal instead of simple dropdown
+    setShowModal(true);
+    setShowDetails(false);
+  };
 
   return (
-    <div className={cn("relative", className)}>
-      <div
-        className="cursor-pointer"
-        onClick={() => setShowDetails(!showDetails)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setShowDetails(!showDetails);
-          }
-        }}
-        role="button"
-        tabIndex={0}
-        aria-label="Toggle backend status details"
-      >
-        {backend.indicator}
-      </div>
-
-      {showDetails && (
-        <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-lg border shadow-lg p-4 min-w-80">
-          {backend.detailed}
+    <>
+      <div className={cn("relative", className)}>
+        <div
+          className="cursor-pointer"
+          onClick={handleClick}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleClick();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="View comprehensive system health status"
+        >
+          {backend.indicator}
         </div>
+
+        {showDetails && (
+          <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-lg border shadow-lg p-4 min-w-80">
+            {backend.detailed}
+          </div>
+        )}
+      </div>
+      
+      {showModal && (
+        <React.Suspense fallback={null}>
+          <GlobalHealthStatusModal open={showModal} onOpenChange={setShowModal} />
+        </React.Suspense>
       )}
-    </div>
+    </>
   );
 }

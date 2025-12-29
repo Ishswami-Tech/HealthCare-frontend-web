@@ -1,6 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
+import { API_ENDPOINTS } from '../config/config';
 
 // ===== MEDICAL RECORDS MANAGEMENT =====
 
@@ -22,7 +23,7 @@ export async function getPatientMedicalRecords(patientId: string, filters?: {
     });
   }
   
-  const endpoint = `/medical-records/patient/${patientId}${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.MEDICAL_RECORDS.GET_BY_PATIENT(patientId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -39,7 +40,7 @@ export async function createMedicalRecord(recordData: {
   doctorId?: string;
   appointmentId?: string;
 }) {
-  const { data } = await authenticatedApi('/medical-records', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.CREATE, {
     method: 'POST',
     body: JSON.stringify(recordData),
   });
@@ -54,7 +55,7 @@ export async function updateMedicalRecord(recordId: string, updates: {
   content?: string;
   fileUrl?: string;
 }) {
-  const { data } = await authenticatedApi(`/medical-records/${recordId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.UPDATE(recordId), {
     method: 'PATCH',
     body: JSON.stringify(updates),
   });
@@ -65,7 +66,7 @@ export async function updateMedicalRecord(recordId: string, updates: {
  * Delete medical record
  */
 export async function deleteMedicalRecord(recordId: string) {
-  const { data } = await authenticatedApi(`/medical-records/${recordId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.DELETE(recordId), {
     method: 'DELETE',
   });
   return data;
@@ -75,7 +76,7 @@ export async function deleteMedicalRecord(recordId: string) {
  * Get medical record by ID
  */
 export async function getMedicalRecordById(recordId: string) {
-  const { data } = await authenticatedApi(`/medical-records/${recordId}`);
+  const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.GET_BY_ID(recordId));
   return data;
 }
 
@@ -86,7 +87,7 @@ export async function uploadMedicalRecordFile(recordId: string, file: File) {
   const formData = new FormData();
   formData.append('file', file);
   
-  const { data } = await authenticatedApi(`/medical-records/${recordId}/upload`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.UPLOAD(recordId), {
     method: 'POST',
     body: formData,
     headers: {
@@ -101,7 +102,7 @@ export async function uploadMedicalRecordFile(recordId: string, file: File) {
  */
 export async function getMedicalRecordTemplates(type?: string) {
   const params = type ? `?type=${type}` : '';
-  const { data } = await authenticatedApi(`/medical-records/templates${params}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.MEDICAL_RECORDS.TEMPLATES.GET}${params}`);
   return data;
 }
 
@@ -119,7 +120,7 @@ export async function createMedicalRecordTemplate(templateData: {
     options?: string[];
   }>;
 }) {
-  const { data } = await authenticatedApi('/medical-records/templates', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.MEDICAL_RECORDS.TEMPLATES.CREATE, {
     method: 'POST',
     body: JSON.stringify(templateData),
   });
@@ -133,7 +134,7 @@ export async function createMedicalRecordTemplate(templateData: {
  */
 export async function getPatientPrescriptions(patientId: string, status?: 'active' | 'completed' | 'cancelled') {
   const params = status ? `?status=${status}` : '';
-  const { data } = await authenticatedApi(`/prescriptions/patient/${patientId}${params}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.PRESCRIPTIONS.GET_BY_PATIENT(patientId)}${params}`);
   return data;
 }
 
@@ -153,7 +154,7 @@ export async function createPrescription(prescriptionData: {
   }>;
   notes?: string;
 }) {
-  const { data } = await authenticatedApi('/prescriptions', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.CREATE, {
     method: 'POST',
     body: JSON.stringify(prescriptionData),
   });
@@ -174,7 +175,7 @@ export async function updatePrescription(prescriptionId: string, updates: {
   notes?: string;
   status?: 'active' | 'completed' | 'cancelled';
 }) {
-  const { data } = await authenticatedApi(`/prescriptions/${prescriptionId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.UPDATE(prescriptionId), {
     method: 'PATCH',
     body: JSON.stringify(updates),
   });
@@ -185,7 +186,7 @@ export async function updatePrescription(prescriptionId: string, updates: {
  * Get prescription by ID
  */
 export async function getPrescriptionById(prescriptionId: string) {
-  const { data } = await authenticatedApi(`/prescriptions/${prescriptionId}`);
+  const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.GET_BY_ID(prescriptionId));
   return data;
 }
 
@@ -193,7 +194,7 @@ export async function getPrescriptionById(prescriptionId: string) {
  * Generate prescription PDF
  */
 export async function generatePrescriptionPDF(prescriptionId: string) {
-  const { data } = await authenticatedApi(`/prescriptions/${prescriptionId}/pdf`);
+  const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.GENERATE_PDF(prescriptionId));
   return data;
 }
 
@@ -214,7 +215,7 @@ export async function getMedicines(filters?: {
     });
   }
   
-  const endpoint = `/medicines${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.MEDICINES.GET_ALL}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -234,7 +235,7 @@ export async function createMedicine(medicineData: {
   dosageForm?: string;
   strength?: string;
 }) {
-  const { data } = await authenticatedApi('/medicines', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.MEDICINES.CREATE, {
     method: 'POST',
     body: JSON.stringify(medicineData),
   });
@@ -256,7 +257,7 @@ export async function updateMedicine(medicineId: string, updates: Partial<{
   dosageForm: string;
   strength: string;
 }>) {
-  const { data } = await authenticatedApi(`/medicines/${medicineId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.MEDICINES.UPDATE(medicineId), {
     method: 'PATCH',
     body: JSON.stringify(updates),
   });
@@ -267,7 +268,7 @@ export async function updateMedicine(medicineId: string, updates: Partial<{
  * Delete medicine
  */
 export async function deleteMedicine(medicineId: string) {
-  const { data } = await authenticatedApi(`/medicines/${medicineId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.MEDICINES.DELETE(medicineId), {
     method: 'DELETE',
   });
   return data;
@@ -277,7 +278,7 @@ export async function deleteMedicine(medicineId: string) {
  * Search medicines
  */
 export async function searchMedicines(query: string, limit: number = 20) {
-  const { data } = await authenticatedApi(`/medicines/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.MEDICINES.SEARCH}?q=${encodeURIComponent(query)}&limit=${limit}`);
   return data;
 }
 
@@ -285,7 +286,7 @@ export async function searchMedicines(query: string, limit: number = 20) {
  * Get medicine interactions
  */
 export async function getMedicineInteractions(medicineIds: string[]) {
-  const { data } = await authenticatedApi('/medicines/interactions', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.MEDICINES.INTERACTIONS, {
     method: 'POST',
     body: JSON.stringify({ medicineIds }),
   });
@@ -297,7 +298,7 @@ export async function getMedicineInteractions(medicineIds: string[]) {
  */
 export async function getMedicineInventory(clinicId?: string) {
   const params = clinicId ? `?clinicId=${clinicId}` : '';
-  const { data } = await authenticatedApi(`/medicines/inventory${params}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.MEDICINES.INVENTORY.GET}${params}`);
   return data;
 }
 
@@ -310,7 +311,7 @@ export async function updateMedicineInventory(medicineId: string, inventoryData:
   batchNumber?: string;
   cost?: number;
 }) {
-  const { data } = await authenticatedApi(`/medicines/${medicineId}/inventory`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.MEDICINES.INVENTORY.UPDATE(medicineId), {
     method: 'PATCH',
     body: JSON.stringify(inventoryData),
   });

@@ -1,6 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
+import { API_ENDPOINTS } from '../config/config';
 
 // ===== DOCTORS MANAGEMENT ACTIONS =====
 
@@ -32,7 +33,7 @@ export async function getDoctors(clinicId: string, filters?: {
  * Get doctor by ID
  */
 export async function getDoctorById(doctorId: string) {
-  const { data } = await authenticatedApi(`/doctors/${doctorId}`);
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId));
   return data;
 }
 
@@ -54,7 +55,7 @@ export async function createDoctor(doctorData: {
     isAvailable: boolean;
   }[];
 }) {
-  const { data } = await authenticatedApi('/doctors', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.CREATE, {
     method: 'POST',
     body: JSON.stringify(doctorData),
   });
@@ -73,7 +74,7 @@ export async function updateDoctor(doctorId: string, updates: {
   isActive?: boolean;
   clinicId?: string;
 }) {
-  const { data } = await authenticatedApi(`/doctors/${doctorId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.UPDATE(doctorId), {
     method: 'PATCH',
     body: JSON.stringify(updates),
   });
@@ -84,7 +85,7 @@ export async function updateDoctor(doctorId: string, updates: {
  * Delete doctor
  */
 export async function deleteDoctor(doctorId: string) {
-  const { data } = await authenticatedApi(`/doctors/${doctorId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.DELETE(doctorId), {
     method: 'DELETE',
   });
   return data;
@@ -95,7 +96,7 @@ export async function deleteDoctor(doctorId: string) {
  */
 export async function getDoctorSchedule(clinicId: string, doctorId: string, date?: string) {
   const params = date ? `?date=${date}` : '';
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/doctors/${doctorId}/schedule${params}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.SCHEDULE.GET(clinicId, doctorId)}${params}`);
   return data;
 }
 
@@ -108,7 +109,7 @@ export async function updateDoctorSchedule(doctorId: string, schedule: {
   endTime: string;
   isAvailable: boolean;
 }[]) {
-  const { data } = await authenticatedApi(`/doctors/${doctorId}/schedule`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.SCHEDULE.UPDATE(doctorId), {
     method: 'PUT',
     body: JSON.stringify({ schedule }),
   });
@@ -119,7 +120,7 @@ export async function updateDoctorSchedule(doctorId: string, schedule: {
  * Get doctor availability
  */
 export async function getDoctorAvailability(doctorId: string, date: string) {
-  const { data } = await authenticatedApi(`/doctors/${doctorId}/availability?date=${date}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.AVAILABILITY.GET(doctorId)}?date=${date}`);
   return data;
 }
 
@@ -134,7 +135,7 @@ export async function updateDoctorAvailability(doctorId: string, availabilityDat
     isAvailable: boolean;
   }[];
 }) {
-  const { data } = await authenticatedApi(`/doctors/${doctorId}/availability`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.AVAILABILITY.UPDATE(doctorId), {
     method: 'PUT',
     body: JSON.stringify(availabilityData),
   });
@@ -156,7 +157,7 @@ export async function getDoctorAppointments(doctorId: string, filters?: {
     });
   }
   
-  const endpoint = `/doctors/${doctorId}/appointments${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.DOCTORS.APPOINTMENTS(doctorId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -185,7 +186,7 @@ export async function getDoctorPatients(clinicId: string, doctorId: string, filt
  */
 export async function getDoctorStats(doctorId: string, period?: 'day' | 'week' | 'month' | 'year') {
   const params = period ? `?period=${period}` : '';
-  const { data } = await authenticatedApi(`/doctors/${doctorId}/stats${params}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.STATS(doctorId)}${params}`);
   return data;
 }
 
@@ -193,7 +194,7 @@ export async function getDoctorStats(doctorId: string, period?: 'day' | 'week' |
  * Get doctor reviews
  */
 export async function getDoctorReviews(doctorId: string, limit: number = 10) {
-  const { data } = await authenticatedApi(`/doctors/${doctorId}/reviews?limit=${limit}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.REVIEWS.GET(doctorId)}?limit=${limit}`);
   return data;
 }
 
@@ -206,7 +207,7 @@ export async function addDoctorReview(doctorId: string, reviewData: {
   comment?: string;
   appointmentId?: string;
 }) {
-  const { data } = await authenticatedApi(`/doctors/${doctorId}/reviews`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.REVIEWS.CREATE(doctorId), {
     method: 'POST',
     body: JSON.stringify(reviewData),
   });
@@ -217,7 +218,7 @@ export async function addDoctorReview(doctorId: string, reviewData: {
  * Get doctor specializations
  */
 export async function getDoctorSpecializations() {
-  const { data } = await authenticatedApi('/doctors/specializations');
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.SPECIALIZATIONS);
   return data;
 }
 
@@ -238,7 +239,7 @@ export async function searchDoctors(query: string, filters?: {
     });
   }
   
-  const { data } = await authenticatedApi(`/doctors/search?${params.toString()}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.SEARCH}?${params.toString()}`);
   return data;
 }
 
@@ -256,7 +257,7 @@ export async function getDoctorPerformanceMetrics(doctorId: string, filters?: {
     });
   }
   
-  const endpoint = `/doctors/${doctorId}/performance${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.DOCTORS.PERFORMANCE(doctorId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -271,7 +272,7 @@ export async function updateDoctorProfile(doctorId: string, profileData: {
   languages?: string[];
   profilePicture?: string;
 }) {
-  const { data } = await authenticatedApi(`/doctors/${doctorId}/profile`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.PROFILE.UPDATE(doctorId), {
     method: 'PATCH',
     body: JSON.stringify(profileData),
   });
@@ -308,7 +309,7 @@ export async function exportDoctorData(filters: {
   startDate?: string;
   endDate?: string;
 }) {
-  const { data } = await authenticatedApi('/doctors/export', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.EXPORT, {
     method: 'POST',
     body: JSON.stringify(filters),
   });

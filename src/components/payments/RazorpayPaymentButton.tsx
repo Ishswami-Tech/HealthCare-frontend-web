@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { authenticatedApi } from "@/lib/api/client";
-import { API_ENDPOINTS } from "@/lib/api/config";
+import { API_ENDPOINTS } from "@/lib/config/config";
 
 // Declare Razorpay types
 declare global {

@@ -32,6 +32,7 @@ import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { BackendStatusWidget, DetailedBackendStatus } from "@/components/common/BackendStatusIndicator";
 import { SystemStatusBar } from "@/components/common/StatusIndicator";
+import { GlobalHealthStatusButton } from "@/components/common/GlobalHealthStatusButton";
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"password" | "otp">("password");
@@ -184,6 +185,9 @@ export default function LoginPage() {
 
   return (
     <div className="space-y-4">
+      {/* Global Health Status Button - Floating */}
+      <GlobalHealthStatusButton variant="floating" position="bottom-right" />
+      
       {/* Backend Status Indicators */}
       <div className="w-full max-w-md mx-auto space-y-3">
         <SystemStatusBar className="justify-center" />

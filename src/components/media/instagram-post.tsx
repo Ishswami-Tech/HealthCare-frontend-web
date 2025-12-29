@@ -83,13 +83,13 @@ export function InstagramPost({
         const mockData: InstagramPostData = {
           id: postId || "mock-id",
           caption:
-            "Experience the healing power of traditional Ayurveda at Shri Vishwamurthi Ayurvedalay. Dr. Chandrakumar Deshmukh specializes in Panchakarma, Viddhakarma, and Agnikarma treatments for holistic wellness. Book your consultation today! #Ayurveda #NaturalHealing #Wellness #Panchakarma #TraditionalMedicine",
+            "Experience the healing power of traditional Ayurveda at Shri Vishwamurti Ayurvedalay. Dr. Chandrakumar Deshmukh specializes in Panchakarma, Viddhakarma, and Agnikarma treatments for holistic wellness. Book your consultation today! #Ayurveda #NaturalHealing #Wellness #Panchakarma #TraditionalMedicine",
           media_url:
             "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&h=400&fit=crop",
           media_type: "IMAGE",
           permalink: postUrl,
           timestamp: new Date().toISOString(),
-          username: "vishwamurthi_ayurveda",
+          username: "Vishwamurti_ayurveda",
           likes_count: 127,
           comments_count: 23,
         };
@@ -191,7 +191,7 @@ export function InstagramPost({
           </div>
           <div>
             <p className="font-semibold text-sm">
-              {postData.username || "vishwamurthi_ayurveda"}
+              {postData.username || "Vishwamurti_ayurveda"}
             </p>
             <p className="text-xs text-gray-500">
               {new Date(postData.timestamp).toLocaleDateString()}
@@ -270,7 +270,7 @@ export function InstagramPost({
           <div className="text-sm">
             <p className="text-gray-800">
               <span className="font-semibold">
-                {postData.username || "vishwamurthi_ayurveda"}
+                {postData.username || "Vishwamurti_ayurveda"}
               </span>{" "}
               {showFullCaption ? postData.caption : truncatedCaption}
             </p>

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { memo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,7 @@ interface AppointmentCardProps {
   className?: string;
 }
 
-export function AppointmentCard({
+function AppointmentCardComponent({
   appointment,
   showPatient = false,
   showDoctor = true,
@@ -263,6 +263,20 @@ export function AppointmentCard({
     </Card>
   );
 }
+
+// Export memoized AppointmentCard for performance optimization
+export const AppointmentCard = memo(AppointmentCardComponent, (prevProps, nextProps) => {
+  // Custom comparison function for better performance
+  return (
+    prevProps.appointment.id === nextProps.appointment.id &&
+    prevProps.appointment.status === nextProps.appointment.status &&
+    prevProps.appointment.date === nextProps.appointment.date &&
+    prevProps.appointment.time === nextProps.appointment.time &&
+    prevProps.showPatient === nextProps.showPatient &&
+    prevProps.showDoctor === nextProps.showDoctor &&
+    prevProps.className === nextProps.className
+  );
+});
 
 // Appointment list component
 interface AppointmentListProps {

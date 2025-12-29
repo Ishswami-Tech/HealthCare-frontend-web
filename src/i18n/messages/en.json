@@ -477,7 +477,7 @@
         "location": "Mumbai",
         "condition": "Chronic Knee Pain",
         "treatment": "Agnikarma",
-        "quote": "After 3 sessions of Agnikarma, my 10-year chronic knee pain completely disappeared. I can now climb stairs without any discomfort. Dr. Vishwamurthi's expertise is truly remarkable.",
+        "quote": "After 3 sessions of Agnikarma, my 10-year chronic knee pain completely disappeared. I can now climb stairs without any discomfort. Dr. Vishwamurti's expertise is truly remarkable.",
         "result": "100% pain relief in 3 weeks"
       },
       "suresh": {
@@ -618,14 +618,14 @@
     "cancel": "Cancel"
   },
   "about": {
-    "title": "About Shri Vishwamurthi Ayurvedalay",
+    "title": "About Shri Vishwamurti Ayurvedalay",
     "subtitle": "Bridging Ancient Wisdom with Modern Healthcare",
     "description": "For over two decades, we have been dedicated to providing authentic Ayurvedic treatments that heal not just the body, but the mind and soul. Our journey is one of continuous learning, innovation, and unwavering commitment to patient wellness.",
     "milestones": {
       "title": "Our Journey of Excellence",
       "subtitle": "Two decades of milestones in authentic Ayurvedic healthcare",
       "2003": {
-        "event": "Founded Shri Vishwamurthi Ayurvedalay",
+        "event": "Founded Shri Vishwamurti Ayurvedalay",
         "description": "Started with a vision to bring authentic Ayurveda to modern healthcare"
       },
       "2008": {
@@ -846,7 +846,7 @@
   "contact": {
     "title": "Get in Touch for Authentic Healing",
     "subtitle": "Ready to begin your journey to complete wellness? Our expert team is here to guide you every step of the way with personalized Ayurvedic solutions.",
-    "badge": "Contact Shri Vishwamurthi Ayurvedalay",
+    "badge": "Contact Shri Vishwamurti Ayurvedalay",
     "trustBadges": {
       "support": "24/7 Support Available",
       "rating": "4.9/5 Patient Rating",
@@ -894,15 +894,15 @@
       "phoneNumbers": {
         "title": "Phone Numbers",
         "details": {
-          "0": "9860370961",
-          "1": "7709399925",
+          "0": "+91 9860370961",
+          "1": "+91 79 7254 8944",
           "2": "Call for appointment"
         }
       },
       "emailAddresses": {
         "title": "Email Addresses",
         "details": {
-          "0": "vishwamurthiayurveda@gmail.com",
+          "0": "Vishwamurtiayurveda@gmail.com",
           "1": "For appointments & queries",
           "2": "Quick response guaranteed"
         }
@@ -918,9 +918,10 @@
       "workingHours": {
         "title": "Working Hours",
         "details": {
-          "0": "Monday - Friday: 11:45 AM - 11:30 PM",
-          "1": "Saturday & Sunday: Closed",
-          "2": "Emergency consultations available"
+          "0": "Chinchwad - 12 pm to 6 pm (day OPD), 10 pm to 11.45 pm (night OPD)",
+          "1": "Pune - 7-9 pm (only night)",
+          "2": "Dehu - Every Wednesday (10 am to 2 pm)",
+          "3": "Nanded - Alternate weekend (Saturday & Sunday)"
         }
       }
     },
@@ -1609,8 +1610,8 @@
     "contact": {
       "title": "Contact Info",
       "address": "Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon",
-      "phone": "+91 9860370961",
-      "email": "vishwamurthiayurveda@gmail.com",
+      "phone": "+91 9860370961, +91 79 7254 8944",
+      "email": "Vishwamurtiayurveda@gmail.com",
       "hours": "Mon-Fri: 11:45 AM - 11:30 PM"
     },
     "social": {
@@ -1620,7 +1621,7 @@
       "youtube": "YouTube",
       "whatsapp": "WhatsApp"
     },
-    "copyright": "© 2024 Shri Vishwamurthi Ayurvedalay. All rights reserved.",
+    "copyright": "© 2024 Shri Vishwamurti Ayurvedalay. All rights reserved.",
     "poweredBy": "Powered by Ayurvedic Excellence"
   },
   "gallery": {

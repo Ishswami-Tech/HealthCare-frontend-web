@@ -2,9 +2,7 @@
 
 import React, { createContext, useContext, useMemo } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { useAppStore } from "@/stores/useAppStore";
-
-export type LoadingOverlayVariant = "default" | "logout" | "login" | "register";
+import { useAppStore, LoadingOverlayVariant } from "@/stores/app.store";
 
 interface LoadingOverlayContextType {
   overlay: {

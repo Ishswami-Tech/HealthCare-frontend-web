@@ -703,7 +703,7 @@ export default function ContactPage() {
                             zoom={15}
                             height="350px"
                             showInfoWindow={true}
-                            clinicName="Shri Vishwamurthi Ayurvedalay"
+                            clinicName="Shri Vishwamurti Ayurvedalay"
                             clinicPhone="9860370961, 7709399925"
                             clinicHours="Mon-Fri: 11:45 AM – 11:30 PM"
                           />

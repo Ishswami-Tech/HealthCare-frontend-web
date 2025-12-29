@@ -1,6 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
+import { API_ENDPOINTS } from '../config/config';
 
 // ===== PHARMACY MANAGEMENT ACTIONS =====
 
@@ -25,7 +26,7 @@ export async function getMedicines(clinicId: string, filters?: {
     });
   }
 
-  const endpoint = `/clinics/${clinicId}/medicines/inventory${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.PHARMACY.MEDICINES.GET_CLINIC_INVENTORY(clinicId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -34,7 +35,7 @@ export async function getMedicines(clinicId: string, filters?: {
  * Get medicine by ID
  */
 export async function getMedicineById(medicineId: string) {
-  const { data } = await authenticatedApi(`/pharmacy/medicines/${medicineId}`);
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.MEDICINES.GET_BY_ID(medicineId));
   return data;
 }
 
@@ -61,7 +62,7 @@ export async function createMedicine(clinicId: string, medicineData: {
   contraindications?: string[];
   storageConditions?: string;
 }) {
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/medicines`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.MEDICINES.CREATE(clinicId), {
     method: 'POST',
     body: JSON.stringify(medicineData),
   });
@@ -92,7 +93,7 @@ export async function updateMedicine(clinicId: string, medicineId: string, updat
   storageConditions?: string;
   isActive?: boolean;
 }) {
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/medicines/${medicineId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.MEDICINES.UPDATE(clinicId, medicineId), {
     method: 'PATCH',
     body: JSON.stringify(updates),
   });
@@ -103,7 +104,7 @@ export async function updateMedicine(clinicId: string, medicineId: string, updat
  * Delete medicine
  */
 export async function deleteMedicine(clinicId: string, medicineId: string) {
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/medicines/${medicineId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.MEDICINES.DELETE(clinicId, medicineId), {
     method: 'DELETE',
   });
   return data;
@@ -127,7 +128,7 @@ export async function getPrescriptions(clinicId: string, filters?: {
     });
   }
 
-  const endpoint = `/clinics/${clinicId}/prescriptions${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.CREATE(clinicId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -136,7 +137,7 @@ export async function getPrescriptions(clinicId: string, filters?: {
  * Get prescription by ID
  */
 export async function getPrescriptionById(prescriptionId: string) {
-  const { data } = await authenticatedApi(`/pharmacy/prescriptions/${prescriptionId}`);
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.GET(prescriptionId));
   return data;
 }
 
@@ -158,7 +159,7 @@ export async function createPrescription(clinicId: string, prescriptionData: {
   notes?: string;
   validUntil?: string;
 }) {
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/prescriptions`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.CREATE(clinicId), {
     method: 'POST',
     body: JSON.stringify(prescriptionData),
   });
@@ -169,7 +170,7 @@ export async function createPrescription(clinicId: string, prescriptionData: {
  * Update prescription status
  */
 export async function updatePrescriptionStatus(prescriptionId: string, status: string, notes?: string) {
-  const { data } = await authenticatedApi(`/pharmacy/prescriptions/${prescriptionId}/status`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.UPDATE_STATUS(prescriptionId), {
     method: 'PATCH',
     body: JSON.stringify({ status, notes }),
   });
@@ -195,7 +196,7 @@ export async function dispensePrescription(prescriptionId: string, dispensingDat
     approvedAmount: number;
   };
 }) {
-  const { data } = await authenticatedApi(`/pharmacy/prescriptions/${prescriptionId}/dispense`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.DISPENSE(prescriptionId), {
     method: 'POST',
     body: JSON.stringify(dispensingData),
   });
@@ -220,8 +221,8 @@ export async function getInventory(clinicId: string, filters?: {
     });
   }
 
-  const endpoint = `/clinics/${clinicId}/pharmacy/inventory${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
+  const endpoint = `${API_ENDPOINTS.PHARMACY.INVENTORY.UPDATE(clinicId, '')}${params.toString() ? `?${params.toString()}` : ''}`;
+  const { data } = await authenticatedApi(endpoint.replace('/inventory/', '/inventory'));
   return data;
 }
 
@@ -235,7 +236,7 @@ export async function updateInventory(clinicId: string, medicineId: string, inve
   reorderPoint?: number;
   lastRestocked?: string;
 }) {
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/pharmacy/inventory/${medicineId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.INVENTORY.UPDATE(clinicId, medicineId), {
     method: 'PATCH',
     body: JSON.stringify(inventoryData),
   });
@@ -259,7 +260,7 @@ export async function getPharmacyOrders(clinicId: string, filters?: {
     });
   }
 
-  const endpoint = `/clinics/${clinicId}/pharmacy/orders${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.PHARMACY.ORDERS.CREATE(clinicId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -277,7 +278,7 @@ export async function createPharmacyOrder(clinicId: string, orderData: {
   expectedDeliveryDate?: string;
   notes?: string;
 }) {
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/pharmacy/orders`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.ORDERS.CREATE(clinicId), {
     method: 'POST',
     body: JSON.stringify(orderData),
   });
@@ -311,7 +312,7 @@ export async function getPharmacySales(clinicId: string, filters?: {
  */
 export async function getPharmacyStats(clinicId: string, period?: 'day' | 'week' | 'month' | 'year') {
   const params = period ? `?period=${period}` : '';
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/pharmacy/stats${params}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.PHARMACY.STATS(clinicId)}${params}`);
   return data;
 }
 
@@ -333,7 +334,7 @@ export async function searchMedicines(clinicId: string, query: string, filters?:
     });
   }
 
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/medicines/search?${params.toString()}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.PHARMACY.SEARCH(clinicId)}?${params.toString()}`);
   return data;
 }
 
@@ -341,7 +342,7 @@ export async function searchMedicines(clinicId: string, query: string, filters?:
  * Get medicine categories
  */
 export async function getMedicineCategories() {
-  const { data } = await authenticatedApi('/pharmacy/categories');
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.CATEGORIES);
   return data;
 }
 
@@ -349,7 +350,7 @@ export async function getMedicineCategories() {
  * Get suppliers
  */
 export async function getSuppliers() {
-  const { data } = await authenticatedApi('/pharmacy/suppliers');
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.SUPPLIERS);
   return data;
 }
 
@@ -362,7 +363,7 @@ export async function exportPharmacyData(clinicId: string, filters: {
   startDate?: string;
   endDate?: string;
 }) {
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/pharmacy/export`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.EXPORT(clinicId), {
     method: 'POST',
     body: JSON.stringify(filters),
   });

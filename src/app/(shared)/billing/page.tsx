@@ -62,7 +62,6 @@ import {
   Send,
 } from "lucide-react";
 import { toast } from "sonner";
-import { RazorpayPaymentButton } from "@/components/payments/RazorpayPaymentButton";
 
 export default function BillingPage() {
   const { session } = useAuth();
@@ -741,28 +740,30 @@ export default function BillingPage() {
                       You will be redirected to Razorpay secure payment gateway
                     </p>
                   </div>
-                  <RazorpayPaymentButton
-                    invoiceId={selectedInvoiceForPayment.id}
-                    amount={
-                      selectedInvoiceForPayment.amount ||
-                      selectedInvoiceForPayment.totalAmount
-                    }
-                    currency={selectedInvoiceForPayment.currency || "INR"}
-                    description={`Payment for invoice ${selectedInvoiceForPayment.invoiceNumber}`}
-                    onSuccess={async (paymentId) => {
-                      setIsPaymentDialogOpen(false);
-                      setSelectedInvoiceForPayment(null);
-                      toast.success("Payment completed successfully!");
-                      // Refresh invoices
-                      window.location.reload();
-                    }}
-                    onError={(error) => {
-                      toast.error(error || "Payment failed");
-                    }}
-                    className="w-full"
-                  >
-                    Pay with Razorpay
-                  </RazorpayPaymentButton>
+                  <Suspense fallback={<div className="text-center py-4">Loading payment button...</div>}>
+                    <RazorpayPaymentButton
+                      invoiceId={selectedInvoiceForPayment.id}
+                      amount={
+                        selectedInvoiceForPayment.amount ||
+                        selectedInvoiceForPayment.totalAmount
+                      }
+                      currency={selectedInvoiceForPayment.currency || "INR"}
+                      description={`Payment for invoice ${selectedInvoiceForPayment.invoiceNumber}`}
+                      onSuccess={async (paymentId) => {
+                        setIsPaymentDialogOpen(false);
+                        setSelectedInvoiceForPayment(null);
+                        toast.success("Payment completed successfully!");
+                        // Refresh invoices
+                        window.location.reload();
+                      }}
+                      onError={(error) => {
+                        toast.error(error || "Payment failed");
+                      }}
+                      className="w-full"
+                    >
+                      Pay with Razorpay
+                    </RazorpayPaymentButton>
+                  </Suspense>
                   <Button
                     variant="outline"
                     className="w-full"

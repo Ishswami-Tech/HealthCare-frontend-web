@@ -34,25 +34,13 @@ const ComprehensiveCTA = () => {
   const [selectedIntent, setSelectedIntent] = useState<string | null>(null);
   const [email, setEmail] = useState("");
 
-  // Authentication handlers
+  // Call phone number for consultation
   const handleBookConsultation = () => {
-    if (!isAuthenticated) {
-      router.push("/auth/register");
-    } else {
-      // Navigate to booking or dashboard
-      const dashboardPath = `/${session?.user?.role.toLowerCase()}/dashboard`;
-      router.push(dashboardPath);
-    }
+    window.location.href = "tel:9860370961";
   };
 
   const handleFreeConsultation = () => {
-    if (!isAuthenticated) {
-      router.push("/auth/login");
-    } else {
-      // Navigate to consultation booking
-      const dashboardPath = `/${session?.user?.role.toLowerCase()}/dashboard`;
-      router.push(dashboardPath);
-    }
+    window.location.href = "tel:9860370961";
   };
 
   const engagementLevels = [
@@ -187,6 +175,7 @@ const ComprehensiveCTA = () => {
       ),
       icon: MessageCircle,
       color: "bg-green-500",
+      onClick: () => window.location.href = "tel:+917972548944",
     },
     {
       channel: t("comprehensiveCTA.contactChannels.channels.helpline.title"),
@@ -196,6 +185,7 @@ const ComprehensiveCTA = () => {
       ),
       icon: Phone,
       color: "bg-blue-500",
+      onClick: () => window.location.href = "tel:+917972548944",
     },
     {
       channel: t("comprehensiveCTA.contactChannels.channels.emergency.title"),
@@ -205,6 +195,7 @@ const ComprehensiveCTA = () => {
       ),
       icon: Shield,
       color: "bg-red-500",
+      onClick: () => window.location.href = "tel:+917972548944",
     },
     {
       channel: t("comprehensiveCTA.contactChannels.channels.video.title"),
@@ -214,6 +205,7 @@ const ComprehensiveCTA = () => {
       ),
       icon: Video,
       color: "bg-purple-500",
+      onClick: handleBookConsultation,
     },
   ];
 
@@ -370,6 +362,7 @@ const ComprehensiveCTA = () => {
                       </p>
                       <Button
                         className={`w-full bg-gradient-to-r ${contact.color} hover:opacity-90 text-white`}
+                        onClick={contact.onClick}
                       >
                         {t(
                           "comprehensiveCTA.contactChannels.channels.whatsapp.button"

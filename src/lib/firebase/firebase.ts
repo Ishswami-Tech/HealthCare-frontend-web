@@ -179,3 +179,7 @@ export function isFirebaseConfigured(): boolean {
     APP_CONFIG.FIREBASE.VAPID_KEY
   );
 }
+
+
+
+

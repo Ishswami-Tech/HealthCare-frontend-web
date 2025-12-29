@@ -9,11 +9,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  useLanguage,
-  getLanguageInfo,
-} from "@/contexts/LanguageContext";
-import { Language } from "@/lib/i18n/translations";
+import { useLanguage } from "@/lib/i18n/context";
+import { SUPPORTED_LANGUAGES } from "@/lib/i18n/config";
+import type { SupportedLanguage } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
@@ -30,7 +28,7 @@ export function LanguageSwitcher({
   showLabel = true,
   className,
 }: LanguageSwitcherProps) {
-  const { language, setLanguage, isLoading } = useLanguage();
+  const { language, setLanguage, isLoading, supportedLanguages } = useLanguage();
   const t = useTranslations("ui.languageSwitcher");
 
   if (isLoading) {
@@ -49,8 +47,8 @@ export function LanguageSwitcher({
     );
   }
 
-  const currentLangInfo = getLanguageInfo(language);
-  const languages: Language[] = ["en", "hi", "mr"];
+  const currentLangInfo = supportedLanguages[language];
+  const languages = Object.keys(supportedLanguages) as SupportedLanguage[];
 
   return (
     <DropdownMenu>
@@ -76,7 +74,7 @@ export function LanguageSwitcher({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[150px]">
         {languages.map((lang) => {
-          const langInfo = getLanguageInfo(lang);
+          const langInfo = supportedLanguages[lang];
           const isActive = language === lang;
 
           return (
@@ -88,7 +86,7 @@ export function LanguageSwitcher({
                 isActive && "bg-accent text-accent-foreground"
               )}
             >
-              <span className="text-base">{langInfo.flag}</span>
+              <span className="text-base">{langInfo.flag || "🌐"}</span>
               <span className="flex-1">{langInfo.name}</span>
               {isActive && <div className="w-2 h-2 bg-primary rounded-full" />}
             </DropdownMenuItem>
@@ -101,8 +99,8 @@ export function LanguageSwitcher({
 
 // Compact version for mobile
 export function CompactLanguageSwitcher({ className }: { className?: string }) {
-  const { language, setLanguage } = useLanguage();
-  const languages: Language[] = ["en", "hi", "mr"];
+  const { language, setLanguage, supportedLanguages } = useLanguage();
+  const languages = Object.keys(supportedLanguages) as SupportedLanguage[];
 
   const handleClick = () => {
     const currentIndex = languages.indexOf(language || 'en');
@@ -113,7 +111,7 @@ export function CompactLanguageSwitcher({ className }: { className?: string }) {
     }
   };
 
-  const currentLangInfo = getLanguageInfo(language);
+  const currentLangInfo = supportedLanguages[language];
 
   return (
     <Button
@@ -131,14 +129,14 @@ export function CompactLanguageSwitcher({ className }: { className?: string }) {
 
 // Inline language switcher for headers
 export function InlineLanguageSwitcher({ className }: { className?: string }) {
-  const { language, setLanguage } = useLanguage();
-  const languages: Language[] = ["en", "hi", "mr"];
+  const { language, setLanguage, supportedLanguages } = useLanguage();
+  const languages = Object.keys(supportedLanguages) as SupportedLanguage[];
 
   return (
     <div className={cn("flex items-center gap-1", className)}>
       {languages.map((lang, index) => {
         const isActive = language === lang;
-        const langInfo = getLanguageInfo(lang);
+        const langInfo = supportedLanguages[lang];
 
         return (
           <React.Fragment key={lang}>
@@ -166,14 +164,14 @@ export function InlineLanguageSwitcher({ className }: { className?: string }) {
 
 // Language switcher with flags only
 export function FlagLanguageSwitcher({ className }: { className?: string }) {
-  const { language, setLanguage } = useLanguage();
-  const languages: Language[] = ["en", "hi", "mr"];
+  const { language, setLanguage, supportedLanguages } = useLanguage();
+  const languages = Object.keys(supportedLanguages) as SupportedLanguage[];
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
       {languages.map((lang) => {
         const isActive = language === lang;
-        const langInfo = getLanguageInfo(lang);
+        const langInfo = supportedLanguages[lang];
 
         return (
           <button

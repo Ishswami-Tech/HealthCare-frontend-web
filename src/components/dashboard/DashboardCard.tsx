@@ -1,3 +1,5 @@
+import React, { memo } from "react";
+
 interface StatItem {
   label: string;
   value: string | number;
@@ -11,7 +13,7 @@ interface DashboardCardProps {
   className?: string;
 }
 
-export function DashboardCard({
+function DashboardCardComponent({
   title,
   stats,
   children,
@@ -39,3 +41,6 @@ export function DashboardCard({
     </div>
   );
 }
+
+// Export memoized DashboardCard for performance optimization
+export const DashboardCard = memo(DashboardCardComponent);

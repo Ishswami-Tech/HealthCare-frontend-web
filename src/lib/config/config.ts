@@ -86,6 +86,9 @@ const envSchema = z.object({
   NEXT_PUBLIC_FIREBASE_APP_ID: z.string().optional(),
   NEXT_PUBLIC_FIREBASE_VAPID_KEY: z.string().optional(),
   
+  // Video Configuration
+  NEXT_PUBLIC_OPENVIDU_SERVER_URL: z.string().optional(),
+  
   // Feature Flags
   NEXT_PUBLIC_ENABLE_REAL_TIME: z.string().transform(val => val === 'true').default('true'),
   NEXT_PUBLIC_ENABLE_VIDEO_CALLS: z.string().transform(val => val === 'true').default('true'),
@@ -252,6 +255,13 @@ export const APP_CONFIG = {
   },
   
   // ============================================
+  // VIDEO CONFIGURATION (OpenVidu)
+  // ============================================
+  VIDEO: {
+    OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || 'https://localhost:4443',
+  },
+  
+  // ============================================
   // FEATURE FLAGS
   // ============================================
   FEATURES: {
@@ -283,20 +293,28 @@ export const APP_CONFIG = {
 } as const;
 
 // ============================================================================
-// API ENDPOINTS (Keep existing structure for backward compatibility)
+// API ENDPOINTS
 // ============================================================================
 
 export const API_ENDPOINTS = {
   // Authentication Endpoints
   AUTH: {
+    BASE: '/auth',
     LOGIN: '/auth/login',
     REGISTER: '/auth/register',
+    REGISTER_WITH_CLINIC: '/auth/register-with-clinic',
     REFRESH: '/auth/refresh',
     LOGOUT: '/auth/logout',
     VERIFY_OTP: '/auth/verify-otp',
     REQUEST_OTP: '/auth/request-otp',
+    CHECK_OTP_STATUS: '/auth/check-otp-status',
+    INVALIDATE_OTP: '/auth/invalidate-otp',
+    MAGIC_LINK: '/auth/magic-link',
+    VERIFY_MAGIC_LINK: '/auth/verify-magic-link',
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
+    CHANGE_PASSWORD: '/auth/change-password',
+    VERIFY_EMAIL: '/auth/verify-email',
     GOOGLE_LOGIN: '/auth/google',
     FACEBOOK_LOGIN: '/auth/facebook',
     APPLE_LOGIN: '/auth/apple',
@@ -366,25 +384,152 @@ export const API_ENDPOINTS = {
     ANALYTICS: '/appointments/analytics/wait-times',
   },
   
-  // Users Endpoints
+  // Queue Endpoints (Standalone queue management)
+  QUEUE: {
+    BASE: '/queue',
+    GET: '/queue',
+    STATS: '/queue/stats',
+    UPDATE_STATUS: (patientId: string) => `/queue/${patientId}/status`,
+    CALL_NEXT: '/queue/call-next',
+    ADD: '/queue',
+    REMOVE: (queueId: string) => `/queue/${queueId}`,
+    REORDER: '/queue/reorder',
+    HISTORY: '/queue/history',
+    ANALYTICS: '/queue/analytics',
+    UPDATE_POSITION: (queueId: string) => `/queue/${queueId}/position`,
+    PAUSE: '/queue/pause',
+    RESUME: '/queue/resume',
+    CONFIG: '/queue/config',
+    NOTIFICATIONS: {
+      GET: '/queue/notifications',
+      MARK_READ: (notificationId: string) => `/queue/notifications/${notificationId}/read`,
+      SEND: '/queue/notifications',
+    },
+    WAIT_TIMES: '/queue/wait-times',
+    ESTIMATE_WAIT_TIME: '/queue/estimate-wait-time',
+    CAPACITY: '/queue/capacity',
+    PERFORMANCE: '/queue/performance',
+    EXPORT: '/queue/export',
+    ALERTS: {
+      GET: '/queue/alerts',
+      CREATE: '/queue/alerts',
+      UPDATE: (alertId: string) => `/queue/alerts/${alertId}`,
+      DELETE: (alertId: string) => `/queue/alerts/${alertId}`,
+    },
+  },
+  
+  // Pharmacy Endpoints
+  PHARMACY: {
+    BASE: '/pharmacy',
+    MEDICINES: {
+      GET_BY_ID: (medicineId: string) => `/pharmacy/medicines/${medicineId}`,
+      GET_CLINIC_INVENTORY: (clinicId: string) => `/clinics/${clinicId}/medicines/inventory`,
+      CREATE: (clinicId: string) => `/clinics/${clinicId}/medicines`,
+      UPDATE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/medicines/${medicineId}`,
+      DELETE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/medicines/${medicineId}`,
+    },
+    PRESCRIPTIONS: {
+      GET: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
+      CREATE: (clinicId: string) => `/clinics/${clinicId}/prescriptions`,
+      UPDATE_STATUS: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/status`,
+      DISPENSE: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/dispense`,
+    },
+    INVENTORY: {
+      UPDATE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/pharmacy/inventory/${medicineId}`,
+    },
+    ORDERS: {
+      CREATE: (clinicId: string) => `/clinics/${clinicId}/pharmacy/orders`,
+    },
+    STATS: (clinicId: string) => `/clinics/${clinicId}/pharmacy/stats`,
+    SEARCH: (clinicId: string) => `/clinics/${clinicId}/medicines/search`,
+    CATEGORIES: '/pharmacy/categories',
+    SUPPLIERS: '/pharmacy/suppliers',
+    EXPORT: (clinicId: string) => `/clinics/${clinicId}/pharmacy/export`,
+  },
+  
+  // Patients Endpoints
+  PATIENTS: {
+    BASE: '/patients',
+    GET_CLINIC_PATIENTS: (clinicId: string) => `/clinics/${clinicId}/patients`,
+    GET_BY_ID: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}`,
+    CREATE: '/patients',
+    UPDATE: (patientId: string) => `/patients/${patientId}`,
+    DELETE: (patientId: string) => `/patients/${patientId}`,
+    APPOINTMENTS: (patientId: string) => `/patients/${patientId}/appointments`,
+    MEDICAL_HISTORY: {
+      GET: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}/medical-history`,
+      CREATE: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}/medical-history`,
+    },
+    VITALS: {
+      GET: (patientId: string) => `/patients/${patientId}/vitals`,
+      CREATE: (patientId: string) => `/patients/${patientId}/vitals`,
+    },
+    LAB_RESULTS: {
+      GET: (patientId: string) => `/patients/${patientId}/lab-results`,
+      CREATE: (patientId: string) => `/patients/${patientId}/lab-results`,
+    },
+    TIMELINE: (patientId: string) => `/patients/${patientId}/timeline`,
+    STATS: (patientId: string) => `/patients/${patientId}/stats`,
+    SEARCH: '/patients/search',
+    EXPORT: '/patients/export',
+    CARE_PLAN: {
+      GET: (patientId: string) => `/patients/${patientId}/care-plan`,
+      UPDATE: (patientId: string) => `/patients/${patientId}/care-plan`,
+    },
+  },
+  
+  // Doctors Endpoints
+  DOCTORS: {
+    BASE: '/doctors',
+    GET_CLINIC_DOCTORS: (clinicId: string) => `/clinics/${clinicId}/doctors`,
+    GET_BY_ID: (doctorId: string) => `/doctors/${doctorId}`,
+    CREATE: '/doctors',
+    UPDATE: (doctorId: string) => `/doctors/${doctorId}`,
+    DELETE: (doctorId: string) => `/doctors/${doctorId}`,
+    SCHEDULE: {
+      GET: (clinicId: string, doctorId: string) => `/clinics/${clinicId}/doctors/${doctorId}/schedule`,
+      UPDATE: (doctorId: string) => `/doctors/${doctorId}/schedule`,
+    },
+    AVAILABILITY: {
+      GET: (doctorId: string) => `/doctors/${doctorId}/availability`,
+      UPDATE: (doctorId: string) => `/doctors/${doctorId}/availability`,
+    },
+    APPOINTMENTS: (doctorId: string) => `/doctors/${doctorId}/appointments`,
+    PATIENTS: (clinicId: string, doctorId: string) => `/clinics/${clinicId}/doctors/${doctorId}/patients`,
+    STATS: (doctorId: string) => `/doctors/${doctorId}/stats`,
+    REVIEWS: {
+      GET: (doctorId: string) => `/doctors/${doctorId}/reviews`,
+      CREATE: (doctorId: string) => `/doctors/${doctorId}/reviews`,
+    },
+    SPECIALIZATIONS: '/doctors/specializations',
+    SEARCH: '/doctors/search',
+    PERFORMANCE: (doctorId: string) => `/doctors/${doctorId}/performance`,
+    PROFILE: {
+      UPDATE: (doctorId: string) => `/doctors/${doctorId}/profile`,
+    },
+    EARNINGS: (doctorId: string) => `/doctors/${doctorId}/earnings`,
+    EXPORT: '/doctors/export',
+  },
+  
+  // Users Endpoints (Backend uses /user, not /users)
   USERS: {
-    BASE: '/users',
-    PROFILE: '/users/profile',
-    GET_BY_ID: (id: string) => `/users/${id}`,
-    UPDATE: (id: string) => `/users/${id}`,
-    DELETE: (id: string) => `/users/${id}`,
-    GET_ALL: '/users',
-    GET_BY_ROLE: (role: string) => `/users/role/${role}`,
-    GET_BY_CLINIC: (clinicId: string) => `/users/clinic/${clinicId}`,
-    SEARCH: '/users/search',
-    STATS: '/users/stats',
-    BULK_UPDATE: '/users/bulk-update',
-    EXPORT: '/users/export',
-    CHANGE_PASSWORD: (id: string) => `/users/${id}/password`,
-    TOGGLE_VERIFICATION: (id: string) => `/users/${id}/verification`,
-    ACTIVITY_LOGS: (id: string) => `/users/${id}/activity-logs`,
-    SESSIONS: (id: string) => `/users/${id}/sessions`,
-    TERMINATE_SESSION: (id: string, sessionId: string) => `/users/${id}/sessions/${sessionId}`,
+    BASE: '/user',
+    PROFILE: '/user/profile',
+    GET_BY_ID: (id: string) => `/user/${id}`,
+    UPDATE: (id: string) => `/user/${id}`,
+    DELETE: (id: string) => `/user/${id}`,
+    GET_ALL: '/user/all',
+    GET_BY_ROLE: (role: string) => `/user/role/${role}`,
+    GET_BY_CLINIC: (clinicId: string) => `/user/clinic/${clinicId}`,
+    SEARCH: '/user/search',
+    STATS: '/user/stats',
+    BULK_UPDATE: '/user/bulk-update',
+    EXPORT: '/user/export',
+    CHANGE_PASSWORD: (id: string) => `/user/${id}/password`,
+    TOGGLE_VERIFICATION: (id: string) => `/user/${id}/verification`,
+    ACTIVITY_LOGS: (id: string) => `/user/${id}/activity`,
+    SESSIONS: (id: string) => `/user/${id}/sessions`,
+    TERMINATE_SESSION: (id: string, sessionId: string) => `/user/${id}/sessions/${sessionId}`,
   },
   
   // Health Check Endpoints
@@ -529,6 +674,18 @@ export const API_ENDPOINTS = {
       SHARE_IMAGE: (appointmentId: string) => `/video/consultation/${appointmentId}/share-image`,
     },
     HISTORY: '/video/history',
+    // Video Appointments Management
+    APPOINTMENTS: {
+      BASE: '/video-appointments',
+      CREATE: '/video-appointments',
+      GET_ALL: (clinicId: string) => `/clinics/${clinicId}/video-appointments`,
+      GET_BY_ID: (id: string) => `/video-appointments/${id}`,
+      UPDATE: (appointmentId: string) => `/video-appointments/${appointmentId}`,
+      DELETE: (appointmentId: string) => `/video-appointments/${appointmentId}`,
+      JOIN: (appointmentId: string) => `/video-appointments/${appointmentId}/join`,
+      END: (appointmentId: string) => `/video-appointments/${appointmentId}/end`,
+      RECORDING: (appointmentId: string) => `/video-appointments/${appointmentId}/recording`,
+    },
     RECORDING: {
       START: '/video/recording/start',
       STOP: '/video/recording/stop',
@@ -540,6 +697,45 @@ export const API_ENDPOINTS = {
     },
     ANALYTICS: (appointmentId: string) => `/video/analytics/${appointmentId}`,
     HEALTH: '/video/health',
+    // Phase 1 & 2 Features - Backend uses consultationId
+    CHAT: {
+      SEND: '/video/chat/send',
+      GET: (consultationId: string) => `/video/chat/${consultationId}/history`,
+      TYPING: '/video/chat/typing',
+    },
+    WAITING_ROOM: {
+      JOIN: '/video/waiting-room/join',
+      LEAVE: '/video/waiting-room/leave',
+      GET_QUEUE: (consultationId: string) => `/video/waiting-room/${consultationId}/queue`,
+      ADMIT: '/video/waiting-room/admit',
+    },
+    NOTES: {
+      CREATE: '/video/notes',
+      UPDATE: (noteId: string) => `/video/notes/${noteId}`,
+      GET: (consultationId: string) => `/video/notes/${consultationId}`,
+      DELETE: (noteId: string) => `/video/notes/${noteId}`,
+      SAVE_TO_EHR: (noteId: string) => `/video/notes/${noteId}/save-to-ehr`,
+    },
+    QUALITY: {
+      UPDATE: '/video/quality/update',
+      GET: (consultationId: string, userId: string) => `/video/quality/${consultationId}/${userId}`,
+    },
+    ANNOTATION: {
+      CREATE: '/video/annotations',
+      GET: (consultationId: string) => `/video/annotations/${consultationId}`,
+      DELETE: (annotationId: string) => `/video/annotations/${annotationId}`,
+    },
+    TRANSCRIPTION: {
+      CREATE: '/video/transcription',
+      GET: (consultationId: string) => `/video/transcription/${consultationId}`,
+      SEARCH: (consultationId: string) => `/video/transcription/${consultationId}/search`,
+      SAVE_TO_EHR: (consultationId: string) => `/video/transcription/${consultationId}/save-to-ehr`,
+    },
+    RECORDING_ENHANCED: {
+      PAUSE: (appointmentId: string) => `/video/recording/${appointmentId}/pause`,
+      RESUME: (appointmentId: string) => `/video/recording/${appointmentId}/resume`,
+      SET_QUALITY: (appointmentId: string) => `/video/recording/${appointmentId}/quality`,
+    },
   },
   
   // Communication Endpoints
@@ -564,89 +760,49 @@ export const API_ENDPOINTS = {
       HISTORY: (userId: string) => `/communication/chat/history/${userId}`,
       STATS: '/communication/chat/stats',
     },
+    MESSAGING: {
+      SMS: '/messaging/sms',
+      EMAIL: '/messaging/email',
+      WHATSAPP: '/messaging/whatsapp',
+      TEMPLATES: {
+        BASE: '/messaging/templates',
+        GET: (templateId: string) => `/messaging/templates/${templateId}`,
+        CREATE: '/messaging/templates',
+        UPDATE: (templateId: string) => `/messaging/templates/${templateId}`,
+        DELETE: (templateId: string) => `/messaging/templates/${templateId}`,
+      },
+      HISTORY: '/messaging/history',
+      STATS: '/messaging/stats',
+      SCHEDULE: {
+        BASE: '/messaging/schedule',
+        GET: (messageId: string) => `/messaging/schedule/${messageId}`,
+        CREATE: '/messaging/schedule',
+        DELETE: (messageId: string) => `/messaging/schedule/${messageId}`,
+      },
+    },
     STATS: '/communication/stats',
     HEALTH: '/communication/health',
     TEST: '/communication/test',
   },
   
-  // Notifications Endpoints (Deprecated - use COMMUNICATION)
-  NOTIFICATIONS: {
-    BASE: '/notifications',
-    PUSH: {
-      SEND: '/notifications/push',
-      SEND_MULTIPLE: '/notifications/push/multiple',
-      SEND_TOPIC: '/notifications/push/topic',
-      SUBSCRIBE: '/notifications/push/subscribe',
-      UNSUBSCRIBE: '/notifications/push/unsubscribe',
-    },
-    EMAIL: {
-      SEND: '/notifications/email',
-    },
-    APPOINTMENT_REMINDER: '/notifications/appointment-reminder',
-    PRESCRIPTION_READY: '/notifications/prescription-ready',
-    UNIFIED: '/notifications/unified',
-    CHAT: {
-      BACKUP: '/notifications/chat-backup',
-      HISTORY: (userId: string) => `/notifications/chat-history/${userId}`,
-      STATS: '/notifications/chat-stats',
-    },
-    STATS: '/notifications/stats',
-    HEALTH: '/notifications/health',
-    TEST: '/notifications/test',
+  // Notification Preferences Endpoints
+  NOTIFICATION_PREFERENCES: {
+    BASE: '/notification-preferences',
+    GET_MY: '/notification-preferences/me',
+    GET_BY_USER: (userId: string) => `/notification-preferences/${userId}`,
+    CREATE: '/notification-preferences',
+    UPDATE: (userId: string) => `/notification-preferences/${userId}`,
+    DELETE: (userId: string) => `/notification-preferences/${userId}`,
   },
 } as const;
 
 // ============================================================================
-// HTTP STATUS CODES
+// HTTP STATUS CODES & ERROR CODES
 // ============================================================================
+// Re-exported from constants.ts for convenience
+// You can import from either '@/lib/config/config' or '@/lib/config/constants'
 
-export const HTTP_STATUS = {
-  OK: 200,
-  CREATED: 201,
-  ACCEPTED: 202,
-  NO_CONTENT: 204,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  CONFLICT: 409,
-  UNPROCESSABLE_ENTITY: 422,
-  TOO_MANY_REQUESTS: 429,
-  INTERNAL_SERVER_ERROR: 500,
-  BAD_GATEWAY: 502,
-  SERVICE_UNAVAILABLE: 503,
-} as const;
-
-// ============================================================================
-// ERROR CODES
-// ============================================================================
-
-export const ERROR_CODES = {
-  AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
-  AUTH_TOKEN_EXPIRED: 'AUTH_TOKEN_EXPIRED',
-  AUTH_TOKEN_INVALID: 'AUTH_TOKEN_INVALID',
-  AUTH_SESSION_EXPIRED: 'AUTH_SESSION_EXPIRED',
-  AUTH_INSUFFICIENT_PERMISSIONS: 'AUTH_INSUFFICIENT_PERMISSIONS',
-  AUTH_ACCOUNT_LOCKED: 'AUTH_ACCOUNT_LOCKED',
-  AUTH_ACCOUNT_DISABLED: 'AUTH_ACCOUNT_DISABLED',
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  VALIDATION_REQUIRED_FIELD: 'VALIDATION_REQUIRED_FIELD',
-  VALIDATION_INVALID_FORMAT: 'VALIDATION_INVALID_FORMAT',
-  VALIDATION_INVALID_LENGTH: 'VALIDATION_INVALID_LENGTH',
-  VALIDATION_INVALID_VALUE: 'VALIDATION_INVALID_VALUE',
-  RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
-  RESOURCE_ALREADY_EXISTS: 'RESOURCE_ALREADY_EXISTS',
-  RESOURCE_CONFLICT: 'RESOURCE_CONFLICT',
-  RESOURCE_DELETED: 'RESOURCE_DELETED',
-  BUSINESS_RULE_VIOLATION: 'BUSINESS_RULE_VIOLATION',
-  INVALID_OPERATION: 'INVALID_OPERATION',
-  OPERATION_NOT_ALLOWED: 'OPERATION_NOT_ALLOWED',
-  SYSTEM_ERROR: 'SYSTEM_ERROR',
-  DATABASE_ERROR: 'DATABASE_ERROR',
-  NETWORK_ERROR: 'NETWORK_ERROR',
-  TIMEOUT_ERROR: 'TIMEOUT_ERROR',
-  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
-} as const;
+export { HTTP_STATUS, ERROR_CODES } from './constants';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -770,7 +926,7 @@ function logEnvironmentInfo(): void {
     return;
   }
 
-  console.log('🌍 Environment Configuration:', {
+  console.warn('🌍 Environment Configuration:', {
     environment: currentEnvironment,
     apiUrl: APP_CONFIG.API.BASE_URL,
     websocketUrl: APP_CONFIG.WEBSOCKET.URL,

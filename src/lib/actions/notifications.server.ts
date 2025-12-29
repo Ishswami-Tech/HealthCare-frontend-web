@@ -1,6 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
+import { API_ENDPOINTS } from '../config/config';
 
 // ===== NOTIFICATIONS MANAGEMENT =====
 
@@ -23,13 +24,14 @@ export async function getUserNotifications(userId?: string, filters?: {
     });
   }
   
-  const endpoint = `/notifications${params.toString() ? `?${params.toString()}` : ''}`;
+  // Use COMMUNICATION endpoint instead of deprecated NOTIFICATIONS
+  const endpoint = `${API_ENDPOINTS.COMMUNICATION.BASE}/history${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
 
 /**
- * Create notification
+ * Create notification - Use COMMUNICATION endpoint
  */
 export async function createNotification(notificationData: {
   userId: string;
@@ -39,57 +41,73 @@ export async function createNotification(notificationData: {
   data?: Record<string, string | number | boolean>;
   scheduledFor?: string;
 }) {
-  const { data } = await authenticatedApi('/notifications', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
     method: 'POST',
-    body: JSON.stringify(notificationData),
+    body: JSON.stringify({
+      category: notificationData.type,
+      recipients: [{ userId: notificationData.userId }],
+      content: {
+        title: notificationData.title,
+        message: notificationData.message,
+        ...notificationData.data,
+      },
+      scheduledFor: notificationData.scheduledFor,
+    }),
   });
   return data;
 }
 
 /**
- * Mark notification as read
+ * Mark notification as read - Use NOTIFICATION_PREFERENCES endpoint
  */
 export async function markNotificationAsRead(notificationId: string) {
-  const { data } = await authenticatedApi(`/notifications/${notificationId}/read`, {
+  // Use notification preferences endpoint for marking as read
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.NOTIFICATION_PREFERENCES.BASE}/${notificationId}/read`, {
     method: 'PATCH',
   });
   return data;
 }
 
 /**
- * Mark all notifications as read
+ * Mark all notifications as read - Use NOTIFICATION_PREFERENCES endpoint
  */
 export async function markAllNotificationsAsRead(userId?: string) {
-  const { data } = await authenticatedApi('/notifications/mark-all-read', {
+  // Use notification preferences endpoint
+  const params = userId ? `?userId=${userId}` : '';
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.NOTIFICATION_PREFERENCES.BASE}/mark-all-read${params}`, {
     method: 'PATCH',
-    ...(userId && { body: JSON.stringify({ userId }) }),
   });
   return data;
 }
 
 /**
- * Delete notification
+ * Delete notification - Use COMMUNICATION endpoint
  */
 export async function deleteNotification(notificationId: string) {
-  const { data } = await authenticatedApi(`/notifications/${notificationId}`, {
+  // Use communication endpoint for deletion
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.BASE}/${notificationId}`, {
     method: 'DELETE',
   });
   return data;
 }
 
 /**
- * Get notification settings
+ * Get notification settings - Use NOTIFICATION_PREFERENCES endpoint
  */
 export async function getNotificationSettings(userId?: string) {
-  const params = userId ? `?userId=${userId}` : '';
-  const { data } = await authenticatedApi(`/notifications/settings${params}`);
+  if (userId) {
+    const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_BY_USER(userId));
+    return data;
+  }
+  const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_MY);
   return data;
 }
 
 /**
- * Update notification settings
+ * Update notification settings - Use NOTIFICATION_PREFERENCES endpoint
  */
 export async function updateNotificationSettings(settings: {
+  userId?: string;
   email?: boolean;
   sms?: boolean;
   push?: boolean;
@@ -101,7 +119,11 @@ export async function updateNotificationSettings(settings: {
     marketing?: boolean;
   };
 }) {
-  const { data } = await authenticatedApi('/notifications/settings', {
+  const userId = settings.userId;
+  if (!userId) {
+    throw new Error('UserId is required to update notification settings');
+  }
+  const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId), {
     method: 'PATCH',
     body: JSON.stringify(settings),
   });
@@ -109,7 +131,7 @@ export async function updateNotificationSettings(settings: {
 }
 
 /**
- * Send bulk notifications
+ * Send bulk notifications - Use COMMUNICATION endpoint
  */
 export async function sendBulkNotifications(notificationData: {
   userIds: string[];
@@ -119,9 +141,18 @@ export async function sendBulkNotifications(notificationData: {
   channels?: ('email' | 'sms' | 'push' | 'whatsapp')[];
   scheduledFor?: string;
 }) {
-  const { data } = await authenticatedApi('/notifications/bulk', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.PUSH.SEND_MULTIPLE, {
     method: 'POST',
-    body: JSON.stringify(notificationData),
+    body: JSON.stringify({
+      category: notificationData.type,
+      recipients: notificationData.userIds.map(userId => ({ userId })),
+      content: {
+        title: notificationData.title,
+        message: notificationData.message,
+      },
+      channels: notificationData.channels || ['push'],
+      scheduledFor: notificationData.scheduledFor,
+    }),
   });
   return data;
 }
@@ -137,7 +168,7 @@ export async function sendSMS(messageData: {
   templateId?: string;
   variables?: Record<string, string>;
 }) {
-  const { data } = await authenticatedApi('/messaging/sms', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.SMS, {
     method: 'POST',
     body: JSON.stringify(messageData),
   });
@@ -159,7 +190,7 @@ export async function sendEmail(emailData: {
     contentType: string;
   }>;
 }) {
-  const { data } = await authenticatedApi('/messaging/email', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.EMAIL, {
     method: 'POST',
     body: JSON.stringify(emailData),
   });
@@ -176,7 +207,7 @@ export async function sendWhatsAppMessage(messageData: {
   variables?: Record<string, string>;
   mediaUrl?: string;
 }) {
-  const { data } = await authenticatedApi('/messaging/whatsapp', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.WHATSAPP, {
     method: 'POST',
     body: JSON.stringify(messageData),
   });
@@ -188,7 +219,7 @@ export async function sendWhatsAppMessage(messageData: {
  */
 export async function getMessageTemplates(type?: 'sms' | 'email' | 'whatsapp') {
   const params = type ? `?type=${type}` : '';
-  const { data } = await authenticatedApi(`/messaging/templates${params}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.BASE}${params}`);
   return data;
 }
 
@@ -203,7 +234,7 @@ export async function createMessageTemplate(templateData: {
   variables?: string[];
   category?: string;
 }) {
-  const { data } = await authenticatedApi('/messaging/templates', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.CREATE, {
     method: 'POST',
     body: JSON.stringify(templateData),
   });
@@ -221,7 +252,7 @@ export async function updateMessageTemplate(templateId: string, updates: {
   category?: string;
   isActive?: boolean;
 }) {
-  const { data } = await authenticatedApi(`/messaging/templates/${templateId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.UPDATE(templateId), {
     method: 'PATCH',
     body: JSON.stringify(updates),
   });
@@ -232,7 +263,7 @@ export async function updateMessageTemplate(templateId: string, updates: {
  * Delete message template
  */
 export async function deleteMessageTemplate(templateId: string) {
-  const { data } = await authenticatedApi(`/messaging/templates/${templateId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.DELETE(templateId), {
     method: 'DELETE',
   });
   return data;
@@ -258,7 +289,7 @@ export async function getMessageHistory(filters?: {
     });
   }
   
-  const endpoint = `/messaging/history${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.COMMUNICATION.MESSAGING.HISTORY}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -267,7 +298,7 @@ export async function getMessageHistory(filters?: {
  * Get messaging statistics
  */
 export async function getMessagingStats(period: 'day' | 'week' | 'month' | 'year' = 'month') {
-  const { data } = await authenticatedApi(`/messaging/stats?period=${period}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.MESSAGING.STATS}?period=${period}`);
   return data;
 }
 
@@ -283,7 +314,7 @@ export async function scheduleMessage(messageData: {
   templateId?: string;
   variables?: Record<string, string>;
 }) {
-  const { data } = await authenticatedApi('/messaging/schedule', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.CREATE, {
     method: 'POST',
     body: JSON.stringify(messageData),
   });
@@ -294,7 +325,7 @@ export async function scheduleMessage(messageData: {
  * Cancel scheduled message
  */
 export async function cancelScheduledMessage(messageId: string) {
-  const { data } = await authenticatedApi(`/messaging/schedule/${messageId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.DELETE(messageId), {
     method: 'DELETE',
   });
   return data;
@@ -314,7 +345,7 @@ export async function getScheduledMessages(filters?: {
     });
   }
   
-  const endpoint = `/messaging/schedule${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.BASE}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }

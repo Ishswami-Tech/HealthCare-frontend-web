@@ -1,5 +1,5 @@
 // ✅ Video Appointment Server Actions
-// This file provides server actions for video appointment management with Jitsi integration
+// This file provides server actions for video appointment management with OpenVidu integration
 
 'use server';
 
@@ -8,6 +8,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { clinicApiClient } from '@/lib/api/client';
 import { auditLog } from '@/lib/audit';
 import { validateClinicAccess } from '@/lib/auth/permissions';
+import { API_ENDPOINTS } from '@/lib/config/config';
 // Session data handling - will need to be implemented
 const getSessionData = async () => ({ userId: 'temp-user', access_token: 'temp-token' });
 
@@ -19,7 +20,7 @@ const createVideoAppointmentSchema = z.object({
   startTime: z.string().min(1, 'Start time is required'),
   endTime: z.string().min(1, 'End time is required'),
   notes: z.string().optional(),
-  jitsiRoomId: z.string().optional(),
+  sessionId: z.string().optional(),
 });
 
 const updateVideoAppointmentSchema = z.object({
@@ -62,7 +63,7 @@ export async function createVideoAppointment(data: z.infer<typeof createVideoApp
     }
 
     // Create video appointment via API
-    const response = await clinicApiClient.post('/video-appointments', validatedData);
+    const response = await clinicApiClient.post(API_ENDPOINTS.VIDEO.APPOINTMENTS.CREATE, validatedData);
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Failed to create video appointment' };
@@ -141,7 +142,7 @@ export async function getVideoAppointments(clinicId: string, filters?: {
     };
 
     // Get video appointments via API
-    const response = await clinicApiClient.get(`/clinics/${clinicId}/video-appointments`, params);
+    const response = await clinicApiClient.get(API_ENDPOINTS.VIDEO.APPOINTMENTS.GET_ALL(clinicId), params);
 
     if (!response.success) {
       return { success: false, error: 'Failed to fetch video appointments' };
@@ -174,7 +175,7 @@ export async function getVideoAppointmentById(id: string): Promise<{ success: bo
     }
 
     // Get video appointment via API
-    const response = await clinicApiClient.get(`/video-appointments/${id}`);
+    const response = await clinicApiClient.get(API_ENDPOINTS.VIDEO.APPOINTMENTS.GET_BY_ID(id));
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Video appointment not found' };
@@ -218,7 +219,7 @@ export async function updateVideoAppointment(data: z.infer<typeof updateVideoApp
     }
 
     // Update video appointment via API
-    const response = await clinicApiClient.put(`/video-appointments/${validatedData.appointmentId}`, validatedData);
+    const response = await clinicApiClient.put(API_ENDPOINTS.VIDEO.APPOINTMENTS.UPDATE(validatedData.appointmentId), validatedData);
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Failed to update video appointment' };
@@ -291,7 +292,7 @@ export async function joinVideoAppointment(data: z.infer<typeof joinVideoAppoint
     }
 
     // Join video appointment via API
-    const response = await clinicApiClient.post(`/video-appointments/${validatedData.appointmentId}/join`, {
+    const response = await clinicApiClient.post(API_ENDPOINTS.VIDEO.APPOINTMENTS.JOIN(validatedData.appointmentId), {
       userId: validatedData.userId,
       role: validatedData.role,
     });
@@ -359,7 +360,7 @@ export async function endVideoAppointment(appointmentId: string): Promise<{ succ
     }
 
     // End video appointment via API
-    const response = await clinicApiClient.post(`/video-appointments/${appointmentId}/end`);
+    const response = await clinicApiClient.post(API_ENDPOINTS.VIDEO.APPOINTMENTS.END(appointmentId));
 
     if (!response.success) {
       return { success: false, error: 'Failed to end video appointment' };
@@ -404,7 +405,7 @@ export async function getVideoAppointmentRecording(appointmentId: string): Promi
     }
 
     // Get recording via API
-    const response = await clinicApiClient.get(`/video-appointments/${appointmentId}/recording`);
+    const response = await clinicApiClient.get(API_ENDPOINTS.VIDEO.APPOINTMENTS.RECORDING(appointmentId));
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Recording not found' };
@@ -445,7 +446,7 @@ export async function deleteVideoAppointment(appointmentId: string): Promise<{ s
     }
 
     // Delete video appointment via API
-    const response = await clinicApiClient.delete(`/video-appointments/${appointmentId}`);
+    const response = await clinicApiClient.delete(API_ENDPOINTS.VIDEO.APPOINTMENTS.DELETE(appointmentId));
 
     if (!response.success) {
       return { success: false, error: 'Failed to delete video appointment' };

@@ -158,7 +158,7 @@ const MediaShowcase = () => {
               variant="outline"
               onClick={() =>
                 window.open(
-                  "https://youtube.com/@shrivishwamurthiayurveda",
+                  "https://youtube.com/@shriVishwamurtiayurveda",
                   "_blank"
                 )
               }
@@ -248,7 +248,7 @@ const MediaShowcase = () => {
               variant="outline"
               onClick={() =>
                 window.open(
-                  "https://instagram.com/shrivishwamurthiayurveda",
+                  "https://instagram.com/shriVishwamurtiayurveda",
                   "_blank"
                 )
               }
@@ -298,10 +298,7 @@ const MediaShowcase = () => {
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {post.hashtags.slice(0, 2).map((tag, index) => (
-                      <span
-                        key={index}
-                        className="text-xs text-primary"
-                      >
+                      <span key={index} className="text-xs text-primary">
                         {tag}
                       </span>
                     ))}
@@ -336,7 +333,7 @@ const MediaShowcase = () => {
                   variant="outline"
                   onClick={() =>
                     window.open(
-                      "https://instagram.com/shrivishwamurthiayurveda",
+                      "https://instagram.com/shriVishwamurtiayurveda",
                       "_blank"
                     )
                   }

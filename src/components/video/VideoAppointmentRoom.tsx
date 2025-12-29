@@ -1,7 +1,7 @@
 "use client";
 
 // ✅ Video Appointment Room Component with WebSocket Integration
-// This component provides a complete video appointment interface using Jitsi Meet with real-time WebSocket updates
+// This component provides a complete video appointment interface using OpenVidu with real-time WebSocket updates
 
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -29,15 +29,29 @@ import {
   XCircle,
   Wifi,
   WifiOff,
+  Pen,
+  Mic as MicIcon,
+  Activity,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { VideoChat } from "./VideoChat";
+import { WaitingRoom } from "./WaitingRoom";
+import { MedicalNotes } from "./MedicalNotes";
+import { CallQualityIndicator } from "./CallQualityIndicator";
+import { ScreenAnnotation } from "./ScreenAnnotation";
+import { CallTranscription } from "./CallTranscription";
+import { EnhancedRecordingControls } from "./EnhancedRecordingControls";
+import { EnhancedParticipantControls } from "./EnhancedParticipantControls";
 import {
   useVideoCall,
   useVideoCallControls,
 } from "@/hooks/useVideoAppointments";
-import { useVideoAppointmentWebSocket } from "@/hooks/useWebSocket";
+import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { VideoAppointment } from "@/hooks/useVideoAppointments";
+import type { OpenViduAPI } from "@/lib/video/openvidu";
+import type { ParticipantInfo } from "@/lib/video/openvidu";
 
 interface VideoAppointmentRoomProps {
   appointment: VideoAppointment;
@@ -61,41 +75,56 @@ export function VideoAppointmentRoom({
   const {
     subscribeToParticipantEvents,
     subscribeToRecordingEvents,
+    subscribeToChatMessages,
+    subscribeToWaitingRoom,
+    subscribeToMedicalNotes,
+    subscribeToCallQuality,
+    subscribeToAnnotations,
+    subscribeToTranscription,
     sendParticipantJoined,
     sendParticipantLeft,
     sendRecordingStarted,
     sendRecordingStopped,
+    isConnected,
   } = useVideoAppointmentWebSocket();
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
-  const [call, setCall] = useState<any>(null);
+  const [call, setCall] = useState<OpenViduAPI | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [participants, setParticipants] = useState<any[]>([]);
+  const [participants, setParticipants] = useState<ParticipantInfo[]>([]);
   const [callDuration, setCallDuration] = useState(0);
-  const [isWebSocketConnected] = useState(false);
+  
+  // Role-based access
+  const isDoctor = user?.role === 'DOCTOR';
+  const isPatient = user?.role === 'PATIENT';
+  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'CLINIC_ADMIN';
 
   // ✅ Subscribe to WebSocket events
   useEffect(() => {
+    if (!isConnected) return;
+
     // Subscribe to participant events
     const unsubscribeParticipants = subscribeToParticipantEvents((data) => {
       if (data.appointmentId === appointment.appointmentId) {
-        if (data.action === "participant_joined") {
-          setParticipants((prev) => [...prev, data.participant]);
+        if (data.action === "participant_joined" && data.participant) {
+          const participant = data.participant;
+          setParticipants((prev) => [...prev, participant]);
           toast({
             title: "Participant Joined",
-            description: `${data.participant.displayName} joined the call`,
+            description: `${participant.displayName} joined the call`,
           });
-        } else if (data.action === "participant_left") {
+        } else if (data.action === "participant_left" && data.participant) {
+          const participant = data.participant;
           setParticipants((prev) =>
-            prev.filter((p) => p.userId !== data.participant.userId)
+            prev.filter((p) => p.userId !== participant.userId)
           );
           toast({
             title: "Participant Left",
-            description: `${data.participant.displayName} left the call`,
+            description: `${participant.displayName} left the call`,
           });
         }
       }
@@ -120,14 +149,75 @@ export function VideoAppointmentRoom({
       }
     });
 
+    // Subscribe to chat messages (real-time updates)
+    const unsubscribeChat = subscribeToChatMessages((data) => {
+      if (data.appointmentId === appointment.appointmentId) {
+        // Chat component handles its own state updates via WebSocket
+        // This subscription ensures we're listening to real-time messages
+      }
+    });
+
+    // Subscribe to waiting room events
+    const unsubscribeWaitingRoom = subscribeToWaitingRoom((data) => {
+      if (data.appointmentId === appointment.appointmentId) {
+        // Waiting room component handles its own state updates
+        // This ensures real-time queue updates
+      }
+    });
+
+    // Subscribe to medical notes events
+    const unsubscribeNotes = subscribeToMedicalNotes((data) => {
+      if (data.appointmentId === appointment.appointmentId) {
+        // Medical notes component handles its own state updates
+        // This ensures real-time note synchronization
+      }
+    });
+
+    // Subscribe to call quality updates
+    const unsubscribeQuality = subscribeToCallQuality((data) => {
+      if (data.appointmentId === appointment.appointmentId) {
+        // Call quality component handles its own state updates
+        // This ensures real-time quality warnings
+      }
+    });
+
+    // Subscribe to annotation events
+    const unsubscribeAnnotations = subscribeToAnnotations((data) => {
+      if (data.appointmentId === appointment.appointmentId) {
+        // Screen annotation component handles its own state updates
+        // This ensures real-time annotation synchronization
+      }
+    });
+
+    // Subscribe to transcription events
+    const unsubscribeTranscription = subscribeToTranscription((data) => {
+      if (data.appointmentId === appointment.appointmentId) {
+        // Call transcription component handles its own state updates
+        // This ensures real-time transcription segments
+      }
+    });
+
     return () => {
       unsubscribeParticipants();
       unsubscribeRecording();
+      unsubscribeChat();
+      unsubscribeWaitingRoom();
+      unsubscribeNotes();
+      unsubscribeQuality();
+      unsubscribeAnnotations();
+      unsubscribeTranscription();
     };
   }, [
     appointment.appointmentId,
+    isConnected,
     subscribeToParticipantEvents,
     subscribeToRecordingEvents,
+    subscribeToChatMessages,
+    subscribeToWaitingRoom,
+    subscribeToMedicalNotes,
+    subscribeToCallQuality,
+    subscribeToAnnotations,
+    subscribeToTranscription,
     toast,
   ]);
 
@@ -143,14 +233,9 @@ export function VideoAppointmentRoom({
         role: user?.role || "patient",
       };
 
-      const videoCall = await startCall(appointment, userInfo);
+      // Start call with container
+      const videoCall = await startCall(appointment, userInfo, videoContainerRef.current || undefined);
       setCall(videoCall);
-
-      // Set up video container
-      if (videoContainerRef.current && videoCall) {
-        // Reinitialize with the container
-        await videoCall.initialize();
-      }
 
       // Send WebSocket event for participant joined
       sendParticipantJoined(appointment.appointmentId, {
@@ -223,7 +308,6 @@ export function VideoAppointmentRoom({
       userId: user?.id || "",
       displayName: user?.name || "Unknown User",
       role: user?.role || "patient",
-      timestamp: new Date().toISOString(),
     });
 
     if (onLeaveRoom) {
@@ -259,13 +343,13 @@ export function VideoAppointmentRoom({
       // Send WebSocket event
       if (!isRecording) {
         sendRecordingStarted(appointment.appointmentId, {
-          startedBy: user?.id,
-          timestamp: new Date().toISOString(),
+          recordingId: appointment.appointmentId,
+          status: 'starting',
         });
       } else {
         sendRecordingStopped(appointment.appointmentId, {
-          stoppedBy: user?.id,
-          timestamp: new Date().toISOString(),
+          recordingId: appointment.appointmentId,
+          status: 'stopped',
         });
       }
     }
@@ -288,7 +372,10 @@ export function VideoAppointmentRoom({
 
   // ✅ Update participants
   const updateParticipants = () => {
-    if (controls) {
+    if (call) {
+      const currentParticipants = call.getParticipants();
+      setParticipants(currentParticipants);
+    } else if (controls) {
       const currentParticipants = controls.getParticipants();
       setParticipants(currentParticipants);
     }
@@ -299,6 +386,7 @@ export function VideoAppointmentRoom({
     let interval: NodeJS.Timeout;
 
     if (isInCall()) {
+      // Use setInterval for call duration (1 second updates are fine)
       interval = setInterval(() => {
         setCallDuration((prev) => prev + 1);
       }, 1000);
@@ -372,13 +460,13 @@ export function VideoAppointmentRoom({
             </Badge>
             {/* WebSocket Connection Status */}
             <div className="flex items-center space-x-1">
-              {isWebSocketConnected ? (
+              {isConnected ? (
                 <Wifi className="h-4 w-4 text-green-500" />
               ) : (
                 <WifiOff className="h-4 w-4 text-red-500" />
               )}
               <span className="text-xs text-gray-500">
-                {isWebSocketConnected ? "Live" : "Offline"}
+                {isConnected ? "Live" : "Offline"}
               </span>
             </div>
           </div>
@@ -404,7 +492,7 @@ export function VideoAppointmentRoom({
             <div
               ref={videoContainerRef}
               className="w-full h-full"
-              id="jitsi-container"
+              id="openvidu-container"
             />
 
             {/* Connection Status */}
@@ -481,15 +569,24 @@ export function VideoAppointmentRoom({
                   <Monitor className="h-5 w-5" />
                 </Button>
 
-                {/* Recording */}
-                <Button
-                  variant={isRecording ? "destructive" : "outline"}
-                  size="lg"
-                  onClick={toggleRecording}
-                  className="rounded-full w-12 h-12 p-0"
-                >
-                  <CircleDot className="h-5 w-5" />
-                </Button>
+                {/* Recording with Enhanced Controls - Only for doctors/admins */}
+                {isRecording && (isDoctor || isAdmin) && (
+                  <EnhancedRecordingControls
+                    appointmentId={appointment.appointmentId}
+                    isRecording={isRecording}
+                    onRecordingChange={setIsRecording}
+                  />
+                )}
+                {!isRecording && (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={toggleRecording}
+                    className="rounded-full w-12 h-12 p-0"
+                  >
+                    <CircleDot className="h-5 w-5" />
+                  </Button>
+                )}
 
                 {/* Raise Hand */}
                 <Button
@@ -500,6 +597,12 @@ export function VideoAppointmentRoom({
                 >
                   <Hand className="h-5 w-5" />
                 </Button>
+
+                {/* Call Quality Indicator - Always visible */}
+                <CallQualityIndicator
+                  appointmentId={appointment.appointmentId}
+                  showDetails={true}
+                />
 
                 {/* End Call */}
                 <Button
@@ -516,111 +619,186 @@ export function VideoAppointmentRoom({
         </div>
 
         {/* Sidebar */}
-        <div className="w-80 bg-white border-l">
-          {/* Appointment Info */}
-          <Card className="border-0 rounded-none border-b">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Appointment Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">
-                  {new Date(appointment.startTime).toLocaleDateString()}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">
-                  {new Date(appointment.startTime).toLocaleTimeString()} -{" "}
-                  {new Date(appointment.endTime).toLocaleTimeString()}
-                </span>
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <User className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">Doctor ID:</span>
-                  <span className="text-sm text-gray-600">
-                    {appointment.doctorId}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <UserCheck className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">Patient ID:</span>
-                  <span className="text-sm text-gray-600">
-                    {appointment.patientId}
-                  </span>
-                </div>
-              </div>
-              {appointment.notes && (
-                <div className="pt-2">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <FileText className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm font-medium">Notes:</span>
-                  </div>
-                  <p className="text-sm text-gray-600">{appointment.notes}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <div className="w-96 bg-white border-l flex flex-col">
+          <Tabs defaultValue="chat" className="flex-1 flex flex-col">
+            <TabsList className="w-full rounded-none border-b">
+              <TabsTrigger value="chat" className="flex-1">
+                <MessageSquare className="h-4 w-4 mr-1" />
+                Chat
+              </TabsTrigger>
+              <TabsTrigger value="notes" className="flex-1">
+                <FileText className="h-4 w-4 mr-1" />
+                Notes
+              </TabsTrigger>
+              <TabsTrigger value="participants" className="flex-1">
+                <Users className="h-4 w-4 mr-1" />
+                People
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Participants */}
-          <Card className="border-0 rounded-none border-b">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Participants</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {participants.length > 0 ? (
-                  participants.map((participant, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center space-x-2 p-2 rounded bg-gray-50"
-                    >
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm">
-                        {participant.displayName || "Unknown"}
+            <TabsContent value="chat" className="flex-1 m-0 p-0 overflow-hidden">
+              <VideoChat appointmentId={appointment.appointmentId} className="h-full border-0 rounded-none" />
+            </TabsContent>
+
+            <TabsContent value="notes" className="flex-1 m-0 p-0 overflow-hidden">
+              <MedicalNotes appointmentId={appointment.appointmentId} className="h-full border-0 rounded-none" />
+            </TabsContent>
+
+            <TabsContent value="participants" className="flex-1 m-0 p-4 overflow-auto">
+              {/* Appointment Info */}
+              <Card className="mb-4">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Appointment Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">
+                      {new Date(appointment.startTime).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">
+                      {new Date(appointment.startTime).toLocaleTimeString()} -{" "}
+                      {new Date(appointment.endTime).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium">Doctor ID:</span>
+                      <span className="text-sm text-gray-600">
+                        {appointment.doctorId}
                       </span>
-                      <Badge variant="outline" className="text-xs">
-                        {participant.role}
-                      </Badge>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center text-gray-500 py-4">
-                    <Users className="h-8 w-8 mx-auto mb-2" />
-                    <p className="text-sm">No participants yet</p>
+                    <div className="flex items-center space-x-2">
+                      <UserCheck className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium">Patient ID:</span>
+                      <span className="text-sm text-gray-600">
+                        {appointment.patientId}
+                      </span>
+                    </div>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          {/* Quick Actions */}
-          <Card className="border-0 rounded-none">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Open Chat
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-red-600 hover:text-red-700"
-                onClick={handleLeaveRoom}
-              >
-                <XCircle className="h-4 w-4 mr-2" />
-                Leave Room
-              </Button>
-            </CardContent>
-          </Card>
+              {/* Participants */}
+              <Card className="mb-4">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Participants</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {participants.length > 0 ? (
+                      participants.map((participant, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 rounded bg-gray-50"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span className="text-sm">
+                              {participant.displayName || "Unknown"}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {participant.role}
+                            </Badge>
+                          </div>
+                          {/* Enhanced Participant Controls - Only for doctors/admins */}
+                          {(isDoctor || isAdmin) && (
+                            <EnhancedParticipantControls
+                              appointmentId={appointment.appointmentId}
+                              participant={participant}
+                              currentUserId={user?.id || ""}
+                              onActionComplete={updateParticipants}
+                            />
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-gray-500 py-4">
+                        <Users className="h-8 w-8 mx-auto mb-2" />
+                        <p className="text-sm">No participants yet</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Waiting Room - Only for doctors */}
+              {isDoctor && (
+                <Card className="mb-4">
+                  <WaitingRoom
+                    appointmentId={appointment.appointmentId}
+                    className="border-0"
+                  />
+                </Card>
+              )}
+
+              {/* Additional Features */}
+              <Card className="mb-4">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Additional Features</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Tabs defaultValue="annotation" className="w-full">
+                    <TabsList className="w-full mb-2">
+                      <TabsTrigger value="annotation" className="flex-1">
+                        <Pen className="h-4 w-4 mr-1" />
+                        Annotation
+                      </TabsTrigger>
+                      <TabsTrigger value="transcription" className="flex-1">
+                        <MicIcon className="h-4 w-4 mr-1" />
+                        Transcript
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="annotation" className="mt-0">
+                      {isScreenSharing ? (
+                        <ScreenAnnotation
+                          appointmentId={appointment.appointmentId}
+                          className="border-0"
+                        />
+                      ) : (
+                        <div className="text-center text-gray-500 py-8">
+                          <Pen className="h-8 w-8 mx-auto mb-2" />
+                          <p className="text-sm">Start screen sharing to enable annotation</p>
+                        </div>
+                      )}
+                    </TabsContent>
+                    <TabsContent value="transcription" className="mt-0">
+                      <CallTranscription
+                        appointmentId={appointment.appointmentId}
+                        className="border-0"
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Settings
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-red-600 hover:text-red-700"
+                    onClick={handleLeaveRoom}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Leave Room
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,7 @@ interface ModernDashboardCardProps {
   children?: React.ReactNode;
 }
 
-export function ModernDashboardCard({
+function ModernDashboardCardComponent({
   title,
   value,
   subtitle,
@@ -125,6 +125,9 @@ export function ModernDashboardCard({
     </Card>
   );
 }
+
+// Export memoized ModernDashboardCard for performance optimization
+export const ModernDashboardCard = memo(ModernDashboardCardComponent);
 
 // Specialized card variants
 export function StatCard({

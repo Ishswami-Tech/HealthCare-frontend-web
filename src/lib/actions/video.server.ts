@@ -1,7 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
-import { API_ENDPOINTS } from '../api/config';
+import { API_ENDPOINTS } from '../config/config';
 
 // ===== VIDEO TOKEN MANAGEMENT =====
 

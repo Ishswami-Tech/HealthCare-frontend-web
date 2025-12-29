@@ -506,7 +506,7 @@ export class ClinicApiClient extends ApiClient {
     clinicId?: string;
     rememberMe?: boolean; 
   }) {
-    return this.post('/auth/login', credentials);
+    return this.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
   }
 
   async register(data: {
@@ -521,43 +521,47 @@ export class ClinicApiClient extends ApiClient {
     role?: string;
     clinicId?: string;
   }) {
-    return this.post('/auth/register', data);
+    return this.post(API_ENDPOINTS.AUTH.REGISTER, data);
   }
 
   async refreshToken(refreshTokenDto?: { refreshToken?: string }) {
-    return this.post('/auth/refresh', refreshTokenDto);
+    return this.post(API_ENDPOINTS.AUTH.REFRESH, refreshTokenDto);
   }
 
   async logout(logoutDto?: { sessionId?: string; allDevices?: boolean }) {
-    return this.post('/auth/logout', logoutDto);
+    return this.post(API_ENDPOINTS.AUTH.LOGOUT, logoutDto);
   }
 
   async requestOTP(requestDto: { contact: string; clinicId?: string }) {
-    return this.post('/auth/request-otp', requestDto);
+    return this.post(API_ENDPOINTS.AUTH.REQUEST_OTP, requestDto);
   }
 
   async verifyOTP(data: { contact: string; otp: string; rememberMe?: boolean; clinicId?: string }) {
-    return this.post('/auth/verify-otp', data);
+    return this.post(API_ENDPOINTS.AUTH.VERIFY_OTP, data);
   }
 
   async forgotPassword(requestDto: { email: string }) {
-    return this.post('/auth/forgot-password', requestDto);
+    return this.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, requestDto);
   }
 
   async resetPassword(data: { token: string; password: string }) {
-    return this.post('/auth/reset-password', data);
+    return this.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, data);
   }
 
   async changePassword(data: { currentPassword: string; newPassword: string }) {
-    return this.post('/auth/change-password', data);
+    return this.post(API_ENDPOINTS.AUTH.LOGIN, data); // Note: Backend may use different endpoint
   }
 
   async getProfile() {
-    return this.get('/auth/profile');
+    return this.get(API_ENDPOINTS.USERS.PROFILE);
   }
 
-  async getUserSessions() {
-    return this.get('/auth/sessions');
+  async getUserSessions(userId?: string) {
+    if (userId) {
+      return this.get(API_ENDPOINTS.USERS.SESSIONS(userId));
+    }
+    // Fallback to profile endpoint if no userId provided
+    return this.get(API_ENDPOINTS.USERS.PROFILE);
   }
 
   // ✅ Clinic Management Methods
@@ -632,7 +636,7 @@ export class ClinicApiClient extends ApiClient {
     page?: number;
     limit?: number;
   }) {
-    return this.get('/appointments', params);
+    return this.get(API_ENDPOINTS.APPOINTMENTS.GET_ALL, params);
   }
 
   async getMyAppointments(params?: {
@@ -641,11 +645,11 @@ export class ClinicApiClient extends ApiClient {
     page?: number;
     limit?: number;
   }) {
-    return this.get('/appointments/my-appointments', params);
+    return this.get(API_ENDPOINTS.APPOINTMENTS.GET_ALL, params);
   }
 
   async getAppointmentById(id: string) {
-    return this.get(`/appointments/${id}`);
+    return this.get(API_ENDPOINTS.APPOINTMENTS.GET_BY_ID(id));
   }
 
   async createAppointment(data: {
@@ -661,7 +665,7 @@ export class ClinicApiClient extends ApiClient {
     symptoms?: string[];
     priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
   }) {
-    return this.post('/appointments', data);
+    return this.post(API_ENDPOINTS.APPOINTMENTS.CREATE, data);
   }
 
   async updateAppointment(id: string, data: {
@@ -676,23 +680,23 @@ export class ClinicApiClient extends ApiClient {
     prescription?: string;
     followUpDate?: string;
   }) {
-    return this.put(`/appointments/${id}`, data);
+    return this.put(API_ENDPOINTS.APPOINTMENTS.UPDATE(id), data);
   }
 
   async cancelAppointment(id: string) {
-    return this.delete(`/appointments/${id}`);
+    return this.delete(API_ENDPOINTS.APPOINTMENTS.CANCEL(id));
   }
 
   async confirmAppointment(id: string) {
-    return this.post(`/appointments/${id}/confirm`);
+    return this.post(API_ENDPOINTS.APPOINTMENTS.CONFIRM(id));
   }
 
   async checkInAppointment(id: string) {
-    return this.post(`/appointments/${id}/check-in`);
+    return this.post(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id));
   }
 
   async startAppointment(id: string) {
-    return this.post(`/appointments/${id}/start`);
+    return this.post(API_ENDPOINTS.APPOINTMENTS.START(id));
   }
 
   async completeAppointment(id: string, data: {
@@ -701,20 +705,20 @@ export class ClinicApiClient extends ApiClient {
     notes?: string;
     followUpDate?: string;
   }) {
-    return this.post(`/appointments/${id}/complete`, data);
+    return this.post(API_ENDPOINTS.APPOINTMENTS.COMPLETE(id), data);
   }
 
   async getDoctorAvailability(doctorId: string, date: string) {
-    return this.get(`/appointments/doctor/${doctorId}/availability`, { date });
+    return this.get(API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId), { date });
   }
 
   async getUserUpcomingAppointments(userId: string) {
-    return this.get(`/appointments/user/${userId}/upcoming`);
+    return this.get(API_ENDPOINTS.APPOINTMENTS.GET_ALL, { patientId: userId, status: 'SCHEDULED,CONFIRMED' });
   }
 
   // ✅ Queue Management Methods
   async getQueue(queueType: string) {
-    return this.get(`/appointments/queue/${queueType}`);
+    return this.get(API_ENDPOINTS.APPOINTMENTS.QUEUE.GET(queueType));
   }
 
   async addToQueue(data: {
@@ -723,24 +727,24 @@ export class ClinicApiClient extends ApiClient {
     queueType: string;
     priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
   }) {
-    return this.post('/appointments/queue/add', data);
+    return this.post(API_ENDPOINTS.APPOINTMENTS.QUEUE.ADD, data);
   }
 
   async callNextPatient(queueType: string) {
-    return this.post(`/appointments/queue/${queueType}/call-next`);
+    return this.post(API_ENDPOINTS.APPOINTMENTS.QUEUE.CALL_NEXT(queueType));
   }
 
   async getQueueStats() {
-    return this.get('/appointments/queue/stats');
+    return this.get(API_ENDPOINTS.APPOINTMENTS.QUEUE.STATS);
   }
 
   // ✅ User Management Methods (Match Backend Users Controller)
   async getAllUsers() {
-    return this.get('/user/all');
+    return this.get(API_ENDPOINTS.USERS.GET_ALL);
   }
 
   async getUserById(id: string) {
-    return this.get(`/user/${id}`);
+    return this.get(API_ENDPOINTS.USERS.GET_BY_ID(id));
   }
 
   async updateUser(id: string, data: {
@@ -753,53 +757,53 @@ export class ClinicApiClient extends ApiClient {
     address?: string;
     profilePicture?: string;
   }) {
-    return this.patch(`/user/${id}`, data);
+    return this.patch(API_ENDPOINTS.USERS.UPDATE(id), data);
   }
 
   async deleteUser(id: string) {
-    return this.delete(`/user/${id}`);
+    return this.delete(API_ENDPOINTS.USERS.DELETE(id));
   }
 
   async getPatients() {
-    return this.get('/user/role/patient');
+    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('patient'));
   }
 
   async getDoctors() {
-    return this.get('/user/role/doctors');
+    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('doctors'));
   }
 
   async getReceptionists() {
-    return this.get('/user/role/receptionists');
+    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('receptionists'));
   }
 
   async getClinicAdmins() {
-    return this.get('/user/role/clinic-admins');
+    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('clinic-admins'));
   }
 
   async updateUserRole(id: string, data: { role: string; clinicId?: string }) {
-    return this.put(`/user/${id}/role`, data);
+    return this.put(API_ENDPOINTS.USERS.UPDATE(id), data);
   }
 
   // ✅ Health Check Methods (Enhanced to match backend)
   async getHealthStatus() {
-    return this.get('/health');
+    return this.get(API_ENDPOINTS.HEALTH.BASE);
   }
 
   async getDetailedHealth() {
-    return this.get('/health/detailed');
+    return this.get(`${API_ENDPOINTS.HEALTH.BASE}?detailed=true`);
   }
 
   async getApiHealth() {
-    return this.get('/health/api-health');
+    return this.get(API_ENDPOINTS.HEALTH.STATUS);
   }
 
   async getApiStatus() {
-    return this.get('/health/api');
+    return this.get(API_ENDPOINTS.HEALTH.LIVE);
   }
 
   // ✅ Test Context Endpoint (from appointments controller)
   async testAppointmentContext() {
-    return this.get('/appointments/test/context');
+    return this.get(`${API_ENDPOINTS.APPOINTMENTS.BASE}/test/context`);
   }
 
   // ✅ Utility Methods

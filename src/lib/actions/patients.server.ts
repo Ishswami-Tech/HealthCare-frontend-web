@@ -1,6 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
+import { API_ENDPOINTS } from '../config/config';
 
 // ===== PATIENTS MANAGEMENT ACTIONS =====
 
@@ -26,7 +27,7 @@ export async function getPatients(clinicId: string, filters?: {
     });
   }
 
-  const endpoint = `/clinics/${clinicId}/patients${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.PATIENTS.GET_CLINIC_PATIENTS(clinicId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -35,7 +36,7 @@ export async function getPatients(clinicId: string, filters?: {
  * Get patient by ID
  */
 export async function getPatientById(clinicId: string, patientId: string) {
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/patients/${patientId}`);
+  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.GET_BY_ID(clinicId, patientId));
   return data;
 }
 
@@ -62,7 +63,7 @@ export async function createPatient(patientData: {
     groupNumber?: string;
   };
 }) {
-  const { data } = await authenticatedApi('/patients', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.CREATE, {
     method: 'POST',
     body: JSON.stringify(patientData),
   });
@@ -92,7 +93,7 @@ export async function updatePatient(patientId: string, updates: {
   };
   isActive?: boolean;
 }) {
-  const { data } = await authenticatedApi(`/patients/${patientId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.UPDATE(patientId), {
     method: 'PATCH',
     body: JSON.stringify(updates),
   });
@@ -103,7 +104,7 @@ export async function updatePatient(patientId: string, updates: {
  * Delete patient
  */
 export async function deletePatient(patientId: string) {
-  const { data } = await authenticatedApi(`/patients/${patientId}`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.DELETE(patientId), {
     method: 'DELETE',
   });
   return data;
@@ -126,7 +127,7 @@ export async function getPatientAppointments(patientId: string, filters?: {
     });
   }
   
-  const endpoint = `/patients/${patientId}/appointments${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.PATIENTS.APPOINTMENTS(patientId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -147,7 +148,7 @@ export async function getPatientMedicalHistory(clinicId: string, patientId: stri
     });
   }
 
-  const endpoint = `/clinics/${clinicId}/patients/${patientId}/medical-history${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.PATIENTS.MEDICAL_HISTORY.GET(clinicId, patientId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -163,7 +164,7 @@ export async function addPatientMedicalHistory(clinicId: string, patientId: stri
   doctorId?: string;
   severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 }) {
-  const { data } = await authenticatedApi(`/clinics/${clinicId}/patients/${patientId}/medical-history`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.MEDICAL_HISTORY.CREATE(clinicId, patientId), {
     method: 'POST',
     body: JSON.stringify(historyData),
   });
@@ -185,7 +186,7 @@ export async function getPatientVitalSigns(patientId: string, filters?: {
     });
   }
   
-  const endpoint = `/patients/${patientId}/vitals${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.PATIENTS.VITALS.GET(patientId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -207,7 +208,7 @@ export async function addPatientVitalSigns(patientId: string, vitalsData: {
   recordedBy: string;
   notes?: string;
 }) {
-  const { data } = await authenticatedApi(`/patients/${patientId}/vitals`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.VITALS.CREATE(patientId), {
     method: 'POST',
     body: JSON.stringify(vitalsData),
   });
@@ -230,7 +231,7 @@ export async function getPatientLabResults(patientId: string, filters?: {
     });
   }
   
-  const endpoint = `/patients/${patientId}/lab-results${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.PATIENTS.LAB_RESULTS.GET(patientId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -251,7 +252,7 @@ export async function addPatientLabResult(patientId: string, labData: {
   doctorId?: string;
   notes?: string;
 }) {
-  const { data } = await authenticatedApi(`/patients/${patientId}/lab-results`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.LAB_RESULTS.CREATE(patientId), {
     method: 'POST',
     body: JSON.stringify(labData),
   });
@@ -262,7 +263,7 @@ export async function addPatientLabResult(patientId: string, labData: {
  * Get patient statistics
  */
 export async function getPatientStats(patientId: string) {
-  const { data } = await authenticatedApi(`/patients/${patientId}/stats`);
+  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.STATS(patientId));
   return data;
 }
 
@@ -283,7 +284,7 @@ export async function searchPatients(query: string, filters?: {
     });
   }
   
-  const { data } = await authenticatedApi(`/patients/search?${params.toString()}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.PATIENTS.SEARCH}?${params.toString()}`);
   return data;
 }
 
@@ -308,7 +309,7 @@ export async function getPatientTimeline(patientId: string, filters?: {
     });
   }
   
-  const endpoint = `/patients/${patientId}/timeline${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `${API_ENDPOINTS.PATIENTS.TIMELINE(patientId)}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -325,7 +326,7 @@ export async function exportPatientData(filters: {
   startDate?: string;
   endDate?: string;
 }) {
-  const { data } = await authenticatedApi('/patients/export', {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.EXPORT, {
     method: 'POST',
     body: JSON.stringify(filters),
   });
@@ -336,7 +337,7 @@ export async function exportPatientData(filters: {
  * Get patient care plan
  */
 export async function getPatientCarePlan(patientId: string) {
-  const { data } = await authenticatedApi(`/patients/${patientId}/care-plan`);
+  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.CARE_PLAN.GET(patientId));
   return data;
 }
 
@@ -357,7 +358,7 @@ export async function updatePatientCarePlan(patientId: string, carePlanData: {
   nextAppointment?: string;
   doctorId: string;
 }) {
-  const { data } = await authenticatedApi(`/patients/${patientId}/care-plan`, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.CARE_PLAN.UPDATE(patientId), {
     method: 'PUT',
     body: JSON.stringify(carePlanData),
   });

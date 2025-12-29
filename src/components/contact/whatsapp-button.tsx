@@ -1,17 +1,17 @@
 "use client";
 
-import React, { useState } from 'react';
-import { MessageCircle, X, Send } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useTranslation } from '@/lib/i18n/context';
+import React, { useState } from "react";
+import { MessageCircle, X, Send } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/context";
 
 interface WhatsAppButtonProps {
   phoneNumber: string;
   message?: string;
-  variant?: 'floating' | 'inline' | 'compact';
+  variant?: "floating" | "inline" | "compact";
   className?: string;
   showText?: boolean;
-  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
 }
 
 interface WhatsAppChatProps {
@@ -24,7 +24,7 @@ interface WhatsAppChatProps {
 
 // Default messages in multiple languages
 const DEFAULT_MESSAGES = {
-  en: "Hello! I would like to book an appointment at Shri Vishwamurthi Ayurvedalay. Please let me know the available slots.",
+  en: "Hello! I would like to book an appointment at Shri Vishwamurti Ayurvedalay. Please let me know the available slots.",
   hi: "नमस्ते! मैं श्री विश्वमूर्ति आयुर्वेदालय में अपॉइंटमेंट बुक करना चाहता हूं। कृपया उपलब्ध समय बताएं।",
   mr: "नमस्कार! मला श्री विश्वमूर्ती आयुर्वेदालयात भेटीची वेळ बुक करायची आहे. कृपया उपलब्ध वेळा सांगा.",
 };
@@ -32,22 +32,25 @@ const DEFAULT_MESSAGES = {
 export function WhatsAppButton({
   phoneNumber,
   message,
-  variant = 'floating',
+  variant = "floating",
   className,
   showText = true,
-  position = 'bottom-right',
+  position = "bottom-right",
 }: WhatsAppButtonProps) {
   const { t, language } = useTranslation();
   const [showChat, setShowChat] = useState(false);
 
   // Clean phone number (remove spaces, dashes, etc.)
-  const cleanPhoneNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
-  
+  const cleanPhoneNumber = phoneNumber.replace(/[\s\-\(\)]/g, "");
+
   // Get default message based on current language
-  const defaultMessage = message || DEFAULT_MESSAGES[language as keyof typeof DEFAULT_MESSAGES] || DEFAULT_MESSAGES.en;
+  const defaultMessage =
+    message ||
+    DEFAULT_MESSAGES[language as keyof typeof DEFAULT_MESSAGES] ||
+    DEFAULT_MESSAGES.en;
 
   const handleWhatsAppClick = () => {
-    if (variant === 'floating') {
+    if (variant === "floating") {
       setShowChat(true);
     } else {
       openWhatsApp(defaultMessage);
@@ -57,17 +60,17 @@ export function WhatsAppButton({
   const openWhatsApp = (customMessage?: string) => {
     const encodedMessage = encodeURIComponent(customMessage || defaultMessage);
     const whatsappUrl = `https://wa.me/${cleanPhoneNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
 
   const positionClasses = {
-    'bottom-right': 'bottom-6 right-6',
-    'bottom-left': 'bottom-6 left-6',
-    'top-right': 'top-6 right-6',
-    'top-left': 'top-6 left-6',
+    "bottom-right": "bottom-6 right-6",
+    "bottom-left": "bottom-6 left-6",
+    "top-right": "top-6 right-6",
+    "top-left": "top-6 left-6",
   };
 
-  if (variant === 'floating') {
+  if (variant === "floating") {
     return (
       <>
         <button
@@ -78,13 +81,13 @@ export function WhatsAppButton({
             showText ? "px-4 py-3" : "p-4",
             className
           )}
-          aria-label={t('common.whatsappMessage')}
+          aria-label={t("common.whatsappMessage")}
         >
           <div className="flex items-center gap-2">
             <MessageCircle className="w-6 h-6" />
             {showText && (
               <span className="font-medium whitespace-nowrap">
-                {t('common.whatsappMessage')}
+                {t("common.whatsappMessage")}
               </span>
             )}
           </div>
@@ -93,7 +96,7 @@ export function WhatsAppButton({
         {showChat && (
           <WhatsAppChat
             phoneNumber={cleanPhoneNumber}
-            clinicName="Shri Vishwamurthi Ayurvedalay"
+            clinicName="Shri Vishwamurti Ayurvedalay"
             isOpen={showChat}
             onClose={() => setShowChat(false)}
           />
@@ -102,7 +105,7 @@ export function WhatsAppButton({
     );
   }
 
-  if (variant === 'compact') {
+  if (variant === "compact") {
     return (
       <button
         onClick={handleWhatsAppClick}
@@ -110,7 +113,7 @@ export function WhatsAppButton({
           "inline-flex items-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors",
           className
         )}
-        aria-label={t('common.whatsappMessage')}
+        aria-label={t("common.whatsappMessage")}
       >
         <MessageCircle className="w-4 h-4" />
         {showText && <span className="text-sm font-medium">WhatsApp</span>}
@@ -126,22 +129,28 @@ export function WhatsAppButton({
         "inline-flex items-center gap-3 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg",
         className
       )}
-      aria-label={t('common.whatsappMessage')}
+      aria-label={t("common.whatsappMessage")}
     >
       <MessageCircle className="w-5 h-5" />
-      {showText && <span>{t('common.whatsappMessage')}</span>}
+      {showText && <span>{t("common.whatsappMessage")}</span>}
     </button>
   );
 }
 
-function WhatsAppChat({ phoneNumber, clinicName, className, isOpen, onClose }: WhatsAppChatProps) {
+function WhatsAppChat({
+  phoneNumber,
+  clinicName,
+  className,
+  isOpen,
+  onClose,
+}: WhatsAppChatProps) {
   const { language } = useTranslation();
-  const [customMessage, setCustomMessage] = useState('');
+  const [customMessage, setCustomMessage] = useState("");
 
   const handleSendMessage = (message: string) => {
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
     onClose();
   };
 
@@ -149,32 +158,34 @@ function WhatsAppChat({ phoneNumber, clinicName, className, isOpen, onClose }: W
     {
       en: "I want to book an appointment",
       hi: "मुझे अपॉइंटमेंट बुक करना है",
-      mr: "मला भेटीची वेळ बुक करायची आहे"
+      mr: "मला भेटीची वेळ बुक करायची आहे",
     },
     {
       en: "What are your consultation fees?",
       hi: "आपकी परामर्श फीस क्या है?",
-      mr: "तुमची सल्लामसलत फी किती आहे?"
+      mr: "तुमची सल्लामसलत फी किती आहे?",
     },
     {
       en: "What treatments do you offer?",
       hi: "आप कौन से उपचार प्रदान करते हैं?",
-      mr: "तुम्ही कोणते उपचार देता?"
+      mr: "तुम्ही कोणते उपचार देता?",
     },
     {
       en: "What are your clinic timings?",
       hi: "आपके क्लिनिक का समय क्या है?",
-      mr: "तुमच्या क्लिनिकची वेळ काय आहे?"
-    }
+      mr: "तुमच्या क्लिनिकची वेळ काय आहे?",
+    },
   ];
 
   if (!isOpen) return null;
 
   return (
-    <div className={cn(
-      "fixed bottom-6 right-6 z-50 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 overflow-hidden",
-      className
-    )}>
+    <div
+      className={cn(
+        "fixed bottom-6 right-6 z-50 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 overflow-hidden",
+        className
+      )}
+    >
       {/* Header */}
       <div className="bg-green-500 text-white p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -201,12 +212,11 @@ function WhatsAppChat({ phoneNumber, clinicName, className, isOpen, onClose }: W
           {/* Welcome message */}
           <div className="bg-gray-100 rounded-lg p-3">
             <p className="text-sm text-gray-800">
-              {language === 'hi' 
+              {language === "hi"
                 ? "नमस्ते! श्री विश्वमूर्ति आयुर्वेदालय में आपका स्वागत है। हम आपकी कैसे सहायता कर सकते हैं?"
-                : language === 'mr'
+                : language === "mr"
                 ? "नमस्कार! श्री विश्वमूर्ती आयुर्वेदालयात तुमचे स्वागत आहे. आम्ही तुम्हाला कशी मदत करू शकतो?"
-                : "Hello! Welcome to Shri Vishwamurthi Ayurvedalay. How can we help you today?"
-              }
+                : "Hello! Welcome to Shri Vishwamurti Ayurvedalay. How can we help you today?"}
             </p>
           </div>
 
@@ -216,7 +226,9 @@ function WhatsAppChat({ phoneNumber, clinicName, className, isOpen, onClose }: W
             {quickMessages.map((msg, index) => (
               <button
                 key={index}
-                onClick={() => handleSendMessage(msg[language as keyof typeof msg] || msg.en)}
+                onClick={() =>
+                  handleSendMessage(msg[language as keyof typeof msg] || msg.en)
+                }
                 className="w-full text-left p-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
               >
                 {msg[language as keyof typeof msg] || msg.en}
@@ -234,21 +246,23 @@ function WhatsAppChat({ phoneNumber, clinicName, className, isOpen, onClose }: W
             value={customMessage}
             onChange={(e) => setCustomMessage(e.target.value)}
             placeholder={
-              language === 'hi' 
+              language === "hi"
                 ? "अपना संदेश लिखें..."
-                : language === 'mr'
+                : language === "mr"
                 ? "तुमचा संदेश लिहा..."
                 : "Type your message..."
             }
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
             onKeyPress={(e) => {
-              if (e.key === 'Enter' && customMessage.trim()) {
+              if (e.key === "Enter" && customMessage.trim()) {
                 handleSendMessage(customMessage);
               }
             }}
           />
           <button
-            onClick={() => customMessage.trim() && handleSendMessage(customMessage)}
+            onClick={() =>
+              customMessage.trim() && handleSendMessage(customMessage)
+            }
             disabled={!customMessage.trim()}
             className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             aria-label="Send message"

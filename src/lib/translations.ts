@@ -344,7 +344,7 @@ export const translations: Record<Language, Translation> = {
       }
     },
     whyChooseUs: {
-      title: "Why Choose Shri Vishwamurthi Ayurvedalay",
+      title: "Why Choose Shri Vishwamurti Ayurvedalay",
       subtitle: "Experience the difference of authentic Ayurvedic healing",
       features: {
         certified: {

@@ -10,9 +10,9 @@ import { Metadata } from 'next';
 // ============================================================================
 
 export const baseSEO = {
-  siteName: 'Shri Vishwamurthi Ayurvedalay',
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://vishwamurthiayurveda.com',
-  defaultTitle: 'Shri Vishwamurthi Ayurvedalay - Authentic Ayurvedic Healing & Wellness Center',
+  siteName: 'Shri Vishwamurti Ayurvedalay',
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://Vishwamurtiayurveda.com',
+  defaultTitle: 'Shri Vishwamurti Ayurvedalay - Authentic Ayurvedic Healing & Wellness Center',
   defaultDescription: 'Experience authentic Ayurvedic healing with 20+ years of expertise. Panchakarma, Agnikarma, Viddha Karma treatments. 5000+ lives transformed. Government certified. Book consultation today.',
   keywords: [
     'Ayurveda',
@@ -31,7 +31,7 @@ export const baseSEO = {
     'Mumbai Ayurveda',
     'best Ayurvedic treatment',
   ],
-  author: 'Dr. Vishwamurthi',
+  author: 'Dr. Vishwamurti',
   language: 'en',
   region: 'IN',
   robots: 'index, follow',
@@ -123,8 +123,8 @@ export function generateMetadata({
       title: fullTitle,
       description,
       images: [imageUrl],
-      creator: '@vishwamurthiayurveda',
-      site: '@vishwamurthiayurveda',
+      creator: '@Vishwamurtiayurveda',
+      site: '@Vishwamurtiayurveda',
     },
 
     // Additional metadata
@@ -241,10 +241,10 @@ export const generateOrganizationSchema = () => ({
     availableLanguage: ['English', 'Hindi', 'Marathi'],
   },
   sameAs: [
-    'https://www.facebook.com/vishwamurthiayurveda',
-    'https://www.instagram.com/vishwamurthiayurveda',
-    'https://www.youtube.com/vishwamurthiayurveda',
-    'https://www.linkedin.com/company/vishwamurthiayurveda',
+    'https://www.facebook.com/Vishwamurtiayurveda',
+    'https://www.instagram.com/Vishwamurtiayurveda',
+    'https://www.youtube.com/Vishwamurtiayurveda',
+    'https://www.linkedin.com/company/Vishwamurtiayurveda',
   ],
   medicalSpecialty: 'Ayurveda',
   availableService: [
@@ -273,7 +273,7 @@ export const generateLocalBusinessSchema = () => ({
   name: baseSEO.siteName,
   image: `${baseSEO.siteUrl}/images/clinic-exterior.jpg`,
   telephone: '+91-XXXX-XXXX',
-  email: 'info@vishwamurthiayurveda.com',
+  email: 'info@Vishwamurtiayurveda.com',
   url: baseSEO.siteUrl,
   address: {
     '@type': 'PostalAddress',

@@ -60,7 +60,7 @@ export const mr: TranslationKeys = {
     livePatients: 'लाइव्ह रुग्ण',
     livesTransformed: 'जीवन बदलले',
     rating: '4.9/5',
-    phoneNumber: '+91 98765 43210',
+    phoneNumber: '+91 9860370961',
     language: 'भाषा',
     home: 'मुख्यपृष्ठ',
     about: 'आमच्याबद्दल',
@@ -83,7 +83,7 @@ export const mr: TranslationKeys = {
     address: 'मोरया गणपती मंदिर रोड, गांधी पेठ, चिंचवड गाव, चिंचवड, पिंपरी-चिंचवड, महाराष्ट्र, भारत',
     phone: '9860370961, 7709399925',
     whatsapp: '9860370961',
-    email: 'vishwamurthiayurveda@gmail.com',
+    email: 'Vishwamurtiayurveda@gmail.com',
     mondayToFriday: 'सोमवार - शुक्रवार: सकाळी 11:45 - रात्री 11:30',
     weekends: 'शनिवार आणि रविवार',
     closed: 'बंद',
@@ -1050,9 +1050,9 @@ export const mr: TranslationKeys = {
        emailAddresses: {
          title: "ईमेल पत्ते",
          details: [
-           "vishwamurthiayurveda@gmail.com",
-           "support@vishwamurthiayurveda.com",
-           "emergency@vishwamurthiayurveda.com"
+           "Vishwamurtiayurveda@gmail.com",
+           "support@Vishwamurtiayurveda.com",
+           "emergency@Vishwamurtiayurveda.com"
          ]
        },
        location: {
@@ -1098,7 +1098,7 @@ export const mr: TranslationKeys = {
      description: 'आमच्या तज्ज्ञ चिकित्सकांसोबत पारंपरिक आयुर्वेदिक उपचाराच्या शक्तीचा अनुभव घ्या. आम्ही तुमच्या संपूर्ण कल्याण प्रवासासाठी प्रामाणिक, वैयक्तिकृत काळजी प्रदान करण्यास वचनबद्ध आहोत.',
      address: 'मोरया गणपती मंदिर रोड, गांधी पेठ, चिंचवड गाव, चिंचवड, पिंपरी-चिंचवड, महाराष्ट्र, भारत',
      phone: '9860370961, 7709399925',
-     email: 'vishwamurthiayurveda@gmail.com',
+     email: 'Vishwamurtiayurveda@gmail.com',
      workingHours: 'सोमवार - शुक्रवार: सकाळी 11:45 - रात्री 11:30',
      ourServices: 'आमच्या सेवा',
      medicalDisclaimer: 'सरकारी प्रमाणित ISO 9001:2015 4.9/5 रेटिंग',
@@ -1130,7 +1130,7 @@ export const mr: TranslationKeys = {
        address: 'मोरया गणपती मंदिर रोड, गांधी पेठ, चिंचवड गाव, चिंचवड, पिंपरी-चिंचवड, महाराष्ट्र, भारत',
        phone: '9860370961, 7709399925',
        emergency: '24/7 आणीबाणी सहाय्य',
-       email: 'vishwamurthiayurveda@gmail.com',
+       email: 'Vishwamurtiayurveda@gmail.com',
        hours: 'सोमवार - शुक्रवार: सकाळी 11:45 - रात्री 11:30'
      },
      emergency: {
@@ -1317,19 +1317,19 @@ export const mr: TranslationKeys = {
       channels: {
         whatsapp: {
           title: 'व्हाट्सअॅप सहाय्य',
-          number: '+91 98603 70961',
+          number: '+91 79 7254 8944',
           description: 'मिनिटांत तत्काळ प्रतिसाद',
           button: 'आता संपर्क करा'
         },
         helpline: {
           title: 'हेल्पलाइन',
-          number: '+91 98603 70961',
+          number: '+91 79 7254 8944',
           description: '24/7 व्यावसायिक सहाय्य',
           button: 'आता संपर्क करा'
         },
         emergency: {
           title: 'आणीबाणी',
-          number: '+91 98603 70961',
+          number: '+91 79 7254 8944',
           description: 'तत्काळ सहाय्य',
           button: 'आता संपर्क करा'
         },
