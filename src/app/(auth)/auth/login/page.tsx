@@ -14,7 +14,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import useZodForm from "@/hooks/useZodForm";
 import { AuthResponse, loginSchema, otpSchema, OTPFormData, Role } from "@/types/auth.types";
-import { getDashboardByRole } from "@/config/routes";
+import { getDashboardByRole } from "@/lib/config/config";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,7 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { SocialLogin } from "@/components/auth/social-login";
-import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
+import { ERROR_MESSAGES } from "@/lib/config/config";
 import { Loader2 } from "lucide-react";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 import { motion, AnimatePresence } from "framer-motion";

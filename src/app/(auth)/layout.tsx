@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { getDashboardByRole } from "@/config/routes";
+import { getDashboardByRole } from "@/lib/config/config";
 import { Role } from "@/types/auth.types";
 
 export default function AuthLayout({

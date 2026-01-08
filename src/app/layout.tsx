@@ -34,7 +34,11 @@ export const metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(APP_CONFIG.APP.URL),
+  // ⚠️ SECURITY: Only create URL if APP.URL is set (not empty)
+  // Prevents "Invalid URL" error during SSR when env vars aren't loaded
+  metadataBase: APP_CONFIG.APP.URL && APP_CONFIG.APP.URL.trim() !== '' 
+    ? new URL(APP_CONFIG.APP.URL) 
+    : new URL('http://localhost:3000'), // Development fallback
   openGraph: {
     title: "Ishswami Healthcare - Your Health, Our Priority",
     description:

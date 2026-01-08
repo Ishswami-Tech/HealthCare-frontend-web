@@ -60,7 +60,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_WS_MAX_RECONNECT_ATTEMPTS: z.string().optional(),
   
   // Authentication Configuration
-  NEXT_PUBLIC_AUTH_ENABLED: z.string().transform(val => val === 'true').default('true'),
+  NEXT_PUBLIC_AUTH_ENABLED: z.string().optional().transform(val => val === 'true'),
   NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string().optional(),
   NEXT_PUBLIC_FACEBOOK_APP_ID: z.string().optional(),
   NEXT_PUBLIC_APPLE_CLIENT_ID: z.string().optional(),
@@ -88,23 +88,30 @@ const envSchema = z.object({
   
   // Video Configuration
   NEXT_PUBLIC_OPENVIDU_SERVER_URL: z.string().optional(),
+  NEXT_PUBLIC_JITSI_DOMAIN: z.string().optional(),
+  NEXT_PUBLIC_JITSI_BASE_URL: z.string().optional(),
+  NEXT_PUBLIC_JITSI_WS_URL: z.string().optional(),
+  
+  // App Domain Configuration
+  NEXT_PUBLIC_MAIN_DOMAIN: z.string().optional(),
+  NEXT_PUBLIC_FRONTEND_DOMAIN: z.string().optional(),
   
   // Feature Flags
-  NEXT_PUBLIC_ENABLE_REAL_TIME: z.string().transform(val => val === 'true').default('true'),
-  NEXT_PUBLIC_ENABLE_VIDEO_CALLS: z.string().transform(val => val === 'true').default('true'),
-  NEXT_PUBLIC_ENABLE_NOTIFICATIONS: z.string().transform(val => val === 'true').default('true'),
-  NEXT_PUBLIC_ENABLE_ANALYTICS: z.string().transform(val => val === 'true').default('false'),
-  NEXT_PUBLIC_ENABLE_HTTPS: z.string().transform(val => val === 'true').default('false'),
-  NEXT_PUBLIC_ENABLE_CORS: z.string().transform(val => val === 'true').default('true'),
+  NEXT_PUBLIC_ENABLE_REAL_TIME: z.string().default('true').transform(val => val === 'true'),
+  NEXT_PUBLIC_ENABLE_VIDEO_CALLS: z.string().default('true').transform(val => val === 'true'),
+  NEXT_PUBLIC_ENABLE_NOTIFICATIONS: z.string().default('true').transform(val => val === 'true'),
+  NEXT_PUBLIC_ENABLE_ANALYTICS: z.string().default('false').transform(val => val === 'true'),
+  NEXT_PUBLIC_ENABLE_HTTPS: z.string().default('false').transform(val => val === 'true'),
+  NEXT_PUBLIC_ENABLE_CORS: z.string().default('true').transform(val => val === 'true'),
   
   // Debug & Monitoring
-  NEXT_PUBLIC_DEBUG_BACKEND_STATUS: z.string().transform(val => val === 'true').default('false'),
+  NEXT_PUBLIC_DEBUG_BACKEND_STATUS: z.string().default('false').transform(val => val === 'true'),
   NEXT_PUBLIC_HEALTH_CHECK_INTERVAL: z.string().optional(),
   NEXT_PUBLIC_BACKEND_URL: z.string().optional(),
   
   // Logging
   NEXT_PUBLIC_LOG_LEVEL: z.string().default('info'),
-  NEXT_PUBLIC_ENABLE_CONSOLE_LOGS: z.string().transform(val => val === 'true').default('false'),
+  NEXT_PUBLIC_ENABLE_CONSOLE_LOGS: z.string().default('false').transform(val => val === 'true'),
 });
 
 // Parse and validate environment variables
@@ -114,27 +121,35 @@ export const env = envSchema.parse(process.env);
 // ENVIRONMENT-SPECIFIC DEFAULTS
 // ============================================================================
 
+// ⚠️ SECURITY: No hardcoded URLs - all URLs must come from environment variables
+// This prevents exposing internal infrastructure details in the codebase
 const envDefaults = {
   development: {
-    apiUrl: 'http://localhost:8088',
-    websocketUrl: 'ws://localhost:8088/socket.io',
-    appUrl: 'http://localhost:3000',
+    // Development defaults - fallback to localhost only if env vars are not set
+    // This prevents "Invalid URL" errors during SSR when env vars aren't loaded yet
+    // In production, env vars MUST be set (no fallbacks)
+    apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088',
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8088/socket.io',
+    appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     enableDebug: true,
     enableAnalytics: false,
     logLevel: 'debug' as const,
   },
   staging: {
-    apiUrl: 'https://staging-api.ishswami.in',
-    websocketUrl: 'wss://staging-api.ishswami.in/socket.io',
-    appUrl: 'https://staging.ishswami.in',
+    // Staging - all URLs must come from env vars
+    apiUrl: process.env.NEXT_PUBLIC_API_URL || '',
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || '',
+    appUrl: process.env.NEXT_PUBLIC_APP_URL || '',
     enableDebug: true,
     enableAnalytics: true,
     logLevel: 'info' as const,
   },
   production: {
-    apiUrl: 'https://api.ishswami.in',
-    websocketUrl: 'wss://api.ishswami.in/socket.io',
-    appUrl: 'https://ishswami.in',
+    // Production - URLs from env vars (with production fallbacks matching backend)
+    // Backend production: https://backend-service-v1.ishswami.in
+    apiUrl: process.env.NEXT_PUBLIC_API_URL || 'https://backend-service-v1.ishswami.in',
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || 'wss://backend-service-v1.ishswami.in/socket.io',
+    appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://ishswami.in',
     enableDebug: false,
     enableAnalytics: true,
     logLevel: 'error' as const,
@@ -162,7 +177,8 @@ export const APP_CONFIG = {
   API: {
     BASE_URL: env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
     CLINIC_URL: env.NEXT_PUBLIC_CLINIC_API_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
-    FASHION_URL: env.NEXT_PUBLIC_FASHION_API_URL || 'http://localhost:4002/api/v1',
+    // ⚠️ SECURITY: No hardcoded URLs - must use env var
+    FASHION_URL: env.NEXT_PUBLIC_FASHION_API_URL || '',
     VERSION: env.NEXT_PUBLIC_API_VERSION,
     TIMEOUT: {
       REQUEST: 30000,
@@ -211,7 +227,7 @@ export const APP_CONFIG = {
   // AUTHENTICATION CONFIGURATION
   // ============================================
   AUTH: {
-    ENABLED: env.NEXT_PUBLIC_AUTH_ENABLED,
+    ENABLED: env.NEXT_PUBLIC_AUTH_ENABLED ?? true,
     GOOGLE_CLIENT_ID: env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
     FACEBOOK_APP_ID: env.NEXT_PUBLIC_FACEBOOK_APP_ID || '',
     APPLE_CLIENT_ID: env.NEXT_PUBLIC_APPLE_CLIENT_ID || '',
@@ -255,10 +271,18 @@ export const APP_CONFIG = {
   },
   
   // ============================================
-  // VIDEO CONFIGURATION (OpenVidu)
+  // VIDEO CONFIGURATION (OpenVidu + Jitsi)
   // ============================================
   VIDEO: {
-    OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || 'https://localhost:4443',
+    // ⚠️ SECURITY: Video server URLs must come from env vars
+    // Production: https://backend-service-v1-video.ishswami.in (OpenVidu)
+    OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || '',
+    // Jitsi Configuration (Fallback Video Provider)
+    JITSI: {
+      DOMAIN: env.NEXT_PUBLIC_JITSI_DOMAIN || '',
+      BASE_URL: env.NEXT_PUBLIC_JITSI_BASE_URL || '',
+      WS_URL: env.NEXT_PUBLIC_JITSI_WS_URL || '',
+    },
   },
   
   // ============================================
@@ -278,7 +302,7 @@ export const APP_CONFIG = {
   // DEBUG & MONITORING
   // ============================================
   DEBUG: {
-    BACKEND_STATUS: env.NEXT_PUBLIC_DEBUG_BACKEND_STATUS,
+    BACKEND_STATUS: env.NEXT_PUBLIC_DEBUG_BACKEND_STATUS ?? false,
     HEALTH_CHECK_INTERVAL: parseInt(env.NEXT_PUBLIC_HEALTH_CHECK_INTERVAL || '15000', 10),
     BACKEND_URL: env.NEXT_PUBLIC_BACKEND_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
   },
@@ -288,7 +312,7 @@ export const APP_CONFIG = {
   // ============================================
   LOGGING: {
     LEVEL: (env.NEXT_PUBLIC_LOG_LEVEL || currentEnvDefaults.logLevel) as 'debug' | 'info' | 'warn' | 'error',
-    ENABLE_CONSOLE: env.NEXT_PUBLIC_ENABLE_CONSOLE_LOGS || isDevelopment,
+    ENABLE_CONSOLE: env.NEXT_PUBLIC_ENABLE_CONSOLE_LOGS ?? isDevelopment,
   },
 } as const;
 
@@ -794,6 +818,57 @@ export const API_ENDPOINTS = {
     UPDATE: (userId: string) => `/notification-preferences/${userId}`,
     DELETE: (userId: string) => `/notification-preferences/${userId}`,
   },
+  
+  // Email Unsubscribe Endpoints (Backend-only - no frontend integration needed)
+  // Backend handles unsubscribe directly via /api/v1/email/unsubscribe?token=...
+  // Frontend integration not required - backend returns JSON response
+  // EMAIL_UNSUBSCRIBE: {
+  //   BASE: '/email/unsubscribe',
+  //   UNSUBSCRIBE: (token: string) => `/email/unsubscribe/${token}`,
+  //   VERIFY: (token: string) => `/email/unsubscribe/verify/${token}`,
+  //   PROCESS: (token: string) => `/email/unsubscribe/${token}`,
+  // },
+  
+  // EHR Clinic Endpoints (Clinic-wide EHR features)
+  EHR_CLINIC: {
+    BASE: '/ehr/clinic',
+    COMPREHENSIVE: (userId: string) => `/ehr/clinic/comprehensive/${userId}`,
+    PATIENT_RECORDS: (clinicId: string) => `/ehr/clinic/${clinicId}/patients/records`,
+    ANALYTICS: (clinicId: string) => `/ehr/clinic/${clinicId}/analytics`,
+    PATIENT_SUMMARY: (clinicId: string) => `/ehr/clinic/${clinicId}/patients/summary`,
+    SEARCH: (clinicId: string) => `/ehr/clinic/${clinicId}/search`,
+    CRITICAL_ALERTS: (clinicId: string) => `/ehr/clinic/${clinicId}/alerts/critical`,
+  },
+  
+  // Plugin Endpoints (Optional - Admin-only tool for plugin monitoring/management)
+  // Note: Plugins are automatically used by the appointment system - these endpoints
+  // are only for admin monitoring, configuration, and manual execution.
+  // Frontend integration is optional since plugins work automatically.
+  // PLUGINS: {
+  //   BASE: '/api/appointments/plugins',
+  //   INFO: '/api/appointments/plugins/info',
+  //   BY_DOMAIN: (domain: string) => `/api/appointments/plugins/domain/${domain}`,
+  //   DOMAIN_FEATURES: (domain: string) => `/api/appointments/plugins/domain/${domain}/features`,
+  //   EXECUTE: '/api/appointments/plugins/execute',
+  //   EXECUTE_BATCH: '/api/appointments/plugins/execute-batch',
+  //   HEALTH: '/api/appointments/plugins/health',
+  //   HEALTH_METRICS: '/api/appointments/plugins/health/metrics',
+  //   HEALTH_DOMAIN: (domain: string) => `/api/appointments/plugins/health/domain/${domain}`,
+  //   HEALTH_ALERTS: '/api/appointments/plugins/health/alerts',
+  //   CONFIG: '/api/appointments/plugins/config',
+  //   CONFIG_BY_NAME: (pluginName: string) => `/api/appointments/plugins/config/${pluginName}`,
+  //   UPDATE_CONFIG: (pluginName: string) => `/api/appointments/plugins/config/${pluginName}`,
+  // },
+  
+  // Clinic Communication Endpoints
+  CLINIC_COMMUNICATION: {
+    BASE: (clinicId: string) => `/clinics/${clinicId}/communication`,
+    GET: (clinicId: string) => `/clinics/${clinicId}/communication`,
+    CREATE: (clinicId: string) => `/clinics/${clinicId}/communication`,
+    UPDATE: (clinicId: string, id: string) => `/clinics/${clinicId}/communication/${id}`,
+    DELETE: (clinicId: string, id: string) => `/clinics/${clinicId}/communication/${id}`,
+    TEST: (clinicId: string) => `/clinics/${clinicId}/communication/test`,
+  },
 } as const;
 
 // ============================================================================
@@ -803,6 +878,13 @@ export const API_ENDPOINTS = {
 // You can import from either '@/lib/config/config' or '@/lib/config/constants'
 
 export { HTTP_STATUS, ERROR_CODES } from './constants';
+
+// ============================================================================
+// ERROR MESSAGES (User-Facing)
+// ============================================================================
+// Re-exported from error-messages.ts for convenience
+
+export { ERROR_MESSAGES } from './error-messages';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -891,7 +973,15 @@ export interface ApiClientConfig {
 // ============================================================================
 
 function validateEnvironment(): void {
-  const requiredVars = ['NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_API_VERSION'];
+  // ⚠️ SECURITY: In production, all URLs must be set via environment variables
+  // No hardcoded URLs allowed to prevent security issues
+  const requiredVars: string[] = ['NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_API_VERSION'];
+  
+  // In production, also require WebSocket URL
+  if (isProduction) {
+    requiredVars.push('NEXT_PUBLIC_WEBSOCKET_URL');
+  }
+  
   const missingVars: string[] = [];
 
   for (const varName of requiredVars) {
@@ -901,22 +991,55 @@ function validateEnvironment(): void {
   }
 
   if (missingVars.length > 0) {
-    console.warn(
-      `⚠️  Missing required environment variables: ${missingVars.join(', ')}\n` +
+    const errorMessage = `⚠️  Missing required environment variables: ${missingVars.join(', ')}\n` +
       `Current environment: ${currentEnvironment}\n` +
-      `Please check your .env file.`
-    );
+      `Please check your .env file.`;
+    
+    if (isProduction) {
+      // In production, throw error to prevent deployment with missing config
+      throw new Error(errorMessage);
+    } else {
+      console.warn(errorMessage);
+    }
   }
 
+  // Validate API URL format
+  // ⚠️ SECURITY: Only validate if URL is provided (not empty)
   const apiUrl = env.NEXT_PUBLIC_API_URL || APP_CONFIG.API.BASE_URL;
-  if (apiUrl) {
+  if (apiUrl && apiUrl.trim() !== '') {
     try {
       new URL(apiUrl);
     } catch {
-      console.error(
-        `❌ Invalid API URL format: ${apiUrl}\n` +
-        `Please provide a valid URL (e.g., http://localhost:8088 or https://api.example.com)`
-      );
+      const errorMessage = `❌ Invalid API URL format: ${apiUrl}\n` +
+        `Please provide a valid URL via NEXT_PUBLIC_API_URL environment variable`;
+      
+      if (isProduction) {
+        throw new Error(errorMessage);
+      } else {
+        console.error(errorMessage);
+      }
+    }
+  } else if (isProduction) {
+    throw new Error('NEXT_PUBLIC_API_URL must be set in production environment');
+  } else if (isDevelopment && !apiUrl) {
+    // In development, warn but don't fail - allow localhost defaults
+    console.warn('⚠️  NEXT_PUBLIC_API_URL not set. Using development defaults.');
+  }
+
+  // Validate WebSocket URL format in production
+  if (isProduction) {
+    const wsUrl = env.NEXT_PUBLIC_WEBSOCKET_URL || env.NEXT_PUBLIC_WS_URL || APP_CONFIG.WEBSOCKET.URL;
+    if (wsUrl && wsUrl.trim() !== '') {
+      try {
+        new URL(wsUrl);
+      } catch {
+        throw new Error(
+          `❌ Invalid WebSocket URL format: ${wsUrl}\n` +
+          `Please provide a valid URL via NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL environment variable`
+        );
+      }
+    } else {
+      throw new Error('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL must be set in production environment');
     }
   }
 }
@@ -943,6 +1066,26 @@ if (typeof window === 'undefined') {
     logEnvironmentInfo();
   }
 }
+
+// ============================================================================
+// ROUTING CONFIGURATION (Re-exported for convenience)
+// ============================================================================
+// Re-export routing utilities from routes.ts and sidebarLinks.tsx
+
+export { 
+  getDashboardByRole, 
+  getRoutesByRole, 
+  getAllowedRolesForPath,
+  isAuthPath,
+  AUTH_PATHS,
+  ROLE_ROUTES,
+  ROLE_PATH_MAP
+} from './routes';
+
+export type { SidebarLink } from './sidebarLinks';
+export { 
+  sidebarLinksByRole
+} from './sidebarLinks';
 
 // ============================================================================
 // DEFAULT EXPORT

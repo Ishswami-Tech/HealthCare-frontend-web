@@ -30,7 +30,7 @@ import useZodForm from "@/hooks/useZodForm";
 import { Role, RegisterFormData as AuthRegisterFormData } from "@/types/auth.types";
 import { toast } from "sonner";
 import { useState } from "react";
-import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
+import { ERROR_MESSAGES } from "@/lib/config/config";
 import { Loader2 } from "lucide-react";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 

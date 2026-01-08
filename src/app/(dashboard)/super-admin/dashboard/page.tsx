@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getRoutesByRole } from "@/config/routes";
+import { getRoutesByRole } from "@/lib/config/config";
 import { useAuth } from "@/hooks/useAuth";
 import { useClinics } from "@/hooks/useClinics";
 import { useUsers } from "@/hooks/useUsers";

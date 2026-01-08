@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useWebSocketStatus } from '@/components/websocket/WebSocketProvider';
 import { useAppStore } from '@/stores/app.store';
+import { useHealthStore } from '@/stores/health.store';
 
 export type StatusType = 'active' | 'inactive' | 'warning' | 'error' | 'loading';
 
@@ -140,16 +141,77 @@ export function StatusDot({
 // System-specific status indicators
 export function SystemStatusIndicator() {
   const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
+  // Check health store for actual backend health status
+  const healthStatus = useHealthStore((state) => state.healthStatus);
+  const isHealthConnected = useHealthStore((state) => state.isConnected);
   
+  // Determine overall health from backend services
   const getSystemStatus = (): StatusType => {
-    if (isRealTimeEnabled && isConnected) return 'active';
-    if (isConnected) return 'warning';
-    return 'error';
+    // Priority 1: Use actual backend health data if available
+    if (healthStatus && isHealthConnected) {
+      // Check if all critical services are healthy
+      const dbHealthy = healthStatus.database?.isHealthy !== false && 
+                        (healthStatus.database?.status === 'up' || healthStatus.database?.status === 'healthy');
+      const cacheHealthy = healthStatus.cache?.healthy !== false && 
+                           (healthStatus.cache?.status === 'up' || healthStatus.cache?.status === 'healthy');
+      const queueHealthy = healthStatus.queue?.healthy !== false && 
+                          (healthStatus.queue?.status === 'up' || healthStatus.queue?.status === 'healthy');
+      const apiHealthy = dbHealthy; // API depends on DB
+      
+      // If all critical services are healthy, system is active (green)
+      if (dbHealthy && cacheHealthy && queueHealthy && apiHealthy) {
+        return 'active'; // ✅ Green - All services healthy
+      }
+      
+      // If some services are down, show warning (yellow)
+      if (dbHealthy || cacheHealthy || queueHealthy) {
+        return 'warning'; // ⚠️ Yellow - Some services degraded
+      }
+      
+      // If all critical services are down, show error (red)
+      return 'error'; // ❌ Red - Critical services down
+    }
+    
+    // Priority 2: Fallback to WebSocket connection status
+    // If WebSocket is connected, assume system is at least partially online
+    if (isRealTimeEnabled && isConnected) {
+      return 'active'; // ✅ Green - Real-time connected
+    }
+    if (isConnected) {
+      return 'warning'; // ⚠️ Yellow - Connected but no real-time
+    }
+    
+    // Priority 3: No connection at all
+    return 'error'; // ❌ Red - No connection
   };
 
   const getSystemLabel = () => {
-    if (isRealTimeEnabled && isConnected) return 'System Active';
-    if (isConnected) return 'System Online';
+    // Priority 1: Use backend health data
+    if (healthStatus && isHealthConnected) {
+      const dbHealthy = healthStatus.database?.isHealthy !== false && 
+                        (healthStatus.database?.status === 'up' || healthStatus.database?.status === 'healthy');
+      const cacheHealthy = healthStatus.cache?.healthy !== false && 
+                           (healthStatus.cache?.status === 'up' || healthStatus.cache?.status === 'healthy');
+      const queueHealthy = healthStatus.queue?.healthy !== false && 
+                          (healthStatus.queue?.status === 'up' || healthStatus.queue?.status === 'healthy');
+      const apiHealthy = dbHealthy;
+      
+      if (dbHealthy && cacheHealthy && queueHealthy && apiHealthy) {
+        return 'System Active'; // ✅ All services healthy
+      }
+      if (dbHealthy || cacheHealthy || queueHealthy) {
+        return 'System Degraded'; // ⚠️ Some services down
+      }
+      return 'System Offline'; // ❌ Critical services down
+    }
+    
+    // Priority 2: Fallback to WebSocket connection
+    if (isRealTimeEnabled && isConnected) {
+      return 'System Active';
+    }
+    if (isConnected) {
+      return 'System Online';
+    }
     return 'System Offline';
   };
 

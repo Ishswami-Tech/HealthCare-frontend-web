@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/config/routes";
+import { getRoutesByRole } from "@/lib/config/config";
 import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
 import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";

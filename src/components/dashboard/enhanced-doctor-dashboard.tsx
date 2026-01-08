@@ -8,7 +8,7 @@ import { MetricCard, Card, CardHeader, CardTitle, CardContent } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { getRoutesByRole } from "@/config/routes";
+import { getRoutesByRole } from "@/lib/config/config";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyAppointments } from "@/hooks/useAppointments";
 import { useClinicContext } from "@/hooks/useClinic";

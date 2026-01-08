@@ -37,6 +37,7 @@ import {
 } from "@/components/rbac";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
+import { PageSuspense, CardSuspense } from "@/components/ui/suspense-boundary";
 import {
   Calendar,
   Clock,
@@ -199,15 +200,17 @@ export default function AppointmentsPage() {
     setPage(1);
   }, []);
 
-  // Show loading state
+  // Show loading state with Suspense boundary
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading appointments...</p>
+      <PageSuspense>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading appointments...</p>
+          </div>
         </div>
-      </div>
+      </PageSuspense>
     );
   }
 

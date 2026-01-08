@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { getRoutesByRole } from "@/config/routes";
+import { getRoutesByRole } from "@/lib/config/config";
 import { useAuth } from "@/hooks/useAuth";
 import { useClinics } from "@/hooks/useClinics";
 import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";

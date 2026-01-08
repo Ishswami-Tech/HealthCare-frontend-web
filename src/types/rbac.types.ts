@@ -321,6 +321,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     // Medical records (own only)
     Permission.VIEW_MEDICAL_RECORDS,
     
+    // Billing (own only)
+    Permission.VIEW_BILLING,
+    
     // Notifications
     Permission.VIEW_NOTIFICATIONS,
     

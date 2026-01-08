@@ -22,7 +22,7 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { ERROR_MESSAGES } from "@/lib/constants/error-messages";
+import { ERROR_MESSAGES } from "@/lib/config/config";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 
 export default function ForgotPasswordPage() {

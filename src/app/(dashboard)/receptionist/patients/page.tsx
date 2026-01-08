@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { getRoutesByRole } from "@/config/routes";
+import { getRoutesByRole } from "@/lib/config/config";
 import { useAuth } from "@/hooks/useAuth";
 import { useClinicContext } from "@/hooks/useClinic";
 import { usePatients, useCreatePatient } from "@/hooks/usePatients";

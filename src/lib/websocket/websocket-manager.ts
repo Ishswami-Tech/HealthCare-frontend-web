@@ -17,8 +17,8 @@ export class WebSocketManager {
   private activeConnections = new Map<string, boolean>();
 
   constructor() {
-    // Use environment-aware API config for WebSocket URL
-    this.defaultUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || APP_CONFIG.WEBSOCKET.URL;
+    // Use centralized config for WebSocket URL
+    this.defaultUrl = APP_CONFIG.WEBSOCKET.URL;
   }
 
   static getInstance(): WebSocketManager {
@@ -237,11 +237,9 @@ export function useWebSocketManager() {
 
 // Environment-specific configuration
 export const getWebSocketConfig = () => {
-  // Use environment-aware API config for WebSocket URL
-  const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || APP_CONFIG.WEBSOCKET.URL;
-  
+  // Use centralized config for WebSocket URL
   return {
-    url: wsUrl,
+    url: APP_CONFIG.WEBSOCKET.URL,
     reconnectionAttempts: APP_CONFIG.WEBSOCKET.MAX_RECONNECT_ATTEMPTS,
     reconnectionDelay: APP_CONFIG.IS_DEVELOPMENT ? 1000 : 2000,
     timeout: APP_CONFIG.WEBSOCKET.TIMEOUT,

@@ -36,7 +36,7 @@ import type {
   User,
 } from '@/types/auth.types';
 import { Role } from '@/types/auth.types';
-import { getDashboardByRole } from '@/config/routes';
+import { getDashboardByRole } from '@/lib/config/config';
 
 // Constants
 const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes

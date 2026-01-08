@@ -1,6 +1,7 @@
 import { useQueryData } from './useQueryData';
 import { useMutationData } from './useMutationData';
 import { useAuth } from './useAuth';
+import { APP_CONFIG } from '@/lib/config/config';
 import {
   getUserProfile,
   updateUserProfile,
@@ -19,8 +20,8 @@ import {
   terminateUserSession
 } from '@/lib/actions/users.server';
 
-// API URL configuration
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+// API URL configuration - use centralized config
+const API_URL = APP_CONFIG.API.BASE_URL;
 
 /**
  * Helper to get auth headers
@@ -43,7 +44,10 @@ async function apiCall<T>(
 ): Promise<{ status: number; data: T }> {
   const url = `${API_URL}${endpoint}`;
   
-  const response = await fetch(url, {
+  // ✅ PERFORMANCE: Use fetch with AbortController
+  const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
+  const response = await fetchWithAbort(url, {
+    timeout: 10000,
     ...options,
     headers: {
       'Content-Type': 'application/json',

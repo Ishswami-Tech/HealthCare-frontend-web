@@ -3,12 +3,15 @@
 
 'use server';
 
+import { logger } from '@/lib/logger';
+
 import { z } from 'zod';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { clinicApiClient } from '@/lib/api/client';
 import { auditLog } from '@/lib/audit';
 import { validateClinicAccess } from '@/lib/auth/permissions';
 import { API_ENDPOINTS } from '@/lib/config/config';
+import { logger } from '@/lib/logger';
 // Session data handling - will need to be implemented
 const getSessionData = async () => ({ userId: 'temp-user', access_token: 'temp-token' });
 
@@ -95,7 +98,7 @@ export async function createVideoAppointment(data: z.infer<typeof createVideoApp
     return { success: true, videoAppointment: response.data };
     
   } catch (error) {
-    console.error('Failed to create video appointment:', error);
+    logger.error('Failed to create video appointment', error instanceof Error ? error : new Error(String(error)));
     
     if (error instanceof z.ZodError) {
       return { 
@@ -155,7 +158,7 @@ export async function getVideoAppointments(clinicId: string, filters?: {
     };
     
   } catch (error) {
-    console.error('Failed to get video appointments:', error);
+    logger.error('Failed to get video appointments', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while fetching video appointments' 
@@ -184,7 +187,7 @@ export async function getVideoAppointmentById(id: string): Promise<{ success: bo
     return { success: true, videoAppointment: response.data };
     
   } catch (error) {
-    console.error('Failed to get video appointment:', error);
+    logger.error('Failed to get video appointment', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while fetching the video appointment' 
@@ -249,7 +252,7 @@ export async function updateVideoAppointment(data: z.infer<typeof updateVideoApp
     return { success: true, videoAppointment: response.data };
     
   } catch (error) {
-    console.error('Failed to update video appointment:', error);
+    logger.error('Failed to update video appointment', error instanceof Error ? error : new Error(String(error)));
     
     if (error instanceof z.ZodError) {
       return { 
@@ -320,7 +323,7 @@ export async function joinVideoAppointment(data: z.infer<typeof joinVideoAppoint
     return { success: true, joinUrl: (response.data as any).joinUrl };
     
   } catch (error) {
-    console.error('Failed to join video appointment:', error);
+    logger.error('Failed to join video appointment', error instanceof Error ? error : new Error(String(error)));
     
     if (error instanceof z.ZodError) {
       return { 
@@ -385,7 +388,7 @@ export async function endVideoAppointment(appointmentId: string): Promise<{ succ
     return { success: true };
     
   } catch (error) {
-    console.error('Failed to end video appointment:', error);
+    logger.error('Failed to end video appointment', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while ending the video appointment' 
@@ -414,7 +417,7 @@ export async function getVideoAppointmentRecording(appointmentId: string): Promi
     return { success: true, recordingUrl: (response.data as any).recordingUrl };
     
   } catch (error) {
-    console.error('Failed to get video appointment recording:', error);
+    logger.error('Failed to get video appointment recording', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while fetching the recording' 
@@ -471,7 +474,7 @@ export async function deleteVideoAppointment(appointmentId: string): Promise<{ s
     return { success: true };
     
   } catch (error) {
-    console.error('Failed to delete video appointment:', error);
+    logger.error('Failed to delete video appointment', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while deleting the video appointment' 

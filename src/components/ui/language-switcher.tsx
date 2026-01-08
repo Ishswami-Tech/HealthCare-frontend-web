@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { ChevronDown, Globe, Check } from "lucide-react";
-import { useLanguageSwitcher } from "@/lib/i18n/context";
+import { useLanguage } from "@/lib/i18n/context";
 import { SupportedLanguage } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ export function LanguageSwitcher({
   showNativeName = true,
 }: LanguageSwitcherProps) {
   const { language, setLanguage, supportedLanguages, isLoading } =
-    useLanguageSwitcher();
+    useLanguage();
   const [isOpen, setIsOpen] = useState(false);
 
   if (isLoading) {

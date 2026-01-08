@@ -1,5 +1,5 @@
 import { Role } from '@/types/auth.types';
-import { getDashboardByRole } from '@/config/routes';
+import { getDashboardByRole } from '@/lib/config/config';
 
 export interface ProfileCompletionStatus {
   isComplete: boolean;

@@ -199,11 +199,10 @@ const Footer = () => {
                 </div>
               </div>
 
-              {/* Email removed from footer */}
-              {/* <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3">
                 <Mail className="w-5 h-5 text-primary" />
                 <p className="text-muted-foreground">{t("clinic.email")}</p>
-              </div> */}
+              </div>
 
               <div className="flex items-start space-x-3">
                 <Clock className="w-5 h-5 text-primary flex-shrink-0 mt-1" />

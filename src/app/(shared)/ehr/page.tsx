@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/config/routes";
+import { getRoutesByRole } from "@/lib/config/config";
 import { useAuth } from "@/hooks/useAuth";
 import {
   usePatientLabResults,
@@ -26,6 +26,11 @@ import {
 import {
   useCreateMedicalRecord,
 } from "@/hooks/useMedicalRecords";
+import {
+  useClinicEHRAnalytics,
+  useClinicCriticalAlerts,
+  useSearchClinicEHR,
+} from "@/hooks/useEHRClinic";
 import { usePatientPermissions } from "@/hooks/useRBAC";
 import {
   ProtectedComponent,
@@ -97,6 +102,18 @@ export default function EHRSystem() {
     usePatientMedicalRecords(clinicId || "", selectedPatientId || "", {
       enabled: !!clinicId && !!selectedPatientId,
     });
+
+  // Fetch clinic-wide EHR analytics (for clinic admins)
+  const { data: clinicAnalytics, isPending: analyticsLoading } = useClinicEHRAnalytics(
+    clinicId || "",
+    'month'
+  );
+
+  // Fetch clinic critical alerts
+  const { data: criticalAlertsData } = useClinicCriticalAlerts(clinicId || "", {
+    resolved: false,
+    limit: 10,
+  });
 
   // Fetch vital signs for selected patient
   // const { data: vitalSigns } = usePatientVitalSigns(
@@ -189,24 +206,19 @@ export default function EHRSystem() {
       nextAppointment: patient.nextAppointment || "Not scheduled",
     })) : [];
 
-  const criticalAlerts = [
-    {
-      id: "A001",
-      patient: "Amit Singh",
-      type: "Lab Result",
-      message: "HbA1c levels elevated (9.2%) - Requires immediate attention",
-      severity: "High",
-      timestamp: "2 hours ago",
-    },
-    {
-      id: "A002",
-      patient: "Maya Patel",
-      type: "Vitals",
-      message: "Blood pressure reading 180/110 - Emergency range",
-      severity: "Critical",
-      timestamp: "4 hours ago",
-    },
-  ];
+  // Use critical alerts from API, fallback to empty array if not available
+  const criticalAlerts = Array.isArray(criticalAlertsData) 
+    ? criticalAlertsData.map((alert: any) => ({
+        id: alert.id || `A${String(alert.id || Math.random()).padStart(3, '0')}`,
+        patient: alert.patientName || alert.patient?.name || "Unknown Patient",
+        type: alert.type || alert.alertType || "Alert",
+        message: alert.message || alert.description || "Critical alert requires attention",
+        severity: alert.severity || alert.priority || "High",
+        timestamp: alert.createdAt 
+          ? new Date(alert.createdAt).toLocaleString() 
+          : alert.timestamp || "Recently",
+      }))
+    : [];
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {

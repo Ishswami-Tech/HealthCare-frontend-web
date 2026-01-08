@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { useWebSocketIntegration } from './useWebSocketIntegration';
 import { useAppStore, useAppointmentsStore } from '@/stores';
 import type { Appointment, AppointmentFilters } from '@/stores/appointments.store';
+import type { Appointment as AppointmentType } from '@/types/api.types';
 
 // Enhanced query hooks with real-time WebSocket integration
 
@@ -28,16 +29,22 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
         )
       });
       
-      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
-          'X-Clinic-ID': currentClinic.id,
-        },
-      });
+      // ✅ SECURITY: Use centralized API client instead of direct fetch
+      const { clinicApiClient } = await import('@/lib/api/client');
+      const response = await clinicApiClient.get<AppointmentType[]>(
+        `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${params}`
+      );
       
-      if (!response.ok) throw new Error('Failed to fetch appointments');
-      const data = await response.json();
-      return { success: true, data: Array.isArray(data) ? data : data.appointments || [] };
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Failed to fetch appointments');
+      }
+      
+      // Handle both array and object with appointments property
+      const appointments = Array.isArray(response.data) 
+        ? response.data 
+        : (response.data as { appointments?: AppointmentType[] }).appointments || [];
+      
+      return { success: true, data: appointments };
     },
     enabled: !!currentClinic,
     staleTime: 60 * 1000, // 1 minute (optimized for 10M users - real-time updates reduce need for frequent refetch)
@@ -67,7 +74,7 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
       // Update the query cache based on the action
       switch (data.action) {
         case 'created':
-          queryClient.setQueryData(['appointments', filters, currentClinic.id], (oldData: any) => {
+          queryClient.setQueryData(['appointments', filters, currentClinic.id], (oldData: { success: boolean; data: AppointmentType[] } | undefined) => {
             if (oldData?.success && oldData?.data) {
               const newData = [...oldData.data, data.appointment];
               return { ...oldData, data: newData };
@@ -77,7 +84,7 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
           break;
 
         case 'updated':
-          queryClient.setQueryData(['appointments', filters, currentClinic.id], (oldData: any) => {
+          queryClient.setQueryData(['appointments', filters, currentClinic.id], (oldData: { success: boolean; data: AppointmentType[] } | undefined) => {
             if (oldData?.success && oldData?.data) {
               const updatedData = oldData.data.map((apt: Appointment) =>
                 apt.id === data.appointment.id ? { ...apt, ...data.appointment } : apt
@@ -89,7 +96,7 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
           break;
 
         case 'deleted':
-          queryClient.setQueryData(['appointments', filters, currentClinic.id], (oldData: any) => {
+          queryClient.setQueryData(['appointments', filters, currentClinic.id], (oldData: { success: boolean; data: AppointmentType[] } | undefined) => {
             if (oldData?.success && oldData?.data) {
               const filteredData = oldData.data.filter((apt: Appointment) => apt.id !== data.appointment.id);
               return { ...oldData, data: filteredData };
@@ -133,15 +140,17 @@ export function useRealTimeAppointmentStats() {
       if (!currentClinic) throw new Error('No clinic selected');
       
       const { API_ENDPOINTS, APP_CONFIG } = await import('@/lib/config/config');
-      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.ANALYTICS}?clinicId=${currentClinic.id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
-          'X-Clinic-ID': currentClinic.id,
-        },
-      });
-      if (!response.ok) throw new Error('Failed to fetch appointment stats');
-      const data = await response.json();
-      return { success: true, data };
+      // ✅ SECURITY: Use centralized API client instead of direct fetch
+      const { clinicApiClient } = await import('@/lib/api/client');
+      const response = await clinicApiClient.get<Record<string, unknown>>(
+        `${API_ENDPOINTS.APPOINTMENTS.ANALYTICS}?clinicId=${currentClinic.id}`
+      );
+      
+      if (!response.success || !response.data) {
+        throw new Error('Failed to fetch appointment stats');
+      }
+      
+      return { success: true, data: response.data };
     },
     enabled: !!currentClinic,
     staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
@@ -189,15 +198,17 @@ export function useRealTimeQueueStatus(queueName?: string) {
       const params = new URLSearchParams({ clinicId: currentClinic.id });
       if (queueName) params.append('queueName', queueName);
       
-      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.QUEUE.STATS}?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
-          'X-Clinic-ID': currentClinic.id,
-        },
-      });
-      if (!response.ok) throw new Error('Failed to fetch queue status');
-      const data = await response.json();
-      return { success: true, data };
+      // ✅ SECURITY: Use centralized API client instead of direct fetch
+      const { clinicApiClient } = await import('@/lib/api/client');
+      const response = await clinicApiClient.get<Record<string, unknown>>(
+        `${API_ENDPOINTS.APPOINTMENTS.QUEUE.STATS}?${params}`
+      );
+      
+      if (!response.success || !response.data) {
+        throw new Error('Failed to fetch queue status');
+      }
+      
+      return { success: true, data: response.data };
     },
     enabled: !!currentClinic,
     staleTime: 30 * 1000, // 30 seconds (optimized for 10M users)
@@ -250,22 +261,21 @@ export function useRealTimeAppointmentMutation() {
       if (!currentClinic) throw new Error('No clinic selected');
       
       const { API_ENDPOINTS, APP_CONFIG } = await import('@/lib/config/config');
-      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.CREATE}`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
-          'X-Clinic-ID': currentClinic.id,
-        },
-        body: JSON.stringify({
+      // ✅ SECURITY: Use centralized API client instead of direct fetch
+      const { clinicApiClient } = await import('@/lib/api/client');
+      const response = await clinicApiClient.post<Appointment>(
+        API_ENDPOINTS.APPOINTMENTS.CREATE,
+        {
           ...appointmentData,
           clinicId: currentClinic.id,
-        }),
-      });
+        }
+      );
       
-      if (!response.ok) throw new Error('Failed to create appointment');
-      const data = await response.json();
-      return { success: true, data };
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Failed to create appointment');
+      }
+      
+      return { success: true, data: response.data };
     },
     onSuccess: (data) => {
       // Optimistically update local cache
@@ -282,18 +292,18 @@ export function useRealTimeAppointmentMutation() {
   const updateAppointment = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Appointment> }) => {
       const { API_ENDPOINTS, APP_CONFIG } = await import('@/lib/config/config');
-      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.UPDATE(id)}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
-        },
-        body: JSON.stringify(updates),
-      });
+      // ✅ SECURITY: Use centralized API client instead of direct fetch
+      const { clinicApiClient } = await import('@/lib/api/client');
+      const response = await clinicApiClient.put<Appointment>(
+        API_ENDPOINTS.APPOINTMENTS.UPDATE(id),
+        updates
+      );
       
-      if (!response.ok) throw new Error('Failed to update appointment');
-      const data = await response.json();
-      return { success: true, data };
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Failed to update appointment');
+      }
+      
+      return { success: true, data: response.data };
     },
     onMutate: async ({ id, updates }) => {
       // Cancel any outgoing refetches
@@ -303,7 +313,7 @@ export function useRealTimeAppointmentMutation() {
       const previousAppointments = queryClient.getQueryData(['appointments']);
 
       // Optimistically update the cache
-      queryClient.setQueryData(['appointments'], (old: any) => {
+      queryClient.setQueryData(['appointments'], (old: { success: boolean; data: AppointmentType[] } | undefined) => {
         if (old?.success && old?.data) {
           const updatedData = old.data.map((apt: Appointment) =>
             apt.id === id ? { ...apt, ...updates } : apt
@@ -338,16 +348,17 @@ export function useRealTimeAppointmentMutation() {
   const deleteAppointment = useMutation({
     mutationFn: async (id: string) => {
       const { API_ENDPOINTS, APP_CONFIG } = await import('@/lib/config/config');
-      const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.APPOINTMENTS.DELETE(id)}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
-        },
-      });
+      // ✅ SECURITY: Use centralized API client instead of direct fetch
+      const { clinicApiClient } = await import('@/lib/api/client');
+      const response = await clinicApiClient.delete<{ message: string }>(
+        API_ENDPOINTS.APPOINTMENTS.DELETE(id)
+      );
       
-      if (!response.ok) throw new Error('Failed to delete appointment');
-      const data = await response.json();
-      return { success: true, data };
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to delete appointment');
+      }
+      
+      return { success: true, data: response.data || { message: 'Appointment deleted' } };
     },
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });

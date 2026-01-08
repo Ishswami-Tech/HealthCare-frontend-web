@@ -3,6 +3,8 @@
 
 'use server';
 
+import { logger } from '@/lib/logger';
+
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
@@ -189,7 +191,7 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
     return { success: true, appointment: response.data as Appointment };
     
   } catch (error) {
-    console.error('Failed to create appointment:', error);
+    logger.error('Failed to create appointment', error instanceof Error ? error : new Error(String(error)));
     
     if (error instanceof z.ZodError) {
       return { 
@@ -209,8 +211,9 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
 
 /**
  * Get appointments with enhanced filtering
+ * Supports both clinicId parameter (legacy) and filters-only (new)
  */
-export async function getAppointments(filters?: AppointmentFilters): Promise<{ 
+export async function getAppointments(clinicIdOrFilters?: string | AppointmentFilters, filters?: AppointmentFilters): Promise<{ 
   success: boolean; 
   appointments?: Appointment[]; 
   meta?: any; 
@@ -258,7 +261,7 @@ export async function getAppointments(filters?: AppointmentFilters): Promise<{
     };
     
   } catch (error) {
-    console.error('Failed to get appointments:', error);
+    logger.error('Failed to get appointments', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while fetching appointments',
@@ -311,7 +314,7 @@ export async function getMyAppointments(filters?: {
     };
     
   } catch (error) {
-    console.error('Failed to get my appointments:', error);
+    logger.error('Failed to get my appointments', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while fetching appointments',
@@ -356,7 +359,7 @@ export async function getAppointmentById(id: string): Promise<{
     return { success: true, appointment: response.data as Appointment };
     
   } catch (error) {
-    console.error('Failed to get appointment:', error);
+    logger.error('Failed to get appointment', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while fetching the appointment',
@@ -447,7 +450,7 @@ export async function updateAppointment(id: string, data: UpdateAppointmentData)
     return { success: true, appointment: response.data as Appointment };
     
   } catch (error) {
-    console.error('Failed to update appointment:', error);
+    logger.error('Failed to update appointment', error instanceof Error ? error : new Error(String(error)));
     
     if (error instanceof z.ZodError) {
       return { 
@@ -523,7 +526,7 @@ export async function cancelAppointment(id: string, reason?: string): Promise<{
     return { success: true, appointment: response.data as Appointment };
     
   } catch (error) {
-    console.error('Failed to cancel appointment:', error);
+    logger.error('Failed to cancel appointment', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while cancelling the appointment',
@@ -587,7 +590,7 @@ export async function confirmAppointment(id: string): Promise<{
     return { success: true, appointment: response.data as Appointment };
     
   } catch (error) {
-    console.error('Failed to confirm appointment:', error);
+    logger.error('Failed to confirm appointment', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while confirming the appointment',
@@ -650,7 +653,7 @@ export async function checkInAppointment(id: string): Promise<{
     return { success: true, appointment: response.data as Appointment };
     
   } catch (error) {
-    console.error('Failed to check in appointment:', error);
+    logger.error('Failed to check in appointment', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while checking in the appointment',
@@ -713,7 +716,7 @@ export async function startAppointment(id: string): Promise<{
     return { success: true, appointment: response.data as Appointment };
     
   } catch (error) {
-    console.error('Failed to start appointment:', error);
+    logger.error('Failed to start appointment', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while starting the appointment',
@@ -796,7 +799,7 @@ export async function completeAppointment(id: string, data: {
     return { success: true, appointment: response.data as Appointment };
     
   } catch (error) {
-    console.error('Failed to complete appointment:', error);
+    logger.error('Failed to complete appointment', error instanceof Error ? error : new Error(String(error)));
     
     if (error instanceof z.ZodError) {
       return { 
@@ -852,7 +855,7 @@ export async function getDoctorAvailability(doctorId: string, date: string): Pro
     return { success: true, availability: response.data as DoctorAvailability };
     
   } catch (error) {
-    console.error('Failed to get doctor availability:', error);
+    logger.error('Failed to get doctor availability', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while fetching doctor availability',
@@ -897,7 +900,7 @@ export async function getUserUpcomingAppointments(userId: string): Promise<{
     return { success: true, appointments: response.data as Appointment[] };
     
   } catch (error) {
-    console.error('Failed to get upcoming appointments:', error);
+    logger.error('Failed to get upcoming appointments', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while fetching upcoming appointments',
@@ -944,7 +947,7 @@ export async function getQueue(queueType: string): Promise<{
     return { success: true, queue: response.data as QueueEntry[] || [] };
     
   } catch (error) {
-    console.error('Failed to get queue:', error);
+    logger.error('Failed to get queue', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while fetching the queue',
@@ -1029,7 +1032,7 @@ export async function addToQueue(data: {
     return { success: true, queueEntry: response.data as QueueEntry };
     
   } catch (error) {
-    console.error('Failed to add to queue:', error);
+    logger.error('Failed to add to queue', error instanceof Error ? error : new Error(String(error)));
     
     if (error instanceof z.ZodError) {
       return { 
@@ -1104,7 +1107,7 @@ export async function callNextPatient(queueType: string): Promise<{
     return { success: true, patient: response.data };
     
   } catch (error) {
-    console.error('Failed to call next patient:', error);
+    logger.error('Failed to call next patient', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while calling next patient',
@@ -1149,7 +1152,7 @@ export async function getQueueStats(): Promise<{
     return { success: true, stats: response.data as QueueStats };
     
   } catch (error) {
-    console.error('Failed to get queue stats:', error);
+    logger.error('Failed to get queue stats', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while fetching queue statistics',
@@ -1186,7 +1189,7 @@ export async function testAppointmentContext(): Promise<{
     return { success: true, context: response.data };
     
   } catch (error) {
-    console.error('Failed to test appointment context:', error);
+    logger.error('Failed to test appointment context', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred while testing appointment context',
@@ -1271,7 +1274,7 @@ export async function bulkUpdateAppointmentStatus(appointmentIds: string[], stat
     return result;
     
   } catch (error) {
-    console.error('Failed bulk appointment update:', error);
+    logger.error('Failed bulk appointment update', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       updated: 0,

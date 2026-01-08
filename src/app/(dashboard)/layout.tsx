@@ -3,7 +3,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryData } from "@/hooks/useQueryData";
 import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
-import { sidebarLinksByRole, SidebarLink } from "@/config/sidebarLinks";
+import { sidebarLinksByRole, SidebarLink } from "@/lib/config/config";
 import { Role } from "@/types/auth.types";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 import React from "react";

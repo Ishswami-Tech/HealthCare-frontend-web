@@ -154,7 +154,9 @@ export function useFCM(): UseFCMReturn {
         appVersion: APP_CONFIG.APP.VERSION,
       };
 
-      const response = await fetch(
+      // ✅ PERFORMANCE: Use fetch with AbortController
+      const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
+      const response = await fetchWithAbort(
         `${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.COMMUNICATION.PUSH.REGISTER_DEVICE_TOKEN}`,
         {
           method: 'POST',
@@ -164,6 +166,7 @@ export function useFCM(): UseFCMReturn {
               Authorization: `Bearer ${session.access_token}`,
             }),
           },
+          timeout: 10000,
           body: JSON.stringify({
             token,
             platform: 'web',
@@ -239,6 +242,13 @@ export function useFCM(): UseFCMReturn {
     unregisterToken,
   };
 }
+
+
+
+
+
+
+
 
 
 

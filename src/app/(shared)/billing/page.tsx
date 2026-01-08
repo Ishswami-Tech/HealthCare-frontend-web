@@ -4,6 +4,8 @@ import React, { useState, lazy, Suspense } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import { ProtectedRoute } from "@/components/rbac/ProtectedRoute";
+import { Permission } from "@/types/rbac.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { getRoutesByRole } from "@/config/routes";
+import { getRoutesByRole } from "@/lib/config/config";
 import { useAuth } from "@/hooks/useAuth";
 
 // ✅ Lazy load heavy components for code splitting (optimized for 10M users)
@@ -63,7 +65,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-export default function BillingPage() {
+function BillingPageContent() {
   const { session } = useAuth();
   const user = session?.user;
   const userId = user?.id || "user-1";
@@ -781,5 +783,16 @@ export default function BillingPage() {
         </div>
       </GlobalSidebar>
     </DashboardLayout>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <ProtectedRoute 
+      permission={Permission.VIEW_BILLING}
+      allowedRoles={[Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT]}
+    >
+      <BillingPageContent />
+    </ProtectedRoute>
   );
 }

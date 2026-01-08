@@ -138,4 +138,5 @@ export function getAllowedRolesForPath(pathname: string): Role[] | undefined {
  */
 export function isAuthPath(pathname: string): boolean {
   return AUTH_PATHS.some((path) => pathname.startsWith(path));
-} 
+}
+

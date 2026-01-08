@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useWebSocketStore } from '@/stores/websocket.store';
 import { useAppStore, useAppointmentsStore } from '@/stores';
 import { websocketManager } from '@/lib/websocket/websocket-manager';
+import { APP_CONFIG } from '@/lib/config/config';
 import type { Appointment } from '@/stores/appointments.store';
 
 export interface UseWebSocketIntegrationOptions {
@@ -51,25 +52,39 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
   useEffect(() => {
     if (!autoConnect || !user) return;
 
-    try {
-      websocketManager.initialize({
-        autoConnect: false,
-      });
+    // Create async function to handle WebSocket initialization
+    const initializeWebSocket = async () => {
+      try {
+        websocketManager.initialize({
+          autoConnect: false,
+        });
 
-      const token = localStorage.getItem('auth-token') || undefined;
+        // ✅ SECURITY: Use secure token access (will be migrated to httpOnly cookies)
+        const { getAccessToken } = await import('@/lib/utils/token-manager');
+        const token = await getAccessToken() || undefined;
 
-      // Connect to main namespace
-      connect(process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3000', {
-        tenantId,
-        userId,
-        token,
-        autoReconnect: true,
-        reconnectionAttempts: 5,
-      });
+        // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
+        const websocketUrl = APP_CONFIG.WEBSOCKET.URL;
+        if (!websocketUrl) {
+          throw new Error('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL must be set in environment variables');
+        }
 
-    } catch (error) {
-      console.error('Failed to initialize WebSocket:', error);
-    }
+        // Connect to main namespace
+        connect(websocketUrl, {
+          tenantId,
+          userId,
+          token,
+          autoReconnect: true,
+          reconnectionAttempts: 5,
+        });
+
+      } catch (error) {
+        console.error('Failed to initialize WebSocket:', error);
+      }
+    };
+
+    // Call the async function
+    initializeWebSocket();
 
     return () => {
       // Cleanup subscriptions

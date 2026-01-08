@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { io, Socket } from "socket.io-client";
+import { APP_CONFIG } from "@/lib/config/config";
 
 export interface WebSocketState {
   socket: Socket | null;
@@ -266,7 +267,11 @@ export const useQueueWebSocket = () => {
   const store = useWebSocketStore();
   
   const connectToQueue = (options: ConnectionOptions) => {
-    const url = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:3000';
+    // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
+    const url = APP_CONFIG.WEBSOCKET.URL;
+    if (!url) {
+      throw new Error('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL must be set in environment variables');
+    }
     store.connect(url, {
       ...options,
       namespace: '/queue-status',
@@ -283,7 +288,11 @@ export const useAppointmentWebSocket = () => {
   const store = useWebSocketStore();
   
   const connectToAppointments = (options: ConnectionOptions) => {
-    const url = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:3000';
+    // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
+    const url = APP_CONFIG.WEBSOCKET.URL;
+    if (!url) {
+      throw new Error('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL must be set in environment variables');
+    }
     store.connect(url, {
       ...options,
       namespace: '/appointments',

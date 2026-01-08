@@ -1,6 +1,7 @@
 import { useQueryData } from './useQueryData';
 import { useMutationData } from './useMutationData';
 import { useAuth } from './useAuth';
+import { APP_CONFIG } from '@/lib/config/config';
 import { 
   CreateClinicData,
   UpdateClinicData,
@@ -19,11 +20,12 @@ import {
   getAllClinics
 } from '@/lib/actions/clinic.server';
 
-// API URL configuration
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088';
+// API URL configuration - use centralized config
+const API_URL = APP_CONFIG.API.BASE_URL;
 
-// In all API calls, pass clinicId from env
-const CLINIC_ID = process.env.NEXT_PUBLIC_CLINIC_ID!;
+// ✅ Get clinic ID from centralized config (not directly from env)
+// This ensures proper fallback and type safety
+const CLINIC_ID = APP_CONFIG.CLINIC.ID;
 
 /**
  * Helper to get auth headers
@@ -46,7 +48,10 @@ async function apiCall<T>(
 ): Promise<{ status: number; data: T }> {
   const url = `${API_URL}${endpoint}`;
   
-  const response = await fetch(url, {
+  // ✅ PERFORMANCE: Use fetch with AbortController
+  const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
+  const response = await fetchWithAbort(url, {
+    timeout: 10000,
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -99,8 +104,11 @@ export const useClinic = (clinicId?: string) => {
     ['clinic', id],
     async () => {
       const headers = getAuthHeaders(token, sessionId, id);
-      const response = await fetch(`${API_URL}/clinics/${id}`, {
+      // ✅ PERFORMANCE: Use fetch with AbortController
+      const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
+      const response = await fetchWithAbort(`${API_URL}/clinics/${id}`, {
         headers,
+        timeout: 10000,
       });
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));

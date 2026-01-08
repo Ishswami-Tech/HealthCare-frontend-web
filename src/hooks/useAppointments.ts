@@ -25,7 +25,7 @@ import {
   getUserUpcomingAppointments,
   getMyAppointments,
   testAppointmentContext
-} from '@/lib/actions/appointments.server';
+} from '@/lib/actions/enhanced-appointments.server';
 import type { 
   CreateAppointmentData, 
   UpdateAppointmentData,
@@ -166,9 +166,10 @@ export const useAppointment = (appointmentId: string) => {
 };
 
 /**
- * Hook for creating a new appointment (Optimized for 100K users)
+ * Hook for creating a new appointment with React 19 useOptimistic
+ * Provides optimistic UI updates for better UX
  */
-export const useCreateAppointment = () => {
+export const useCreateAppointment = (clinicId?: string) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { hasPermission } = useRBAC();
@@ -186,43 +187,49 @@ export const useCreateAppointment = () => {
     return result.appointment;
   }, [hasPermission]);
   
-  // Optimized success handler
-  const onSuccess = useCallback((appointment: any) => {
-    if (appointment) {
-      // Optimistic update - add to cache immediately
-      queryClient.setQueryData(['appointment', appointment.id], appointment);
-      
-      // Invalidate with more specific keys to reduce cache clearing
-      queryClient.invalidateQueries({ 
-        queryKey: ['appointments'], 
-        exact: false,
-        refetchType: 'inactive' // Only refetch inactive queries
-      });
-      
-      toast({
-        title: 'Success',
-        description: `Appointment scheduled for ${appointment.date} at ${appointment.time}`,
-      });
-    }
-  }, [queryClient, toast]);
-  
-  // Memoized error handler
-  const onError = useCallback((error: Error) => {
-    console.error('Failed to create appointment:', error);
-    toast({
-      title: 'Error',
-      description: error.message || 'Failed to create appointment',
-      variant: 'destructive',
-    });
-  }, [toast]);
-  
-  return useMutation({
+  // Use optimistic mutation hook
+  const { optimisticData, addOptimistic, mutation, isPending } = useOptimisticMutation({
+    queryKey: ['appointments', clinicId],
     mutationFn,
-    onSuccess,
-    onError,
-    // Add mutation key for better deduplication
-    mutationKey: ['createAppointment'],
+    optimisticUpdate: (current, variables) => {
+      // Create optimistic appointment
+      const optimisticAppointment = {
+        ...variables,
+        id: `temp-${Date.now()}`,
+        status: 'SCHEDULED',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        tempId: true,
+      } as any;
+      return [...current, optimisticAppointment];
+    },
+    mutationOptions: {
+      onSuccess: (appointment: any) => {
+        if (appointment) {
+          toast({
+            title: 'Success',
+            description: `Appointment scheduled for ${appointment.date} at ${appointment.time}`,
+          });
+        }
+      },
+      onError: (error: Error) => {
+        console.error('Failed to create appointment:', error);
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to create appointment',
+          variant: 'destructive',
+        });
+      },
+      mutationKey: ['createAppointment'],
+    },
   });
+  
+  return {
+    ...mutation,
+    optimisticData,
+    addOptimistic,
+    isPending,
+  };
 };
 
 /**

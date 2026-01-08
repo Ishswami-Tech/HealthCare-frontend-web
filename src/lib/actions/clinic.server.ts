@@ -9,6 +9,7 @@ import { cookies } from 'next/headers';
 import { clinicApiClient } from '@/lib/api/client';
 import { auditLog } from '@/lib/audit';
 import { validateClinicAccess } from '@/lib/auth/permissions';
+import { logger } from '@/lib/logger';
 import type { Clinic, ClinicLocation, CreateClinicData, UpdateClinicData } from '@/types/clinic.types';
 
 // ✅ Input Validation Schemas
@@ -158,7 +159,7 @@ export async function createClinic(data: CreateClinicData): Promise<{ success: b
     return { success: true, clinic: response.data as Clinic };
     
   } catch (error) {
-    console.error('Failed to create clinic:', error);
+    logger.error('Failed to create clinic', error instanceof Error ? error : new Error(String(error)));
     
     if (error instanceof z.ZodError) {
       return { 
@@ -208,7 +209,7 @@ export async function getClinics(filters?: {
     };
     
   } catch (error) {
-    console.error('Failed to get clinics:', error);
+    logger.error('Failed to get clinics', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while fetching clinics' 
@@ -239,7 +240,7 @@ export async function getClinicById(id: string): Promise<{ success: boolean; cli
     return { success: true, clinic: response.data as Clinic };
     
   } catch (error) {
-    console.error('Failed to get clinic:', error);
+    logger.error('Failed to get clinic', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while fetching the clinic' 
@@ -270,7 +271,7 @@ export async function getClinicByAppName(appName: string): Promise<{ success: bo
     return { success: true, clinic: response.data as Clinic };
     
   } catch (error) {
-    console.error('Failed to get clinic by app name:', error);
+    logger.error('Failed to get clinic by app name', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while fetching the clinic' 
@@ -357,7 +358,7 @@ export async function updateClinic(id: string, data: UpdateClinicData): Promise<
     return { success: true, clinic: response.data as Clinic };
     
   } catch (error) {
-    console.error('Failed to update clinic:', error);
+    logger.error('Failed to update clinic', error instanceof Error ? error : new Error(String(error)));
     
     if (error instanceof z.ZodError) {
       return { 
@@ -426,7 +427,7 @@ export async function deleteClinic(id: string): Promise<{ success: boolean; erro
     return { success: true };
     
   } catch (error) {
-    console.error('Failed to delete clinic:', error);
+    logger.error('Failed to delete clinic', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while deleting the clinic' 
@@ -491,7 +492,7 @@ export async function createClinicLocation(clinicId: string, data: {
     return { success: true, location: response.data as ClinicLocation };
     
   } catch (error) {
-    console.error('Failed to create clinic location:', error);
+    logger.error('Failed to create clinic location', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while creating the clinic location' 
@@ -522,7 +523,7 @@ export async function getClinicLocations(clinicId: string): Promise<{ success: b
     return { success: true, locations: response.data as ClinicLocation[] || [] };
     
   } catch (error) {
-    console.error('Failed to get clinic locations:', error);
+    logger.error('Failed to get clinic locations', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while fetching clinic locations' 
@@ -574,7 +575,7 @@ export async function updateClinicLocation(clinicId: string, locationId: string,
     return { success: true, location: response.data as ClinicLocation };
     
   } catch (error) {
-    console.error('Failed to update clinic location:', error);
+    logger.error('Failed to update clinic location', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while updating the clinic location' 
@@ -625,7 +626,7 @@ export async function deleteClinicLocation(clinicId: string, locationId: string)
     return { success: true };
     
   } catch (error) {
-    console.error('Failed to delete clinic location:', error);
+    logger.error('Failed to delete clinic location', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while deleting the clinic location' 
@@ -649,7 +650,7 @@ export async function getHealthStatus(): Promise<{ success: boolean; status?: an
     return { success: true, status: response.data };
     
   } catch (error) {
-    console.error('Health check failed:', error);
+    logger.error('Health check failed', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'Health check failed' 
@@ -664,7 +665,9 @@ export async function getHealthReady(): Promise<{ success: boolean; status?: any
   try {
     // Use real API health check endpoint (public endpoint, no auth required)
     const { API_ENDPOINTS, APP_CONFIG } = await import('../config/config');
-    const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.HEALTH.READY}`, {
+    const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
+    const response = await fetchWithAbort(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.HEALTH.READY}`, {
+      timeout: 10000,
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -679,7 +682,7 @@ export async function getHealthReady(): Promise<{ success: boolean; status?: any
     return { success: true, status: data };
     
   } catch (error) {
-    console.error('Health ready check failed:', error);
+    logger.error('Health ready check failed', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Health ready check failed' 
@@ -701,7 +704,7 @@ export async function getHealthLive(): Promise<{ success: boolean; status?: unkn
     return { success: true, status: response.data };
     
   } catch (error) {
-    console.error('Health live check failed:', error);
+    logger.error('Health live check failed', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'Health live check failed' 
@@ -752,7 +755,7 @@ export async function getAllClinics(params?: {
     };
     
   } catch (error) {
-    console.error('Failed to get all clinics:', error);
+    logger.error('Failed to get all clinics', error instanceof Error ? error : new Error(String(error)));
     return { 
       success: false, 
       error: 'An unexpected error occurred while fetching clinics' 

@@ -19,7 +19,7 @@ import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { Separator } from "@/components/ui/separator";
 import { useTranslations } from "next-intl";
-import { translateSidebarLinks } from "@/utils/sidebarTranslations";
+import { translateSidebarLinks } from "@/lib/utils";
 
 export interface SidebarLinkItem {
   label: string;

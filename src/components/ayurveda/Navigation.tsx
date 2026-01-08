@@ -10,7 +10,7 @@ import { HoverAnimation } from "@/components/ui/animated-wrapper";
 import { useTranslation, useLanguageSwitcher } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-// import { APP_CONFIG } from "@/lib/config/config"; // Commented out - login/register buttons are hidden
+import { APP_CONFIG } from "@/lib/config/config";
 import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { Globe, ChevronDown, ChevronRight, User, LogOut } from "lucide-react";
 import {
@@ -40,7 +40,7 @@ const Navigation = () => {
   const { setLanguage, language: currentLanguage } = useLanguageSwitcher();
   const { session, isAuthenticated, logout } = useAuth();
   const router = useRouter();
-  // const isAuthEnabled = APP_CONFIG.AUTH.ENABLED; // Commented out - login/register buttons are hidden
+  const isAuthEnabled = APP_CONFIG.AUTH.ENABLED;
 
   // Get current language short form
   const getCurrentLanguageShort = () => {
@@ -125,14 +125,14 @@ const Navigation = () => {
     };
   }, [hoverTimeout]);
 
-  // Authentication handlers - commented out since login/register buttons are hidden
-  // const handleLogin = () => {
-  //   router.push("/auth/login");
-  // };
+  // Authentication handlers
+  const handleLogin = () => {
+    router.push("/auth/login");
+  };
 
-  // const handleRegister = () => {
-  //   router.push("/auth/register");
-  // };
+  const handleRegister = () => {
+    router.push("/auth/register");
+  };
 
   const handleLogout = async () => {
     try {
@@ -493,8 +493,7 @@ const Navigation = () => {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              ) : // Login and Register buttons are hidden - commented out
-              /* isAuthEnabled ? (
+              ) : isAuthEnabled ? (
                 <div className="flex items-center space-x-1 sm:space-x-2">
                   <HoverAnimation type="scale">
                     <Button
@@ -518,7 +517,7 @@ const Navigation = () => {
                     </Button>
                   </HoverAnimation>
                 </div>
-                ) : */ null}
+                ) : null}
 
               {/* Primary CTA Button */}
               <HoverAnimation type="scale">
@@ -684,8 +683,7 @@ const Navigation = () => {
                             Logout
                           </Button>
                         </div>
-                      ) : // Login and Register buttons are hidden in mobile menu - commented out
-                      /* isAuthEnabled ? (
+                      ) : isAuthEnabled ? (
                         <div className="flex flex-col space-y-4">
                           <Button
                             onClick={handleLogin}
@@ -701,7 +699,7 @@ const Navigation = () => {
                             Register
                           </Button>
                         </div>
-                        ) : */ null}
+                        ) : null}
 
                       <Button
                         variant="outline"

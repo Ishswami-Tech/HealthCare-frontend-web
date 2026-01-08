@@ -45,73 +45,162 @@ export interface HealthHeartbeat {
 // Convert realtime format to DetailedHealthStatus format
 function convertRealtimeToDetailed(realtime: RealtimeHealthStatus): DetailedHealthStatus {
   const services = realtime.s;
+  const result: DetailedHealthStatus = {};
   
-  return {
-    database: services.database ? {
+  // Database
+  if (services.database) {
+    result.database = {
       status: services.database.status === 'healthy' ? 'up' : 'down',
       isHealthy: services.database.status === 'healthy',
-      avgResponseTime: services.database.responseTime,
       lastHealthCheck: services.database.timestamp,
-      errors: services.database.error ? [services.database.error] : [],
-    } : undefined,
-    cache: services.cache ? {
+    };
+    if (services.database.responseTime !== undefined) {
+      result.database.avgResponseTime = services.database.responseTime;
+    }
+    if (services.database.error) {
+      result.database.errors = [services.database.error];
+    }
+  }
+  
+  // Cache
+  if (services.cache) {
+    const cacheConnection: {
+      connected: boolean;
+      latency?: number;
+      provider: string;
+      providerStatus: string;
+    } = {
+      connected: services.cache.status === 'healthy',
+      provider: 'dragonfly',
+      providerStatus: services.cache.status === 'healthy' ? 'connected' : 'disconnected',
+    };
+    
+    if (services.cache.responseTime !== undefined) {
+      cacheConnection.latency = services.cache.responseTime;
+    }
+    
+    result.cache = {
       status: services.cache.status === 'healthy' ? 'up' : 'down',
       healthy: services.cache.status === 'healthy',
-      connection: {
-        connected: services.cache.status === 'healthy',
-        latency: services.cache.responseTime,
-        provider: 'dragonfly',
-        providerStatus: services.cache.status === 'healthy' ? 'connected' : 'disconnected',
-      },
-      latency: services.cache.responseTime,
+      connection: cacheConnection,
       provider: 'dragonfly',
-    } : undefined,
-    queue: services.queue ? {
+    };
+    
+    if (services.cache.responseTime !== undefined) {
+      result.cache.latency = services.cache.responseTime;
+    }
+  }
+  
+  // Queue
+  if (services.queue) {
+    const queueConnection: NonNullable<DetailedHealthStatus['queue']>['connection'] = {
+      connected: services.queue.status === 'healthy',
+      provider: 'bullmq',
+    };
+    
+    if (services.queue.responseTime !== undefined) {
+      queueConnection.latency = services.queue.responseTime;
+    }
+    
+    result.queue = {
       status: services.queue.status === 'healthy' ? 'up' : 'down',
       healthy: services.queue.status === 'healthy',
-      connection: {
-        connected: services.queue.status === 'healthy',
-        latency: services.queue.responseTime,
-        provider: 'bullmq',
-      },
-    } : undefined,
-    communication: services.communication || services.socket ? {
-      status: (services.communication?.status || services.socket?.status) === 'healthy' ? 'up' : 'down',
-      healthy: (services.communication?.status || services.socket?.status) === 'healthy',
-      degraded: (services.communication?.status || services.socket?.status) === 'degraded',
-      socket: services.socket ? {
+      connection: queueConnection,
+    };
+  }
+  
+  // Communication
+  if (services.communication || services.socket) {
+    const commStatus = services.communication?.status || services.socket?.status;
+    const isHealthy = commStatus === 'healthy';
+    const isDegraded = commStatus === 'degraded';
+    
+    result.communication = {
+      status: isHealthy ? 'up' : 'down',
+      healthy: isHealthy,
+    };
+    
+    if (isDegraded) {
+      result.communication.degraded = true;
+    }
+    
+    if (services.socket) {
+      result.communication.socket = {
         connected: services.socket.status === 'healthy',
-        latency: services.socket.responseTime,
         connectedClients: 0,
-      } : undefined,
-      email: services.email ? {
+      };
+      if (services.socket.responseTime !== undefined) {
+        result.communication.socket.latency = services.socket.responseTime;
+      }
+    }
+    
+    if (services.email) {
+      result.communication.email = {
         connected: services.email.status === 'healthy',
-        latency: services.email.responseTime,
-      } : undefined,
-      whatsapp: services.whatsapp ? {
+      };
+      if (services.email.responseTime !== undefined) {
+        result.communication.email.latency = services.email.responseTime;
+      }
+    }
+    
+    if (services.whatsapp) {
+      result.communication.whatsapp = {
         connected: services.whatsapp.status === 'healthy',
-      } : undefined,
-      push: services.push ? {
+      };
+    }
+    
+    if (services.push) {
+      result.communication.push = {
         connected: services.push.status === 'healthy',
-      } : undefined,
-    } : undefined,
-    video: services.video ? {
+      };
+    }
+  }
+  
+  // Video
+  if (services.video) {
+    result.video = {
       status: services.video.status === 'healthy' ? 'up' : 'down',
-      isHealthy: services.video.status === 'healthy',
       primaryProvider: 'openvidu',
-      error: services.video.error,
-    } : undefined,
-    logging: services.logger || services.logging ? {
-      status: (services.logger?.status || services.logging?.status) === 'healthy' ? 'up' : 'down',
-      healthy: (services.logger?.status || services.logging?.status) === 'healthy',
-      service: {
-        available: (services.logger?.status || services.logging?.status) === 'healthy',
-        latency: services.logger?.responseTime || services.logging?.responseTime,
-        serviceName: 'LoggingService',
-      },
-      error: services.logger?.error || services.logging?.error,
-    } : undefined,
-  };
+    };
+    if (services.video.status === 'healthy') {
+      result.video.isHealthy = true;
+    }
+    if (services.video.error) {
+      result.video.error = services.video.error;
+    }
+  }
+  
+  // Logging
+  if (services.logger || services.logging) {
+    const loggerStatus = services.logger?.status || services.logging?.status;
+    const isHealthy = loggerStatus === 'healthy';
+    const responseTime = services.logger?.responseTime || services.logging?.responseTime;
+    const error = services.logger?.error || services.logging?.error;
+    
+    const loggingService: NonNullable<DetailedHealthStatus['logging']>['service'] = {
+      available: isHealthy,
+      serviceName: 'LoggingService',
+    };
+    
+    if (responseTime !== undefined) {
+      loggingService.latency = responseTime;
+    }
+    
+    result.logging = {
+      status: isHealthy ? 'up' : 'down',
+      service: loggingService,
+    };
+    
+    if (isHealthy) {
+      result.logging.healthy = true;
+    }
+    
+    if (error) {
+      result.logging.error = error;
+    }
+  }
+  
+  return result;
 }
 
 export interface UseHealthRealtimeOptions {
@@ -164,22 +253,42 @@ export function useHealthRealtime(
 
     // Connection events
     healthSocket.on('connect', () => {
-      console.log('✅ Health monitoring connected via Socket.IO');
+      console.log('✅ Health monitoring connected via Socket.IO to /health namespace');
       setIsConnected(true);
       setConnectionStatus('connected');
       setError(null);
+      
+      // Auto-subscribe to health updates on connection
+      healthSocket.emit('health:subscribe', { room: 'health:all' }, (response: { success: boolean; status?: RealtimeHealthStatus }) => {
+        if (response.success && response.status) {
+          const converted = convertRealtimeToDetailed(response.status);
+          setHealthStatus(converted);
+          setLastUpdate(new Date(response.status.t));
+          console.log('✅ Auto-subscribed to health updates on connection');
+        }
+      });
     });
 
     healthSocket.on('disconnect', (reason) => {
       console.log('❌ Health monitoring disconnected:', reason);
       setIsConnected(false);
       setConnectionStatus('disconnected');
+      
+      // ⚠️ FALLBACK: Start REST polling if Socket.IO disconnects
+      // Note: BackendStatusIndicator also has polling fallback
+      // This ensures health data is still available even if Socket.IO fails
+      if (reason === 'io server disconnect' || reason === 'transport close') {
+        console.warn('⚠️ Socket.IO disconnected, component will use REST polling fallback');
+      }
     });
 
     healthSocket.on('connect_error', (err) => {
       console.error('❌ Health monitoring connection error:', err);
       setConnectionStatus('error');
       setError(err);
+      
+      // ⚠️ FALLBACK: Connection error - component will use REST polling fallback
+      console.warn('⚠️ Socket.IO connection error, component will use REST polling fallback');
     });
 
     // Health status events
@@ -208,7 +317,7 @@ export function useHealthRealtime(
           ...updated.database,
           status: update.st === 'healthy' ? 'up' : 'down',
           isHealthy: update.st === 'healthy',
-          avgResponseTime: update.rt,
+          ...(update.rt !== undefined && { avgResponseTime: update.rt }),
           lastHealthCheck: update.t,
         };
       } else if (update.id === 'cache' && updated.cache) {
@@ -216,11 +325,15 @@ export function useHealthRealtime(
           ...updated.cache,
           status: update.st === 'healthy' ? 'up' : 'down',
           healthy: update.st === 'healthy',
-          latency: update.rt,
-          connection: {
+          ...(update.rt !== undefined && { latency: update.rt }),
+          connection: updated.cache.connection ? {
             ...updated.cache.connection,
             connected: update.st === 'healthy',
-            latency: update.rt,
+            ...(update.rt !== undefined && { latency: update.rt }),
+          } : {
+            connected: update.st === 'healthy',
+            ...(update.rt !== undefined && { latency: update.rt }),
+            provider: 'dragonfly',
           },
         };
       } else if (update.id === 'queue' && updated.queue) {
@@ -228,43 +341,67 @@ export function useHealthRealtime(
           ...updated.queue,
           status: update.st === 'healthy' ? 'up' : 'down',
           healthy: update.st === 'healthy',
-          connection: {
+          connection: updated.queue.connection ? {
             ...updated.queue.connection,
             connected: update.st === 'healthy',
-            latency: update.rt,
+            ...(update.rt !== undefined && { latency: update.rt }),
+          } : {
+            connected: update.st === 'healthy',
+            ...(update.rt !== undefined && { latency: update.rt }),
+            provider: 'bullmq',
           },
         };
       } else if (update.id === 'communication' || update.id === 'socket') {
         if (updated.communication) {
-          updated.communication = {
+          const commUpdate: typeof updated.communication = {
             ...updated.communication,
             status: update.st === 'healthy' ? 'up' : 'down',
             healthy: update.st === 'healthy',
-            degraded: update.st === 'degraded',
-            socket: updated.communication.socket ? {
+          };
+          
+          if (update.st === 'degraded') {
+            commUpdate.degraded = true;
+          }
+          
+          if (updated.communication.socket) {
+            commUpdate.socket = {
               ...updated.communication.socket,
               connected: update.st === 'healthy',
-              latency: update.rt,
-            } : undefined,
-          };
+            };
+            if (update.rt !== undefined) {
+              commUpdate.socket.latency = update.rt;
+            }
+          }
+          
+          updated.communication = commUpdate;
         }
       } else if (update.id === 'video' && updated.video) {
         updated.video = {
           ...updated.video,
           status: update.st === 'healthy' ? 'up' : 'down',
-          isHealthy: update.st === 'healthy',
+          ...(update.st === 'healthy' && { isHealthy: true }),
         };
       } else if ((update.id === 'logger' || update.id === 'logging') && updated.logging) {
-        updated.logging = {
+        const loggingUpdate: typeof updated.logging = {
           ...updated.logging,
           status: update.st === 'healthy' ? 'up' : 'down',
-          healthy: update.st === 'healthy',
-          service: updated.logging.service ? {
+        };
+        
+        if (update.st === 'healthy') {
+          loggingUpdate.healthy = true;
+        }
+        
+        if (updated.logging.service) {
+          loggingUpdate.service = {
             ...updated.logging.service,
             available: update.st === 'healthy',
-            latency: update.rt,
-          } : undefined,
-        };
+          };
+          if (update.rt !== undefined) {
+            loggingUpdate.service.latency = update.rt;
+          }
+        }
+        
+        updated.logging = loggingUpdate;
       }
       
       setHealthStatus(updated);

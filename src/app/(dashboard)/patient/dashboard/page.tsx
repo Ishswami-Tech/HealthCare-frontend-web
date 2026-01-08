@@ -7,7 +7,7 @@ import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRoutesByRole } from "@/config/routes";
+import { getRoutesByRole } from "@/lib/config/config";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyAppointments } from "@/hooks/useAppointments";
 import { useClinicContext } from "@/hooks/useClinic";
@@ -23,7 +23,7 @@ import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorB
 import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
 
 import { useTranslations } from "next-intl";
-import { translateSidebarLinks } from "@/utils/sidebarTranslations";
+import { translateSidebarLinks } from "@/lib/utils";
 import { theme } from "@/lib/theme-utils";
 import {
   Activity,

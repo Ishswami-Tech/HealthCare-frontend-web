@@ -2,9 +2,11 @@
 
 import { Role, RegisterFormData } from '@/types/auth.types';
 import { redirect } from 'next/navigation';
-import { getDashboardByRole } from '@/config/routes';
+import { getDashboardByRole } from '@/lib/config/config';
 import { cookies } from 'next/headers';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
+import { logger } from '@/lib/logger';
+import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
 
 // Import central configuration
 import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
@@ -23,9 +25,11 @@ const CLINIC_ID = APP_CONFIG.CLINIC.ID;
 
 // Environment-aware logging
 if (APP_CONFIG.IS_DEVELOPMENT || APP_CONFIG.FEATURES.DEBUG) {
-  console.log('🌍 Environment:', APP_CONFIG.ENVIRONMENT);
-  console.log('🔗 Using API URL:', API_URL);
-  console.log('🏥 Using Clinic ID:', CLINIC_ID);
+  logger.info('Environment configuration', { 
+    environment: APP_CONFIG.ENVIRONMENT,
+    apiUrl: API_URL,
+    clinicId: CLINIC_ID 
+  });
 }
 
 /**
@@ -38,37 +42,36 @@ async function checkApiConnection(): Promise<boolean> {
 
     for (const endpoint of endpoints) {
       try {
-        const response = await fetch(`${API_URL}${endpoint}`, {
+        const response = await fetchWithAbort(`${API_URL}${endpoint}`, {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
           cache: 'no-store',
-          signal: AbortSignal.timeout(3000)
+          timeout: 3000,
         });
 
         if (response.ok) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`API connection successful via ${endpoint}`);
-          }
+          logger.info(`API connection successful via ${endpoint}`, { endpoint });
           return true;
         }
       } catch (endpointError) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn(`Failed to connect to ${endpoint}:`, endpointError);
-        }
+        logger.warn(`Failed to connect to ${endpoint}`, { 
+          endpoint, 
+          error: endpointError instanceof Error ? endpointError.message : String(endpointError) 
+        });
       }
     }
 
     // If we're in development, allow proceeding even with connection issues
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('API connection failed but proceeding anyway in development mode');
+    if (APP_CONFIG.IS_DEVELOPMENT) {
+      logger.warn('API connection failed but proceeding anyway in development mode');
       return true;
     }
 
     return false;
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('API connection error:', error);
-      console.warn('API connection failed but proceeding anyway in development mode');
+    logger.error('API connection error', error instanceof Error ? error : new Error(String(error)));
+    if (APP_CONFIG.IS_DEVELOPMENT) {
+      logger.warn('API connection failed but proceeding anyway in development mode');
       return true;
     }
 
@@ -148,7 +151,7 @@ export async function getServerSession(): Promise<Session | null> {
     const sessionId = cookieStore.get('session_id')?.value;
     const userRole = cookieStore.get('user_role')?.value;
 
-    console.log('getServerSession - Checking cookies:', {
+    logger.debug('getServerSession - Checking cookies', {
       hasAccessToken: !!accessToken,
       hasRefreshToken: !!refreshTokenValue,
       hasSessionId: !!sessionId,
@@ -157,15 +160,15 @@ export async function getServerSession(): Promise<Session | null> {
 
     // If no access token, try to refresh if we have a refresh token
     if (!accessToken && refreshTokenValue) {
-      console.log('getServerSession - No access token, attempting refresh');
+      logger.debug('getServerSession - No access token, attempting refresh');
       try {
         const refreshedSession = await refreshToken();
         if (refreshedSession) {
-          console.log('getServerSession - Session refreshed successfully');
+          logger.info('getServerSession - Session refreshed successfully');
           return refreshedSession;
         }
       } catch (error) {
-        console.error('getServerSession - Refresh failed:', error);
+        logger.error('getServerSession - Refresh failed', error instanceof Error ? error : new Error(String(error)));
         await clearSession();
         return null;
       }
@@ -173,7 +176,7 @@ export async function getServerSession(): Promise<Session | null> {
 
     // If no tokens at all, return null
     if (!accessToken) {
-      console.log('getServerSession - No tokens found');
+      logger.debug('getServerSession - No tokens found');
       return null;
     }
 
@@ -200,7 +203,7 @@ export async function getServerSession(): Promise<Session | null> {
       // Try to extract user info from JWT token
       try {
         const payload = JSON.parse(atob(accessToken.split('.')[1] || ''));
-        console.log('getServerSession - JWT payload:', payload);
+        logger.debug('getServerSession - JWT payload', { payload });
         
         session.user.id = payload.sub || '';
         session.user.email = payload.email || '';
@@ -208,16 +211,17 @@ export async function getServerSession(): Promise<Session | null> {
         
         // If we have basic user info, return the session
         if (session.user.id && session.user.email && session.user.role) {
-          console.log('getServerSession - Created session from JWT:', session);
+          logger.info('getServerSession - Created session from JWT', { userId: session.user.id, email: session.user.email });
           return session;
         }
       } catch (jwtError) {
-        console.error('getServerSession - Error parsing JWT:', jwtError);
+        logger.error('getServerSession - Error parsing JWT', jwtError instanceof Error ? jwtError : new Error(String(jwtError)));
       }
 
       // Fall back to API call if JWT parsing fails
-      console.log('getServerSession - Attempting to fetch user data from API');
-      const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.USERS.PROFILE}`, {
+      logger.debug('getServerSession - Attempting to fetch user data from API');
+      const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.USERS.PROFILE}`, {
+        timeout: 10000,
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'X-Session-ID': sessionId || '',
@@ -225,9 +229,9 @@ export async function getServerSession(): Promise<Session | null> {
       });
 
       if (!response.ok) {
-        console.error('getServerSession - User fetch failed:', response.status);
+        logger.error('getServerSession - User fetch failed', new Error(`HTTP ${response.status}`));
         if (response.status === 401 && refreshTokenValue) {
-          console.log('getServerSession - Attempting token refresh after 401');
+          logger.debug('getServerSession - Attempting token refresh after 401');
           const refreshedSession = await refreshToken();
           return refreshedSession;
         }
@@ -236,7 +240,7 @@ export async function getServerSession(): Promise<Session | null> {
       }
 
       const userData = await response.json();
-      console.log('getServerSession - User data fetched:', JSON.stringify(userData, null, 2));
+      logger.debug('getServerSession - User data fetched', { userId: userData.id, email: userData.email });
 
       // Return only the properties defined in the Session interface
       return {
@@ -259,12 +263,12 @@ export async function getServerSession(): Promise<Session | null> {
         isAuthenticated: true
       };
     } catch (error) {
-      console.error('getServerSession - Error fetching user data:', error);
+      logger.error('getServerSession - Error fetching user data', error instanceof Error ? error : new Error(String(error)));
       await clearSession();
       return null;
     }
   } catch (error) {
-    console.error('getServerSession - Unexpected error:', error);
+    logger.error('getServerSession - Unexpected error', error instanceof Error ? error : new Error(String(error)));
     return null;
   }
 }
@@ -422,10 +426,13 @@ export async function login(data: {
       headers['X-Clinic-ID'] = CLINIC_ID;
     }
 
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGIN}`, {
+    // ✅ PERFORMANCE: Use fetch with AbortController for timeout handling
+    const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGIN}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
+      timeout: 10000, // 10 second timeout
     });
 
     const result = await response.json();
@@ -434,9 +441,7 @@ export async function login(data: {
       throw new Error(result.message || result.error || 'Login failed');
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Login successful for user:', result.user?.email);
-    }
+    logger.info('Login successful', { userId: result.user?.id, email: result.user?.email });
 
     // Set authentication cookies
     const cookieStore = await cookies();
@@ -497,9 +502,7 @@ export async function login(data: {
       redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
     };
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Login error:', error);
-    }
+    logger.error('Login error', error instanceof Error ? error : new Error(String(error)));
     throw error instanceof Error ? error : new Error('Login failed');
   }
 }
@@ -509,9 +512,11 @@ export async function login(data: {
  */
 export async function register(data: RegisterFormData & { clinicId?: string }) {
   try {
-    console.log('Starting registration process');
-    console.log('Clinic ID from data:', data.clinicId);
-    console.log('Clinic ID from env:', CLINIC_ID);
+    logger.info('Starting registration process', { 
+      clinicIdFromData: data.clinicId,
+      clinicIdFromEnv: CLINIC_ID,
+      email: data.email 
+    });
     
     // Ensure firstName and lastName are properly formatted
     const formattedData = {
@@ -525,44 +530,52 @@ export async function register(data: RegisterFormData & { clinicId?: string }) {
     };
 
     // Priority: Use clinicId from data, then from env
-    const finalClinicId = data.clinicId || CLINIC_ID;
+    let finalClinicId = data.clinicId || CLINIC_ID;
+    
+    // ⚠️ IMPORTANT: Backend expects UUID format for clinicId
+    // If we have a clinic code (like "CL0002"), we need to convert it to UUID
+    // For now, if it's not a UUID, we'll need to look it up or use a default
+    // TODO: Implement clinic code to UUID lookup if needed
     
     // Always include clinic ID in headers
     if (finalClinicId) {
       headers['X-Clinic-ID'] = finalClinicId;
-      console.log('Added X-Clinic-ID header:', finalClinicId);
+      logger.debug('Added X-Clinic-ID header', { clinicId: finalClinicId });
     } else {
-      console.warn('No clinic ID available for registration');
+      logger.warn('No clinic ID available for registration');
     }
 
     // Always include clinic ID in request body for redundancy
     if (finalClinicId) {
       formattedData.clinicId = finalClinicId;
-      console.log('Added clinicId to request body:', finalClinicId);
+      logger.debug('Added clinicId to request body', { clinicId: finalClinicId });
     }
 
-    console.log('Final request headers:', headers);
-    console.log('Final request body keys:', Object.keys(formattedData));
+    logger.debug('Registration request', { 
+      url: `${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REGISTER}`,
+      headers: Object.keys(headers),
+      bodyKeys: Object.keys(formattedData)
+    });
 
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REGISTER}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REGISTER}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(formattedData),
+      timeout: 15000, // Registration may take longer
     });
 
     const responseData = await response.json();
 
     if (!response.ok) {
       const errorMessage = responseData.message || responseData.error || 'Registration failed';
-      console.error('Registration error:', {
+      logger.error('Registration error', new Error(errorMessage), {
         status: response.status,
         statusText: response.statusText,
-        data: responseData
       });
       throw new Error(errorMessage);
     }
 
-    console.log('Registration successful:', responseData);
+    logger.info('Registration successful', { email: responseData.user?.email, userId: responseData.user?.id });
     return responseData;
   } catch (error) {
     if (error instanceof Error) {
@@ -583,10 +596,11 @@ export async function registerWithClinic(data: {
   clinicId: string;
   appName: string;
 }) {
-  const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REGISTER_WITH_CLINIC}`, {
+  const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REGISTER_WITH_CLINIC}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+    timeout: 15000,
   });
 
   if (!response.ok) {
@@ -602,9 +616,7 @@ export async function registerWithClinic(data: {
  */
 export async function requestOTP(identifier: string) {
   try {
-    console.log('Starting OTP request process');
-    console.log('Identifier:', identifier);
-    console.log('Clinic ID from env:', CLINIC_ID);
+    logger.info('Starting OTP request process', { identifier, clinicId: CLINIC_ID });
     
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -613,9 +625,9 @@ export async function requestOTP(identifier: string) {
     // Always include clinic ID in headers
     if (CLINIC_ID) {
       headers['X-Clinic-ID'] = CLINIC_ID;
-      console.log('Added X-Clinic-ID header:', CLINIC_ID);
+      logger.debug('Added X-Clinic-ID header', { clinicId: CLINIC_ID });
     } else {
-      console.warn('CLINIC_ID not found in environment variables');
+      logger.warn('CLINIC_ID not found in environment variables');
     }
     
     const requestBody: Record<string, unknown> = { 
@@ -625,16 +637,19 @@ export async function requestOTP(identifier: string) {
     
     // Always include clinic ID in request body for redundancy
     if (CLINIC_ID) {
-      console.log('Added clinicId to request body:', CLINIC_ID);
+      logger.debug('Added clinicId to request body', { clinicId: CLINIC_ID });
     }
 
-    console.log('Final request headers:', headers);
-    console.log('Final request body keys:', Object.keys(requestBody));
+    logger.debug('OTP request', { 
+      headers: Object.keys(headers),
+      bodyKeys: Object.keys(requestBody)
+    });
     
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REQUEST_OTP}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REQUEST_OTP}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
+      timeout: 10000,
     });
 
     if (!response.ok) {
@@ -643,10 +658,10 @@ export async function requestOTP(identifier: string) {
     }
 
     const result = await response.json();
-    console.log('OTP request successful:', result);
+    logger.info('OTP request successful', { identifier });
     return result;
   } catch (error) {
-    console.error('OTP request error:', error);
+    logger.error('OTP request error', error instanceof Error ? error : new Error(String(error)), { identifier });
     throw error instanceof Error ? error : new Error('Failed to request OTP');
   }
 }
@@ -666,10 +681,11 @@ export async function verifyOTP(data: {
     headers['X-Clinic-ID'] = CLINIC_ID;
   }
   const requestBody = { ...data, clinicId: CLINIC_ID };
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.VERIFY_OTP}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.VERIFY_OTP}`, {
     method: 'POST',
     headers,
     body: JSON.stringify(requestBody),
+    timeout: 10000,
   });
 
   if (!response.ok) {
@@ -686,10 +702,11 @@ export async function verifyOTP(data: {
  * Check OTP Status
  */
 export async function checkOTPStatus(email: string) {
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.CHECK_OTP_STATUS}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.CHECK_OTP_STATUS}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
+    timeout: 10000,
   });
 
   if (!response.ok) {
@@ -704,10 +721,11 @@ export async function checkOTPStatus(email: string) {
  * Invalidate OTP
  */
 export async function invalidateOTP(email: string) {
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.INVALIDATE_OTP}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.INVALIDATE_OTP}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
+    timeout: 10000,
   });
 
   if (!response.ok) {
@@ -722,10 +740,11 @@ export async function invalidateOTP(email: string) {
  * Request Magic Link
  */
 export async function requestMagicLink(email: string) {
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.MAGIC_LINK}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.MAGIC_LINK}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
+    timeout: 10000,
   });
 
   if (!response.ok) {
@@ -740,7 +759,8 @@ export async function requestMagicLink(email: string) {
  * Verify Magic Link
  */
 export async function verifyMagicLink(token: string) {
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.VERIFY_MAGIC_LINK}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.VERIFY_MAGIC_LINK}`, {
+      timeout: 10000,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
@@ -761,9 +781,7 @@ export async function verifyMagicLink(token: string) {
  */
 export async function socialLogin({ provider, token }: { provider: string; token: string }) {
   try {
-    console.log('Starting social login process');
-    console.log('Provider:', provider);
-    console.log('Clinic ID from env:', CLINIC_ID);
+    logger.info('Starting social login process', { provider, clinicId: CLINIC_ID });
     
     const headers: Record<string, string> = { 
       'Content-Type': 'application/json' 
@@ -772,9 +790,9 @@ export async function socialLogin({ provider, token }: { provider: string; token
     // Always include clinic ID in headers
     if (CLINIC_ID) {
       headers['X-Clinic-ID'] = CLINIC_ID;
-      console.log('Added X-Clinic-ID header:', CLINIC_ID);
+      logger.debug('Added X-Clinic-ID header', { clinicId: CLINIC_ID });
     } else {
-      console.warn('CLINIC_ID not found in environment variables');
+      logger.warn('CLINIC_ID not found in environment variables');
     }
     
     const requestBody: Record<string, unknown> = { token };
@@ -782,11 +800,13 @@ export async function socialLogin({ provider, token }: { provider: string; token
     // Always include clinic ID in request body for redundancy
     if (CLINIC_ID) {
       requestBody.clinicId = CLINIC_ID;
-      console.log('Added clinicId to request body:', CLINIC_ID);
+      logger.debug('Added clinicId to request body', { clinicId: CLINIC_ID });
     }
 
-    console.log('Final request headers:', headers);
-    console.log('Final request body keys:', Object.keys(requestBody));
+    logger.debug('Social login request', { 
+      headers: Object.keys(headers),
+      bodyKeys: Object.keys(requestBody)
+    });
     
     const providerEndpoint = provider === 'google' 
       ? API_ENDPOINTS.AUTH.GOOGLE_LOGIN 
@@ -795,10 +815,11 @@ export async function socialLogin({ provider, token }: { provider: string; token
       : provider === 'apple' 
       ? API_ENDPOINTS.AUTH.APPLE_LOGIN 
       : `${API_ENDPOINTS.AUTH.BASE}/${provider}`;
-    const response = await fetch(`${API_URL}${API_PREFIX}${providerEndpoint}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${providerEndpoint}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
+      timeout: 15000, // Social login may take longer
     });
 
     if (!response.ok) {
@@ -807,11 +828,11 @@ export async function socialLogin({ provider, token }: { provider: string; token
     }
 
     const responseData = await response.json();
-    console.log('Social login successful:', responseData);
+    logger.info('Social login successful', { provider, userId: responseData.user?.id });
     await setAuthCookies(responseData);
     return responseData;
   } catch (error) {
-    console.error('Social login error:', error);
+    logger.error('Social login error', error instanceof Error ? error : new Error(String(error)), { provider });
     throw error instanceof Error ? error : new Error('Social login failed');
   }
 }
@@ -820,10 +841,11 @@ export async function socialLogin({ provider, token }: { provider: string; token
  * Forgot Password
  */
 export async function forgotPassword(email: string) {
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.FORGOT_PASSWORD}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.FORGOT_PASSWORD}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
+    timeout: 10000,
   });
 
   if (!response.ok) {
@@ -838,10 +860,11 @@ export async function forgotPassword(email: string) {
  * Reset Password
  */
 export async function resetPassword(data: { token: string; newPassword: string }) {
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.RESET_PASSWORD}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.RESET_PASSWORD}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+    timeout: 10000,
   });
 
   if (!response.ok) {
@@ -861,14 +884,15 @@ export async function changePassword(formData: FormData) {
     throw new Error('Not authenticated');
   }
 
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.CHANGE_PASSWORD}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-      'X-Session-ID': session.session_id,
-    },
-    body: formData,
-  });
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.CHANGE_PASSWORD}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'X-Session-ID': session.session_id,
+      },
+      timeout: 10000,
+      body: formData,
+    });
 
   if (!response.ok) {
     const error = await response.json();
@@ -891,13 +915,14 @@ export async function refreshToken(): Promise<Session | null> {
       throw new Error('No token to refresh');
     }
 
-      const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REFRESH}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${currentToken}`,
-        'X-Session-ID': sessionId,
-      },
-    });
+      const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REFRESH}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+          'X-Session-ID': sessionId,
+        },
+        timeout: 10000,
+      });
 
     if (!response.ok) {
       throw new Error('Failed to refresh token');
@@ -907,7 +932,7 @@ export async function refreshToken(): Promise<Session | null> {
     await setSession(responseData);
     return responseData;
   } catch (error) {
-    console.error('Token refresh failed:', error);
+    logger.error('Token refresh failed', error instanceof Error ? error : new Error(String(error)));
     await clearSession();
     return null;
   }
@@ -920,7 +945,7 @@ export async function logout() {
   const session = await getServerSession();
   if (session) {
     try {
-      console.log('Attempting to logout on server with session:', session.session_id);
+      logger.info('Attempting to logout on server', { sessionId: session.session_id });
       
       // Get device info from session if available
       const deviceInfo = {
@@ -930,52 +955,53 @@ export async function logout() {
         deviceId: session.session_id // Use session ID as device ID
       };
 
-      const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGOUT}`, {
+      const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGOUT}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
           'X-Session-ID': session.session_id,
           'X-Device-ID': deviceInfo.deviceId,
-          'X-Device-Info': JSON.stringify(deviceInfo)
+          'X-Device-Info': JSON.stringify(deviceInfo),
         },
+        timeout: 10000,
         body: JSON.stringify({
           sessionId: session.session_id,
           deviceId: deviceInfo.deviceId,
           deviceInfo: deviceInfo,
-          allDevices: true
+          allDevices: true,
         }),
-        credentials: 'include'
+        credentials: 'include',
       });
 
       // Wait for and parse the response
       const data = await response.json().catch(() => ({ message: 'No response body' }));
-      console.log('Logout API response:', { status: response.status, data });
+      logger.debug('Logout API response', { status: response.status });
 
       if (!response.ok) {
         if (response.status === 401) {
           if (data.message?.includes('Invalid device')) {
             // If device validation fails, try to logout from all devices
-            console.log('Device validation failed, attempting to logout from all devices');
+            logger.warn('Device validation failed, attempting to logout from all devices');
             return await logoutAllDevices();
           }
-          console.log('Session already expired on server');
+          logger.info('Session already expired on server');
         } else {
-          console.error('Server logout failed:', data.message || response.statusText);
+          logger.error('Server logout failed', new Error(data.message || response.statusText));
           throw new Error(data.message || `Logout failed with status ${response.status}`);
         }
       } else {
-        console.log('Successfully logged out on server');
+        logger.info('Successfully logged out on server');
       }
     } catch (error) {
-      console.error('Logout error:', error);
+      logger.error('Logout error', error instanceof Error ? error : new Error(String(error)));
       throw error;
     } finally {
       await clearSession();
-      console.log('Local session cleared');
+      logger.debug('Local session cleared');
     }
   } else {
-    console.log('No active session to logout');
+    logger.debug('No active session to logout');
     await clearSession();
   }
 }
@@ -985,22 +1011,23 @@ async function logoutAllDevices() {
   const session = await getServerSession();
   if (!session) return;
 
-  const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGOUT}`, {
+  const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGOUT}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
-      'X-Session-ID': session.session_id
+      'X-Session-ID': session.session_id,
     },
+    timeout: 10000,
     body: JSON.stringify({
       sessionId: session.session_id,
-      allDevices: true
+      allDevices: true,
     }),
-    credentials: 'include'
+    credentials: 'include',
   });
 
   const data = await response.json().catch(() => ({ message: 'No response body' }));
-  console.log('Logout all devices response:', { status: response.status, data });
+  logger.debug('Logout all devices response', { status: response.status });
 
   if (!response.ok && response.status !== 401) {
     throw new Error(data.message || `Logout all devices failed with status ${response.status}`);
@@ -1016,13 +1043,14 @@ export async function terminateAllSessions() {
     throw new Error('Not authenticated');
   }
 
-  const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGOUT}`, {
+  const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGOUT}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${session.access_token}`,
       'X-Session-ID': session.session_id,
       'Content-Type': 'application/json',
     },
+    timeout: 10000,
     body: JSON.stringify({ allDevices: true }),
   });
 
@@ -1145,12 +1173,15 @@ export async function authenticatedApi<T>(
     ...(options.headers as Record<string, string>),
   };
 
-  // Debug: Log headers before making the request
-  console.log('[authenticatedApi] Request headers:', headers);
+  // Debug: Log headers before making the request (only in development)
+  if (APP_CONFIG.IS_DEVELOPMENT) {
+    logger.debug('[authenticatedApi] Request', { endpoint, method: options.method || 'GET' });
+  }
 
-  const response = await fetch(url, {
+  const response = await fetchWithAbort(url, {
     ...options,
     headers,
+    timeout: 10000,
   });
 
   let data: unknown = null;
@@ -1213,10 +1244,11 @@ export async function checkAuth() {
  * Verify Email
  */
 export async function verifyEmail(token: string) {
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.VERIFY_EMAIL}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.VERIFY_EMAIL}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
+    timeout: 10000,
   });
 
   if (!response.ok) {
@@ -1232,9 +1264,7 @@ export async function verifyEmail(token: string) {
  */
 export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
   try {
-    console.log('Starting Google login with token');
-    console.log('API URL being used:', API_URL);
-    console.log('Clinic ID being used:', CLINIC_ID);
+    logger.info('Starting Google login', { apiUrl: API_URL, clinicId: CLINIC_ID });
     
     // Check API connectivity first
     const isApiConnected = await checkApiConnection();
@@ -1248,13 +1278,8 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       );
     }
     
-    // Try to handle the login with timeout protection
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
     try {
-      console.log('Making request to:', `${API_URL}/auth/google`);
-      console.log('Request body:', JSON.stringify({ token: token.substring(0, 10) + '...' }, null, 2));
+      logger.debug('Making Google login request', { url: `${API_URL}/auth/google` });
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -1264,9 +1289,9 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       // Always include clinic ID in headers if available
       if (CLINIC_ID) {
         headers['X-Clinic-ID'] = CLINIC_ID;
-        console.log('Added X-Clinic-ID header:', CLINIC_ID);
+        logger.debug('Added X-Clinic-ID header', { clinicId: CLINIC_ID });
       } else {
-        console.warn('CLINIC_ID not found in environment variables');
+        logger.warn('CLINIC_ID not found in environment variables');
       }
       
       const requestBody: Record<string, unknown> = { token };
@@ -1274,57 +1299,50 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       // Always include clinic ID in request body for redundancy
       if (CLINIC_ID) {
         requestBody.clinicId = CLINIC_ID;
-        console.log('Added clinicId to request body:', CLINIC_ID);
+        logger.debug('Added clinicId to request body', { clinicId: CLINIC_ID });
       }
       
-      console.log('Final request headers:', headers);
-      console.log('Final request body keys:', Object.keys(requestBody));
+      logger.debug('Google login request', { 
+        headers: Object.keys(headers),
+        bodyKeys: Object.keys(requestBody)
+      });
       
-      const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.GOOGLE_LOGIN}`, {
+      const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.GOOGLE_LOGIN}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(requestBody),
         credentials: 'include',
-        signal: controller.signal
+        timeout: 15000, // Social login may take longer
       });
-      
-      clearTimeout(timeoutId);
 
-      console.log('Response status:', response.status, response.statusText);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      logger.debug('Google login response', { status: response.status, statusText: response.statusText });
 
       // Check if the response is JSON before trying to parse it
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         // Not JSON, likely HTML error page
         const text = await response.text();
-        console.error('Non-JSON response received:', text.substring(0, 200) + '...');
-        
-        // Log the status and API URL for debugging
-        console.error('Response status:', response.status, response.statusText);
-        console.error('API URL:', `${API_URL}/auth/google`);
-        
-        // In development, log more details
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Full response text:', text);
-        }
+        logger.error('Non-JSON response received', new Error(`Status: ${response.status}`), {
+          preview: text.substring(0, 200),
+          apiUrl: `${API_URL}/auth/google`
+        });
         
         throw new Error(`Server returned non-JSON response (${response.status}). Check if the backend is running correctly.`);
       }
 
       const result = await response.json();
-      console.log('Parsed response:', JSON.stringify(result, null, 2));
+      logger.debug('Parsed Google login response', { hasToken: !!result.access_token, hasUser: !!result.user });
       
       if (!response.ok) {
-        console.error('Google login error response:', result);
+        logger.error('Google login error response', new Error(result.message || result.error || `Status ${response.status}`));
         throw new Error(result.message || result.error || `Google login failed with status ${response.status}`);
       }
 
-      console.log('Google login successful, setting auth cookies');
+      logger.info('Google login successful, setting auth cookies');
       
       // Ensure we have all required data
       if (!result.access_token || !result.session_id || !result.user) {
-        console.error('Missing required data in Google login response:', result);
+        logger.error('Missing required data in Google login response', new Error('Missing required fields'));
         throw new Error('Invalid response from server: Missing required fields');
       }
       
@@ -1376,11 +1394,11 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         maxAge: 60 * 60 * 24 * 7, // 7 days
       });
 
-      console.log('Auth cookies being set:', {
+      logger.debug('Auth cookies being set', {
         accessToken: result.access_token ? 'SET' : 'NOT SET',
         sessionId: result.session_id ? 'SET' : 'NOT SET',
       });
-      console.log('Auth cookies set successfully');
+      logger.info('Auth cookies set successfully');
 
       // Ensure firstName and lastName are properly extracted
       const firstName = result.user.firstName || '';
@@ -1394,10 +1412,9 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
           const payload = JSON.parse(atob(result.access_token.split('.')[1]));
           const userId = payload.sub;
           
-          console.log('Fetching additional user profile data from:', `${API_URL}/user/${userId}`);
-          console.log('Using auth token:', result.access_token.substring(0, 15) + '...');
+          logger.debug('Fetching additional user profile data', { userId, url: `${API_URL}/user/${userId}` });
           
-          const profileResponse = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.USERS.GET_BY_ID(userId)}`, {
+          const profileResponse = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.USERS.GET_BY_ID(userId)}`, {
             headers: {
               'Authorization': `Bearer ${result.access_token}`,
               'X-Session-ID': result.session_id || '',
@@ -1405,11 +1422,12 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
               'Content-Type': 'application/json',
             },
             cache: 'no-store',
+            timeout: 10000,
           });
           
           if (profileResponse.ok) {
             const profileData = await profileResponse.json();
-            console.log('Additional profile data:', JSON.stringify(profileData, null, 2));
+            logger.debug('Additional profile data fetched', { userId });
             
             // Update user data with profile information
             if (profileData) {
@@ -1423,7 +1441,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
               // Recalculate profile completion based on updated data
               const updatedProfileComplete = calculateProfileCompletionFromUserData(result.user);
               if (updatedProfileComplete !== profileComplete) {
-                console.log('Updating profile completion cookie based on API response');
+                logger.debug('Updating profile completion cookie based on API response', { updatedProfileComplete });
                 cookieStore.set({
                   name: 'profile_complete',
                   value: updatedProfileComplete.toString(),
@@ -1436,10 +1454,10 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
               }
             }
           } else {
-            console.warn('Failed to fetch additional profile data:', profileResponse.status);
+            logger.warn('Failed to fetch additional profile data', { status: profileResponse.status });
           }
         } catch (profileError) {
-          console.error('Error fetching user profile:', profileError);
+          logger.error('Error fetching user profile', profileError instanceof Error ? profileError : new Error(String(profileError)));
         }
       }
 
@@ -1460,14 +1478,14 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
       };
       
-      console.log('Returning Google login response:', JSON.stringify(responseData, null, 2));
+      logger.info('Google login completed successfully', { userId: responseData.user?.id, email: responseData.user?.email });
       return responseData;
     } catch (error) {
-      console.error('Google login error:', error);
+      logger.error('Google login error', error instanceof Error ? error : new Error(String(error)));
       throw error instanceof Error ? error : new Error('Google login failed');
     }
   } catch (error) {
-    console.error('Google login error:', error);
+    logger.error('Google login error', error instanceof Error ? error : new Error(String(error)));
     throw error instanceof Error ? error : new Error('Google login failed');
   }
 }
@@ -1476,10 +1494,11 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
  * Facebook Login
  */
 export async function facebookLogin(token: string) {
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.FACEBOOK_LOGIN}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.FACEBOOK_LOGIN}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
+    timeout: 15000,
   });
 
   if (!response.ok) {
@@ -1496,10 +1515,11 @@ export async function facebookLogin(token: string) {
  * Apple Login
  */
 export async function appleLogin(token: string) {
-    const response = await fetch(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.APPLE_LOGIN}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.APPLE_LOGIN}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
+    timeout: 15000,
   });
 
   if (!response.ok) {
@@ -1519,7 +1539,7 @@ export async function setProfileComplete(complete: boolean) {
   const cookieStore = await cookies();
   const secure = process.env.NODE_ENV === 'production';
   
-  console.log('Setting profile completion cookie:', { complete, secure });
+  logger.debug('Setting profile completion cookie', { complete, secure });
   
   cookieStore.set({
     name: 'profile_complete',
@@ -1531,7 +1551,7 @@ export async function setProfileComplete(complete: boolean) {
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
   
-  console.log('Profile completion cookie set successfully');
+  logger.debug('Profile completion cookie set successfully');
 }
 
 function calculateProfileCompletionFromUserData(user: {

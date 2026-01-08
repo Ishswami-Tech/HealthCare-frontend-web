@@ -20,6 +20,8 @@ import { useRealTimeQueueStatus } from "@/hooks/useRealTimeQueries";
 import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
 import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
 import { toast } from "sonner";
+import { useOptimisticUpdateQueueStatus, useOptimisticCallNextPatient } from "@/hooks/useOptimisticQueue";
+import { CardSuspense } from "@/components/ui/suspense-boundary";
 
 // Real-time queue data interface
 import {
@@ -78,26 +80,26 @@ export default function QueuePage() {
     enabled: queuePermissions.canManageQueue,
   });
 
-  // Mutation hooks for queue actions
+  // Mutation hooks for queue actions with React 19 useOptimistic
+  const updateQueueStatusOptimistic = useOptimisticUpdateQueueStatus(clinicId);
+  const callNextPatientOptimistic = useOptimisticCallNextPatient(clinicId);
+  
+  // Legacy hooks for backward compatibility
   const updateQueueStatusMutation = useUpdateQueueStatus();
   const callNextPatientMutation = useCallNextPatient();
 
-  // Handle queue actions
+  // Handle queue actions with optimistic updates
   const handleUpdateQueueStatus = (patientId: string, status: string) => {
-    updateQueueStatusMutation.mutate(
+    updateQueueStatusOptimistic.mutation.mutate(
       { patientId, status },
       {
         onSuccess: () => {
           refetchQueue();
-          toast.success("Queue status updated successfully");
-        },
-        onError: (error: any) => {
-          toast.error(error?.message || "Failed to update queue status");
         },
       }
     );
   };
-
+  
   const handleCallNextPatient = (queueType: string) => {
     callNextPatientMutation.mutate(
       { queueType },

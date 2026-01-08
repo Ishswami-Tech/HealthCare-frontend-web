@@ -9,7 +9,7 @@ import { useToast } from './use-toast';
 import { useVideoAppointmentWebSocket } from './useVideoAppointmentSocketIO';
 import { useAuth } from './useAuth';
 import { Permission } from '@/types/rbac.types';
-import { videoAppointmentService } from '@/lib/video/openvidu';
+import { videoAppointmentService, type OpenViduAPI } from '@/lib/video/openvidu';
 import { APP_CONFIG } from '@/lib/config/config';
 import {
   generateVideoToken,
@@ -82,6 +82,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       // Build filters object without undefined values (for exactOptionalPropertyTypes)
       const historyFilters: {
         userId?: string;
+        patientId?: string;
         appointmentId?: string;
         startDate?: string;
         endDate?: string;
@@ -95,8 +96,9 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       if (filters?.status) historyFilters.status = filters.status;
       if (filters?.page) historyFilters.page = filters.page;
       if (filters?.limit) historyFilters.limit = filters.limit;
+      // ✅ FIX: Separate doctorId and patientId (was overwriting userId)
       if (filters?.doctorId) historyFilters.userId = filters.doctorId;
-      if (filters?.patientId) historyFilters.userId = filters.patientId;
+      if (filters?.patientId) historyFilters.patientId = filters.patientId;
 
       const result = await getVideoConsultationHistory(historyFilters);
       
@@ -110,8 +112,9 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
   });
 
   // ✅ Subscribe to real-time updates
+  // ⚠️ OPTIMIZED: Only subscribe when connected (not dependent on query.data to avoid re-subscriptions)
   useEffect(() => {
-    if (!query.data || !isConnected) return;
+    if (!isConnected) return;
 
     // Subscribe to video appointment updates
     const unsubscribeAppointments = subscribeToVideoAppointments(() => {
@@ -139,7 +142,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       unsubscribeParticipants();
       unsubscribeRecording();
     };
-  }, [query.data, isConnected, queryClient, subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents]);
+  }, [isConnected, queryClient, subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents]);
 
   return query;
 }

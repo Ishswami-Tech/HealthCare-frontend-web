@@ -608,7 +608,13 @@ export function getIconColorScheme(iconName: keyof typeof ICON_COLOR_MAP): IconC
 // Function to get random unique color for dynamic icons
 export function getUniqueColor(index: number): IconColorScheme {
   const colorKeys = Object.keys(MASTER_COLOR_PALETTE) as Array<keyof typeof MASTER_COLOR_PALETTE>;
+  if (colorKeys.length === 0) {
+    return MASTER_COLOR_PALETTE.primary;
+  }
   const colorKey = colorKeys[index % colorKeys.length];
+  if (!colorKey || !(colorKey in MASTER_COLOR_PALETTE)) {
+    return MASTER_COLOR_PALETTE.primary;
+  }
   return MASTER_COLOR_PALETTE[colorKey];
 }
 

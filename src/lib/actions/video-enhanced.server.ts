@@ -2,15 +2,14 @@
 
 import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
-import { getConsultationStatus } from './video.server';
 
 // Helper to get consultationId from appointmentId
 async function getConsultationId(appointmentId: string): Promise<string> {
   try {
-    const status = await getConsultationStatus(appointmentId);
+    const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId));
     // The status response should contain the consultation/session ID
-    if (status && typeof status === 'object' && 'id' in status) {
-      return status.id as string;
+    if (response && typeof response === 'object' && 'id' in response) {
+      return response.id as string;
     }
     // Fallback: use appointmentId as consultationId (if they're the same)
     return appointmentId;

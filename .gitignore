@@ -38,14 +38,17 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# environment variables (keep examples)
+# environment variables (keep examples only)
 .env
 .env.local
+.env.development
+.env.staging
+.env.production
 .env.development.local
 .env.staging.local
 .env.production.local
+.env.test
+.env.test.local
 .env*.local
 !.env.example
-!.env.development
-!.env.staging
-!.env.production
+!.env.local.example
