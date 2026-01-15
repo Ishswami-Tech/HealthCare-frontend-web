@@ -1,3 +1,5 @@
+"use client";
+
 // Performance optimization utilities for 100K users
 import { useCallback, useRef, useEffect, useMemo, useState } from 'react';
 

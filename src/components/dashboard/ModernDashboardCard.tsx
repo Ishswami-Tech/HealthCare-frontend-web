@@ -244,20 +244,20 @@ export function QuickStats({ stats, className }: QuickStatsProps) {
   );
 }
 
-// Dashboard header component
-interface DashboardHeaderProps {
+// Dashboard header card component
+interface DashboardHeaderCardProps {
   title: string;
   subtitle?: string;
   actions?: React.ReactNode;
   className?: string;
 }
 
-export function DashboardHeader({ 
+export function DashboardHeaderCard({ 
   title, 
   subtitle, 
   actions, 
   className 
-}: DashboardHeaderProps) {
+}: DashboardHeaderCardProps) {
   return (
     <div className={cn('flex items-center justify-between', className)}>
       <div>

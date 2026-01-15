@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import { useAuthForm } from "@/hooks/auth/useAuth";
 import { TOAST_IDS } from "@/hooks/utils/use-toast";
+import { ROUTES } from "@/lib/config/routes";
 
 export default function VerifyOTPPage() {
   const router = useRouter();
@@ -29,11 +30,9 @@ export default function VerifyOTPPage() {
   // ✅ Use unified auth form hook for consistent patterns
   const { executeAuthOperation } = useAuthForm({
     toastId: TOAST_IDS.AUTH.OTP,
-    overlayVariant: "default",
     loadingMessage: "Verifying OTP...",
     successMessage: "OTP verified successfully! Redirecting...",
     errorMessage: "OTP verification failed. Please try again.",
-    showOverlay: true,
     showToast: true,
     // Don't redirect - AuthLayout will handle it
   });
@@ -41,7 +40,7 @@ export default function VerifyOTPPage() {
   useEffect(() => {
     const emailParam = searchParams.get("email");
     if (!emailParam) {
-      router.push("/auth/login");
+      router.push(ROUTES.LOGIN);
       return;
     }
     setEmail(emailParam);
@@ -64,7 +63,7 @@ export default function VerifyOTPPage() {
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) {
-      value = value[0] || '';
+      value = value[0] || "";
     }
 
     if (value.match(/^[0-9]$/)) {
@@ -106,11 +105,9 @@ export default function VerifyOTPPage() {
   // ✅ Use unified auth form hook for OTP resend
   const { executeAuthOperation: executeOTPResend } = useAuthForm({
     toastId: TOAST_IDS.AUTH.OTP,
-    overlayVariant: "default",
     loadingMessage: "Sending OTP...",
     successMessage: "A new OTP has been sent to your email.",
     errorMessage: "Failed to resend OTP. Please try again.",
-    showOverlay: false, // Don't show overlay for OTP resend
     showToast: true,
     onSuccess: () => {
       // Reset OTP input fields
@@ -132,9 +129,12 @@ export default function VerifyOTPPage() {
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
       <CardHeader className="px-4 sm:px-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-center">Verify OTP</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-center">
+          Verify OTP
+        </h2>
         <p className="text-xs sm:text-sm text-gray-600 text-center mt-2 break-words">
-          Enter the 6-digit code sent to <span className="font-medium">{email}</span>
+          Enter the 6-digit code sent to{" "}
+          <span className="font-medium">{email}</span>
         </p>
       </CardHeader>
       <CardContent className="px-4 sm:px-6">

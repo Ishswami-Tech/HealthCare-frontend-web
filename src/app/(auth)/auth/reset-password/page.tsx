@@ -24,6 +24,7 @@ import {
 import { ERROR_MESSAGES } from "@/lib/config/config";
 import { useAuthForm } from "@/hooks/auth/useAuth";
 import { TOAST_IDS } from "@/hooks/utils/use-toast";
+import { ROUTES } from "@/lib/config/routes";
 import { Loader2 } from "lucide-react";
 
 export default function ResetPasswordPage() {
@@ -34,12 +35,10 @@ export default function ResetPasswordPage() {
   // ✅ Use unified auth form hook for consistent patterns
   const { executeAuthOperation } = useAuthForm({
     toastId: TOAST_IDS.AUTH.RESET_PASSWORD,
-    overlayVariant: "default",
     loadingMessage: "Resetting password...",
     successMessage: "Password has been reset successfully.",
     errorMessage: ERROR_MESSAGES.RESET_PASSWORD_FAILED,
-    redirectUrl: "/auth/login",
-    showOverlay: true,
+    redirectUrl: ROUTES.LOGIN,
     showToast: true,
   });
 
@@ -47,7 +46,9 @@ export default function ResetPasswordPage() {
     return (
       <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
         <CardHeader className="px-4 sm:px-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-center">Invalid Reset Link</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-center">
+            Invalid Reset Link
+          </h2>
           <p className="text-xs sm:text-sm text-gray-600 text-center mt-2">
             The password reset link is invalid or has expired.
           </p>
@@ -55,7 +56,7 @@ export default function ResetPasswordPage() {
         <CardFooter className="px-4 sm:px-6 pb-4 sm:pb-6">
           <div className="w-full text-center">
             <Link
-              href="/auth/forgot-password"
+              href={ROUTES.FORGOT_PASSWORD}
               className="text-blue-600 hover:underline transition-colors text-xs sm:text-sm"
             >
               Request a new reset link
@@ -90,7 +91,9 @@ export default function ResetPasswordPage() {
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
       <CardHeader className="px-4 sm:px-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-center">Reset Password</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-center">
+          Reset Password
+        </h2>
         <p className="text-xs sm:text-sm text-gray-600 text-center mt-2">
           Enter your new password below
         </p>
@@ -132,8 +135,8 @@ export default function ResetPasswordPage() {
               )}
             />
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full"
               disabled={isResettingPassword}
             >
@@ -152,7 +155,10 @@ export default function ResetPasswordPage() {
       <CardFooter className="px-4 sm:px-6 pb-4 sm:pb-6">
         <div className="w-full text-center text-xs sm:text-sm text-gray-600">
           Remember your password?{" "}
-          <Link href="/auth/login" className="text-blue-600 hover:underline transition-colors">
+          <Link
+            href={ROUTES.LOGIN}
+            className="text-blue-600 hover:underline transition-colors"
+          >
             Sign in
           </Link>
         </div>

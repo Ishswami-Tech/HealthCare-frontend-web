@@ -35,6 +35,7 @@ import { Loader2 } from "lucide-react";
 import { useAuthForm } from "@/hooks/auth/useAuth";
 import { TOAST_IDS } from "@/hooks/utils/use-toast";
 import { toast } from "sonner"; // For SocialLogin error handling
+import { ROUTES } from "@/lib/config/routes";
 export default function RegisterPage() {
   const { register: registerUser, isLoading } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
@@ -46,13 +47,11 @@ export default function RegisterPage() {
   // ✅ Use unified auth form hook for consistent patterns
   const { executeAuthOperation } = useAuthForm({
     toastId: TOAST_IDS.AUTH.REGISTER,
-    overlayVariant: "register",
     loadingMessage: "Creating account...",
     successMessage: "Account created successfully!",
     errorMessage: ERROR_MESSAGES.REGISTER_FAILED,
-    redirectUrl: "/auth/login?registered=true",
+    redirectUrl: `${ROUTES.LOGIN}?registered=true`,
     redirectDelay: 2000,
-    showOverlay: true,
     showToast: true,
     onError: (error) => {
       // Set form error for display
@@ -67,23 +66,23 @@ export default function RegisterPage() {
     registerSchema,
     async (values: RegisterFormData) => {
       setFormError(null);
-      
+
       const formData = {
         ...values,
         role: Role.PATIENT, // Set default role
         gender: values.gender || "male",
         age: values.age || 18, // Ensure age has a default value
       };
-      
+
       // ✅ Use unified pattern - consistent across all auth pages
       const result = await executeAuthOperation(async () => {
         return await registerUser(
           formData as AuthRegisterFormData & { clinicId?: string }
         );
       });
-      
+
       // Only proceed if registration was successful
-      if (result && 'user' in result && result.user) {
+      if (result && "user" in result && result.user) {
         form.reset();
       }
     },
@@ -104,7 +103,9 @@ export default function RegisterPage() {
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
       <CardHeader className="space-y-1 px-4 sm:px-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-center">Create an account</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-center">
+          Create an account
+        </h2>
         <p className="text-xs sm:text-sm text-gray-500 text-center">
           Enter your information to create an account
         </p>
@@ -331,7 +332,7 @@ export default function RegisterPage() {
         <div className="text-xs sm:text-sm text-center">
           Already have an account?{" "}
           <Link
-            href="/auth/login"
+            href={ROUTES.LOGIN}
             className="text-blue-600 hover:text-blue-800 transition-colors"
           >
             Sign in

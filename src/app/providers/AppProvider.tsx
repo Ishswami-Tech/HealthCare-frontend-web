@@ -1,14 +1,16 @@
 "use client";
 
+/**
+ * ✅ App Provider
+ * Root provider stack for the application
+ * NO loading overlay - uses inline loading states
+ */
+
 import { ThemeProvider } from "next-themes";
-import {
-  LoadingOverlayProvider,
-  GlobalLoadingOverlayListener,
-} from "@/app/providers/LoadingOverlayContext";
 import QueryProvider from "@/app/providers/QueryProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { ReactNode, Suspense } from "react";
-import { ErrorBoundary } from "@/components/common/ErrorBoundary"; // ✅ Consolidated ErrorBoundary
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -58,23 +60,10 @@ function ErrorFallback({
   );
 }
 
-/**
- * ✅ App Provider Fallback
- * Uses consolidated LoadingSpinner component
- */
 function AppProviderFallback() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-blue-950/20 dark:via-background dark:to-indigo-950/20 flex items-center justify-center">
-      <div className="text-center">
-        <LoadingSpinner
-          size="lg"
-          color="primary"
-          text="Initializing Application..."
-        />
-        <p className="text-sm text-muted-foreground mt-4">
-          Please wait while we set up your experience
-        </p>
-      </div>
+      <LoadingSpinner size="lg" text="Initializing..." center />
     </div>
   );
 }
@@ -84,7 +73,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <ErrorBoundary
       fallback={ErrorFallback}
       onError={(error, errorInfo) => {
-        // Log error to monitoring service in production
         console.error("App Provider Error:", error, errorInfo);
       }}
     >
@@ -97,33 +85,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         >
           <LanguageProvider>
             <StoreProvider>
-              <LoadingOverlayProvider>
-                <QueryProvider>
-                  <WebSocketProvider
-                    autoConnect={false}
-                    enableRetry={true}
-                    enableErrorBoundary={true}
-                  >
-                    <PushNotificationProvider>
-                      {/* ✅ HealthStatusProvider only connects when needed, not on auth pages */}
-                      <HealthStatusProvider />
-                      <GlobalLoadingOverlayListener />
-                      {children}
-                      <Toaster
-                        richColors
-                        position="top-right"
-                        expand={false}
-                        visibleToasts={4}
-                        closeButton
-                        toastOptions={{
-                          duration: 4000,
-                          className: "text-sm",
-                        }}
-                      />
-                    </PushNotificationProvider>
-                  </WebSocketProvider>
-                </QueryProvider>
-              </LoadingOverlayProvider>
+              <QueryProvider>
+                <WebSocketProvider
+                  autoConnect={false}
+                  enableRetry={true}
+                  enableErrorBoundary={true}
+                >
+                  <PushNotificationProvider>
+                    <HealthStatusProvider />
+                    {children}
+                    <Toaster
+                      richColors
+                      position="top-right"
+                      expand={false}
+                      visibleToasts={4}
+                      closeButton
+                      toastOptions={{
+                        duration: 4000,
+                        className: "text-sm",
+                      }}
+                    />
+                  </PushNotificationProvider>
+                </WebSocketProvider>
+              </QueryProvider>
             </StoreProvider>
           </LanguageProvider>
         </ThemeProvider>

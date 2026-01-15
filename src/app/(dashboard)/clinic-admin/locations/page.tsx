@@ -36,7 +36,7 @@ import {
   useUpdateClinicLocation,
   useDeleteClinicLocation,
 } from "@/hooks/query/useClinics";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Activity,

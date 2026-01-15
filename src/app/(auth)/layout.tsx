@@ -1,29 +1,18 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
+/**
+ * ✅ Auth Layout
+ * Simple layout for authentication pages
+ * Loading states are handled by Next.js loading.tsx
+ */
+
+import { StatusFooter } from "@/components/status/StatusFooter";
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { clearOverlay } = useLoadingOverlay();
-  const clearedRef = useRef(false);
-
-  // ✅ CRITICAL: Clear overlay immediately - must be synchronous and simple
-  // This is the ONLY thing that should happen on mount - nothing else
-  useEffect(() => {
-    if (!clearedRef.current) {
-      clearOverlay();
-      clearedRef.current = true;
-    }
-    return () => {
-      clearOverlay();
-    };
-  }, [clearOverlay]);
-
-  // ✅ Render immediately - no blocking operations
   return (
     <div className="min-h-screen flex">
       {/* Left side - Decorative */}
@@ -36,7 +25,6 @@ export default function AuthLayout({
             doctors, manage appointments, and access your medical records
             securely.
           </p>
-          {/* Add decorative elements or testimonials here */}
           <div className="mt-12 space-y-8">
             <div className="flex items-start space-x-4">
               <div className="flex-shrink-0">
@@ -83,7 +71,8 @@ export default function AuthLayout({
 
       {/* Right side - Auth forms */}
       <div className="flex-1 flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
-        <div className="mx-auto w-full max-w-sm lg:w-96">{children}</div>
+        <div className="mx-auto w-full max-w-sm lg:w-96 flex-1 flex flex-col justify-center">{children}</div>
+        <StatusFooter />
       </div>
     </div>
   );

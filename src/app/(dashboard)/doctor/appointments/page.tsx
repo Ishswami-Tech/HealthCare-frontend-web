@@ -21,7 +21,7 @@ import { getRoutesByRole } from "@/lib/config/routes";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { toast } from "sonner";
 import { 

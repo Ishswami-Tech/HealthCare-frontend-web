@@ -4,10 +4,10 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
-import { showSuccessToast, showErrorToast, showLoadingToast, dismissToast, TOAST_IDS } from '../utils/use-toast'; // ✅ Use consolidated toast hook
+import { showSuccessToast, showErrorToast, showLoadingToast, dismissToast, TOAST_IDS } from '../utils/use-toast';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { ERROR_MESSAGES } from '@/lib/config/config';
-import { useLoadingOverlay } from '@/app/providers/LoadingOverlayContext';
+import { useGlobalLoading } from '@/hooks/utils/useGlobalLoading';
 import { logger } from '@/lib/utils/logger';
 import {
   login as loginAction,
@@ -42,7 +42,7 @@ import type {
   User,
 } from '@/types/auth.types';
 import { Role } from '@/types/auth.types';
-import { getDashboardByRole } from '@/lib/config/routes';
+import { getDashboardByRole, ROUTES } from '@/lib/config/routes';
 
 // Constants
 const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes
@@ -226,7 +226,7 @@ export function useAuth() {
       const profileComplete = data.user.profileComplete || false;
 
       if (!profileComplete) {
-        router.push('/profile-completion');
+        router.push(ROUTES.PROFILE_COMPLETION);
       } else {
         const dashboardPath = getDashboardByRole(data.user.role as Role);
         router.push(dashboardPath);
@@ -306,7 +306,7 @@ export function useAuth() {
       const profileComplete = data.user.profileComplete || false;
 
       if (!profileComplete) {
-        router.push('/profile-completion');
+        router.push(ROUTES.PROFILE_COMPLETION);
       } else {
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
         // ✅ Use centralized toast manager
@@ -354,7 +354,7 @@ export function useAuth() {
       queryClient.setQueryData(['session'], null);
       clearSession();
 
-      router.push('/auth/login');
+      router.push(ROUTES.LOGIN);
       showSuccessToast('Logged out successfully', {
         id: TOAST_IDS.AUTH.LOGOUT,
       });
@@ -369,7 +369,7 @@ export function useAuth() {
       queryClient.setQueryData(['session'], null);
       clearSession();
 
-      router.push('/auth/login');
+      router.push(ROUTES.LOGIN);
       showErrorToast('Logged out locally, but server logout failed', {
         id: TOAST_IDS.AUTH.LOGOUT,
       });
@@ -386,7 +386,7 @@ export function useAuth() {
       } else if (data.redirectUrl) {
         router.push(data.redirectUrl);
       } else {
-        router.push('/auth/login?registered=true');
+        router.push(`${ROUTES.LOGIN}?registered=true`);
       }
       // ✅ Don't show toast here - component handles it
     },
@@ -405,7 +405,7 @@ export function useAuth() {
       const profileComplete = data.user.profileComplete || false;
 
       if (!profileComplete) {
-        router.push('/profile-completion');
+        router.push(ROUTES.PROFILE_COMPLETION);
       } else {
         const redirectPath = getRedirectPath(data.user, data.redirectUrl);
         router.push(redirectPath);
@@ -457,7 +457,7 @@ export function useAuth() {
   const { mutate: resetPassword, isPending: isResettingPassword } = useMutation<MessageResponse, Error, { token: string; newPassword: string }>({
     mutationFn: (data) => resetPasswordAction(data),
     onSuccess: (data) => {
-      router.push('/auth/login?reset=true');
+        router.push(`${ROUTES.LOGIN}?reset=true`);
       showSuccessToast(data.message || 'Password reset successful', {
         id: TOAST_IDS.AUTH.RESET_PASSWORD,
       });
@@ -541,7 +541,7 @@ export function useAuth() {
     onSuccess: () => {
       queryClient.clear();
       queryClient.setQueryData(['session'], null);
-      router.push('/auth/login');
+      router.push(ROUTES.LOGIN);
       toast.success('All sessions terminated successfully');
     },
     onError: (error: Error) => {
@@ -574,7 +574,7 @@ export function useAuth() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['session'] });
       toast.success(data.message);
-      router.push('/auth/login');
+      router.push(ROUTES.LOGIN);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -678,8 +678,6 @@ export function useAuth() {
 export interface AuthFormOptions {
   /** Toast ID for this operation */
   toastId: string;
-  /** Overlay variant */
-  overlayVariant?: 'default' | 'login' | 'register' | 'logout';
   /** Loading message */
   loadingMessage: string;
   /** Success message */
@@ -694,35 +692,30 @@ export interface AuthFormOptions {
   onSuccess?: (data?: AuthResponse) => void | Promise<void>;
   /** Callback on error */
   onError?: (error: Error) => void;
-  /** Whether to show overlay */
-  showOverlay?: boolean;
   /** Whether to show toast */
   showToast?: boolean;
 }
 
 /**
  * ✅ Unified Auth Form Hook
- * Provides consistent loading, error handling, toast, and overlay management
+ * Provides consistent loading, error handling, and toast management
+ * Uses Zustand for global loading state (no overlay)
  */
 export function useAuthForm(options: AuthFormOptions) {
   const router = useRouter();
-  const { setOverlay, clearOverlay } = useLoadingOverlay();
+  const { startLoading, stopLoading } = useGlobalLoading();
 
-  // ✅ Use refs to avoid dependency issues and infinite loops
-  const setOverlayRef = useRef(setOverlay);
-  const clearOverlayRef = useRef(clearOverlay);
+  // ✅ Use refs to avoid dependency issues
+  const startLoadingRef = useRef(startLoading);
+  const stopLoadingRef = useRef(stopLoading);
 
   useEffect(() => {
-    setOverlayRef.current = setOverlay;
-    clearOverlayRef.current = clearOverlay;
-  }, [setOverlay, clearOverlay]);
-
-  // ✅ Overlay clearing is handled by auth layout - this hook only manages overlay during auth operations
-  // Removing lifecycle-based clearing prevents race conditions and conflicts with Next.js navigation
+    startLoadingRef.current = startLoading;
+    stopLoadingRef.current = stopLoading;
+  }, [startLoading, stopLoading]);
 
   /**
    * ✅ Execute auth operation with consistent error handling
-   * Follows DRY - single implementation for all auth operations
    */
   const executeAuthOperation = useCallback(
     async <T,>(
@@ -732,7 +725,6 @@ export function useAuthForm(options: AuthFormOptions) {
       const opts = { ...options, ...customOptions };
       const {
         toastId,
-        overlayVariant = 'default',
         loadingMessage,
         successMessage,
         errorMessage,
@@ -740,19 +732,12 @@ export function useAuthForm(options: AuthFormOptions) {
         redirectDelay = 0,
         onSuccess,
         onError,
-        showOverlay = true,
         showToast = true,
       } = opts;
 
       try {
         // ✅ Show loading indicators
-        if (showOverlay) {
-          setOverlayRef.current({
-            show: true,
-            variant: overlayVariant,
-            message: loadingMessage,
-          });
-        }
+        startLoadingRef.current(loadingMessage);
         if (showToast) {
           showLoadingToast(loadingMessage, toastId);
         }
@@ -760,11 +745,8 @@ export function useAuthForm(options: AuthFormOptions) {
         // ✅ Execute operation
         const result = await operation();
 
-        // ✅ Handle success - always clear overlay immediately
-        if (showOverlay) {
-          // Clear overlay immediately after success
-          clearOverlayRef.current();
-        }
+        // ✅ Handle success
+        stopLoadingRef.current();
         if (showToast) {
           dismissToast(toastId);
           showSuccessToast(successMessage, { id: toastId });
@@ -778,9 +760,7 @@ export function useAuthForm(options: AuthFormOptions) {
         // ✅ Redirect if specified
         if (redirectUrl) {
           if (redirectDelay > 0) {
-            setTimeout(() => {
-              router.push(redirectUrl);
-            }, redirectDelay);
+            setTimeout(() => router.push(redirectUrl), redirectDelay);
           } else {
             router.push(redirectUrl);
           }
@@ -788,25 +768,19 @@ export function useAuthForm(options: AuthFormOptions) {
 
         return result;
       } catch (error) {
-        // ✅ Consistent error handling - always clear overlay immediately on error
-        if (showOverlay) {
-          clearOverlayRef.current();
-        }
+        // ✅ Consistent error handling
+        stopLoadingRef.current();
         if (showToast) {
           dismissToast(toastId);
         }
 
         const sanitizedError = sanitizeErrorMessage(error);
-        const finalErrorMessage =
-          errorMessage || sanitizedError || ERROR_MESSAGES.UNKNOWN_ERROR;
+        const finalErrorMessage = errorMessage || sanitizedError || ERROR_MESSAGES.UNKNOWN_ERROR;
 
         if (showToast) {
-          showErrorToast(error, {
-            id: toastId,
-          });
+          showErrorToast(error, { id: toastId });
         }
 
-        // ✅ Call error callback
         if (onError) {
           onError(error instanceof Error ? error : new Error(finalErrorMessage));
         }
@@ -819,7 +793,7 @@ export function useAuthForm(options: AuthFormOptions) {
 
   return {
     executeAuthOperation,
-    clearOverlay: clearOverlayRef.current,
-    setOverlay: setOverlayRef.current,
+    startLoading: startLoadingRef.current,
+    stopLoading: stopLoadingRef.current,
   };
 } 

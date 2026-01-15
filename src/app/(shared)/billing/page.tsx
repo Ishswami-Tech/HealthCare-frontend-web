@@ -8,7 +8,7 @@ import { ProtectedRoute } from "@/components/rbac/ProtectedRoute";
 import { Permission } from "@/types/rbac.types";
 import { Invoice } from "@/types/billing.types";
 import { generateInvoicePDF } from "@/lib/actions/billing.server";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

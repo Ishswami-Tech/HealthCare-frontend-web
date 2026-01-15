@@ -14,104 +14,16 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { Role } from '@/types/auth.types';
 import { shouldRedirectToProfileCompletion } from '@/lib/config/profile';
-import { getDashboardByRole } from '@/lib/config/routes';
+import {
+  getDashboardByRole,
+  ROUTES,
+  isPublicRoute,
+  isAuthOnlyRoute,
+  shouldSkipProxy as shouldSkipProxyRoute,
+  getProtectedRouteRoles,
+  isProtectedRoute,
+} from '@/lib/config/routes';
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE_NAME } from '@/lib/i18n/config';
-
-// ============================================================================
-// ROUTE CONFIGURATION
-// ============================================================================
-
-/**
- * Protected routes and their allowed roles
- * Role-based access control (RBAC) configuration
- */
-const PROTECTED_ROUTES: Record<string, Role[]> = {
-  // Dashboard routes (role-specific)
-  '/dashboard': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
-  '/(dashboard)/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
-  '/(dashboard)/doctor/dashboard': [Role.DOCTOR],
-  '/(dashboard)/patient/dashboard': [Role.PATIENT],
-  '/(dashboard)/receptionist/dashboard': [Role.RECEPTIONIST],
-  '/(dashboard)/pharmacist/dashboard': [Role.PHARMACIST],
-  '/(dashboard)/super-admin/dashboard': [Role.SUPER_ADMIN],
-  
-  // Legacy dashboard routes (for backward compatibility)
-  '/super-admin': [Role.SUPER_ADMIN],
-  '/clinic-admin': [Role.CLINIC_ADMIN],
-  '/doctor': [Role.DOCTOR],
-  '/receptionist': [Role.RECEPTIONIST],
-  '/pharmacist': [Role.PHARMACIST],
-  '/patient': [Role.PATIENT],
-  
-  // Shared routes (multiple roles)
-  '/(shared)/appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
-  '/(shared)/queue': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST],
-  '/(shared)/ehr': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
-  '/(shared)/pharmacy': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.PHARMACIST, Role.DOCTOR],
-  '/(shared)/analytics': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
-  '/(shared)/billing': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
-  '/(shared)/video-appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
-  
-  // Legacy dashboard routes (for backward compatibility - without route groups)
-  '/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
-  '/doctor/dashboard': [Role.DOCTOR],
-  '/patient/dashboard': [Role.PATIENT],
-  '/receptionist/dashboard': [Role.RECEPTIONIST],
-  '/pharmacist/dashboard': [Role.PHARMACIST],
-  '/super-admin/dashboard': [Role.SUPER_ADMIN],
-  
-  // Settings (all authenticated users)
-  '/settings': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
-};
-
-/**
- * Public routes that don't require authentication
- */
-const PUBLIC_ROUTES = [
-  // Auth routes
-  '/auth/login',
-  '/auth/register',
-  '/auth/forgot-password',
-  '/auth/reset-password',
-  '/auth/verify-otp',
-  '/auth/verify-email',
-  '/auth/verify',
-  '/auth/callback',
-  
-  // Public API routes
-  '/api/public',
-  
-  // Public content routes
-  '/',
-  '/treatments',
-  '/about',
-  '/contact',
-  '/team',
-  '/gallery',
-  '/treatments/panchakarma',
-  '/treatments/agnikarma',
-  '/treatments/viddha-karma',
-  
-  // Public folder pattern
-  '/(public)',
-];
-
-/**
- * Routes that require authentication but don't need profile completion
- */
-const AUTH_ONLY_ROUTES = [
-  '/profile-completion',
-];
-
-/**
- * Static file patterns to skip proxy processing
- */
-const STATIC_FILE_PATTERNS = [
-  '/_next',
-  '/api',
-  '/favicon.ico',
-  '/public',
-];
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -146,57 +58,6 @@ function calculateProfileCompletionFromUserData(userData: Record<string, unknown
   return missingFields.length === 0;
 }
 
-/**
- * Check if path matches any pattern in the list
- * @param pathname - Request pathname
- * @param patterns - List of patterns to match
- * @returns boolean indicating if path matches
- */
-function matchesPath(pathname: string, patterns: string[]): boolean {
-  return patterns.some(pattern => 
-    pathname === pattern || 
-    pathname.startsWith(pattern + '/') ||
-    pathname.startsWith(pattern)
-  );
-}
-
-/**
- * Check if path is a static file or API route
- * @param pathname - Request pathname
- * @returns boolean indicating if should skip proxy
- */
-function shouldSkipProxy(pathname: string): boolean {
-  return (
-    STATIC_FILE_PATTERNS.some(pattern => pathname.startsWith(pattern)) ||
-    pathname.includes('.') // Static files with extensions
-  );
-}
-
-/**
- * Check if route is public
- * @param pathname - Request pathname
- * @returns boolean indicating if route is public
- */
-function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_ROUTES.some(route => {
-    if (pathname === route) return true;
-    if (pathname.startsWith(route + '/')) return true;
-    
-    // Handle public folder pattern
-    if (route === '/(public)') {
-      return (
-        pathname === '/' ||
-        pathname.startsWith('/treatments') ||
-        pathname.startsWith('/about') ||
-        pathname.startsWith('/contact') ||
-        pathname.startsWith('/team') ||
-        pathname.startsWith('/gallery')
-      );
-    }
-    
-    return false;
-  });
-}
 
 /**
  * Extract user data from JWT token
@@ -241,7 +102,7 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   // STEP 1: Skip proxy for static files and API routes
   // =========================================================================
-  if (shouldSkipProxy(pathname)) {
+  if (shouldSkipProxyRoute(pathname)) {
     return NextResponse.next();
   }
 
@@ -305,12 +166,8 @@ export default async function proxy(request: NextRequest) {
 
   // If no tokens at all, redirect to login for protected routes
   if (!hasValidToken && !refreshToken) {
-    const isProtectedRoute = Object.keys(PROTECTED_ROUTES).some(route => 
-      pathname.startsWith(route) || pathname === route
-    );
-    
-    if (isProtectedRoute) {
-      const loginUrl = new URL('/auth/login', request.url);
+    if (isProtectedRoute(pathname)) {
+      const loginUrl = new URL(ROUTES.LOGIN, request.url);
       loginUrl.searchParams.set('callbackUrl', pathname);
       loginUrl.searchParams.set('from', pathname);
       return NextResponse.redirect(loginUrl);
@@ -327,7 +184,7 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   // STEP 6: Check auth-only routes (requires auth but not profile completion)
   // =========================================================================
-  if (matchesPath(pathname, AUTH_ONLY_ROUTES)) {
+  if (isAuthOnlyRoute(pathname)) {
     return response;
   }
 
@@ -341,7 +198,7 @@ export default async function proxy(request: NextRequest) {
   const shouldRedirectToProfile = shouldRedirectToProfileCompletion(!!hasValidToken, profileComplete, pathname);
 
   if (shouldRedirectToProfile) {
-    const profileCompletionUrl = new URL('/profile-completion', request.url);
+    const profileCompletionUrl = new URL(ROUTES.PROFILE_COMPLETION, request.url);
     profileCompletionUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(profileCompletionUrl);
   }
@@ -349,13 +206,9 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   // STEP 8: Role-based access control (RBAC)
   // =========================================================================
-  const matchedRoute = Object.entries(PROTECTED_ROUTES).find(([routePath]) => 
-    pathname === routePath || pathname.startsWith(routePath + '/')
-  );
+  const allowedRoles = getProtectedRouteRoles(pathname);
 
-  if (matchedRoute && userRole) {
-    const [, allowedRoles] = matchedRoute;
-
+  if (allowedRoles && userRole) {
     if (!allowedRoles.includes(userRole)) {
       // Redirect to appropriate dashboard based on role
       // Uses centralized route configuration

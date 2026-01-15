@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useQueryData } from "@/hooks/core/useQueryData";
 import { getUserProfile } from "@/lib/actions/users.server";
 import { checkProfileCompletion, transformApiResponse } from "@/lib/config/profile";
+import { ROUTES } from "@/lib/config/routes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { UserProfile } from "@/types/auth.types";
@@ -149,7 +150,7 @@ export function DashboardLayout({
 
     // Redirect to login if no user
     if (!user) {
-      router.replace("/auth/login");
+      router.replace(ROUTES.LOGIN);
       return;
     }
 
@@ -179,7 +180,7 @@ export function DashboardLayout({
     if (mergedProfile) {
       const { isComplete } = checkProfileCompletion(mergedProfile);
       if (!isComplete) {
-        router.replace("/profile-completion");
+        router.replace(ROUTES.PROFILE_COMPLETION);
         return;
       }
     }

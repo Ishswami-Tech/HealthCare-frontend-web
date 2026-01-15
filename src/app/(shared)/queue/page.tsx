@@ -13,7 +13,7 @@ import { useQueue, useQueueStats } from "@/hooks/query/useQueue";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { Permission } from "@/types/rbac.types";
 import { useRealTimeQueueStatus } from "@/hooks/realtime/useRealTimeQueries";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { toast } from "sonner";
 import {

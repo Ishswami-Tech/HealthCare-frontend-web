@@ -26,7 +26,7 @@ import {
   useDoctorSchedule,
   useUpdateDoctorSchedule,
 } from "@/hooks/query/useDoctors";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Activity,

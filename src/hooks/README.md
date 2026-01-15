@@ -47,7 +47,7 @@ hooks/
 │   ├── use-toast.ts
 │   ├── useZodForm.ts
 │   ├── use-mobile.ts
-│   ├── useLoadingState.ts
+│   ├── useGlobalLoading.ts
 │   ├── useRBAC.ts
 │   ├── useOptimisticQueue.ts
 │   └── useNotificationPreferences.ts

@@ -11,7 +11,13 @@ interface RoleRoutes {
   routes: RouteConfig[];
 }
 
-// All authentication-related paths that should be public
+// ============================================================================
+// AUTHENTICATION ROUTES
+// ============================================================================
+
+/**
+ * All authentication-related paths that should be public
+ */
 export const AUTH_PATHS = [
   '/auth/login',
   '/auth/register',
@@ -27,7 +33,154 @@ export const AUTH_PATHS = [
   '/auth/verify',
   '/auth/callback',
   '/auth/check-otp-status',
-];
+] as const;
+
+// ============================================================================
+// PUBLIC ROUTES
+// ============================================================================
+
+/**
+ * Public routes that don't require authentication
+ */
+export const PUBLIC_ROUTES = [
+  // Auth routes
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-otp',
+  '/auth/verify-email',
+  '/auth/verify',
+  '/auth/callback',
+  
+  // Public API routes
+  '/api/public',
+  
+  // Public content routes
+  '/',
+  '/treatments',
+  '/about',
+  '/contact',
+  '/team',
+  '/gallery',
+  '/treatments/panchakarma',
+  '/treatments/agnikarma',
+  '/treatments/viddha-karma',
+  
+  // Public folder pattern (for route matching)
+  '/(public)',
+] as const;
+
+// ============================================================================
+// AUTH-ONLY ROUTES
+// ============================================================================
+
+/**
+ * Routes that require authentication but don't need profile completion
+ */
+export const AUTH_ONLY_ROUTES = [
+  '/profile-completion',
+] as const;
+
+// ============================================================================
+// PROTECTED ROUTES (Role-Based Access Control)
+// ============================================================================
+
+/**
+ * Protected routes and their allowed roles
+ * Role-based access control (RBAC) configuration
+ */
+export const PROTECTED_ROUTES: Record<string, Role[]> = {
+  // Dashboard routes (role-specific)
+  '/dashboard': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
+  '/(dashboard)/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
+  '/(dashboard)/doctor/dashboard': [Role.DOCTOR],
+  '/(dashboard)/patient/dashboard': [Role.PATIENT],
+  '/(dashboard)/receptionist/dashboard': [Role.RECEPTIONIST],
+  '/(dashboard)/pharmacist/dashboard': [Role.PHARMACIST],
+  '/(dashboard)/super-admin/dashboard': [Role.SUPER_ADMIN],
+  
+  // Legacy dashboard routes (for backward compatibility)
+  '/super-admin': [Role.SUPER_ADMIN],
+  '/clinic-admin': [Role.CLINIC_ADMIN],
+  '/doctor': [Role.DOCTOR],
+  '/receptionist': [Role.RECEPTIONIST],
+  '/pharmacist': [Role.PHARMACIST],
+  '/patient': [Role.PATIENT],
+  
+  // Shared routes (multiple roles)
+  '/(shared)/appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
+  '/(shared)/queue': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST],
+  '/(shared)/ehr': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
+  '/(shared)/pharmacy': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.PHARMACIST, Role.DOCTOR],
+  '/(shared)/analytics': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
+  '/(shared)/billing': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
+  '/(shared)/video-appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
+  
+  // Legacy dashboard routes (for backward compatibility - without route groups)
+  '/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
+  '/doctor/dashboard': [Role.DOCTOR],
+  '/patient/dashboard': [Role.PATIENT],
+  '/receptionist/dashboard': [Role.RECEPTIONIST],
+  '/pharmacist/dashboard': [Role.PHARMACIST],
+  '/super-admin/dashboard': [Role.SUPER_ADMIN],
+  
+  // Settings (all authenticated users)
+  '/settings': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
+};
+
+// ============================================================================
+// STATIC FILE PATTERNS
+// ============================================================================
+
+/**
+ * Static file patterns to skip proxy processing
+ */
+export const STATIC_FILE_PATTERNS = [
+  '/_next',
+  '/api',
+  '/favicon.ico',
+  '/public',
+] as const;
+
+// ============================================================================
+// ROUTE CONSTANTS
+// ============================================================================
+
+/**
+ * Common route paths (for easy reference)
+ */
+export const ROUTES = {
+  // Auth routes
+  LOGIN: '/auth/login',
+  REGISTER: '/auth/register',
+  FORGOT_PASSWORD: '/auth/forgot-password',
+  RESET_PASSWORD: '/auth/reset-password',
+  VERIFY_OTP: '/auth/verify-otp',
+  VERIFY_EMAIL: '/auth/verify-email',
+  CALLBACK: '/auth/callback',
+  
+  // Profile
+  PROFILE_COMPLETION: '/profile-completion',
+  SETTINGS: '/settings',
+  
+  // Public routes
+  HOME: '/',
+  TREATMENTS: '/treatments',
+  ABOUT: '/about',
+  CONTACT: '/contact',
+  TEAM: '/team',
+  GALLERY: '/gallery',
+  
+  // Shared routes (accessible by multiple roles)
+  SHARED_APPOINTMENTS: '/(shared)/appointments',
+  SHARED_QUEUE: '/(shared)/queue',
+  SHARED_EHR: '/(shared)/ehr',
+  SHARED_PHARMACY: '/(shared)/pharmacy',
+  SHARED_ANALYTICS: '/(shared)/analytics',
+  SHARED_BILLING: '/(shared)/billing',
+  SHARED_VIDEO_APPOINTMENTS: '/(shared)/video-appointments',
+} as const;
 
 export const ROLE_ROUTES: Record<Role, RoleRoutes> = {
   SUPER_ADMIN: {
@@ -132,5 +285,92 @@ export function getAllowedRolesForPath(pathname: string): Role[] | undefined {
  */
 export function isAuthPath(pathname: string): boolean {
   return AUTH_PATHS.some((path) => pathname.startsWith(path));
+}
+
+/**
+ * Check if a route is public
+ * @param pathname - Request pathname
+ * @returns boolean indicating if route is public
+ */
+export function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.some(route => {
+    if (pathname === route) return true;
+    if (pathname.startsWith(route + '/')) return true;
+    
+    // Handle public folder pattern
+    if (route === '/(public)') {
+      return (
+        pathname === '/' ||
+        pathname.startsWith('/treatments') ||
+        pathname.startsWith('/about') ||
+        pathname.startsWith('/contact') ||
+        pathname.startsWith('/team') ||
+        pathname.startsWith('/gallery')
+      );
+    }
+    
+    return false;
+  });
+}
+
+/**
+ * Check if a route requires authentication only (no profile completion)
+ * @param pathname - Request pathname
+ * @returns boolean indicating if route is auth-only
+ */
+export function isAuthOnlyRoute(pathname: string): boolean {
+  return AUTH_ONLY_ROUTES.some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  );
+}
+
+/**
+ * Check if a path is a static file or API route
+ * @param pathname - Request pathname
+ * @returns boolean indicating if should skip proxy
+ */
+export function shouldSkipProxy(pathname: string): boolean {
+  return (
+    STATIC_FILE_PATTERNS.some(pattern => pathname.startsWith(pattern)) ||
+    pathname.includes('.') // Static files with extensions
+  );
+}
+
+/**
+ * Check if path matches any pattern in the list
+ * @param pathname - Request pathname
+ * @param patterns - List of patterns to match
+ * @returns boolean indicating if path matches
+ */
+export function matchesPath(pathname: string, patterns: readonly string[]): boolean {
+  return patterns.some(pattern => 
+    pathname === pattern || 
+    pathname.startsWith(pattern + '/') ||
+    pathname.startsWith(pattern)
+  );
+}
+
+/**
+ * Get protected route configuration for a pathname
+ * @param pathname - Request pathname
+ * @returns Array of allowed roles or undefined
+ */
+export function getProtectedRouteRoles(pathname: string): Role[] | undefined {
+  const matchedRoute = Object.entries(PROTECTED_ROUTES).find(([routePath]) => 
+    pathname === routePath || pathname.startsWith(routePath + '/')
+  );
+  
+  return matchedRoute ? matchedRoute[1] : undefined;
+}
+
+/**
+ * Check if a pathname is a protected route
+ * @param pathname - Request pathname
+ * @returns boolean indicating if route is protected
+ */
+export function isProtectedRoute(pathname: string): boolean {
+  return Object.keys(PROTECTED_ROUTES).some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  );
 }
 

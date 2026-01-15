@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { getRoutesByRole } from "@/lib/config/routes";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinics } from "@/hooks/query/useClinics";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Building2,

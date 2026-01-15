@@ -4,7 +4,7 @@
 export { useToast, showSuccessToast, showErrorToast, showLoadingToast, dismissToast, TOAST_IDS } from './use-toast';
 export { default as useZodForm } from './useZodForm';
 export { useIsMobile } from './use-mobile';
-export { useLoadingState, useSingleLoadingState, useAsyncOperation } from './useLoadingState';
+export { useGlobalLoading, useIsLoading, useLoadingMessage } from './useGlobalLoading';
 export { 
   useRBAC,
   useAppointmentPermissions,

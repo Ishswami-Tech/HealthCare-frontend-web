@@ -1,5 +1,5 @@
 import { Role } from '@/types/auth.types';
-import { getDashboardByRole } from '@/lib/config/routes';
+import { getDashboardByRole, ROUTES, isAuthPath } from '@/lib/config/routes';
 
 export interface ProfileCompletionStatus {
   isComplete: boolean;
@@ -107,8 +107,8 @@ export function shouldRedirectToProfileCompletion(
   return (
     isAuthenticated &&
     !profileComplete &&
-    currentPath !== '/profile-completion' &&
-    !currentPath.startsWith('/auth/')
+    currentPath !== ROUTES.PROFILE_COMPLETION &&
+    !isAuthPath(currentPath)
   );
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/hooks/auth/useAuth";
+import { ROUTES } from "@/lib/config/routes";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import {
   ArrowLeft,
   User,
 } from "lucide-react";
-import { BackendStatusWidget } from "@/components/common/BackendStatusIndicator";
+
 
 export default function SharedLayout({
   children,
@@ -29,7 +30,7 @@ export default function SharedLayout({
   // Redirect to login if not authenticated
   React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/(auth)/auth/login");
+      router.push(ROUTES.LOGIN);
     }
   }, [isLoading, isAuthenticated, router]);
 
@@ -114,7 +115,7 @@ export default function SharedLayout({
           </div>
 
           <div className="ml-auto flex items-center space-x-4">
-            <BackendStatusWidget />
+
             <div className="flex items-center space-x-2">
               <User className="h-4 w-4 text-gray-500" />
               <span className="text-sm text-gray-700">{userName}</span>

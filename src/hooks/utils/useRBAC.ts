@@ -8,6 +8,7 @@ import {
   PermissionContext, 
   PermissionResult
 } from '@/types/rbac.types';
+import { ROUTES } from '@/lib/config/routes';
 
 /**
  * Main RBAC hook for permission checking
@@ -230,7 +231,7 @@ export const useRoleBasedNavigation = () => {
   const rbac = useRBAC();
   
   const getDefaultRoute = (): string => {
-    if (!user) return '/auth/login';
+    if (!user) return ROUTES.LOGIN;
     
     const role = user.role as Role;
     

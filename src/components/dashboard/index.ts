@@ -11,7 +11,7 @@ export {
   ProgressCard,
   ActionCard,
   QuickStats,
-  DashboardHeader as DashboardHeaderCard,
+  DashboardHeaderCard,
 } from './ModernDashboardCard';
 
 // Appointments

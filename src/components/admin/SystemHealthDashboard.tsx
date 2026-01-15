@@ -47,7 +47,6 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
     backend.services.database,
     backend.services.websocket,
     backend.services.cache,
-    backend.services.realtime
   ];
 
   const healthyServices = services.filter(s => s.status === 'active').length;
@@ -160,7 +159,7 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={backend.refresh}
+                onClick={() => backend.refresh(true)}
                 disabled={backend.isChecking}
               >
                 <RefreshCw className={cn('h-4 w-4 mr-2', backend.isChecking && 'animate-spin')} />
@@ -305,7 +304,6 @@ export function CompactSystemHealth({ className }: { className?: string }) {
     backend.services.database, 
     backend.services.websocket,
     backend.services.cache,
-    backend.services.realtime
   ];
   
   const healthyServices = services.filter(s => s.status === 'active').length;

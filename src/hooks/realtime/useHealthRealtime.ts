@@ -7,26 +7,46 @@ import { useHealthStore } from '@/stores';
 import { DetailedHealthStatus } from '../query/useHealth';
 
 // Realtime health status types matching backend format
+// Realtime health status types matching backend format (supporting both compressed and verbose)
 export interface RealtimeHealthStatus {
-  t: string; // timestamp (ISO 8601)
-  o: 'healthy' | 'degraded' | 'unhealthy'; // overall status
-  s: {
+  t?: string; // timestamp (ISO 8601) - compressed
+  timestamp?: string; // verbose
+  o?: 'healthy' | 'degraded' | 'unhealthy'; // overall status - compressed
+  overall?: 'healthy' | 'degraded' | 'unhealthy'; // verbose
+  s?: { // services - compressed
     [serviceName: string]: {
       status: 'healthy' | 'degraded' | 'unhealthy';
       timestamp: string;
       responseTime?: number;
       error?: string;
-      details?: string;
+      details?: string | { message: string };
     };
   };
-  sys?: {
+  services?: { // services - verbose
+    [serviceName: string]: {
+      status: 'healthy' | 'degraded' | 'unhealthy';
+      timestamp: string;
+      responseTime?: number;
+      error?: string;
+      details?: string | { message: string };
+    };
+  };
+  sys?: { // system - compressed
     cpu: number;
     memory: number;
     activeConnections: number;
     requestRate: number;
     errorRate: number;
   };
-  u: number; // uptime in seconds
+  system?: { // system - verbose
+    cpu: number;
+    memory: number | { heapTotal: number; heapUsed: number; rss: number; [key: string]: any }; // Handle complex memory object if needed
+    activeConnections: number;
+    requestRate: number;
+    errorRate: number;
+  };
+  u?: number; // uptime - compressed
+  uptime?: number; // uptime - verbose
 }
 
 export interface HealthUpdate {
@@ -44,15 +64,19 @@ export interface HealthHeartbeat {
 
 // Convert realtime format to DetailedHealthStatus format
 function convertRealtimeToDetailed(realtime: RealtimeHealthStatus): DetailedHealthStatus {
-  const services = realtime.s;
+  // Support both compressed ('s') and verbose ('services') keys
+  const services = realtime.s || realtime.services || {};
   const result: DetailedHealthStatus = {};
   
+  // Helper to safely get timestamp
+  const getTimestamp = (ts: string | undefined) => ts || new Date().toISOString();
+
   // Database
   if (services.database) {
     result.database = {
       status: services.database.status === 'healthy' ? 'up' : 'down',
       isHealthy: services.database.status === 'healthy',
-      lastHealthCheck: services.database.timestamp,
+      lastHealthCheck: getTimestamp(services.database.timestamp),
     };
     if (services.database.responseTime !== undefined) {
       result.database.avgResponseTime = services.database.responseTime;
@@ -93,14 +117,13 @@ function convertRealtimeToDetailed(realtime: RealtimeHealthStatus): DetailedHeal
   
   // Queue
   if (services.queue) {
-    const queueConnection: NonNullable<DetailedHealthStatus['queue']>['connection'] = {
+    // Cast to any to bypass strict type checking for the connection object construction if needed, 
+    // or just strictly conform to the interface
+    const queueConnection = {
       connected: services.queue.status === 'healthy',
       provider: 'bullmq',
+      latency: services.queue.responseTime
     };
-    
-    if (services.queue.responseTime !== undefined) {
-      queueConnection.latency = services.queue.responseTime;
-    }
     
     result.queue = {
       status: services.queue.status === 'healthy' ? 'up' : 'down',
@@ -113,14 +136,13 @@ function convertRealtimeToDetailed(realtime: RealtimeHealthStatus): DetailedHeal
   if (services.communication || services.socket) {
     const commStatus = services.communication?.status || services.socket?.status;
     const isHealthy = commStatus === 'healthy';
-    const isDegraded = commStatus === 'degraded';
     
     result.communication = {
       status: isHealthy ? 'up' : 'down',
       healthy: isHealthy,
     };
     
-    if (isDegraded) {
+    if (commStatus === 'degraded') {
       result.communication.degraded = true;
     }
     
@@ -172,32 +194,37 @@ function convertRealtimeToDetailed(realtime: RealtimeHealthStatus): DetailedHeal
   
   // Logging
   if (services.logger || services.logging) {
-    const loggerStatus = services.logger?.status || services.logging?.status;
-    const isHealthy = loggerStatus === 'healthy';
-    const responseTime = services.logger?.responseTime || services.logging?.responseTime;
-    const error = services.logger?.error || services.logging?.error;
-    
-    const loggingService: NonNullable<DetailedHealthStatus['logging']>['service'] = {
-      available: isHealthy,
-      serviceName: 'LoggingService',
+    const srv = services.logger || services.logging;
+    if (srv) {
+        const isHealthy = srv.status === 'healthy';
+        
+        result.logging = {
+          status: isHealthy ? 'up' : 'down',
+          service: {
+              available: isHealthy,
+              serviceName: 'LoggingService',
+              latency: srv.responseTime
+          },
+          healthy: isHealthy,
+          error: srv.error
+        };
+    }
+  }
+
+  // System Metrics & Uptime
+  if (realtime.u !== undefined) result.uptime = realtime.u;
+  if (realtime.uptime !== undefined) result.uptime = realtime.uptime;
+  
+  const sys = realtime.sys || realtime.system;
+  if (sys) {
+    // Basic mapping
+    result.system = {
+        cpu: typeof sys.cpu === 'number' ? sys.cpu : 0,
+        memory: typeof sys.memory === 'number' ? sys.memory : 0,
+        activeConnections: sys.activeConnections || 0,
+        requestRate: sys.requestRate || 0,
+        errorRate: sys.errorRate || 0
     };
-    
-    if (responseTime !== undefined) {
-      loggingService.latency = responseTime;
-    }
-    
-    result.logging = {
-      status: isHealthy ? 'up' : 'down',
-      service: loggingService,
-    };
-    
-    if (isHealthy) {
-      result.logging.healthy = true;
-    }
-    
-    if (error) {
-      result.logging.error = error;
-    }
   }
   
   return result;

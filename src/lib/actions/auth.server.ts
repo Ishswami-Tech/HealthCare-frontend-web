@@ -2,7 +2,7 @@
 
 import { Role, RegisterFormData } from '@/types/auth.types';
 import { redirect } from 'next/navigation';
-import { getDashboardByRole } from '@/lib/config/routes';
+import { getDashboardByRole, ROUTES } from '@/lib/config/routes';
 import { calculateProfileCompletion } from '@/lib/config/profile';
 import { cookies } from 'next/headers';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
@@ -1334,7 +1334,7 @@ export async function requireAuth() {
   const session = await getServerSession();
   
   if (!session?.user) {
-    redirect('/auth/login');
+    redirect(ROUTES.LOGIN);
   }
   
   return session;

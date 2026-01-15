@@ -23,6 +23,7 @@ import {
 import { ERROR_MESSAGES } from "@/lib/config/config";
 import { useAuthForm } from "@/hooks/auth/useAuth";
 import { TOAST_IDS } from "@/hooks/utils/use-toast";
+import { ROUTES } from "@/lib/config/routes";
 
 export default function ForgotPasswordPage() {
   const { forgotPassword, isRequestingReset } = useAuth();
@@ -30,12 +31,10 @@ export default function ForgotPasswordPage() {
   // ✅ Use unified auth form hook for consistent patterns
   const { executeAuthOperation } = useAuthForm({
     toastId: TOAST_IDS.AUTH.FORGOT_PASSWORD,
-    overlayVariant: "default",
     loadingMessage: "Sending instructions...",
     successMessage: "Password reset instructions have been sent to your email.",
     errorMessage: ERROR_MESSAGES.FORGOT_PASSWORD_FAILED,
-    redirectUrl: "/auth/login",
-    showOverlay: true,
+    redirectUrl: ROUTES.LOGIN,
     showToast: true,
   });
 
@@ -100,7 +99,7 @@ export default function ForgotPasswordPage() {
         <div className="w-full text-center text-xs sm:text-sm text-gray-600">
           Remember your password?{" "}
           <Link
-            href="/auth/login"
+            href={ROUTES.LOGIN}
             className="text-blue-600 hover:underline transition-colors"
           >
             Sign in

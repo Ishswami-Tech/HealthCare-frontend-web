@@ -58,20 +58,6 @@ export interface ClinicSettings {
   };
 }
 
-// Loading Overlay Types
-export type LoadingOverlayVariant = "default" | "logout" | "login" | "register";
-
-export interface OverlayConfig {
-  show: boolean;
-  variant: LoadingOverlayVariant;
-  message?: string;
-}
-
-const defaultOverlay: OverlayConfig = {
-  show: false,
-  variant: "default",
-};
-
 export interface AppState {
   // User Management
   user: User | null;
@@ -89,9 +75,6 @@ export interface AppState {
   // Loading State (✅ Global loading state - for app-wide loading)
   isLoading: boolean;
   loadingMessage: string;
-  
-  // Loading Overlay (✅ For full-screen overlays during auth flows, etc.)
-  overlay: OverlayConfig;
   
   // Session Management
   session: Session | null;
@@ -122,10 +105,6 @@ export interface AppState {
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setLanguage: (language: string) => void;
   setLoading: (loading: boolean, message?: string) => void;
-  
-  // Overlay Actions (✅ For full-screen overlays during auth flows, route transitions)
-  setOverlay: (config: Partial<OverlayConfig>) => void;
-  clearOverlay: () => void;
   
   // Session Actions
   setSession: (session: Session | null) => void;
@@ -173,7 +152,6 @@ const initialState = {
   language: 'en',
   isLoading: false,
   loadingMessage: '',
-  overlay: defaultOverlay,
   session: null,
   notifications: [],
   unreadCount: 0,
@@ -263,17 +241,6 @@ export const useAppStore = create<AppState>()(
           set((state) => {
             state.isLoading = loading;
             state.loadingMessage = message;
-          }),
-
-        // Overlay Actions (✅ For full-screen overlays during auth flows, route transitions)
-        setOverlay: (config) =>
-          set((state) => {
-            state.overlay = { ...state.overlay, ...config };
-          }),
-
-        clearOverlay: () =>
-          set((state) => {
-            state.overlay = defaultOverlay;
           }),
 
         // Session Actions
@@ -408,7 +375,7 @@ export const useErrors = () => useAppStore(state => ({
 }));
 
 // ✅ Loading selector (for global app loading state)
-// For component-level loading, use useLoadingState hook from @/hooks/useLoadingState
+// For component-level loading, use local useState or useGlobalLoading from @/hooks/utils/useGlobalLoading
 export const useLoading = () => useAppStore(state => ({
   isLoading: state.isLoading,
   loadingMessage: state.loadingMessage

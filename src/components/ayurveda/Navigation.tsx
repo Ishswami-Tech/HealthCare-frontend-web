@@ -11,6 +11,7 @@ import { useTranslation, useLanguageSwitcher } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useRouter } from "next/navigation";
 import { APP_CONFIG } from "@/lib/config/config";
+import { ROUTES } from "@/lib/config/routes";
 import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { Globe, ChevronDown, ChevronRight, User, LogOut } from "lucide-react";
 import {
@@ -127,17 +128,17 @@ const Navigation = () => {
 
   // Authentication handlers
   const handleLogin = () => {
-    router.push("/auth/login");
+    router.push(ROUTES.LOGIN);
   };
 
   const handleRegister = () => {
-    router.push("/auth/register");
+    router.push(ROUTES.REGISTER);
   };
 
   const handleLogout = async () => {
     try {
       await logout();
-      router.push("/");
+      router.push(ROUTES.HOME);
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -145,7 +146,7 @@ const Navigation = () => {
 
   const handleDashboardNavigation = () => {
     if (!isAuthenticated || !session) {
-      router.push("/auth/login");
+      router.push(ROUTES.LOGIN);
       return;
     }
     // ✅ Consolidated: Use new route format with (dashboard) prefix
@@ -175,7 +176,7 @@ const Navigation = () => {
   return (
     <>
       {/* Top Trust Bar */}
-      <div className="bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4 relative z-40">
+      <div className="bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4 relative z-40 -mt-[56px]">
         <div className="container mx-auto max-w-7xl flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs md:text-sm gap-2 sm:gap-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <Badge
@@ -291,16 +292,16 @@ const Navigation = () => {
 
         {/* Navigation Content */}
         <div className="container mx-auto px-4 relative z-10">
-          <div className="flex items-center justify-between h-16 md:h-20 min-h-[4rem] max-w-7xl mx-auto">
+          <div className="flex items-center justify-between h-16 md:h-20 min-h-16 max-w-7xl mx-auto">
             {/* Left Section - Logo Only */}
-            <div className="flex items-center flex-shrink-0 min-w-0">
+            <div className="flex items-center shrink-0 min-w-0">
               <HoverAnimation type="scale">
                 <Link
                   href="/"
                   className="flex items-center space-x-2 sm:space-x-3 touch-manipulation"
                 >
                   <motion.div
-                    className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
+                    className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
                     whileHover={{ rotate: 360 }}
                     transition={{ duration: 0.5, ease: "easeInOut" }}
                   >
@@ -518,7 +519,7 @@ const Navigation = () => {
                     </Button>
                   </HoverAnimation>
                 </div>
-                ) : null}
+              ) : null}
 
               {/* Primary CTA Button */}
               <HoverAnimation type="scale">
@@ -700,7 +701,7 @@ const Navigation = () => {
                             Register
                           </Button>
                         </div>
-                        ) : null}
+                      ) : null}
 
                       <Button
                         variant="outline"

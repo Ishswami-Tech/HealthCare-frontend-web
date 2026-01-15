@@ -1,19 +1,23 @@
 "use client";
 
+/**
+ * ✅ Dashboard Layout
+ * Protected layout for authenticated users
+ * Uses inline LoadingSpinner for loading states (no blocking overlay)
+ */
+
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryData } from "@/hooks/core/useQueryData";
 import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { sidebarLinksByRole, SidebarLink } from "@/lib/config/sidebarLinks";
 import { Role, type UserProfile } from "@/types/auth.types";
-import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 import React from "react";
 import { getUserProfile } from "@/lib/actions/users.server";
 import { useRouter } from "next/navigation";
-import {
-  DashboardStatusBar,
-  FloatingStatusWidget,
-} from "@/components/dashboard/DashboardStatusBar";
+
+import { MinimalStatusIndicator } from "@/components/common/MinimalStatusIndicator";
 import { LoadingSpinner } from "@/components/ui/loading";
+import { ROUTES } from "@/lib/config/routes";
 
 export default function DashboardLayout({
   children,
@@ -21,45 +25,12 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { session, isLoading, isAuthenticated } = useAuth();
-  const { setOverlay } = useLoadingOverlay();
   const router = useRouter();
-
-  // ✅ Only show overlay for auth loading, not for profile loading
-  // Profile loading is handled by the early return below
-  // Note: Overlay is managed by GlobalLoadingOverlayListener for route transitions
-  // Use ref to avoid dependency issues
-  const setOverlayRef = React.useRef(setOverlay);
-  React.useEffect(() => {
-    setOverlayRef.current = setOverlay;
-  }, [setOverlay]);
-
-  React.useEffect(() => {
-    if (isLoading) {
-      setOverlayRef.current({ show: true, variant: "default", message: "Authenticating..." });
-      return undefined;
-    } else {
-      // ✅ Ensure overlay is hidden when auth loading completes
-      // Add small delay to prevent flicker
-      const timeoutId = setTimeout(() => {
-        setOverlayRef.current({ show: false });
-      }, 100);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isLoading]);
-  
-  // ✅ Safety timeout: Always hide overlay after max 10 seconds to prevent hanging
-  React.useEffect(() => {
-    const safetyTimeout = setTimeout(() => {
-      setOverlayRef.current({ show: false });
-    }, 10000);
-    return () => clearTimeout(safetyTimeout);
-  }, []);
 
   // Redirect to login if not authenticated
   React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/(auth)/auth/login");
-      return;
+      router.push(ROUTES.LOGIN);
     }
   }, [isLoading, isAuthenticated, router]);
 
@@ -75,19 +46,18 @@ export default function DashboardLayout({
       },
       {
         enabled: !!session?.user?.id,
-        // ✅ Add timeout and retry configuration to prevent hanging
-        retry: 1, // Only retry once
+        retry: 1,
         retryDelay: 1000,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
+        staleTime: 5 * 60 * 1000,
+        gcTime: 10 * 60 * 1000,
       }
     );
 
-  // ✅ Show loading state immediately - prevent content flash
+  // ✅ Show inline loading state (non-blocking)
   if (isLoading || profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <LoadingSpinner size="lg" color="primary" text="Loading dashboard..." />
+        <LoadingSpinner size="lg" text="Loading dashboard..." center />
       </div>
     );
   }
@@ -97,8 +67,6 @@ export default function DashboardLayout({
     return null;
   }
 
-  // Profile error handling is now handled by React Query
-
   // Robust role check: fallback to 'PATIENT' if role is invalid
   const userRole: Role = (Object.values(Role) as string[]).includes(
     (session?.user?.role ?? "") as string
@@ -107,9 +75,7 @@ export default function DashboardLayout({
     : Role.PATIENT;
 
   // Get sidebar links for the user's role
-  const sidebarLinks: SidebarLink[] = sidebarLinksByRole[
-    userRole
-  ] as SidebarLink[];
+  const sidebarLinks: SidebarLink[] = sidebarLinksByRole[userRole] as SidebarLink[];
 
   // User avatar fallback
   const userAvatar = profile?.profilePicture || "/avatar.png";
@@ -124,7 +90,7 @@ export default function DashboardLayout({
   const updatedSidebarLinks = sidebarLinks.map((link) => ({
     ...link,
     icon: link.icon(),
-    href: link.path.startsWith("/") ? `/(dashboard)${link.path}` : link.path, // Update paths for new route structure
+    href: link.path.startsWith("/") ? `/(dashboard)${link.path}` : link.path,
   }));
 
   return (
@@ -136,20 +102,13 @@ export default function DashboardLayout({
           avatarUrl: userAvatar,
         }}
       >
-        <div className="flex flex-col min-h-screen">
-          {/* Main status bar at the top */}
-          <DashboardStatusBar variant="compact" position="top" />
-
-          {/* Main content area */}
-          <main className="flex-1 p-8">{children}</main>
-
-          {/* Footer status bar */}
-          <DashboardStatusBar variant="minimal" position="bottom" />
+        <div className="flex flex-col min-h-screen relative">
+          <div className="absolute top-4 right-8 z-10">
+             <MinimalStatusIndicator />
+          </div>
+          <main className="flex-1 p-8 pt-16">{children}</main>
         </div>
       </Sidebar>
-
-      {/* Floating status widget for critical issues */}
-      <FloatingStatusWidget />
     </div>
   );
 }

@@ -19,7 +19,7 @@ import { getRoutesByRole } from "@/lib/config/routes";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUsers } from "@/hooks/query/useUsers";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { Loader2 } from "lucide-react";
 import {
   Building2,

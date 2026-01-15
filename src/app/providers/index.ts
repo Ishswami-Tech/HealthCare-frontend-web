@@ -4,11 +4,6 @@
 export { AppProvider } from './AppProvider';
 export { default as QueryProvider } from './QueryProvider';
 export {
-  LoadingOverlayProvider,
-  useLoadingOverlay,
-  GlobalLoadingOverlayListener,
-} from './LoadingOverlayContext';
-export {
   WebSocketProvider,
   useWebSocketContext,
   useWebSocketStatus,

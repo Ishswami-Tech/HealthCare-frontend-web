@@ -103,6 +103,14 @@ export interface DetailedHealthStatus {
     };
     error?: string;
   };
+  uptime?: number;
+  system?: {
+    cpu?: number;
+    memory?: number;
+    activeConnections?: number;
+    requestRate?: number;
+    errorRate?: number;
+  };
 }
 
 export const useHealthStatus = () => {

@@ -36,6 +36,7 @@ import {
 import { toast } from "sonner";
 import { Loader2, User, Phone, MapPin, Calendar, Venus } from "lucide-react";
 import { Role } from "@/types/auth.types";
+import { ROUTES } from "@/lib/config/routes";
 import {
   profileCompletionSchema,
   ProfileCompletionFormData,
@@ -319,7 +320,7 @@ export default function ProfileCompletionForm({
               <p>Your session appears to be invalid or expired.</p>
               <button
                 className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-sm"
-                onClick={() => router.push("/auth/login")}
+                onClick={() => router.push(ROUTES.LOGIN)}
               >
                 Please log in again
               </button>
@@ -347,7 +348,7 @@ export default function ProfileCompletionForm({
                 </button>
                 <button
                   className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-sm"
-                  onClick={() => router.push("/auth/login")}
+                  onClick={() => router.push(ROUTES.LOGIN)}
                 >
                   Log In Again
                 </button>

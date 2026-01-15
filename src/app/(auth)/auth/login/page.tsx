@@ -20,7 +20,7 @@ import {
   OTPFormData,
   Role,
 } from "@/types/auth.types";
-import { getDashboardByRole } from "@/lib/config/routes";
+import { getDashboardByRole, ROUTES, isAuthPath } from "@/lib/config/routes";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,12 +37,7 @@ import { Loader2 } from "lucide-react";
 import { useAuthForm } from "@/hooks/auth/useAuth";
 import { TOAST_IDS } from "@/hooks/utils/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  BackendStatusWidget,
-  DetailedBackendStatus,
-} from "@/components/common/BackendStatusIndicator";
-import { SystemStatusBar } from "@/components/common/StatusIndicator";
-import { GlobalHealthStatusButton } from "@/components/common/GlobalHealthStatusButton";
+
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"password" | "otp">("password");
@@ -70,7 +65,7 @@ export default function LoginPage() {
       // If profile is not complete, redirect to the completion page
       if (response.user.profileComplete === false) {
         toast.info("Please complete your profile to continue");
-        router.push("/profile-completion");
+        router.push(ROUTES.PROFILE_COMPLETION);
         return;
       }
 
@@ -79,12 +74,12 @@ export default function LoginPage() {
       const redirectUrl = searchParams.get("redirect");
 
       const finalRedirectUrl =
-        redirectUrl && !redirectUrl.includes("/auth/")
+        redirectUrl && !isAuthPath(redirectUrl)
           ? redirectUrl
           : response.redirectUrl ||
             getDashboardByRole(response.user.role as Role);
 
-      router.push(finalRedirectUrl || "/dashboard");
+      router.push(finalRedirectUrl || ROUTES.HOME);
     },
     [router]
   );
@@ -92,11 +87,9 @@ export default function LoginPage() {
   // ✅ Use unified auth form hook for consistent patterns - Login
   const { executeAuthOperation: executeLogin } = useAuthForm({
     toastId: TOAST_IDS.AUTH.LOGIN,
-    overlayVariant: "login",
     loadingMessage: "Signing in...",
     successMessage: "Successfully signed in!",
     errorMessage: ERROR_MESSAGES.LOGIN_FAILED,
-    showOverlay: true,
     showToast: true,
     onSuccess: (result) => {
       // Handle success redirect logic
@@ -109,11 +102,9 @@ export default function LoginPage() {
   // ✅ Use unified auth form hook for consistent patterns - OTP Verification
   const { executeAuthOperation: executeOTP } = useAuthForm({
     toastId: TOAST_IDS.AUTH.OTP,
-    overlayVariant: "default",
     loadingMessage: "Verifying OTP...",
     successMessage: "OTP verified successfully!",
     errorMessage: "OTP verification failed. Please try again.",
-    showOverlay: true,
     showToast: true,
     onSuccess: (result) => {
       // Handle success redirect logic
@@ -126,11 +117,9 @@ export default function LoginPage() {
   // ✅ Use unified auth form hook for consistent patterns - OTP Request
   const { executeAuthOperation: executeOTPRequest } = useAuthForm({
     toastId: TOAST_IDS.AUTH.OTP,
-    overlayVariant: "default",
     loadingMessage: "Sending OTP...",
     successMessage: "OTP sent successfully!",
     errorMessage: "Failed to send OTP. Please try again.",
-    showOverlay: false, // Don't show overlay for OTP request
     showToast: true,
     onSuccess: () => {
       setShowOTPInput(true);
@@ -197,14 +186,7 @@ export default function LoginPage() {
 
   return (
     <div className="space-y-4 px-4 sm:px-6">
-      {/* Global Health Status Button - Floating */}
-      <GlobalHealthStatusButton variant="floating" position="bottom-right" />
 
-      {/* Backend Status Indicators */}
-      <div className="w-full max-w-md mx-auto space-y-3">
-        <SystemStatusBar className="justify-center" />
-        <DetailedBackendStatus />
-      </div>
 
       <Card className="w-full max-w-md mx-auto shadow-lg">
         <CardHeader className="px-4 sm:px-6">
@@ -217,7 +199,7 @@ export default function LoginPage() {
 
           {/* Live status indicator in header */}
           <div className="flex justify-center mt-3">
-            <BackendStatusWidget />
+
           </div>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
@@ -498,7 +480,7 @@ export default function LoginPage() {
         <CardFooter className="flex flex-col space-y-2 px-4 sm:px-6 pb-4 sm:pb-6">
           <div className="text-xs sm:text-sm text-center">
             <Link
-              href="/auth/forgot-password"
+              href={ROUTES.FORGOT_PASSWORD}
               className="text-blue-600 hover:text-blue-800 transition-colors"
             >
               Forgot your password?
@@ -507,7 +489,7 @@ export default function LoginPage() {
           <div className="text-xs sm:text-sm text-center">
             Don&apos;t have an account?{" "}
             <Link
-              href="/auth/register"
+              href={ROUTES.REGISTER}
               className="text-blue-600 hover:text-blue-800 underline transition-colors"
             >
               Sign up
