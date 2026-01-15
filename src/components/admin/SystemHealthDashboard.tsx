@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Card,
@@ -21,11 +21,8 @@ import {
 } from '@/components/ui/table';
 import {
   Activity,
-  Server,
-  Database,
+
   Wifi,
-  Shield,
-  Zap,
   RefreshCw,
   AlertTriangle,
   CheckCircle,
@@ -34,14 +31,14 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { BackendStatusIndicator } from '@/components/common/BackendStatusIndicator';
-import { useWebSocketStatus } from '@/components/websocket/WebSocketProvider';
-import { useAppStore } from '@/stores/app.store';
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
+import { useAppStore } from '@/stores';
 import { StatusDot, StatusType } from '@/components/common/StatusIndicator';
 
 export function SystemHealthDashboard({ className }: { className?: string }) {
   const backend = BackendStatusIndicator();
   const { isConnected, connectionStatus, error: wsError } = useWebSocketStatus();
-  const { user, notifications } = useAppStore();
+  const { notifications } = useAppStore();
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   // Calculate system metrics
@@ -49,13 +46,13 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
     backend.services.api,
     backend.services.database,
     backend.services.websocket,
-    backend.services.auth,
+    backend.services.cache,
     backend.services.realtime
   ];
 
   const healthyServices = services.filter(s => s.status === 'active').length;
   const totalServices = services.length;
-  const systemUptime = Math.floor((Date.now() - (backend.services.api.lastChecked?.getTime() || Date.now())) / 1000);
+  // const systemUptime = Math.floor((Date.now() - (backend.services.api.lastChecked?.getTime() || Date.now())) / 1000);
   const averageResponseTime = services
     .filter(s => s.responseTime !== null)
     .reduce((acc, s) => acc + (s.responseTime || 0), 0) / services.filter(s => s.responseTime !== null).length || 0;
@@ -70,15 +67,7 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
     }
   };
 
-  const formatUptime = (seconds: number): string => {
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    
-    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
-  };
+
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -315,7 +304,7 @@ export function CompactSystemHealth({ className }: { className?: string }) {
     backend.services.api,
     backend.services.database, 
     backend.services.websocket,
-    backend.services.auth,
+    backend.services.cache,
     backend.services.realtime
   ];
   

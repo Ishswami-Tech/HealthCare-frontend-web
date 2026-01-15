@@ -41,7 +41,7 @@ export async function getBillingPlan(id: string): Promise<{
 }> {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.PLANS.GET_BY_ID(id));
-    return { success: true, plan: data };
+    return { success: true, plan: data as BillingPlan };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch billing plan' };
   }
@@ -57,7 +57,7 @@ export async function createBillingPlan(data: CreateBillingPlanData): Promise<{
       method: 'POST',
       body: JSON.stringify(data),
     });
-    return { success: true, plan: response };
+    return { success: true, plan: response as BillingPlan };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to create billing plan' };
   }
@@ -76,7 +76,7 @@ export async function updateBillingPlan(
       method: 'PUT',
       body: JSON.stringify(data),
     });
-    return { success: true, plan: response };
+    return { success: true, plan: response as BillingPlan };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to update billing plan' };
   }
@@ -113,7 +113,7 @@ export async function getSubscriptions(userId: string): Promise<{
 
 export async function getActiveSubscription(
   userId: string,
-  clinicId: string
+  _clinicId: string
 ): Promise<{
   success: boolean;
   subscription?: Subscription;
@@ -121,7 +121,7 @@ export async function getActiveSubscription(
 }> {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_ACTIVE(userId));
-    return { success: true, subscription: data };
+    return { success: true, subscription: data as Subscription };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch active subscription' };
   }
@@ -137,7 +137,7 @@ export async function createSubscription(data: CreateSubscriptionData): Promise<
       method: 'POST',
       body: JSON.stringify(data),
     });
-    return { success: true, subscription: response };
+    return { success: true, subscription: response as Subscription };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to create subscription' };
   }
@@ -156,7 +156,7 @@ export async function cancelSubscription(
       method: 'POST',
       body: JSON.stringify({ immediate }),
     });
-    return { success: true, subscription: response };
+    return { success: true, subscription: response as Subscription };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to cancel subscription' };
   }
@@ -169,7 +169,7 @@ export async function getSubscriptionUsageStats(id: string): Promise<{
 }> {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.USAGE_STATS(id));
-    return { success: true, stats: data };
+    return { success: true, stats: data as SubscriptionUsageStats };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch usage stats' };
   }
@@ -200,7 +200,7 @@ export async function createInvoice(data: CreateInvoiceData): Promise<{
       method: 'POST',
       body: JSON.stringify(data),
     });
-    return { success: true, invoice: response };
+    return { success: true, invoice: response as Invoice };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to create invoice' };
   }
@@ -215,7 +215,7 @@ export async function markInvoiceAsPaid(id: string): Promise<{
     const { data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.MARK_PAID(id), {
       method: 'POST',
     });
-    return { success: true, invoice: response };
+    return { success: true, invoice: response as Invoice };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to mark invoice as paid' };
   }
@@ -228,7 +228,9 @@ export async function generateInvoicePDF(id: string): Promise<{
 }> {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.GENERATE_PDF(id));
-    return { success: true, pdfUrl: data?.url || data?.pdfUrl };
+    const pdfData = data as { url?: string; pdfUrl?: string } | undefined;
+    const pdfUrl = pdfData?.url || pdfData?.pdfUrl;
+    return { success: true, ...(pdfUrl ? { pdfUrl } : {}) };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to generate invoice PDF' };
   }
@@ -259,7 +261,7 @@ export async function createPayment(data: CreatePaymentData): Promise<{
       method: 'POST',
       body: JSON.stringify(data),
     });
-    return { success: true, payment: response };
+    return { success: true, payment: response as Payment };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to create payment' };
   }
@@ -267,14 +269,14 @@ export async function createPayment(data: CreatePaymentData): Promise<{
 
 // ============ Analytics ============
 
-export async function getBillingAnalytics(clinicId: string): Promise<{
+export async function getBillingAnalytics(_clinicId: string): Promise<{
   success: boolean;
   analytics?: BillingAnalytics;
   error?: string;
 }> {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.ANALYTICS.REVENUE);
-    return { success: true, analytics: data };
+    return { success: true, analytics: data as BillingAnalytics };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch billing analytics' };
   }

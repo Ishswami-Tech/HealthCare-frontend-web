@@ -291,6 +291,11 @@ export interface SaleItem {
 
 // ===== FILTERS AND SEARCH =====
 
+// ✅ Consolidated: PharmacyFilters combines MedicineFilters for store usage
+export interface PharmacyFilters extends MedicineFilters {
+  stockStatus?: 'all' | 'in-stock' | 'low-stock' | 'out-of-stock';
+}
+
 export interface MedicineFilters {
   search?: string;
   category?: string;

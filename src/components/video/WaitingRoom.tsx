@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +13,10 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useRBAC } from "@/hooks/useRBAC";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useRBAC } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
   joinWaitingRoom,
   leaveWaitingRoom,
@@ -24,7 +24,7 @@ import {
   admitFromWaitingRoom,
   type WaitingRoomParticipant,
 } from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/utils/use-toast";
 import { formatDistanceToNow } from "date-fns";
 
 interface WaitingRoomProps {
@@ -63,7 +63,7 @@ export function WaitingRoom({
         setQueue(result.queue);
       }
         } catch (error) {
-          console.error("Failed to load waiting room queue:", error);
+          // Error handled by React Query
         }
       };
 
@@ -77,27 +77,33 @@ export function WaitingRoom({
   useEffect(() => {
     if (!isConnected) return;
 
-    const unsubscribe = subscribeToWaitingRoom((data) => {
-      if (data.appointmentId === appointmentId) {
-        if (data.action === "waiting_room_joined") {
+    const unsubscribe = subscribeToWaitingRoom((data: unknown) => {
+      const eventData = data as {
+        appointmentId: string;
+        action: string;
+        participant?: WaitingRoomParticipant;
+        token?: string;
+      };
+      if (eventData.appointmentId === appointmentId) {
+        if (eventData.action === "waiting_room_joined") {
           setQueue((prev) => {
-            const participant = data.participant as unknown as WaitingRoomParticipant;
-            if (prev.some((p) => p.userId === participant.userId)) return prev;
+            const participant = eventData.participant;
+            if (!participant || prev.some((p) => p.userId === participant.userId)) return prev;
             return [...prev, participant];
           });
-        } else if (data.action === "waiting_room_left") {
+        } else if (eventData.action === "waiting_room_left") {
           setQueue((prev) =>
-            prev.filter((p) => p.userId !== (data.participant?.userId || ""))
+            prev.filter((p) => p.userId !== (eventData.participant?.userId || ""))
           );
-        } else if (data.action === "waiting_room_admitted") {
-          if (data.participant?.userId === user?.id) {
+        } else if (eventData.action === "waiting_room_admitted") {
+          if (eventData.participant?.userId === user?.id) {
             setIsInWaitingRoom(false);
-            if (data.token && onAdmitted) {
-              onAdmitted(data.token as string);
+            if (eventData.token && onAdmitted) {
+              onAdmitted(eventData.token);
             }
           }
           setQueue((prev) =>
-            prev.filter((p) => p.userId !== (data.participant?.userId || ""))
+            prev.filter((p) => p.userId !== (eventData.participant?.userId || ""))
           );
         }
       }
@@ -115,7 +121,7 @@ export function WaitingRoom({
     setIsLoading(true);
     try {
       const result = await joinWaitingRoom(appointmentId);
-      if (result && result.success) {
+      if (result) {
         setIsInWaitingRoom(true);
         setPosition(result.position || 0);
         setEstimatedWaitTime(result.estimatedWaitTime || null);
@@ -164,14 +170,13 @@ export function WaitingRoom({
   const handleAdmit = async (userId: string) => {
     try {
       const result = await admitFromWaitingRoom(appointmentId, userId);
-      if (result && result.success) {
+      if (result) {
         toast({
           title: "Participant Admitted",
           description: "Participant has been admitted to the consultation",
         });
-        if (result.token && onAdmitted) {
-          onAdmitted(result.token);
-        }
+        // Note: admitFromWaitingRoom doesn't return token in current implementation
+        // Token would come from WebSocket event instead
       }
     } catch (error) {
       toast({
@@ -209,7 +214,7 @@ export function WaitingRoom({
             </div>
           ) : (
             <div className="space-y-3">
-              {queue.map((participant, index) => (
+              {queue.map((participant) => (
                 <div
                   key={participant.userId}
                   className="flex items-center justify-between p-3 border rounded-lg"

@@ -1,17 +1,17 @@
 "use client";
 
-import React from "react";
+
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinics } from "@/hooks/useClinics";
-import { useUsers } from "@/hooks/useUsers";
-import { useAppointments } from "@/hooks/useAppointments";
-import { useRevenueAnalytics } from "@/hooks/useAnalytics";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinics } from "@/hooks/query/useClinics";
+import { useUsers } from "@/hooks/query/useUsers";
+import { useAppointments } from "@/hooks/query/useAppointments";
+import { useRevenueAnalytics } from "@/hooks/query/useAnalytics";
 import {
   Building2,
   Users,
@@ -34,15 +34,15 @@ export default function SuperAdminDashboard() {
   const { data: revenueData } = useRevenueAnalytics({ period: "month" });
 
   // Calculate real stats from fetched data
-  const clinicsArray = clinics?.clinics || [];
-  const usersArray = Array.isArray(users) ? users : users?.users || [];
-  const appointments = appointmentsData?.appointments || [];
-  const revenue = revenueData?.totalRevenue || revenueData?.monthlyRevenue || 0;
+  const clinicsArray = (clinics as any)?.clinics || [];
+  const usersArray = Array.isArray(users) ? users : (users as any)?.users || [];
+  const appointments = (appointmentsData as any)?.appointments || [];
+  const revenue = (revenueData as any)?.totalRevenue || (revenueData as any)?.monthlyRevenue || 0;
 
   const stats = {
     totalClinics: clinicsArray.length || 0,
     totalUsers: usersArray.length || 0,
-    totalAppointments: appointmentsData?.total || appointments.length || 0,
+    totalAppointments: (appointmentsData as any)?.total || appointments.length || 0,
     monthlyRevenue: revenue || 0,
     activePatients:
       usersArray.filter(
@@ -57,7 +57,7 @@ export default function SuperAdminDashboard() {
           user.roles?.some((r: any) => r.name === "DOCTOR")
       ).length || 0,
     systemHealth: "Excellent", // TODO: Add system health monitoring
-    avgSatisfaction: revenueData?.avgSatisfaction || 4.6, // TODO: Add satisfaction metrics
+    avgSatisfaction: (revenueData as any)?.avgSatisfaction || 4.6, // TODO: Add satisfaction metrics
   };
 
   const recentActivities = [
@@ -107,7 +107,7 @@ export default function SuperAdminDashboard() {
       title="Super Admin Dashboard"
       allowedRole={Role.SUPER_ADMIN}
     >
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -306,7 +306,7 @@ export default function SuperAdminDashboard() {
             </CardContent>
           </Card>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

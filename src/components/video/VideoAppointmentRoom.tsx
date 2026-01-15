@@ -3,7 +3,7 @@
 // ✅ Video Appointment Room Component with WebSocket Integration
 // This component provides a complete video appointment interface using OpenVidu with real-time WebSocket updates
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,6 @@ import {
   WifiOff,
   Pen,
   Mic as MicIcon,
-  Activity,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VideoChat } from "./VideoChat";
@@ -45,11 +44,11 @@ import { EnhancedParticipantControls } from "./EnhancedParticipantControls";
 import {
   useVideoCall,
   useVideoCallControls,
-} from "@/hooks/useVideoAppointments";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import type { VideoAppointment } from "@/hooks/useVideoAppointments";
+} from "@/hooks/query/useVideoAppointments";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useToast } from "@/hooks/utils/use-toast";
+import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import type { OpenViduAPI } from "@/lib/video/openvidu";
 import type { ParticipantInfo } from "@/lib/video/openvidu";
 
@@ -100,7 +99,6 @@ export function VideoAppointmentRoom({
   
   // Role-based access
   const isDoctor = user?.role === 'DOCTOR';
-  const isPatient = user?.role === 'PATIENT';
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'CLINIC_ADMIN';
 
   // ✅ Subscribe to WebSocket events
@@ -111,20 +109,27 @@ export function VideoAppointmentRoom({
     const unsubscribeParticipants = subscribeToParticipantEvents((data) => {
       if (data.appointmentId === appointment.appointmentId) {
         if (data.action === "participant_joined" && data.participant) {
-          const participant = data.participant;
+          const participantData = data.participant;
+          const participant: ParticipantInfo = {
+            connectionId: participantData.userId || '',
+            data: JSON.stringify(participantData),
+            role: participantData.role || 'participant',
+            userId: participantData.userId,
+            displayName: participantData.displayName,
+          };
           setParticipants((prev) => [...prev, participant]);
           toast({
             title: "Participant Joined",
-            description: `${participant.displayName} joined the call`,
+            description: `${participantData.displayName} joined the call`,
           });
         } else if (data.action === "participant_left" && data.participant) {
-          const participant = data.participant;
+          const participantData = data.participant;
           setParticipants((prev) =>
-            prev.filter((p) => p.userId !== participant.userId)
+            prev.filter((p) => (p.userId || p.connectionId) !== participantData.userId)
           );
           toast({
             title: "Participant Left",
-            description: `${participant.displayName} left the call`,
+            description: `${participantData.displayName} left the call`,
           });
         }
       }
@@ -239,10 +244,9 @@ export function VideoAppointmentRoom({
 
       // Send WebSocket event for participant joined
       sendParticipantJoined(appointment.appointmentId, {
-        userId: userInfo.userId,
-        displayName: userInfo.displayName,
-        role: userInfo.role,
-        timestamp: new Date().toISOString(),
+        userId: userInfo.userId || user?.id || '',
+        displayName: userInfo.displayName || user?.name || 'User',
+        role: userInfo.role || user?.role || 'patient',
       });
 
       toast({
@@ -276,7 +280,6 @@ export function VideoAppointmentRoom({
         userId: user?.id || "",
         displayName: user?.name || "Unknown User",
         role: user?.role || "patient",
-        timestamp: new Date().toISOString(),
       });
 
       if (onEndCall) {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Define Role as both enum and type for backward compatibility
+// ✅ Consolidated: Role enum - single source of truth
 export enum Role {
   SUPER_ADMIN = 'SUPER_ADMIN',
   CLINIC_ADMIN = 'CLINIC_ADMIN',
@@ -105,6 +105,12 @@ export interface RegisterFormData {
   role?: Role;
   clinicId?: string;
   appName?: string;
+  // Optional fields that may be provided during registration
+  phone?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  address?: string;
+  age?: number; // Frontend-only field, will be converted to dateOfBirth
 }
 
 export interface OTPFormData {

@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from 'zustand';
-import { DetailedHealthStatus } from '@/hooks/useHealth';
+import type { DetailedHealthStatus } from '@/hooks/query/useHealth';
 
 interface HealthState {
   // Health status data

@@ -34,61 +34,26 @@ export interface ErrorResponse {
   details?: Record<string, unknown>;
 }
 
+// ✅ Consolidated: Import Appointment from appointment.types.ts (single source of truth)
+import type { Appointment } from './appointment.types';
+
 // Appointment API Types
 export interface AppointmentResponse extends ApiResponse<Appointment | Appointment[]> {
   data: Appointment | Appointment[];
 }
 
-export interface Appointment {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  clinicId: string;
-  date: string;
-  time: string;
-  duration: number;
-  type: string;
-  status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
-  notes?: string;
-  symptoms?: string[];
-  diagnosis?: string;
-  prescription?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+// ✅ Consolidated: Import User and Clinic from their respective type files (single source of truth)
+import type { User } from './auth.types';
+import type { Clinic } from './clinic.types';
 
 // User API Types
 export interface UserResponse extends ApiResponse<User | User[]> {
   data: User | User[];
 }
 
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  clinicId?: string;
-  profilePicture?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 // Clinic API Types
 export interface ClinicResponse extends ApiResponse<Clinic | Clinic[]> {
   data: Clinic | Clinic[];
-}
-
-export interface Clinic {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  email: string;
-  subdomain: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 // Queue API Types

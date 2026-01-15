@@ -1,25 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useMedicines,
   usePrescriptions,
   useInventory,
   usePharmacyStats,
-} from "@/hooks/usePharmacy";
-import { useClinicContext } from "@/hooks/useClinic";
-import { usePharmacyPermissions } from "@/hooks/useRBAC";
+} from "@/hooks/query/usePharmacy";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { usePharmacyPermissions } from "@/hooks/utils/useRBAC";
 import {
   Pill,
   Search,
@@ -358,7 +358,7 @@ export default function PharmacySystem() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(userRole).map((route) => ({
+  const sidebarLinks = getRoutesByRole(userRole).map((route: any) => ({
     ...route,
     href: route.path,
     icon: route.path.includes("dashboard") ? (
@@ -405,7 +405,7 @@ export default function PharmacySystem() {
 
   return (
     <DashboardLayout title="Pharmacy Management" allowedRole={userRole}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -658,7 +658,7 @@ export default function PharmacySystem() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentOrders.map((order) => (
+                    {recentOrders.map((order: any) => (
                       <div key={order.id} className="p-4 border rounded-lg">
                         <div className="flex items-start justify-between mb-3">
                           <div>
@@ -684,7 +684,7 @@ export default function PharmacySystem() {
                           <div>
                             <p className="text-sm font-medium">Items:</p>
                             <div className="flex flex-wrap gap-2 mt-1">
-                              {order.items.map((item, index) => (
+                              {order.items.map((item: string, index: number) => (
                                 <Badge
                                   key={index}
                                   variant="outline"
@@ -765,7 +765,7 @@ export default function PharmacySystem() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {nearbyPharmacies.map((pharmacy) => (
+                    {nearbyPharmacies.map((pharmacy: any) => (
                       <div
                         key={pharmacy.id}
                         className="p-4 border rounded-lg hover:bg-gray-50"
@@ -816,7 +816,7 @@ export default function PharmacySystem() {
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {pharmacy.specialties.map(
-                                  (specialty, index) => (
+                                  (specialty: string, index: number) => (
                                     <Badge
                                       key={index}
                                       variant="outline"
@@ -1056,7 +1056,7 @@ export default function PharmacySystem() {
             </TabsContent>
           </Tabs>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

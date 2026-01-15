@@ -1,11 +1,11 @@
 "use client";
 
-import React, { memo } from "react";
+import { memo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils/index";
 import {
   Calendar,
   Clock,
@@ -18,7 +18,7 @@ import {
   AlertCircle,
   FileText,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
 
 interface AppointmentCardProps {
   appointment: {
@@ -57,7 +57,7 @@ function AppointmentCardComponent({
   onJoin,
   className,
 }: AppointmentCardProps) {
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -265,18 +265,21 @@ function AppointmentCardComponent({
 }
 
 // Export memoized AppointmentCard for performance optimization
-export const AppointmentCard = memo(AppointmentCardComponent, (prevProps, nextProps) => {
-  // Custom comparison function for better performance
-  return (
-    prevProps.appointment.id === nextProps.appointment.id &&
-    prevProps.appointment.status === nextProps.appointment.status &&
-    prevProps.appointment.date === nextProps.appointment.date &&
-    prevProps.appointment.time === nextProps.appointment.time &&
-    prevProps.showPatient === nextProps.showPatient &&
-    prevProps.showDoctor === nextProps.showDoctor &&
-    prevProps.className === nextProps.className
-  );
-});
+export const AppointmentCard = memo(
+  AppointmentCardComponent,
+  (prevProps, nextProps) => {
+    // Custom comparison function for better performance
+    return (
+      prevProps.appointment.id === nextProps.appointment.id &&
+      prevProps.appointment.status === nextProps.appointment.status &&
+      prevProps.appointment.date === nextProps.appointment.date &&
+      prevProps.appointment.time === nextProps.appointment.time &&
+      prevProps.showPatient === nextProps.showPatient &&
+      prevProps.showDoctor === nextProps.showDoctor &&
+      prevProps.className === nextProps.className
+    );
+  }
+);
 
 // Appointment list component
 interface AppointmentListProps {
@@ -298,7 +301,7 @@ export function AppointmentList({
   onJoin,
   className,
 }: AppointmentListProps) {
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   if (appointments.length === 0) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { ProtectedComponent } from "@/components/rbac/ProtectedComponent";
 import { Permission } from "@/types/rbac.types";
 import {
@@ -28,7 +28,6 @@ import {
   User,
   Users,
   BarChart3,
-  Building2,
   Activity,
   Search,
   Play,
@@ -37,15 +36,15 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useVideoAppointments,
   useJoinVideoAppointment,
   useEndVideoAppointment,
   type VideoAppointment,
-} from "@/hooks/useVideoAppointments";
-import { useClinics } from "@/hooks/useClinics";
-import { useRBAC } from "@/hooks/useRBAC";
+} from "@/hooks/query/useVideoAppointments";
+import { useClinics } from "@/hooks/query/useClinics";
+import { useRBAC } from "@/hooks/utils/useRBAC";
 import { VideoAppointmentRoom } from "./VideoAppointmentRoom";
 import {
   Dialog,
@@ -112,7 +111,7 @@ export function VideoAppointmentsList({
 
   // Fetch clinics for filtering (if needed)
   const { data: clinicsData } = useClinics();
-  const clinics = clinicsData?.clinics || [];
+  const clinics = (Array.isArray(clinicsData) ? clinicsData : (clinicsData as any)?.clinics) || [];
 
   const appointments =
     (appointmentsData && "appointments" in appointmentsData
@@ -146,7 +145,7 @@ export function VideoAppointmentsList({
   const activeAppointments = filteredAppointments.filter(
     (apt: VideoAppointment) => apt.status === "in-progress"
   ).length;
-  const completedAppointments = filteredAppointments.filter(
+  const completedAppointmentsCount = filteredAppointments.filter(
     (apt: VideoAppointment) => apt.status === "completed"
   ).length;
   const scheduledAppointments = filteredAppointments.filter(
@@ -160,6 +159,9 @@ export function VideoAppointmentsList({
   const upcomingAppointments = filteredAppointments.filter(
     (apt: VideoAppointment) =>
       apt.status === "scheduled" || apt.status === "in-progress"
+  );
+  const completedAppointments = filteredAppointments.filter(
+    (apt: VideoAppointment) => apt.status === "completed"
   );
 
   const handleJoinAppointment = async (appointment: VideoAppointment) => {
@@ -432,7 +434,7 @@ export function VideoAppointmentsList({
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{completedAppointments}</div>
+                <div className="text-2xl font-bold">{completedAppointmentsCount}</div>
                 <p className="text-xs text-muted-foreground">Finished</p>
               </CardContent>
             </Card>
@@ -566,7 +568,7 @@ export function VideoAppointmentsList({
                 Scheduled ({scheduledAppointments})
               </TabsTrigger>
               <TabsTrigger value="completed">
-                Completed ({completedAppointments})
+                Completed ({completedAppointmentsCount})
               </TabsTrigger>
               {showClinicFilter && (
                 <TabsTrigger value="cancelled">

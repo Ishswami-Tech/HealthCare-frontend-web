@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,16 +18,16 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinicContext } from "@/hooks/query/useClinics";
 import {
   useDoctors,
   useDoctorSchedule,
   useUpdateDoctorSchedule,
-} from "@/hooks/useDoctors";
+} from "@/hooks/query/useDoctors";
 import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Activity,
   Users,
@@ -51,17 +51,17 @@ export default function ClinicAdminSchedule() {
   const { clinicId } = useClinicContext();
 
   // Fetch real doctors data
-  const { data: doctorsData, isLoading: isLoadingDoctors } = useDoctors(
+  const { data: doctorsData, isPending: isPendingDoctors } = useDoctors(
     clinicId || "",
     {}
   );
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync(["doctors", clinicId]);
+  useWebSocketQuerySync();
 
   // Fetch schedule for selected doctor
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
-  const { data: scheduleData, isLoading: isLoadingSchedule } =
+  const { data: scheduleData } =
     useDoctorSchedule(selectedDoctorId || "", undefined);
 
   // Update schedule mutation
@@ -70,7 +70,7 @@ export default function ClinicAdminSchedule() {
   // Transform doctors data to schedule format
   const doctors = useMemo(() => {
     if (!doctorsData) return [];
-    return Array.isArray(doctorsData) ? doctorsData : doctorsData.doctors || [];
+    return Array.isArray(doctorsData) ? doctorsData : (doctorsData as any).doctors || [];
   }, [doctorsData]);
 
   // Transform schedule data
@@ -81,7 +81,7 @@ export default function ClinicAdminSchedule() {
       const doctorSchedule =
         scheduleData && selectedDoctorId === doctor.id ? scheduleData : null;
       const schedules =
-        doctorSchedule?.schedules || doctorSchedule?.weeklySchedule || [];
+        (doctorSchedule as any)?.schedules || (doctorSchedule as any)?.weeklySchedule || [];
 
       // Default schedule structure if none exists
       const defaultSchedule = [
@@ -179,7 +179,7 @@ export default function ClinicAdminSchedule() {
   const updateSchedule = (dayIndex: number, field: string, value: any) => {
     if (!selectedDoctor) return;
 
-    const updatedSchedules = localSchedules.map((doctor) => {
+    const updatedSchedules = localSchedules.map((doctor: any) => {
       if (doctor.id === selectedDoctor.id) {
         const updatedDoctor = { ...doctor };
         const currentSchedule = updatedDoctor.schedules[dayIndex];
@@ -199,7 +199,7 @@ export default function ClinicAdminSchedule() {
     });
     setLocalSchedules(updatedSchedules);
     setSelectedDoctor(
-      updatedSchedules.find((d) => d.id === selectedDoctor.id)!
+      updatedSchedules.find((d: any) => d.id === selectedDoctor.id)!
     );
   };
 
@@ -225,7 +225,7 @@ export default function ClinicAdminSchedule() {
         isAvailable: sched.available,
       }));
 
-      await updateScheduleMutation.mutateAsync({
+      await updateScheduleMutation.mutate({
         doctorId: selectedDoctorId,
         schedule: scheduleToSave,
       });
@@ -251,10 +251,10 @@ export default function ClinicAdminSchedule() {
   };
 
   const removeHoliday = (id: string) => {
-    setHolidays(holidays.filter((h) => h.id !== id));
+    setHolidays(holidays.filter((h: any) => h.id !== id));
   };
 
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route) => ({
+  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route: any) => ({
     ...route,
     href: route.path,
     icon: route.path.includes("dashboard") ? (
@@ -277,13 +277,13 @@ export default function ClinicAdminSchedule() {
     icon: <LogOut className="w-5 h-5" />,
   });
 
-  if (isLoadingDoctors) {
+  if (isPendingDoctors) {
     return (
       <DashboardLayout
         title="Schedule Management"
         allowedRole={Role.CLINIC_ADMIN}
       >
-        <GlobalSidebar
+        <Sidebar
           links={sidebarLinks}
           user={{
             name:
@@ -296,7 +296,7 @@ export default function ClinicAdminSchedule() {
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
+        </Sidebar>
       </DashboardLayout>
     );
   }
@@ -306,7 +306,7 @@ export default function ClinicAdminSchedule() {
       title="Schedule Management"
       allowedRole={Role.CLINIC_ADMIN}
     >
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -375,7 +375,7 @@ export default function ClinicAdminSchedule() {
                       value={selectedDoctor?.id || ""}
                       onValueChange={(value) => {
                         const doctor = localSchedules.find(
-                          (d) => d.id === value
+                          (d: any) => d.id === value
                         );
                         setSelectedDoctor(doctor || null);
                         setSelectedDoctorId(value);
@@ -385,7 +385,7 @@ export default function ClinicAdminSchedule() {
                         <SelectValue placeholder="Select a doctor" />
                       </SelectTrigger>
                       <SelectContent>
-                        {localSchedules.map((doctor) => (
+                        {localSchedules.map((doctor: any) => (
                           <SelectItem key={doctor.id} value={doctor.id}>
                             {doctor.doctorName} - {doctor.specialization}
                           </SelectItem>
@@ -406,7 +406,7 @@ export default function ClinicAdminSchedule() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {selectedDoctor?.schedules?.map((schedule, index) => (
+                      {selectedDoctor?.schedules?.map((schedule: any, index: number) => (
                         <div
                           key={index}
                           className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center p-4 border rounded-lg"
@@ -644,7 +644,7 @@ export default function ClinicAdminSchedule() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {holidays.map((holiday) => (
+                      {holidays.map((holiday: any) => (
                         <div
                           key={holiday.id}
                           className="flex items-center justify-between p-4 border rounded-lg"
@@ -762,7 +762,7 @@ export default function ClinicAdminSchedule() {
             </TabsContent>
           </Tabs>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

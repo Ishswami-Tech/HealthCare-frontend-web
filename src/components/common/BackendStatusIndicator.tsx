@@ -1,21 +1,28 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { cn } from "@/lib/utils";
 import {
   Server,
   Database,
   Wifi,
-  Shield,
   Activity,
   RefreshCw,
   Zap,
+  HardDrive,
+  Video,
 } from "lucide-react";
-import { useWebSocketStatus } from "@/components/websocket/WebSocketProvider";
+import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
 import { StatusIndicator, StatusType, StatusDot } from "./StatusIndicator";
 import { APP_CONFIG } from "@/lib/config/config";
-import { useHealthStore } from "@/stores/health.store";
-import { useHealthRealtime } from "@/hooks/useHealthRealtime";
+import { useHealthStore } from "@/stores";
+import { useHealthRealtime } from "@/hooks/realtime/useHealthRealtime";
 
 interface BackendService {
   name: string;
@@ -31,7 +38,8 @@ interface BackendStatusState {
   api: BackendService;
   database: BackendService;
   websocket: BackendService;
-  auth: BackendService;
+  cache: BackendService;
+  video: BackendService;
   realtime: BackendService;
   lastGlobalCheck: Date | null;
   isChecking: boolean;
@@ -44,17 +52,19 @@ export function BackendStatusIndicator() {
     error: wsError,
   } = useWebSocketStatus();
   const [consecutiveHealthyChecks, setConsecutiveHealthyChecks] = useState(0);
-  
+
   // ⚠️ HYBRID APPROACH: WebSocket (primary) + Polling (fallback)
   // Use WebSocket for real-time updates when available
   const { socket, subscribe } = useHealthRealtime({ enabled: true });
-  const healthStatusFromWebSocket = useHealthStore((state) => state.healthStatus);
+  const healthStatusFromWebSocket = useHealthStore(
+    (state) => state.healthStatus
+  );
   const isWebSocketConnected = useHealthStore((state) => state.isConnected);
   const wsConnectionStatus = useHealthStore((state) => state.connectionStatus);
 
   // Get environment-aware API URL
   const apiBaseUrl = useMemo(() => APP_CONFIG.API.BASE_URL, []);
-  
+
   // ⚠️ NOTE: Health endpoint is at root level (/health), NOT under /api/v1
   // Only REST APIs use /api/v1 prefix, health checks are at root
   const [backendStatus, setBackendStatus] = useState<BackendStatusState>({
@@ -85,10 +95,19 @@ export function BackendStatusIndicator() {
       responseTime: null,
       error: null,
     },
-    auth: {
-      name: "Authentication Service",
-      endpoint: "/health", // Use main health endpoint and parse auth info
-      icon: Shield,
+    cache: {
+      name: "Cache Service",
+      endpoint: "/health", // Use main health endpoint and parse cache info
+      icon: HardDrive,
+      status: "loading",
+      lastChecked: null,
+      responseTime: null,
+      error: null,
+    },
+    video: {
+      name: "Video Service",
+      endpoint: "/health", // Use main health endpoint and parse video info
+      icon: Video,
       status: "loading",
       lastChecked: null,
       responseTime: null,
@@ -124,8 +143,8 @@ export function BackendStatusIndicator() {
 
         // Log service check for debugging (development only)
         if (process.env.NODE_ENV === "development") {
-          // eslint-disable-next-line no-console
-          console.log(
+          // Debug logging (development only)
+          console.debug(
             `🔍 Checking backend service: ${service.name} at ${fullEndpoint}`
           );
         }
@@ -138,10 +157,11 @@ export function BackendStatusIndicator() {
             Accept: "application/json",
             // ✅ SECURITY: Use secure token access (will be migrated to httpOnly cookies)
             // For now, use token from secure token manager (synchronous access for headers)
-            ...(typeof window !== "undefined" && (() => {
-              const token = localStorage.getItem('access_token');
-              return token ? { Authorization: `Bearer ${token}` } : {};
-            })()),
+            ...(typeof window !== "undefined" &&
+              (() => {
+                const token = localStorage.getItem("access_token");
+                return token ? { Authorization: `Bearer ${token}` } : {};
+              })()),
           },
           credentials: "include", // Include cookies for authentication
           mode: "cors", // Enable CORS
@@ -173,7 +193,9 @@ export function BackendStatusIndicator() {
 
           if (healthData) {
             // Helper function to convert backend status to frontend status
-            const mapBackendStatus = (status: string | undefined): StatusType => {
+            const mapBackendStatus = (
+              status: string | undefined
+            ): StatusType => {
               if (!status) return "error";
               // Backend service status: "up" or "healthy" = active (green), "down" or "unhealthy" = error (red), "degraded" = warning (yellow)
               if (status === "up" || status === "healthy") return "active"; // ✅ Green
@@ -184,10 +206,25 @@ export function BackendStatusIndicator() {
 
             // Main API health check
             if (service.name === "API Server") {
-              // Overall status uses "healthy" or "degraded"
-              const overallStatus = healthData.status;
-              serviceStatus = overallStatus === "healthy" ? "active" : 
-                            overallStatus === "degraded" ? "warning" : "error";
+              // Check services.api.status first, fallback to overall status
+              const apiService = healthData.services?.api;
+              if (apiService) {
+                serviceStatus = mapBackendStatus(apiService.status);
+                errorMessage =
+                  apiService.error ||
+                  apiService.message ||
+                  apiService.details ||
+                  null;
+              } else {
+                // Fallback to overall status
+                const overallStatus = healthData.status;
+                serviceStatus =
+                  overallStatus === "healthy"
+                    ? "active"
+                    : overallStatus === "degraded"
+                    ? "warning"
+                    : "error";
+              }
             }
 
             // Database health check (parse from services.database)
@@ -203,25 +240,65 @@ export function BackendStatusIndicator() {
               }
             }
 
-            // WebSocket health check (parse from services.socket)
+            // WebSocket health check (parse from services.communication.socket or services.socket)
             else if (service.name === "WebSocket Service") {
-              const socketService = healthData.services?.socket;
+              const communicationService = healthData.services?.communication;
+              const socketService =
+                communicationService?.socket || healthData.services?.socket;
+
               if (socketService) {
-                // Services use "up", "down", "degraded"
-                serviceStatus = mapBackendStatus(socketService.status);
-                errorMessage = socketService.error || socketService.message || null;
+                // Services use "up", "down", "degraded", or check connected property
+                if (
+                  typeof socketService === "object" &&
+                  "connected" in socketService
+                ) {
+                  serviceStatus = socketService.connected ? "active" : "error";
+                } else {
+                  serviceStatus = mapBackendStatus(socketService.status);
+                }
+                errorMessage =
+                  socketService.error || socketService.message || null;
+              } else if (communicationService) {
+                // Check communication service status
+                serviceStatus = mapBackendStatus(communicationService.status);
+                errorMessage =
+                  communicationService.error ||
+                  communicationService.message ||
+                  null;
               } else {
                 // If socket service not in response, check overall status
                 serviceStatus = mapBackendStatus(healthData.status);
               }
             }
 
-            // Auth health check (check if API is healthy as auth is integrated)
-            else if (service.name === "Authentication Service") {
-              // Auth is part of API, so use overall status
-              const overallStatus = healthData.status;
-              serviceStatus = overallStatus === "healthy" ? "active" : 
-                            overallStatus === "degraded" ? "warning" : "error";
+            // Cache health check (parse from services.cache)
+            else if (service.name === "Cache Service") {
+              const cacheService = healthData.services?.cache;
+              if (cacheService) {
+                serviceStatus = mapBackendStatus(cacheService.status);
+                errorMessage =
+                  cacheService.error ||
+                  cacheService.message ||
+                  cacheService.details ||
+                  null;
+              } else {
+                serviceStatus = mapBackendStatus(healthData.status);
+              }
+            }
+
+            // Video health check (parse from services.video)
+            else if (service.name === "Video Service") {
+              const videoService = healthData.services?.video;
+              if (videoService) {
+                serviceStatus = mapBackendStatus(videoService.status);
+                errorMessage =
+                  videoService.error ||
+                  videoService.message ||
+                  videoService.details ||
+                  null;
+              } else {
+                serviceStatus = mapBackendStatus(healthData.status);
+              }
             }
 
             // Real-time services health check (parse from services.queue, cache, socket)
@@ -231,21 +308,43 @@ export function BackendStatusIndicator() {
               const cacheService = healthData.services?.cache;
               const socketService = healthData.services?.socket;
 
-              const services = [queueService, cacheService, socketService].filter(Boolean);
-              const allHealthy = services.length > 0 && 
-                services.every((s) => s?.status === "up" || s?.status === "healthy");
+              const services = [
+                queueService,
+                cacheService,
+                socketService,
+              ].filter(Boolean);
+              const allHealthy =
+                services.length > 0 &&
+                services.every(
+                  (s) => s?.status === "up" || s?.status === "healthy"
+                );
 
               serviceStatus = allHealthy ? "active" : "warning";
 
               if (!allHealthy) {
                 const issues = [];
-                if (queueService && queueService.status !== "up" && queueService.status !== "healthy") 
+                if (
+                  queueService &&
+                  queueService.status !== "up" &&
+                  queueService.status !== "healthy"
+                )
                   issues.push("Queue");
-                if (cacheService && cacheService.status !== "up" && cacheService.status !== "healthy") 
+                if (
+                  cacheService &&
+                  cacheService.status !== "up" &&
+                  cacheService.status !== "healthy"
+                )
                   issues.push("Cache");
-                if (socketService && socketService.status !== "up" && socketService.status !== "healthy")
+                if (
+                  socketService &&
+                  socketService.status !== "up" &&
+                  socketService.status !== "healthy"
+                )
                   issues.push("WebSocket");
-                errorMessage = issues.length > 0 ? `Issues with: ${issues.join(", ")}` : null;
+                errorMessage =
+                  issues.length > 0
+                    ? `Issues with: ${issues.join(", ")}`
+                    : null;
               }
             }
           } else {
@@ -321,41 +420,48 @@ export function BackendStatusIndicator() {
       const currentTime = new Date();
       const startTime = Date.now();
 
-      // First check the current WebSocket connection status
-      if (wsError) {
-        console.error(`🔴 WebSocket Error: ${wsError}`);
+      // ✅ FIX: Check health namespace connection status (not main WebSocket)
+      // Health monitoring uses separate Socket.IO connection to /health namespace
+      const healthStore = useHealthStore.getState();
+      const healthError = healthStore.error;
+      const healthConnectionStatus = healthStore.connectionStatus;
+
+      // First check the health namespace connection status
+      if (healthError) {
+        console.error(`🔴 Health Namespace Error:`, healthError);
         return {
           ...backendStatus.websocket,
           status: "error",
           lastChecked: currentTime,
           responseTime: Date.now() - startTime,
-          error: `WebSocket Error: ${wsError}`,
+          error: `Health namespace error: ${healthError instanceof Error ? healthError.message : String(healthError)}`,
         };
       }
 
       if (
-        connectionStatus === "connecting" ||
-        connectionStatus === "reconnecting"
+        healthConnectionStatus === "connecting" ||
+        (healthConnectionStatus as string) === "reconnecting"
       ) {
-        // Log WebSocket status for debugging (development only)
+        // Log health namespace status for debugging (development only)
         if (process.env.NODE_ENV === "development") {
-          // eslint-disable-next-line no-console
-          console.log(`🟡 WebSocket Status: ${connectionStatus}`);
+          // Debug logging (development only)
+          console.debug(`🟡 Health Namespace Status: ${healthConnectionStatus}`);
         }
         return {
           ...backendStatus.websocket,
           status: "loading",
           lastChecked: currentTime,
           responseTime: Date.now() - startTime,
-          error: `WebSocket is ${connectionStatus}...`,
+          error: `Health namespace is ${healthConnectionStatus}...`,
         };
       }
 
-      if (isConnected) {
-        // Log WebSocket connection for debugging (development only)
+      // ✅ Check if health namespace is connected
+      if (isWebSocketConnected) {
+        // Log health namespace connection for debugging (development only)
         if (process.env.NODE_ENV === "development") {
-          // eslint-disable-next-line no-console
-          console.log(`✅ WebSocket is connected and active`);
+          // Debug logging (development only)
+          console.debug(`✅ Health namespace is connected and active`);
         }
         return {
           ...backendStatus.websocket,
@@ -363,6 +469,21 @@ export function BackendStatusIndicator() {
           lastChecked: currentTime,
           responseTime: Date.now() - startTime,
           error: null,
+        };
+      }
+
+      // If health namespace not connected, also check main WebSocket as fallback
+      if (isConnected) {
+        if (process.env.NODE_ENV === "development") {
+          // Debug logging (development only)
+          console.debug(`✅ Main WebSocket is connected (health namespace not connected)`);
+        }
+        return {
+          ...backendStatus.websocket,
+          status: "warning",
+          lastChecked: currentTime,
+          responseTime: Date.now() - startTime,
+          error: "Main WebSocket connected but health namespace not connected",
         };
       }
 
@@ -399,8 +520,8 @@ export function BackendStatusIndicator() {
         };
       }
     }, [
-      wsError,
-      connectionStatus,
+      isWebSocketConnected,
+      wsConnectionStatus,
       isConnected,
       backendStatus.websocket,
       checkService,
@@ -418,8 +539,10 @@ export function BackendStatusIndicator() {
     lastRequestTime.current = now;
 
     // ⚠️ CACHING: Use cached data if available and fresh
-    if (healthDataCache.current && 
-        now - healthDataCache.current.timestamp < CACHE_DURATION) {
+    if (
+      healthDataCache.current &&
+      now - healthDataCache.current.timestamp < CACHE_DURATION
+    ) {
       if (process.env.NODE_ENV === "development") {
         console.log("📦 Using cached health data");
       }
@@ -437,89 +560,327 @@ export function BackendStatusIndicator() {
     try {
       // ⚠️ OPTIMIZED: Make only ONE health check request and parse all services from it
       // This reduces server load from 3+ requests to just 1 request
-      const healthDataResponse = await checkService(backendStatus.realtime);
-      
-      // Cache the response
-      if (healthDataResponse && healthDataResponse.status !== "error") {
-        healthDataCache.current = {
-          data: healthDataResponse,
-          timestamp: now,
-        };
+
+      // Fetch health data directly
+      let parsedHealthData: Record<string, unknown> | null = null;
+      let healthCheckResponseTime: number | null = null;
+
+      try {
+        const healthEndpoint = `${apiBaseUrl}/health`;
+        const controller = new AbortController();
+        // ✅ Reduced timeout from 10s to 5s to prevent long blocking
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const startTime = Date.now();
+
+        const response = await fetch(healthEndpoint, {
+          method: "GET",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            ...(typeof window !== "undefined" &&
+              (() => {
+                const token = localStorage.getItem("access_token");
+                return token ? { Authorization: `Bearer ${token}` } : {};
+              })()),
+          },
+          credentials: "include",
+          mode: "cors",
+        });
+
+        clearTimeout(timeoutId);
+        healthCheckResponseTime = Date.now() - startTime;
+
+        if (response.ok) {
+          parsedHealthData = await response.json();
+
+          // Cache the health data
+          healthDataCache.current = {
+            data: parsedHealthData,
+            timestamp: now,
+          };
+        } else {
+          console.error(
+            `Health check failed: ${response.status} ${response.statusText}`
+          );
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error("Failed to fetch health data:", errorMessage);
+
+        // Try to use cached data if available
+        if (healthDataCache.current?.data) {
+          parsedHealthData = healthDataCache.current.data as Record<
+            string,
+            unknown
+          >;
+        }
       }
 
-      // Parse all services from the single health response
-      const healthData = (healthDataResponse as BackendService & {
-        healthData?: Record<string, unknown>;
-      }).healthData;
-
-      // Use the same health data for all services (more efficient)
-      const apiHealthData = healthDataResponse;
-      const detailedHealthData = healthDataResponse;
+      // Get WebSocket status separately (it uses connection status, not health endpoint)
       const wsResult = await checkWebSocketService();
 
-      // Extract individual service statuses from the health response
+      // Helper to extract service status from health data
       const extractServiceStatus = (
         serviceName: string,
-        healthResponse: BackendService
+        healthData: Record<string, unknown> | null
       ): BackendService => {
         const baseService = Object.values(backendStatus).find(
           (s) => s.name === serviceName
         ) as BackendService;
-        if (!baseService) return healthResponse;
 
-        // If the health check failed, return the error response
-        if (
-          healthResponse.status === "error" ||
-          healthResponse.status === "warning"
-        ) {
-          return healthResponse;
+        if (!baseService) {
+          return {
+            name: serviceName,
+            endpoint: "/health",
+            icon: Server,
+            status: "error",
+            lastChecked: new Date(),
+            responseTime: null,
+            error: "Service not found",
+          };
         }
 
-        // Extract service-specific status from the health data
-        const healthData = (
-          healthResponse as BackendService & {
-            healthData?: Record<string, unknown>;
-          }
-        ).healthData;
-        if (!healthData) return healthResponse;
+        if (!healthData) {
+          return {
+            ...baseService,
+            status: "warning",
+            lastChecked: new Date(),
+            responseTime: null,
+            error: "Health data not available",
+          };
+        }
 
         let serviceStatus: StatusType = "active";
         let errorMessage: string | null = null;
 
         if (serviceName === "API Server") {
-          serviceStatus =
-            (healthData.status as string) === "healthy" ? "active" : "warning";
-        } else if (serviceName === "Database") {
-          const services = healthData.services as Record<string, unknown>;
-          const dbService = services?.database as {
-            status?: string;
-            error?: string;
-          };
-          if (dbService) {
-            serviceStatus = dbService.status === "healthy" ? "active" : "error";
-            errorMessage = dbService.error || null;
+          const services = healthData.services as
+            | Record<string, unknown>
+            | undefined;
+          const apiService = services?.api as
+            | {
+                status?: string;
+                error?: string;
+                message?: string;
+                details?: string;
+              }
+            | undefined;
+          if (apiService) {
+            const mapStatus = (status?: string): StatusType => {
+              if (status === "up" || status === "healthy") return "active";
+              if (status === "down" || status === "unhealthy") return "error";
+              if (status === "degraded") return "warning";
+              return "error";
+            };
+            serviceStatus = mapStatus(apiService.status);
+            errorMessage =
+              apiService.error ||
+              apiService.message ||
+              apiService.details ||
+              null;
+          } else {
+            // Fallback to overall status
+            const overallStatus = healthData.status as string;
+            serviceStatus =
+              overallStatus === "healthy"
+                ? "active"
+                : overallStatus === "degraded"
+                ? "warning"
+                : "error";
           }
-        } else if (serviceName === "Authentication Service") {
-          serviceStatus =
-            (healthData.status as string) === "healthy" ? "active" : "warning";
-        } else if (serviceName === "Real-time Services") {
-          const services = healthData.services as Record<string, unknown>;
-          const queueService = services?.queues as { status?: string };
-          const redisService = services?.redis as { status?: string };
-          const socketService = services?.socket as { status?: string };
+        } else if (serviceName === "Database") {
+          const services = healthData.services as
+            | Record<string, unknown>
+            | undefined;
+          const dbService = services?.database as
+            | {
+                status?: string;
+                error?: string;
+                message?: string;
+              }
+            | undefined;
+          if (dbService) {
+            const mapStatus = (status?: string): StatusType => {
+              if (status === "up" || status === "healthy") return "active";
+              if (status === "down" || status === "unhealthy") return "error";
+              if (status === "degraded") return "warning";
+              return "error";
+            };
+            serviceStatus = mapStatus(dbService.status);
+            errorMessage = dbService.error || dbService.message || null;
+          } else {
+            serviceStatus = "error";
+            errorMessage = "Database service not found in health response";
+          }
+        } else if (serviceName === "Cache Service") {
+          const services = healthData.services as
+            | Record<string, unknown>
+            | undefined;
+          const cacheService = services?.cache as
+            | {
+                status?: string;
+                error?: string;
+                message?: string;
+              }
+            | undefined;
+          if (cacheService) {
+            const mapStatus = (status?: string): StatusType => {
+              if (status === "up" || status === "healthy") return "active";
+              if (status === "down" || status === "unhealthy") return "error";
+              if (status === "degraded") return "warning";
+              return "error";
+            };
+            serviceStatus = mapStatus(cacheService.status);
+            errorMessage = cacheService.error || cacheService.message || null;
+          } else {
+            serviceStatus = "error";
+            errorMessage = "Cache service not found in health response";
+          }
+        } else if (serviceName === "Video Service") {
+          const services = healthData.services as
+            | Record<string, unknown>
+            | undefined;
+          const videoService = services?.video as
+            | {
+                status?: string;
+                error?: string;
+                message?: string;
+              }
+            | undefined;
+          if (videoService) {
+            const mapStatus = (status?: string): StatusType => {
+              if (status === "up" || status === "healthy") return "active";
+              if (status === "down" || status === "unhealthy") return "error";
+              if (status === "degraded") return "warning";
+              return "error";
+            };
+            serviceStatus = mapStatus(videoService.status);
+            errorMessage = videoService.error || videoService.message || null;
+          } else {
+            serviceStatus = "error";
+            errorMessage = "Video service not found in health response";
+          }
+        } else if (serviceName === "WebSocket Service") {
+          const services = healthData.services as
+            | Record<string, unknown>
+            | undefined;
+          const communicationService = services?.communication as
+            | {
+                status?: string;
+                communicationHealth?: {
+                  socket?: { connected?: boolean };
+                };
+                error?: string;
+                message?: string;
+              }
+            | undefined;
 
-          const allHealthy = [queueService, redisService, socketService].every(
-            (s) => s?.status === "healthy"
-          );
+          if (communicationService) {
+            // Check socket connection status
+            const socketHealth =
+              communicationService.communicationHealth?.socket;
+            if (
+              socketHealth &&
+              typeof socketHealth === "object" &&
+              "connected" in socketHealth
+            ) {
+              serviceStatus = socketHealth.connected ? "active" : "error";
+            } else {
+              // Fallback to communication service status
+              const mapStatus = (status?: string): StatusType => {
+                if (status === "up" || status === "healthy") return "active";
+                if (status === "down" || status === "unhealthy") return "error";
+                if (status === "degraded") return "warning";
+                return "error";
+              };
+              serviceStatus = mapStatus(communicationService.status);
+            }
+            errorMessage =
+              communicationService.error ||
+              communicationService.message ||
+              null;
+          } else {
+            // Fallback: check if socket service exists directly
+            const socketService = services?.socket as
+              | { status?: string }
+              | undefined;
+            if (socketService) {
+              const mapStatus = (status?: string): StatusType => {
+                if (status === "up" || status === "healthy") return "active";
+                if (status === "down" || status === "unhealthy") return "error";
+                if (status === "degraded") return "warning";
+                return "error";
+              };
+              serviceStatus = mapStatus(socketService.status);
+            } else {
+              // If no socket info, check overall status
+              const overallStatus = healthData.status as string;
+              serviceStatus =
+                overallStatus === "healthy"
+                  ? "active"
+                  : overallStatus === "degraded"
+                  ? "warning"
+                  : "error";
+            }
+          }
+        } else if (serviceName === "Real-time Services") {
+          const services = healthData.services as
+            | Record<string, unknown>
+            | undefined;
+          const queueService = services?.queue as
+            | { status?: string }
+            | undefined;
+          const cacheService = services?.cache as
+            | { status?: string }
+            | undefined;
+          const communicationService = services?.communication as
+            | {
+                communicationHealth?: {
+                  socket?: { connected?: boolean };
+                };
+              }
+            | undefined;
+          const socketService =
+            communicationService?.communicationHealth?.socket ||
+            (services?.socket as
+              | { status?: string; connected?: boolean }
+              | undefined);
+
+          // Check if all services are healthy
+          const queueHealthy =
+            queueService &&
+            (queueService.status === "up" || queueService.status === "healthy");
+          const cacheHealthy =
+            cacheService &&
+            (cacheService.status === "up" || cacheService.status === "healthy");
+          const socketHealthy =
+            socketService &&
+            (("connected" in socketService && socketService.connected) ||
+              ("status" in socketService &&
+                (socketService.status === "up" ||
+                  socketService.status === "healthy")));
+
+          const allHealthy =
+            [queueHealthy, cacheHealthy, socketHealthy].filter(Boolean)
+              .length >= 2;
 
           serviceStatus = allHealthy ? "active" : "warning";
 
           if (!allHealthy) {
-            const issues = [];
-            if (queueService?.status !== "healthy") issues.push("Queue");
-            if (redisService?.status !== "healthy") issues.push("Redis");
-            if (socketService?.status !== "healthy") issues.push("WebSocket");
-            errorMessage = `Issues with: ${issues.join(", ")}`;
+            const issues: string[] = [];
+            if (queueService && !queueHealthy) {
+              issues.push("Queue");
+            }
+            if (cacheService && !cacheHealthy) {
+              issues.push("Cache");
+            }
+            if (socketService && !socketHealthy) {
+              issues.push("WebSocket");
+            }
+            errorMessage =
+              issues.length > 0 ? `Issues with: ${issues.join(", ")}` : null;
           }
         }
 
@@ -527,27 +888,32 @@ export function BackendStatusIndicator() {
           ...baseService,
           status: serviceStatus,
           lastChecked: new Date(),
-          responseTime: healthResponse.responseTime || 0,
+          responseTime: healthCheckResponseTime, // Use the health check response time
           error: errorMessage,
         };
       };
 
-      const apiService = extractServiceStatus("API Server", healthData);
-      const dbService = extractServiceStatus("Database", healthData);
-      const authService = extractServiceStatus(
-        "Authentication Service",
-        healthData
+      const apiService = extractServiceStatus("API Server", parsedHealthData);
+      const dbService = extractServiceStatus("Database", parsedHealthData);
+      const cacheService = extractServiceStatus(
+        "Cache Service",
+        parsedHealthData
+      );
+      const videoService = extractServiceStatus(
+        "Video Service",
+        parsedHealthData
       );
       const realtimeService = extractServiceStatus(
         "Real-time Services",
-        detailedHealthData
+        parsedHealthData
       );
 
       const newStatus = {
         ...backendStatus,
         api: apiService,
         database: dbService,
-        auth: authService,
+        cache: cacheService,
+        video: videoService,
         realtime: realtimeService,
         websocket: wsResult,
         lastGlobalCheck: new Date(),
@@ -558,7 +924,8 @@ export function BackendStatusIndicator() {
       const services = [
         newStatus.api,
         newStatus.database,
-        newStatus.auth,
+        newStatus.cache,
+        newStatus.video,
         newStatus.realtime,
         newStatus.websocket,
       ];
@@ -581,13 +948,15 @@ export function BackendStatusIndicator() {
               : service.status === "loading"
               ? "🔄"
               : "❌";
-          // eslint-disable-next-line no-console
-          console.log(
-            `${statusIcon} ${service.name}: ${service.status} (${service.responseTime}ms)`
-          );
-          if (service.error) {
-            // eslint-disable-next-line no-console
-            console.log(`  └── Error: ${service.error}`);
+          // Debug logging (development only)
+          if (process.env.NODE_ENV === 'development') {
+            console.debug(
+              `${statusIcon} ${service.name}: ${service.status} (${service.responseTime}ms)`
+            );
+            if (service.error) {
+              // eslint-disable-next-line no-console
+              console.log(`  └── Error: ${service.error}`);
+            }
           }
         });
       }
@@ -613,7 +982,7 @@ export function BackendStatusIndicator() {
   // Request throttling to prevent rapid successive requests
   const lastRequestTime = useRef<number>(0);
   const REQUEST_COOLDOWN = 10000; // Minimum 10 seconds between requests (prevents server overload)
-  
+
   // Cache health data to avoid redundant requests
   const healthDataCache = useRef<{ data: any; timestamp: number } | null>(null);
   const CACHE_DURATION = 60000; // Cache for 60 seconds (reduces server load)
@@ -630,121 +999,178 @@ export function BackendStatusIndicator() {
   }, [socket, isWebSocketConnected, subscribe]);
 
   // Convert WebSocket health data to BackendStatusState format
-  const convertWebSocketToBackendStatus = useCallback((wsData: typeof healthStatusFromWebSocket): BackendStatusState | null => {
-    if (!wsData) return null;
+  const convertWebSocketToBackendStatus = useCallback(
+    (wsData: typeof healthStatusFromWebSocket): BackendStatusState | null => {
+      if (!wsData) return null;
 
-    // Helper to map status from WebSocket format
-    const mapStatus = (status: string | undefined, isHealthy: boolean | undefined): StatusType => {
-      if (!status && isHealthy === undefined) return "loading";
-      // WebSocket uses "up"/"down" or isHealthy boolean
-      if (status === "up" || isHealthy === true) return "active";
-      if (status === "down" || isHealthy === false) return "error";
-      if (status === "degraded") return "warning";
-      // Default to active if status is "healthy" (overall status)
-      if (status === "healthy") return "active";
-      return "error";
-    };
+      // Helper to map status from WebSocket format
+      const mapStatus = (
+        status: string | undefined,
+        isHealthy: boolean | undefined
+      ): StatusType => {
+        if (!status && isHealthy === undefined) return "loading";
+        // WebSocket uses "up"/"down" or isHealthy boolean
+        if (status === "up" || isHealthy === true) return "active";
+        if (status === "down" || isHealthy === false) return "error";
+        if (status === "degraded") return "warning";
+        // Default to active if status is "healthy" (overall status)
+        if (status === "healthy") return "active";
+        return "error";
+      };
 
-    // Get current time for lastChecked
-    const now = new Date();
+      // Get current time for lastChecked
+      const now = new Date();
 
-    return {
-      api: {
-        name: "API Server",
-        endpoint: "/health",
-        icon: Server,
-        // API health is determined by database being up (API depends on DB)
-        status: mapStatus(wsData.database?.status, wsData.database?.isHealthy),
-        lastChecked: wsData.database?.lastHealthCheck ? new Date(wsData.database.lastHealthCheck) : now,
-        responseTime: wsData.database?.avgResponseTime || null,
-        error: wsData.database?.errors?.[0] || null,
-      },
-      database: {
-        name: "Database",
-        endpoint: "/health",
-        icon: Database,
-        status: mapStatus(wsData.database?.status, wsData.database?.isHealthy),
-        lastChecked: wsData.database?.lastHealthCheck ? new Date(wsData.database.lastHealthCheck) : now,
-        responseTime: wsData.database?.avgResponseTime || null,
-        error: wsData.database?.errors?.[0] || null,
-      },
-      websocket: {
-        name: "WebSocket Service",
-        endpoint: "/health",
-        icon: Wifi,
-        // Check communication socket status
-        status: mapStatus(
-          wsData.communication?.status, 
-          wsData.communication?.socket?.connected ?? wsData.communication?.healthy
-        ),
-        lastChecked: now,
-        responseTime: wsData.communication?.socket?.latency || null,
-        error: wsData.communication?.issues?.[0] || (wsData.communication?.healthy === false ? "WebSocket service unavailable" : null),
-      },
-      auth: {
-        name: "Authentication Service",
-        endpoint: "/health",
-        icon: Shield,
-        // Auth is part of API, use database status as proxy
-        status: mapStatus(wsData.database?.status, wsData.database?.isHealthy),
-        lastChecked: now,
-        responseTime: null,
-        error: null,
-      },
-      realtime: {
-        name: "Real-time Services",
-        endpoint: "/health?detailed=true",
-        icon: Zap,
-        // Real-time = queue + cache + communication
-        status: (
-          (wsData.queue?.healthy !== false) && 
-          (wsData.cache?.healthy !== false) && 
-          (wsData.communication?.healthy !== false)
-        ) ? "active" : "warning",
-        lastChecked: now,
-        responseTime: wsData.queue?.connection?.latency || wsData.cache?.latency || wsData.communication?.socket?.latency || null,
-        error: [
-          wsData.queue?.status === "down" && "Queue",
-          wsData.cache?.status === "down" && "Cache",
-          wsData.communication?.healthy === false && "Communication"
-        ].filter(Boolean).join(", ") || null,
-      },
-      lastGlobalCheck: now,
-      isChecking: false,
-    };
-  }, []);
+      return {
+        api: {
+          name: "API Server",
+          endpoint: "/health",
+          icon: Server,
+          // API health is determined by database being up (API depends on DB)
+          status: mapStatus(
+            wsData.database?.status,
+            wsData.database?.isHealthy
+          ),
+          lastChecked: wsData.database?.lastHealthCheck
+            ? new Date(wsData.database.lastHealthCheck)
+            : now,
+          responseTime: wsData.database?.avgResponseTime || null,
+          error: wsData.database?.errors?.[0] || null,
+        },
+        database: {
+          name: "Database",
+          endpoint: "/health",
+          icon: Database,
+          status: mapStatus(
+            wsData.database?.status,
+            wsData.database?.isHealthy
+          ),
+          lastChecked: wsData.database?.lastHealthCheck
+            ? new Date(wsData.database.lastHealthCheck)
+            : now,
+          responseTime: wsData.database?.avgResponseTime || null,
+          error: wsData.database?.errors?.[0] || null,
+        },
+        websocket: {
+          name: "WebSocket Service",
+          endpoint: "/health",
+          icon: Wifi,
+          // Check communication socket status
+          status: mapStatus(
+            wsData.communication?.status,
+            wsData.communication?.socket?.connected ??
+              wsData.communication?.healthy
+          ),
+          lastChecked: now,
+          responseTime: wsData.communication?.socket?.latency || null,
+          error:
+            wsData.communication?.issues?.[0] ||
+            (wsData.communication?.healthy === false
+              ? "WebSocket service unavailable"
+              : null),
+        },
+        cache: {
+          name: "Cache Service",
+          endpoint: "/health",
+          icon: HardDrive,
+          status: mapStatus(wsData.cache?.status, wsData.cache?.healthy),
+          lastChecked: now,
+          responseTime: wsData.cache?.latency || null,
+          error: (wsData.cache as any)?.errors?.[0] || null,
+        },
+        video: {
+          name: "Video Service",
+          endpoint: "/health",
+          icon: Video,
+          status: mapStatus(wsData.video?.status, wsData.video?.isHealthy),
+          lastChecked: now,
+          responseTime: null,
+          error: wsData.video?.error || null,
+        },
+        realtime: {
+          name: "Real-time Services",
+          endpoint: "/health?detailed=true",
+          icon: Zap,
+          // Real-time = queue + cache + communication
+          status:
+            wsData.queue?.healthy !== false &&
+            wsData.cache?.healthy !== false &&
+            wsData.communication?.healthy !== false
+              ? "active"
+              : "warning",
+          lastChecked: now,
+          responseTime:
+            wsData.queue?.connection?.latency ||
+            wsData.cache?.latency ||
+            wsData.communication?.socket?.latency ||
+            null,
+          error:
+            [
+              wsData.queue?.status === "down" && "Queue",
+              wsData.cache?.status === "down" && "Cache",
+              wsData.communication?.healthy === false && "Communication",
+            ]
+              .filter(Boolean)
+              .join(", ") || null,
+        },
+        lastGlobalCheck: now,
+        isChecking: false,
+      };
+    },
+    []
+  );
 
   // Sync WebSocket health data to local state when available
   useEffect(() => {
     if (healthStatusFromWebSocket && isWebSocketConnected) {
       // WebSocket provides real-time updates, convert and update local state
-      const convertedStatus = convertWebSocketToBackendStatus(healthStatusFromWebSocket);
+      const convertedStatus = convertWebSocketToBackendStatus(
+        healthStatusFromWebSocket
+      );
       if (convertedStatus) {
         if (process.env.NODE_ENV === "development") {
-          console.log("📡 Updating UI from WebSocket health data (real-time)", convertedStatus);
+          console.log(
+            "📡 Updating UI from WebSocket health data (real-time)",
+            convertedStatus
+          );
         }
         setBackendStatus(convertedStatus);
       }
     }
-  }, [healthStatusFromWebSocket, isWebSocketConnected, convertWebSocketToBackendStatus]);
+  }, [
+    healthStatusFromWebSocket,
+    isWebSocketConnected,
+    convertWebSocketToBackendStatus,
+  ]);
 
   // Initial check and periodic updates with smart checking
   // ⚠️ OPTIMIZED: Reduced frequency to minimize server load
   // ⚠️ POLLING FALLBACK: Only poll when WebSocket is disconnected
   useEffect(() => {
     // If WebSocket is connected, skip polling (WebSocket handles updates)
-    if (isWebSocketConnected && wsConnectionStatus === 'connected') {
+    if (isWebSocketConnected && wsConnectionStatus === "connected") {
       if (process.env.NODE_ENV === "development") {
-        console.log("🔌 WebSocket connected - using real-time updates, skipping polling");
+        console.log(
+          "🔌 WebSocket connected - using real-time updates, skipping polling"
+        );
       }
       return; // Don't set up polling when WebSocket is active
     }
 
-    // Initial check after a short delay (don't hammer server on mount)
+    // ✅ Initial check after a longer delay to prevent blocking page load
     // Only when WebSocket is not available
-    const initialTimeout = setTimeout(() => {
-      checkAllServices();
-    }, 2000);
+    // Use requestIdleCallback if available, otherwise setTimeout with longer delay
+    const initialTimeout = typeof window !== 'undefined' && 'requestIdleCallback' in window
+      ? requestIdleCallback(() => {
+          checkAllServices().catch(() => {
+            // Silently fail - don't block page load
+          });
+        }, { timeout: 5000 })
+      : setTimeout(() => {
+          checkAllServices().catch(() => {
+            // Silently fail - don't block page load
+          });
+        }, 5000); // Increased from 2000ms to 5000ms
 
     // Smart checking: significantly reduced frequency to protect server
     const getHealthCheckInterval = () => {
@@ -796,12 +1222,24 @@ export function BackendStatusIndicator() {
     const intervalUpdateTimeout = setTimeout(setupIntervals, 1000);
 
     return () => {
-      clearTimeout(initialTimeout);
-      clearInterval(healthCheckInterval);
-      clearInterval(wsCheckInterval);
+      // ✅ Cleanup timeouts and intervals properly
+      if (typeof initialTimeout === 'number') {
+        clearTimeout(initialTimeout);
+      } else if (typeof initialTimeout === 'object' && 'cancel' in initialTimeout) {
+        // Handle requestIdleCallback return value
+        (initialTimeout as { cancel: () => void }).cancel();
+      }
+      if (healthCheckInterval) clearInterval(healthCheckInterval);
+      if (wsCheckInterval) clearInterval(wsCheckInterval);
       clearTimeout(intervalUpdateTimeout);
     };
-  }, [checkAllServices, checkWebSocketService, consecutiveHealthyChecks, isWebSocketConnected, wsConnectionStatus]);
+  }, [
+    checkAllServices,
+    checkWebSocketService,
+    consecutiveHealthyChecks,
+    isWebSocketConnected,
+    wsConnectionStatus,
+  ]);
 
   // Update WebSocket status immediately when connection changes
   useEffect(() => {
@@ -821,7 +1259,8 @@ export function BackendStatusIndicator() {
     const services = [
       backendStatus.api,
       backendStatus.database,
-      backendStatus.auth,
+      backendStatus.cache,
+      backendStatus.video,
       backendStatus.realtime,
       backendStatus.websocket,
     ];
@@ -848,8 +1287,9 @@ export function BackendStatusIndicator() {
     const services = [
       backendStatus.api,
       backendStatus.database,
+      backendStatus.cache,
+      backendStatus.video,
       backendStatus.websocket,
-      backendStatus.auth,
       backendStatus.realtime,
     ];
     const activeCount = services.filter((s) => s.status === "active").length;
@@ -864,8 +1304,9 @@ export function BackendStatusIndicator() {
     const services = [
       backendStatus.api,
       backendStatus.database,
+      backendStatus.cache,
+      backendStatus.video,
       backendStatus.websocket,
-      backendStatus.auth,
       backendStatus.realtime,
     ];
     const activeCount = services.filter((s) => s.status === "active").length;
@@ -909,47 +1350,55 @@ export function BackendStatusIndicator() {
           {[
             backendStatus.api,
             backendStatus.database,
+            backendStatus.cache,
+            backendStatus.video,
             backendStatus.websocket,
-            backendStatus.auth,
             backendStatus.realtime,
           ].map((service) => {
-              // Status-based text color
-              const statusColor = {
-                active: "text-gray-900",
+            // Status-based text color
+            const statusColor =
+              {
+                active: "text-green-600", // Green for active/healthy services
                 warning: "text-yellow-700",
                 error: "text-red-700",
                 loading: "text-blue-600",
                 inactive: "text-gray-500",
               }[service.status] || "text-gray-600";
 
-              return (
-                <div
-                  key={service.name}
-                  className="flex items-center justify-between text-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <service.icon className={cn("h-3 w-3", statusColor)} />
-                    <span className={cn("font-medium", statusColor)}>
-                      {service.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {service.responseTime !== null && service.responseTime !== undefined && (
-                      <span className={cn(
-                        "text-xs",
-                        service.status === "active" ? "text-gray-600" : 
-                        service.status === "warning" ? "text-yellow-600" : 
-                        service.status === "error" ? "text-red-600" : 
-                        "text-gray-500"
-                      )}>
+            return (
+              <div
+                key={service.name}
+                className="flex items-center justify-between text-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <service.icon className={cn("h-3 w-3", statusColor)} />
+                  <span className={cn("font-medium", statusColor)}>
+                    {service.name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {service.responseTime !== null &&
+                    service.responseTime !== undefined && (
+                      <span
+                        className={cn(
+                          "text-xs",
+                          service.status === "active"
+                            ? "text-green-600" // Green for active services
+                            : service.status === "warning"
+                            ? "text-yellow-600"
+                            : service.status === "error"
+                            ? "text-red-600"
+                            : "text-gray-500"
+                        )}
+                      >
                         {service.responseTime}ms
                       </span>
                     )}
-                    <StatusDot status={service.status} size="sm" />
-                  </div>
+                  <StatusDot status={service.status} size="sm" />
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
         </div>
 
         {backendStatus.lastGlobalCheck && (
@@ -994,8 +1443,10 @@ export function BackendStatusWidget({ className }: { className?: string }) {
   const [showModal, setShowModal] = useState(false);
 
   // Import dynamically to avoid circular dependencies
-  const GlobalHealthStatusModal = React.lazy(() => 
-    import('@/components/admin/GlobalHealthStatusModal').then(m => ({ default: m.GlobalHealthStatusModal }))
+  const GlobalHealthStatusModal = React.lazy(() =>
+    import("@/components/admin/GlobalHealthStatusModal").then((m) => ({
+      default: m.GlobalHealthStatusModal,
+    }))
   );
 
   const handleClick = () => {
@@ -1029,10 +1480,13 @@ export function BackendStatusWidget({ className }: { className?: string }) {
           </div>
         )}
       </div>
-      
+
       {showModal && (
         <React.Suspense fallback={null}>
-          <GlobalHealthStatusModal open={showModal} onOpenChange={setShowModal} />
+          <GlobalHealthStatusModal
+            open={showModal}
+            onOpenChange={setShowModal}
+          />
         </React.Suspense>
       )}
     </>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,12 +14,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { useToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import {
   useWebSocketIntegration,
+} from "@/hooks/realtime/useWebSocketIntegration";
+import {
   useRealTimeAppointments,
   useRealTimeAppointmentMutation,
-} from "@/hooks/useWebSocketIntegration";
+} from "@/hooks/realtime/useRealTimeQueries";
 import { useAppointmentsStore } from "@/stores";
 import {
   useAppointments,
@@ -33,13 +36,14 @@ import {
   useStartConsultation,
   useCanCancelAppointment,
   useDoctorQueue,
-} from "@/hooks/useAppointments";
+} from "@/hooks/query/useAppointments";
 import {
   AppointmentWithRelations,
   CreateAppointmentData,
+  AppointmentType,
 } from "@/types/appointment.types";
-import { useClinicLocations, useClinicDoctors } from "@/hooks/useClinics";
-import { APP_CONFIG } from "@/lib/config/config";
+import { useClinicLocations, useClinicDoctors } from "@/hooks/query/useClinics";
+// import { APP_CONFIG } from "@/lib/config/config";
 
 export default function AppointmentManager() {
   const { toast } = useToast();
@@ -199,6 +203,7 @@ export default function AppointmentManager() {
           toast({
             title: "Success",
             description: "Appointment created successfully",
+            id: TOAST_IDS.APPOINTMENT.CREATE, // ✅ Prevent duplicates
           });
           setNewAppointment({
             patientId: "",
@@ -231,13 +236,16 @@ export default function AppointmentManager() {
             toast({
               title: "Success",
               description: "Appointment cancelled successfully",
+              id: TOAST_IDS.APPOINTMENT.DELETE, // ✅ Prevent duplicates
             });
           },
-          onError: () => {
+          onError: (error: Error) => {
+            // ✅ Use centralized error handler
             toast({
               title: "Error",
-              description: "Failed to cancel appointment",
+              description: sanitizeErrorMessage(error) || "Failed to cancel appointment",
               variant: "destructive",
+              id: TOAST_IDS.APPOINTMENT.DELETE, // ✅ Prevent duplicates
             });
           },
         }
@@ -398,11 +406,11 @@ export default function AppointmentManager() {
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
-                  {locations?.map((location) => (
+                  {Array.isArray(locations) ? locations.map((location: any) => (
                     <SelectItem key={location.id} value={location.id}>
                       {location.name}
                     </SelectItem>
-                  ))}
+                  )) : null}
                 </SelectContent>
               </Select>
             </div>
@@ -419,11 +427,11 @@ export default function AppointmentManager() {
                   <SelectValue placeholder="Select doctor" />
                 </SelectTrigger>
                 <SelectContent>
-                  {doctors?.map((doctor) => (
+                  {Array.isArray(doctors) ? doctors.map((doctor: any) => (
                     <SelectItem key={doctor.id} value={doctor.id}>
-                      {doctor.user.firstName} {doctor.user.lastName}
+                      {doctor.user?.firstName} {doctor.user?.lastName}
                     </SelectItem>
-                  ))}
+                  )) : null}
                 </SelectContent>
               </Select>
             </div>
@@ -469,7 +477,7 @@ export default function AppointmentManager() {
               <Select
                 value={newAppointment.type}
                 onValueChange={(value) =>
-                  setNewAppointment({ ...newAppointment, type: value })
+                  setNewAppointment({ ...newAppointment, type: value as AppointmentType })
                 }
               >
                 <SelectTrigger>
@@ -520,20 +528,20 @@ export default function AppointmentManager() {
                 <span>Available:</span>
                 <Badge
                   variant={
-                    doctorAvailability.availableSlots?.length > 0
+                    (doctorAvailability as any)?.availableSlots?.length > 0
                       ? "default"
                       : "destructive"
                   }
                 >
-                  {doctorAvailability.availableSlots?.length > 0 ? "Yes" : "No"}
+                  {(doctorAvailability as any)?.availableSlots?.length > 0 ? "Yes" : "No"}
                 </Badge>
               </div>
-              {doctorAvailability.availableSlots &&
-                doctorAvailability.availableSlots.length > 0 && (
+              {(doctorAvailability as any)?.availableSlots &&
+                (doctorAvailability as any).availableSlots.length > 0 && (
                   <div>
                     <span className="font-medium">Available Slots:</span>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {doctorAvailability.availableSlots.map(
+                      {(doctorAvailability as any).availableSlots.map(
                         (slot: string, index: number) => (
                           <Badge key={index} variant="outline">
                             {slot}
@@ -555,7 +563,7 @@ export default function AppointmentManager() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {appointmentData?.appointments?.map((appointment: any) => (
+            {((appointmentData as unknown as any[]) || []).map((appointment: AppointmentWithRelations) => (
               <div
                 key={appointment.id}
                 className="border border-border rounded-lg p-4 hover:bg-muted cursor-pointer"
@@ -571,14 +579,14 @@ export default function AppointmentManager() {
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-semibold">
-                      {appointment.doctor.user.firstName}{" "}
-                      {appointment.doctor.user.lastName}
+                      {appointment.doctor?.user?.firstName || ""}{" "}
+                      {appointment.doctor?.user?.lastName || ""}
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       {formatDateTime(appointment.date, appointment.time)}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {appointment.location.name}
+                      {appointment.location?.name || ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -619,8 +627,8 @@ export default function AppointmentManager() {
               <div>
                 <h3 className="font-semibold mb-2">Selected Appointment</h3>
                 <p>
-                  {selectedAppointment.doctor.user.firstName}{" "}
-                  {selectedAppointment.doctor.user.lastName} -{" "}
+                  {selectedAppointment.doctor?.user?.firstName || ""}{" "}
+                  {selectedAppointment.doctor?.user?.lastName || ""} -{" "}
                   {formatDateTime(
                     selectedAppointment.date,
                     selectedAppointment.time
@@ -718,8 +726,8 @@ export default function AppointmentManager() {
                 >
                   <div>
                     <p className="font-medium">
-                      {appointment.doctor.user.firstName}{" "}
-                      {appointment.doctor.user.lastName}
+                      {appointment.doctor?.user?.firstName || ""}{" "}
+                      {appointment.doctor?.user?.lastName || ""}
                     </p>
                     <p className="text-sm text-gray-600">
                       {formatDateTime(appointment.date, appointment.time)}

@@ -4,9 +4,6 @@ import React, { useState } from "react";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,38 +25,28 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useVideoAppointments,
-  useVideoAppointment,
-  useCreateVideoAppointment,
   useJoinVideoAppointment,
   useEndVideoAppointment,
-  useVideoRecording,
-} from "@/hooks/useVideoAppointments";
+} from "@/hooks/query/useVideoAppointments";
 import {
   Video,
   Plus,
-  Search,
-  Filter,
   Play,
   Square,
   Download,
-  Users,
   Clock,
   Calendar,
   User,
-  Phone,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import { ProtectedComponent } from "@/components/rbac/ProtectedComponent";
 import { Permission } from "@/types/rbac.types";
 
@@ -67,9 +54,6 @@ export default function VideoAppointmentsPage() {
   const { session } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [selectedAppointmentId, setSelectedAppointmentId] = useState<
-    string | null
-  >(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const userId = session?.user?.id || "";
@@ -80,10 +64,11 @@ export default function VideoAppointmentsPage() {
   // Fetch video appointments using hook
   const {
     data: appointmentsData,
-    isLoading,
+
+    isPending,
     refetch,
   } = useVideoAppointments({
-    status: filterStatus || undefined,
+    status: filterStatus || "",
     page: 1,
     limit: 50,
   });
@@ -98,20 +83,20 @@ export default function VideoAppointmentsPage() {
   // Subscribe to real-time video appointment updates
   React.useEffect(() => {
     const unsubscribeAppointments = subscribeToVideoAppointments(
-      (data: any) => {
+      () => {
         // Invalidate queries on real-time updates
         refetch();
       }
     );
 
     const unsubscribeParticipants = subscribeToParticipantEvents(
-      (data: any) => {
+      () => {
         // Invalidate queries on participant events
         refetch();
       }
     );
 
-    const unsubscribeRecordings = subscribeToRecordingEvents((data: any) => {
+    const unsubscribeRecordings = subscribeToRecordingEvents(() => {
       // Invalidate queries on recording events
       refetch();
     });
@@ -128,16 +113,15 @@ export default function VideoAppointmentsPage() {
     refetch,
   ]);
 
-  const appointments =
-    appointmentsData?.appointments || appointmentsData?.data || [];
+  const appointments = Array.isArray(appointmentsData?.appointments)
+    ? appointmentsData.appointments
+    : Array.isArray(appointmentsData?.data)
+    ? appointmentsData.data
+    : [];
 
-  // Selected appointment details
-  const { data: selectedAppointment } = useVideoAppointment(
-    selectedAppointmentId || ""
-  );
+
 
   // Mutations
-  const createVideoAppointment = useCreateVideoAppointment();
   const joinVideoAppointment = useJoinVideoAppointment();
   const endVideoAppointment = useEndVideoAppointment();
 
@@ -431,7 +415,7 @@ export default function VideoAppointmentsPage() {
         </TabsList>
 
         <TabsContent value="upcoming" className="space-y-4">
-          {isLoading ? (
+          {isPending ? (
             <Card>
               <CardContent className="pt-6">
                 <p className="text-center text-muted-foreground">

@@ -85,10 +85,12 @@ export interface AppState {
   sidebarOpen: boolean;
   theme: 'light' | 'dark' | 'system';
   language: string;
+  
+  // Loading State (✅ Global loading state - for app-wide loading)
   isLoading: boolean;
   loadingMessage: string;
   
-  // Loading Overlay
+  // Loading Overlay (✅ For full-screen overlays during auth flows, etc.)
   overlay: OverlayConfig;
   
   // Session Management
@@ -121,7 +123,7 @@ export interface AppState {
   setLanguage: (language: string) => void;
   setLoading: (loading: boolean, message?: string) => void;
   
-  // Overlay Actions
+  // Overlay Actions (✅ For full-screen overlays during auth flows, route transitions)
   setOverlay: (config: Partial<OverlayConfig>) => void;
   clearOverlay: () => void;
   
@@ -156,6 +158,10 @@ export interface AppNotification {
   actionUrl?: string;
   actionLabel?: string;
 }
+
+// ============================================================================
+// APP STATE INTERFACE
+// ============================================================================
 
 const initialState = {
   user: null,
@@ -220,10 +226,11 @@ export const useAppStore = create<AppState>()(
         updateClinic: (id, updates) =>
           set((state) => {
             const index = state.clinics.findIndex(c => c.id === id);
-            if (index !== -1) {
-              Object.assign(state.clinics[index], updates);
+            if (index !== -1 && state.clinics[index]) {
+              const clinic = state.clinics[index];
+              Object.assign(clinic, updates);
             }
-            if (state.currentClinic?.id === id) {
+            if (state.currentClinic?.id === id && state.currentClinic) {
               Object.assign(state.currentClinic, updates);
             }
           }),
@@ -258,7 +265,7 @@ export const useAppStore = create<AppState>()(
             state.loadingMessage = message;
           }),
 
-        // Overlay Actions
+        // Overlay Actions (✅ For full-screen overlays during auth flows, route transitions)
         setOverlay: (config) =>
           set((state) => {
             state.overlay = { ...state.overlay, ...config };
@@ -293,8 +300,10 @@ export const useAppStore = create<AppState>()(
             const index = state.notifications.findIndex(n => n.id === id);
             if (index !== -1) {
               const notification = state.notifications[index];
-              if (!notification.read) {
-                state.unreadCount -= 1;
+              if (notification && !notification.read) {
+                if (state.unreadCount > 0) {
+                  state.unreadCount -= 1;
+                }
               }
               state.notifications.splice(index, 1);
             }
@@ -305,7 +314,9 @@ export const useAppStore = create<AppState>()(
             const notification = state.notifications.find(n => n.id === id);
             if (notification && !notification.read) {
               notification.read = true;
-              state.unreadCount -= 1;
+              if (state.unreadCount > 0) {
+                state.unreadCount -= 1;
+              }
             }
           }),
 
@@ -395,10 +406,13 @@ export const useErrors = () => useAppStore(state => ({
   error: state.error,
   errors: state.errors
 }));
+
+// ✅ Loading selector (for global app loading state)
+// For component-level loading, use useLoadingState hook from @/hooks/useLoadingState
 export const useLoading = () => useAppStore(state => ({
   isLoading: state.isLoading,
   loadingMessage: state.loadingMessage
 }));
 
-// Type exports
-export type { User, Clinic, AppNotification };
+// Type exports (already exported above, no need to re-export)
+// Types are exported inline: User, Clinic, AppNotification

@@ -9,7 +9,7 @@
 
 'use client';
 
-import { clinicApiClient } from '@/lib/api/client';
+// clinicApiClient import removed - not used in this file
 
 /**
  * Get access token securely
@@ -76,13 +76,20 @@ export function clearTokens(): void {
 export async function getAuthHeaders(): Promise<Record<string, string>> {
   // Use the API client's auth header generator which handles both
   // server-side (cookies) and client-side (localStorage) scenarios
-  const { clinicApiClient } = await import('@/lib/api/client');
+  // clinicApiClient not needed here
+  const { APP_CONFIG } = await import('@/lib/config/config');
   
   // The API client already handles secure token access
   // This is a wrapper for convenience
   const token = await getAccessToken();
   const sessionId = await getSessionId();
-  const clinicId = await getClinicId();
+  let clinicId = await getClinicId();
+
+  // ✅ Fallback to APP_CONFIG.CLINIC.ID if clinic ID is not in localStorage
+  // This ensures clinic ID is always set from environment variable or config default
+  if (!clinicId) {
+    clinicId = APP_CONFIG.CLINIC.ID;
+  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -94,6 +101,7 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
   if (sessionId) {
     headers['X-Session-ID'] = sessionId;
   }
+  // ✅ Always include clinic ID in headers (from localStorage or config)
   if (clinicId) {
     headers['X-Clinic-ID'] = clinicId;
   }

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useMemo, useRef, useState, useEffect } from "react";
-import { useVirtualScroll } from "@/lib/performance";
+import React, { useMemo } from "react";
+import { useVirtualScroll } from "@/lib/utils/performance";
 
 interface VirtualizedListProps<T> {
   items: T[];

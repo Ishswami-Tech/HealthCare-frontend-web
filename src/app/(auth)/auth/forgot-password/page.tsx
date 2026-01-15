@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,12 +8,11 @@ import {
   CardHeader,
   CardFooter,
 } from "@/components/ui/card";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import Link from "next/link";
-import { toast } from "sonner";
 import { forgotPasswordSchema } from "@/lib/schema/login-schema";
 import type { ForgotPasswordFormData } from "@/types/auth.types";
-import useZodForm from "@/hooks/useZodForm";
+import useZodForm from "@/hooks/utils/useZodForm";
 import {
   Form,
   FormControl,
@@ -23,47 +21,51 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { ERROR_MESSAGES } from "@/lib/config/config";
-import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
+import { useAuthForm } from "@/hooks/auth/useAuth";
+import { TOAST_IDS } from "@/hooks/utils/use-toast";
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
   const { forgotPassword, isRequestingReset } = useAuth();
-  const { setOverlay } = useLoadingOverlay();
+
+  // ✅ Use unified auth form hook for consistent patterns
+  const { executeAuthOperation } = useAuthForm({
+    toastId: TOAST_IDS.AUTH.FORGOT_PASSWORD,
+    overlayVariant: "default",
+    loadingMessage: "Sending instructions...",
+    successMessage: "Password reset instructions have been sent to your email.",
+    errorMessage: ERROR_MESSAGES.FORGOT_PASSWORD_FAILED,
+    redirectUrl: "/auth/login",
+    showOverlay: true,
+    showToast: true,
+  });
 
   const form = useZodForm(
     forgotPasswordSchema,
     async (data: ForgotPasswordFormData) => {
-      try {
-        setOverlay({ show: true, variant: "default", message: "Sending instructions..." });
-        await forgotPassword(data.email);
-        toast.success(
-          "Password reset instructions have been sent to your email."
-        );
-        router.push("/auth/login");
-        setOverlay({ show: false });
-      } catch (error) {
-        setOverlay({ show: false });
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : ERROR_MESSAGES.FORGOT_PASSWORD_FAILED
-        );
-      }
+      // ✅ Use unified pattern - consistent across all auth pages
+      await executeAuthOperation(async () => {
+        return await forgotPassword(data.email);
+      });
     },
     {
       email: "",
     }
   );
 
+  // ✅ Overlay clearing is handled by auth layout - no need to clear here
+  // This prevents race conditions and ensures consistent behavior
+
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <h2 className="text-2xl font-bold text-center">Forgot Password</h2>
-        <p className="text-sm text-gray-600 text-center mt-2">
+    <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
+      <CardHeader className="px-4 sm:px-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-center">
+          Forgot Password
+        </h2>
+        <p className="text-xs sm:text-sm text-gray-600 text-center mt-2">
           Enter your email to receive password reset instructions
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4 sm:px-6">
         <Form {...form}>
           <form onSubmit={form.onFormSubmit} className="space-y-4">
             <FormField
@@ -94,10 +96,13 @@ export default function ForgotPasswordPage() {
           </form>
         </Form>
       </CardContent>
-      <CardFooter>
-        <div className="w-full text-center text-sm text-gray-600">
+      <CardFooter className="px-4 sm:px-6 pb-4 sm:pb-6">
+        <div className="w-full text-center text-xs sm:text-sm text-gray-600">
           Remember your password?{" "}
-          <Link href="/auth/login" className="text-blue-600 hover:underline">
+          <Link
+            href="/auth/login"
+            className="text-blue-600 hover:underline transition-colors"
+          >
             Sign in
           </Link>
         </div>

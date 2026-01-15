@@ -1,18 +1,18 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinics } from "@/hooks/useClinics";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinics } from "@/hooks/query/useClinics";
 import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Building2,
   Users,
@@ -35,10 +35,10 @@ export default function SuperAdminClinics() {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch real clinic data
-  const { data: clinicsData, isLoading: isLoadingClinics } = useClinics();
+  const { data: clinicsData, isPending: isLoadingClinics } = useClinics();
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync(["clinics"]);
+  useWebSocketQuerySync();
 
   // Transform clinics data
   const clinics = useMemo(() => {
@@ -92,7 +92,7 @@ export default function SuperAdminClinics() {
   if (isLoadingClinics) {
     return (
       <DashboardLayout title="Clinic Management" allowedRole={Role.SUPER_ADMIN}>
-        <GlobalSidebar
+        <Sidebar
           links={sidebarLinks}
           user={{
             name:
@@ -105,14 +105,14 @@ export default function SuperAdminClinics() {
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
+        </Sidebar>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout title="Clinic Management" allowedRole={Role.SUPER_ADMIN}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -330,7 +330,7 @@ export default function SuperAdminClinics() {
             </Card>
           )}
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

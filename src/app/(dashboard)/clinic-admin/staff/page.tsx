@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
-import { useUsersByClinic } from "@/hooks/useUsers";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { useUsersByClinic } from "@/hooks/query/useUsers";
 import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Activity,
   Users,
@@ -127,7 +127,7 @@ export default function ClinicAdminStaff() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route) => {
+  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route: any) => {
     let icon = <UserCheck className="w-5 h-5" />;
     if (route.path.includes("dashboard")) {
       icon = <Activity className="w-5 h-5" />;
@@ -155,7 +155,7 @@ export default function ClinicAdminStaff() {
   if (isLoadingStaff) {
     return (
       <DashboardLayout title="Staff Management" allowedRole={Role.CLINIC_ADMIN}>
-        <GlobalSidebar
+        <Sidebar
           links={sidebarLinks}
           user={{
             name:
@@ -168,14 +168,14 @@ export default function ClinicAdminStaff() {
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
+        </Sidebar>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout title="Staff Management" allowedRole={Role.CLINIC_ADMIN}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -219,7 +219,7 @@ export default function ClinicAdminStaff() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {staff.filter((s) => s.role === Role.DOCTOR).length}
+                  {staff.filter((s: any) => s.role === Role.DOCTOR).length}
                 </div>
               </CardContent>
             </Card>
@@ -233,7 +233,7 @@ export default function ClinicAdminStaff() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {staff.filter((s) => s.role === Role.RECEPTIONIST).length}
+                  {staff.filter((s: any) => s.role === Role.RECEPTIONIST).length}
                 </div>
               </CardContent>
             </Card>
@@ -247,7 +247,7 @@ export default function ClinicAdminStaff() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {staff.filter((s) => s.status === "Active").length}
+                  {staff.filter((s: any) => s.status === "Active").length}
                 </div>
               </CardContent>
             </Card>
@@ -298,7 +298,7 @@ export default function ClinicAdminStaff() {
 
           {/* Staff List */}
           <div className="grid gap-4">
-            {filteredStaff.map((member) => (
+            {filteredStaff.map((member: any) => (
               <Card key={member.id}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -417,7 +417,7 @@ export default function ClinicAdminStaff() {
                   <Stethoscope className="w-8 h-8 text-blue-600 mx-auto mb-2" />
                   <h3 className="font-semibold">Ayurveda Department</h3>
                   <p className="text-2xl font-bold text-blue-600">
-                    {staff.filter((s) => s.department === "Ayurveda").length}
+                    {staff.filter((s: any) => s.department === "Ayurveda").length}
                   </p>
                   <p className="text-sm text-gray-600">Specialists</p>
                 </div>
@@ -427,7 +427,7 @@ export default function ClinicAdminStaff() {
                   <h3 className="font-semibold">Administration</h3>
                   <p className="text-2xl font-bold text-green-600">
                     {
-                      staff.filter((s) => s.department === "Administration")
+                      staff.filter((s: any) => s.department === "Administration")
                         .length
                     }
                   </p>
@@ -438,7 +438,7 @@ export default function ClinicAdminStaff() {
                   <Activity className="w-8 h-8 text-purple-600 mx-auto mb-2" />
                   <h3 className="font-semibold">Diagnosis</h3>
                   <p className="text-2xl font-bold text-purple-600">
-                    {staff.filter((s) => s.department === "Diagnosis").length}
+                    {staff.filter((s: any) => s.department === "Diagnosis").length}
                   </p>
                   <p className="text-sm text-gray-600">Specialists</p>
                 </div>
@@ -446,7 +446,7 @@ export default function ClinicAdminStaff() {
             </CardContent>
           </Card>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

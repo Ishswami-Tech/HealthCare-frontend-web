@@ -1,7 +1,15 @@
+/**
+ * ✅ Consolidated Store Exports
+ * Follows DRY, SOLID, KISS principles
+ * Single source of truth for all store exports
+ */
+
 export * from './app.store';
 export * from './websocket.store';
 export * from './appointments.store';
-export * from './useMedicalRecordsStore';
+export * from './medical-records.store';
+export * from './pharmacy.store';
+export * from './notifications.store';
 export * from './health.store';
 
 // Store provider for SSR compatibility
@@ -23,16 +31,34 @@ export function StoreProvider({ children }: StoreProviderProps) {
   return children;
 }
 
+// ✅ Consolidated: Import all stores
+import { usePharmacyStore } from './pharmacy.store';
+import { useNotificationStore } from './notifications.store';
+import { useMedicalRecordsStore } from './medical-records.store';
+
 export const getStoreState = () => ({
   app: useAppStore.getState(),
   websocket: useWebSocketStore.getState(),
   appointments: useAppointmentsStore.getState(),
   health: useHealthStore.getState(),
+  pharmacy: usePharmacyStore.getState(),
+  notifications: useNotificationStore.getState(),
+  medicalRecords: useMedicalRecordsStore.getState(),
 });
 
 export const resetAllStores = () => {
   useAppStore.getState().reset();
   useAppointmentsStore.getState().reset();
+  // Add reset methods for other stores if they have them
+  if ('reset' in usePharmacyStore.getState()) {
+    (usePharmacyStore.getState() as any).reset();
+  }
+  if ('reset' in useNotificationStore.getState()) {
+    (useNotificationStore.getState() as any).reset();
+  }
+  if ('reset' in useMedicalRecordsStore.getState()) {
+    (useMedicalRecordsStore.getState() as any).reset();
+  }
 };
 
 export const useStoreActions = () => ({
@@ -65,6 +91,9 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
     websocket: useWebSocketStore,
     appointments: useAppointmentsStore,
     health: useHealthStore,
+    pharmacy: usePharmacyStore,
+    notifications: useNotificationStore,
+    medicalRecords: useMedicalRecordsStore,
     getState: getStoreState,
     reset: resetAllStores,
   };

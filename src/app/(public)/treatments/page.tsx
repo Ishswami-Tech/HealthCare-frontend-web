@@ -1,13 +1,13 @@
 "use client";
 
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { getIconColorScheme } from "@/lib/color-palette";
+import { getIconColorScheme } from "@/lib/config/color-palette";
 import {
   Droplets,
   Flame,

@@ -2,8 +2,8 @@
 
 import React from "react";
 import { redirect } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
-import { useRBAC, useRoleBasedNavigation } from "@/hooks/useRBAC";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useRBAC, useRoleBasedNavigation } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
 import { Role } from "@/types/auth.types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

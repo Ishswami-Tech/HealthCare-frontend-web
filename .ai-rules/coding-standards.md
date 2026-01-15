@@ -1,4 +1,41 @@
 # Coding Standards - Healthcare Frontend
+# Version: 2.1.0 | Next.js 16 + React 19 + TypeScript 5
+# Enterprise-Grade Healthcare Coding Standards
+
+## 🎯 **Core Principles (SOLID, DRY, KISS)**
+
+### **SOLID Principles**
+- **Single Responsibility**: Each component/hook handles one concern
+- **Open/Closed**: Extend via variants and composition, not modification
+- **Liskov Substitution**: Interfaces ensure consistent behavior
+- **Interface Segregation**: Role-specific interfaces
+- **Dependency Inversion**: Depend on abstractions (hooks, stores), not implementations
+
+### **DRY (Don't Repeat Yourself)**
+- Reusable schemas, hooks, and component patterns
+- Centralized configuration (`APP_CONFIG`)
+- Unified query key factory (`queryKeys`)
+- Common validation utilities
+- Shared error handling
+
+### **KISS (Keep It Simple, Stupid)**
+- Simple, readable code over clever solutions
+- Clear data flow
+- Direct API patterns
+- Minimal abstraction layers
+
+### **Technology Stack**
+- **Framework**: Next.js 16.1.1 with App Router + Turbopack
+- **React**: 19.2.x with Server Components
+- **TypeScript**: 5.x with strict mode
+- **State Management**: TanStack Query v5.90+ | Zustand v5.0.9 with immer
+- **Forms**: React Hook Form v7.70 + Zod v4.3.5
+- **UI Components**: shadcn/ui + Radix UI + Tailwind CSS v4
+- **Internationalization**: next-intl v4.7
+- **Real-time**: Socket.IO v4.8.3 + Firebase v12.7
+- **Video**: OpenVidu Browser v2.32.1
+- **Toast**: Sonner v2.0.7
+- **Animations**: Framer Motion v12.24
 
 ## 💻 **Core Coding Principles**
 
@@ -1079,6 +1116,401 @@ export function CreatePatientForm({
 }
 ```
 
+## 🎨 **Component Patterns**
+
+### **Input Component with CVA Variants**
+
+The `Input` component uses CVA (Class Variance Authority) for type-safe variant management, providing multiple variants optimized for different healthcare use cases.
+
+```typescript
+// ✅ Input component with CVA variants (from src/components/ui/input.tsx)
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+
+const inputVariants = cva(
+  "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground flex w-full min-w-0 border bg-transparent text-base shadow-xs transition-all duration-300 outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  {
+    variants: {
+      variant: {
+        default: "border-input dark:bg-input/30 rounded-md px-3 py-1 h-9",
+        medical: "form-medical border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-900/10 rounded-xl px-4 py-3 h-12 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/20",
+        floating: "form-floating border-border/50 dark:border-border/60 rounded-xl px-3 pt-6 pb-2 h-auto focus-visible:border-primary",
+        mobile: "mobile-touch-target rounded-xl px-4 py-4 h-12 text-base border-border/50 dark:border-border/60",
+      },
+      inputSize: {
+        sm: "h-8 px-2 py-1 text-sm",
+        default: "h-9 px-3 py-1",
+        lg: "h-10 px-4 py-2",
+        xl: "h-12 px-4 py-3 text-base",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      inputSize: "default",
+    },
+  }
+);
+
+export interface InputProps
+  extends React.ComponentProps<"input">,
+    VariantProps<typeof inputVariants> {
+  variant?: "default" | "medical" | "floating" | "mobile";
+  inputSize?: "sm" | "default" | "lg" | "xl";
+}
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, variant, inputSize, ...props }, ref) => {
+    return (
+      <input
+        type={type}
+        data-slot="input"
+        className={cn(inputVariants({ variant, inputSize }), className)}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+Input.displayName = "Input";
+
+export { Input, inputVariants };
+```
+
+**Usage Examples:**
+```typescript
+// ✅ Default input
+<Input placeholder="Enter text" />
+
+// ✅ Medical variant (for patient forms)
+<Input variant="medical" inputSize="lg" placeholder="Patient name" />
+
+// ✅ Floating label variant
+<Input variant="floating" placeholder="Email address" />
+
+// ✅ Mobile-optimized variant
+<Input variant="mobile" placeholder="Phone number" />
+```
+
+### **useZodForm Hook Pattern**
+
+The `useZodForm` hook integrates Zod schemas with React Hook Form and TanStack Query mutations, providing a streamlined form handling pattern.
+
+```typescript
+// ✅ useZodForm hook (from src/hooks/utils/useZodForm.ts)
+import { UseMutateFunction } from "@tanstack/react-query";
+import { useForm, DefaultValues, UseFormReturn } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+const useZodForm = <T extends z.ZodType<any, any, any>>(
+  schema: T,
+  mutation: UseMutateFunction<unknown, unknown, z.infer<T>>,
+  defaultValues?: DefaultValues<z.infer<T>>
+): UseFormReturn<z.infer<T>> & {
+  onFormSubmit: () => Promise<void>;
+} => {
+  const form = useForm<z.infer<T>>({
+    resolver: zodResolver(schema) as any,
+    ...(defaultValues ? { defaultValues } : {}),
+    mode: "onChange" as const,
+  });
+
+  const onFormSubmit = form.handleSubmit(async (values) => {
+    try {
+      await Promise.resolve(mutation(values as z.infer<T>));
+    } catch (error) {
+      console.error('Form submission error:', error);
+      throw error;
+    }
+  });
+
+  return {
+    ...form,
+    onFormSubmit,
+  } as UseFormReturn<z.infer<T>> & {
+    onFormSubmit: () => Promise<void>;
+  };
+};
+
+export default useZodForm;
+```
+
+**Usage Example:**
+```typescript
+// ✅ Define schema
+const patientSchema = z.object({
+  firstName: z.string().min(2, "First name must be at least 2 characters"),
+  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+});
+
+// ✅ Use in component
+function PatientForm() {
+  const createPatientMutation = useMutation({
+    mutationFn: createPatientAction,
+  });
+
+  const { register, formState: { errors }, onFormSubmit } = useZodForm(
+    patientSchema,
+    createPatientMutation.mutate,
+    { firstName: '', lastName: '', email: '' }
+  );
+  
+  return (
+    <form onSubmit={onFormSubmit}>
+      <Input {...register('firstName')} />
+      {errors.firstName && <span>{errors.firstName.message}</span>}
+      {/* ... other fields */}
+    </form>
+  );
+}
+```
+
+## 🔧 **Utility Patterns**
+
+### **Healthcare-Specific Logger Methods**
+
+The `logger` utility provides healthcare-specific logging methods for better observability and debugging.
+
+```typescript
+// ✅ Logger utility (from src/lib/utils/logger.ts)
+import { APP_CONFIG } from '@/lib/config/config';
+
+export const logger = {
+  // Standard methods
+  error: (message: string, error?: Error | unknown, context?: Record<string, unknown>) => {
+    const errorContext = error instanceof Error 
+      ? { ...context, error: error.message, stack: error.stack }
+      : { ...context, error };
+    console.error(`[ERROR] ${message}`, errorContext);
+  },
+  warn: (message: string, context?: Record<string, unknown>) => {
+    console.warn(`[WARN] ${message}`, context);
+  },
+  info: (message: string, context?: Record<string, unknown>) => {
+    if (APP_CONFIG.IS_DEVELOPMENT) {
+      console.info(`[INFO] ${message}`, context);
+    }
+  },
+  debug: (message: string, context?: Record<string, unknown>) => {
+    if (APP_CONFIG.IS_DEVELOPMENT) {
+      console.debug(`[DEBUG] ${message}`, context);
+    }
+  },
+  
+  // ✅ Healthcare-specific methods
+  appointment: (action: string, appointmentId: string, context?: Record<string, unknown>) => {
+    logger.info(`Appointment ${action}`, { 
+      ...context, 
+      component: 'appointments', 
+      appointmentId 
+    });
+  },
+  patient: (action: string, patientId: string, context?: Record<string, unknown>) => {
+    logger.info(`Patient ${action}`, { 
+      ...context, 
+      component: 'patients', 
+      patientId 
+    });
+  },
+  auth: (action: string, context?: Record<string, unknown>) => {
+    logger.info(`Authentication ${action}`, { 
+      ...context, 
+      component: 'auth' 
+    });
+  },
+  api: (method: string, endpoint: string, status?: number, context?: Record<string, unknown>) => {
+    const level = status && status >= 400 ? 'error' : 'info';
+    logger[level](`API ${method} ${endpoint}`, { 
+      ...context, 
+      component: 'api', 
+      method, 
+      endpoint, 
+      status 
+    });
+  },
+};
+```
+
+**Usage Examples:**
+```typescript
+// ✅ Standard logging
+logger.error('Failed to create appointment', error, { component: 'useAppointments' });
+logger.warn('Token expiring soon', { userId, expiresIn: '5min' });
+
+// ✅ Healthcare-specific logging
+logger.appointment('created', appointmentId, { userId: user.id, clinicId });
+logger.patient('updated', patientId, { userId, changes: ['email', 'phone'] });
+logger.auth('login-success', { userId, method: 'email' });
+logger.api('POST', '/api/appointments', 201, { duration: '120ms' });
+```
+
+### **APP_CONFIG Central Configuration**
+
+The `APP_CONFIG` object serves as a single source of truth for all application configuration, including environment, API, WebSocket, feature flags, and logging settings.
+
+```typescript
+// ✅ APP_CONFIG usage (from src/lib/config/config.ts)
+import { APP_CONFIG } from '@/lib/config/config';
+
+// ✅ API Configuration
+const apiTimeout = APP_CONFIG.API.TIMEOUT.REQUEST; // 30000
+const defaultPageSize = APP_CONFIG.API.PAGINATION.DEFAULT_PAGE_SIZE; // 20
+const apiBaseUrl = APP_CONFIG.API.BASE_URL;
+
+// ✅ WebSocket Configuration
+const wsUrl = APP_CONFIG.WEBSOCKET.URL;
+const wsTimeout = APP_CONFIG.WEBSOCKET.TIMEOUT;
+const wsMaxReconnectAttempts = APP_CONFIG.WEBSOCKET.MAX_RECONNECT_ATTEMPTS;
+
+// ✅ Feature Flags
+if (APP_CONFIG.FEATURES.VIDEO_CALLS) {
+  // Enable video call functionality
+}
+if (APP_CONFIG.FEATURES.NOTIFICATIONS) {
+  // Enable push notifications
+}
+if (APP_CONFIG.FEATURES.REAL_TIME) {
+  // Enable real-time features
+}
+
+// ✅ Environment Checks
+if (APP_CONFIG.IS_DEVELOPMENT) {
+  // Development-only code
+  logger.debug('Debug mode enabled');
+}
+if (APP_CONFIG.IS_PRODUCTION) {
+  // Production-only code
+  // Enable analytics, error tracking, etc.
+}
+
+// ✅ Authentication Configuration
+const isAuthEnabled = APP_CONFIG.AUTH.ENABLED;
+const googleClientId = APP_CONFIG.AUTH.GOOGLE_CLIENT_ID;
+
+// ✅ App Configuration
+const appUrl = APP_CONFIG.APP.URL;
+const appVersion = APP_CONFIG.APP.VERSION;
+```
+
+**Key Benefits:**
+- Single source of truth for all configuration
+- Type-safe configuration access
+- Environment-aware defaults
+- Centralized feature flag management
+- Easy testing with mock configurations
+
+### **Complete Query Keys Factory**
+
+The `queryKeys` factory provides type-safe, hierarchical query keys for all domains, ensuring consistent cache key management across the application.
+
+```typescript
+// ✅ Query Keys Factory (from src/hooks/query/config.ts)
+export const queryKeys = {
+  // Appointments
+  appointments: {
+    all: ['appointments'] as const,
+    lists: () => [...queryKeys.appointments.all, 'list'] as const,
+    list: (filters: Record<string, unknown>) => 
+      [...queryKeys.appointments.lists(), filters] as const,
+    details: () => [...queryKeys.appointments.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.appointments.details(), id] as const,
+    stats: (clinicId: string) => 
+      [...queryKeys.appointments.all, 'stats', clinicId] as const,
+  },
+  
+  // Billing
+  billing: {
+    all: ['billing'] as const,
+    plans: (clinicId?: string) => 
+      [...queryKeys.billing.all, 'plans', clinicId] as const,
+    subscriptions: (userId: string) => 
+      [...queryKeys.billing.all, 'subscriptions', userId] as const,
+    invoices: (userId: string) => 
+      [...queryKeys.billing.all, 'invoices', userId] as const,
+    payments: (userId: string) => 
+      [...queryKeys.billing.all, 'payments', userId] as const,
+    analytics: (clinicId: string) => 
+      [...queryKeys.billing.all, 'analytics', clinicId] as const,
+  },
+  
+  // EHR
+  ehr: {
+    all: ['ehr'] as const,
+    comprehensive: (userId: string) => 
+      [...queryKeys.ehr.all, 'comprehensive', userId] as const,
+    medicalHistory: (userId: string) => 
+      [...queryKeys.ehr.all, 'medical-history', userId] as const,
+    labReports: (userId: string) => 
+      [...queryKeys.ehr.all, 'lab-reports', userId] as const,
+    vitals: (userId: string) => 
+      [...queryKeys.ehr.all, 'vitals', userId] as const,
+  },
+  
+  // Video
+  video: {
+    all: ['video'] as const,
+    appointments: (filters?: Record<string, unknown>) => 
+      [...queryKeys.video.all, 'appointments', filters] as const,
+    appointment: (id: string) => 
+      [...queryKeys.video.all, 'appointment', id] as const,
+  },
+  
+  // Queue
+  queue: {
+    all: ['queue'] as const,
+    status: (clinicId: string, queueType?: string) => 
+      [...queryKeys.queue.all, 'status', clinicId, queueType] as const,
+    stats: (clinicId: string) => 
+      [...queryKeys.queue.all, 'stats', clinicId] as const,
+  },
+  
+  // Users
+  users: {
+    all: ['users'] as const,
+    profile: (userId: string) => 
+      [...queryKeys.users.all, 'profile', userId] as const,
+    list: (filters?: Record<string, unknown>) => 
+      [...queryKeys.users.all, 'list', filters] as const,
+  },
+  
+  // Patients
+  patients: {
+    all: ['patients'] as const,
+    lists: () => [...queryKeys.patients.all, 'list'] as const,
+    list: (clinicId: string, filters?: Record<string, unknown>) => 
+      [...queryKeys.patients.lists(), clinicId, filters] as const,
+    details: () => [...queryKeys.patients.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.patients.details(), id] as const,
+  },
+} as const;
+```
+
+**Usage Examples:**
+```typescript
+// ✅ Use in queries
+const { data } = useQuery({
+  queryKey: queryKeys.appointments.list({ clinicId, status: 'scheduled' }),
+  queryFn: () => getAppointments({ clinicId, status: 'scheduled' }),
+});
+
+// ✅ Use in mutations for cache invalidation
+const mutation = useMutation({
+  mutationFn: createAppointment,
+  onSuccess: () => {
+    queryClient.invalidateQueries({ 
+      queryKey: queryKeys.appointments.all 
+    });
+  },
+});
+
+// ✅ Use for specific cache updates
+queryClient.setQueryData(
+  queryKeys.appointments.detail(appointmentId),
+  updatedAppointment
+);
+```
+
 ### **Error Handling Standards**
 
 #### **Error Boundary Implementation**
@@ -2007,6 +2439,13 @@ export const useAppStore = create<AppState>()(
 - [ ] **Performance**: Optimized for healthcare data volumes
 - [ ] **Caching**: Appropriate cache strategies for medical data
 - [ ] **Security**: All security measures properly implemented
+- [ ] **Query Keys**: Uses `queryKeys` factory for consistent cache keys
+- [ ] **Toast IDs**: Uses `TOAST_IDS` constants for toast management
+- [ ] **Error Messages**: Uses `sanitizeErrorMessage()` for user-facing errors
+- [ ] **Logger**: Uses `logger` utility with healthcare-specific methods
+- [ ] **APP_CONFIG**: Uses `APP_CONFIG` for all configuration needs
+- [ ] **Forms**: Uses `useZodForm` hook for form integration
+- [ ] **Input Variants**: Uses appropriate `Input` component variants (medical, floating, mobile)
 
 ## 🚨 **ANTI-PATTERNS (NEVER DO)**
 
@@ -2132,6 +2571,13 @@ function DeleteButton({ patientId }: { patientId: string }) {
 - [ ] Follows naming conventions
 - [ ] Includes proper TypeScript types
 - [ ] Uses server actions for mutations
+- [ ] Uses `queryKeys` factory for query cache keys
+- [ ] Uses `TOAST_IDS` constants for toast notifications
+- [ ] Uses `sanitizeErrorMessage()` for error handling
+- [ ] Uses `logger` utility for logging (with healthcare-specific methods)
+- [ ] Uses `APP_CONFIG` for configuration
+- [ ] Uses `useZodForm` hook for form integration
+- [ ] Uses appropriate `Input` component variants
 - [ ] Implements proper caching strategies
 
 ### **Healthcare-Specific Requirements:**

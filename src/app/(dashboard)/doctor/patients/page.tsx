@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,12 +22,11 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
-import { usePatients } from "@/hooks/usePatients";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { usePatients } from "@/hooks/query/usePatients";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Activity,
   Calendar,
@@ -40,14 +38,11 @@ import {
   Phone,
   Mail,
   MapPin,
-  FileText,
-  Clock,
-  TrendingUp,
-  AlertCircle,
-  Pill,
-  Heart,
   Stethoscope,
   Loader2,
+  Clock,
+  TrendingUp,
+  Pill,
 } from "lucide-react";
 
 export default function DoctorPatients() {
@@ -60,29 +55,29 @@ export default function DoctorPatients() {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
   // Fetch real patient data
-  const { data: patientsData, isLoading: isLoadingPatients } = usePatients(
+  const { data: patientsData, isPending: isPendingPatients } = usePatients(
     clinicId || "",
     {
-      search: searchTerm || undefined,
-      gender: genderFilter !== "all" ? genderFilter : undefined,
+      search: searchTerm,
+      ...(genderFilter !== "all" && { gender: genderFilter }),
     }
   );
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync(["patients", clinicId]);
+  useWebSocketQuerySync();
 
   // Extract patients array from response
   const patients = useMemo(() => {
     if (!patientsData) return [];
     return Array.isArray(patientsData)
       ? patientsData
-      : patientsData.patients || [];
+      : (patientsData as any).patients || [];
   }, [patientsData]);
 
-  const filteredPatients = patients.filter((patient) => {
+  const filteredPatients = patients.filter((patient: any) => {
     const matchesSearch =
       patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.chiefComplaints.some((complaint) =>
+      patient.chiefComplaints.some((complaint: string) =>
         complaint.toLowerCase().includes(searchTerm.toLowerCase())
       );
     const matchesGender =
@@ -96,7 +91,7 @@ export default function DoctorPatients() {
     return matchesSearch && matchesGender && matchesAge;
   });
 
-  const sidebarLinks = getRoutesByRole(Role.DOCTOR).map((route) => ({
+  const sidebarLinks = getRoutesByRole(Role.DOCTOR).map((route: any) => ({
     ...route,
     href: route.path,
     icon: route.path.includes("dashboard") ? (
@@ -119,10 +114,10 @@ export default function DoctorPatients() {
     icon: <LogOut className="w-5 h-5" />,
   });
 
-  if (isLoadingPatients) {
+  if (isPendingPatients) {
     return (
       <DashboardLayout title="Doctor Patients" allowedRole={Role.DOCTOR}>
-        <GlobalSidebar
+        <Sidebar
           links={sidebarLinks}
           user={{
             name:
@@ -133,14 +128,14 @@ export default function DoctorPatients() {
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
+        </Sidebar>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout title="Doctor Patients" allowedRole={Role.DOCTOR}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -152,7 +147,6 @@ export default function DoctorPatients() {
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">My Patients</h1>
             <div className="flex items-center gap-4">
-              <WebSocketStatusIndicator />
               <div className="text-sm text-gray-600">
                 Total: {patients.length} patients
               </div>
@@ -259,7 +253,7 @@ export default function DoctorPatients() {
 
           {/* Patients List */}
           <div className="grid gap-4">
-            {filteredPatients.map((patient) => (
+            {filteredPatients.map((patient: any) => (
               <Card
                 key={patient.id}
                 className="hover:shadow-md transition-shadow"
@@ -528,7 +522,7 @@ export default function DoctorPatients() {
             </Card>
           )}
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

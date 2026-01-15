@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,12 +24,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
-import { usePatients, useCreatePatient } from "@/hooks/usePatients";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { usePatients, useCreatePatient } from "@/hooks/query/usePatients";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Activity,
   Calendar,
@@ -44,12 +43,9 @@ import {
   Edit,
   Eye,
   UserPlus,
-  Clock,
+  Loader2,
   AlertCircle,
   Heart,
-  Pill,
-  Calendar as CalendarIcon,
-  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -69,7 +65,7 @@ export default function ReceptionistPatients() {
     phone: "",
     email: "",
     dateOfBirth: "",
-    gender: "",
+    gender: "" as any,
     address: "",
     emergencyContact: "",
     emergencyPhone: "",
@@ -79,16 +75,15 @@ export default function ReceptionistPatients() {
   });
 
   // Fetch real patient data
-  const { data: patientsData, isLoading: isLoadingPatients } = usePatients(
+  const { data: patientsData } = usePatients(
     clinicId || "",
     {
-      search: searchTerm || undefined,
-      isActive: statusFilter === "all" ? undefined : statusFilter === "active",
+      ...(statusFilter !== "all" && { isActive: statusFilter === "active" }),
     }
   );
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync(["patients", clinicId]);
+  useWebSocketQuerySync();
 
   // Create patient mutation
   const createPatientMutation = useCreatePatient();
@@ -98,7 +93,7 @@ export default function ReceptionistPatients() {
     if (!patientsData) return [];
     return Array.isArray(patientsData)
       ? patientsData
-      : patientsData.patients || [];
+      : (patientsData as any).patients || [];
   }, [patientsData]);
 
   // Calculate age from dateOfBirth if needed
@@ -152,16 +147,23 @@ export default function ReceptionistPatients() {
     }
 
     try {
-      await createPatientMutation.mutateAsync({
-        clinicId,
+      await createPatientMutation.mutate({
         firstName: newPatient.firstName,
         lastName: newPatient.lastName,
         phone: newPatient.phone,
         email: newPatient.email,
-        dateOfBirth: newPatient.dateOfBirth || undefined,
-        gender: newPatient.gender || undefined,
-        address: newPatient.address || undefined,
-      });
+        dateOfBirth: newPatient.dateOfBirth,
+        gender: newPatient.gender as any,
+        address: newPatient.address,
+        emergencyContact: {
+          name: newPatient.emergencyContact,
+          relationship: "", // Default or add field
+          phone: newPatient.emergencyPhone,
+        },
+        medicalHistory: newPatient.medicalHistory ? [newPatient.medicalHistory] : [],
+        allergies: newPatient.allergies ? newPatient.allergies.split(",").map(s => s.trim()) : [],
+        currentMedications: newPatient.currentMedications,
+      } as any);
 
       toast.success("Patient created successfully");
       setShowNewPatientDialog(false);
@@ -172,7 +174,7 @@ export default function ReceptionistPatients() {
         phone: "",
         email: "",
         dateOfBirth: "",
-        gender: "",
+        gender: "" as any,
         address: "",
         emergencyContact: "",
         emergencyPhone: "",
@@ -199,20 +201,9 @@ export default function ReceptionistPatients() {
     }
   };
 
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case "Paid":
-        return "bg-green-100 text-green-800";
-      case "Pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "Overdue":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
 
-  const sidebarLinks = getRoutesByRole(Role.RECEPTIONIST).map((route) => ({
+
+  const sidebarLinks = getRoutesByRole(Role.RECEPTIONIST).map((route: any) => ({
     ...route,
     href: route.path,
     icon: route.path.includes("dashboard") ? (
@@ -237,7 +228,7 @@ export default function ReceptionistPatients() {
 
   return (
     <DashboardLayout title="Patient Management" allowedRole={Role.RECEPTIONIST}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -589,7 +580,7 @@ export default function ReceptionistPatients() {
 
           {/* Patients List */}
           <div className="grid gap-4">
-            {filteredPatients.map((patient) => (
+            {filteredPatients.map((patient: any) => (
               <Card
                 key={patient.id}
                 className="hover:shadow-md transition-shadow"
@@ -841,7 +832,7 @@ export default function ReceptionistPatients() {
                         </Button>
 
                         <Button size="sm">
-                          <CalendarIcon className="w-4 h-4 mr-1" />
+                          <Calendar className="w-4 h-4 mr-1" />
                           Book
                         </Button>
                       </div>
@@ -866,7 +857,7 @@ export default function ReceptionistPatients() {
             </Card>
           )}
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

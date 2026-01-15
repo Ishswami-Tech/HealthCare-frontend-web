@@ -36,15 +36,19 @@ import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
 import { SectionSkeleton } from "@/lib/dynamic-imports";
-import { getIconColorScheme } from "@/lib/color-palette";
+import { getIconColorScheme } from "@/lib/config/color-palette";
 import { toast } from "sonner";
 import {
   useSubmitContactForm,
   useSubmitConsultationBooking,
-} from "@/hooks/useNotifications";
+} from "@/hooks/query/useNotifications";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 
 export default function ContactPage() {
   const { t } = useTranslation();
+  const submitContactFormMutation = useSubmitContactForm();
+  const submitConsultationBookingMutation = useSubmitConsultationBooking();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -52,7 +56,6 @@ export default function ContactPage() {
     condition: "",
     message: "",
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [bookingData, setBookingData] = useState({
     name: "",
@@ -125,7 +128,7 @@ export default function ContactPage() {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        condition: formData.condition || undefined,
+        ...(formData.condition && { condition: formData.condition }),
         message: formData.message,
         type: "contact",
       },
@@ -140,9 +143,11 @@ export default function ContactPage() {
             message: "",
           });
 
-          toast.success(
+          // ✅ Use centralized toast manager
+          showSuccessToast(
             t("contact.form.success.title") || "Message Sent Successfully!",
             {
+              id: TOAST_IDS.CONTACT.SUBMIT,
               description:
                 t("contact.form.success.description") ||
                 "We'll get back to you soon.",
@@ -150,15 +155,12 @@ export default function ContactPage() {
           );
         },
         onError: (error: any) => {
-          toast.error(
-            t("contact.form.error.title") || "Failed to send message",
-            {
-              description:
-                error?.message ||
-                t("contact.form.error.description") ||
-                "Please try again later.",
-            }
-          );
+          // ✅ Use centralized error handler
+          showErrorToast(sanitizeErrorMessage(error) || "Failed to send message", {
+            id: TOAST_IDS.CONTACT.SUBMIT,
+            description:
+              t("contact.form.error.title") || "Failed to send message",
+          });
         },
       }
     );
@@ -192,9 +194,9 @@ export default function ContactPage() {
       {
         name: bookingData.name,
         phone: bookingData.phone,
-        preferredDate: bookingData.preferredDate || undefined,
-        preferredTime: bookingData.preferredTime || undefined,
-        reason: bookingData.reason || undefined,
+        ...(bookingData.preferredDate && { preferredDate: bookingData.preferredDate }),
+        ...(bookingData.preferredTime && { preferredTime: bookingData.preferredTime }),
+        ...(bookingData.reason && { reason: bookingData.reason }),
       },
       {
         onSuccess: () => {

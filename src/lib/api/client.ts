@@ -1,7 +1,8 @@
 // ✅ API Client for Healthcare Frontend - Backend Integration
 // This file provides a comprehensive API client that integrates with the backend clinic app
 
-import { APP_CONFIG, API_ENDPOINTS, HTTP_STATUS, ERROR_CODES } from '@/lib/config/config';
+import { APP_CONFIG, API_ENDPOINTS, HTTP_STATUS, ERROR_CODES, ERROR_MESSAGES } from '@/lib/config/config';
+import { sanitizeErrorMessage, handleApiError } from '@/lib/utils/error-handler';
 import type { 
   ApiResponse, 
   PaginationParams, 
@@ -104,6 +105,12 @@ async function getAuthHeaders(requireAuth: boolean = true): Promise<Record<strin
     clinicId = localStorage.getItem('clinic_id') || undefined;
   }
 
+  // ✅ Fallback to APP_CONFIG.CLINIC.ID if clinic ID is not in cookies/localStorage
+  // This ensures clinic ID is always set from environment variable or config default
+  if (!clinicId) {
+    clinicId = APP_CONFIG.CLINIC.ID;
+  }
+
   // ✅ Enforce authentication unless explicitly disabled
   if (requireAuth && !accessToken) {
     throw new ApiError(
@@ -123,6 +130,7 @@ async function getAuthHeaders(requireAuth: boolean = true): Promise<Record<strin
     headers['X-Session-ID'] = sessionId;
   }
 
+  // ✅ Always include clinic ID in headers (from cookie/localStorage or config)
   if (clinicId) {
     headers['X-Clinic-ID'] = clinicId;
   }
@@ -202,11 +210,14 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   
   // Handle error responses
   if (!response.ok) {
+    // ✅ Use centralized error handler to sanitize error messages
+    const userFriendlyMessage = await handleApiError(response, data);
+    
     const errorResponse: ErrorResponse = {
       success: false,
-      error: data?.error || 'Unknown error',
+      error: data?.error || ERROR_CODES.SYSTEM_ERROR,
       code: data?.code || ERROR_CODES.SYSTEM_ERROR,
-      message: data?.message || `HTTP ${response.status}`,
+      message: userFriendlyMessage, // Use sanitized user-friendly message
       statusCode: response.status,
       timestamp: new Date().toISOString(),
       path: response.url,
@@ -294,7 +305,12 @@ export class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
+    // ✅ Add API prefix if this is ClinicApiClient and endpoint doesn't already include it
+    const apiPrefix = (this as any).API_PREFIX || '';
+    const prefixedEndpoint = apiPrefix && !endpoint.startsWith(apiPrefix) 
+      ? `${apiPrefix}${endpoint}` 
+      : endpoint;
+    const url = `${this.baseURL}${prefixedEndpoint}`;
     const method = (options.method || 'GET').toUpperCase();
     const cacheKey = this.getCacheKey(endpoint, options);
     
@@ -370,15 +386,20 @@ export class ApiClient {
       }
       
       if ((error as any).name === 'AbortError') {
-        throw new TimeoutError();
+        throw new TimeoutError(ERROR_MESSAGES.TIMEOUT_ERROR);
       }
       
       if (error instanceof TypeError && (error as Error).message.includes('fetch')) {
-        throw new NetworkError();
+        throw new NetworkError(ERROR_MESSAGES.NETWORK_ERROR);
       }
       
+      // ✅ Use centralized error handler
+      const errorMessage = sanitizeErrorMessage(
+        error instanceof Error ? error : new Error(String(error))
+      );
+      
       throw new ApiError(
-        error instanceof Error ? (error as Error).message : 'Unknown error occurred',
+        errorMessage,
         500,
         ERROR_CODES.SYSTEM_ERROR
       );
@@ -423,7 +444,12 @@ export class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
+    // ✅ Add API prefix if this is ClinicApiClient and endpoint doesn't already include it
+    const apiPrefix = (this as any).API_PREFIX || '';
+    const prefixedEndpoint = apiPrefix && !endpoint.startsWith(apiPrefix) 
+      ? `${apiPrefix}${endpoint}` 
+      : endpoint;
+    const url = `${this.baseURL}${prefixedEndpoint}`;
     return this.executeRequest<T>(url, options, false); // false = don't require auth
   }
 
@@ -473,6 +499,7 @@ export class ApiClient {
 // ✅ Clinic API Client (Optimized for 100K users)
 export class ClinicApiClient extends ApiClient {
   private static instance: ClinicApiClient;
+  // Note: API_PREFIX is handled by base ApiClient class
 
   constructor() {
     super({
@@ -549,7 +576,7 @@ export class ClinicApiClient extends ApiClient {
   }
 
   async changePassword(data: { currentPassword: string; newPassword: string }) {
-    return this.post(API_ENDPOINTS.AUTH.LOGIN, data); // Note: Backend may use different endpoint
+    return this.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, data);
   }
 
   async getProfile() {

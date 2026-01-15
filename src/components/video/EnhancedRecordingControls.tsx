@@ -15,20 +15,19 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  CircleDot,
   Pause,
   Play,
-  Square,
   Settings,
   Loader2,
 } from "lucide-react";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { Badge } from "@/components/ui/badge";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
   pauseRecording,
   resumeRecording,
   setRecordingQuality,
 } from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/utils/use-toast";
 
 interface EnhancedRecordingControlsProps {
   appointmentId: string;
@@ -39,7 +38,6 @@ interface EnhancedRecordingControlsProps {
 export function EnhancedRecordingControls({
   appointmentId,
   isRecording,
-  onRecordingChange,
 }: EnhancedRecordingControlsProps) {
   const { toast } = useToast();
   const [isPaused, setIsPaused] = useState(false);

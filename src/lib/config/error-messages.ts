@@ -29,7 +29,6 @@ export const ERROR_MESSAGES = {
   OTP_INVALID: 'Invalid OTP. Please check and try again.',
   
   // Registration
-  REGISTRATION_FAILED: 'Registration failed. Please try again.',
   
   // Network & System
   NETWORK_ERROR: 'Network error. Please check your connection and try again.',
@@ -52,6 +51,34 @@ export const ERROR_MESSAGES = {
   APPOINTMENT_NOT_FOUND: 'Appointment not found.',
   APPOINTMENT_CONFLICT: 'This appointment time conflicts with an existing appointment.',
   APPOINTMENT_CANNOT_CANCEL: 'This appointment cannot be cancelled.',
+  
+  // Clinic
+  CLINIC_NOT_FOUND: 'Clinic not found.',
+  CLINIC_CREATE_FAILED: 'Failed to create clinic. Please try again.',
+  CLINIC_UPDATE_FAILED: 'Failed to update clinic. Please try again.',
+  
+  // Users
+  USER_NOT_FOUND: 'User not found.',
+  USER_UPDATE_FAILED: 'Failed to update user. Please try again.',
+  
+  // Notifications
+  NOTIFICATION_FAILED: 'Failed to send notification. Please try again.',
+  NOTIFICATION_SETTINGS_UPDATE_FAILED: 'Failed to update notification settings. Please try again.',
+  
+  // Health
+  HEALTH_CHECK_FAILED: 'Health check failed. Please try again later.',
+  
+  // Video Appointments
+  VIDEO_APPOINTMENT_FAILED: 'Video appointment operation failed. Please try again.',
+  VIDEO_APPOINTMENT_NOT_FOUND: 'Video appointment not found.',
+  
+  // Billing
+  PAYMENT_FAILED: 'Payment processing failed. Please try again.',
+  PAYMENT_NOT_FOUND: 'Payment not found.',
+  
+  // Medical Records
+  MEDICAL_RECORD_NOT_FOUND: 'Medical record not found.',
+  MEDICAL_RECORD_CREATE_FAILED: 'Failed to create medical record. Please try again.',
   
   // Generic
   UNKNOWN_ERROR: 'An unexpected error occurred. Please try again.',

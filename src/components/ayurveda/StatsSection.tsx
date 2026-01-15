@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+
 import { useTranslation } from "@/lib/i18n/context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

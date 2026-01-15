@@ -1,7 +1,8 @@
 'use server';
 
-import { DetailedHealthStatus } from '@/hooks/useHealth';
+import type { DetailedHealthStatus } from '@/hooks/query/useHealth';
 import { APP_CONFIG } from '@/lib/config/config';
+import { handleApiError } from '@/lib/utils/error-handler';
 
 // Health check server action for initial fetch
 // Note: Health endpoint is public, no authentication required
@@ -63,11 +64,15 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
     }
     
     if (!response.ok) {
+      // ✅ Use centralized error handler for message
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = await handleApiError(response, errorData);
+      
       // Return unavailable status instead of throwing
       return {
         status: 'unavailable',
         timestamp: new Date().toISOString(),
-        message: `Health check failed: ${response.status}`,
+        message: errorMessage,
         database: { status: 'unknown', isHealthy: false },
         cache: { status: 'unknown', healthy: false },
         queue: { status: 'unknown', healthy: false },

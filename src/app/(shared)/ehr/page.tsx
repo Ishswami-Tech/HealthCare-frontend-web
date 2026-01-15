@@ -1,43 +1,42 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   usePatientLabResults,
   useSearchPatients,
-} from "@/hooks/usePatients";
+} from "@/hooks/query/usePatients";
 import {
   useClinicContext,
   useClinicPatients,
-} from "@/hooks/useClinic";
+} from "@/hooks/query/useClinics";
 import {
   usePatientMedicalRecords,
-} from "@/hooks/usePatients";
+} from "@/hooks/query/usePatients";
 import {
   useCreateMedicalRecord,
-} from "@/hooks/useMedicalRecords";
+} from "@/hooks/query/useMedicalRecords";
 import {
-  useClinicEHRAnalytics,
   useClinicCriticalAlerts,
-  useSearchClinicEHR,
-} from "@/hooks/useEHRClinic";
-import { usePatientPermissions } from "@/hooks/useRBAC";
+} from "@/hooks/query/useEHRClinic";
+import { usePatientPermissions } from "@/hooks/utils/useRBAC";
 import {
   ProtectedComponent,
   PatientProtectedComponent,
   MedicalRecordsRouteProtection,
 } from "@/components/rbac";
 import { useMedicalRecordsActions } from "@/stores";
+import { LoadingSpinner } from "@/components/ui/loading";
 import {
   Activity,
   Calendar,
@@ -86,16 +85,14 @@ export default function EHRSystem() {
   // Zustand store actions
   const medicalRecordsActions = useMedicalRecordsActions();
 
+
   // Fetch patients data with proper permissions using clinic-aware hook
   const {
     data: patients,
     isPending: patientsLoading,
     error: patientsError,
     refetch: refetchPatients,
-  } = useClinicPatients({
-    search: searchTerm,
-    limit: 50,
-  });
+  } = useClinicPatients(clinicId || "");
 
   // Fetch medical records for selected patient
   const { data: medicalRecords } =
@@ -103,11 +100,7 @@ export default function EHRSystem() {
       enabled: !!clinicId && !!selectedPatientId,
     });
 
-  // Fetch clinic-wide EHR analytics (for clinic admins)
-  const { data: clinicAnalytics, isPending: analyticsLoading } = useClinicEHRAnalytics(
-    clinicId || "",
-    'month'
-  );
+
 
   // Fetch clinic critical alerts
   const { data: criticalAlertsData } = useClinicCriticalAlerts(clinicId || "", {
@@ -305,10 +298,7 @@ export default function EHRSystem() {
         showPermissionWarnings={true}
       >
         <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading EHR system...</p>
-          </div>
+          <LoadingSpinner size="lg" color="primary" text="Loading EHR system..." />
         </div>
       </DashboardLayout>
     );
@@ -343,7 +333,7 @@ export default function EHRSystem() {
         showPermissionWarnings={true}
         customUnauthorizedMessage="You need medical records access to view the EHR system."
       >
-        <GlobalSidebar
+        <Sidebar
           links={sidebarLinks}
           user={{
             name:
@@ -1026,7 +1016,7 @@ export default function EHRSystem() {
               </TabsContent>
             </Tabs>
           </div>
-        </GlobalSidebar>
+        </Sidebar>
       </DashboardLayout>
     </MedicalRecordsRouteProtection>
   );

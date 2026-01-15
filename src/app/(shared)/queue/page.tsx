@@ -1,27 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/hooks/useAuth";
-import { useQueuePermissions } from "@/hooks/useRBAC";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useQueuePermissions } from "@/hooks/utils/useRBAC";
 import { QueueProtectedComponent, ProtectedComponent } from "@/components/rbac";
-import {
-  useQueue,
-  useUpdateQueueStatus,
-  useCallNextPatient,
-  useQueueStats,
-} from "@/hooks/useQueue";
-import { useClinicContext } from "@/hooks/useClinic";
+import { useQueue, useQueueStats } from "@/hooks/query/useQueue";
+// ✅ Removed: useUpdateQueueStatus, useCallNextPatient - using optimistic hooks instead
+import { useClinicContext } from "@/hooks/query/useClinics";
 import { Permission } from "@/types/rbac.types";
-import { useRealTimeQueueStatus } from "@/hooks/useRealTimeQueries";
+import { useRealTimeQueueStatus } from "@/hooks/realtime/useRealTimeQueries";
 import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { toast } from "sonner";
-import { useOptimisticUpdateQueueStatus, useOptimisticCallNextPatient } from "@/hooks/useOptimisticQueue";
-import { CardSuspense } from "@/components/ui/suspense-boundary";
+import {
+  useOptimisticUpdateQueueStatus,
+  useOptimisticCallNextPatient,
+} from "@/hooks/utils/useOptimisticQueue";
 
 // Real-time queue data interface
 import {
@@ -83,14 +81,12 @@ export default function QueuePage() {
   // Mutation hooks for queue actions with React 19 useOptimistic
   const updateQueueStatusOptimistic = useOptimisticUpdateQueueStatus(clinicId);
   const callNextPatientOptimistic = useOptimisticCallNextPatient(clinicId);
-  
-  // Legacy hooks for backward compatibility
-  const updateQueueStatusMutation = useUpdateQueueStatus();
-  const callNextPatientMutation = useCallNextPatient();
+
+  // ✅ Use optimistic hooks (React 19) - no legacy hooks needed
 
   // Handle queue actions with optimistic updates
   const handleUpdateQueueStatus = (patientId: string, status: string) => {
-    updateQueueStatusOptimistic.mutation.mutate(
+    updateQueueStatusOptimistic.mutate(
       { patientId, status },
       {
         onSuccess: () => {
@@ -99,10 +95,10 @@ export default function QueuePage() {
       }
     );
   };
-  
+
   const handleCallNextPatient = (queueType: string) => {
-    callNextPatientMutation.mutate(
-      { queueType },
+    callNextPatientOptimistic.mutate(
+      (queueType as any),
       {
         onSuccess: () => {
           refetchQueue();
@@ -144,8 +140,8 @@ export default function QueuePage() {
   // Real-time queue data from API - filter by queue type
   const getQueueByType = (type: string) => {
     if (!queueData) return [];
-    const data = Array.isArray(queueData?.data)
-      ? queueData.data
+    const data = Array.isArray((queueData as any)?.data)
+      ? (queueData as any).data
       : Array.isArray(queueData)
       ? queueData
       : [];
@@ -161,45 +157,7 @@ export default function QueuePage() {
   const panchakarmaQueue = getQueueByType("panchakarma");
   const shirodharaQueue = getQueueByType("shirodhara");
 
-  const therapyQueues = {
-    agnikarma: [
-      {
-        id: "t1",
-        patientName: "Sunita Devi",
-        doctorName: "Dr. Priya Sharma",
-        appointmentTime: "2:00 PM",
-        status: "waiting",
-        type: "Agnikarma",
-        checkedInAt: "1:45 PM",
-        estimatedDuration: "45 min",
-      },
-    ],
-    panchakarma: [
-      {
-        id: "t2",
-        patientName: "Manoj Tiwari",
-        doctorName: "Dr. Amit Patel",
-        appointmentTime: "3:00 PM",
-        status: "in-progress",
-        type: "Panchakarma",
-        checkedInAt: "2:45 PM",
-        startedAt: "3:05 PM",
-        estimatedDuration: "90 min",
-      },
-    ],
-    shirodhara: [
-      {
-        id: "t3",
-        patientName: "Kavita Sharma",
-        doctorName: "Dr. Ravi Mehta",
-        appointmentTime: "4:00 PM",
-        status: "waiting",
-        type: "Shirodhara",
-        checkedInAt: "3:50 PM",
-        estimatedDuration: "60 min",
-      },
-    ],
-  };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -292,10 +250,10 @@ export default function QueuePage() {
                       onClick={() =>
                         handleUpdateQueueStatus(item.id, "IN_PROGRESS")
                       }
-                      disabled={updateQueueStatusMutation.isPending}
+                      disabled={updateQueueStatusOptimistic.isPending}
                     >
                       <Play className="w-3 h-3" />
-                      {updateQueueStatusMutation.isPending
+                      {updateQueueStatusOptimistic.isPending
                         ? "Starting..."
                         : "Start"}
                     </Button>
@@ -313,7 +271,7 @@ export default function QueuePage() {
                         onClick={() =>
                           handleUpdateQueueStatus(item.id, "WAITING")
                         }
-                        disabled={updateQueueStatusMutation.isPending}
+                        disabled={updateQueueStatusOptimistic.isPending}
                       >
                         <Pause className="w-3 h-3" />
                         Pause
@@ -327,7 +285,7 @@ export default function QueuePage() {
                         onClick={() =>
                           handleUpdateQueueStatus(item.id, "COMPLETED")
                         }
-                        disabled={updateQueueStatusMutation.isPending}
+                        disabled={updateQueueStatusOptimistic.isPending}
                       >
                         <CheckCircle className="w-3 h-3" />
                         Complete
@@ -344,10 +302,10 @@ export default function QueuePage() {
                       variant="outline"
                       className="flex items-center gap-1"
                       onClick={() => handleCallNextPatient(activeQueue)}
-                      disabled={callNextPatientMutation.isPending}
+                      disabled={callNextPatientOptimistic.isPending}
                     >
                       <SkipForward className="w-3 h-3" />
-                      {callNextPatientMutation.isPending
+                      {callNextPatientOptimistic.isPending
                         ? "Calling..."
                         : "Call Next"}
                     </Button>
@@ -378,7 +336,7 @@ export default function QueuePage() {
       </div>
       {items.length > 0 ? (
         <div className="space-y-3">
-          {items.map((item) => (
+          {items.map((item: any) => (
             <QueueCard key={item.id} item={item} />
           ))}
         </div>
@@ -567,7 +525,7 @@ export default function QueuePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {consultationQueue.map((item) => (
+              {consultationQueue.map((item: any) => (
                 <QueueCard key={item.id} item={item} />
               ))}
             </CardContent>

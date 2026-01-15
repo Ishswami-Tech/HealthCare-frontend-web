@@ -2,11 +2,13 @@
 
 import { Role, RegisterFormData } from '@/types/auth.types';
 import { redirect } from 'next/navigation';
-import { getDashboardByRole } from '@/lib/config/config';
+import { getDashboardByRole } from '@/lib/config/routes';
+import { calculateProfileCompletion } from '@/lib/config/profile';
 import { cookies } from 'next/headers';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/utils/logger';
 import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
+import { handleApiError, sanitizeErrorMessage } from '@/lib/utils/error-handler';
 
 // Import central configuration
 import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
@@ -23,8 +25,11 @@ const API_PREFIX = '/api/v1';
 // Clinic ID from central config
 const CLINIC_ID = APP_CONFIG.CLINIC.ID;
 
-// Environment-aware logging
-if (APP_CONFIG.IS_DEVELOPMENT || APP_CONFIG.FEATURES.DEBUG) {
+// ✅ Environment-aware logging - only log once per process startup
+// Use a module-level flag to prevent duplicate logs
+let hasLoggedEnvironment = false;
+if ((APP_CONFIG.IS_DEVELOPMENT || APP_CONFIG.FEATURES.DEBUG) && !hasLoggedEnvironment) {
+  hasLoggedEnvironment = true;
   logger.info('Environment configuration', { 
     environment: APP_CONFIG.ENVIRONMENT,
     apiUrl: API_URL,
@@ -151,12 +156,24 @@ export async function getServerSession(): Promise<Session | null> {
     const sessionId = cookieStore.get('session_id')?.value;
     const userRole = cookieStore.get('user_role')?.value;
 
-    logger.debug('getServerSession - Checking cookies', {
-      hasAccessToken: !!accessToken,
-      hasRefreshToken: !!refreshTokenValue,
-      hasSessionId: !!sessionId,
-      userRole
-    });
+    // ✅ Only log in development - use request-scoped deduplication
+    // In Next.js server actions, each request gets a new execution context
+    // Use a WeakMap to track logs per request (using the function call stack as key)
+    if (process.env.NODE_ENV === 'development') {
+      // Simple approach: only log if we haven't logged in the last 500ms
+      // This prevents duplicate logs from React Query deduplication and React Strict Mode
+      const now = Date.now();
+      const lastLog = (global as any).__lastSessionCheckLog || 0;
+      if (now - lastLog > 500) {
+        (global as any).__lastSessionCheckLog = now;
+        logger.debug('getServerSession - Checking cookies', {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshTokenValue,
+          hasSessionId: !!sessionId,
+          userRole
+        });
+      }
+    }
 
     // If no access token, try to refresh if we have a refresh token
     if (!accessToken && refreshTokenValue) {
@@ -174,11 +191,23 @@ export async function getServerSession(): Promise<Session | null> {
       }
     }
 
-    // If no tokens at all, return null
+    // If no tokens at all, return null immediately (don't make any API calls)
     if (!accessToken) {
-      logger.debug('getServerSession - No tokens found');
+      // ✅ Only log in development and prevent duplicate logs
+      if (process.env.NODE_ENV === 'development') {
+        const now = Date.now();
+        const lastLog = (global as any).__lastNoTokenLog || 0;
+        // ✅ Increased to 500ms to catch rapid duplicate calls
+        if (now - lastLog > 500) {
+          (global as any).__lastNoTokenLog = now;
+          logger.debug('getServerSession - No tokens found');
+        }
+      }
       return null;
     }
+    
+    // ✅ On auth pages, we can return early if we have a token but don't need full user data
+    // This prevents blocking API calls when just checking if user is authenticated
 
     // Use the token data directly instead of fetching user data again
     // This avoids the 404 error when the /users/me endpoint might not be available
@@ -219,9 +248,10 @@ export async function getServerSession(): Promise<Session | null> {
       }
 
       // Fall back to API call if JWT parsing fails
+      // ✅ Reduce timeout for auth pages to prevent blocking navigation
       logger.debug('getServerSession - Attempting to fetch user data from API');
       const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.USERS.PROFILE}`, {
-        timeout: 10000,
+        timeout: 3000, // ✅ Reduced from 10000 to 3000ms to prevent blocking
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'X-Session-ID': sessionId || '',
@@ -435,17 +465,25 @@ export async function login(data: {
       timeout: 10000, // 10 second timeout
     });
 
-    const result = await response.json();
+    // ✅ Use centralized error handler for user-friendly messages
+    let result: any = {};
+    try {
+      result = await response.json();
+    } catch {
+      result = {};
+    }
 
     if (!response.ok) {
-      throw new Error(result.message || result.error || 'Login failed');
+      // ✅ Use centralized error handler
+      const errorMessage = await handleApiError(response, result);
+      throw new Error(errorMessage);
     }
 
     logger.info('Login successful', { userId: result.user?.id, email: result.user?.email });
 
     // Set authentication cookies
     const cookieStore = await cookies();
-    const profileComplete = calculateProfileCompletionFromUserData(result.user);
+    const profileComplete = calculateProfileCompletion(result.user);
 
     // Set access token
     cookieStore.set({
@@ -518,59 +556,106 @@ export async function register(data: RegisterFormData & { clinicId?: string }) {
       email: data.email 
     });
     
-    // Ensure firstName and lastName are properly formatted
-    const formattedData = {
-      ...data,
+    // ✅ CRITICAL: Clinic ID is REQUIRED by backend
+    // Priority: Use clinicId from data, then from env config
+    // Backend can handle both UUID and clinic code (like "CL0002") - it will resolve to UUID automatically
+    const finalClinicId = (data.clinicId || CLINIC_ID)?.trim();
+    
+    // ✅ Ensure clinicId is always provided (backend requires it)
+    if (!finalClinicId || finalClinicId === '') {
+      const errorMsg = 'Clinic ID is required for registration. Please configure NEXT_PUBLIC_CLINIC_ID or provide clinicId in registration data.';
+      logger.error('Registration failed: No clinic ID available', new Error(errorMsg));
+      throw new Error(errorMsg);
+    }
+    
+    // ✅ Clean up data to match backend RegisterDto exactly
+    // Backend expects: email, password, firstName, lastName, phone, clinicId (required)
+    //                  role?, gender?, dateOfBirth?, address?, studioId?, emergencyContact?, googleId? (optional)
+    // Frontend may send: confirmPassword, age, terms (frontend-only - must be removed)
+    
+    // Calculate dateOfBirth from age if provided
+    let dateOfBirth: string | undefined;
+    if (data.dateOfBirth) {
+      dateOfBirth = data.dateOfBirth;
+    } else if ((data as any).age) {
+      // Convert age to dateOfBirth (approximate - subtract age from current year)
+      const currentYear = new Date().getFullYear();
+      const birthYear = currentYear - Number((data as any).age);
+      dateOfBirth = `${birthYear}-01-01`; // Use January 1st as default
+    }
+    
+    // Build clean request body matching backend RegisterDto
+    // ✅ clinicId is REQUIRED - always included
+    const formattedData: {
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      clinicId: string; // REQUIRED by backend
+      role?: string;
+      gender?: string;
+      dateOfBirth?: string;
+      address?: string;
+    } = {
+      email: data.email.trim().toLowerCase(),
+      password: data.password,
       firstName: data.firstName.trim(),
       lastName: data.lastName.trim(),
+      phone: (data.phone || '').trim(),
+      clinicId: finalClinicId, // ✅ REQUIRED - backend will resolve clinic code to UUID if needed
+      // Optional fields - only include if provided
+      ...(data.role && { role: data.role }),
+      ...(data.gender && { gender: data.gender.toUpperCase() }), // Backend expects MALE/FEMALE/OTHER
+      ...(dateOfBirth && { dateOfBirth }),
+      ...((data as any).address && { address: (data as any).address }),
+      // ✅ Explicitly excluded: confirmPassword, age, terms - these are frontend-only validation fields
     };
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      // ✅ Always include clinic ID in headers for multi-tenant context
+      'X-Clinic-ID': finalClinicId,
     };
-
-    // Priority: Use clinicId from data, then from env
-    let finalClinicId = data.clinicId || CLINIC_ID;
     
-    // ⚠️ IMPORTANT: Backend expects UUID format for clinicId
-    // If we have a clinic code (like "CL0002"), we need to convert it to UUID
-    // For now, if it's not a UUID, we'll need to look it up or use a default
-    // TODO: Implement clinic code to UUID lookup if needed
-    
-    // Always include clinic ID in headers
-    if (finalClinicId) {
-      headers['X-Clinic-ID'] = finalClinicId;
-      logger.debug('Added X-Clinic-ID header', { clinicId: finalClinicId });
-    } else {
-      logger.warn('No clinic ID available for registration');
-    }
-
-    // Always include clinic ID in request body for redundancy
-    if (finalClinicId) {
-      formattedData.clinicId = finalClinicId;
-      logger.debug('Added clinicId to request body', { clinicId: finalClinicId });
-    }
-
-    logger.debug('Registration request', { 
-      url: `${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REGISTER}`,
-      headers: Object.keys(headers),
-      bodyKeys: Object.keys(formattedData)
+    logger.debug('Registration request prepared', { 
+      clinicId: finalClinicId,
+      hasClinicIdInBody: !!formattedData.clinicId,
+      hasClinicIdInHeader: !!headers['X-Clinic-ID'],
     });
 
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REGISTER}`, {
+    const fullUrl = `${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REGISTER}`;
+    logger.debug('Registration request', { 
+      url: fullUrl,
+      headers: Object.keys(headers),
+      bodyKeys: Object.keys(formattedData),
+      clinicId: finalClinicId
+    });
+
+    const response = await fetchWithAbort(fullUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(formattedData),
       timeout: 15000, // Registration may take longer
     });
 
-    const responseData = await response.json();
+    // ✅ Use centralized error handler for user-friendly messages
+    let responseData: any = {};
+    try {
+      responseData = await response.json();
+    } catch {
+      responseData = {};
+    }
 
     if (!response.ok) {
-      const errorMessage = responseData.message || responseData.error || 'Registration failed';
+      // ✅ Use centralized error handler
+      const errorMessage = await handleApiError(response, responseData);
       logger.error('Registration error', new Error(errorMessage), {
         status: response.status,
         statusText: response.statusText,
+        url: fullUrl,
+        originalError: responseData.message || responseData.error,
+        responseBody: responseData,
       });
       throw new Error(errorMessage);
     }
@@ -1035,6 +1120,46 @@ async function logoutAllDevices() {
 }
 
 /**
+ * ✅ Get User Sessions
+ * Backend endpoint: GET /auth/sessions
+ */
+export async function getUserSessions() {
+  try {
+    const session = await getServerSession();
+    if (!session) {
+      throw new Error('Not authenticated');
+    }
+
+    logger.debug('[getUserSessions] Fetching user sessions');
+
+    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.SESSIONS}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'X-Session-ID': session.session_id,
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      const errorMessage = await handleApiError(response, error);
+      logger.error('[getUserSessions] Failed', { error: errorMessage });
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    logger.info('[getUserSessions] Success', { sessionsCount: Array.isArray(data) ? data.length : 0 });
+    return data;
+  } catch (error) {
+    const errorMessage = sanitizeErrorMessage(error);
+    logger.error('[getUserSessions] Error', { error: errorMessage });
+    throw new Error(errorMessage);
+  }
+}
+
+/**
  * Terminate All Sessions
  */
 export async function terminateAllSessions() {
@@ -1383,7 +1508,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       });
 
       // Set profile completion status based on user data
-      const profileComplete = calculateProfileCompletionFromUserData(result.user);
+      const profileComplete = calculateProfileCompletion(result.user);
       cookieStore.set({
         name: 'profile_complete',
         value: profileComplete.toString(),
@@ -1439,7 +1564,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
               };
               
               // Recalculate profile completion based on updated data
-              const updatedProfileComplete = calculateProfileCompletionFromUserData(result.user);
+              const updatedProfileComplete = calculateProfileCompletion(result.user);
               if (updatedProfileComplete !== profileComplete) {
                 logger.debug('Updating profile completion cookie based on API response', { updatedProfileComplete });
                 cookieStore.set({
@@ -1472,7 +1597,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
           lastName: result.user.lastName || '',
           isNewUser: result.isNewUser,
           googleId: result.user.googleId,
-          profileComplete: calculateProfileCompletionFromUserData(result.user)
+          profileComplete: calculateProfileCompletion(result.user)
         },
         token: result.access_token,
         redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
@@ -1553,21 +1678,3 @@ export async function setProfileComplete(complete: boolean) {
   
   logger.debug('Profile completion cookie set successfully');
 }
-
-function calculateProfileCompletionFromUserData(user: {
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  dateOfBirth?: string | null;
-  gender?: string;
-  address?: string;
-}): boolean {
-  return !!(
-    user.firstName?.trim() &&
-    user.lastName?.trim() &&
-    user.phone?.trim() &&
-    user.dateOfBirth &&
-    user.gender?.trim() &&
-    user.address?.trim()
-  );
-} 

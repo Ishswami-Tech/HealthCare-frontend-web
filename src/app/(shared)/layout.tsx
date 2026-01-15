@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { Button } from "@/components/ui/button";

@@ -1,7 +1,10 @@
-import { NextConfig } from 'next';
-import createNextIntlPlugin from 'next-intl/plugin';
+/**
+ * ✅ Next.js Configuration
+ * Removed next-intl plugin - using consolidated i18n from @/lib/i18n
+ * Follows DRY, SOLID, KISS principles
+ */
 
-const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+import { NextConfig } from 'next';
 
 const config: NextConfig = {
   // Enable React strict mode for better development experience
@@ -28,7 +31,10 @@ const config: NextConfig = {
   // ✅ Output configuration
   output: 'standalone', // Optimize for Docker deployment
   
-  // ✅ Webpack optimizations for 10M users
+  // ✅ Turbopack configuration (Next.js 16 default)
+  turbopack: {},
+  
+  // ✅ Webpack optimizations for 10M users (fallback for non-turbopack builds)
   webpack: (config, { dev, isServer }) => {
     // Existing webpack config
     if (dev) {
@@ -189,9 +195,9 @@ const config: NextConfig = {
 
   // TypeScript configuration for build
   typescript: {
-    // Disable TypeScript error checking for auth-disabled build
-    ignoreBuildErrors: true,
+    // Enable TypeScript error checking for production build
+    ignoreBuildErrors: false,
   },
 };
 
-export default withNextIntl(config);
+export default config;

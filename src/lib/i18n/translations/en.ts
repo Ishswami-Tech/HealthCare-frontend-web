@@ -1974,7 +1974,15 @@ export const en: TranslationKeys = {
       },
       mentalClarity: {
         title: 'Mental Clarity',
-        description: 'Enhancing cognitive function and mental peace through holistic healing'
+        description: 'Improved focus and mental wellness through holistic treatment'
+      },
+      longTermResults: {
+        title: 'Long-term Results',
+        description: 'Sustainable health improvements and lasting wellness'
+      },
+      provenEfficacy: {
+        title: 'Proven Efficacy',
+        description: 'Time-tested traditional methods with proven effectiveness'
       }
     },
     processGallery: {

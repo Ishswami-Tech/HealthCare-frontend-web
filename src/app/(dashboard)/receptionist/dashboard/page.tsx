@@ -1,15 +1,15 @@
 "use client";
 
-import React from "react";
+
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useMyAppointments } from "@/hooks/useAppointments";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useMyAppointments } from "@/hooks/query/useAppointments";
 import {
   Activity,
   Calendar,
@@ -198,7 +198,7 @@ export default function ReceptionistDashboard() {
       title="Receptionist Dashboard"
       allowedRole={Role.RECEPTIONIST}
     >
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -617,7 +617,7 @@ export default function ReceptionistDashboard() {
             </CardContent>
           </Card>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

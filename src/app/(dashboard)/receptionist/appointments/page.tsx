@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
-import { useAppointments } from "@/hooks/useAppointments";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { useAppointments } from "@/hooks/query/useAppointments";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Activity,
   Calendar,
@@ -59,14 +58,14 @@ export default function ReceptionistAppointments() {
   // Fetch real appointment data
   const { data: appointmentsData, isLoading: isLoadingAppointments } =
     useAppointments({
-      clinicId: clinicId || undefined,
-      status: statusFilter === "all" ? undefined : statusFilter,
-      date: selectedDate || undefined,
+      ...(clinicId ? { clinicId } : {}),
+      ...(statusFilter !== "all" ? { status: statusFilter as any } : {}),
+      ...(selectedDate ? { date: selectedDate } : {}),
       limit: 100,
     });
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync(["appointments", clinicId]);
+  useWebSocketQuerySync();
 
   // Transform appointments data
   const appointments = useMemo(() => {
@@ -178,7 +177,7 @@ export default function ReceptionistAppointments() {
         title="Appointment Management"
         allowedRole={Role.RECEPTIONIST}
       >
-        <GlobalSidebar
+        <Sidebar
           links={sidebarLinks}
           user={{
             name:
@@ -191,7 +190,7 @@ export default function ReceptionistAppointments() {
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
+        </Sidebar>
       </DashboardLayout>
     );
   }
@@ -269,7 +268,7 @@ export default function ReceptionistAppointments() {
       title="Appointment Management"
       allowedRole={Role.RECEPTIONIST}
     >
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -758,7 +757,7 @@ export default function ReceptionistAppointments() {
             </CardContent>
           </Card>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

@@ -6,11 +6,12 @@
 "use client";
 
 import { useFormStatus } from 'react-dom';
-import { Button, ButtonProps } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+// import type { VariantProps } from 'class-variance-authority';
 import { Loader2 } from 'lucide-react';
 import { forwardRef } from 'react';
 
-export interface FormStatusButtonProps extends Omit<ButtonProps, 'disabled' | 'type'> {
+export interface FormStatusButtonProps extends Omit<React.ComponentProps<typeof Button>, 'disabled' | 'type'> {
   /**
    * Custom loading text
    */
@@ -66,9 +67,9 @@ FormStatusButton.displayName = 'FormStatusButton';
  * Shows form submission status
  */
 export function FormStatusIndicator() {
-  const { pending, data, method, action } = useFormStatus();
+  const { pending } = useFormStatus();
   
-  if (!pending && !data) return null;
+  if (!pending) return null;
   
   return (
     <div className="flex items-center gap-2 text-sm text-muted-foreground">

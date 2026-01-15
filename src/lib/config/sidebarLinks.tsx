@@ -3,16 +3,12 @@ import {
   Home,
   User,
   Settings,
-  LogOut,
   Calendar,
   Users,
-  Stethoscope,
   FileText,
   Building2,
   Pill,
   Package,
-  Activity,
-  Video,
 } from "lucide-react";
 import { Role } from "@/types/auth.types";
 
@@ -36,56 +32,53 @@ const iconWrapper = (Icon: React.ComponentType<{ className?: string }>) => {
 const HomeIcon = iconWrapper(Home);
 const UserIcon = iconWrapper(User);
 const SettingsIcon = iconWrapper(Settings);
-const LogOutIcon = iconWrapper(LogOut);
 const CalendarIcon = iconWrapper(Calendar);
 const UsersIcon = iconWrapper(Users);
-const StethoscopeIcon = iconWrapper(Stethoscope);
 const FileTextIcon = iconWrapper(FileText);
 const BuildingIcon = iconWrapper(Building2);
 const PillIcon = iconWrapper(Pill);
 const PackageIcon = iconWrapper(Package);
-const ActivityIcon = iconWrapper(Activity);
-const VideoIcon = iconWrapper(Video);
+// Unused icons removed: LogOutIcon, StethoscopeIcon, ActivityIcon, VideoIcon
 
 // Role-based sidebar links
 export const sidebarLinksByRole: Record<Role, SidebarLink[]> = {
   [Role.SUPER_ADMIN]: [
-    { label: "Dashboard", path: "/super-admin/dashboard", icon: HomeIcon },
-    { label: "Clinics", path: "/super-admin/clinics", icon: BuildingIcon },
-    { label: "Users", path: "/super-admin/users", icon: UsersIcon },
-    { label: "Settings", path: "/super-admin/settings", icon: SettingsIcon },
+    { label: "Dashboard", path: "/(dashboard)/super-admin/dashboard", icon: HomeIcon },
+    { label: "Clinics", path: "/(dashboard)/super-admin/clinics", icon: BuildingIcon },
+    { label: "Users", path: "/(dashboard)/super-admin/users", icon: UsersIcon },
+    { label: "Settings", path: "/(dashboard)/super-admin/settings", icon: SettingsIcon },
   ],
   [Role.CLINIC_ADMIN]: [
-    { label: "Dashboard", path: "/clinic-admin/dashboard", icon: HomeIcon },
-    { label: "Staff", path: "/clinic-admin/staff", icon: UsersIcon },
-    { label: "Locations", path: "/clinic-admin/locations", icon: BuildingIcon },
-    { label: "Schedule", path: "/clinic-admin/schedule", icon: CalendarIcon },
-    { label: "Settings", path: "/clinic-admin/settings", icon: SettingsIcon },
+    { label: "Dashboard", path: "/(dashboard)/clinic-admin/dashboard", icon: HomeIcon },
+    { label: "Staff", path: "/(dashboard)/clinic-admin/staff", icon: UsersIcon },
+    { label: "Locations", path: "/(dashboard)/clinic-admin/locations", icon: BuildingIcon },
+    { label: "Schedule", path: "/(dashboard)/clinic-admin/schedule", icon: CalendarIcon },
+    { label: "Settings", path: "/(dashboard)/clinic-admin/settings", icon: SettingsIcon },
   ],
   [Role.DOCTOR]: [
-    { label: "Dashboard", path: "/doctor/dashboard", icon: HomeIcon },
-    { label: "Appointments", path: "/doctor/appointments", icon: CalendarIcon },
-    { label: "Patients", path: "/doctor/patients", icon: UsersIcon },
-    { label: "Profile", path: "/doctor/profile", icon: UserIcon },
+    { label: "Dashboard", path: "/(dashboard)/doctor/dashboard", icon: HomeIcon },
+    { label: "Appointments", path: "/(shared)/appointments", icon: CalendarIcon },
+    { label: "Patients", path: "/(dashboard)/doctor/patients", icon: UsersIcon },
+    { label: "Profile", path: "/(dashboard)/doctor/profile", icon: UserIcon },
   ],
   [Role.RECEPTIONIST]: [
-    { label: "Dashboard", path: "/receptionist/dashboard", icon: HomeIcon },
-    { label: "Appointments", path: "/receptionist/appointments", icon: CalendarIcon },
-    { label: "Patients", path: "/receptionist/patients", icon: UsersIcon },
-    { label: "Profile", path: "/receptionist/profile", icon: UserIcon },
+    { label: "Dashboard", path: "/(dashboard)/receptionist/dashboard", icon: HomeIcon },
+    { label: "Appointments", path: "/(shared)/appointments", icon: CalendarIcon },
+    { label: "Patients", path: "/(dashboard)/receptionist/patients", icon: UsersIcon },
+    { label: "Profile", path: "/(dashboard)/receptionist/profile", icon: UserIcon },
   ],
   [Role.PATIENT]: [
-    { label: "Dashboard", path: "/patient/dashboard", icon: HomeIcon },
-    { label: "Appointments", path: "/patient/appointments", icon: CalendarIcon },
-    { label: "Medical Records", path: "/patient/medical-records", icon: FileTextIcon },
-    { label: "Prescriptions", path: "/patient/prescriptions", icon: PillIcon },
-    { label: "Profile", path: "/patient/profile", icon: UserIcon },
+    { label: "Dashboard", path: "/(dashboard)/patient/dashboard", icon: HomeIcon },
+    { label: "Appointments", path: "/(shared)/appointments", icon: CalendarIcon },
+    { label: "Medical Records", path: "/(dashboard)/patient/medical-records", icon: FileTextIcon },
+    { label: "Prescriptions", path: "/(dashboard)/patient/prescriptions", icon: PillIcon },
+    { label: "Profile", path: "/(dashboard)/patient/profile", icon: UserIcon },
   ],
   [Role.PHARMACIST]: [
-    { label: "Dashboard", path: "/pharmacist/dashboard", icon: HomeIcon },
-    { label: "Prescriptions", path: "/pharmacist/prescriptions", icon: FileTextIcon },
-    { label: "Inventory", path: "/pharmacist/inventory", icon: PackageIcon },
-    { label: "Profile", path: "/pharmacist/profile", icon: UserIcon },
+    { label: "Dashboard", path: "/(dashboard)/pharmacist/dashboard", icon: HomeIcon },
+    { label: "Prescriptions", path: "/(shared)/pharmacy", icon: PillIcon },
+    { label: "Inventory", path: "/(dashboard)/pharmacist/inventory", icon: PackageIcon },
+    { label: "Profile", path: "/(dashboard)/pharmacist/profile", icon: UserIcon },
   ],
 };
 

@@ -101,12 +101,13 @@ export function RazorpayPaymentButton({
         throw new Error(response.message || "Failed to create payment intent");
       }
 
-      const paymentIntent = response.data?.paymentIntent || response.data;
+      const paymentData = response.data as any;
+      const paymentIntent = paymentData?.paymentIntent || paymentData;
       const orderId = paymentIntent?.orderId || paymentIntent?.id;
       // Razorpay key should come from backend or environment
       const razorpayKey =
         paymentIntent?.metadata?.razorpayKey ||
-        response.data?.razorpayKey ||
+        paymentData?.razorpayKey ||
         process.env.NEXT_PUBLIC_RAZORPAY_KEY;
 
       if (!orderId) {

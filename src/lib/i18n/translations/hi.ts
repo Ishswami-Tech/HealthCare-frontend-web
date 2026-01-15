@@ -1975,7 +1975,15 @@ export const hi: TranslationKeys = {
       },
       mentalClarity: {
         title: 'मानसिक स्पष्टता',
-        description: 'समग्र उपचार के माध्यम से संज्ञानात्मक कार्य और मानसिक शांति में सुधार'
+        description: 'समग्र उपचार के माध्यम से बेहतर फोकस और मानसिक कल्याण'
+      },
+      longTermResults: {
+        title: 'दीर्घकालिक परिणाम',
+        description: 'स्थायी स्वास्थ्य सुधार और स्थायी कल्याण'
+      },
+      provenEfficacy: {
+        title: 'सिद्ध प्रभावकारिता',
+        description: 'सिद्ध प्रभावशीलता के साथ समय-परीक्षित पारंपरिक तरीके'
       }
     },
     processGallery: {

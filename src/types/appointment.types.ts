@@ -1,5 +1,13 @@
-// ✅ Enhanced Appointment Types to Match Backend API
+/**
+ * ✅ Consolidated Appointment Types
+ * Single source of truth for all appointment-related types
+ * Follows DRY, SOLID, KISS principles
+ */
 
+// ✅ Consolidated: Import types from their respective type files (single source of truth)
+import type { Patient } from './patient.types';
+import type { Doctor } from './doctor.types';
+import type { Clinic, ClinicLocation } from './clinic.types';
 export type AppointmentStatus = 
   | 'SCHEDULED'
   | 'CONFIRMED' 
@@ -15,13 +23,24 @@ export type AppointmentPriority =
   | 'HIGH'
   | 'URGENT';
 
+export type AppointmentType = 
+  | 'CONSULTATION'
+  | 'FOLLOW_UP'
+  | 'EMERGENCY'
+  | 'TELEMEDICINE'
+  | 'PROCEDURE'
+  | 'VACCINATION'
+  | 'ROUTINE_CHECKUP'
+  | 'SPECIALIST_VISIT'
+  | 'LAB_TEST';
+
 export interface CreateAppointmentData {
   patientId: string;
   doctorId: string;
   date: string;
   time: string;
   duration: number;
-  type: string;
+  type: AppointmentType; // ✅ Use AppointmentType instead of string
   notes?: string;
   clinicId?: string;
   locationId?: string;
@@ -33,7 +52,7 @@ export interface UpdateAppointmentData {
   date?: string;
   time?: string;
   duration?: number;
-  type?: string;
+  type?: AppointmentType; // ✅ Use AppointmentType instead of string
   notes?: string;
   status?: AppointmentStatus;
   symptoms?: string[];
@@ -48,6 +67,7 @@ export interface CompleteAppointmentData {
   notes?: string;
   followUpDate?: string;
   followUpNotes?: string;
+  doctorId?: string; // ✅ Consolidated: merged from duplicate definition
 }
 
 export interface Appointment {
@@ -57,7 +77,7 @@ export interface Appointment {
   date: string;
   time: string;
   duration: number;
-  type: string;
+  type: AppointmentType; // ✅ Use AppointmentType instead of string
   status: AppointmentStatus;
   priority: AppointmentPriority;
   notes?: string;
@@ -94,10 +114,6 @@ export interface ReorderQueueData {
 export interface VerifyAppointmentQRData {
   qrData: string;
   locationId: string;
-}
-
-export interface CompleteAppointmentData {
-  doctorId: string;
 }
 
 export interface StartConsultationData {
@@ -144,37 +160,17 @@ export interface AppointmentLocation {
   email?: string;
 }
 
-export interface AppointmentWithRelations {
-  id: string;
-  doctorId: string;
-  patientId: string;
-  locationId: string;
-  clinicId: string;
-  userId: string;
-  date: string;
-  time: string;
-  duration: number;
-  type: string;
-  status: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  doctor: DoctorWithUser;
-  patient: PatientWithUser;
-  location: AppointmentLocation;
-}
-
-// ✅ Add missing types for server actions
-export type Appointment = AppointmentWithRelations;
+// ✅ Consolidated: Removed duplicate AppointmentWithRelations definition
+// Use the one above (line 79) which extends Appointment properly
 
 export interface AppointmentFilters {
-  status?: string;
+  status?: AppointmentStatus | AppointmentStatus[]; // ✅ Use AppointmentStatus instead of string
   date?: string;
   doctorId?: string;
   patientId?: string;
   locationId?: string;
   clinicId?: string;
-  type?: string;
+  type?: AppointmentType | AppointmentType[]; // ✅ Use AppointmentType instead of string
   startDate?: string;
   endDate?: string;
   page?: number;
@@ -291,20 +287,5 @@ export interface AppointmentReport {
   generatedBy: string;
 }
 
-export type AppointmentStatus = 
-  | 'SCHEDULED'
-  | 'CONFIRMED'
-  | 'CHECKED_IN'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'NO_SHOW';
-
-export type AppointmentType = 
-  | 'CONSULTATION'
-  | 'FOLLOW_UP'
-  | 'EMERGENCY'
-  | 'ROUTINE_CHECKUP'
-  | 'SPECIALIST_VISIT'
-  | 'LAB_TEST'
-  | 'VACCINATION'; 
+// ✅ Consolidated: Removed duplicate AppointmentStatus and AppointmentType definitions
+// Use the ones defined at the top of the file (lines 3-16) 

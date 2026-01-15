@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import Link from "next/link";
+import { ERROR_MESSAGES } from "@/lib/config/config";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 
 export default function Error({
   error,
@@ -28,7 +30,7 @@ export default function Error({
             Something went wrong
           </h1>
           <p className="text-gray-600 mb-8">
-            We encountered an unexpected error. Please try again or contact support if the problem persists.
+            {sanitizeErrorMessage(error) || ERROR_MESSAGES.UNKNOWN_ERROR}
           </p>
         </div>
 

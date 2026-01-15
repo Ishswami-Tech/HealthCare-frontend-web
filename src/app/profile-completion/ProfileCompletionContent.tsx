@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { useRouter } from "next/navigation";
-import ProfileCompletionForm from "@/components/global/forms/ProfileCompletionForm";
-import { getProfileCompletionRedirectUrl } from "@/lib/profile";
+import ProfileCompletionForm from "@/components/forms/ProfileCompletionForm";
+import { getProfileCompletionRedirectUrl } from "@/lib/config/profile";
 import { Role } from "@/types/auth.types";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 

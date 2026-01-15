@@ -98,13 +98,7 @@ export const ROLE_PATH_MAP: Record<string, Role[]> = {
   '/(dashboard)/receptionist': [Role.RECEPTIONIST],
   '/(dashboard)/pharmacist': [Role.PHARMACIST],
   '/(dashboard)/patient': [Role.PATIENT],
-  // Legacy paths for backward compatibility
-  '/super-admin': [Role.SUPER_ADMIN],
-  '/clinic-admin': [Role.CLINIC_ADMIN],
-  '/doctor': [Role.DOCTOR],
-  '/receptionist': [Role.RECEPTIONIST],
-  '/pharmacist': [Role.PHARMACIST],
-  '/patient': [Role.PATIENT],
+  // ✅ Removed: Legacy paths - use new route format with (dashboard) prefix
 };
 
 /**

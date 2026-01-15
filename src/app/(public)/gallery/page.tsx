@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Instagram, Camera, Heart, Star } from "lucide-react";
@@ -8,7 +8,7 @@ import { useTranslation } from "@/lib/i18n/context";
 
 import { InstagramGrid } from "@/components/media/instagram-post";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
-import { getIconColorScheme } from "@/lib/color-palette";
+import { getIconColorScheme } from "@/lib/config/color-palette";
 
 export default function GalleryPage() {
   const { t } = useTranslation();

@@ -1,11 +1,15 @@
 "use client";
 
-import React, { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { ProtectedRoute } from "@/components/rbac/ProtectedRoute";
 import { Permission } from "@/types/rbac.types";
+import { Invoice } from "@/types/billing.types";
+import { generateInvoicePDF } from "@/lib/actions/billing.server";
+import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,10 +32,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
+import {
+  DollarSign,
+  TrendingUp,
+  Users,
+  FileText,
+  Plus,
+  CheckCircle,
+} from "lucide-react";
+
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
 
 // ✅ Lazy load heavy components for code splitting (optimized for 10M users)
 const RazorpayPaymentButton = lazy(() =>
@@ -47,19 +58,8 @@ import {
   useBillingAnalytics,
   useCreateSubscription,
   useCancelSubscription,
-} from "@/hooks/useBilling";
+} from "@/hooks/query/useBilling";
 import {
-  CreditCard,
-  Receipt,
-  FileText,
-  TrendingUp,
-  Plus,
-  Calendar,
-  DollarSign,
-  Users,
-  CheckCircle,
-  XCircle,
-  Clock,
   Download,
   Send,
 } from "lucide-react";
@@ -75,13 +75,13 @@ function BillingPageContent() {
   useWebSocketQuerySync();
 
   // Hooks - using real API with Docker backend
-  const { data: plans = [], isLoading: plansLoading } =
+  const { data: plans = [], isPending: plansPending } =
     useBillingPlans(clinicId);
-  const { data: subscriptions = [], isLoading: subscriptionsLoading } =
+  const { data: subscriptions = [], isPending: subscriptionsPending } =
     useSubscriptions(userId);
-  const { data: invoices = [], isLoading: invoicesLoading } =
+  const { data: invoices = [], isPending: invoicesPending } =
     useInvoices(userId);
-  const { data: payments = [], isLoading: paymentsLoading } =
+  const { data: payments = [], isPending: paymentsPending } =
     usePayments(userId);
   const { data: analytics } = useBillingAnalytics(clinicId);
 
@@ -138,8 +138,8 @@ function BillingPageContent() {
     );
   };
 
-  const sidebarLinks = getRoutesByRole(user?.role || Role.PATIENT).map(
-    (route) => ({
+  const sidebarLinks = getRoutesByRole((user?.role as Role) || Role.PATIENT).map(
+    (route: any) => ({
       ...route,
       href: route.path,
     })
@@ -150,7 +150,7 @@ function BillingPageContent() {
       title="Billing & Subscriptions"
       allowedRole={[Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.PATIENT]}
     >
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name: user?.name || `${user?.firstName} ${user?.lastName}` || "User",
@@ -303,11 +303,11 @@ function BillingPageContent() {
                 </Dialog>
               </div>
 
-              {plansLoading ? (
+              {plansPending ? (
                 <div className="text-center py-8">Loading plans...</div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {plans.map((plan) => (
+                  {plans.map((plan: any) => (
                     <Card key={plan.id}>
                       <CardHeader>
                         <CardTitle>{plan.name}</CardTitle>
@@ -339,7 +339,7 @@ function BillingPageContent() {
                               </span>
                             </div>
                           )}
-                          {plan.features?.map((feature, idx) => (
+                          {plan.features?.map((feature: string, idx: number) => (
                             <div key={idx} className="flex items-center gap-2">
                               <CheckCircle className="w-4 h-4 text-green-600" />
                               <span className="text-sm">{feature}</span>
@@ -388,7 +388,7 @@ function BillingPageContent() {
                             <SelectValue placeholder="Choose a plan" />
                           </SelectTrigger>
                           <SelectContent>
-                            {plans.map((plan) => (
+                            {plans.map((plan: any) => (
                               <SelectItem key={plan.id} value={plan.id}>
                                 {plan.name} - ₹{plan.price}/
                                 {plan.billingCycle.toLowerCase()}
@@ -418,11 +418,11 @@ function BillingPageContent() {
                 </Dialog>
               </div>
 
-              {subscriptionsLoading ? (
+              {subscriptionsPending ? (
                 <div className="text-center py-8">Loading subscriptions...</div>
               ) : (
                 <div className="space-y-4">
-                  {subscriptions.map((subscription) => (
+                  {subscriptions.map((subscription: any) => (
                     <Card key={subscription.id}>
                       <CardHeader>
                         <div className="flex items-center justify-between">
@@ -515,11 +515,11 @@ function BillingPageContent() {
             {/* Invoices Tab */}
             <TabsContent value="invoices" className="space-y-4">
               <h2 className="text-2xl font-bold">Invoices</h2>
-              {invoicesLoading ? (
+              {invoicesPending ? (
                 <div className="text-center py-8">Loading invoices...</div>
               ) : (
                 <div className="space-y-4">
-                  {invoices.map((invoice) => (
+                  {invoices.map((invoice: any) => (
                     <Card key={invoice.id}>
                       <CardHeader>
                         <div className="flex items-center justify-between">
@@ -586,7 +586,7 @@ function BillingPageContent() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
-                          {invoice.items.map((item) => (
+                          {invoice.items.map((item: any) => (
                             <div
                               key={item.id}
                               className="flex justify-between text-sm"
@@ -648,11 +648,11 @@ function BillingPageContent() {
             {/* Payments Tab */}
             <TabsContent value="payments" className="space-y-4">
               <h2 className="text-2xl font-bold">Payment History</h2>
-              {paymentsLoading ? (
+              {paymentsPending ? (
                 <div className="text-center py-8">Loading payments...</div>
               ) : (
                 <div className="space-y-4">
-                  {payments.map((payment) => (
+                  {payments.map((payment: any) => (
                     <Card key={payment.id}>
                       <CardHeader>
                         <div className="flex items-center justify-between">
@@ -734,9 +734,7 @@ function BillingPageContent() {
                 <div className="space-y-4 py-4">
                   <div className="text-center">
                     <p className="text-2xl font-bold">
-                      ₹
-                      {selectedInvoiceForPayment.amount?.toLocaleString() ||
-                        selectedInvoiceForPayment.totalAmount?.toLocaleString()}
+                      ₹{selectedInvoiceForPayment.amount?.toLocaleString() || "0"}
                     </p>
                     <p className="text-sm text-muted-foreground mt-2">
                       You will be redirected to Razorpay secure payment gateway
@@ -745,13 +743,10 @@ function BillingPageContent() {
                   <Suspense fallback={<div className="text-center py-4">Loading payment button...</div>}>
                     <RazorpayPaymentButton
                       invoiceId={selectedInvoiceForPayment.id}
-                      amount={
-                        selectedInvoiceForPayment.amount ||
-                        selectedInvoiceForPayment.totalAmount
-                      }
+                      amount={selectedInvoiceForPayment.amount || 0}
                       currency={selectedInvoiceForPayment.currency || "INR"}
                       description={`Payment for invoice ${selectedInvoiceForPayment.invoiceNumber}`}
-                      onSuccess={async (paymentId) => {
+                      onSuccess={async (_) => {
                         setIsPaymentDialogOpen(false);
                         setSelectedInvoiceForPayment(null);
                         toast.success("Payment completed successfully!");
@@ -781,7 +776,7 @@ function BillingPageContent() {
             </DialogContent>
           </Dialog>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

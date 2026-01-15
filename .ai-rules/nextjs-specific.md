@@ -1,6 +1,43 @@
-# Next.js 14 Specific Rules - Healthcare Frontend
+# Next.js 16 Specific Rules - Healthcare Frontend
+# Version: 2.1.0 | Next.js 16 + React 19 + TypeScript 5
+# Enterprise-Grade Next.js 16 App Router Patterns
 
-## ⚡ **Next.js 14 App Router Standards**
+## 🎯 **Core Principles (SOLID, DRY, KISS)**
+
+### **SOLID Principles in Next.js**
+- **Single Responsibility**: Each route/page handles one feature
+- **Open/Closed**: Extend via layouts and route groups, not modification
+- **Liskov Substitution**: Consistent page/layout interfaces
+- **Interface Segregation**: Role-specific layouts and pages
+- **Dependency Inversion**: Depend on server actions, not direct API calls
+
+### **DRY (Don't Repeat Yourself)**
+- Shared layouts for common structure
+- Reusable server actions
+- Common loading/error patterns
+- Unified metadata generation
+- Centralized route configuration
+
+### **KISS (Keep It Simple, Stupid)**
+- Clear route structure
+- Straightforward data fetching
+- Direct server actions
+- Simple caching strategies
+
+### **Technology Stack**
+- **Framework**: Next.js 16.1.1 with App Router + Turbopack
+- **React**: 19.2.x with Server Components
+- **TypeScript**: 5.x with strict mode
+- **State Management**: TanStack Query v5.90+ | Zustand v5.0.9 with immer
+- **Forms**: React Hook Form v7.70 + Zod v4.3.5
+- **UI Components**: shadcn/ui + Radix UI + Tailwind CSS v4
+- **Internationalization**: next-intl v4.7
+- **Real-time**: Socket.IO v4.8.3 + Firebase v12.7
+- **Video**: OpenVidu Browser v2.32.1
+- **Toast**: Sonner v2.0.7
+- **Animations**: Framer Motion v12.24
+
+## ⚡ **Next.js 16 App Router Standards**
 
 ### **Project Configuration**
 
@@ -1098,4 +1135,50 @@ export function PatientAvatar({
 }
 ```
 
-This comprehensive Next.js 14 guide ensures optimal performance, security, and maintainability for the healthcare frontend application.
+## 📋 **Enterprise Next.js 16 Checklist**
+
+### **Before Implementing Next.js Features**
+- [ ] **SOLID Principles**: Routes and components follow Single Responsibility
+- [ ] **DRY Compliance**: Shared layouts and server actions reused
+- [ ] **KISS Principle**: Route structure is clear and simple
+- [ ] **App Router**: Using Next.js 16 App Router (NOT Pages Router)
+- [ ] **Server Components**: Proper use of Server vs Client components
+- [ ] **Server Actions**: All mutations use server actions
+- [ ] **Caching**: Appropriate caching strategies implemented
+- [ ] **Error Handling**: Global error boundaries configured
+- [ ] **Loading States**: Loading UI for all async operations
+- [ ] **Performance**: Dynamic imports and image optimization
+
+### **Next.js 16 Review Items**
+- [ ] **Route Structure**: Clear route groups and organization
+- [ ] **Server Actions**: All mutations use server actions pattern
+- [ ] **Data Fetching**: Proper use of async Server Components
+- [ ] **Caching**: Revalidation and cache strategies optimized
+- [ ] **Error Handling**: Global and route-specific error boundaries
+- [ ] **Loading States**: Suspense boundaries properly placed
+- [ ] **Metadata**: SEO and metadata properly configured
+- [ ] **Performance**: Dynamic imports for code splitting
+- [ ] **Image Optimization**: Next.js Image component used
+- [ ] **Middleware/Proxy**: Next.js 16 proxy.ts properly configured
+
+### **SOLID Principles Checklist**
+- [ ] **Single Responsibility**: Each route/page handles one feature
+- [ ] **Open/Closed**: Extensible via layouts and route groups
+- [ ] **Liskov Substitution**: Consistent page/layout interfaces
+- [ ] **Interface Segregation**: Role-specific layouts
+- [ ] **Dependency Inversion**: Depend on server actions, not direct APIs
+
+### **DRY Compliance Checklist**
+- [ ] **Shared Layouts**: Common structure reused
+- [ ] **Server Actions**: Reusable server action patterns
+- [ ] **Loading/Error**: Common patterns centralized
+- [ ] **Metadata**: Unified metadata generation
+- [ ] **Route Config**: Centralized route configuration
+
+### **KISS Principle Checklist**
+- [ ] **Route Clarity**: Route structure is understandable
+- [ ] **Data Flow**: Clear, straightforward data fetching
+- [ ] **Server Actions**: Direct, simple server actions
+- [ ] **Caching**: Simple, effective caching strategies
+
+This comprehensive Next.js 16 guide ensures optimal performance, security, and maintainability for the healthcare frontend application.

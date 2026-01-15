@@ -6,7 +6,7 @@
 import React from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { useTranslations } from 'next-intl';
+import { useTranslation } from '@/lib/i18n/context';
 
 // ============================================================================
 // CLASSNAME UTILITIES
@@ -101,7 +101,7 @@ export const SIDEBAR_LABEL_MAP: Record<string, string> = {
  * For non-component usage, use translateSidebarLink or translateSidebarLinks instead
  */
 export function useTranslatedSidebarLabel(originalLabel: string): string {
-  const t = useTranslations();
+  const { t } = useTranslation();
   
   const translationKey = SIDEBAR_LABEL_MAP[originalLabel];
   
@@ -146,4 +146,8 @@ export function translateSidebarLinks(links: SidebarLink[], t: TranslationFuncti
 export * from './fetch-with-abort';
 export * from './token-manager';
 export * from './appointmentUtils';
+export * from './theme-utils';
+export * from './audit';
+export * from './logger';
+export * from './performance';
 

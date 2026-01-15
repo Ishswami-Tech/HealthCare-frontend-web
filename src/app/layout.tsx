@@ -1,12 +1,19 @@
+/**
+ * ✅ Root Layout
+ * Uses consolidated i18n from @/lib/i18n
+ * Follows DRY, SOLID, KISS principles
+ */
+
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/app/providers/AppProvider";
-import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
-import { PerformanceProvider } from "@/components/performance/web-vitals";
-import { ThemeProvider } from "@/components/theme/theme-provider";
+import { LanguageProvider } from "@/lib/i18n/context";
+import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
+// ThemeProvider is handled by AppProvider (next-themes)
 import { Suspense } from "react";
 import { APP_CONFIG } from "@/lib/config/config";
+import { DEFAULT_LANGUAGE } from "@/lib/i18n/config";
+import { LoadingSpinner } from "@/components/ui/loading";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -81,11 +88,11 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const locale = await getLocale();
-  const messages = await getMessages();
+  // ✅ Use consolidated i18n - language is managed client-side via LanguageProvider
+  // Server-side locale detection can be added if needed via cookies/headers
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={DEFAULT_LANGUAGE} suppressHydrationWarning>
       <head>
         {/* Performance optimizations */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -113,25 +120,23 @@ export default async function RootLayout({
         ></script>
       </head>
       <body className={inter.className} suppressHydrationWarning>
-        <ThemeProvider defaultTheme="system">
-          <PerformanceProvider
-            enableWebVitals={true}
-            enableResourceTracking={true}
-            enableNavigationTracking={true}
-          >
-            <NextIntlClientProvider messages={messages}>
-              <Suspense
-                fallback={
-                  <div className="min-h-screen bg-background flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                  </div>
-                }
-              >
-                <AppProvider>{children}</AppProvider>
-              </Suspense>
-            </NextIntlClientProvider>
-          </PerformanceProvider>
-        </ThemeProvider>
+        <PerformanceProvider
+          enableWebVitals={true}
+          enableResourceTracking={true}
+          enableNavigationTracking={true}
+        >
+          <LanguageProvider>
+            <Suspense
+              fallback={
+                <div className="min-h-screen bg-background flex items-center justify-center">
+                  <LoadingSpinner size="lg" color="primary" text="Loading..." />
+                </div>
+              }
+            >
+              <AppProvider>{children}</AppProvider>
+            </Suspense>
+          </LanguageProvider>
+        </PerformanceProvider>
       </body>
     </html>
   );

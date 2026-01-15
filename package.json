@@ -14,7 +14,11 @@
     "start:staging": "NODE_ENV=production next start",
     "start:prod": "NODE_ENV=production next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:ws": "node scripts/test-websocket.js test",
+    "test:ws:health": "node scripts/test-websocket.js test --health",
+    "test:ws:verbose": "node scripts/test-websocket.js test --verbose",
+    "get-token": "node scripts/test-websocket.js get-token"
   },
   "dependencies": {
     "@hookform/error-message": "^2.0.1",

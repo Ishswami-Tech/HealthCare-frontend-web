@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,8 @@ import { toast } from "sonner";
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 // Constants
-const DEFAULT_REDIRECT_URL = "/patient/dashboard";
+// ✅ Consolidated: Use new route format (removed legacy route)
+const DEFAULT_REDIRECT_URL = "/(dashboard)/patient/dashboard";
 
 // Add type definitions for Google OAuth
 declare global {
@@ -154,7 +155,7 @@ export function SocialLogin({
             callback: handleGoogleResponse,
             auto_select: false,
             context: "signin",
-            ux_mode: "popup", // TODO: change to "redirect"
+            ux_mode: "popup", // Note: Can be changed to "redirect" for better UX if needed
             itp_support: true,
             login_uri: loginUri.toString(),
             allowed_parent_origin: currentOrigin,

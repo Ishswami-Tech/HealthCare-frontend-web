@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/useNotificationPreferences';
+import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/utils/useNotificationPreferences';
 import { Loader2, Bell, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,8 +14,22 @@ interface NotificationPreferencesProps {
   onSave?: () => void;
 }
 
+interface NotificationPreferencesData {
+  email?: boolean;
+  sms?: boolean;
+  push?: boolean;
+  whatsapp?: boolean;
+  types?: {
+    appointments?: boolean;
+    prescriptions?: boolean;
+    reminders?: boolean;
+    marketing?: boolean;
+  };
+}
+
 export function NotificationPreferences({ userId, onSave }: NotificationPreferencesProps) {
   const { data: preferences, isPending: isLoading } = useNotificationPreferences();
+  const preferencesData = preferences as NotificationPreferencesData | undefined;
   const { mutate: updatePreferences, isPending: isSaving } = useUpdateNotificationPreferences();
   
   const [settings, setSettings] = useState({
@@ -32,21 +46,21 @@ export function NotificationPreferences({ userId, onSave }: NotificationPreferen
   });
 
   useEffect(() => {
-    if (preferences) {
+    if (preferencesData) {
       setSettings({
-        email: preferences.email ?? false,
-        sms: preferences.sms ?? false,
-        push: preferences.push ?? false,
-        whatsapp: preferences.whatsapp ?? false,
+        email: preferencesData.email ?? false,
+        sms: preferencesData.sms ?? false,
+        push: preferencesData.push ?? false,
+        whatsapp: preferencesData.whatsapp ?? false,
         types: {
-          appointments: preferences.types?.appointments ?? false,
-          prescriptions: preferences.types?.prescriptions ?? false,
-          reminders: preferences.types?.reminders ?? false,
-          marketing: preferences.types?.marketing ?? false,
+          appointments: preferencesData.types?.appointments ?? false,
+          prescriptions: preferencesData.types?.prescriptions ?? false,
+          reminders: preferencesData.types?.reminders ?? false,
+          marketing: preferencesData.types?.marketing ?? false,
         },
       });
     }
-  }, [preferences]);
+  }, [preferencesData]);
 
   const handleToggle = (key: 'email' | 'sms' | 'push' | 'whatsapp', value: boolean) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -61,7 +75,7 @@ export function NotificationPreferences({ userId, onSave }: NotificationPreferen
 
   const handleSave = () => {
     updatePreferences(
-      { ...settings, userId },
+      { ...settings, ...(userId ? { userId } : {}) },
       {
         onSuccess: () => {
           toast.success('Notification preferences updated successfully');

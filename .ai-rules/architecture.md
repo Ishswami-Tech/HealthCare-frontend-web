@@ -1,4 +1,41 @@
 # Architecture Rules - Healthcare Frontend
+# Version: 2.1.0 | Next.js 16 + React 19 + TypeScript 5
+# Enterprise-Grade Multi-Tenant Healthcare Architecture
+
+## 🎯 **Core Principles (SOLID, DRY, KISS)**
+
+### **SOLID Principles in Architecture**
+- **Single Responsibility**: Each module handles one concern (auth, patients, appointments)
+- **Open/Closed**: Extend via composition, not modification
+- **Liskov Substitution**: Interfaces ensure consistent behavior
+- **Interface Segregation**: Role-specific interfaces (Doctor, Patient, Admin)
+- **Dependency Inversion**: Depend on abstractions (hooks, stores), not implementations
+
+### **DRY (Don't Repeat Yourself)**
+- Shared components for common UI patterns
+- Reusable hooks for data fetching
+- Centralized configuration (`APP_CONFIG`)
+- Unified query key factory (`queryKeys`)
+- Common validation schemas
+
+### **KISS (Keep It Simple, Stupid)**
+- Clear, readable code over clever solutions
+- Straightforward data flow
+- Minimal abstraction layers
+- Direct API patterns
+
+### **Technology Stack**
+- **Framework**: Next.js 16.1.1 with App Router + Turbopack
+- **React**: 19.2.x with Server Components
+- **TypeScript**: 5.x with strict mode
+- **State Management**: TanStack Query v5.90+ | Zustand v5.0.9 with immer
+- **Forms**: React Hook Form v7.70 + Zod v4.3.5
+- **UI Components**: shadcn/ui + Radix UI + Tailwind CSS v4
+- **Internationalization**: next-intl v4.7
+- **Real-time**: Socket.IO v4.8.3 + Firebase v12.7
+- **Video**: OpenVidu Browser v2.32.1
+- **Toast**: Sonner v2.0.7
+- **Animations**: Framer Motion v12.24
 
 ## 🏗️ **Core Architecture Principles**
 
@@ -342,5 +379,53 @@ environments/
 - **DDoS Protection**: Traffic filtering
 - **SSL Certificates**: End-to-end encryption
 - **Database Security**: Connection encryption
+
+## 📋 **Enterprise Architecture Checklist**
+
+### **Before Implementing Architecture**
+- [ ] **SOLID Principles**: All modules follow Single Responsibility
+- [ ] **DRY Compliance**: No code duplication, shared utilities used
+- [ ] **KISS Principle**: Architecture is simple and understandable
+- [ ] **Multi-Tenant Design**: Clinic context properly scoped
+- [ ] **RBAC Integration**: Permission system embedded at architecture level
+- [ ] **State Management**: TanStack Query + Zustand properly configured
+- [ ] **Error Handling**: Comprehensive error boundaries planned
+- [ ] **Performance**: Caching and code splitting strategies defined
+- [ ] **Security**: HIPAA compliance architecture reviewed
+- [ ] **Scalability**: Architecture supports 10M+ users
+
+### **Architecture Review Items**
+- [ ] **Clinic Context**: All operations properly scoped to clinic
+- [ ] **Data Isolation**: Tenant separation verified
+- [ ] **API Design**: Server actions follow patterns
+- [ ] **State Management**: Query keys factory implemented
+- [ ] **Component Structure**: Clear separation of concerns
+- [ ] **Error Boundaries**: Comprehensive error handling
+- [ ] **Performance**: Caching strategies optimized
+- [ ] **Security**: All security measures implemented
+- [ ] **Internationalization**: Multi-language support architecture
+- [ ] **Real-time**: WebSocket integration properly designed
+
+### **SOLID Principles Checklist**
+- [ ] **Single Responsibility**: Each module has one clear purpose
+- [ ] **Open/Closed**: Extensible via composition, not modification
+- [ ] **Liskov Substitution**: Interfaces ensure consistent behavior
+- [ ] **Interface Segregation**: Role-specific interfaces defined
+- [ ] **Dependency Inversion**: Depend on abstractions, not implementations
+
+### **DRY Compliance Checklist**
+- [ ] **Shared Components**: Common UI patterns reused
+- [ ] **Reusable Hooks**: Data fetching hooks centralized
+- [ ] **Configuration**: APP_CONFIG used for all settings
+- [ ] **Query Keys**: queryKeys factory implemented
+- [ ] **Validation**: Common schemas reused
+- [ ] **Error Handling**: Centralized error utilities
+
+### **KISS Principle Checklist**
+- [ ] **Code Clarity**: Code is readable and understandable
+- [ ] **Data Flow**: Clear, straightforward data flow
+- [ ] **API Patterns**: Direct, simple API calls
+- [ ] **Abstraction**: Minimal, necessary abstraction layers
+- [ ] **Documentation**: Architecture clearly documented
 
 This architecture ensures a robust, secure, and scalable healthcare application that meets medical industry standards while providing excellent user experience.

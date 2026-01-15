@@ -129,7 +129,9 @@ const envDefaults = {
     // This prevents "Invalid URL" errors during SSR when env vars aren't loaded yet
     // In production, env vars MUST be set (no fallbacks)
     apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088',
-    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8088/socket.io',
+    // ✅ FIX: Socket.IO expects base HTTP URL, not ws:// with /socket.io
+    // Socket.IO automatically handles protocol upgrade and path
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8088',
     appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     enableDebug: true,
     enableAnalytics: false,
@@ -148,7 +150,9 @@ const envDefaults = {
     // Production - URLs from env vars (with production fallbacks matching backend)
     // Backend production: https://backend-service-v1.ishswami.in
     apiUrl: process.env.NEXT_PUBLIC_API_URL || 'https://backend-service-v1.ishswami.in',
-    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || 'wss://backend-service-v1.ishswami.in/socket.io',
+    // ✅ FIX: Socket.IO expects base HTTPS URL, not wss:// with /socket.io
+    // Socket.IO automatically handles protocol upgrade and path
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || 'https://backend-service-v1.ishswami.in',
     appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://ishswami.in',
     enableDebug: false,
     enableAnalytics: true,
@@ -237,7 +241,8 @@ export const APP_CONFIG = {
   // CLINIC CONFIGURATION
   // ============================================
   CLINIC: {
-    ID: env.NEXT_PUBLIC_CLINIC_ID || 'CL0002',
+    // ✅ Trim clinic ID to prevent whitespace issues
+    ID: env.NEXT_PUBLIC_CLINIC_ID?.trim() || 'CL0002',
     APP_NAME: env.NEXT_PUBLIC_APP_NAME || 'Healthcare',
   },
   
@@ -322,24 +327,28 @@ export const APP_CONFIG = {
 
 export const API_ENDPOINTS = {
   // Authentication Endpoints
+  
   AUTH: {
     BASE: '/auth',
-    LOGIN: '/auth/login',
-    REGISTER: '/auth/register',
+    // ✅ Backend endpoints (verified)
+    LOGIN: '/auth/login',                    // POST /auth/login
+    REGISTER: '/auth/register',              // POST /auth/register
+    REFRESH: '/auth/refresh',                // POST /auth/refresh
+    LOGOUT: '/auth/logout',                  // POST /auth/logout
+    FORGOT_PASSWORD: '/auth/forgot-password', // POST /auth/forgot-password
+    RESET_PASSWORD: '/auth/reset-password',  // POST /auth/reset-password
+    CHANGE_PASSWORD: '/auth/change-password', // POST /auth/change-password
+    REQUEST_OTP: '/auth/request-otp',        // POST /auth/request-otp
+    VERIFY_OTP: '/auth/verify-otp',           // POST /auth/verify-otp
+    SESSIONS: '/auth/sessions',              // GET /auth/sessions ✅ Added
+    GOOGLE_LOGIN: '/auth/google',            // POST /auth/google
+    // Additional endpoints (frontend-specific or future)
     REGISTER_WITH_CLINIC: '/auth/register-with-clinic',
-    REFRESH: '/auth/refresh',
-    LOGOUT: '/auth/logout',
-    VERIFY_OTP: '/auth/verify-otp',
-    REQUEST_OTP: '/auth/request-otp',
     CHECK_OTP_STATUS: '/auth/check-otp-status',
     INVALIDATE_OTP: '/auth/invalidate-otp',
     MAGIC_LINK: '/auth/magic-link',
     VERIFY_MAGIC_LINK: '/auth/verify-magic-link',
-    FORGOT_PASSWORD: '/auth/forgot-password',
-    RESET_PASSWORD: '/auth/reset-password',
-    CHANGE_PASSWORD: '/auth/change-password',
     VERIFY_EMAIL: '/auth/verify-email',
-    GOOGLE_LOGIN: '/auth/google',
     FACEBOOK_LOGIN: '/auth/facebook',
     APPLE_LOGIN: '/auth/apple',
   },
@@ -860,6 +869,80 @@ export const API_ENDPOINTS = {
   //   UPDATE_CONFIG: (pluginName: string) => `/api/appointments/plugins/config/${pluginName}`,
   // },
   
+  // Medical Records Endpoints
+  MEDICAL_RECORDS: {
+    BASE: '/medical-records',
+    GET_BY_PATIENT: (patientId: string) => `/medical-records/patient/${patientId}`,
+    CREATE: '/medical-records',
+    UPDATE: (recordId: string) => `/medical-records/${recordId}`,
+    DELETE: (recordId: string) => `/medical-records/${recordId}`,
+    GET_BY_ID: (recordId: string) => `/medical-records/${recordId}`,
+    UPLOAD: (recordId: string) => `/medical-records/${recordId}/upload`,
+    TEMPLATES: {
+      GET: '/medical-records/templates',
+      CREATE: '/medical-records/templates',
+    },
+  },
+  
+  // Prescriptions Endpoints
+  PRESCRIPTIONS: {
+    BASE: '/prescriptions',
+    GET_BY_PATIENT: (patientId: string) => `/prescriptions/patient/${patientId}`,
+    CREATE: '/prescriptions',
+    UPDATE: (prescriptionId: string) => `/prescriptions/${prescriptionId}`,
+    GET_BY_ID: (prescriptionId: string) => `/prescriptions/${prescriptionId}`,
+    GENERATE_PDF: (prescriptionId: string) => `/prescriptions/${prescriptionId}/pdf`,
+  },
+  
+  // Medicines Endpoints
+  MEDICINES: {
+    BASE: '/medicines',
+    GET_ALL: '/medicines',
+    CREATE: '/medicines',
+    UPDATE: (medicineId: string) => `/medicines/${medicineId}`,
+    DELETE: (medicineId: string) => `/medicines/${medicineId}`,
+    SEARCH: '/medicines/search',
+    INTERACTIONS: '/medicines/interactions',
+    INVENTORY: {
+      GET: '/medicines/inventory',
+      UPDATE: (medicineId: string) => `/medicines/${medicineId}/inventory`,
+    },
+  },
+  
+  // Analytics Endpoints
+  ANALYTICS: {
+    BASE: '/analytics',
+    DASHBOARD: '/analytics/dashboard',
+    APPOINTMENTS: '/analytics/appointments',
+    PATIENTS: '/analytics/patients',
+    REVENUE: '/analytics/revenue',
+    DOCTORS_PERFORMANCE: '/analytics/doctors/performance',
+    CLINICS_PERFORMANCE: '/analytics/clinics/performance',
+    SERVICES_UTILIZATION: '/analytics/services/utilization',
+    WAIT_TIMES: '/analytics/wait-times',
+    SATISFACTION: '/analytics/satisfaction',
+    QUEUE: '/analytics/queue',
+    EXPORT: '/analytics/export',
+    CUSTOM: '/analytics/custom',
+    CUSTOM_QUERIES: {
+      CREATE: '/analytics/custom-queries',
+      GET_ALL: '/analytics/custom-queries',
+    },
+  },
+  
+  // Reports Endpoints
+  REPORTS: {
+    BASE: '/reports',
+    APPOINTMENTS: '/reports/appointments',
+    PATIENTS: '/reports/patients',
+    REVENUE: '/reports/revenue',
+    DOCTORS_PERFORMANCE: '/reports/doctors/performance',
+    CLINICS_SUMMARY: '/reports/clinics/summary',
+    HISTORY: '/reports/history',
+    DOWNLOAD: (reportId: string) => `/reports/${reportId}/download`,
+    DELETE: (reportId: string) => `/reports/${reportId}`,
+  },
+  
   // Clinic Communication Endpoints
   CLINIC_COMMUNICATION: {
     BASE: (clinicId: string) => `/clinics/${clinicId}/communication`,
@@ -975,18 +1058,22 @@ export interface ApiClientConfig {
 function validateEnvironment(): void {
   // ⚠️ SECURITY: In production, all URLs must be set via environment variables
   // No hardcoded URLs allowed to prevent security issues
-  const requiredVars: string[] = ['NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_API_VERSION'];
-  
-  // In production, also require WebSocket URL
-  if (isProduction) {
-    requiredVars.push('NEXT_PUBLIC_WEBSOCKET_URL');
-  }
+  // Note: NEXT_PUBLIC_API_VERSION has a default value ('v1') in the schema, so it's not required
+  const requiredVars: string[] = ['NEXT_PUBLIC_API_URL'];
   
   const missingVars: string[] = [];
 
   for (const varName of requiredVars) {
     if (!process.env[varName]) {
       missingVars.push(varName);
+    }
+  }
+
+  // In production, also require WebSocket URL (check both NEXT_PUBLIC_WEBSOCKET_URL and NEXT_PUBLIC_WS_URL)
+  if (isProduction) {
+    const hasWebSocketUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL;
+    if (!hasWebSocketUrl) {
+      missingVars.push('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL');
     }
   }
 
@@ -1044,11 +1131,32 @@ function validateEnvironment(): void {
   }
 }
 
+// ✅ Singleton flag to prevent multiple logs - use global to persist across module reloads
+// Initialize the flag if it doesn't exist
+if (typeof global !== 'undefined') {
+  if (!(global as any).__hasLoggedEnvironment) {
+    (global as any).__hasLoggedEnvironment = false;
+  }
+}
+
 function logEnvironmentInfo(): void {
-  if (isProduction && !APP_CONFIG.FEATURES.DEBUG) {
-    return;
+  // ✅ Only log once per process to prevent duplicate logs
+  // Use global flag to persist across Next.js hot reloads and module re-executions
+  if (typeof global === 'undefined') {
+    return; // Can't log on client-side
+  }
+  
+  if ((global as any).__hasLoggedEnvironment) {
+    return; // Already logged
   }
 
+  if (isProduction && !APP_CONFIG.FEATURES.DEBUG) {
+    return; // Don't log in production unless debug is enabled
+  }
+
+  // Set flag BEFORE logging to prevent race conditions
+  (global as any).__hasLoggedEnvironment = true;
+  
   console.warn('🌍 Environment Configuration:', {
     environment: currentEnvironment,
     apiUrl: APP_CONFIG.API.BASE_URL,
@@ -1070,22 +1178,11 @@ if (typeof window === 'undefined') {
 // ============================================================================
 // ROUTING CONFIGURATION (Re-exported for convenience)
 // ============================================================================
-// Re-export routing utilities from routes.ts and sidebarLinks.tsx
-
-export { 
-  getDashboardByRole, 
-  getRoutesByRole, 
-  getAllowedRolesForPath,
-  isAuthPath,
-  AUTH_PATHS,
-  ROLE_ROUTES,
-  ROLE_PATH_MAP
-} from './routes';
-
-export type { SidebarLink } from './sidebarLinks';
-export { 
-  sidebarLinksByRole
-} from './sidebarLinks';
+// ============================================================================
+// WEBSOCKET EXPORTS
+// ============================================================================
+// ✅ WebSocket exports moved to @/lib/config/websocket to prevent circular dependencies
+// Import directly: import { WebSocketManager } from '@/lib/config/websocket'
 
 // ============================================================================
 // DEFAULT EXPORT

@@ -1,6 +1,6 @@
-import React, { Suspense } from "react";
-import { generateMetadata as generateSEOMetadata } from "@/lib/seo";
-import { pageSEO } from "@/lib/seo";
+import { Suspense } from "react";
+import { generateMetadata as generateSEOMetadata } from "@/lib/config/seo";
+import { pageSEO } from "@/lib/config/seo";
 import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
 import {

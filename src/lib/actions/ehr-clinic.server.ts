@@ -5,7 +5,7 @@
 
 import { authenticatedApi } from './auth.server';
 import { API_ENDPOINTS } from '@/lib/config/config';
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * Get comprehensive EHR for a user

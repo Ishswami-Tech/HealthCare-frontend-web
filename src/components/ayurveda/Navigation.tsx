@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HoverAnimation } from "@/components/ui/animated-wrapper";
 import { useTranslation, useLanguageSwitcher } from "@/lib/i18n/context";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { useRouter } from "next/navigation";
 import { APP_CONFIG } from "@/lib/config/config";
 import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
@@ -148,7 +148,8 @@ const Navigation = () => {
       router.push("/auth/login");
       return;
     }
-    const dashboardPath = `/${session.user.role.toLowerCase()}/dashboard`;
+    // ✅ Consolidated: Use new route format with (dashboard) prefix
+    const dashboardPath = `/(dashboard)/${session.user.role.toLowerCase()}/dashboard`;
     router.push(dashboardPath);
   };
 

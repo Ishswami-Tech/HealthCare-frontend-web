@@ -1,17 +1,17 @@
 "use client";
 
-import React from "react";
+
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
-import { useUsers } from "@/hooks/useUsers";
-import { useMyAppointments } from "@/hooks/useAppointments";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+// import { useClinicContext } from "@/hooks/query/useClinics";
+import { useUsers } from "@/hooks/query/useUsers";
+import { useMyAppointments } from "@/hooks/query/useAppointments";
 
 import {
   Activity,
@@ -31,7 +31,6 @@ import {
 export default function ClinicAdminDashboard() {
   const { session } = useAuth();
   const user = session?.user;
-  const { clinicId } = useClinicContext();
 
   // Fetch real data using existing hooks and server actions
   const { data: users } = useUsers();
@@ -146,7 +145,7 @@ export default function ClinicAdminDashboard() {
       title="Clinic Admin Dashboard"
       allowedRole={Role.CLINIC_ADMIN}
     >
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -431,7 +430,7 @@ export default function ClinicAdminDashboard() {
             </CardContent>
           </Card>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

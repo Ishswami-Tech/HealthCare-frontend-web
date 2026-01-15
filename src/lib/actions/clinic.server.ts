@@ -7,9 +7,11 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { clinicApiClient } from '@/lib/api/client';
-import { auditLog } from '@/lib/audit';
-import { validateClinicAccess } from '@/lib/auth/permissions';
-import { logger } from '@/lib/logger';
+import { auditLog } from '@/lib/utils/audit';
+import { validateClinicAccess } from '@/lib/config/permissions';
+import { logger } from '@/lib/utils/logger';
+import { handleApiError } from '@/lib/utils/error-handler';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import type { Clinic, ClinicLocation, CreateClinicData, UpdateClinicData } from '@/types/clinic.types';
 
 // ✅ Input Validation Schemas
@@ -154,7 +156,7 @@ export async function createClinic(data: CreateClinicData): Promise<{ success: b
 
     // Revalidate cache
     revalidatePath('/dashboard/clinics');
-    revalidateTag('clinics');
+    revalidateTag('clinics', 'max');
     
     return { success: true, clinic: response.data as Clinic };
     
@@ -164,7 +166,7 @@ export async function createClinic(data: CreateClinicData): Promise<{ success: b
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: `Validation error: ${error.errors[0]?.message}` 
+        error: `Validation error: ${error.issues[0]?.message}` 
       };
     }
     
@@ -353,7 +355,7 @@ export async function updateClinic(id: string, data: UpdateClinicData): Promise<
     // Revalidate cache
     revalidatePath('/dashboard/clinics');
     revalidatePath(`/dashboard/clinics/${id}`);
-    revalidateTag('clinics');
+    revalidateTag('clinics', 'max');
     
     return { success: true, clinic: response.data as Clinic };
     
@@ -363,7 +365,7 @@ export async function updateClinic(id: string, data: UpdateClinicData): Promise<
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: `Validation error: ${error.errors[0]?.message}` 
+        error: `Validation error: ${error.issues[0]?.message}` 
       };
     }
     
@@ -422,7 +424,7 @@ export async function deleteClinic(id: string): Promise<{ success: boolean; erro
 
     // Revalidate cache
     revalidatePath('/dashboard/clinics');
-    revalidateTag('clinics');
+    revalidateTag('clinics', 'max');
     
     return { success: true };
     
@@ -487,7 +489,7 @@ export async function createClinicLocation(clinicId: string, data: {
 
     // Revalidate cache
     revalidatePath(`/dashboard/clinics/${clinicId}/locations`);
-    revalidateTag('clinic-locations');
+    revalidateTag('clinic-locations', 'max');
     
     return { success: true, location: response.data as ClinicLocation };
     
@@ -570,7 +572,7 @@ export async function updateClinicLocation(clinicId: string, locationId: string,
 
     // Revalidate cache
     revalidatePath(`/dashboard/clinics/${clinicId}/locations`);
-    revalidateTag('clinic-locations');
+    revalidateTag('clinic-locations', 'max');
     
     return { success: true, location: response.data as ClinicLocation };
     
@@ -621,7 +623,7 @@ export async function deleteClinicLocation(clinicId: string, locationId: string)
 
     // Revalidate cache
     revalidatePath(`/dashboard/clinics/${clinicId}/locations`);
-    revalidateTag('clinic-locations');
+    revalidateTag('clinic-locations', 'max');
     
     return { success: true };
     
@@ -675,7 +677,10 @@ export async function getHealthReady(): Promise<{ success: boolean; status?: any
     });
     
     if (!response.ok) {
-      throw new Error(`Health check failed: ${response.statusText}`);
+      // ✅ Use centralized error handler
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = await handleApiError(response, errorData);
+      throw new Error(errorMessage);
     }
     
     const data = await response.json();

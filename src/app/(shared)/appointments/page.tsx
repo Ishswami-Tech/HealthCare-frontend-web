@@ -13,23 +13,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useMyAppointments,
   useAppointments,
   useUpdateAppointment,
   useCancelAppointment,
   useAppointmentStats,
-} from "@/hooks/useAppointments";
-import { useJoinVideoAppointment } from "@/hooks/useVideoAppointments";
-import { useClinicContext } from "@/hooks/useClinic";
-import { useRBAC } from "@/hooks/useRBAC";
+} from "@/hooks/query/useAppointments";
+import { useJoinVideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { useRBAC } from "@/hooks/utils/useRBAC";
 import {
   useRealTimeAppointments,
   useWebSocketQuerySync,
-} from "@/hooks/useRealTimeQueries";
-import { useDebouncedCallback } from "@/lib/performance";
-import { PAGINATION } from "@/lib/query/query-config";
+} from "@/hooks/realtime/useRealTimeQueries";
+import { useDebouncedCallback } from "@/lib/utils/performance";
+import { PAGINATION } from "@/hooks/query/config";
 import { Pagination } from "@/components/virtual/VirtualizedList";
 import {
   AppointmentProtectedComponent,
@@ -37,7 +37,7 @@ import {
 } from "@/components/rbac";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
-import { PageSuspense, CardSuspense } from "@/components/ui/suspense-boundary";
+import { PageSuspense } from "@/components/ui/suspense-boundary";
 import {
   Calendar,
   Clock,
@@ -92,17 +92,18 @@ export default function AppointmentsPage() {
 
   // Fetch appointments data with proper permissions, real-time updates, and pagination
   // Always call hooks, but conditionally enable them
-  const allAppointmentsQuery = useAppointments(clinicId || "", {
-    search: debouncedSearchTerm, // Use debounced search
-    doctorId: filterDoctor || undefined,
-    type: filterType || undefined,
-    status: filterStatus || undefined,
+  const allAppointmentsQuery = useAppointments({
+    ...(clinicId ? { clinicId } : {}),
+    search: debouncedSearchTerm,
+    ...(filterDoctor && { doctorId: filterDoctor }),
+    ...(filterType && { type: filterType as any }),
+    ...(filterStatus && { status: filterStatus as any }),
     page,
     limit: PAGINATION.DEFAULT_PAGE_SIZE,
   });
 
   const myAppointmentsQuery = useMyAppointments({
-    status: filterStatus || undefined,
+    ...(filterStatus ? { status: filterStatus } : {}),
     page,
     limit: PAGINATION.DEFAULT_PAGE_SIZE,
   });

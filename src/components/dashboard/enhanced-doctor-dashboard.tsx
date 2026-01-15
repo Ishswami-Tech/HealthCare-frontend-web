@@ -1,17 +1,17 @@
 "use client";
 
-import React from "react";
+// import React from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
-import { MetricCard, Card, CardHeader, CardTitle, CardContent } from "@/components/ui/enhanced-card";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useMyAppointments } from "@/hooks/useAppointments";
-import { useClinicContext } from "@/hooks/useClinic";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useMyAppointments } from "@/hooks/query/useAppointments";
+import { useClinicContext } from "@/hooks/query/useClinics";
 import {
   Activity,
   Calendar,
@@ -41,7 +41,7 @@ export default function EnhancedDoctorDashboard() {
   const { clinicId } = useClinicContext();
   
   // Fetch real data
-  const { data: appointments, isPending: loadingAppointments } = useMyAppointments();
+  const { data: appointments } = useMyAppointments();
 
   // Enhanced stats with better calculations
   const stats = {
@@ -51,9 +51,9 @@ export default function EnhancedDoctorDashboard() {
         return new Date(apt.date).toDateString() === today;
       })?.length || 8,
     checkedInPatients:
-      appointments?.appointments?.filter((apt) => apt.status === "CHECKED_IN")?.length || 3,
+      appointments?.appointments?.filter((apt: any) => apt.status === "CHECKED_IN")?.length || 3,
     completedToday:
-      appointments?.appointments?.filter((apt) => {
+      appointments?.appointments?.filter((apt: any) => {
         const today = new Date().toDateString();
         return (
           new Date(apt.date).toDateString() === today &&
@@ -195,7 +195,7 @@ export default function EnhancedDoctorDashboard() {
 
   return (
     <DashboardLayout title="Doctor Dashboard" allowedRole={Role.DOCTOR}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -308,38 +308,53 @@ export default function EnhancedDoctorDashboard() {
 
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <MetricCard
-                title="Today's Appointments"
-                value={stats.todayAppointments}
-                change={{ value: 12, type: "increase", period: "vs yesterday" }}
-                icon={<Calendar className="h-5 w-5" />}
-                loading={loadingAppointments}
-                className="hover:shadow-lg transition-shadow"
-              />
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Today's Appointments
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.todayAppointments}</div>
+                </CardContent>
+              </Card>
               
-              <MetricCard
-                title="Total Patients"
-                value={stats.totalPatients}
-                change={{ value: 8, type: "increase", period: "this month" }}
-                icon={<Users className="h-5 w-5" />}
-                variant="success"
-              />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Total Patients
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalPatients}</div>
+                </CardContent>
+              </Card>
               
-              <MetricCard
-                title="Satisfaction Score"
-                value={`${stats.patientSatisfaction}/5.0`}
-                change={{ value: 0.2, type: "increase", period: "this month" }}
-                icon={<Star className="h-5 w-5" />}
-                variant="warning"
-              />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="h-5 w-5" />
+                    Satisfaction Score
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.patientSatisfaction}/5.0</div>
+                </CardContent>
+              </Card>
               
-              <MetricCard
-                title="Avg Consultation"
-                value={`${stats.avgConsultationTime} min`}
-                change={{ value: 5, type: "decrease", period: "improved" }}
-                icon={<Clock className="h-5 w-5" />}
-                variant="success"
-              />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    Avg Consultation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.avgConsultationTime} min</div>
+                </CardContent>
+              </Card>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -536,7 +551,7 @@ export default function EnhancedDoctorDashboard() {
             </div>
           </div>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

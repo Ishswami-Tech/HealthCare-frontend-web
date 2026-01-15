@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   MoreVertical,
   Mic,
@@ -24,10 +23,10 @@ import {
   MonitorOff,
   Loader2,
 } from "lucide-react";
-import { useRBAC } from "@/hooks/useRBAC";
+import { useRBAC } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
 import { manageParticipantEnhanced } from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/utils/use-toast";
 import type { ParticipantInfo } from "@/lib/video/openvidu";
 
 interface EnhancedParticipantControlsProps {
@@ -59,8 +58,17 @@ export function EnhancedParticipantControls({
   ) => {
     setIsLoading(true);
     try {
+      const participantId = participant.userId || participant.connectionId;
+      if (!participantId) {
+        toast({
+          title: "Error",
+          description: "Participant ID is missing",
+          variant: "destructive",
+        });
+        return;
+      }
       const result = await manageParticipantEnhanced(appointmentId, {
-        participantId: participant.userId,
+        participantId,
         action,
       });
 

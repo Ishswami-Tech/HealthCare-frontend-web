@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,12 +9,11 @@ import {
   CardHeader,
   CardFooter,
 } from "@/components/ui/card";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import Link from "next/link";
-import { toast } from "sonner";
 import { resetPasswordSchema } from "@/types/auth.types";
 import type { ResetPasswordFormData } from "@/types/auth.types";
-import useZodForm from "@/hooks/useZodForm";
+import useZodForm from "@/hooks/utils/useZodForm";
 import {
   Form,
   FormControl,
@@ -23,75 +22,41 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { ERROR_MESSAGES } from "@/lib/config/config";
+import { useAuthForm } from "@/hooks/auth/useAuth";
+import { TOAST_IDS } from "@/hooks/utils/use-toast";
+import { Loader2 } from "lucide-react";
 
 export default function ResetPasswordPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
-  const { resetPassword } = useAuth();
+  const { resetPassword, isResettingPassword } = useAuth();
 
-  const form = useZodForm(
-    resetPasswordSchema,
-    async (data: ResetPasswordFormData) => {
-      if (!token) {
-        toast.error("Invalid or missing reset token");
-        return;
-      }
-
-      try {
-        await resetPassword({
-          token: data.token,
-          newPassword: data.password,
-        });
-        toast.success("Password has been reset successfully.");
-        router.push("/auth/login");
-      } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : ERROR_MESSAGES.RESET_PASSWORD_FAILED
-        );
-      }
-    },
-    {
-      password: "",
-      confirmPassword: "",
-      token: token || "",
-    }
-  );
-
-  const onSubmit = form.handleSubmit(async (data) => {
-    if (!token) {
-      toast.error("Invalid or missing reset token");
-      return;
-    }
-
-    try {
-      await resetPassword({
-        token: data.token,
-        newPassword: data.password,
-      });
-      toast.success("Password has been reset successfully.");
-      router.push("/auth/login");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : ERROR_MESSAGES.RESET_PASSWORD_FAILED
-      );
-    }
+  // ✅ Use unified auth form hook for consistent patterns
+  const { executeAuthOperation } = useAuthForm({
+    toastId: TOAST_IDS.AUTH.RESET_PASSWORD,
+    overlayVariant: "default",
+    loadingMessage: "Resetting password...",
+    successMessage: "Password has been reset successfully.",
+    errorMessage: ERROR_MESSAGES.RESET_PASSWORD_FAILED,
+    redirectUrl: "/auth/login",
+    showOverlay: true,
+    showToast: true,
   });
 
   if (!token) {
     return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <h2 className="text-2xl font-bold text-center">Invalid Reset Link</h2>
-          <p className="text-sm text-gray-600 text-center mt-2">
+      <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
+        <CardHeader className="px-4 sm:px-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-center">Invalid Reset Link</h2>
+          <p className="text-xs sm:text-sm text-gray-600 text-center mt-2">
             The password reset link is invalid or has expired.
           </p>
         </CardHeader>
-        <CardFooter>
+        <CardFooter className="px-4 sm:px-6 pb-4 sm:pb-6">
           <div className="w-full text-center">
             <Link
               href="/auth/forgot-password"
-              className="text-blue-600 hover:underline"
+              className="text-blue-600 hover:underline transition-colors text-xs sm:text-sm"
             >
               Request a new reset link
             </Link>
@@ -101,17 +66,38 @@ export default function ResetPasswordPage() {
     );
   }
 
+  const form = useZodForm(
+    resetPasswordSchema,
+    async (data: ResetPasswordFormData) => {
+      // ✅ Use unified pattern - consistent across all auth pages
+      await executeAuthOperation(async () => {
+        return await resetPassword({
+          token: data.token,
+          newPassword: data.password,
+        });
+      });
+    },
+    {
+      password: "",
+      confirmPassword: "",
+      token: token || "",
+    }
+  );
+
+  // ✅ Overlay clearing is handled by auth layout - no need to clear here
+  // This prevents race conditions and ensures consistent behavior
+
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <h2 className="text-2xl font-bold text-center">Reset Password</h2>
-        <p className="text-sm text-gray-600 text-center mt-2">
+    <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
+      <CardHeader className="px-4 sm:px-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-center">Reset Password</h2>
+        <p className="text-xs sm:text-sm text-gray-600 text-center mt-2">
           Enter your new password below
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4 sm:px-6">
         <Form {...form}>
-          <form onSubmit={onSubmit} className="space-y-4">
+          <form onSubmit={form.onFormSubmit} className="space-y-4">
             <FormField
               control={form.control}
               name="password"
@@ -146,16 +132,27 @@ export default function ResetPasswordPage() {
               )}
             />
 
-            <Button type="submit" className="w-full">
-              Reset Password
+            <Button 
+              type="submit" 
+              className="w-full"
+              disabled={isResettingPassword}
+            >
+              {isResettingPassword ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                "Reset Password"
+              )}
             </Button>
           </form>
         </Form>
       </CardContent>
-      <CardFooter>
-        <div className="w-full text-center text-sm text-gray-600">
+      <CardFooter className="px-4 sm:px-6 pb-4 sm:pb-6">
+        <div className="w-full text-center text-xs sm:text-sm text-gray-600">
           Remember your password?{" "}
-          <Link href="/auth/login" className="text-blue-600 hover:underline">
+          <Link href="/auth/login" className="text-blue-600 hover:underline transition-colors">
             Sign in
           </Link>
         </div>

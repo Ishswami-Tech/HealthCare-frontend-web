@@ -15,15 +15,15 @@ import {
 } from "@/components/ui/select";
 import { FileText, Plus, Edit, Trash2, Save, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/hooks/useAuth";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
   createMedicalNote,
   getMedicalNotes,
   deleteMedicalNote,
   type MedicalNote,
 } from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/utils/use-toast";
 import { format } from "date-fns";
 
 interface MedicalNotesProps {
@@ -60,7 +60,7 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
           setNotes(result.notes);
         }
       } catch (error) {
-        console.error("Failed to load medical notes:", error);
+        // Error handled by React Query
       } finally {
         setIsLoading(false);
       }

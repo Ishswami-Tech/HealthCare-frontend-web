@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/lib/i18n/context";
-import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/auth/useAuth";
+
 import {
   Zap,
   Heart,
@@ -29,8 +29,7 @@ import {
 
 const ComprehensiveCTA = () => {
   const { t } = useTranslation();
-  const { isAuthenticated, session } = useAuth();
-  const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [selectedIntent, setSelectedIntent] = useState<string | null>(null);
   const [email, setEmail] = useState("");
 

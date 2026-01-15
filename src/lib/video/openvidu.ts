@@ -2,6 +2,8 @@
 // This module provides video appointment functionality using OpenVidu
 
 import { OpenVidu, Session, Publisher, Subscriber, Stream, ConnectionEvent, StreamEvent, PublisherProperties, StreamManagerEvent } from 'openvidu-browser';
+import type { Role } from '@/types/auth.types';
+import type { AppointmentStatus } from '@/types/appointment.types';
 
 export interface OpenViduConfig {
   openviduServerUrl: string;
@@ -10,7 +12,7 @@ export interface OpenViduConfig {
   userInfo: {
     displayName: string;
     email: string;
-    role: 'doctor' | 'patient' | 'admin';
+    role: Role | 'admin';
   };
   options?: {
     videoSource?: string | MediaStreamTrack | boolean;
@@ -29,7 +31,7 @@ export interface VideoAppointmentData {
   patientId: string;
   startTime: string;
   endTime: string;
-  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+  status: AppointmentStatus | 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
   sessionId?: string;
   recordingUrl?: string;
   notes?: string;
@@ -39,6 +41,8 @@ export interface ParticipantInfo {
   connectionId: string;
   data: string;
   role: string;
+  userId?: string;
+  displayName?: string;
 }
 
 // ✅ OpenVidu API Integration
@@ -396,7 +400,7 @@ export class VideoAppointmentService {
       userId: string;
       displayName: string;
       email: string;
-      role: 'doctor' | 'patient' | 'admin';
+      role: Role | 'admin';
     },
     token: string,
     openviduServerUrl: string

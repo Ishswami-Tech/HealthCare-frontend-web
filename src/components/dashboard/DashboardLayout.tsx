@@ -1,20 +1,20 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useRBAC,
   useRoleBasedNavigation,
   useAppointmentPermissions,
   useQueuePermissions,
-} from "@/hooks/useRBAC";
+} from "@/hooks/utils/useRBAC";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
 import { Loader2, Shield, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useQueryData } from "@/hooks/useQueryData";
+import { useQueryData } from "@/hooks/core/useQueryData";
 import { getUserProfile } from "@/lib/actions/users.server";
-import { checkProfileCompletion, transformApiResponse } from "@/lib/profile";
+import { checkProfileCompletion, transformApiResponse } from "@/lib/config/profile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { UserProfile } from "@/types/auth.types";

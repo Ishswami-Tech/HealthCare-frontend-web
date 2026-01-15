@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRBAC, useAppointmentPermissions, usePatientPermissions, useQueuePermissions } from '@/hooks/useRBAC';
+import { useRBAC, useAppointmentPermissions, usePatientPermissions, useQueuePermissions } from '@/hooks/utils/useRBAC';
 import { Permission } from '@/types/rbac.types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Lock } from 'lucide-react';

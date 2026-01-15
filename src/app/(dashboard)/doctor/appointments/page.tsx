@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
-import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/useAppointments";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { toast } from "sonner";
 import { 
   Activity,
@@ -56,9 +56,9 @@ export default function DoctorAppointments() {
 
   // Fetch real appointment data
   const appointmentsQuery = useAppointments({
-    clinicId: clinicId || undefined,
-    doctorId: user?.id || undefined,
-    status: statusFilter === "all" ? undefined : statusFilter,
+    clinicId: clinicId || "",
+    doctorId: user?.id || "",
+    status: statusFilter === "all" ? undefined : (statusFilter as any),
     limit: 100,
   });
 
@@ -66,7 +66,7 @@ export default function DoctorAppointments() {
   const isLoadingAppointments = appointmentsQuery.isPending;
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync(["appointments", clinicId, user?.id]);
+  useWebSocketQuerySync();
 
   // Transform appointments data
   const appointments = useMemo(() => {
@@ -130,7 +130,7 @@ export default function DoctorAppointments() {
   if (isLoadingAppointments) {
     return (
       <DashboardLayout title="Doctor Appointments" allowedRole={Role.DOCTOR}>
-        <GlobalSidebar
+        <Sidebar
           links={sidebarLinks}
           user={{ 
             name: user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
@@ -140,7 +140,7 @@ export default function DoctorAppointments() {
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
+        </Sidebar>
       </DashboardLayout>
     );
   }
@@ -195,7 +195,7 @@ export default function DoctorAppointments() {
 
   return (
     <DashboardLayout title="Doctor Appointments" allowedRole={Role.DOCTOR}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{ 
           name: user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
@@ -610,7 +610,7 @@ export default function DoctorAppointments() {
             </Card>
           )}
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

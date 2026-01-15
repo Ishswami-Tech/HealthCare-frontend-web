@@ -4,7 +4,7 @@ import React from "react";
 import { Moon, Sun, Monitor } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/lib/i18n/context"; // ✅ Use consolidated i18n
 
 interface ThemeSwitcherProps {
   className?: string;
@@ -220,7 +220,7 @@ export function CompactThemeSwitcher({ className }: ThemeSwitcherProps) {
   return (
     <div className={cn("flex items-center", className)}>
       <div className="relative flex bg-gray-200 dark:bg-gray-700 rounded-full p-1 gap-0.5">
-        {themes.map((themeOption, index) => {
+        {themes.map((themeOption) => {
           const Icon = themeOption.icon;
           const isActive = theme === themeOption.value;
 

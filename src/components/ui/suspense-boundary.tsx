@@ -1,12 +1,13 @@
 /**
- * Granular Suspense Boundaries
+ * ✅ Granular Suspense Boundaries
  * For better loading states and streaming
+ * Uses consolidated loading components
  */
 
 "use client";
 
 import { Suspense, ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
+import { InlineLoader, LoadingSpinner } from '@/components/ui/loading';
 
 export interface SuspenseBoundaryProps {
   children: ReactNode;
@@ -28,12 +29,7 @@ export function SuspenseBoundary({
       fallback={
         fallback || (
           <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            {name && (
-              <span className="ml-2 text-sm text-muted-foreground">
-                Loading {name}...
-              </span>
-            )}
+            <LoadingSpinner size="md" color="primary" text={name ? `Loading ${name}...` : ""} />
           </div>
         )
       }
@@ -51,7 +47,7 @@ export function CompactSuspense({ children }: { children: ReactNode }) {
     <SuspenseBoundary
       fallback={
         <div className="flex items-center gap-2 p-2">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <InlineLoader size="sm" />
           <span className="text-xs text-muted-foreground">Loading...</span>
         </div>
       }
@@ -67,7 +63,7 @@ export function CompactSuspense({ children }: { children: ReactNode }) {
 export function InlineSuspense({ children }: { children: ReactNode }) {
   return (
     <SuspenseBoundary
-      fallback={<Loader2 className="h-4 w-4 animate-spin inline-block" />}
+      fallback={<InlineLoader size="sm" className="inline-block" />}
     >
       {children}
     </SuspenseBoundary>
@@ -82,10 +78,7 @@ export function PageSuspense({ children }: { children: ReactNode }) {
     <SuspenseBoundary
       fallback={
         <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading page...</p>
-          </div>
+          <LoadingSpinner size="lg" color="primary" text="Loading page..." />
         </div>
       }
     >
@@ -103,7 +96,7 @@ export function CardSuspense({ children }: { children: ReactNode }) {
       fallback={
         <div className="p-6 border rounded-lg">
           <div className="flex items-center gap-2">
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <InlineLoader size="md" />
             <span className="text-sm text-muted-foreground">Loading...</span>
           </div>
         </div>
@@ -123,7 +116,7 @@ export function TableRowSuspense({ children }: { children: ReactNode }) {
       fallback={
         <tr>
           <td colSpan={100} className="p-4 text-center">
-            <Loader2 className="h-4 w-4 animate-spin inline-block" />
+            <InlineLoader size="sm" className="inline-block" />
             <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
           </td>
         </tr>

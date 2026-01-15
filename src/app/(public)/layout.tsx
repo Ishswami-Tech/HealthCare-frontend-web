@@ -8,10 +8,10 @@ import {
   generateOrganizationSchema,
   generateLocalBusinessSchema,
   generateWebsiteSchema,
-} from "@/lib/seo";
+} from "@/lib/config/seo";
 
 import { LanguageProvider } from "@/lib/i18n/context";
-import { ThemeProvider } from "@/components/theme/theme-provider";
+// ThemeProvider is handled by AppProvider (next-themes)
 import { AppProvider } from "@/app/providers/AppProvider";
 import Navigation from "@/components/ayurveda/Navigation";
 import Footer from "@/components/ayurveda/Footer";
@@ -69,26 +69,24 @@ export default function PublicLayout({
   const websiteSchema = generateWebsiteSchema();
 
   return (
-    <ThemeProvider defaultTheme="system">
-      <AppProvider>
-        <LanguageProvider initialLanguage="en">
-          <>
-            {/* SEO Schema Markup */}
-            <script
-              type="application/ld+json"
-              dangerouslySetInnerHTML={{
-                __html: JSON.stringify([
-                  organizationSchema,
-                  localBusinessSchema,
-                  websiteSchema,
-                ]),
-              }}
-            />
+    <AppProvider>
+      <LanguageProvider initialLanguage="en">
+        <>
+          {/* SEO Schema Markup */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify([
+                organizationSchema,
+                localBusinessSchema,
+                websiteSchema,
+              ]),
+            }}
+          />
 
-            <LayoutContent>{children}</LayoutContent>
-          </>
-        </LanguageProvider>
-      </AppProvider>
-    </ThemeProvider>
+          <LayoutContent>{children}</LayoutContent>
+        </>
+      </LanguageProvider>
+    </AppProvider>
   );
 }

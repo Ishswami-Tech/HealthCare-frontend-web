@@ -1,30 +1,29 @@
 "use client";
 
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useMyAppointments } from "@/hooks/useAppointments";
-import { useClinicContext } from "@/hooks/useClinic";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useMyAppointments } from "@/hooks/query/useAppointments";
+import { useClinicContext } from "@/hooks/query/useClinics";
 import {
   usePatientMedicalRecords,
   usePatientVitalSigns,
-} from "@/hooks/usePatients";
+} from "@/hooks/query/usePatients";
 import {
   usePatientPrescriptions,
   useComprehensiveHealthRecord,
-} from "@/hooks/useMedicalRecords";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+} from "@/hooks/query/useMedicalRecords";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 
-import { useTranslations } from "next-intl";
-import { translateSidebarLinks } from "@/lib/utils";
-import { theme } from "@/lib/theme-utils";
+import { useTranslation } from "@/lib/i18n/context";
+import { translateSidebarLinks } from "@/lib/utils/index";
+import { theme } from "@/lib/utils/theme-utils";
 import {
   Activity,
   Calendar,
@@ -48,7 +47,7 @@ import {
 export default function PatientDashboard() {
   const { session } = useAuth();
   const user = session?.user;
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -98,8 +97,8 @@ export default function PatientDashboard() {
         isOnline: apt.isOnline || false,
       }));
 
-    const latestVitals = vitalSignsData?.[0] || {};
-    const latestPrescriptions = prescriptionsData || [];
+    const latestVitals = (vitalSignsData as any)?.[0] || {};
+    const latestPrescriptions = (prescriptionsData as any) || [];
 
     return {
       personalInfo: {
@@ -107,20 +106,20 @@ export default function PatientDashboard() {
           user?.name ||
           `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
           "Patient",
-        age: user?.dateOfBirth
+        age: (user as any)?.dateOfBirth
           ? Math.floor(
-              (new Date().getTime() - new Date(user.dateOfBirth).getTime()) /
+              (new Date().getTime() - new Date((user as any).dateOfBirth).getTime()) /
                 (1000 * 60 * 60 * 24 * 365)
             )
           : null,
-        gender: user?.gender || "Unknown",
-        phone: user?.phone || "",
+        gender: (user as any)?.gender || "Unknown",
+        phone: (user as any)?.phone || (user as any)?.phoneNumber || "",
         email: user?.email || "",
       },
       healthOverview: {
-        primaryDosha: comprehensiveData?.doshaBalance?.dominant || "Unknown",
-        currentTreatment: medicalRecordsData?.[0]?.treatment || "None",
-        treatmentProgress: 0, // TODO: Calculate from treatment history
+        primaryDosha: (comprehensiveData as any)?.doshaBalance?.dominant || "Unknown",
+        currentTreatment: (medicalRecordsData as any)?.[0]?.treatment || "None",
+        treatmentProgress: 0, // Note: To be calculated from treatment history when available
         nextAppointment: upcomingAppointments[0]?.date || null,
         lastVisit:
           appointments
@@ -132,12 +131,12 @@ export default function PatientDashboard() {
               (a: any, b: any) =>
                 new Date(b.startTime || b.date).getTime() -
                 new Date(a.startTime || a.date).getTime()
-            )[0]?.startTime || null,
+            )[0]?.time || null,
       },
       upcomingAppointments,
-      recentActivity: [], // TODO: Implement activity feed from medical records
-      currentTreatments: [], // TODO: Extract from medical records
-      medications: latestPrescriptions.slice(0, 5).map((presc: any) => ({
+      recentActivity: [] as Array<{ type: string; message: string; time: string }>, // Note: Activity feed from medical records to be implemented
+      currentTreatments: [] as Array<{ name: string; type: string; doctor: string; progress: number; nextSession: string }>, // Note: To be extracted from medical records when available
+      medications: (latestPrescriptions as any[]).slice(0, 5).map((presc: any) => ({
         name: presc.medicineName || presc.name || "Unknown",
         dosage: presc.dosage || "As prescribed",
         nextRefill: presc.nextRefillDate || null,
@@ -150,7 +149,7 @@ export default function PatientDashboard() {
           ? new Date(latestVitals.recordedAt).toLocaleDateString()
           : "N/A",
       },
-      doshaBalance: comprehensiveData?.doshaBalance || {
+      doshaBalance: (comprehensiveData as any)?.doshaBalance || {
         vata: 0,
         pitta: 0,
         kapha: 0,
@@ -222,7 +221,7 @@ export default function PatientDashboard() {
 
   return (
     <DashboardLayout title={t("sidebar.dashboard")} allowedRole={Role.PATIENT}>
-      <GlobalSidebar
+      <Sidebar
         links={translatedSidebarLinks}
         user={{
           name: patientData.personalInfo.name,
@@ -314,21 +313,21 @@ export default function PatientDashboard() {
               </CardHeader>
               <CardContent>
                 <div className={`text-lg font-bold ${theme.iconColors.purple}`}>
-                  {new Date(
+                  {patientData.healthOverview.nextAppointment ? new Date(
                     patientData.healthOverview.nextAppointment
                   ).toLocaleDateString("en-IN", {
                     month: "short",
                     day: "numeric",
-                  })}
+                  }) : "N/A"}
                 </div>
                 <p className={`text-xs ${theme.textColors.muted}`}>
-                  {new Date(
+                  {patientData.healthOverview.nextAppointment ? new Date(
                     patientData.healthOverview.nextAppointment
                   ).toLocaleTimeString("en-IN", {
                     hour: "numeric",
                     minute: "2-digit",
                     hour12: true,
-                  })}
+                  }) : ""}
                 </p>
               </CardContent>
             </Card>
@@ -452,7 +451,7 @@ export default function PatientDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {patientData.upcomingAppointments.map((appointment) => (
+                  {patientData.upcomingAppointments.map((appointment: any) => (
                     <div
                       key={appointment.id}
                       className={`flex items-center justify-between p-4 border rounded-lg ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}
@@ -540,7 +539,7 @@ export default function PatientDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {patientData.currentTreatments.map((treatment, index) => (
+                {patientData.currentTreatments.map((treatment: any, index: number) => (
                   <div key={index} className="p-4 border rounded-lg">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-semibold">{treatment.name}</h4>
@@ -586,7 +585,7 @@ export default function PatientDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {patientData.medications.map((medication, index) => (
+                  {patientData.medications.map((medication: any, index: number) => (
                     <div
                       key={index}
                       className="flex items-center justify-between p-3 border rounded-lg"
@@ -641,7 +640,7 @@ export default function PatientDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {patientData.recentActivity.map((activity, index) => (
+                  {patientData.recentActivity.map((activity: any, index: number) => (
                     <div key={index} className="flex items-start gap-3">
                       <div className="flex-shrink-0">
                         {activity.type === "appointment" && (
@@ -780,7 +779,7 @@ export default function PatientDashboard() {
             </CardContent>
           </Card>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

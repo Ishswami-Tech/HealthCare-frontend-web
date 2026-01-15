@@ -2,7 +2,7 @@
 
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { VideoAppointmentsList } from "@/components/video/VideoAppointmentsList";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 
 export default function PatientVideoPage() {
   const { session } = useAuth();

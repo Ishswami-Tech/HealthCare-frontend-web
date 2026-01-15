@@ -1,22 +1,21 @@
 "use client";
 
-import React from "react";
+import { useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   usePrescriptions,
   useInventory,
   usePharmacyStats,
-} from "@/hooks/usePharmacy";
-import { useClinicContext } from "@/hooks/useClinic";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+} from "@/hooks/query/usePharmacy";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Activity,
   Pill,
@@ -44,13 +43,12 @@ export default function PharmacistDashboard() {
   const { clinicId } = useClinicContext();
 
   // Fetch real data using pharmacy hooks
-  const { data: prescriptions = [], isLoading: prescriptionsLoading } =
+  const { data: prescriptions = [], isPending: prescriptionsPending } =
     usePrescriptions(clinicId || "", {
-      status: undefined, // Get all prescriptions
       limit: 100,
     });
 
-  const { data: inventory = [], isLoading: inventoryLoading } = useInventory(
+  const { data: inventory = [], isPending: inventoryPending } = useInventory(
     clinicId || "",
     {
       limit: 100,
@@ -62,36 +60,36 @@ export default function PharmacistDashboard() {
   // Calculate real stats from fetched data
   const stats = {
     pendingPrescriptions:
-      prescriptions.filter(
+      (prescriptions as any[]).filter(
         (p: any) => p.status === "PENDING" || p.status === "pending"
       )?.length || 0,
     preparedPrescriptions:
-      prescriptions.filter(
+      (prescriptions as any[]).filter(
         (p: any) => p.status === "PREPARED" || p.status === "prepared"
       )?.length || 0,
     lowStockItems:
-      inventory.filter((i: any) => i.currentStock < i.minStock)?.length || 0,
-    totalHandovers: pharmacyStats?.totalHandovers || 0,
-    monthlyDispensed: pharmacyStats?.monthlyDispensed || 0,
+      (inventory as any[]).filter((i: any) => i.currentStock < i.minStock)?.length || 0,
+    totalHandovers: (pharmacyStats as any)?.totalHandovers || 0,
+    monthlyDispensed: (pharmacyStats as any)?.monthlyDispensed || 0,
     inventoryValue:
-      pharmacyStats?.inventoryValue ||
-      inventory.reduce(
+      (pharmacyStats as any)?.inventoryValue ||
+      (inventory as any[]).reduce(
         (sum: number, item: any) => sum + item.costPerUnit * item.currentStock,
         0
       ),
     expiringItems:
-      inventory.filter((i: any) => {
+      (inventory as any[]).filter((i: any) => {
         if (!i.expiryDate) return false;
         const expiry = new Date(i.expiryDate);
         const in30Days = new Date();
         in30Days.setDate(in30Days.getDate() + 30);
         return expiry <= in30Days;
       })?.length || 0,
-    averagePreparationTime: pharmacyStats?.averagePreparationTime || 15,
+    averagePreparationTime: (pharmacyStats as any)?.averagePreparationTime || 15,
   };
 
   // Use real prescriptions data
-  const pendingPrescriptions = prescriptions
+  const pendingPrescriptions = (prescriptions as any[])
     .filter(
       (p: any) => (p.status === "PENDING" || p.status === "pending") && p.id
     )
@@ -110,7 +108,7 @@ export default function PharmacistDashboard() {
     }));
 
   // Use real inventory data
-  const lowStockItems = inventory
+  const lowStockItems = (inventory as any[])
     .filter((i: any) => i.currentStock < i.minStock)
     .slice(0, 10)
     .map((i: any) => ({
@@ -122,7 +120,7 @@ export default function PharmacistDashboard() {
 
   // Recent handovers from completed prescriptions
   const recentHandovers = useMemo(() => {
-    return prescriptions
+    return (prescriptions as any[])
       .filter((p: any) => p.status === "COMPLETED" || p.status === "completed")
       .slice(0, 5)
       .map((p: any) => ({
@@ -190,7 +188,7 @@ export default function PharmacistDashboard() {
 
   return (
     <DashboardLayout title="Pharmacist Dashboard" allowedRole={Role.PHARMACIST}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -219,6 +217,16 @@ export default function PharmacistDashboard() {
               </Button>
             </div>
           </div>
+
+          {/* Loading State */}
+          {(prescriptionsPending || inventoryPending) && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <p className="text-sm text-blue-800">
+                Loading {prescriptionsPending && "prescriptions"}{prescriptionsPending && inventoryPending && " and "}{inventoryPending && "inventory"}...
+              </p>
+            </div>
+          )}
 
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -456,7 +464,7 @@ export default function PharmacistDashboard() {
             </CardContent>
           </Card>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

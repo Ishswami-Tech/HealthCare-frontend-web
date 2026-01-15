@@ -1,8 +1,24 @@
+/**
+ * ✅ Consolidated Loading Overlay Provider & Listener
+ * Follows DRY, SOLID, KISS principles
+ * Uses unified loading components from @/components/ui/loading
+ *
+ * Combines:
+ * - LoadingOverlayProvider: Context and UI rendering
+ * - GlobalLoadingOverlayListener: Automatic loading detection
+ */
+
 "use client";
 
-import React, { createContext, useContext, useMemo } from "react";
-import LoadingSpinner from "@/components/LoadingSpinner";
-import { useAppStore, LoadingOverlayVariant } from "@/stores/app.store";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
+import { LoadingOverlay } from "@/components/ui/loading";
+import { useAppStore, LoadingOverlayVariant } from "@/stores";
 
 interface LoadingOverlayContextType {
   overlay: {
@@ -26,6 +42,17 @@ const LoadingOverlayContext = createContext<LoadingOverlayContextType>({
   clearOverlay: () => {},
 });
 
+// ✅ Consolidated variant configuration
+const VARIANT_CONFIG: Record<
+  LoadingOverlayVariant,
+  { color: "primary" | "secondary" | "muted" | string; message: string }
+> = {
+  default: { color: "primary", message: "Loading..." },
+  logout: { color: "primary", message: "Logging out..." },
+  login: { color: "primary", message: "Logging in..." },
+  register: { color: "primary", message: "Registering..." },
+} as const;
+
 export function LoadingOverlayProvider({
   children,
 }: {
@@ -40,38 +67,77 @@ export function LoadingOverlayProvider({
     [overlay, setOverlay, clearOverlay]
   );
 
-  const variantConfig: Record<
-    LoadingOverlayVariant,
-    { color: string; message: string }
-  > = {
-    default: { color: "text-blue-600 border-blue-600", message: "Loading..." },
-    logout: { color: "text-red-600 border-red-600", message: "Logging out..." },
-    login: {
-      color: "text-green-600 border-green-600",
-      message: "Logging in...",
-    },
-    register: {
-      color: "text-purple-600 border-purple-600",
-      message: "Registering...",
-    },
-  };
-  const config = variantConfig[overlay.variant] || variantConfig.default;
+  const config = VARIANT_CONFIG[overlay.variant] || VARIANT_CONFIG.default;
+  const displayMessage = overlay.message || config.message;
 
   return (
     <LoadingOverlayContext.Provider value={contextValue}>
       {children}
-      {overlay.show && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
-          <LoadingSpinner color={config.color} size="h-12 w-12" />
-          <span className={`text-lg font-semibold ${config.color}`}>
-            {overlay.message || config.message}
-          </span>
-        </div>
-      )}
+      {/* ✅ Use consolidated LoadingOverlay component */}
+      <LoadingOverlay
+        show={overlay.show}
+        text={displayMessage}
+        className="z-50"
+      />
     </LoadingOverlayContext.Provider>
   );
 }
 
 export function useLoadingOverlay() {
   return useContext(LoadingOverlayContext);
+}
+
+// ============================================================================
+// GLOBAL LOADING OVERLAY LISTENER
+// ============================================================================
+
+/**
+ * ✅ Global Loading Overlay Listener
+ * Simplified version that only handles browser back/forward navigation
+ * Page-level components handle their own loading states
+ */
+export function GlobalLoadingOverlayListener() {
+  const { clearOverlay } = useLoadingOverlay();
+
+  // ✅ Use ref to avoid stale closures
+  const clearOverlayRef = useRef(clearOverlay);
+
+  // Update ref when function changes
+  useEffect(() => {
+    clearOverlayRef.current = clearOverlay;
+  }, [clearOverlay]);
+
+  // ✅ Hide overlay on mount and keep it hidden
+  // Don't add any event listeners that could cause performance issues
+  useEffect(() => {
+    // Hide overlay immediately on mount
+    clearOverlayRef.current();
+
+    return () => {
+      clearOverlayRef.current(); // Ensure overlay is hidden on unmount
+    };
+  }, []); // ✅ Empty deps - only run once on mount
+
+  // ✅ Clear overlay on browser back/forward navigation only
+  // NOTE: We do NOT override history.pushState as it interferes with Next.js App Router
+  // Next.js App Router uses its own navigation APIs and handles route changes internally
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return; // No cleanup needed if not in browser
+    }
+
+    const handlePopState = () => {
+      clearOverlayRef.current();
+    };
+
+    // Only listen for browser back/forward buttons (popstate)
+    // Do NOT override history.pushState - it breaks Next.js navigation
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  return null;
 }

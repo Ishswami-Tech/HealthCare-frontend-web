@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useDetailedHealthStatus } from '@/hooks/useHealth';
+import { useDetailedHealthStatus } from '@/hooks/query/useHealth';
 import { Badge } from '@/components/ui/badge';
 
 // Dynamically import to avoid SSR issues and circular dependencies
@@ -32,12 +32,12 @@ export function GlobalHealthStatusButton({
 
   // Calculate overall health
   const services = [
-    { name: 'Database', status: healthData?.database?.status || 'unknown' },
-    { name: 'Cache', status: healthData?.cache?.status || 'unknown' },
-    { name: 'Queue', status: healthData?.queue?.status || 'unknown' },
-    { name: 'Communication', status: healthData?.communication?.status || 'unknown' },
-    { name: 'Video', status: healthData?.video?.status || 'unknown' },
-    { name: 'Logging', status: healthData?.logging?.status || 'unknown' },
+    { name: 'Database', status: (healthData as any)?.database?.status || 'unknown' },
+    { name: 'Cache', status: (healthData as any)?.cache?.status || 'unknown' },
+    { name: 'Queue', status: (healthData as any)?.queue?.status || 'unknown' },
+    { name: 'Communication', status: (healthData as any)?.communication?.status || 'unknown' },
+    { name: 'Video', status: (healthData as any)?.video?.status || 'unknown' },
+    { name: 'Logging', status: (healthData as any)?.logging?.status || 'unknown' },
   ];
 
   const healthyCount = services.filter(s => s.status === 'up').length;

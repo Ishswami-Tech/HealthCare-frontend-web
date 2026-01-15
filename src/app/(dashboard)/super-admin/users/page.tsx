@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,10 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useUsers } from "@/hooks/useUsers";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useUsers } from "@/hooks/query/useUsers";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
 import { Loader2 } from "lucide-react";
 import {
@@ -136,7 +136,7 @@ export default function SuperAdminUsers() {
   if (isLoadingUsers) {
     return (
       <DashboardLayout title="User Management" allowedRole={Role.SUPER_ADMIN}>
-        <GlobalSidebar
+        <Sidebar
           links={sidebarLinks}
           user={{
             name:
@@ -149,14 +149,14 @@ export default function SuperAdminUsers() {
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
+        </Sidebar>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout title="User Management" allowedRole={Role.SUPER_ADMIN}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -202,7 +202,7 @@ export default function SuperAdminUsers() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {users.filter((u) => u.role === Role.DOCTOR).length}
+                  {users.filter((u: any) => u.role === Role.DOCTOR).length}
                 </div>
               </CardContent>
             </Card>
@@ -214,7 +214,7 @@ export default function SuperAdminUsers() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-600">
-                  {users.filter((u) => u.role === Role.CLINIC_ADMIN).length}
+                  {users.filter((u: any) => u.role === Role.CLINIC_ADMIN).length}
                 </div>
               </CardContent>
             </Card>
@@ -226,7 +226,7 @@ export default function SuperAdminUsers() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {users.filter((u) => u.role === Role.PATIENT).length}
+                  {users.filter((u: any) => u.role === Role.PATIENT).length}
                 </div>
               </CardContent>
             </Card>
@@ -238,7 +238,7 @@ export default function SuperAdminUsers() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {users.filter((u) => u.status === "Active").length}
+                  {users.filter((u: any) => u.status === "Active").length}
                 </div>
               </CardContent>
             </Card>
@@ -292,7 +292,7 @@ export default function SuperAdminUsers() {
 
           {/* Users List */}
           <div className="grid gap-4">
-            {filteredUsers.map((user) => (
+            {filteredUsers.map((user: any) => (
               <Card key={user.id}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -385,7 +385,7 @@ export default function SuperAdminUsers() {
             </Card>
           )}
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

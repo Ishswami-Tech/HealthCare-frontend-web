@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +10,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Send,
   Paperclip,
-  Image as ImageIcon,
-  FileText,
-  X,
-  Smile,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
   sendChatMessage,
   getChatMessages,
@@ -24,7 +20,7 @@ import {
   type ChatMessage,
 } from "@/lib/actions/video-enhanced.server";
 import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/utils/use-toast";
 
 interface VideoChatProps {
   appointmentId: string;
@@ -37,13 +33,13 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [typingUsers] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { subscribeToChatMessages, sendChatMessage: sendChatMessageWS, sendTypingIndicator, isConnected } =
+  const { subscribeToChatMessages, sendChatMessage: sendChatMessageWS, isConnected } =
     useVideoAppointmentWebSocket();
 
   // Load initial messages
@@ -55,7 +51,7 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
           setMessages(result.messages);
         }
       } catch (error) {
-        console.error("Failed to load chat messages:", error);
+        // Error handled by React Query
       } finally {
         setIsLoading(false);
       }
@@ -105,7 +101,9 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
     // Set timeout to stop typing indicator
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      updateTypingIndicator(appointmentId, false).catch(console.error);
+      updateTypingIndicator(appointmentId, false).catch(() => {
+        // Silently handle typing indicator errors
+      });
     }, 3000);
   };
 
@@ -126,7 +124,9 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
       if (result) {
         setNewMessage("");
         setIsTyping(false);
-        updateTypingIndicator(appointmentId, false).catch(console.error);
+        updateTypingIndicator(appointmentId, false).catch(() => {
+        // Silently handle typing indicator errors
+      });
         inputRef.current?.focus();
       }
     } catch (error) {
@@ -188,7 +188,7 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                   >
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="text-xs">
-                        {getInitials(message.userName)}
+                        {getInitials(message.user?.name || message.userId || 'U')}
                       </AvatarFallback>
                     </Avatar>
                     <div

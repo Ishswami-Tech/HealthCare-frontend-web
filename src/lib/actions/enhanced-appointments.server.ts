@@ -3,14 +3,15 @@
 
 'use server';
 
-import { logger } from '@/lib/logger';
+import { logger } from '@/lib/utils/logger';
 
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { clinicApiClient } from '@/lib/api/client';
-import { auditLog } from '@/lib/audit';
-import { validateClinicAccess } from '@/lib/auth/permissions';
+import { auditLog } from '@/lib/utils/audit';
+import { validateClinicAccess } from '@/lib/config/permissions';
+import { ERROR_MESSAGES, APP_CONFIG } from '@/lib/config/config';
 import type { 
   Appointment, 
   CreateAppointmentData, 
@@ -72,18 +73,20 @@ async function getSessionData() {
   const userRole = cookieStore.get('user_role')?.value;
 
   if (!accessToken || !sessionId) {
-    throw new Error('Unauthorized: Please log in again');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
 
   // Try to extract user ID from JWT token
   try {
     const payload = JSON.parse(atob(accessToken.split('.')[1] || ''));
     const userId = payload.sub;
-    const clinicId = payload.clinicId || process.env.NEXT_PUBLIC_CLINIC_ID;
+    // ✅ Use centralized config instead of direct env access
+    const { APP_CONFIG } = await import('@/lib/config/config');
+    const clinicId = payload.clinicId || APP_CONFIG.CLINIC.ID;
     
     return { sessionId, userId, clinicId, userRole, accessToken };
   } catch {
-    throw new Error('Invalid session: Please log in again');
+    throw new Error(ERROR_MESSAGES.SESSION_EXPIRED);
   }
 }
 
@@ -143,7 +146,8 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
     // Create appointment via enhanced API client
     const appointmentData: any = {
       ...validatedData,
-      clinicId: clinicId || validatedData.clinicId || process.env.NEXT_PUBLIC_CLINIC_ID!
+      // ✅ Use centralized config instead of direct env access
+      clinicId: clinicId || validatedData.clinicId || APP_CONFIG.CLINIC.ID
     };
     
     // Only include notes if it has a value
@@ -185,8 +189,8 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
     // Revalidate cache
     revalidatePath('/dashboard/appointments');
     revalidatePath('/appointments');
-    revalidateTag('appointments');
-    revalidateTag('queue');
+    revalidateTag('appointments', 'max');
+    revalidateTag('queue', 'max');
     
     return { success: true, appointment: response.data as Appointment };
     
@@ -196,7 +200,7 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: `Validation error: ${error.errors[0]?.message}`,
+        error: `Validation error: ${error.issues[0]?.message}`,
         code: 'VALIDATION_ERROR'
       };
     }
@@ -210,10 +214,11 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
 }
 
 /**
- * Get appointments with enhanced filtering
- * Supports both clinicId parameter (legacy) and filters-only (new)
+ * ✅ Consolidated: Get appointments with enhanced filtering
+ * Removed legacy clinicIdOrFilters parameter - now uses filters only
+ * Follows DRY, SOLID, KISS principles
  */
-export async function getAppointments(clinicIdOrFilters?: string | AppointmentFilters, filters?: AppointmentFilters): Promise<{ 
+export async function getAppointments(filters?: AppointmentFilters): Promise<{ 
   success: boolean; 
   appointments?: Appointment[]; 
   meta?: any; 
@@ -243,6 +248,7 @@ export async function getAppointments(clinicIdOrFilters?: string | AppointmentFi
     if (filters?.status) appointmentParams.status = filters.status;
     if (filters?.date) appointmentParams.date = filters.date;
     if (filters?.locationId) appointmentParams.locationId = filters.locationId;
+    if (filters?.clinicId) appointmentParams.clinicId = filters.clinicId;
     
     const response = await clinicApiClient.getAppointments(appointmentParams);
 
@@ -445,7 +451,7 @@ export async function updateAppointment(id: string, data: UpdateAppointmentData)
     // Revalidate cache
     revalidatePath('/dashboard/appointments');
     revalidatePath(`/appointments/${id}`);
-    revalidateTag('appointments');
+    revalidateTag('appointments', 'max');
     
     return { success: true, appointment: response.data as Appointment };
     
@@ -455,7 +461,7 @@ export async function updateAppointment(id: string, data: UpdateAppointmentData)
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: `Validation error: ${error.errors[0]?.message}`,
+        error: `Validation error: ${error.issues[0]?.message}`,
         code: 'VALIDATION_ERROR'
       };
     }
@@ -520,8 +526,8 @@ export async function cancelAppointment(id: string, reason?: string): Promise<{
     // Revalidate cache
     revalidatePath('/dashboard/appointments');
     revalidatePath('/appointments');
-    revalidateTag('appointments');
-    revalidateTag('queue');
+    revalidateTag('appointments', 'max');
+    revalidateTag('queue', 'max');
     
     return { success: true, appointment: response.data as Appointment };
     
@@ -585,7 +591,7 @@ export async function confirmAppointment(id: string): Promise<{
 
     // Revalidate cache
     revalidatePath('/dashboard/appointments');
-    revalidateTag('appointments');
+    revalidateTag('appointments', 'max');
     
     return { success: true, appointment: response.data as Appointment };
     
@@ -647,8 +653,8 @@ export async function checkInAppointment(id: string): Promise<{
 
     // Revalidate cache
     revalidatePath('/dashboard/appointments');
-    revalidateTag('appointments');
-    revalidateTag('queue');
+    revalidateTag('appointments', 'max');
+    revalidateTag('queue', 'max');
     
     return { success: true, appointment: response.data as Appointment };
     
@@ -710,8 +716,8 @@ export async function startAppointment(id: string): Promise<{
 
     // Revalidate cache
     revalidatePath('/dashboard/appointments');
-    revalidateTag('appointments');
-    revalidateTag('queue');
+    revalidateTag('appointments', 'max');
+    revalidateTag('queue', 'max');
     
     return { success: true, appointment: response.data as Appointment };
     
@@ -793,8 +799,8 @@ export async function completeAppointment(id: string, data: {
 
     // Revalidate cache
     revalidatePath('/dashboard/appointments');
-    revalidateTag('appointments');
-    revalidateTag('queue');
+    revalidateTag('appointments', 'max');
+    revalidateTag('queue', 'max');
     
     return { success: true, appointment: response.data as Appointment };
     
@@ -804,7 +810,7 @@ export async function completeAppointment(id: string, data: {
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: `Validation error: ${error.errors[0]?.message}`,
+        error: `Validation error: ${error.issues[0]?.message}`,
         code: 'VALIDATION_ERROR'
       };
     }
@@ -1027,7 +1033,7 @@ export async function addToQueue(data: {
 
     // Revalidate cache
     revalidatePath('/dashboard/queue');
-    revalidateTag('queue');
+    revalidateTag('queue', 'max');
     
     return { success: true, queueEntry: response.data as QueueEntry };
     
@@ -1037,7 +1043,7 @@ export async function addToQueue(data: {
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: `Validation error: ${error.errors[0]?.message}`,
+        error: `Validation error: ${error.issues[0]?.message}`,
         code: 'VALIDATION_ERROR'
       };
     }
@@ -1102,7 +1108,7 @@ export async function callNextPatient(queueType: string): Promise<{
 
     // Revalidate cache
     revalidatePath('/dashboard/queue');
-    revalidateTag('queue');
+    revalidateTag('queue', 'max');
     
     return { success: true, patient: response.data };
     
@@ -1259,7 +1265,7 @@ export async function bulkUpdateAppointmentStatus(appointmentIds: string[], stat
 
     // Revalidate cache
     revalidatePath('/dashboard/appointments');
-    revalidateTag('appointments');
+    revalidateTag('appointments', 'max');
 
     const result: any = { 
       success: updated > 0, 

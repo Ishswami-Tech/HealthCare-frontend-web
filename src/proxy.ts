@@ -1,15 +1,32 @@
+/**
+ * ✅ Next.js 16 Proxy
+ * Consolidated authentication, authorization, and i18n handling
+ * Uses consolidated i18n from @/lib/i18n
+ * Follows DRY, SOLID, KISS principles
+ * 
+ * This is the SINGLE SOURCE OF TRUTH for proxy logic.
+ * 
+ * @see https://nextjs.org/docs/app/getting-started/proxy
+ * @see https://nextjs.org/blog/next-16#proxyts-formerly-middlewarets
+ */
+
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { Role } from '@/types/auth.types';
-import { shouldRedirectToProfileCompletion } from '@/lib/profile';
-import { defaultLocale } from '@/i18n/config';
-// import createIntlMiddleware from 'next-intl/middleware';
-// import { locales, defaultLocale } from '@/i18n/config';
+import { shouldRedirectToProfileCompletion } from '@/lib/config/profile';
+import { getDashboardByRole } from '@/lib/config/routes';
+import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE_NAME } from '@/lib/i18n/config';
 
-// Authentication is now enforced - no bypass flag
+// ============================================================================
+// ROUTE CONFIGURATION
+// ============================================================================
 
-// Define protected routes and their allowed roles
-const PROTECTED_ROUTES = {
+/**
+ * Protected routes and their allowed roles
+ * Role-based access control (RBAC) configuration
+ */
+const PROTECTED_ROUTES: Record<string, Role[]> = {
+  // Dashboard routes (role-specific)
   '/dashboard': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
   '/(dashboard)/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
   '/(dashboard)/doctor/dashboard': [Role.DOCTOR],
@@ -17,6 +34,16 @@ const PROTECTED_ROUTES = {
   '/(dashboard)/receptionist/dashboard': [Role.RECEPTIONIST],
   '/(dashboard)/pharmacist/dashboard': [Role.PHARMACIST],
   '/(dashboard)/super-admin/dashboard': [Role.SUPER_ADMIN],
+  
+  // Legacy dashboard routes (for backward compatibility)
+  '/super-admin': [Role.SUPER_ADMIN],
+  '/clinic-admin': [Role.CLINIC_ADMIN],
+  '/doctor': [Role.DOCTOR],
+  '/receptionist': [Role.RECEPTIONIST],
+  '/pharmacist': [Role.PHARMACIST],
+  '/patient': [Role.PATIENT],
+  
+  // Shared routes (multiple roles)
   '/(shared)/appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
   '/(shared)/queue': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST],
   '/(shared)/ehr': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
@@ -24,26 +51,36 @@ const PROTECTED_ROUTES = {
   '/(shared)/analytics': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
   '/(shared)/billing': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
   '/(shared)/video-appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
-  // Legacy routes for backward compatibility
+  
+  // Legacy dashboard routes (for backward compatibility - without route groups)
   '/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
   '/doctor/dashboard': [Role.DOCTOR],
   '/patient/dashboard': [Role.PATIENT],
   '/receptionist/dashboard': [Role.RECEPTIONIST],
   '/pharmacist/dashboard': [Role.PHARMACIST],
   '/super-admin/dashboard': [Role.SUPER_ADMIN],
+  
+  // Settings (all authenticated users)
   '/settings': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
 };
 
-// Define public routes that don't require authentication
+/**
+ * Public routes that don't require authentication
+ */
 const PUBLIC_ROUTES = [
-  // Auth routes (using clean /auth/ paths)
+  // Auth routes
   '/auth/login',
   '/auth/register',
   '/auth/forgot-password',
   '/auth/reset-password',
   '/auth/verify-otp',
   '/auth/verify-email',
+  '/auth/verify',
   '/auth/callback',
+  
+  // Public API routes
+  '/api/public',
+  
   // Public content routes
   '/',
   '/treatments',
@@ -54,91 +91,178 @@ const PUBLIC_ROUTES = [
   '/treatments/panchakarma',
   '/treatments/agnikarma',
   '/treatments/viddha-karma',
+  
   // Public folder pattern
   '/(public)',
 ];
 
-// Define routes that require authentication but don't need profile completion
+/**
+ * Routes that require authentication but don't need profile completion
+ */
 const AUTH_ONLY_ROUTES = [
-  '/profile-completion', // Allow access to profile completion for authenticated users
+  '/profile-completion',
 ];
 
-// Helper function to convert string role to enum
+/**
+ * Static file patterns to skip proxy processing
+ */
+const STATIC_FILE_PATTERNS = [
+  '/_next',
+  '/api',
+  '/favicon.ico',
+  '/public',
+];
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Parse role string to Role enum
+ * @param roleStr - Role string from cookie
+ * @returns Role enum or undefined
+ */
 function parseRole(roleStr: string | undefined): Role | undefined {
   if (!roleStr) return undefined;
-  
-  // Check if the role string matches any enum value
   const validRole = Object.values(Role).includes(roleStr as Role);
   return validRole ? roleStr as Role : undefined;
 }
 
-// Helper function to calculate profile completion from user data
+/**
+ * Calculate profile completion from user data
+ * @param userData - User data from JWT payload
+ * @returns boolean indicating if profile is complete
+ */
 function calculateProfileCompletionFromUserData(userData: Record<string, unknown>): boolean {
   if (!userData) return false;
 
-  // Essential required fields for all users
-  const requiredFields = [
-    'firstName',
-    'lastName', 
-    'phone',
-    'dateOfBirth',
-    'gender',
-    'address'
-  ];
-
-  // Check if all required fields are present and not empty
+  const requiredFields = ['firstName', 'lastName', 'phone', 'dateOfBirth', 'gender', 'address'];
+  
   const missingFields = requiredFields.filter(field => {
     const value = userData[field];
     return !value || (typeof value === 'string' && value.trim() === '');
   });
 
-  // Profile is complete if no required fields are missing
   return missingFields.length === 0;
 }
 
-// Create the intl middleware
-// Internationalization middleware configuration
-// const intlMiddleware = createIntlMiddleware({
-//   locales,
-//   defaultLocale,
-//   localeDetection: false, // We'll handle locale detection manually via cookies
-// });
+/**
+ * Check if path matches any pattern in the list
+ * @param pathname - Request pathname
+ * @param patterns - List of patterns to match
+ * @returns boolean indicating if path matches
+ */
+function matchesPath(pathname: string, patterns: string[]): boolean {
+  return patterns.some(pattern => 
+    pathname === pattern || 
+    pathname.startsWith(pattern + '/') ||
+    pathname.startsWith(pattern)
+  );
+}
 
-export async function proxy(request: NextRequest) {
+/**
+ * Check if path is a static file or API route
+ * @param pathname - Request pathname
+ * @returns boolean indicating if should skip proxy
+ */
+function shouldSkipProxy(pathname: string): boolean {
+  return (
+    STATIC_FILE_PATTERNS.some(pattern => pathname.startsWith(pattern)) ||
+    pathname.includes('.') // Static files with extensions
+  );
+}
+
+/**
+ * Check if route is public
+ * @param pathname - Request pathname
+ * @returns boolean indicating if route is public
+ */
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.some(route => {
+    if (pathname === route) return true;
+    if (pathname.startsWith(route + '/')) return true;
+    
+    // Handle public folder pattern
+    if (route === '/(public)') {
+      return (
+        pathname === '/' ||
+        pathname.startsWith('/treatments') ||
+        pathname.startsWith('/about') ||
+        pathname.startsWith('/contact') ||
+        pathname.startsWith('/team') ||
+        pathname.startsWith('/gallery')
+      );
+    }
+    
+    return false;
+  });
+}
+
+/**
+ * Extract user data from JWT token
+ * @param accessToken - JWT access token
+ * @returns User data object or null
+ */
+function extractUserDataFromToken(accessToken: string): Record<string, unknown> | null {
+  try {
+    const tokenParts = accessToken.split('.');
+    if (tokenParts.length >= 2 && tokenParts[1]) {
+      const payload = JSON.parse(atob(tokenParts[1]));
+      return {
+        firstName: payload.firstName || '',
+        lastName: payload.lastName || '',
+        phone: payload.phone || '',
+        dateOfBirth: payload.dateOfBirth || '',
+        gender: payload.gender || '',
+        address: payload.address || '',
+      };
+    }
+  } catch {
+    // Error parsing JWT token
+  }
+  return null;
+}
+
+
+// ============================================================================
+// MAIN PROXY FUNCTION
+// ============================================================================
+
+/**
+ * Unified proxy function
+ * Handles authentication, authorization, profile completion, and i18n
+ * 
+ * @param request - Next.js request object
+ * @returns NextResponse
+ */
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip proxy for static files and API routes
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname.includes('.') ||
-    pathname === '/favicon.ico'
-  ) {
+  // =========================================================================
+  // STEP 1: Skip proxy for static files and API routes
+  // =========================================================================
+  if (shouldSkipProxy(pathname)) {
     return NextResponse.next();
   }
 
-  // Authentication is now enforced - all routes require proper authentication
-
-  // Handle i18n for non-auth routes
-  // Skip i18n proxy for auth routes to avoid conflicts
+  // =========================================================================
+  // STEP 2: Handle i18n for non-auth routes
+  // =========================================================================
+  let response = NextResponse.next();
+  
   if (!pathname.startsWith('/(auth)') && !pathname.startsWith('/auth')) {
-    // Get locale from cookie
-    const locale = request.cookies.get('locale')?.value || defaultLocale;
+    const locale = request.cookies.get(LANGUAGE_COOKIE_NAME)?.value || DEFAULT_LANGUAGE;
 
-    // Set locale in request headers for next-intl
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-locale', locale);
 
-    // Create new request with locale header
-    const response = NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
+    response = NextResponse.next({
+      request: { headers: requestHeaders },
     });
 
     // Ensure locale cookie is set
-    if (!request.cookies.get('locale')?.value) {
-      response.cookies.set('locale', defaultLocale, {
+    if (!request.cookies.get(LANGUAGE_COOKIE_NAME)?.value) {
+      response.cookies.set(LANGUAGE_COOKIE_NAME, DEFAULT_LANGUAGE, {
         path: '/',
         maxAge: 31536000, // 1 year
         sameSite: 'lax',
@@ -146,100 +270,85 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Allow public routes - check for exact matches and patterns
-  const isPublicRoute = PUBLIC_ROUTES.some(route => {
-    // Handle exact matches
-    if (pathname === route) return true;
-    
-    // Handle route patterns with trailing slash
-    if (pathname.startsWith(route + '/')) return true;
-    
-    // Handle public folder pattern - any route that should be public
-    if (route === '/(public)' && (
-      pathname === '/' ||
-      pathname.startsWith('/treatments') ||
-      pathname.startsWith('/about') ||
-      pathname.startsWith('/contact') ||
-      pathname.startsWith('/team') ||
-      pathname.startsWith('/gallery')
-    )) return true;
-    
-    return false;
-  });
-
-  if (isPublicRoute) {
-    return NextResponse.next();
+  // =========================================================================
+  // STEP 3: Allow public routes without authentication
+  // =========================================================================
+  if (isPublicRoute(pathname)) {
+    return response;
   }
 
-  // Check for access token
+  // =========================================================================
+  // STEP 4: Get authentication tokens and user data
+  // =========================================================================
   const accessToken = request.cookies.get('access_token')?.value;
   const refreshToken = request.cookies.get('refresh_token')?.value;
+  // Also check for legacy token cookie names
+  const legacyToken = request.cookies.get('token')?.value || 
+                      request.cookies.get('next-auth.session-token')?.value;
+  
+  const hasValidToken = accessToken || legacyToken;
   const userRoleStr = request.cookies.get('user_role')?.value;
   const userRole = parseRole(userRoleStr);
   const profileCompleteCookie = request.cookies.get('profile_complete')?.value;
 
-  // Try to extract user data from JWT token to calculate profile completion
-  let userData: Record<string, unknown> | null = null;
+  // Extract user data from JWT token
+  const userData = accessToken ? extractUserDataFromToken(accessToken) : null;
 
-  if (accessToken) {
-    try {
-      const tokenParts = accessToken.split('.');
-      if (tokenParts.length >= 2 && tokenParts[1]) {
-        const payload = JSON.parse(atob(tokenParts[1]));
-        userData = {
-          firstName: payload.firstName || '',
-          lastName: payload.lastName || '',
-          phone: payload.phone || '',
-          dateOfBirth: payload.dateOfBirth || '',
-          gender: payload.gender || '',
-          address: payload.address || '',
-        };
-      }
-    } catch {
-      // Error parsing JWT token - continue without user data
-    }
-  }
-
-
-
+  // =========================================================================
+  // STEP 5: Handle authentication
+  // =========================================================================
+  
   // If no access token but has refresh token, let the app handle the refresh
-  if (!accessToken && refreshToken) {
-    return NextResponse.next();
+  if (!hasValidToken && refreshToken) {
+    return response;
   }
 
-  // If no tokens at all, redirect to login
-  if (!accessToken && !refreshToken) {
-    const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('from', pathname);
-    return NextResponse.redirect(loginUrl);
+  // If no tokens at all, redirect to login for protected routes
+  if (!hasValidToken && !refreshToken) {
+    const isProtectedRoute = Object.keys(PROTECTED_ROUTES).some(route => 
+      pathname.startsWith(route) || pathname === route
+    );
+    
+    if (isProtectedRoute) {
+      const loginUrl = new URL('/auth/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      loginUrl.searchParams.set('from', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    
+    return response;
   }
 
   // If we have access token but no role, allow the request and let the app handle it
-  if (accessToken && !userRole) {
-    return NextResponse.next();
+  if (hasValidToken && !userRole) {
+    return response;
   }
 
-  // Check if this is an auth-only route (requires auth but not profile completion)
-  if (AUTH_ONLY_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))) {
-    return NextResponse.next();
+  // =========================================================================
+  // STEP 6: Check auth-only routes (requires auth but not profile completion)
+  // =========================================================================
+  if (matchesPath(pathname, AUTH_ONLY_ROUTES)) {
+    return response;
   }
 
-  // Check if profile is complete for authenticated users using centralized logic
+  // =========================================================================
+  // STEP 7: Check profile completion for authenticated users
+  // =========================================================================
   const profileCompleteFromCookie = profileCompleteCookie === 'true';
   const profileCompleteFromUserData = userData ? calculateProfileCompletionFromUserData(userData) : false;
-  
-  // Prioritize the cookie value since it's set after a successful profile update
   const profileComplete = profileCompleteFromCookie || profileCompleteFromUserData;
   
-  const shouldRedirect = shouldRedirectToProfileCompletion(!!accessToken, profileComplete, pathname);
+  const shouldRedirectToProfile = shouldRedirectToProfileCompletion(!!hasValidToken, profileComplete, pathname);
 
-  if (shouldRedirect) {
+  if (shouldRedirectToProfile) {
     const profileCompletionUrl = new URL('/profile-completion', request.url);
     profileCompletionUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(profileCompletionUrl);
   }
 
-  // Check role-based access for protected routes
+  // =========================================================================
+  // STEP 8: Role-based access control (RBAC)
+  // =========================================================================
   const matchedRoute = Object.entries(PROTECTED_ROUTES).find(([routePath]) => 
     pathname === routePath || pathname.startsWith(routePath + '/')
   );
@@ -249,32 +358,36 @@ export async function proxy(request: NextRequest) {
 
     if (!allowedRoles.includes(userRole)) {
       // Redirect to appropriate dashboard based on role
-      const dashboardUrl = new URL(`/${userRole.toLowerCase()}/dashboard`, request.url);
+      // Uses centralized route configuration
+      const dashboardPath = getDashboardByRole(userRole);
+      const dashboardUrl = new URL(dashboardPath, request.url);
       return NextResponse.redirect(dashboardUrl);
     }
   }
 
-  // Allow the request
-  return NextResponse.next();
+  // =========================================================================
+  // STEP 9: Allow the request
+  // =========================================================================
+  return response;
 }
 
-// Configure matcher for proxy
+// ============================================================================
+// PROXY CONFIGURATION
+// ============================================================================
+
+/**
+ * Matcher configuration for Next.js proxy
+ * Matches all routes except static files and images
+ */
 export const config = {
   matcher: [
     /*
-     * Match specific paths that need authentication/authorization:
-     * - Dashboard routes
-     * - Shared routes (appointments, queue, ehr, etc.)
-     * - Settings
-     * - Profile completion
-     * - Auth routes (for redirects)
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - Static assets (svg, png, jpg, etc.)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };
-
-
-
-
-
-

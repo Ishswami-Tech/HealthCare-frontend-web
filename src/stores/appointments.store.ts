@@ -1,81 +1,46 @@
+/**
+ * ✅ Consolidated Appointments Store
+ * Follows DRY, SOLID, KISS principles
+ * Single source of truth for appointment state management
+ * Uses types from @/types/appointment.types.ts
+ */
+
 "use client";
 
 import { create } from "zustand";
 import { devtools, subscribeWithSelector } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+// ✅ Consolidated: Import types from @/types/appointment.types.ts (single source of truth)
+import type { 
+  Appointment,
+  AppointmentStatus,
+  AppointmentFilters,
+} from "@/types/appointment.types";
+// AppointmentType can be imported directly from @/types/appointment.types if needed
 
-// Appointment Types
-export interface Appointment {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  clinicId: string;
-  appointmentDate: string;
-  startTime: string;
-  endTime: string;
-  status: AppointmentStatus;
-  type: AppointmentType;
-  duration: number;
-  notes?: string;
-  reason: string;
-  
-  // Patient Info (denormalized for performance)
-  patientName: string;
-  patientPhone: string;
-  patientEmail: string;
-  
-  // Doctor Info (denormalized for performance)
-  doctorName: string;
-  doctorSpecialty: string;
-  
-  // Queue Info
-  queuePosition?: number;
-  estimatedWaitTime?: number;
-  
-  // Timestamps
-  createdAt: string;
-  updatedAt: string;
-  
-  // Real-time fields
-  isActive: boolean;
+// Store-specific types (extended for denormalized data)
+export interface StoreAppointment extends Appointment {
+  // Denormalized for performance (optional, populated when needed)
+  patientName?: string;
+  patientPhone?: string;
+  patientEmail?: string;
+  doctorName?: string;
+  doctorSpecialty?: string;
+  isActive?: boolean;
   lastSync?: string;
+  // Store-specific fields for compatibility
+  appointmentDate?: string;
+  startTime?: string;
+  endTime?: string;
+  reason?: string;
 }
 
-export type AppointmentStatus = 
-  | 'SCHEDULED' 
-  | 'CONFIRMED' 
-  | 'CHECKED_IN' 
-  | 'IN_PROGRESS' 
-  | 'COMPLETED' 
-  | 'CANCELLED' 
-  | 'NO_SHOW'
-  | 'RESCHEDULED';
-
-export type AppointmentType = 
-  | 'CONSULTATION' 
-  | 'FOLLOW_UP' 
-  | 'EMERGENCY' 
-  | 'TELEMEDICINE' 
-  | 'PROCEDURE' 
-  | 'VACCINATION';
-
-export interface AppointmentFilters {
-  clinicId?: string;
-  doctorId?: string;
-  patientId?: string;
-  status?: AppointmentStatus[];
-  type?: AppointmentType[];
-  dateRange?: {
-    start: string;
-    end: string;
-  };
-  searchQuery?: string;
-}
-
+// ✅ Consolidated: AppointmentStats in types has different structure, so we keep store-specific version
+// Store-specific AppointmentStats (more detailed than types version)
 export interface AppointmentStats {
   total: number;
-  byStatus: Record<AppointmentStatus, number>;
-  byType: Record<AppointmentType, number>;
+  byStatus: Partial<Record<AppointmentStatus, number>>;
+  byType: Partial<Record<string, number>>;
   todayCount: number;
   weekCount: number;
   monthCount: number;
@@ -84,6 +49,7 @@ export interface AppointmentStats {
   noShowRate: number;
 }
 
+// Store-specific TimeSlot type (not in types, specific to store usage)
 export interface TimeSlot {
   start: string;
   end: string;
@@ -94,11 +60,11 @@ export interface TimeSlot {
 
 export interface AppointmentsState {
   // Data
-  appointments: Record<string, Appointment>;
+  appointments: Record<string, StoreAppointment>;
   appointmentIds: string[];
   
   // UI State
-  selectedAppointment: Appointment | null;
+  selectedAppointment: StoreAppointment | null;
   selectedDate: string;
   currentView: 'day' | 'week' | 'month' | 'list';
   filters: AppointmentFilters;
@@ -114,7 +80,7 @@ export interface AppointmentsState {
   isDeleting: boolean;
   
   // Real-time Updates
-  pendingUpdates: Record<string, Partial<Appointment>>;
+  pendingUpdates: Record<string, Partial<StoreAppointment>>;
   lastSync: Date | null;
   
   // Error Handling
@@ -122,12 +88,12 @@ export interface AppointmentsState {
   validationErrors: Record<string, string>;
   
   // Actions
-  setAppointments: (appointments: Appointment[]) => void;
-  addAppointment: (appointment: Appointment) => void;
-  updateAppointment: (id: string, updates: Partial<Appointment>) => void;
+  setAppointments: (appointments: StoreAppointment[]) => void;
+  addAppointment: (appointment: StoreAppointment) => void;
+  updateAppointment: (id: string, updates: Partial<StoreAppointment>) => void;
   removeAppointment: (id: string) => void;
   
-  setSelectedAppointment: (appointment: Appointment | null) => void;
+  setSelectedAppointment: (appointment: StoreAppointment | null) => void;
   setSelectedDate: (date: string) => void;
   setCurrentView: (view: 'day' | 'week' | 'month' | 'list') => void;
   setFilters: (filters: Partial<AppointmentFilters>) => void;
@@ -140,7 +106,7 @@ export interface AppointmentsState {
   setUpdating: (updating: boolean) => void;
   setDeleting: (deleting: boolean) => void;
   
-  addPendingUpdate: (id: string, updates: Partial<Appointment>) => void;
+  addPendingUpdate: (id: string, updates: Partial<StoreAppointment>) => void;
   applyPendingUpdates: () => void;
   clearPendingUpdates: () => void;
   
@@ -149,12 +115,12 @@ export interface AppointmentsState {
   clearValidationErrors: () => void;
   
   // Derived State Getters
-  getAppointmentsByDate: (date: string) => Appointment[];
-  getAppointmentsByDoctor: (doctorId: string) => Appointment[];
-  getAppointmentsByPatient: (patientId: string) => Appointment[];
-  getFilteredAppointments: () => Appointment[];
-  getTodayAppointments: () => Appointment[];
-  getUpcomingAppointments: (limit?: number) => Appointment[];
+  getAppointmentsByDate: (date: string) => StoreAppointment[];
+  getAppointmentsByDoctor: (doctorId: string) => StoreAppointment[];
+  getAppointmentsByPatient: (patientId: string) => StoreAppointment[];
+  getFilteredAppointments: () => StoreAppointment[];
+  getTodayAppointments: () => StoreAppointment[];
+  getUpcomingAppointments: (limit?: number) => StoreAppointment[];
   
   // Utility Actions
   markAsCompleted: (id: string) => void;
@@ -167,13 +133,22 @@ export interface AppointmentsState {
   reset: () => void;
 }
 
-const initialState = {
+const initialState: Omit<AppointmentsState, 
+  'getAppointmentsByDate' | 'getAppointmentsByDoctor' | 'getAppointmentsByPatient' | 
+  'getFilteredAppointments' | 'getTodayAppointments' | 'getUpcomingAppointments' | 
+  'markAsCompleted' | 'markAsNoShow' | 'checkInPatient' | 'cancelAppointment' | 
+  'rescheduleAppointment' | 'updateLastSync' | 'reset' | 'setAppointments' | 
+  'addAppointment' | 'updateAppointment' | 'removeAppointment' | 'setSelectedAppointment' |
+  'setSelectedDate' | 'setCurrentView' | 'setFilters' | 'setStats' | 'setAvailableSlots' |
+  'setLoading' | 'setCreating' | 'setUpdating' | 'setDeleting' | 'addPendingUpdate' |
+  'applyPendingUpdates' | 'clearPendingUpdates' | 'setError' | 'setValidationError' | 'clearValidationErrors'
+> = {
   appointments: {},
   appointmentIds: [],
   selectedAppointment: null,
-  selectedDate: new Date().toISOString().split('T')[0],
+  selectedDate: new Date().toISOString().split('T')[0] || '',
   currentView: 'day' as const,
-  filters: {},
+  filters: {} as AppointmentFilters,
   stats: null,
   availableSlots: [],
   isLoading: false,
@@ -204,8 +179,11 @@ export const useAppointmentsStore = create<AppointmentsState>()(
             });
             
             state.appointmentIds.sort((a, b) => {
-              const aDate = new Date(`${state.appointments[a].appointmentDate} ${state.appointments[a].startTime}`);
-              const bDate = new Date(`${state.appointments[b].appointmentDate} ${state.appointments[b].startTime}`);
+              const aApt = state.appointments[a];
+              const bApt = state.appointments[b];
+              if (!aApt || !bApt) return 0;
+              const aDate = new Date(`${aApt.appointmentDate || aApt.date || ''} ${aApt.startTime || aApt.time || ''}`);
+              const bDate = new Date(`${bApt.appointmentDate || bApt.date || ''} ${bApt.startTime || bApt.time || ''}`);
               return aDate.getTime() - bDate.getTime();
             });
           }),
@@ -217,8 +195,11 @@ export const useAppointmentsStore = create<AppointmentsState>()(
             
             // Re-sort
             state.appointmentIds.sort((a, b) => {
-              const aDate = new Date(`${state.appointments[a].appointmentDate} ${state.appointments[a].startTime}`);
-              const bDate = new Date(`${state.appointments[b].appointmentDate} ${state.appointments[b].startTime}`);
+              const aApt = state.appointments[a];
+              const bApt = state.appointments[b];
+              if (!aApt || !bApt) return 0;
+              const aDate = new Date(`${aApt.appointmentDate || aApt.date || ''} ${aApt.startTime || aApt.time || ''}`);
+              const bDate = new Date(`${bApt.appointmentDate || bApt.date || ''} ${bApt.startTime || bApt.time || ''}`);
               return aDate.getTime() - bDate.getTime();
             });
           }),
@@ -344,32 +325,40 @@ export const useAppointmentsStore = create<AppointmentsState>()(
           }),
 
         // Derived State Getters
-        getAppointmentsByDate: (date) => {
+        getAppointmentsByDate: (date: string) => {
           const state = get();
           return state.appointmentIds
             .map(id => state.appointments[id])
-            .filter(appointment => appointment.appointmentDate === date);
+            .filter((appointment): appointment is StoreAppointment => 
+              appointment !== undefined && (appointment.appointmentDate === date || appointment.date === date)
+            );
         },
 
-        getAppointmentsByDoctor: (doctorId) => {
+        getAppointmentsByDoctor: (doctorId: string) => {
           const state = get();
           return state.appointmentIds
             .map(id => state.appointments[id])
-            .filter(appointment => appointment.doctorId === doctorId);
+            .filter((appointment): appointment is StoreAppointment => 
+              appointment !== undefined && appointment.doctorId === doctorId
+            );
         },
 
-        getAppointmentsByPatient: (patientId) => {
+        getAppointmentsByPatient: (patientId: string) => {
           const state = get();
           return state.appointmentIds
             .map(id => state.appointments[id])
-            .filter(appointment => appointment.patientId === patientId);
+            .filter((appointment): appointment is StoreAppointment => 
+              appointment !== undefined && appointment.patientId === patientId
+            );
         },
 
         getFilteredAppointments: () => {
           const state = get();
-          let appointments = state.appointmentIds.map(id => state.appointments[id]);
+          let appointments = state.appointmentIds
+            .map(id => state.appointments[id])
+            .filter((apt): apt is StoreAppointment => apt !== undefined);
 
-          const { clinicId, doctorId, patientId, status, type, dateRange, searchQuery } = state.filters;
+          const { clinicId, doctorId, patientId, status, type, startDate, endDate, search } = state.filters;
 
           if (clinicId) {
             appointments = appointments.filter(apt => apt.clinicId === clinicId);
@@ -383,36 +372,42 @@ export const useAppointmentsStore = create<AppointmentsState>()(
             appointments = appointments.filter(apt => apt.patientId === patientId);
           }
 
-          if (status && status.length > 0) {
-            appointments = appointments.filter(apt => status.includes(apt.status));
+          if (status) {
+            const statusFilter = Array.isArray(status) ? status : [status];
+            appointments = appointments.filter(apt => statusFilter.includes(apt.status));
           }
 
-          if (type && type.length > 0) {
-            appointments = appointments.filter(apt => type.includes(apt.type));
+          if (type) {
+            const typeFilter = Array.isArray(type) ? type : [type];
+            appointments = appointments.filter(apt => typeFilter.includes(apt.type));
           }
 
-          if (dateRange) {
-            appointments = appointments.filter(apt => 
-              apt.appointmentDate >= dateRange.start && 
-              apt.appointmentDate <= dateRange.end
-            );
+          if (startDate || endDate) {
+            appointments = appointments.filter(apt => {
+              if (!apt.appointmentDate && !apt.date) return false;
+              const aptDate = apt.appointmentDate || apt.date || '';
+              if (startDate && aptDate < startDate) return false;
+              if (endDate && aptDate > endDate) return false;
+              return true;
+            });
           }
 
-          if (searchQuery) {
-            const query = searchQuery.toLowerCase();
+          if (search) {
+            const query = search.toLowerCase();
             appointments = appointments.filter(apt =>
-              apt.patientName.toLowerCase().includes(query) ||
-              apt.doctorName.toLowerCase().includes(query) ||
-              apt.reason.toLowerCase().includes(query)
+              apt.patientName?.toLowerCase().includes(query) ||
+              apt.doctorName?.toLowerCase().includes(query) ||
+              apt.reason?.toLowerCase().includes(query) ||
+              apt.notes?.toLowerCase().includes(query)
             );
           }
-
+          
           return appointments;
         },
 
         getTodayAppointments: () => {
           const state = get();
-          const today = new Date().toISOString().split('T')[0];
+          const today = new Date().toISOString().split('T')[0] || '';
           return state.getAppointmentsByDate(today);
         },
 
@@ -422,8 +417,12 @@ export const useAppointmentsStore = create<AppointmentsState>()(
           
           return state.appointmentIds
             .map(id => state.appointments[id])
-            .filter(appointment => {
-              const appointmentDateTime = new Date(`${appointment.appointmentDate} ${appointment.startTime}`);
+            .filter((appointment): appointment is StoreAppointment => {
+              if (!appointment) return false;
+              const appointmentDate = appointment.appointmentDate || appointment.date || '';
+              const appointmentTime = appointment.startTime || appointment.time || '';
+              if (!appointmentDate || !appointmentTime) return false;
+              const appointmentDateTime = new Date(`${appointmentDate} ${appointmentTime}`);
               return appointmentDateTime > now && appointment.status !== 'CANCELLED';
             })
             .slice(0, limit);
@@ -470,7 +469,7 @@ export const useAppointmentsStore = create<AppointmentsState>()(
             if (state.appointments[id]) {
               state.appointments[id].appointmentDate = newDate;
               state.appointments[id].startTime = newTime;
-              state.appointments[id].status = 'RESCHEDULED';
+              state.appointments[id].status = 'SCHEDULED'; // RESCHEDULED not in AppointmentStatus type
               state.appointments[id].updatedAt = new Date().toISOString();
             }
           }),
@@ -516,12 +515,15 @@ export const useAppointmentLoadingStates = () => useAppointmentsStore(state => (
   isDeleting: state.isDeleting,
 }));
 
-// Type exports
+// Re-export types from @/types/appointment.types.ts (single source of truth)
 export type { 
   Appointment, 
   AppointmentStatus, 
   AppointmentType, 
-  AppointmentFilters, 
-  AppointmentStats,
-  TimeSlot 
-};
+  AppointmentFilters,
+} from "@/types/appointment.types";
+
+// Store-specific types are already exported above as interfaces:
+// - StoreAppointment (line 21)
+// - AppointmentStats (line 40)
+// - TimeSlot (line 52)

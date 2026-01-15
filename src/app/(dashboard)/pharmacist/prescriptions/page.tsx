@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -16,16 +16,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   usePrescriptions,
-  useDispensePrescription,
-  useUpdatePrescriptionStatus,
-} from "@/hooks/usePharmacy";
-import { useClinicContext } from "@/hooks/useClinic";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+} from "@/hooks/query/usePharmacy";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Pill,
   Clock,
@@ -54,17 +51,16 @@ export default function PrescriptionsPage() {
   const { clinicId } = useClinicContext();
 
   // Fetch real prescriptions data
-  const { data: prescriptionsData = [], isLoading: prescriptionsLoading } =
+  const { data: prescriptionsData = [], isPending: prescriptionsPending } =
     usePrescriptions(clinicId || "", {
-      status: filterStatus || undefined,
+      status: filterStatus,
       limit: 100,
     });
 
-  const dispensePrescription = useDispensePrescription();
-  const updatePrescriptionStatus = useUpdatePrescriptionStatus();
+
 
   // Transform prescriptions data
-  const prescriptions = prescriptionsData.map((p: any) => ({
+  const prescriptions = (prescriptionsData as any[]).map((p: any) => ({
     id: p.id,
     patientName: p.patient?.name || p.patientName || "Unknown Patient",
     doctorName: p.doctor?.name || p.doctorName || "Unknown Doctor",
@@ -84,7 +80,7 @@ export default function PrescriptionsPage() {
   }));
 
   // Filter prescriptions
-  const filteredPrescriptions = prescriptions.filter((p) => {
+  const filteredPrescriptions = prescriptions.filter((p: any) => {
     const matchesSearch =
       p.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.doctorName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -349,16 +345,17 @@ export default function PrescriptionsPage() {
     </Card>
   );
 
-  const sidebarLinks = getRoutesByRole(Role.PHARMACIST).map((route) => ({
+  const sidebarLinks = getRoutesByRole(Role.PHARMACIST).map((route: any) => ({
     ...route,
     href: route.path,
+    icon: route.icon || <Pill className="w-5 h-5" />,
   }));
 
   // Show loading state
-  if (prescriptionsLoading) {
+  if (prescriptionsPending) {
     return (
       <DashboardLayout title="Prescriptions" allowedRole={Role.PHARMACIST}>
-        <GlobalSidebar
+        <Sidebar
           links={sidebarLinks}
           user={{
             name:
@@ -374,14 +371,14 @@ export default function PrescriptionsPage() {
               <p className="mt-4 text-gray-600">Loading prescriptions...</p>
             </div>
           </div>
-        </GlobalSidebar>
+        </Sidebar>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout title="Prescriptions" allowedRole={Role.PHARMACIST}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -394,7 +391,6 @@ export default function PrescriptionsPage() {
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Prescriptions</h1>
-            <WebSocketStatusIndicator />
           </div>
           <div className="flex items-center justify-between">
             <div>
@@ -458,7 +454,7 @@ export default function PrescriptionsPage() {
 
             <TabsContent value="active" className="space-y-4">
               {filteredPrescriptions.length > 0 ? (
-                filteredPrescriptions.map((prescription) => (
+                filteredPrescriptions.map((prescription: any) => (
                   <PrescriptionCard
                     key={prescription.id}
                     prescription={prescription}
@@ -481,7 +477,7 @@ export default function PrescriptionsPage() {
 
             <TabsContent value="history" className="space-y-4">
               {handoverHistory.length > 0 ? (
-                handoverHistory.map((item) => (
+                handoverHistory.map((item: any) => (
                   <Card
                     key={item.id}
                     className="hover:shadow-md transition-shadow"
@@ -506,10 +502,10 @@ export default function PrescriptionsPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium">
-                            Handed over: {item.handedOverAt}
+                            Handed over: {item.preparedAt || item.handedOverAt || "N/A"}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {item.medicines} medicines
+                            {item.medicines?.length || 0} medicines
                           </p>
                           <Badge className={getStatusColor(item.status)}>
                             {item.status}
@@ -535,7 +531,7 @@ export default function PrescriptionsPage() {
             </TabsContent>
           </Tabs>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

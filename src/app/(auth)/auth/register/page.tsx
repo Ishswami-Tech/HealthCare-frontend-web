@@ -9,9 +9,7 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SocialLogin } from "@/components/auth/social-login";
@@ -26,58 +24,67 @@ import {
   registerSchema,
   type RegisterFormData,
 } from "@/lib/schema/login-schema";
-import useZodForm from "@/hooks/useZodForm";
-import { Role, RegisterFormData as AuthRegisterFormData } from "@/types/auth.types";
-import { toast } from "sonner";
+import useZodForm from "@/hooks/utils/useZodForm";
+import {
+  Role,
+  RegisterFormData as AuthRegisterFormData,
+} from "@/types/auth.types";
 import { useState } from "react";
 import { ERROR_MESSAGES } from "@/lib/config/config";
 import { Loader2 } from "lucide-react";
-import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
-
+import { useAuthForm } from "@/hooks/auth/useAuth";
+import { TOAST_IDS } from "@/hooks/utils/use-toast";
+import { toast } from "sonner"; // For SocialLogin error handling
 export default function RegisterPage() {
-  const router = useRouter();
   const { register: registerUser, isLoading } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
   const [isSocialLoginLoading, setIsSocialLoginLoading] = useState(false);
-  const { setOverlay } = useLoadingOverlay();
 
   // Disable form inputs when social login is loading
   const isFormDisabled = isSocialLoginLoading;
 
+  // ✅ Use unified auth form hook for consistent patterns
+  const { executeAuthOperation } = useAuthForm({
+    toastId: TOAST_IDS.AUTH.REGISTER,
+    overlayVariant: "register",
+    loadingMessage: "Creating account...",
+    successMessage: "Account created successfully!",
+    errorMessage: ERROR_MESSAGES.REGISTER_FAILED,
+    redirectUrl: "/auth/login?registered=true",
+    redirectDelay: 2000,
+    showOverlay: true,
+    showToast: true,
+    onError: (error) => {
+      // Set form error for display
+      setFormError(error.message);
+    },
+  });
+
+  // ✅ Overlay clearing is handled by auth layout - no need to clear here
+  // This prevents race conditions and ensures consistent behavior
+
   const form = useZodForm(
     registerSchema,
     async (values: RegisterFormData) => {
-      try {
-        setFormError(null);
-        setOverlay({ show: true, variant: "register" });
-        toast.loading("Creating account...", {
-          id: "register",
-        });
-        const formData = {
-          ...values,
-          role: Role.PATIENT, // Set default role
-          gender: values.gender || "male",
-          age: values.age || 18, // Ensure age has a default value
-        };
-        await registerUser(formData as AuthRegisterFormData & { clinicId?: string; });
-        toast.dismiss("register");
-        toast.success("Account created successfully!");
-        setOverlay({ show: false });
+      setFormError(null);
+      
+      const formData = {
+        ...values,
+        role: Role.PATIENT, // Set default role
+        gender: values.gender || "male",
+        age: values.age || 18, // Ensure age has a default value
+      };
+      
+      // ✅ Use unified pattern - consistent across all auth pages
+      const result = await executeAuthOperation(async () => {
+        return await registerUser(
+          formData as AuthRegisterFormData & { clinicId?: string }
+        );
+      });
+      
+      // Only proceed if registration was successful
+      if (result && 'user' in result && result.user) {
         form.reset();
-        setTimeout(() => {
-          router.push("/auth/login?registered=true");
-        }, 3000);
-      } catch (error) {
-        toast.dismiss("register");
-        console.error("Registration error:", error);
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : ERROR_MESSAGES.REGISTER_FAILED;
-        setFormError(errorMessage);
-        toast.error(errorMessage);
-        setOverlay({ show: false });
-        throw error;
       }
     },
     {
@@ -95,14 +102,14 @@ export default function RegisterPage() {
   );
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="space-y-1">
-        <h2 className="text-2xl font-bold text-center">Create an account</h2>
-        <p className="text-sm text-gray-500 text-center">
+    <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
+      <CardHeader className="space-y-1 px-4 sm:px-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-center">Create an account</h2>
+        <p className="text-xs sm:text-sm text-gray-500 text-center">
           Enter your information to create an account
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4 sm:px-6">
         <SocialLogin
           className="mb-6 w-full"
           onError={(error) => {
@@ -139,7 +146,7 @@ export default function RegisterPage() {
             className="space-y-4 mt-6"
             noValidate
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="firstName"
@@ -320,12 +327,12 @@ export default function RegisterPage() {
           </form>
         </Form>
       </CardContent>
-      <CardFooter className="flex flex-col space-y-2">
-        <div className="text-sm text-center">
+      <CardFooter className="flex flex-col space-y-2 px-4 sm:px-6 pb-4 sm:pb-6">
+        <div className="text-xs sm:text-sm text-center">
           Already have an account?{" "}
           <Link
             href="/auth/login"
-            className="text-blue-600 hover:text-blue-800"
+            className="text-blue-600 hover:text-blue-800 transition-colors"
           >
             Sign in
           </Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

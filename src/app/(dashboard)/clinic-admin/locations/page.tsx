@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,17 +27,17 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
+  useClinicContext,
   useClinicLocations,
   useCreateClinicLocation,
   useUpdateClinicLocation,
   useDeleteClinicLocation,
-} from "@/hooks/useClinic";
+} from "@/hooks/query/useClinics";
 import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Activity,
   Users,
@@ -68,7 +68,7 @@ export default function ClinicLocationsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch real locations data
-  const { data: locationsData, isLoading: isLoadingLocations } =
+  const { data: locationsData, isPending: isPendingLocations } =
     useClinicLocations(clinicId || "");
 
   // Sync with WebSocket for real-time updates
@@ -130,7 +130,7 @@ export default function ClinicLocationsPage() {
     }
 
     try {
-      await createLocationMutation.mutateAsync({
+      createLocationMutation.mutate({
         clinicId,
         data: newLocation,
       });
@@ -175,7 +175,7 @@ export default function ClinicLocationsPage() {
     }
 
     try {
-      await updateLocationMutation.mutateAsync({
+      updateLocationMutation.mutate({
         clinicId,
         locationId: selectedLocation.id,
         data: selectedLocation,
@@ -199,7 +199,7 @@ export default function ClinicLocationsPage() {
 
     setIsDeleting(true);
     try {
-      await deleteLocationMutation.mutateAsync({
+      deleteLocationMutation.mutate({
         clinicId,
         locationId,
       });
@@ -213,7 +213,7 @@ export default function ClinicLocationsPage() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route) => {
+  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route: any) => {
     let icon = <Activity className="w-5 h-5" />;
     if (route.path.includes("dashboard")) {
       icon = <Activity className="w-5 h-5" />;
@@ -238,10 +238,10 @@ export default function ClinicLocationsPage() {
     icon: <LogOut className="w-5 h-5" />,
   });
 
-  if (isLoadingLocations) {
+  if (isPendingLocations) {
     return (
       <DashboardLayout title="Clinic Locations" allowedRole={Role.CLINIC_ADMIN}>
-        <GlobalSidebar
+        <Sidebar
           links={sidebarLinks}
           user={{
             name:
@@ -254,14 +254,14 @@ export default function ClinicLocationsPage() {
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
+        </Sidebar>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout title="Clinic Locations" allowedRole={Role.CLINIC_ADMIN}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{
           name:
@@ -476,7 +476,7 @@ export default function ClinicLocationsPage() {
           </div>
 
           <div className="grid gap-4">
-            {filteredLocations.map((location) => (
+            {filteredLocations.map((location: any) => (
               <Card key={location.id}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -726,7 +726,7 @@ export default function ClinicLocationsPage() {
             </DialogContent>
           </Dialog>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

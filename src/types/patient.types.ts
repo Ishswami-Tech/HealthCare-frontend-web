@@ -1,5 +1,10 @@
 // ===== PATIENT TYPES =====
 
+// ✅ Consolidated: Import types from their respective type files (single source of truth)
+import type { Appointment } from './appointment.types';
+import type { MedicalRecord } from './medical-records.types';
+import type { Prescription } from './pharmacy.types';
+
 export interface Patient {
   id: string;
   userId: string;
@@ -201,91 +206,10 @@ export interface PatientStats {
   upcomingAppointments: number;
 }
 
-// ===== MEDICAL RECORD TYPES =====
-
-export interface MedicalRecord {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  type: 'LAB_TEST' | 'XRAY' | 'MRI' | 'PRESCRIPTION' | 'DIAGNOSIS_REPORT' | 'PULSE_DIAGNOSIS' | 'NADI_PARIKSHA' | 'DOSHA_ANALYSIS' | 'PANCHAKARMA_RECORD';
-  title: string;
-  description: string;
-  findings?: string;
-  recommendations?: string;
-  attachments?: string[];
-  isConfidential: boolean;
-  recordDate: string;
-  createdAt: string;
-  updatedAt: string;
-  
-  // Relations
-  patient?: Patient;
-  doctor?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    specialization: string;
-  };
-}
-
-// ===== PRESCRIPTION TYPES =====
-
-export interface Prescription {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  status: 'PENDING' | 'DISPENSED' | 'CANCELLED' | 'EXPIRED';
-  medications: PrescriptionMedication[];
-  diagnosis?: string;
-  notes?: string;
-  validUntil?: string;
-  dispensedAt?: string;
-  dispensedBy?: string;
-  totalAmount?: number;
-  createdAt: string;
-  updatedAt: string;
-  
-  // Relations
-  patient?: Patient;
-  doctor?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    specialization: string;
-  };
-}
-
-export interface PrescriptionMedication {
-  medicineId: string;
-  medicine?: {
-    id: string;
-    name: string;
-    genericName?: string;
-    strength: string;
-    dosageForm: string;
-  };
-  dosage: string;
-  frequency: string;
-  duration: string;
-  instructions?: string;
-  quantity: number;
-}
-
-// ===== APPOINTMENT REFERENCE =====
-
-export interface Appointment {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  clinicId: string;
-  appointmentDate: string;
-  startTime: string;
-  endTime: string;
-  status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
-  type: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'ROUTINE_CHECKUP';
-  reason?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+// ✅ Consolidated: Import types from their respective type files (single source of truth)
+// MedicalRecord and Prescription are defined in their dedicated type files
+// Re-export for convenience
+export type { MedicalRecord } from './medical-records.types';
+export type { Prescription, PrescriptionMedication } from './pharmacy.types';
+export type { Appointment } from './appointment.types';
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { useHealthStatus } from "@/hooks/useHealth";
+import { useHealthStatus } from "@/hooks/query/useHealth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { LoadingSpinner } from "@/components/ui/loading-states";
+import { LoadingSpinner } from "@/components/ui/loading";
 import { APP_CONFIG } from "@/lib/config/config";
 
 interface BackendHealthCheckProps {
@@ -32,6 +32,9 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
     refetch,
     isFetching,
   } = useHealthStatus();
+  
+  // Type assertion for health status
+  const healthData = health as { status?: string; details?: any } | undefined;
 
   // Get environment-aware configuration
   const apiUrl = useMemo(() => APP_CONFIG.API.BASE_URL, []);
@@ -40,14 +43,14 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
   const getStatusColor = () => {
     if (isPending || isFetching) return "secondary";
     if (error) return "destructive";
-    return health?.status === "healthy" ? "default" : "destructive";
+    return (health as any)?.status === "healthy" ? "default" : "destructive";
   };
 
   const getStatusIcon = () => {
     if (isPending || isFetching)
       return <RefreshCw className="w-4 h-4 animate-spin" />;
     if (error) return <WifiOff className="w-4 h-4" />;
-    return health?.status === "healthy" ? (
+    return healthData?.status === "healthy" ? (
       <CheckCircle className="w-4 h-4" />
     ) : (
       <XCircle className="w-4 h-4" />
@@ -58,7 +61,7 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
     if (isPending) return "Checking...";
     if (isFetching) return "Refreshing...";
     if (error) return "Connection Error";
-    return health?.status === "healthy" ? "Backend Connected" : "Backend Error";
+    return (health as any)?.status === "healthy" ? "Backend Connected" : "Backend Error";
   };
 
   if (!showDetails) {
@@ -88,7 +91,7 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
             <span className="font-medium">{getStatusText()}</span>
           </div>
           <Badge variant={getStatusColor()}>
-            {health?.status || "Unknown"}
+            {healthData?.status || "Unknown"}
           </Badge>
         </div>
 
@@ -104,10 +107,10 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
             <strong>Clinic ID:</strong>{" "}
             {process.env.NEXT_PUBLIC_CLINIC_ID || "Not configured"}
           </div>
-          {(health?.details as any) && (
+          {healthData?.details && (
             <div>
               <strong>Details:</strong>{" "}
-              {JSON.stringify(health?.details as any, null, 2)}
+              {JSON.stringify(healthData.details, null, 2)}
             </div>
           )}
         </div>
@@ -164,7 +167,7 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
               <span>RBAC System Integrated</span>
             </div>
             <div className="flex items-center gap-2">
-              {health?.status === "healthy" ? (
+              {(health as any)?.status === "healthy" ? (
                 <CheckCircle className="w-3 h-3 text-green-500" />
               ) : (
                 <XCircle className="w-3 h-3 text-red-500" />

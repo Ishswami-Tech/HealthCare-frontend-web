@@ -64,7 +64,9 @@ export async function sendChatMessage(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    throw new Error('User not authenticated');
+    // ✅ Use centralized error messages
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
   
   const { data: response } = await authenticatedApi(
@@ -115,7 +117,9 @@ export async function updateTypingIndicator(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    throw new Error('User not authenticated');
+    // ✅ Use centralized error messages
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
   
   const { data: response } = await authenticatedApi(
@@ -152,7 +156,9 @@ export async function joinWaitingRoom(appointmentId: string) {
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    throw new Error('User not authenticated');
+    // ✅ Use centralized error messages
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
   
   const { data: response } = await authenticatedApi(
@@ -222,7 +228,9 @@ export async function admitFromWaitingRoom(
   const doctorId = session?.user?.id || '';
   
   if (!doctorId) {
-    throw new Error('User not authenticated');
+    // ✅ Use centralized error messages
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
   
   const { data: response } = await authenticatedApi(
@@ -292,7 +300,9 @@ export async function createMedicalNote(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    throw new Error('User not authenticated');
+    // ✅ Use centralized error messages
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
   
   const { data: response } = await authenticatedApi(
@@ -316,8 +326,8 @@ export async function createMedicalNote(
  */
 export async function updateMedicalNote(
   _appointmentId: string,
-  noteId: string,
-  data: {
+  _noteId: string,
+  _data: {
     content?: string;
     noteType?: 'GENERAL' | 'SYMPTOM' | 'DIAGNOSIS' | 'PRESCRIPTION' | 'TREATMENT';
     title?: string;
@@ -325,7 +335,9 @@ export async function updateMedicalNote(
 ) {
   // Backend doesn't have update endpoint, so we'll need to delete and recreate
   // For now, return error or implement workaround
-  throw new Error('Update medical note not supported. Please delete and create a new note.');
+  // ✅ Use centralized error messages
+  const { ERROR_MESSAGES } = await import('@/lib/config/config');
+  throw new Error(ERROR_MESSAGES.TRY_AGAIN);
 }
 
 /**
@@ -353,7 +365,7 @@ export async function getMedicalNotes(
 /**
  * Delete medical note
  */
-export async function deleteMedicalNote(appointmentId: string, noteId: string) {
+export async function deleteMedicalNote(_appointmentId: string, noteId: string) {
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.NOTES.DELETE(noteId),
     {
@@ -367,12 +379,14 @@ export async function deleteMedicalNote(appointmentId: string, noteId: string) {
 /**
  * Save note to EHR
  */
-export async function saveNoteToEHR(appointmentId: string, noteId: string) {
+export async function saveNoteToEHR(_appointmentId: string, noteId: string) {
   const session = await getServerSession();
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    throw new Error('User not authenticated');
+    // ✅ Use centralized error messages
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
   
   const { data: response } = await authenticatedApi(
@@ -426,7 +440,9 @@ export async function updateQualityMetrics(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    throw new Error('User not authenticated');
+    // ✅ Use centralized error messages
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
   
   const { data: response } = await authenticatedApi(
@@ -495,7 +511,9 @@ export async function createAnnotation(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    throw new Error('User not authenticated');
+    // ✅ Use centralized error messages
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
   
   const { data: response } = await authenticatedApi(
@@ -533,7 +551,9 @@ export async function deleteAnnotation(_appointmentId: string, annotationId: str
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    throw new Error('User not authenticated');
+    // ✅ Use centralized error messages
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
   
   const { data: response } = await authenticatedApi(
@@ -692,7 +712,9 @@ export async function saveTranscriptToEHR(appointmentId: string) {
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    throw new Error('User not authenticated');
+    // ✅ Use centralized error messages
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
   
   const { data: response } = await authenticatedApi(

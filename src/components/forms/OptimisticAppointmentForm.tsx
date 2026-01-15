@@ -1,13 +1,11 @@
 /**
- * Example: Appointment Form with React 19 useOptimistic
+ * Appointment Form with React 19 useOptimistic
  * Demonstrates optimistic UI updates for better UX
  */
 
 "use client";
 
-import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
-import { useCreateAppointment } from '@/hooks/useAppointments';
-import { Button } from '@/components/ui/button';
+import { useCreateAppointment } from '@/hooks/query/useAppointments';
 import { Input } from '@/components/ui/input';
 import { FormStatusButton } from '@/components/ui/form-status-button';
 import { CardSuspense } from '@/components/ui/suspense-boundary';
@@ -31,13 +29,13 @@ export function OptimisticAppointmentForm({ clinicId }: { clinicId: string }) {
   });
 
   // Use optimistic mutation hook
-  const { optimisticData, addOptimistic, mutation, isPending } = useCreateAppointment(clinicId);
+  const { mutate } = useCreateAppointment(clinicId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Optimistic update happens automatically in the hook
-    mutation.mutate(formData as any, {
+    mutate(formData as any, {
       onSuccess: () => {
         // Reset form on success
         setFormData({
@@ -81,8 +79,7 @@ export function OptimisticAppointmentForm({ clinicId }: { clinicId: string }) {
         
         {/* Use FormStatusButton for automatic loading state */}
         <FormStatusButton 
-          type="submit" 
-          disabled={isPending}
+
           loadingText="Creating appointment..."
         >
           Create Appointment

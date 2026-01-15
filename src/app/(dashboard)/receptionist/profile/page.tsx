@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { 
   Activity,
   Calendar, 
@@ -151,7 +151,7 @@ export default function ReceptionistProfile() {
 
   return (
     <DashboardLayout title="Receptionist Profile" allowedRole={Role.RECEPTIONIST}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{ 
           name: user?.name || `${user?.firstName} ${user?.lastName}` || "Receptionist",
@@ -770,7 +770,7 @@ export default function ReceptionistProfile() {
             </TabsContent>
           </Tabs>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

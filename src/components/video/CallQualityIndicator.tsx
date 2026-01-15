@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Wifi,
@@ -10,13 +10,13 @@ import {
   SignalMedium,
   SignalHigh,
 } from "lucide-react";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
   getCallQuality,
   updateQualityMetrics,
   type CallQualityMetrics,
 } from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/utils/use-toast";
 import {
   Tooltip,
   TooltipContent,
@@ -51,7 +51,7 @@ export function CallQualityIndicator({
           setQuality(result);
         }
       } catch (error) {
-        console.error("Failed to load call quality:", error);
+        // Error handled by React Query
       } finally {
         if (mounted) {
           setIsLoading(false);

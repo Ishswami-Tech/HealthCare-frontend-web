@@ -3,15 +3,13 @@
 
 'use server';
 
-import { logger } from '@/lib/logger';
-
+import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { clinicApiClient } from '@/lib/api/client';
-import { auditLog } from '@/lib/audit';
-import { validateClinicAccess } from '@/lib/auth/permissions';
+import { auditLog } from '@/lib/utils/audit';
+import { validateClinicAccess } from '@/lib/config/permissions';
 import { API_ENDPOINTS } from '@/lib/config/config';
-import { logger } from '@/lib/logger';
 // Session data handling - will need to be implemented
 const getSessionData = async () => ({ userId: 'temp-user', access_token: 'temp-token' });
 
@@ -93,7 +91,7 @@ export async function createVideoAppointment(data: z.infer<typeof createVideoApp
 
     // Revalidate cache
     revalidatePath('/dashboard/video-appointments');
-    revalidateTag('video-appointments');
+    revalidateTag('video-appointments', 'max');
     
     return { success: true, videoAppointment: response.data };
     
@@ -103,7 +101,7 @@ export async function createVideoAppointment(data: z.infer<typeof createVideoApp
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: `Validation error: ${error.errors[0]?.message}` 
+        error: `Validation error: ${error.issues[0]?.message}` 
       };
     }
     
@@ -247,7 +245,7 @@ export async function updateVideoAppointment(data: z.infer<typeof updateVideoApp
     // Revalidate cache
     revalidatePath('/dashboard/video-appointments');
     revalidatePath(`/dashboard/video-appointments/${validatedData.appointmentId}`);
-    revalidateTag('video-appointments');
+    revalidateTag('video-appointments', 'max');
     
     return { success: true, videoAppointment: response.data };
     
@@ -257,7 +255,7 @@ export async function updateVideoAppointment(data: z.infer<typeof updateVideoApp
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: `Validation error: ${error.errors[0]?.message}` 
+        error: `Validation error: ${error.issues[0]?.message}` 
       };
     }
     
@@ -328,7 +326,7 @@ export async function joinVideoAppointment(data: z.infer<typeof joinVideoAppoint
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: `Validation error: ${error.errors[0]?.message}` 
+        error: `Validation error: ${error.issues[0]?.message}` 
       };
     }
     
@@ -383,7 +381,7 @@ export async function endVideoAppointment(appointmentId: string): Promise<{ succ
 
     // Revalidate cache
     revalidatePath('/dashboard/video-appointments');
-    revalidateTag('video-appointments');
+    revalidateTag('video-appointments', 'max');
     
     return { success: true };
     
@@ -469,7 +467,7 @@ export async function deleteVideoAppointment(appointmentId: string): Promise<{ s
 
     // Revalidate cache
     revalidatePath('/dashboard/video-appointments');
-    revalidateTag('video-appointments');
+    revalidateTag('video-appointments', 'max');
     
     return { success: true };
     

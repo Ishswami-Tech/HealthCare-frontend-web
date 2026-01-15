@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+
 import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +21,7 @@ import {
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { PageTransition } from "@/components/ui/animated-wrapper";
-import { getIconColorScheme } from "@/lib/color-palette";
+import { getIconColorScheme } from "@/lib/config/color-palette";
 
 export default function PanchakarmaPage() {
   const { t, tArray } = useTranslation();

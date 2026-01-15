@@ -1,10 +1,10 @@
 "use client";
 
-import { useAuth } from "@/hooks/useAuth";
-import { useQueryData } from "@/hooks/useQueryData";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
-import { sidebarLinksByRole, SidebarLink } from "@/lib/config/config";
-import { Role } from "@/types/auth.types";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useQueryData } from "@/hooks/core/useQueryData";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
+import { sidebarLinksByRole, SidebarLink } from "@/lib/config/sidebarLinks";
+import { Role, type UserProfile } from "@/types/auth.types";
 import { useLoadingOverlay } from "@/app/providers/LoadingOverlayContext";
 import React from "react";
 import { getUserProfile } from "@/lib/actions/users.server";
@@ -12,20 +12,8 @@ import { useRouter } from "next/navigation";
 import {
   DashboardStatusBar,
   FloatingStatusWidget,
-} from "@/components/layout/DashboardStatusBar";
-
-interface UserProfile {
-  id: string;
-  firstName?: string;
-  lastName?: string;
-  email: string;
-  role: string;
-  phone?: string;
-  address?: string;
-  dateOfBirth?: string;
-  gender?: string;
-  avatarUrl?: string;
-}
+} from "@/components/dashboard/DashboardStatusBar";
+import { LoadingSpinner } from "@/components/ui/loading";
 
 export default function DashboardLayout({
   children,
@@ -36,38 +24,70 @@ export default function DashboardLayout({
   const { setOverlay } = useLoadingOverlay();
   const router = useRouter();
 
+  // ✅ Only show overlay for auth loading, not for profile loading
+  // Profile loading is handled by the early return below
+  // Note: Overlay is managed by GlobalLoadingOverlayListener for route transitions
+  // Use ref to avoid dependency issues
+  const setOverlayRef = React.useRef(setOverlay);
+  React.useEffect(() => {
+    setOverlayRef.current = setOverlay;
+  }, [setOverlay]);
+
   React.useEffect(() => {
     if (isLoading) {
-      setOverlay({ show: true, variant: "default" });
+      setOverlayRef.current({ show: true, variant: "default", message: "Authenticating..." });
+      return undefined;
     } else {
-      setOverlay({ show: false });
+      // ✅ Ensure overlay is hidden when auth loading completes
+      // Add small delay to prevent flicker
+      const timeoutId = setTimeout(() => {
+        setOverlayRef.current({ show: false });
+      }, 100);
+      return () => clearTimeout(timeoutId);
     }
-  }, [isLoading, setOverlay]);
+  }, [isLoading]);
+  
+  // ✅ Safety timeout: Always hide overlay after max 10 seconds to prevent hanging
+  React.useEffect(() => {
+    const safetyTimeout = setTimeout(() => {
+      setOverlayRef.current({ show: false });
+    }, 10000);
+    return () => clearTimeout(safetyTimeout);
+  }, []);
 
   // Redirect to login if not authenticated
   React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push("/(auth)/auth/login");
+      return;
     }
   }, [isLoading, isAuthenticated, router]);
 
   const { data: profile, isPending: profileLoading } =
-    useQueryData<UserProfile>(
+    useQueryData<UserProfile, Error>(
       ["user-profile"],
-      async () => {
+      async (): Promise<UserProfile> => {
         const result = await getUserProfile();
+        if (!result || typeof result !== 'object') {
+          throw new Error('Failed to fetch user profile');
+        }
         return result as UserProfile;
       },
       {
         enabled: !!session?.user?.id,
+        // ✅ Add timeout and retry configuration to prevent hanging
+        retry: 1, // Only retry once
+        retryDelay: 1000,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
       }
     );
 
-  // Show loading state
+  // ✅ Show loading state immediately - prevent content flash
   if (isLoading || profileLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <LoadingSpinner size="lg" color="primary" text="Loading dashboard..." />
       </div>
     );
   }
@@ -92,7 +112,7 @@ export default function DashboardLayout({
   ] as SidebarLink[];
 
   // User avatar fallback
-  const userAvatar = profile?.avatarUrl || "/avatar.png";
+  const userAvatar = profile?.profilePicture || "/avatar.png";
 
   // Get display name
   const displayName =
@@ -109,7 +129,7 @@ export default function DashboardLayout({
 
   return (
     <div className="relative min-h-screen">
-      <GlobalSidebar
+      <Sidebar
         links={updatedSidebarLinks}
         user={{
           name: displayName,
@@ -126,7 +146,7 @@ export default function DashboardLayout({
           {/* Footer status bar */}
           <DashboardStatusBar variant="minimal" position="bottom" />
         </div>
-      </GlobalSidebar>
+      </Sidebar>
 
       {/* Floating status widget for critical issues */}
       <FloatingStatusWidget />

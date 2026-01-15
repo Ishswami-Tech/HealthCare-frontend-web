@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +21,9 @@ import {
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/config";
-import { useAuth } from "@/hooks/useAuth";
-import { theme } from "@/lib/theme-utils";
+import { getRoutesByRole } from "@/lib/config/routes";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { theme } from "@/lib/utils/theme-utils";
 import { 
   Activity,
   Calendar, 
@@ -232,7 +232,7 @@ export default function PatientAppointments() {
 
   return (
     <DashboardLayout title="Patient Appointments" allowedRole={Role.PATIENT}>
-      <GlobalSidebar
+      <Sidebar
         links={sidebarLinks}
         user={{ 
           name: user?.name || `${user?.firstName} ${user?.lastName}` || "Patient",
@@ -682,7 +682,7 @@ export default function PatientAppointments() {
             </CardContent>
           </Card>
         </div>
-      </GlobalSidebar>
+      </Sidebar>
     </DashboardLayout>
   );
 }

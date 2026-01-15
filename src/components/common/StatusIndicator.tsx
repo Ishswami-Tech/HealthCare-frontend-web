@@ -14,9 +14,8 @@ import {
   AlertTriangle,
   XCircle
 } from 'lucide-react';
-import { useWebSocketStatus } from '@/components/websocket/WebSocketProvider';
-import { useAppStore } from '@/stores/app.store';
-import { useHealthStore } from '@/stores/health.store';
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
+import { useAppStore, useHealthStore } from '@/stores';
 
 export type StatusType = 'active' | 'inactive' | 'warning' | 'error' | 'loading';
 
@@ -358,7 +357,7 @@ export function LiveActivityIndicator({
 
 // Status summary component for dashboard headers
 export function StatusSummary({ className }: { className?: string }) {
-  const { isConnected, isRealTimeEnabled, connectionStatus } = useWebSocketStatus();
+  const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
   const { isAuthenticated, user, currentClinic } = useAppStore();
 
   const activeCount = [

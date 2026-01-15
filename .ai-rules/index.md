@@ -1,8 +1,10 @@
 # Healthcare Frontend AI Rules Index
+# Version: 2.1.0 | Next.js 16 + React 19 + TypeScript 5
+# Enterprise-Grade Healthcare Frontend Development Standards
 
 ## 📚 **Complete Guide Overview**
 
-This comprehensive AI rules system provides detailed guidelines for developing a robust, secure, and HIPAA-compliant healthcare frontend application using Next.js 14, TypeScript, and modern React patterns.
+This comprehensive AI rules system provides detailed guidelines for developing a robust, secure, and HIPAA-compliant healthcare frontend application using **Next.js 16**, **React 19**, **TypeScript 5**, and modern React patterns following **SOLID**, **DRY**, and **KISS** principles.
 
 ### 🗂️ **Rules Structure**
 
@@ -28,12 +30,17 @@ This comprehensive AI rules system provides detailed guidelines for developing a
 - Ayurveda and traditional medicine focus
 
 ### **Technology Stack**
-- **Framework**: Next.js 14 with App Router
-- **Language**: TypeScript (strict mode)
-- **Styling**: Tailwind CSS + shadcn/ui
-- **State Management**: TanStack Query + Zustand
-- **Forms**: React Hook Form + Zod validation
-- **Internationalization**: next-intl (English, Hindi, Marathi)
+- **Framework**: Next.js 16.1.1 with App Router + Turbopack
+- **React**: 19.2.x with Server Components
+- **Language**: TypeScript 5.x (strict mode)
+- **Styling**: Tailwind CSS v4 + shadcn/ui + Radix UI
+- **State Management**: TanStack Query v5.90+ | Zustand v5.0.9 with immer
+- **Forms**: React Hook Form v7.70 + Zod v4.3.5
+- **Internationalization**: next-intl v4.7 (English, Hindi, Marathi)
+- **Real-time**: Socket.IO v4.8.3 + Firebase v12.7
+- **Video**: OpenVidu Browser v2.32.1
+- **Toast**: Sonner v2.0.7
+- **Animations**: Framer Motion v12.24
 - **Database**: Encrypted multi-tenant architecture
 
 ### **User Roles**
@@ -192,15 +199,21 @@ export function usePatientManagement() {
 - Strict TypeScript configuration
 - Component architecture patterns
 - Custom hook implementation
-- Form handling with validation
+- Form handling with validation (`useZodForm` hook)
+- Input component with CVA variants (medical, floating, mobile)
 - Error boundary patterns
 - Testing strategies for healthcare
+- Healthcare-specific logger methods
+- APP_CONFIG central configuration
+- Query keys factory pattern
 
 **Key Concepts:**
 - Type safety for medical data
 - Comprehensive error handling
 - Accessibility for healthcare users
 - Performance optimization patterns
+- Centralized configuration management
+- Consistent query cache key management
 
 ### **⚡ [Next.js Specific](./nextjs-specific.md)**
 **Next.js 14 App Router optimization**
@@ -281,12 +294,17 @@ export function usePatientManagement() {
 ## 📋 **Quick Reference Commands**
 
 ### **Required Technology Stack (MANDATORY)**
-- **Framework**: Next.js 14 with App Router (NOT Pages Router)
-- **Language**: TypeScript strict mode
-- **State Management**: TanStack Query + Zustand
-- **Forms**: React Hook Form + Zod validation
-- **Components**: shadcn/ui + Tailwind CSS
-- **Internationalization**: next-intl (English, Hindi, Marathi)
+- **Framework**: Next.js 16.1.1 with App Router + Turbopack (NOT Pages Router)
+- **React**: 19.2.x with Server Components
+- **Language**: TypeScript 5.x (strict mode)
+- **State Management**: TanStack Query v5.90+ | Zustand v5.0.9 with immer
+- **Forms**: React Hook Form v7.70 + Zod v4.3.5
+- **Components**: shadcn/ui + Radix UI + Tailwind CSS v4
+- **Internationalization**: next-intl v4.7 (English, Hindi, Marathi)
+- **Real-time**: Socket.IO v4.8.3 + Firebase v12.7
+- **Video**: OpenVidu Browser v2.32.1
+- **Toast**: Sonner v2.0.7
+- **Animations**: Framer Motion v12.24
 
 ### **Import Order (MANDATORY)**
 ```typescript
@@ -414,10 +432,14 @@ function App() {
 
 ### **External Resources**
 - [HIPAA Security Rule](https://www.hhs.gov/hipaa/for-professionals/security/index.html)
-- [Next.js 14 Documentation](https://nextjs.org/docs)
+- [Next.js 16 Documentation](https://nextjs.org/docs)
+- [React 19 Documentation](https://react.dev)
 - [React Security Best Practices](https://reactjs.org/docs/security.html)
-- [TanStack Query Guide](https://tanstack.com/query/latest)
-- [Tailwind CSS Healthcare Components](https://tailwindui.com/components)
+- [TanStack Query v5 Guide](https://tanstack.com/query/latest)
+- [Zustand v5 Documentation](https://docs.pmnd.rs/zustand)
+- [Zod v4 Documentation](https://zod.dev)
+- [Tailwind CSS v4 Documentation](https://tailwindcss.com)
+- [shadcn/ui Components](https://ui.shadcn.com)
 
 ---
 

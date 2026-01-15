@@ -1,25 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Mic,
-  MicOff,
   Download,
   Search,
   User,
-  Loader2,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+// import { useAuth } from "@/hooks/auth/useAuth";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
   getTranscription,
   type TranscriptionSegment,
 } from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/utils/use-toast";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 
@@ -32,11 +30,9 @@ export function CallTranscription({
   appointmentId,
   className,
 }: CallTranscriptionProps) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [transcription, setTranscription] = useState<TranscriptionSegment[]>([]);
-  const [fullText, setFullText] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -50,13 +46,10 @@ export function CallTranscription({
         if (result) {
           if ('segments' in result) {
             setTranscription(result.segments);
-            if ('fullText' in result) {
-              setFullText(result.fullText);
-            }
           }
         }
       } catch (error) {
-        console.error("Failed to load transcription:", error);
+        // Error handled by React Query
       }
     };
 
@@ -88,7 +81,6 @@ export function CallTranscription({
             if (prev.some((s) => s.id === segment.id)) return prev;
             return [...prev, segment].sort((a, b) => a.startTime - b.startTime);
           });
-          setFullText((prev) => `${prev} ${segment.text}`.trim());
 
           // Auto-scroll to bottom
           setTimeout(() => {
@@ -141,7 +133,15 @@ export function CallTranscription({
     <Card className={className}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Call Transcription</CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-lg">Call Transcription</CardTitle>
+            {isTranscribing && (
+              <Badge variant="default" className="bg-red-500 animate-pulse">
+                <Mic className="h-3 w-3 mr-1" />
+                Recording
+              </Badge>
+            )}
+          </div>
           <div className="flex gap-2">
             {transcription.length > 0 && (
               <Button size="sm" variant="outline" onClick={handleDownload}>
