@@ -157,7 +157,7 @@ export default function PatientProfile() {
     return 'bg-gray-50 text-gray-700';
   };
 
-  const sidebarLinks = getRoutesByRole(Role.PATIENT).map(route => ({
+  const sidebarLinks = getRoutesByRole(Role.PHARMACIST).map(route => ({
     ...route,
     href: route.path,
     icon: route.path.includes('dashboard') ? <Activity className="w-5 h-5" /> :
@@ -176,7 +176,7 @@ export default function PatientProfile() {
   });
 
   return (
-    <DashboardLayout title="Patient Profile" allowedRole={Role.PATIENT}>
+    <DashboardLayout title="Pharmacist Profile" allowedRole={Role.PHARMACIST}>
       <Sidebar
         links={sidebarLinks}
         user={{ 

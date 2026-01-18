@@ -1159,7 +1159,7 @@ export function PatientAvatar({
 - [ ] **Metadata**: SEO and metadata properly configured
 - [ ] **Performance**: Dynamic imports for code splitting
 - [ ] **Image Optimization**: Next.js Image component used
-- [ ] **Middleware/Proxy**: Next.js 16 proxy.ts properly configured
+- [ ] **no Middleware only Proxy**: Next.js 16 proxy.ts properly configured
 
 ### **SOLID Principles Checklist**
 - [ ] **Single Responsibility**: Each route/page handles one feature

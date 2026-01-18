@@ -15,11 +15,11 @@ import { LoadingSpinner } from "@/components/ui/loading";
 import { ROUTES } from "@/lib/config/routes";
 
 export default function ProfileCompletionContent() {
-  const { session, isLoading } = useAuth();
+  const { session, isPending } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isPending) {
       if (!session?.user) {
         router.push(ROUTES.LOGIN);
         return;
@@ -30,10 +30,10 @@ export default function ProfileCompletionContent() {
         router.push(dashboardPath);
       }
     }
-  }, [session, isLoading, router]);
+  }, [session, isPending, router]);
 
   // Show loading while checking auth
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <LoadingSpinner size="lg" text="Loading profile..." center />

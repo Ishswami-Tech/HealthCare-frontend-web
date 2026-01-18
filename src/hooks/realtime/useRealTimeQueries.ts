@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
 import { useWebSocketIntegration } from './useWebSocketIntegration';
 import { useAppStore, useAppointmentsStore } from '@/stores';
 // ✅ Consolidated: Import types from @/types (single source of truth)
@@ -17,9 +17,9 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
   const { isConnected, subscribe } = useWebSocketIntegration();
   const subscriptionRef = useRef<(() => void) | null>(null);
 
-  const query = useQuery({
-    queryKey: ['appointments', filters, currentClinic?.id],
-    queryFn: async () => {
+  const query = useQueryData(
+    ['appointments', filters, currentClinic?.id],
+    async () => {
       if (!currentClinic) throw new Error('No clinic selected');
       
       // Use actual API endpoint from config
@@ -48,11 +48,13 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
       
       return { success: true, data: appointments };
     },
-    enabled: !!currentClinic,
-    staleTime: 60 * 1000, // 1 minute (optimized for 10M users - real-time updates reduce need for frequent refetch)
-    gcTime: 10 * 60 * 1000, // 10 minutes (increased for 10M users)
-    refetchOnWindowFocus: false,
-  });
+    {
+      enabled: !!currentClinic,
+      staleTime: 60 * 1000, // 1 minute (optimized for 10M users - real-time updates reduce need for frequent refetch)
+      gcTime: 10 * 60 * 1000, // 10 minutes (increased for 10M users)
+      refetchOnWindowFocus: false,
+    }
+  );
 
   // Set up real-time subscriptions
   useEffect(() => {
@@ -136,9 +138,9 @@ export function useRealTimeAppointmentStats() {
   const { currentClinic } = useAppStore();
   const { isConnected, subscribe } = useWebSocketIntegration();
 
-  const query = useQuery({
-    queryKey: ['appointment-stats', currentClinic?.id],
-    queryFn: async () => {
+  const query = useQueryData(
+    ['appointment-stats', currentClinic?.id],
+    async () => {
       if (!currentClinic) throw new Error('No clinic selected');
       
       const { API_ENDPOINTS } = await import('@/lib/config/config');
@@ -154,12 +156,14 @@ export function useRealTimeAppointmentStats() {
       
       return { success: true, data: response.data };
     },
-    enabled: !!currentClinic,
-    staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
-    gcTime: 15 * 60 * 1000, // 15 minutes
-    refetchInterval: isConnected ? false : 10 * 60 * 1000, // 10 minutes if not real-time (increased for 10M users)
-    refetchOnWindowFocus: false,
-  });
+    {
+      enabled: !!currentClinic,
+      staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
+      gcTime: 15 * 60 * 1000, // 15 minutes
+      refetchInterval: isConnected ? false : 10 * 60 * 1000, // 10 minutes if not real-time (increased for 10M users)
+      refetchOnWindowFocus: false,
+    }
+  );
 
   useEffect(() => {
     if (!isConnected || !currentClinic) return;
@@ -191,9 +195,9 @@ export function useRealTimeQueueStatus(queueName?: string) {
   const { currentClinic } = useAppStore();
   const { isConnected, subscribe } = useWebSocketIntegration();
 
-  const query = useQuery({
-    queryKey: ['queue-status', currentClinic?.id, queueName],
-    queryFn: async () => {
+  const query = useQueryData(
+    ['queue-status', currentClinic?.id, queueName],
+    async () => {
       if (!currentClinic) throw new Error('No clinic selected');
       
       const { API_ENDPOINTS } = await import('@/lib/config/config');
@@ -212,12 +216,14 @@ export function useRealTimeQueueStatus(queueName?: string) {
       
       return { success: true, data: response.data };
     },
-    enabled: !!currentClinic,
-    staleTime: 30 * 1000, // 30 seconds (optimized for 10M users)
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: isConnected ? false : 60 * 1000, // 1 minute if not real-time (increased for 10M users)
-    refetchOnWindowFocus: false,
-  });
+    {
+      enabled: !!currentClinic,
+      staleTime: 30 * 1000, // 30 seconds (optimized for 10M users)
+      gcTime: 5 * 60 * 1000, // 5 minutes
+      refetchInterval: isConnected ? false : 60 * 1000, // 1 minute if not real-time (increased for 10M users)
+      refetchOnWindowFocus: false,
+    }
+  );
 
   useEffect(() => {
     if (!isConnected || !currentClinic) return;
@@ -258,7 +264,8 @@ export function useRealTimeAppointmentMutation() {
   const { currentClinic } = useAppStore();
   const { emit } = useWebSocketIntegration();
 
-  const createAppointment = useMutation({
+  const createAppointment = useOptimisticMutation<Appointment, Partial<Appointment>>({
+    queryKey: ['appointments', undefined, currentClinic?.id],
     mutationFn: async (appointmentData: Partial<Appointment>) => {
       if (!currentClinic) throw new Error('No clinic selected');
       
@@ -277,21 +284,31 @@ export function useRealTimeAppointmentMutation() {
         throw new Error(response.message || 'Failed to create appointment');
       }
       
-      return { success: true, data: response.data };
+      return response.data;
     },
-    onSuccess: (data) => {
-      // Optimistically update local cache
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      
-      // Notify other clients via WebSocket
-      emit('appointment:created', {
-        appointment: data.data,
-        clinicId: currentClinic?.id,
-      });
+    optimisticUpdate: (current, variables) => {
+      // Create optimistic appointment
+      const optimisticAppointment = {
+        ...variables,
+        id: `temp-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as Appointment;
+      return [...(current || []), optimisticAppointment];
+    },
+    mutationOptions: {
+      onSuccess: (data) => {
+        // Notify other clients via WebSocket
+        emit('appointment:created', {
+          appointment: data,
+          clinicId: currentClinic?.id,
+        });
+      },
     },
   });
 
-  const updateAppointment = useMutation({
+  const updateAppointment = useOptimisticMutation<Appointment, { id: string; updates: Partial<Appointment> }>({
+    queryKey: ['appointments', undefined, currentClinic?.id],
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Appointment> }) => {
       const { API_ENDPOINTS } = await import('@/lib/config/config');
       // ✅ SECURITY: Use centralized API client instead of direct fetch
@@ -305,49 +322,30 @@ export function useRealTimeAppointmentMutation() {
         throw new Error(response.message || 'Failed to update appointment');
       }
       
-      return { success: true, data: response.data };
+      return response.data;
     },
-    onMutate: async ({ id, updates }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['appointments'] });
-
-      // Snapshot the previous value
-      const previousAppointments = queryClient.getQueryData(['appointments']);
-
-      // Optimistically update the cache
-      queryClient.setQueryData(['appointments'], (old: { success: boolean; data: Appointment[] } | undefined) => {
-        if (old?.success && old?.data) {
-          const updatedData = old.data.map((apt: Appointment) =>
-            apt.id === id ? { ...apt, ...updates } : apt
-          );
-          return { ...old, data: updatedData };
-        }
-        return old;
-      });
-
-      // Return context with the previous value
-      return { previousAppointments };
+    optimisticUpdate: (current, variables) => {
+      return (current || []).map((apt: Appointment) =>
+        apt.id === variables.id ? { ...apt, ...variables.updates } : apt
+      );
     },
-    onError: (_err, _variables, context) => {
-      // Rollback on error
-      if (context?.previousAppointments) {
-        queryClient.setQueryData(['appointments'], context.previousAppointments);
-      }
-    },
-    onSuccess: (data, { id, updates }) => {
-      // Notify other clients via WebSocket
-      emit('appointment:updated', {
-        id,
-        updates: data.data,
-        clinicId: currentClinic?.id,
-      });
-      
-      // Update Zustand store
-      useAppointmentsStore.getState().updateAppointment(id, updates);
+    mutationOptions: {
+      onSuccess: (data, variables) => {
+        // Notify other clients via WebSocket
+        emit('appointment:updated', {
+          id: variables.id,
+          updates: data,
+          clinicId: currentClinic?.id,
+        });
+        
+        // Update Zustand store
+        useAppointmentsStore.getState().updateAppointment(variables.id, variables.updates);
+      },
     },
   });
 
-  const deleteAppointment = useMutation({
+  const deleteAppointment = useOptimisticMutation<Appointment, string>({
+    queryKey: ['appointments', undefined, currentClinic?.id],
     mutationFn: async (id: string) => {
       const { API_ENDPOINTS } = await import('@/lib/config/config');
       // ✅ SECURITY: Use centralized API client instead of direct fetch
@@ -360,23 +358,29 @@ export function useRealTimeAppointmentMutation() {
         throw new Error(response.message || 'Failed to delete appointment');
       }
       
-      return { success: true, data: response.data || { message: 'Appointment deleted' } };
+      // Return the deleted appointment for optimistic update
+      const appointments = queryClient.getQueryData<{ success: boolean; data: Appointment[] }>(['appointments', {}, currentClinic?.id]);
+      const deletedAppointment = appointments?.data?.find(apt => apt.id === id);
+      return deletedAppointment || ({ id } as Appointment);
     },
-    onSuccess: (_data, id) => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      
-      // Notify other clients via WebSocket
-      emit('appointment:deleted', {
-        id,
-        clinicId: currentClinic?.id,
-      });
+    optimisticUpdate: (current, id) => {
+      return (current || []).filter((apt: Appointment) => apt.id !== id);
+    },
+    mutationOptions: {
+      onSuccess: (_, id) => {
+        // Notify other clients via WebSocket
+        emit('appointment:deleted', {
+          id,
+          clinicId: currentClinic?.id,
+        });
+      },
     },
   });
 
   return {
-    createAppointment,
-    updateAppointment,
-    deleteAppointment,
+    createAppointment: createAppointment.mutation,
+    updateAppointment: updateAppointment.mutation,
+    deleteAppointment: deleteAppointment.mutation,
   };
 }
 

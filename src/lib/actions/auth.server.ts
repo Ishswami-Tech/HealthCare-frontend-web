@@ -1,6 +1,14 @@
 'use server';
 
-import { Role, RegisterFormData } from '@/types/auth.types';
+import { 
+  Role, 
+  RegisterFormData,
+  OtpRequestFormData,
+  OtpVerifyFormData,
+  ForgotPasswordFormData,
+  ResetPasswordFormData,
+} from '@/types/auth.types';
+
 import { redirect } from 'next/navigation';
 import { getDashboardByRole, ROUTES } from '@/lib/config/routes';
 import { calculateProfileCompletion } from '@/lib/config/profile';
@@ -14,13 +22,16 @@ import { handleApiError, sanitizeErrorMessage } from '@/lib/utils/error-handler'
 import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
 
 // API URL configuration from central config
+// ✅ APP_CONFIG.API.BASE_URL already includes /api/v1 prefix (see config.ts line 183)
 const API_URL = APP_CONFIG.API.BASE_URL;
 if (!API_URL) {
   throw new Error('API URL is not configured. Please set NEXT_PUBLIC_API_URL environment variable.');
 }
 
-// API prefix - backend uses /api/v1 as global prefix
-const API_PREFIX = '/api/v1';
+// ✅ REMOVED: API_PREFIX was causing double prefix issue
+// APP_CONFIG.API.BASE_URL = https://backend.../api/v1
+// Adding API_PREFIX = /api/v1 resulted in: /api/v1/api/v1/auth/login (404 ERROR!)
+// Now we use API_URL directly without additional prefix
 
 // Clinic ID from central config
 const CLINIC_ID = APP_CONFIG.CLINIC.ID;
@@ -250,7 +261,7 @@ export async function getServerSession(): Promise<Session | null> {
       // Fall back to API call if JWT parsing fails
       // ✅ Reduce timeout for auth pages to prevent blocking navigation
       logger.debug('getServerSession - Attempting to fetch user data from API');
-      const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.USERS.PROFILE}`, {
+      const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.USERS.PROFILE}`, {
         timeout: 3000, // ✅ Reduced from 10000 to 3000ms to prevent blocking
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -326,6 +337,64 @@ export async function setSession(data: {
   };
 }) {
   const cookieStore = await cookies();
+  // Check if user object exists
+  if (!data.user) {
+    // If we have an access token, try to decode it to get minimal user info
+    // or fetch profile if needed. For now, to prevent crash, we return existing session structure if possible
+    // or throw a more descriptive error so it can be handled upstream (e.g. by logging out)
+    // However, refreshToken flow expects this to succeed.
+    
+    // If user is missing, we can't create a valid Session object locally without fetching it.
+    // But throwing here crashes the flow.
+    // Let's check if we can survive with just tokens (unlikely, Session type requires user).
+    
+    // Better fix: check if we can merge with existing session if called from a context where we have cookies?
+    // But setSession is standalone.
+    
+    console.warn('[setSession] User data missing in session update. preventing crash.');
+    // If critical data is missing, we might need to rely on what we have or fail gracefully.
+    // Let's assume if user is missing, we cannot properly set the session user block.
+    // We return early or throw specific error.
+    if (!data.user) { // Double check for TypeScript narrowing if needed
+        // If it's a refresh flow, the calling function refreshToken might handle null return.
+        // But setSession return type is Promise<Session>.
+        
+        // Let's attempt to use a placeholder or check upstream usage. 
+        // Realistically, if user IS missing, we shouldn't overwrite the valid session with an invalid one.
+        // But we need to update the tokens!
+        
+        // We will read the CURRENT user from cookies if available, and update only tokens.
+        const currentSession = await getServerSession();
+        if (currentSession?.user) {
+           const session: Session = {
+             ...currentSession,
+            access_token: data.access_token || currentSession.access_token,
+            session_id: data.session_id || currentSession.session_id,
+            isAuthenticated: true
+          };
+          
+          // Update cookies with new tokens
+          if (data.access_token) {
+             cookieStore.set({
+                name: 'access_token',
+                value: data.access_token,
+                ...SESSION_TOKEN_OPTIONS,
+             });
+          }
+          if (data.refresh_token) {
+             cookieStore.set({
+                name: 'refresh_token',
+                value: data.refresh_token,
+                ...REFRESH_TOKEN_OPTIONS,
+             });
+          }
+           return session;
+        }
+        
+        throw new Error('Invalid session data: User object missing and no active session to merge');
+    }
+  }
+
   const session: Session = {
     access_token: data.access_token,
     session_id: data.session_id,
@@ -341,7 +410,7 @@ export async function setSession(data: {
       gender: data.user.gender || '',
       address: data.user.address || '',
       isVerified: data.user.isVerified || false,
-      profileComplete: false
+      profileComplete: false // Ideally this should come from data.user too if available
     },
     isAuthenticated: true
   };
@@ -411,14 +480,9 @@ export async function clearSession() {
 }
 
 /**
- * Login with email and password
+ * Login with email and password or OTP
  */
-export async function login(data: {
-  email: string;
-  password?: string;
-  otp?: string;
-  rememberMe?: boolean;
-}) {
+export async function login(data: { email: string; password?: string; otp?: string; rememberMe?: boolean }) {
   try {
     // Validate input
     if (!data.email) {
@@ -428,7 +492,7 @@ export async function login(data: {
     if (!data.password && !data.otp) {
       throw new Error('Either password or OTP must be provided');
     }
-
+    
     // Prepare request body
     const requestBody: Record<string, unknown> = {
       email: data.email,
@@ -440,6 +504,10 @@ export async function login(data: {
 
     if (data.otp) {
       requestBody.otp = data.otp;
+    }
+
+    if (data.rememberMe !== undefined) {
+      requestBody.rememberMe = data.rememberMe;
     }
 
     // Include clinic ID if available
@@ -458,7 +526,7 @@ export async function login(data: {
 
     // ✅ PERFORMANCE: Use fetch with AbortController for timeout handling
     const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGIN}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.LOGIN}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
@@ -466,82 +534,192 @@ export async function login(data: {
     });
 
     // ✅ Use centralized error handler for user-friendly messages
-    let result: any = {};
+    let responseData: any = {};
     try {
-      result = await response.json();
+      responseData = await response.json();
     } catch {
-      result = {};
+      responseData = {};
     }
 
     if (!response.ok) {
       // ✅ Use centralized error handler
-      const errorMessage = await handleApiError(response, result);
-      throw new Error(errorMessage);
+      const errorMessage = await handleApiError(response, responseData);
+      // ✅ Return error object instead of throwing to prevent 500s and masking
+      return { error: errorMessage };
     }
 
-    logger.info('Login successful', { userId: result.user?.id, email: result.user?.email });
+    // ✅ Handle wrapped response structure (backend returns { status, message, timestamp, data })
+    const result = responseData.data || responseData;
+    
+    // ✅ Normalize field names: Backend uses camelCase (accessToken), frontend expects snake_case (access_token)
+    const normalizedResult = {
+      ...result,
+      // Handle both camelCase and snake_case
+      access_token: result.access_token || result.accessToken,
+      refresh_token: result.refresh_token || result.refreshToken,
+      session_id: result.session_id || result.sessionId,
+      user: result.user,
+    };
+    
+    // ✅ Extract session_id from token if not provided directly
+    let sessionId = normalizedResult.session_id;
+    if (!sessionId && normalizedResult.access_token) {
+      try {
+        // Decode JWT to extract sessionId from payload
+        const tokenParts = normalizedResult.access_token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+          sessionId = payload.sessionId || payload.session_id || payload.sub;
+        }
+      } catch (error) {
+        logger.warn('[login] Failed to extract session_id from token', { error });
+      }
+    }
+    
+    // Debug: Log the full response structure to understand why access_token is missing
+    if (APP_CONFIG.IS_DEVELOPMENT) {
+      logger.debug('[login] Full response structure', {
+        hasData: !!responseData.data,
+        responseKeys: responseData ? Object.keys(responseData) : [],
+        resultKeys: result ? Object.keys(result) : [],
+        normalizedKeys: normalizedResult ? Object.keys(normalizedResult) : [],
+        hasAccessToken: !!normalizedResult?.access_token,
+        hasSessionId: !!sessionId,
+        hasUser: !!normalizedResult?.user,
+        // Log first 50 chars of access_token if it exists
+        accessTokenPreview: normalizedResult?.access_token ? normalizedResult.access_token.substring(0, 50) + '...' : 'MISSING'
+      });
+    }
+    
+    logger.info('Login successful', { userId: normalizedResult?.user?.id, email: normalizedResult?.user?.email });
+
+    // Validate response structure
+    if (!normalizedResult || !normalizedResult.user) {
+      logger.error('Login response missing user object', new Error('Invalid response structure'), {
+        responseKeys: responseData ? Object.keys(responseData) : [],
+        dataKeys: result ? Object.keys(result) : [],
+        normalizedKeys: normalizedResult ? Object.keys(normalizedResult) : [],
+        hasAccessToken: !!normalizedResult?.access_token,
+        hasSessionId: !!sessionId
+      });
+      return { error: 'Invalid server response: User data missing' };
+    }
 
     // Set authentication cookies
     const cookieStore = await cookies();
-    const profileComplete = calculateProfileCompletion(result.user);
+    const profileComplete = calculateProfileCompletion(normalizedResult.user);
 
-    // Set access token
-    cookieStore.set({
-      name: 'access_token',
-      value: result.access_token,
-      ...SESSION_TOKEN_OPTIONS,
-      sameSite: 'lax', // Use lax for better compatibility with redirects
-    });
+    // Debug: Log what we're about to set
+    if (APP_CONFIG.IS_DEVELOPMENT) {
+      logger.debug('[login] Setting cookies', {
+        hasAccessToken: !!normalizedResult.access_token,
+        hasSessionId: !!sessionId,
+        userRole: normalizedResult.user.role,
+        profileComplete
+      });
+    }
 
-    // Set session ID
-    cookieStore.set({
-      name: 'session_id',
-      value: result.session_id || '',
-      ...COOKIE_OPTIONS,
-      sameSite: 'lax',
-    });
+    // Set access token - CRITICAL: This must be set for authenticated API calls
+    if (normalizedResult.access_token) {
+      cookieStore.set({
+        name: 'access_token',
+        value: normalizedResult.access_token,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax', // Use lax for better compatibility with redirects
+        path: '/',
+        maxAge: 60 * 60 * 5, // 5 hours
+      });
+      
+      if (APP_CONFIG.IS_DEVELOPMENT) {
+        logger.debug('[login] Access token cookie set', { 
+          tokenLength: normalizedResult.access_token.length 
+        });
+      }
+    } else {
+      logger.error('[login] No access token in response!', new Error('Missing access_token'), {
+        resultKeys: result ? Object.keys(result) : [],
+        normalizedKeys: normalizedResult ? Object.keys(normalizedResult) : []
+      });
+      return { error: 'Invalid server response: Access token missing' };
+    }
 
-    // Set user role for middleware access
-    cookieStore.set({
-      name: 'user_role',
-      value: result.user.role,
-      ...COOKIE_OPTIONS,
-      sameSite: 'lax',
-    });
+    // Set session ID (extracted from token if not provided)
+    if (sessionId) {
+      cookieStore.set({
+        name: 'session_id',
+        value: sessionId,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+    }
+
+    // Set refresh token if available
+    if (normalizedResult.refresh_token) {
+      cookieStore.set({
+        name: 'refresh_token',
+        value: normalizedResult.refresh_token,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax', // Use lax for better compatibility with redirects
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+      });
+    }
+
+    // Set user role (for middleware checks)
+    if (normalizedResult.user.role) {
+      cookieStore.set({
+        name: 'user_role',
+        value: normalizedResult.user.role,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax', // Use lax for better compatibility with redirects
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+    }
 
     // Set profile completion status
     cookieStore.set({
       name: 'profile_complete',
       value: profileComplete.toString(),
-      ...COOKIE_OPTIONS,
-      sameSite: 'lax',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Use lax for better compatibility with redirects
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     // Return structured response
     return {
       user: {
-        id: result.user.id,
-        email: result.user.email,
-        role: result.user.role,
-        name: result.user.name || `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim(),
-        firstName: result.user.firstName || '',
-        lastName: result.user.lastName || '',
-        phone: result.user.phone || '',
-        dateOfBirth: result.user.dateOfBirth || null,
-        gender: result.user.gender || '',
-        address: result.user.address || '',
-        isVerified: result.user.isVerified || false,
+        id: normalizedResult.user.id,
+        email: normalizedResult.user.email,
+        role: normalizedResult.user.role || Role.PATIENT,
+        name: normalizedResult.user.name || `${normalizedResult.user.firstName || ''} ${normalizedResult.user.lastName || ''}`.trim(),
+        firstName: normalizedResult.user.firstName || '',
+        lastName: normalizedResult.user.lastName || '',
+        phone: normalizedResult.user.phone || '',
+        dateOfBirth: normalizedResult.user.dateOfBirth || null,
+        gender: normalizedResult.user.gender || '',
+        address: normalizedResult.user.address || '',
+        isVerified: normalizedResult.user.isVerified || false,
         profileComplete
       },
-      access_token: result.access_token,
-      refresh_token: result.refresh_token || '',
-      session_id: result.session_id,
+      access_token: normalizedResult.access_token,
+      refresh_token: normalizedResult.refresh_token || '',
+      session_id: sessionId || '',
       isAuthenticated: true,
-      redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
+      redirectUrl: normalizedResult.redirectUrl || getDashboardByRole(normalizedResult.user.role || Role.PATIENT)
     };
   } catch (error) {
     logger.error('Login error', error instanceof Error ? error : new Error(String(error)));
-    throw error instanceof Error ? error : new Error('Login failed');
+    const errorMessage = error instanceof Error ? error.message : 'Login failed';
+    return { error: errorMessage };
   }
 }
 
@@ -565,7 +743,7 @@ export async function register(data: RegisterFormData & { clinicId?: string }) {
     if (!finalClinicId || finalClinicId === '') {
       const errorMsg = 'Clinic ID is required for registration. Please configure NEXT_PUBLIC_CLINIC_ID or provide clinicId in registration data.';
       logger.error('Registration failed: No clinic ID available', new Error(errorMsg));
-      throw new Error(errorMsg);
+      return { error: errorMsg };
     }
     
     // ✅ Clean up data to match backend RegisterDto exactly
@@ -624,7 +802,7 @@ export async function register(data: RegisterFormData & { clinicId?: string }) {
       hasClinicIdInHeader: !!headers['X-Clinic-ID'],
     });
 
-    const fullUrl = `${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REGISTER}`;
+    const fullUrl = `${API_URL}${API_ENDPOINTS.AUTH.REGISTER}`;
     logger.debug('Registration request', { 
       url: fullUrl,
       headers: Object.keys(headers),
@@ -657,7 +835,7 @@ export async function register(data: RegisterFormData & { clinicId?: string }) {
         originalError: responseData.message || responseData.error,
         responseBody: responseData,
       });
-      throw new Error(errorMessage);
+      return { error: errorMessage };
     }
 
     logger.info('Registration successful', { email: responseData.user?.email, userId: responseData.user?.id });
@@ -681,7 +859,7 @@ export async function registerWithClinic(data: {
   clinicId: string;
   appName: string;
 }) {
-  const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REGISTER_WITH_CLINIC}`, {
+  const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.REGISTER_WITH_CLINIC}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -699,8 +877,9 @@ export async function registerWithClinic(data: {
 /**
  * Request OTP
  */
-export async function requestOTP(identifier: string) {
+export async function requestOTP(data: OtpRequestFormData) {
   try {
+    const identifier = data.identifier;
     logger.info('Starting OTP request process', { identifier, clinicId: CLINIC_ID });
     
     const headers: Record<string, string> = {
@@ -730,7 +909,7 @@ export async function requestOTP(identifier: string) {
       bodyKeys: Object.keys(requestBody)
     });
     
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REQUEST_OTP}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.REQUEST_OTP}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
@@ -746,7 +925,7 @@ export async function requestOTP(identifier: string) {
     logger.info('OTP request successful', { identifier });
     return result;
   } catch (error) {
-    logger.error('OTP request error', error instanceof Error ? error : new Error(String(error)), { identifier });
+    logger.error('OTP request error', error instanceof Error ? error : new Error(String(error)), { identifier: data.identifier });
     throw error instanceof Error ? error : new Error('Failed to request OTP');
   }
 }
@@ -754,11 +933,7 @@ export async function requestOTP(identifier: string) {
 /**
  * Verify OTP
  */
-export async function verifyOTP(data: { 
-  email: string; 
-  otp: string; 
-  rememberMe?: boolean;
-}) {
+export async function verifyOTP(data: OtpVerifyFormData) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -766,7 +941,7 @@ export async function verifyOTP(data: {
     headers['X-Clinic-ID'] = CLINIC_ID;
   }
   const requestBody = { ...data, clinicId: CLINIC_ID };
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.VERIFY_OTP}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.VERIFY_OTP}`, {
     method: 'POST',
     headers,
     body: JSON.stringify(requestBody),
@@ -787,7 +962,7 @@ export async function verifyOTP(data: {
  * Check OTP Status
  */
 export async function checkOTPStatus(email: string) {
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.CHECK_OTP_STATUS}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.CHECK_OTP_STATUS}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -806,7 +981,7 @@ export async function checkOTPStatus(email: string) {
  * Invalidate OTP
  */
 export async function invalidateOTP(email: string) {
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.INVALIDATE_OTP}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.INVALIDATE_OTP}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -825,7 +1000,7 @@ export async function invalidateOTP(email: string) {
  * Request Magic Link
  */
 export async function requestMagicLink(email: string) {
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.MAGIC_LINK}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.MAGIC_LINK}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -844,7 +1019,7 @@ export async function requestMagicLink(email: string) {
  * Verify Magic Link
  */
 export async function verifyMagicLink(token: string) {
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.VERIFY_MAGIC_LINK}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.VERIFY_MAGIC_LINK}`, {
       timeout: 10000,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -900,7 +1075,7 @@ export async function socialLogin({ provider, token }: { provider: string; token
       : provider === 'apple' 
       ? API_ENDPOINTS.AUTH.APPLE_LOGIN 
       : `${API_ENDPOINTS.AUTH.BASE}/${provider}`;
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${providerEndpoint}`, {
+    const response = await fetchWithAbort(`${API_URL}${providerEndpoint}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
@@ -925,11 +1100,14 @@ export async function socialLogin({ provider, token }: { provider: string; token
 /**
  * Forgot Password
  */
-export async function forgotPassword(email: string) {
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.FORGOT_PASSWORD}`, {
+/**
+ * Forgot Password
+ */
+export async function forgotPassword(data: ForgotPasswordFormData) {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.FORGOT_PASSWORD}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email: data.email }),
     timeout: 10000,
   });
 
@@ -944,11 +1122,17 @@ export async function forgotPassword(email: string) {
 /**
  * Reset Password
  */
-export async function resetPassword(data: { token: string; newPassword: string }) {
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.RESET_PASSWORD}`, {
+/**
+ * Reset Password
+ */
+export async function resetPassword(data: ResetPasswordFormData) {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.RESET_PASSWORD}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ 
+      token: data.token, 
+      newPassword: data.password 
+    }),
     timeout: 10000,
   });
 
@@ -969,7 +1153,7 @@ export async function changePassword(formData: FormData) {
     throw new Error('Not authenticated');
   }
 
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.CHANGE_PASSWORD}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.CHANGE_PASSWORD}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${session.access_token}`,
@@ -993,21 +1177,39 @@ export async function changePassword(formData: FormData) {
 export async function refreshToken(): Promise<Session | null> {
   try {
     const cookieStore = await cookies();
-    const currentToken = cookieStore.get('access_token')?.value;
+    // ✅ Use refresh_token instead of access_token for token refresh
+    const refreshTokenValue = cookieStore.get('refresh_token')?.value;
     const sessionId = cookieStore.get('session_id')?.value;
+    const expiredAccessToken = cookieStore.get('access_token')?.value;
 
-    if (!currentToken || !sessionId) {
-      throw new Error('No token to refresh');
+    if (!refreshTokenValue) {
+      logger.debug('[refreshToken] No refresh token available');
+      throw new Error('No refresh token available');
     }
 
-      const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.REFRESH}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${currentToken}`,
-          'X-Session-ID': sessionId,
-        },
-        timeout: 10000,
-      });
+    logger.debug('[refreshToken] Attempting token refresh', { 
+      hasRefreshToken: true, 
+      hasSessionId: !!sessionId,
+      hasExpiredAccessToken: !!expiredAccessToken 
+    });
+
+    // Build headers - use expired token if available for backend validation
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (expiredAccessToken) {
+      headers['Authorization'] = `Bearer ${expiredAccessToken}`;
+    }
+    if (sessionId) {
+      headers['X-Session-ID'] = sessionId;
+    }
+
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.REFRESH}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ refreshToken: refreshTokenValue }),
+      timeout: 10000,
+    });
 
     if (!response.ok) {
       throw new Error('Failed to refresh token');
@@ -1040,7 +1242,7 @@ export async function logout() {
         deviceId: session.session_id // Use session ID as device ID
       };
 
-      const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGOUT}`, {
+      const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.LOGOUT}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1096,7 +1298,7 @@ async function logoutAllDevices() {
   const session = await getServerSession();
   if (!session) return;
 
-  const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGOUT}`, {
+  const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.LOGOUT}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1132,7 +1334,7 @@ export async function getUserSessions() {
 
     logger.debug('[getUserSessions] Fetching user sessions');
 
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.SESSIONS}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.SESSIONS}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${session.access_token}`,
@@ -1168,7 +1370,7 @@ export async function terminateAllSessions() {
     throw new Error('Not authenticated');
   }
 
-  const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.LOGOUT}`, {
+  const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.LOGOUT}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${session.access_token}`,
@@ -1271,18 +1473,42 @@ async function setAuthCookies(data: {
 
 /**
  * Central utility for authenticated API calls using server-side cookies
+ * Automatically handles token refresh on 401 errors
  */
 export async function authenticatedApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<{ status: number; data: T }> {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get('access_token')?.value;
+  let accessToken = cookieStore.get('access_token')?.value;
   const sessionId = cookieStore.get('session_id')?.value;
+  const refreshTokenValue = cookieStore.get('refresh_token')?.value;
   const CLINIC_ID = APP_CONFIG.CLINIC.ID;
   const API_URL = APP_CONFIG.API.BASE_URL;
 
+  // If no access token but have refresh token, try to refresh first
+  if (!accessToken && refreshTokenValue) {
+    logger.debug('[authenticatedApi] No access token, attempting refresh first');
+    try {
+      const refreshedSession = await refreshToken();
+      if (refreshedSession?.access_token) {
+        accessToken = refreshedSession.access_token;
+        logger.debug('[authenticatedApi] Token refreshed successfully');
+      }
+    } catch (refreshError) {
+      logger.error('[authenticatedApi] Pre-request token refresh failed', refreshError instanceof Error ? refreshError : new Error(String(refreshError)));
+    }
+  }
+
   if (!accessToken) {
+    // Debug: Log available cookies to help diagnose why token is missing
+    if (APP_CONFIG.IS_DEVELOPMENT) {
+      const allCookies = cookieStore.getAll().map(c => c.name).join(', ');
+      logger.debug('[authenticatedApi] No access token found', { 
+        availableCookies: allCookies, 
+        endpoint 
+      });
+    }
     throw new Error('No access token found');
   }
 
@@ -1303,7 +1529,7 @@ export async function authenticatedApi<T>(
     logger.debug('[authenticatedApi] Request', { endpoint, method: options.method || 'GET' });
   }
 
-  const response = await fetchWithAbort(url, {
+  let response = await fetchWithAbort(url, {
     ...options,
     headers,
     timeout: 10000,
@@ -1314,6 +1540,37 @@ export async function authenticatedApi<T>(
     data = await response.json();
   } catch {
     data = {};
+  }
+
+  // ✅ Handle 401 by attempting token refresh and retrying
+  if (response.status === 401 && refreshTokenValue) {
+    logger.debug('[authenticatedApi] Received 401, attempting token refresh');
+    try {
+      const refreshedSession = await refreshToken();
+      if (refreshedSession?.access_token) {
+        logger.debug('[authenticatedApi] Token refreshed, retrying request');
+        // Update authorization header with new token
+        const retryHeaders: Record<string, string> = {
+          ...headers,
+          'Authorization': `Bearer ${refreshedSession.access_token}`,
+        };
+        
+        response = await fetchWithAbort(url, {
+          ...options,
+          headers: retryHeaders,
+          timeout: 10000,
+        });
+        
+        try {
+          data = await response.json();
+        } catch {
+          data = {};
+        }
+      }
+    } catch (refreshError) {
+      logger.error('[authenticatedApi] Token refresh failed after 401', refreshError instanceof Error ? refreshError : new Error(String(refreshError)));
+      // Continue with original error
+    }
   }
 
   if (!response.ok) {
@@ -1369,7 +1626,7 @@ export async function checkAuth() {
  * Verify Email
  */
 export async function verifyEmail(token: string) {
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.VERIFY_EMAIL}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.VERIFY_EMAIL}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
@@ -1432,7 +1689,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         bodyKeys: Object.keys(requestBody)
       });
       
-      const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.GOOGLE_LOGIN}`, {
+      const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.GOOGLE_LOGIN}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(requestBody),
@@ -1539,7 +1796,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
           
           logger.debug('Fetching additional user profile data', { userId, url: `${API_URL}/user/${userId}` });
           
-          const profileResponse = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.USERS.GET_BY_ID(userId)}`, {
+          const profileResponse = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.USERS.GET_BY_ID(userId)}`, {
             headers: {
               'Authorization': `Bearer ${result.access_token}`,
               'X-Session-ID': result.session_id || '',
@@ -1619,7 +1876,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
  * Facebook Login
  */
 export async function facebookLogin(token: string) {
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.FACEBOOK_LOGIN}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.FACEBOOK_LOGIN}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
@@ -1640,7 +1897,7 @@ export async function facebookLogin(token: string) {
  * Apple Login
  */
 export async function appleLogin(token: string) {
-    const response = await fetchWithAbort(`${API_URL}${API_PREFIX}${API_ENDPOINTS.AUTH.APPLE_LOGIN}`, {
+    const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.APPLE_LOGIN}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),

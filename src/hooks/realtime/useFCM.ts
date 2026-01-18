@@ -13,8 +13,9 @@ import {
   onForegroundMessage,
   isFirebaseConfigured,
 } from '@/lib/config/firebase';
-import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
-import { toast } from 'sonner';
+import { showErrorToast, showInfoToast, TOAST_IDS } from '@/hooks/utils/use-toast';
+import { useNotificationStore, type Notification } from '@/stores/notifications.store';
+import { registerFCMToken } from '@/lib/actions/communication.server';
 
 interface UseFCMReturn {
   token: string | null;
@@ -33,6 +34,7 @@ interface UseFCMReturn {
  */
 export function useFCM(): UseFCMReturn {
   const { session } = useAuth();
+  const { addNotification } = useNotificationStore();
   const [token, setToken] = useState<string | null>(null);
   const [permission, setPermission] = useState<NotificationPermission | null>(null);
   const [isRegistered, setIsRegistered] = useState(false);
@@ -69,21 +71,35 @@ export function useFCM(): UseFCMReturn {
     }
 
     const unsubscribe = onForegroundMessage((payload) => {
-      console.log('Foreground message received:', payload);
-      
-      // Show notification using toast
-      if (payload.notification) {
-        toast.info(payload.notification.title || 'New Notification', {
-          description: payload.notification.body,
-          duration: 5000,
-        });
-      }
+      // Backend handles push notification delivery (FCM, email, SMS, WhatsApp)
+      // Frontend only shows in-app notification and toast for reading
+      if (!session?.user?.id || !payload.notification) return;
 
-      // Handle notification click
-      if (payload.data) {
-        // You can navigate to specific routes based on notification data
-        // Example: router.push(payload.data.link);
-      }
+      const notification: Notification = {
+        id: payload.data?.id || payload.messageId || `fcm-${Date.now()}-${Math.random()}`,
+        userId: session.user.id,
+        type: (payload.data?.type || payload.data?.category || 'SYSTEM') as Notification['type'],
+        title: payload.notification.title || 'New Notification',
+        message: payload.notification.body || payload.data?.message || '',
+        data: {
+          ...payload.data,
+          url: payload.data?.url || payload.data?.link,
+        },
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Show toast
+      showInfoToast(notification.title, {
+        id: TOAST_IDS.NOTIFICATION.NEW,
+        description: notification.message,
+        duration: 5000,
+      });
+
+      // Add to notification store for reading
+      addNotification(notification);
+
+      // Navigation handled by NotificationItem component on click
     });
 
     return () => {
@@ -91,7 +107,7 @@ export function useFCM(): UseFCMReturn {
         unsubscribe();
       }
     };
-  }, [isSupported, token]);
+  }, [isSupported, token, session?.user?.id, addNotification]);
 
   /**
    * Request notification permission
@@ -117,7 +133,9 @@ export function useFCM(): UseFCMReturn {
         }
       } else if (permissionResult === 'denied') {
         setError('Notification permission was denied');
-        toast.error('Notification permission denied. Please enable it in your browser settings.');
+        showErrorToast('Notification permission denied. Please enable it in your browser settings.', {
+          id: TOAST_IDS.NOTIFICATION.PERMISSION_DENIED,
+        });
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to request permission';
@@ -151,51 +169,27 @@ export function useFCM(): UseFCMReturn {
                      navigator.userAgent.includes('Firefox') ? 'Firefox' : 
                      navigator.userAgent.includes('Safari') ? 'Safari' : 'Unknown',
         osVersion: navigator.platform || 'Unknown',
-        appVersion: APP_CONFIG.APP.VERSION,
+        appVersion: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
       };
 
-      // ✅ PERFORMANCE: Use fetch with AbortController
-      const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
-      const response = await fetchWithAbort(
-        `${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.COMMUNICATION.PUSH.REGISTER_DEVICE_TOKEN}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(session?.access_token && {
-              Authorization: `Bearer ${session.access_token}`,
-            }),
-          },
-          timeout: 10000,
-          body: JSON.stringify({
-            token,
-            platform: 'web',
-            userId: session.user.id,
-            ...deviceInfo,
-          }),
-        }
-      );
+      const result = await registerFCMToken({
+        token,
+        platform: 'web',
+        userId: session.user.id,
+        ...deviceInfo,
+      }) as { success: boolean; error?: string };
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        // ✅ Use centralized error handler
-        const { handleApiError } = await import('@/lib/utils/error-handler');
-        const errorMessage = await handleApiError(response, errorData);
-        throw new Error(errorMessage);
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        setIsRegistered(true);
-        console.log('Device token registered successfully');
-      } else {
+      if (!result.success) {
         throw new Error(result.error || 'Failed to register device token');
       }
+
+      setIsRegistered(true);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to register token';
       setError(errorMessage);
-      console.error('Error registering device token:', err);
-      toast.error('Failed to register push notification token');
+      showErrorToast('Failed to register push notification token', {
+        id: TOAST_IDS.NOTIFICATION.FCM_ERROR,
+      });
     } finally {
       setIsLoading(false);
     }

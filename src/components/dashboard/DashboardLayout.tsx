@@ -41,7 +41,7 @@ export function DashboardLayout({
   showPermissionWarnings = true,
   customUnauthorizedMessage,
 }: DashboardLayoutProps) {
-  const { session, isLoading } = useAuth();
+  const { session, isPending } = useAuth();
   const router = useRouter();
   const { user } = session || {};
 
@@ -146,7 +146,7 @@ export function DashboardLayout({
   // Consolidated authentication and authorization effect
   useEffect(() => {
     // Skip if still loading
-    if (isLoading || loadingProfile) return;
+    if (isPending || loadingProfile) return;
 
     // Redirect to login if no user
     if (!user) {
@@ -185,7 +185,7 @@ export function DashboardLayout({
       }
     }
   }, [
-    isLoading,
+    isPending,
     loadingProfile,
     user,
     mergedProfile,
@@ -195,7 +195,7 @@ export function DashboardLayout({
   ]);
 
   // Show loading state while checking authentication or profile completeness
-  if (isLoading || !user || loadingProfile || !profile) {
+  if (isPending || !user || loadingProfile || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

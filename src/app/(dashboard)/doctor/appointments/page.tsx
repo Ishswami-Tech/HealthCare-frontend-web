@@ -23,7 +23,7 @@ import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { 
   Activity,
   Calendar, 
@@ -162,11 +162,15 @@ export default function DoctorAppointments() {
   const startConsultation = async (appointmentId: string) => {
     try {
       await startAppointmentMutation.mutateAsync(appointmentId);
-      toast.success("Consultation started successfully");
+      showSuccessToast("Consultation started successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
       // Refetch appointments to update UI
       appointmentsQuery.refetch();
     } catch (error: any) {
-      toast.error(error?.message || "Failed to start consultation");
+      showErrorToast(error?.message || "Failed to start consultation", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
     }
   };
 
@@ -180,7 +184,9 @@ export default function DoctorAppointments() {
         id: appointmentId,
         data: data || {},
       });
-      toast.success("Consultation completed successfully");
+      showSuccessToast("Consultation completed successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
       // Clear form fields
       setDiagnosis("");
       setPrescription("");
@@ -189,7 +195,9 @@ export default function DoctorAppointments() {
       // Refetch appointments to update UI
       appointmentsQuery.refetch();
     } catch (error: any) {
-      toast.error(error?.message || "Failed to complete consultation");
+      showErrorToast(error?.message || "Failed to complete consultation", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
     }
   };
 
@@ -572,7 +580,9 @@ export default function DoctorAppointments() {
                           className="w-full"
                           onClick={() => {
                             // Save prescription as draft (could be a separate mutation)
-                            toast.info("Prescription saved as draft");
+                            showInfoToast("Prescription saved as draft", {
+                              id: TOAST_IDS.GLOBAL.INFO,
+                            });
                           }}
                         >
                           Save as Draft

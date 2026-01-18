@@ -15,7 +15,7 @@ import { Permission } from "@/types/rbac.types";
 import { useRealTimeQueueStatus } from "@/hooks/realtime/useRealTimeQueries";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
   useOptimisticUpdateQueueStatus,
   useOptimisticCallNextPatient,
@@ -86,7 +86,7 @@ export default function QueuePage() {
 
   // Handle queue actions with optimistic updates
   const handleUpdateQueueStatus = (patientId: string, status: string) => {
-    updateQueueStatusOptimistic.mutate(
+    updateQueueStatusOptimistic.mutation.mutate(
       { patientId, status },
       {
         onSuccess: () => {
@@ -96,16 +96,20 @@ export default function QueuePage() {
     );
   };
 
-  const handleCallNextPatient = (queueType: string) => {
-    callNextPatientOptimistic.mutate(
-      (queueType as any),
+  const handleCallNextPatient = (_queueType: string) => {
+    callNextPatientOptimistic.mutation.mutate(
+      undefined,
       {
         onSuccess: () => {
           refetchQueue();
-          toast.success("Next patient called successfully");
+          showSuccessToast("Next patient called successfully", {
+            id: TOAST_IDS.GLOBAL.SUCCESS,
+          });
         },
-        onError: (error: any) => {
-          toast.error(error?.message || "Failed to call next patient");
+        onError: (error: Error) => {
+          showErrorToast(error?.message || "Failed to call next patient", {
+            id: TOAST_IDS.GLOBAL.ERROR,
+          });
         },
       }
     );

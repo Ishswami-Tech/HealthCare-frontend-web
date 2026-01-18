@@ -8,9 +8,8 @@ This directory contains all React hooks organized by category for better maintai
 hooks/
 ├── core/           # Base infrastructure hooks
 │   ├── useQueryData.ts
-│   ├── useMutationData.ts
-│   ├── useMutationOperation.ts
-│   ├── useOptimisticMutation.ts
+│   ├── useMutationOperation.ts   # ✅ PRIMARY mutation hook
+│   ├── useOptimisticMutation.ts  # ✅ For list operations
 │   └── useAsyncData.ts
 │
 ├── auth/           # Authentication hooks
@@ -58,7 +57,10 @@ hooks/
 ## 🔗 Integration with Query Config
 
 The hooks are integrated with `@/hooks/query/config` (moved from `@/lib/config/query`):
-- **useQueryData** and **useMutationData** automatically use `queryClientConfig` defaults
+- **useQueryData** automatically uses `queryClientConfig` defaults
+- **useMutationOperation** provides consistent toast, loading, and error handling
+- **useOptimisticMutation** for list operations with optimistic updates
+- All hooks use the QueryClient from `QueryProvider` via `useQueryClient()` hook
 - Query keys are defined in `@/hooks/query/config.ts` for consistency
 - Cache times, retry logic, and other settings are centralized
 - All query configuration is now co-located with query hooks for better organization
@@ -80,7 +82,8 @@ import { useToast } from '@/hooks/utils';
 
 ### Import core hooks
 ```typescript
-import { useQueryData, useMutationData } from '@/hooks/core';
+// ✅ Recommended - Use useMutationOperation for all mutations
+import { useQueryData, useMutationOperation, useOptimisticMutation } from '@/hooks/core';
 ```
 
 ## 🎯 Benefits

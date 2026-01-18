@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   Building2,
@@ -92,8 +92,8 @@ export default function SuperAdminSettings() {
 
   sidebarLinks.push({
     label: "Logout",
-    href: "/auth/login",
-    path: "/auth/login",
+    href: ROUTES.LOGIN,
+    path: ROUTES.LOGIN,
     icon: <LogOut className="w-5 h-5" />,
   });
 

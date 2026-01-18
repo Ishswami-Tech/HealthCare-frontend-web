@@ -47,7 +47,7 @@ import {
   AlertCircle,
   Heart,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 export default function ReceptionistPatients() {
   const { session } = useAuth();
@@ -142,7 +142,9 @@ export default function ReceptionistPatients() {
 
   const handleNewPatientSubmit = async () => {
     if (!clinicId) {
-      toast.error("Clinic ID is required");
+      showErrorToast("Clinic ID is required", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       return;
     }
 
@@ -165,7 +167,9 @@ export default function ReceptionistPatients() {
         currentMedications: newPatient.currentMedications,
       } as any);
 
-      toast.success("Patient created successfully");
+      showSuccessToast("Patient created successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
       setShowNewPatientDialog(false);
       // Reset form
       setNewPatient({
@@ -183,7 +187,9 @@ export default function ReceptionistPatients() {
         currentMedications: "",
       });
     } catch (error) {
-      toast.error("Failed to create patient");
+      showErrorToast("Failed to create patient", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       console.error(error);
     }
   };

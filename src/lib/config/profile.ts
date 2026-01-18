@@ -30,8 +30,15 @@ export interface UserProfileData {
   updatedAt?: string;
   clinicToken?: string;
   clinic?: Record<string, unknown>;
-  // Emergency contact as a string
-  emergencyContact?: string;
+  // Emergency contact as object or string
+  emergencyContact?: string | {
+    id?: string;
+    name: string;
+    relationship: string;
+    phone: string;
+    alternatePhone?: string;
+    address?: string;
+  };
   // Role-specific fields
   specialization?: string;
   licenseNumber?: string;
@@ -274,7 +281,14 @@ export function transformApiResponse(apiData: Record<string, unknown>): UserProf
     clinicToken: (apiData.clinicToken as string) || '',
     clinic: (apiData.clinic as Record<string, unknown>) || {},
     // Handle emergency contact (may need to be extracted from other fields)
-    emergencyContact: (apiData.emergencyContact as string) || '',
+    emergencyContact: apiData.emergencyContact as string | {
+      id?: string;
+      name: string;
+      relationship: string;
+      phone: string;
+      alternatePhone?: string;
+      address?: string;
+    },
     // Role-specific fields
     specialization: (apiData.specialization as string) || '',
     licenseNumber: (apiData.licenseNumber as string) || '',

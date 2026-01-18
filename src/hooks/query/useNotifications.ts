@@ -1,480 +1,300 @@
-import { useQueryData } from '../core/useQueryData';
-import { useMutationData } from '../core/useMutationData';
+"use client";
+
+/**
+ * ✅ Consolidated Notifications Hook
+ * 
+ * Single file for all notification operations:
+ * - Reading notifications (React Query + Zustand)
+ * - Actions (mark as read, delete) via useMutationOperation
+ * - Sending notifications (admin/testing only)
+ * - Notification settings
+ * 
+ * Architecture:
+ * - Backend: Creates, delivers (Push/Email/SMS/WhatsApp), stores notifications
+ * - Frontend: Reads, displays, and actions (mark as read, delete)
+ * 
+ * Uses:
+ * - React Query (via core hooks) for fetching
+ * - Zustand for client state
+ * - Server actions for backend sync
+ */
+
+import { useEffect, useCallback, useRef } from "react";
+import { useQueryData, useMutationOperation } from "@/hooks/core";
+import { useAuth } from "../auth/useAuth";
 import {
-  sendUnifiedCommunication,
-  sendAppointmentReminder,
-  sendPrescriptionReady,
-  sendPushNotification,
-  sendMultiplePushNotifications,
-  sendTopicPushNotification,
-  subscribeToTopic,
-  unsubscribeFromTopic,
-  sendEmail,
-  backupChat,
-  getChatHistory,
-  getChatStats,
-  getCommunicationStats,
-  getCommunicationHealth,
-  testCommunication,
-  submitContactForm,
-  submitConsultationBooking,
-} from '@/lib/actions/communication.server';
+  useNotificationStore,
+  Notification,
+} from "@/stores/notifications.store";
 import {
-  createNotification,
+  getUserNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
   getNotificationSettings,
   updateNotificationSettings,
-  sendBulkNotifications,
-  sendSMS,
-  sendWhatsAppMessage,
-  getMessageTemplates,
-  createMessageTemplate,
-  updateMessageTemplate,
-  deleteMessageTemplate,
-  getMessageHistory,
-  getMessagingStats,
-  scheduleMessage,
-  cancelScheduledMessage,
-  getScheduledMessages,
-} from '@/lib/actions/notifications.server';
+} from "@/lib/actions/notifications.server";
+import { TOAST_IDS } from "@/hooks/utils/use-toast";
 
-// ===== UNIFIED COMMUNICATION HOOKS =====
+const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+// ===== READING NOTIFICATIONS =====
 
 /**
- * Hook to send unified communication
+ * Main hook for reading and managing notifications
+ * Combines fetching, actions, and state management
  */
-export const useSendUnifiedCommunication = () => {
-  return useMutationData(['sendUnifiedCommunication'], async (data: Parameters<typeof sendUnifiedCommunication>[0]) => {
-    const result = await sendUnifiedCommunication(data);
-    return { status: 200, data: result };
-  }, ['communication']);
-};
+export function useNotifications() {
+  const { session } = useAuth();
+  const {
+    notifications,
+    unreadCount,
+    setNotifications,
+    markAsRead: markAsReadStore,
+    markAllAsRead: markAllAsReadStore,
+    removeNotification: removeNotificationStore,
+  } = useNotificationStore();
+  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-/**
- * Hook to send appointment reminder
- */
-export const useSendAppointmentReminder = () => {
-  return useMutationData(['sendAppointmentReminder'], async (data: Parameters<typeof sendAppointmentReminder>[0]) => {
-    const result = await sendAppointmentReminder(data);
-    return { status: 200, data: result };
-  }, ['communication']);
-};
+  // Fetch notifications from backend using React Query (via core hook)
+  const {
+    data,
+    isPending,
+    error,
+    refetch,
+  } = useQueryData(
+    ["notifications", session?.user?.id],
+    async () => {
+      if (!session?.user?.id) return null;
+      const result = await getUserNotifications(session.user.id, {
+        limit: 100,
+        offset: 0,
+      });
+      return result;
+    },
+    {
+      // Only enable if user is authenticated AND has an access token
+      // This prevents "No access token found" errors during login flow
+      enabled: !!session?.user?.id && !!session?.access_token,
+      refetchOnWindowFocus: true,
+      refetchInterval: SYNC_INTERVAL,
+      staleTime: 2 * 60 * 1000, // 2 minutes
+    }
+  );
 
-/**
- * Hook to send prescription ready notification
- */
-export const useSendPrescriptionReady = () => {
-  return useMutationData(['sendPrescriptionReady'], async (data: Parameters<typeof sendPrescriptionReady>[0]) => {
-    const result = await sendPrescriptionReady(data);
-    return { status: 200, data: result };
-  }, ['communication']);
-};
+  // Sync backend notifications to Zustand store
+  useEffect(() => {
+    if (!data) return;
 
-// ===== PUSH NOTIFICATION HOOKS =====
+    const backendNotifications = ((data as any)?.notifications || (data as any)?.data || []) as any[];
+    if (
+      !Array.isArray(backendNotifications) ||
+      backendNotifications.length === 0
+    ) {
+      return;
+    }
 
-/**
- * Hook to send push notification
- */
-export const useSendPushNotification = () => {
-  return useMutationData(['sendPushNotification'], async (data: Parameters<typeof sendPushNotification>[0]) => {
-    const result = await sendPushNotification(data);
-    return { status: 200, data: result };
-  }, ['communication', 'push']);
-};
+    // Transform backend notifications to store format
+    const transformedNotifications: Notification[] =
+      backendNotifications.map((n: any) => ({
+        id: n.id || n.notificationId || `notif-${Date.now()}-${Math.random()}`,
+        userId: n.userId || session?.user?.id || "",
+        type: (n.type || n.category || "SYSTEM") as Notification["type"],
+        title: n.title || n.subject || "Notification",
+        message: n.message || n.body || n.content || "",
+        data: n.data || n.metadata || {},
+        isRead: n.isRead || n.read || false,
+        createdAt: n.createdAt || n.created_at || new Date().toISOString(),
+        scheduledFor: n.scheduledFor || n.scheduled_for,
+      }));
 
-/**
- * Hook to send multiple push notifications
- */
-export const useSendMultiplePushNotifications = () => {
-  return useMutationData(['sendMultiplePushNotifications'], async (data: Parameters<typeof sendMultiplePushNotifications>[0]) => {
-    const result = await sendMultiplePushNotifications(data);
-    return { status: 200, data: result };
-  }, ['communication', 'push']);
-};
+    // Merge with existing notifications (avoid duplicates by ID)
+    const existingIds = new Set(notifications.map((n) => n.id));
+    const newNotifications = transformedNotifications.filter(
+      (n) => !existingIds.has(n.id)
+    );
 
-/**
- * Hook to send topic-based push notification
- */
-export const useSendTopicPushNotification = () => {
-  return useMutationData(['sendTopicPushNotification'], async (data: Parameters<typeof sendTopicPushNotification>[0]) => {
-    const result = await sendTopicPushNotification(data);
-    return { status: 200, data: result };
-  }, ['communication', 'push']);
-};
+    // Update store if there are new notifications or count changed
+    if (
+      newNotifications.length > 0 ||
+      transformedNotifications.length !== notifications.length
+    ) {
+      setNotifications(transformedNotifications);
+    }
+  }, [data, session?.user?.id, setNotifications, notifications]);
 
-/**
- * Hook to subscribe to topic
- */
-export const useSubscribeToTopic = () => {
-  return useMutationData(['subscribeToTopic'], async (data: Parameters<typeof subscribeToTopic>[0]) => {
-    const result = await subscribeToTopic(data);
-    return { status: 200, data: result };
-  }, ['communication', 'push']);
-};
+  // Periodic sync
+  useEffect(() => {
+    if (session?.user?.id) {
+      syncIntervalRef.current = setInterval(() => {
+        refetch();
+      }, SYNC_INTERVAL);
 
-/**
- * Hook to unsubscribe from topic
- */
-export const useUnsubscribeFromTopic = () => {
-  return useMutationData(['unsubscribeFromTopic'], async (data: Parameters<typeof unsubscribeFromTopic>[0]) => {
-    const result = await unsubscribeFromTopic(data);
-    return { status: 200, data: result };
-  }, ['communication', 'push']);
-};
+      return () => {
+        if (syncIntervalRef.current) {
+          clearInterval(syncIntervalRef.current);
+        }
+      };
+    }
+    return undefined;
+  }, [session?.user?.id, refetch]);
 
-// ===== EMAIL HOOKS =====
+  // ===== ACTIONS =====
+  // Use useMutationOperation for consistent error handling
 
-// ===== CHAT HOOKS =====
+  /**
+   * Mark notification as read
+   * Optimistic update + backend sync
+   */
+  const markAsReadMutation = useMutationOperation(
+    async (notificationId: string) => {
+      // Optimistic update
+      markAsReadStore(notificationId);
+      // Sync to backend
+      await markNotificationAsRead(notificationId);
+      return { success: true };
+    },
+    {
+      toastId: 'notification-mark-read',
+      loadingMessage: "Marking as read...",
+      successMessage: "Notification marked as read",
+      showToast: false, // Don't show toast for read actions
+      invalidateQueries: [["notifications"]],
+    }
+  );
 
-/**
- * Hook to backup chat messages
- */
-export const useBackupChat = () => {
-  return useMutationData(['backupChat'], async (data: Parameters<typeof backupChat>[0]) => {
-    const result = await backupChat(data);
-    return { status: 200, data: result };
-  }, ['communication', 'chat']);
-};
+  /**
+   * Mark all notifications as read
+   * Optimistic update + backend sync
+   */
+  const markAllAsReadMutation = useMutationOperation(
+    async (_?: void) => {
+      if (!session?.user?.id) {
+        throw new Error('User not authenticated');
+      }
+      // Optimistic update
+      markAllAsReadStore();
+      // Sync to backend
+      await markAllNotificationsAsRead(session.user.id);
+      return { success: true };
+    },
+    {
+      toastId: 'notification-mark-all-read',
+      loadingMessage: "Marking all as read...",
+      successMessage: "All notifications marked as read",
+      showToast: false, // Don't show toast for read actions
+      invalidateQueries: [["notifications"]],
+    }
+  );
 
-/**
- * Hook to get chat history
- */
-export const useChatHistory = (userId: string, filters?: Parameters<typeof getChatHistory>[1]) => {
-  return useQueryData(['communication', 'chat', 'history', userId, filters], async () => {
-    return await getChatHistory(userId, filters);
-  }, { enabled: !!userId });
-};
+  /**
+   * Delete notification
+   * Optimistic update + backend sync
+   */
+  const deleteNotificationMutation = useMutationOperation(
+    async (notificationId: string) => {
+      // Optimistic update
+      removeNotificationStore(notificationId);
+      // Sync to backend
+      await deleteNotification(notificationId);
+      return { success: true };
+    },
+    {
+      toastId: 'notification-delete',
+      loadingMessage: "Deleting notification...",
+      successMessage: "Notification deleted",
+      showToast: false, // Don't show toast for delete actions
+      invalidateQueries: [["notifications"]],
+    }
+  );
 
-/**
- * Hook to get chat statistics
- */
-export const useChatStats = (filters?: Parameters<typeof getChatStats>[0]) => {
-  return useQueryData(['communication', 'chat', 'stats', filters], async () => {
-    return await getChatStats(filters);
-  });
-};
+  // Wrapper functions for easier use
+  const markAsRead = useCallback(
+    async (notificationId: string) => {
+      await markAsReadMutation.mutateAsync(notificationId);
+    },
+    [markAsReadMutation]
+  );
 
-// ===== STATS & HEALTH HOOKS =====
+  const markAllAsRead = useCallback(async () => {
+    if (!session?.user?.id) return;
+    await markAllAsReadMutation.mutateAsync(undefined);
+  }, [markAllAsReadMutation, session?.user?.id]);
 
-/**
- * Hook to get communication statistics
- */
-export const useCommunicationStats = (filters?: Parameters<typeof getCommunicationStats>[0]) => {
-  return useQueryData(['communication', 'stats', filters], async () => {
-    return await getCommunicationStats(filters);
-  });
-};
+  const removeNotification = useCallback(
+    async (notificationId: string) => {
+      await deleteNotificationMutation.mutateAsync(notificationId);
+    },
+    [deleteNotificationMutation]
+  );
 
-/**
- * Hook to get communication health status
- */
-export const useCommunicationHealth = () => {
-  return useQueryData(['communication', 'health'], async () => {
-    return await getCommunicationHealth();
-  });
-};
+  // Manual sync function
+  const sync = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
-/**
- * Hook to test communication service
- */
-export const useTestCommunication = () => {
-  return useMutationData(['testCommunication'], async (data: Parameters<typeof testCommunication>[0]) => {
-    const result = await testCommunication(data);
-    return { status: 200, data: result };
-  }, ['communication']);
-};
+  return {
+    // State (from Zustand store)
+    notifications,
+    unreadCount,
 
-// ===== NOTIFICATION HOOKS =====
+    // Loading & Error (from React Query)
+    isPending,
+    error,
 
-/**
- * Hook to create notification
- */
-export const useCreateNotification = () => {
-  return useMutationData(['createNotification'], async (notificationData: {
-    userId: string;
-    type: 'APPOINTMENT' | 'PRESCRIPTION' | 'REMINDER' | 'SYSTEM' | 'MARKETING';
-    title: string;
-    message: string;
-    data?: Record<string, any>;
-    scheduledFor?: string;
-  }) => {
-    const result = await createNotification(notificationData);
-    return { status: 200, data: result };
-  }, 'notifications');
-};
+    // Actions
+    markAsRead,
+    markAllAsRead,
+    removeNotification,
 
-/**
- * Hook to mark notification as read
- */
-export const useMarkNotificationAsRead = () => {
-  return useMutationData(['markNotificationAsRead'], async (notificationId: string) => {
-    const result = await markNotificationAsRead(notificationId);
-    return { status: 200, data: result };
-  }, 'notifications');
-};
+    // Sync
+    sync,
+    refetch,
+  };
+}
 
-/**
- * Hook to mark all notifications as read
- */
-export const useMarkAllNotificationsAsRead = () => {
-  return useMutationData(['markAllNotificationsAsRead'], async (userId?: string) => {
-    const result = await markAllNotificationsAsRead(userId);
-    return { status: 200, data: result };
-  }, 'notifications');
-};
 
-/**
- * Hook to delete notification
- */
-export const useDeleteNotification = () => {
-  return useMutationData(['deleteNotification'], async (notificationId: string) => {
-    const result = await deleteNotification(notificationId);
-    return { status: 200, data: result };
-  }, 'notifications');
-};
+
+// ===== NOTIFICATION SETTINGS HOOKS =====
 
 /**
  * Hook to get notification settings
  */
 export const useNotificationSettings = (userId?: string) => {
-  return useQueryData(['notificationSettings', userId], async () => {
-    return await getNotificationSettings(userId);
-  });
+  return useQueryData(
+    ['notificationSettings', userId],
+    async () => {
+      return await getNotificationSettings(userId);
+    },
+    { enabled: !!userId || userId === undefined }
+  );
 };
 
 /**
  * Hook to update notification settings
  */
 export const useUpdateNotificationSettings = () => {
-  return useMutationData(['updateNotificationSettings'], async (settings: {
-    email?: boolean;
-    sms?: boolean;
-    push?: boolean;
-    whatsapp?: boolean;
-    types?: {
-      appointments?: boolean;
-      prescriptions?: boolean;
-      reminders?: boolean;
-      marketing?: boolean;
-    };
-  }) => {
-    const result = await updateNotificationSettings(settings);
-    return { status: 200, data: result };
-  }, 'notificationSettings');
-};
-
-/**
- * Hook to send bulk notifications
- */
-export const useSendBulkNotifications = () => {
-  return useMutationData(['sendBulkNotifications'], async (notificationData: {
-    userIds: string[];
-    type: 'APPOINTMENT' | 'PRESCRIPTION' | 'REMINDER' | 'SYSTEM' | 'MARKETING';
-    title: string;
-    message: string;
-    channels?: ('email' | 'sms' | 'push' | 'whatsapp')[];
-    scheduledFor?: string;
-  }) => {
-    const result = await sendBulkNotifications(notificationData);
-    return { status: 200, data: result };
-  });
-};
-
-// ===== MESSAGING HOOKS =====
-
-/**
- * Hook to send SMS
- */
-export const useSendSMS = () => {
-  return useMutationData(['sendSMS'], async (messageData: {
-    to: string;
-    message: string;
-    templateId?: string;
-    variables?: Record<string, string>;
-  }) => {
-    const result = await sendSMS(messageData);
-    return { status: 200, data: result };
-  });
-};
-
-/**
- * Hook to send email
- */
-export const useSendEmail = () => {
-  return useMutationData(['sendEmail'], async (emailData: {
-    to: string | string[];
-    subject: string;
-    content: string;
-    templateId?: string;
-    variables?: Record<string, string>;
-    attachments?: Array<{
-      filename: string;
-      content: string;
-      contentType: string;
-    }>;
-  }) => {
-    const result = await sendEmail(emailData);
-    return { status: 200, data: result };
-  });
-};
-
-/**
- * Hook to send WhatsApp message
- */
-export const useSendWhatsAppMessage = () => {
-  return useMutationData(['sendWhatsAppMessage'], async (messageData: {
-    to: string;
-    message: string;
-    templateId?: string;
-    variables?: Record<string, string>;
-    mediaUrl?: string;
-  }) => {
-    const result = await sendWhatsAppMessage(messageData);
-    return { status: 200, data: result };
-  });
-};
-
-/**
- * Hook to get message templates
- */
-export const useMessageTemplates = (type?: 'sms' | 'email' | 'whatsapp') => {
-  return useQueryData(['messageTemplates', type], async () => {
-    return await getMessageTemplates(type);
-  });
-};
-
-/**
- * Hook to create message template
- */
-export const useCreateMessageTemplate = () => {
-  return useMutationData(['createMessageTemplate'], async (templateData: {
-    name: string;
-    type: 'sms' | 'email' | 'whatsapp';
-    subject?: string;
-    content: string;
-    variables?: string[];
-    category?: string;
-  }) => {
-    const result = await createMessageTemplate(templateData);
-    return { status: 200, data: result };
-  }, 'messageTemplates');
-};
-
-/**
- * Hook to update message template
- */
-export const useUpdateMessageTemplate = () => {
-  return useMutationData(['updateMessageTemplate'], async ({ templateId, updates }: {
-    templateId: string;
-    updates: {
-      name?: string;
-      subject?: string;
-      content?: string;
-      variables?: string[];
-      category?: string;
-      isActive?: boolean;
-    };
-  }) => {
-    const result = await updateMessageTemplate(templateId, updates);
-    return { status: 200, data: result };
-  }, 'messageTemplates');
-};
-
-/**
- * Hook to delete message template
- */
-export const useDeleteMessageTemplate = () => {
-  return useMutationData(['deleteMessageTemplate'], async (templateId: string) => {
-    const result = await deleteMessageTemplate(templateId);
-    return { status: 200, data: result };
-  }, 'messageTemplates');
-};
-
-/**
- * Hook to get message history
- */
-export const useMessageHistory = (filters?: {
-  userId?: string;
-  type?: 'sms' | 'email' | 'whatsapp';
-  status?: 'sent' | 'delivered' | 'failed';
-  startDate?: string;
-  endDate?: string;
-  limit?: number;
-}) => {
-  return useQueryData(['messageHistory', filters], async () => {
-    return await getMessageHistory(filters);
-  });
-};
-
-/**
- * Hook to get messaging statistics
- */
-export const useMessagingStats = (period: 'day' | 'week' | 'month' | 'year' = 'month') => {
-  return useQueryData(['messagingStats', period], async () => {
-    return await getMessagingStats(period);
-  });
-};
-
-/**
- * Hook to schedule message
- */
-export const useScheduleMessage = () => {
-  return useMutationData(['scheduleMessage'], async (messageData: {
-    type: 'sms' | 'email' | 'whatsapp';
-    to: string | string[];
-    content: string;
-    subject?: string;
-    scheduledFor: string;
-    templateId?: string;
-    variables?: Record<string, string>;
-  }) => {
-    const result = await scheduleMessage(messageData);
-    return { status: 200, data: result };
-  }, 'scheduledMessages');
-};
-
-/**
- * Hook to cancel scheduled message
- */
-export const useCancelScheduledMessage = () => {
-  return useMutationData(['cancelScheduledMessage'], async (messageId: string) => {
-    const result = await cancelScheduledMessage(messageId);
-    return { status: 200, data: result };
-  }, 'scheduledMessages');
-};
-
-/**
- * Hook to get scheduled messages
- */
-export const useScheduledMessages = (filters?: {
-  type?: 'sms' | 'email' | 'whatsapp';
-  status?: 'pending' | 'sent' | 'cancelled';
-}) => {
-  return useQueryData(['scheduledMessages', filters], async () => {
-    return await getScheduledMessages(filters);
-  });
-};
-
-// ===== CONTACT FORM HOOKS =====
-
-/**
- * Hook to submit contact form
- */
-export const useSubmitContactForm = () => {
-  return useMutationData(['submitContactForm'], async (data: Parameters<typeof submitContactForm>[0]) => {
-    const result = await submitContactForm(data);
-    return { status: 200, data: result };
-  });
-};
-
-/**
- * Hook to submit consultation booking
- */
-export const useSubmitConsultationBooking = () => {
-  return useMutationData(['submitConsultationBooking'], async (data: Parameters<typeof submitConsultationBooking>[0]) => {
-    const result = await submitConsultationBooking(data);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (settings: {
+      email?: boolean;
+      sms?: boolean;
+      push?: boolean;
+      whatsapp?: boolean;
+      types?: {
+        appointments?: boolean;
+        prescriptions?: boolean;
+        reminders?: boolean;
+        marketing?: boolean;
+      };
+    }) => {
+      const result = await updateNotificationSettings(settings);
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_UPDATE,
+      loadingMessage: 'Updating settings...',
+      successMessage: 'Notification settings updated successfully',
+      invalidateQueries: [['notificationSettings']],
+    }
+  );
 };

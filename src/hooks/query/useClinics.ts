@@ -1,6 +1,5 @@
-import { useQueryData } from '../core/useQueryData';
-import { useMutationData } from '../core/useMutationData';
-import { useQuery } from '@tanstack/react-query';
+import { useQueryData, useMutationOperation } from '../core';
+import { TOAST_IDS } from '../utils/use-toast';
 import { useAuth } from '../auth/useAuth';
 import { useRBAC } from '../utils/useRBAC';
 import { Permission } from '@/types/rbac.types';
@@ -92,10 +91,21 @@ async function apiCall<T>(
  * Hook to create a new clinic
  */
 export const useCreateClinic = () => {
-  return useMutationData(['createClinic'], async (data: CreateClinicData) => {
-    const result = await createClinic(data);
-    return { status: 200, data: result };
-  }, 'clinics');
+  return useMutationOperation<ClinicWithRelations, CreateClinicData>(
+    async (data: CreateClinicData) => {
+      const result = await createClinic(data);
+      if (!result.success || !result.clinic) {
+        throw new Error(result.error || 'Failed to create clinic');
+      }
+      return result.clinic as ClinicWithRelations;
+    },
+    {
+      toastId: TOAST_IDS.CLINIC.CREATE,
+      loadingMessage: 'Creating clinic...',
+      successMessage: 'Clinic created successfully',
+      invalidateQueries: [['clinics']],
+    }
+  );
 };
 
 /**
@@ -113,7 +123,7 @@ export const useClinics = () => {
  * Hook to get clinic by ID
  */
 export const useClinic = (clinicId?: string) => {
-  const { session, isLoading } = useAuth();
+  const { session, isPending } = useAuth();
   const token = session?.access_token;
   const sessionId = session?.session_id;
   const id = clinicId || CLINIC_ID;
@@ -138,7 +148,7 @@ export const useClinic = (clinicId?: string) => {
       return response.json();
     },
     {
-      enabled: !!token && !!sessionId && !!id && !isLoading,
+      enabled: !!token && !!sessionId && !!id && !isPending,
     }
   );
 };
@@ -172,7 +182,7 @@ export const useClinicByAppName = (appName: string) => {
  * Uses the new /my-clinic endpoint
  */
 export const useMyClinic = () => {
-  const { session, isLoading } = useAuth();
+  const { session, isPending } = useAuth();
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
@@ -187,7 +197,7 @@ export const useMyClinic = () => {
       return response.data;
     },
     {
-      enabled: !!token && !!sessionId && !isLoading,
+      enabled: !!token && !!sessionId && !isPending,
     }
   );
 };
@@ -200,18 +210,23 @@ export const useUpdateClinic = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<ClinicWithRelations, { id: string; data: UpdateClinicData }>(
-    ['updateClinic'],
+  return useMutationOperation<ClinicWithRelations, { id: string; data: UpdateClinicData }>(
     async ({ id, data }) => {
-      return apiCall<ClinicWithRelations>(`/clinics/${id}`, {
+      const response = await apiCall<ClinicWithRelations>(`/clinics/${id}`, {
         method: 'PUT',
         headers: {
           ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
         body: JSON.stringify(data),
       });
+      return response.data;
     },
-    'clinics'
+    {
+      toastId: TOAST_IDS.CLINIC.UPDATE,
+      loadingMessage: 'Updating clinic...',
+      successMessage: 'Clinic updated successfully',
+      invalidateQueries: [['clinics'], ['clinic']],
+    }
   );
 };
 
@@ -223,17 +238,22 @@ export const useDeleteClinic = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<{ message: string }, string>(
-    ['deleteClinic'],
+  return useMutationOperation<{ message: string }, string>(
     async (id) => {
-      return apiCall<{ message: string }>(`/clinics/${id}`, {
+      const response = await apiCall<{ message: string }>(`/clinics/${id}`, {
         method: 'DELETE',
         headers: {
           ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
+      return response.data;
     },
-    'clinics'
+    {
+      toastId: TOAST_IDS.CLINIC.DELETE,
+      loadingMessage: 'Deleting clinic...',
+      successMessage: 'Clinic deleted successfully',
+      invalidateQueries: [['clinics']],
+    }
   );
 };
 
@@ -247,8 +267,7 @@ export const useCreateClinicLocation = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<ClinicLocation, { clinicId: string; data: CreateClinicLocationData }>(
-    ['createClinicLocation'],
+  return useMutationOperation<{ status: number; data: ClinicLocation }, { clinicId: string; data: CreateClinicLocationData }>(
     async ({ clinicId, data }) => {
       return apiCall<ClinicLocation>(`/clinics/${clinicId}/locations`, {
         method: 'POST',
@@ -258,7 +277,12 @@ export const useCreateClinicLocation = () => {
         body: JSON.stringify(data),
       });
     },
-    'clinicLocations'
+    {
+      toastId: TOAST_IDS.LOCATION.CREATE,
+      loadingMessage: 'Creating clinic location...',
+      successMessage: 'Clinic location created successfully',
+      invalidateQueries: [['clinicLocations']],
+    }
   );
 };
 
@@ -318,8 +342,7 @@ export const useUpdateClinicLocation = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<ClinicLocation, { clinicId: string; locationId: string; data: UpdateClinicLocationData }>(
-    ['updateClinicLocation'],
+  return useMutationOperation<{ status: number; data: ClinicLocation }, { clinicId: string; locationId: string; data: UpdateClinicLocationData }>(
     async ({ clinicId, locationId, data }) => {
       return apiCall<ClinicLocation>(`/clinics/${clinicId}/locations/${locationId}`, {
         method: 'PUT',
@@ -329,7 +352,12 @@ export const useUpdateClinicLocation = () => {
         body: JSON.stringify(data),
       });
     },
-    'clinicLocations'
+    {
+      toastId: TOAST_IDS.LOCATION.UPDATE,
+      loadingMessage: 'Updating clinic location...',
+      successMessage: 'Clinic location updated successfully',
+      invalidateQueries: [['clinicLocations']],
+    }
   );
 };
 
@@ -341,8 +369,7 @@ export const useDeleteClinicLocation = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<{ message: string }, { clinicId: string; locationId: string }>(
-    ['deleteClinicLocation'],
+  return useMutationOperation<{ status: number; data: { message: string } }, { clinicId: string; locationId: string }>(
     async ({ clinicId, locationId }) => {
       return apiCall<{ message: string }>(`/clinics/${clinicId}/locations/${locationId}`, {
         method: 'DELETE',
@@ -351,7 +378,12 @@ export const useDeleteClinicLocation = () => {
         },
       });
     },
-    'clinicLocations'
+    {
+      toastId: TOAST_IDS.LOCATION.DELETE,
+      loadingMessage: 'Deleting clinic location...',
+      successMessage: 'Clinic location deleted successfully',
+      invalidateQueries: [['clinicLocations']],
+    }
   );
 };
 
@@ -363,8 +395,7 @@ export const useGenerateLocationQR = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<{ qrCode: string }, { clinicId: string; locationId: string }>(
-    ['generateLocationQR'],
+  return useMutationOperation<{ status: number; data: { qrCode: string } }, { clinicId: string; locationId: string }>(
     async ({ clinicId, locationId }) => {
       return apiCall<{ qrCode: string }>(`/clinics/${clinicId}/locations/${locationId}/qr`, {
         headers: {
@@ -372,7 +403,12 @@ export const useGenerateLocationQR = () => {
         },
       });
     },
-    'clinicLocations'
+    {
+      toastId: TOAST_IDS.LOCATION.UPDATE,
+      loadingMessage: 'Generating QR code...',
+      successMessage: 'QR code generated successfully',
+      invalidateQueries: [['clinicLocations']],
+    }
   );
 };
 
@@ -384,8 +420,7 @@ export const useVerifyLocationQR = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<ClinicLocation, { qrData: string }>(
-    ['verifyLocationQR'],
+  return useMutationOperation<{ status: number; data: ClinicLocation }, { qrData: string }>(
     async ({ qrData }) => {
       return apiCall<ClinicLocation>('/clinics/locations/verify-qr', {
         method: 'POST',
@@ -395,7 +430,13 @@ export const useVerifyLocationQR = () => {
         body: JSON.stringify({ qrData }),
       });
     },
-    'clinicLocations'
+    {
+      toastId: TOAST_IDS.LOCATION.UPDATE,
+      loadingMessage: 'Verifying QR code...',
+      successMessage: 'QR code verified successfully',
+      invalidateQueries: [['clinicLocations']],
+      showToast: false,
+    }
   );
 };
 
@@ -409,8 +450,7 @@ export const useAssignClinicAdmin = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<ClinicUser, AssignClinicAdminData>(
-    ['assignClinicAdmin'],
+  return useMutationOperation<{ status: number; data: ClinicUser }, AssignClinicAdminData>(
     async (data) => {
       return apiCall<ClinicUser>('/clinics/assign-admin', {
         method: 'POST',
@@ -420,7 +460,12 @@ export const useAssignClinicAdmin = () => {
         body: JSON.stringify(data),
       });
     },
-    'clinicUsers'
+    {
+      toastId: TOAST_IDS.USER.UPDATE,
+      loadingMessage: 'Assigning clinic admin...',
+      successMessage: 'Clinic admin assigned successfully',
+      invalidateQueries: [['clinicUsers']],
+    }
   );
 };
 
@@ -480,8 +525,7 @@ export const useRegisterPatientToClinic = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<ClinicUser, RegisterPatientData>(
-    ['registerPatientToClinic'],
+  return useMutationOperation<{ status: number; data: ClinicUser }, RegisterPatientData>(
     async (data) => {
       return apiCall<ClinicUser>('/clinics/register-patient', {
         method: 'POST',
@@ -491,7 +535,12 @@ export const useRegisterPatientToClinic = () => {
         body: JSON.stringify(data),
       });
     },
-    'clinicUsers'
+    {
+      toastId: TOAST_IDS.PATIENT.CREATE,
+      loadingMessage: 'Registering patient to clinic...',
+      successMessage: 'Patient registered to clinic successfully',
+      invalidateQueries: [['clinicPatients']],
+    }
   );
 };
 
@@ -529,14 +578,19 @@ export const useValidateAppName = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<{ available: boolean; message?: string }, string>(
-    ['validateAppName'],
+  return useMutationOperation<{ status: number; data: { available: boolean; message?: string } }, string>(
     async (appName) => {
       return apiCall<{ available: boolean; message?: string }>(`/clinics/validate-app-name?appName=${appName}`, {
         headers: {
           ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
+    },
+    {
+      toastId: TOAST_IDS.CLINIC.UPDATE,
+      loadingMessage: 'Validating app name...',
+      successMessage: 'App name validated',
+      showToast: false,
     }
   );
 };
@@ -549,8 +603,7 @@ export const useAssociateUserWithClinic = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<{ message: string }, string>(
-    ['associateUserWithClinic'],
+  return useMutationOperation<{ status: number; data: { message: string } }, string>(
     async (clinicId) => {
       return apiCall<{ message: string }>(`/clinics/${clinicId}/associate`, {
         method: 'POST',
@@ -559,7 +612,12 @@ export const useAssociateUserWithClinic = () => {
         },
       });
     },
-    'clinics'
+    {
+      toastId: TOAST_IDS.CLINIC.UPDATE,
+      loadingMessage: 'Associating user with clinic...',
+      successMessage: 'User associated with clinic successfully',
+      invalidateQueries: [['clinics']],
+    }
   );
 };
 
@@ -619,8 +677,7 @@ export const useUpdateClinicSettings = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<ClinicSettings, { clinicId: string; settings: Partial<ClinicSettings> }>(
-    ['updateClinicSettings'],
+  return useMutationOperation<{ status: number; data: ClinicSettings }, { clinicId: string; settings: Partial<ClinicSettings> }>(
     async ({ clinicId, settings }) => {
       return apiCall<ClinicSettings>(`/clinics/${clinicId}/settings`, {
         method: 'PUT',
@@ -630,7 +687,12 @@ export const useUpdateClinicSettings = () => {
         body: JSON.stringify(settings),
       });
     },
-    'clinicSettings'
+    {
+      toastId: TOAST_IDS.CLINIC.UPDATE,
+      loadingMessage: 'Updating clinic settings...',
+      successMessage: 'Clinic settings updated successfully',
+      invalidateQueries: [['clinicSettings']],
+    }
   );
 };
 
@@ -666,14 +728,18 @@ export const useGenerateClinicToken = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<{ token: string }, string>(
-    ['generateClinicToken'],
-    async (clinicId) => {
+  return useMutationOperation<{ status: number; data: { token: string } }, string>(
+    async (clinicId: string) => {
       return apiCall<{ token: string }>(`/clinics/${clinicId}/token`, {
         headers: {
           ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
       });
+    },
+    {
+      toastId: TOAST_IDS.CLINIC.UPDATE,
+      loadingMessage: 'Generating clinic token...',
+      successMessage: 'Clinic token generated successfully',
     }
   );
 };
@@ -792,9 +858,9 @@ export const useCurrentClinicId = () => {
 export const useCurrentClinic = () => {
   const clinicId = useCurrentClinicId();
   
-  return useQuery({
-    queryKey: ['current-clinic', clinicId],
-    queryFn: async () => {
+  return useQueryData(
+    ['current-clinic', clinicId],
+    async () => {
       if (!clinicId) {
         throw new Error('No clinic ID available');
       }
@@ -805,64 +871,72 @@ export const useCurrentClinic = () => {
       }
       return result.clinic;
     },
-    enabled: !!clinicId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+    {
+      enabled: !!clinicId,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    }
+  );
 };
 
 // ✅ Health Check Hooks
 export const useHealthStatus = () => {
-  return useQuery({
-    queryKey: ['health-status'],
-    queryFn: async () => {
+  return useQueryData(
+    ['health-status'],
+    async () => {
       const result = await getHealthStatus();
       if (!result.success) {
         throw new Error(result.error);
       }
       return result.status;
     },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // 1 minute
-    retry: (failureCount) => {
-      return failureCount < 3;
-    },
-  });
+    {
+      staleTime: 30 * 1000, // 30 seconds
+      refetchInterval: 60 * 1000, // 1 minute
+      retry: (failureCount) => {
+        return failureCount < 3;
+      },
+    }
+  );
 };
 
 export const useHealthReady = () => {
-  return useQuery({
-    queryKey: ['health-ready'],
-    queryFn: async () => {
+  return useQueryData(
+    ['health-ready'],
+    async () => {
       const result = await getHealthReady();
       if (!result.success) {
         throw new Error(result.error);
       }
       return result.status;
     },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // 1 minute
-    retry: (failureCount) => {
-      return failureCount < 3;
-    },
-  });
+    {
+      staleTime: 30 * 1000, // 30 seconds
+      refetchInterval: 60 * 1000, // 1 minute
+      retry: (failureCount) => {
+        return failureCount < 3;
+      },
+    }
+  );
 };
 
 export const useHealthLive = () => {
-  return useQuery({
-    queryKey: ['health-live'],
-    queryFn: async () => {
+  return useQueryData(
+    ['health-live'],
+    async () => {
       const result = await getHealthLive();
       if (!result.success) {
         throw new Error(result.error);
       }
       return result.status;
     },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // 1 minute
-    retry: (failureCount) => {
-      return failureCount < 3;
-    },
-  });
+    {
+      staleTime: 30 * 1000, // 30 seconds
+      refetchInterval: 60 * 1000, // 1 minute
+      retry: (failureCount) => {
+        return failureCount < 3;
+      },
+    }
+  );
 };
 
 // ✅ Utility Hooks
@@ -877,21 +951,23 @@ export const useClinicAwareQuery = <T>(
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
   
-  return useQuery({
-    queryKey: [...queryKey, clinicId],
-    queryFn: () => {
+  return useQueryData(
+    [...queryKey, clinicId],
+    () => {
       if (!clinicId) {
         throw new Error('No clinic ID available');
       }
       return queryFn(clinicId);
     },
-    enabled: !!clinicId && hasPermission(Permission.VIEW_CLINICS) && (options?.enabled ?? true),
-    refetchInterval: options?.refetchInterval || false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount) => {
-      return failureCount < 3;
-    },
-  });
+    {
+      enabled: !!clinicId && hasPermission(Permission.VIEW_CLINICS) && (options?.enabled ?? true),
+      refetchInterval: options?.refetchInterval || false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: (failureCount) => {
+        return failureCount < 3;
+      },
+    }
+  );
 };
 
 export const useHasClinicAccess = () => {
@@ -935,54 +1011,65 @@ export const useClinicCommunicationConfig = (clinicId: string) => {
 };
 
 export const useCreateClinicCommunicationConfig = () => {
-  return useMutationData<ClinicCommunicationConfig, { clinicId: string; config: ClinicCommunicationConfig }>(
-    ['createClinicCommunication'],
+  return useMutationOperation<ClinicCommunicationConfig, { clinicId: string; config: ClinicCommunicationConfig }>(
     async (data: { clinicId: string; config: ClinicCommunicationConfig }) => {
       const result = await createClinicCommunicationConfig(data.clinicId, data.config);
-      return { status: 200, data: result } as { status: number; data: ClinicCommunicationConfig };
+      return result as ClinicCommunicationConfig;
     },
-    'clinicCommunication'
+    {
+      toastId: TOAST_IDS.COMMUNICATION.TEMPLATE_CREATE,
+      loadingMessage: 'Creating clinic communication config...',
+      successMessage: 'Clinic communication config created successfully',
+      invalidateQueries: [['clinicCommunication']],
+    }
   );
 };
 
 export const useUpdateClinicCommunicationConfig = () => {
-  return useMutationData<ClinicCommunicationConfig, {
+  return useMutationOperation<ClinicCommunicationConfig, {
     clinicId: string;
     id: string;
     config: Partial<ClinicCommunicationConfig>;
   }>(
-    ['updateClinicCommunication'],
     async (data: {
       clinicId: string;
       id: string;
       config: Partial<ClinicCommunicationConfig>;
     }) => {
       const result = await updateClinicCommunicationConfig(data.clinicId, data.id, data.config);
-      return { status: 200, data: result } as { status: number; data: ClinicCommunicationConfig };
+      return result as ClinicCommunicationConfig;
     },
-    'clinicCommunication'
+    {
+      toastId: TOAST_IDS.COMMUNICATION.TEMPLATE_UPDATE,
+      loadingMessage: 'Updating clinic communication config...',
+      successMessage: 'Clinic communication config updated successfully',
+      invalidateQueries: [['clinicCommunication']],
+    }
   );
 };
 
 export const useDeleteClinicCommunicationConfig = () => {
-  return useMutationData<{ message?: string }, { clinicId: string; id: string }>(
-    ['deleteClinicCommunication'],
+  return useMutationOperation<{ message?: string }, { clinicId: string; id: string }>(
     async (data: { clinicId: string; id: string }) => {
       const result = await deleteClinicCommunicationConfig(data.clinicId, data.id);
-      return { status: 200, data: result } as { status: number; data: { message?: string } };
+      return (result as { message?: string }) || { message: 'Deleted successfully' };
     },
-    'clinicCommunication'
+    {
+      toastId: TOAST_IDS.COMMUNICATION.TEMPLATE_DELETE,
+      loadingMessage: 'Deleting clinic communication config...',
+      successMessage: 'Clinic communication config deleted successfully',
+      invalidateQueries: [['clinicCommunication']],
+    }
   );
 };
 
 export const useTestClinicCommunication = () => {
-  return useMutationData<{ success: boolean; message?: string }, {
+  return useMutationOperation<{ success: boolean; message?: string }, {
     clinicId: string;
     type: 'email' | 'sms' | 'whatsapp';
     to: string;
     message?: string;
   }>(
-    ['testClinicCommunication'],
     async (data: {
       clinicId: string;
       type: 'email' | 'sms' | 'whatsapp';
@@ -997,7 +1084,12 @@ export const useTestClinicCommunication = () => {
         testData.message = data.message;
       }
       const result = await testClinicCommunication(data.clinicId, testData);
-      return { status: 200, data: result } as { status: number; data: { success: boolean; message?: string } };
+      return result as { success: boolean; message?: string };
+    },
+    {
+      toastId: TOAST_IDS.COMMUNICATION.TEST,
+      loadingMessage: 'Testing clinic communication...',
+      successMessage: 'Communication test completed successfully',
     }
   );
 };

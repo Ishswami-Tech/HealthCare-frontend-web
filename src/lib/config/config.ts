@@ -50,6 +50,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_API_URL: z.string().optional(),
   NEXT_PUBLIC_API_BASE_URL: z.string().optional(),
   NEXT_PUBLIC_API_VERSION: z.string().default('v1'),
+  NEXT_PUBLIC_API_PREFIX: z.string().optional(),  // ✅ API prefix (e.g., /api/v1)
   NEXT_PUBLIC_CLINIC_API_URL: z.string().optional(),
   NEXT_PUBLIC_FASHION_API_URL: z.string().optional(),
   
@@ -147,13 +148,11 @@ const envDefaults = {
     logLevel: 'info' as const,
   },
   production: {
-    // Production - URLs from env vars (with production fallbacks matching backend)
-    // Backend production: https://backend-service-v1.ishswami.in
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || 'https://backend-service-v1.ishswami.in',
-    // ✅ FIX: Socket.IO expects base HTTPS URL, not wss:// with /socket.io
-    // Socket.IO automatically handles protocol upgrade and path
-    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || 'https://backend-service-v1.ishswami.in',
-    appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://ishswami.in',
+    // ⚠️ SECURITY: All URLs MUST be provided via environment variables
+    // No hardcoded URLs - prevents accidental exposure and allows flexible deployment
+    apiUrl: process.env.NEXT_PUBLIC_API_URL,
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL,
+    appUrl: process.env.NEXT_PUBLIC_APP_URL,
     enableDebug: false,
     enableAnalytics: true,
     logLevel: 'error' as const,
@@ -179,10 +178,15 @@ export const APP_CONFIG = {
   // API CONFIGURATION
   // ============================================
   API: {
-    BASE_URL: env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
-    CLINIC_URL: env.NEXT_PUBLIC_CLINIC_API_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
-    // ⚠️ SECURITY: No hardcoded URLs - must use env var
-    FASHION_URL: env.NEXT_PUBLIC_FASHION_API_URL || '',
+    // ✅ API prefix is now configurable via environment variable
+    PREFIX: env.NEXT_PUBLIC_API_PREFIX || '/api/v1',
+    // Raw backend URL without prefix (for health checks, etc.)
+    RAW_URL: env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
+    // Backend uses /api/v1 prefix for all API endpoints (see HealthCareBackend/src/main.ts line 768)
+    BASE_URL: `${env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl}${env.NEXT_PUBLIC_API_PREFIX || '/api/v1'}`,
+    CLINIC_URL: `${env.NEXT_PUBLIC_CLINIC_API_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl}${env.NEXT_PUBLIC_API_PREFIX || '/api/v1'}`,
+    // Health endpoint is excluded from /api/v1 prefix (public endpoint)
+    HEALTH_BASE_URL: env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
     VERSION: env.NEXT_PUBLIC_API_VERSION,
     TIMEOUT: {
       REQUEST: 30000,
@@ -279,8 +283,7 @@ export const APP_CONFIG = {
   // VIDEO CONFIGURATION (OpenVidu + Jitsi)
   // ============================================
   VIDEO: {
-    // ⚠️ SECURITY: Video server URLs must come from env vars
-    // Production: https://backend-service-v1-video.ishswami.in (OpenVidu)
+    // ⚠️ SECURITY: Video server URLs must come from environment variables
     OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || '',
     // Jitsi Configuration (Fallback Video Provider)
     JITSI: {
@@ -563,11 +566,13 @@ export const API_ENDPOINTS = {
     ACTIVITY_LOGS: (id: string) => `/user/${id}/activity`,
     SESSIONS: (id: string) => `/user/${id}/sessions`,
     TERMINATE_SESSION: (id: string, sessionId: string) => `/user/${id}/sessions/${sessionId}`,
+    UPDATE_ROLE: (id: string) => `/user/${id}/role`,
   },
   
-  // Health Check Endpoints
+  // Health Check Endpoints (Public, no /api/v1 prefix)
   HEALTH: {
     BASE: '/health',
+    DETAILED: '/health?detailed=true',
     STATUS: '/health/status',
     READY: '/health/ready',
     LIVE: '/health/live',
@@ -814,6 +819,7 @@ export const API_ENDPOINTS = {
       },
     },
     STATS: '/communication/stats',
+    ANALYTICS: '/communication/analytics',
     HEALTH: '/communication/health',
     TEST: '/communication/test',
   },

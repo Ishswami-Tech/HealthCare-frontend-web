@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useMedicines,
@@ -391,15 +391,15 @@ export default function PharmacySystem() {
   // Add Pharmacy link to sidebar
   sidebarLinks.push({
     label: "Pharmacy System",
-    href: "/pharmacy",
-    path: "/pharmacy",
+    href: ROUTES.SHARED_PHARMACY,
+    path: ROUTES.SHARED_PHARMACY,
     icon: <Pill className="w-5 h-5" />,
   });
 
   sidebarLinks.push({
     label: "Logout",
-    href: "/auth/login",
-    path: "/auth/login",
+    href: ROUTES.LOGIN,
+    path: ROUTES.LOGIN,
     icon: <LogOut className="w-5 h-5" />,
   });
 

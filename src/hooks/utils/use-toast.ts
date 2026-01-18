@@ -22,6 +22,16 @@ export const TOAST_IDS = {
     OTP: 'auth-otp',
     SOCIAL_LOGIN: 'auth-social-login',
   },
+  SESSION: {
+    TERMINATE: 'session-terminate',
+    TERMINATE_ALL: 'session-terminate-all',
+    REFRESH: 'session-refresh',
+  },
+  VERIFICATION: {
+    EMAIL: 'verification-email',
+    OTP: 'verification-otp',
+    PHONE: 'verification-phone',
+  },
   PROFILE: {
     UPDATE: 'profile-update',
     COMPLETE: 'profile-complete',
@@ -34,6 +44,40 @@ export const TOAST_IDS = {
     START: 'appointment-start',
     COMPLETE: 'appointment-complete',
     CANCEL: 'appointment-cancel',
+    REMINDER: 'appointment-reminder',
+    BOOKING: 'consultation-booking',
+  },
+  COMMUNICATION: {
+    SEND: 'communication-send',
+    PRESCRIPTION: 'prescription-ready',
+    PUSH: 'push-notification',
+    PUSH_BULK: 'push-notification-bulk',
+    PUSH_TOPIC: 'push-notification-topic',
+    TOPIC_SUB: 'topic-subscribe',
+    TOPIC_UNSUB: 'topic-unsubscribe',
+    EMAIL: 'email-send',
+    SMS: 'sms-send',
+    WHATSAPP: 'whatsapp-send',
+    CHAT_BACKUP: 'chat-backup',
+    TEST: 'communication-test',
+    TEMPLATE_CREATE: 'template-create',
+    TEMPLATE_UPDATE: 'template-update',
+    TEMPLATE_DELETE: 'template-delete',
+    SCHEDULE: 'message-schedule',
+    CANCEL_SCHEDULE: 'message-cancel',
+    CONSULTATION: 'consultation-booking',
+  },
+  VIDEO: {
+    JOIN: 'video-join',
+    END: 'video-end',
+    ERROR: 'video-error',
+    PERMISSION: 'video-permission',
+  },
+  PAYMENT: {
+    SUCCESS: 'payment-success',
+    ERROR: 'payment-error',
+    CANCELLED: 'payment-cancelled',
+    PROCESSING: 'payment-processing',
   },
   PATIENT: {
     CREATE: 'patient-create',
@@ -58,9 +102,83 @@ export const TOAST_IDS = {
   CONTACT: {
     SUBMIT: 'contact-submit',
   },
+  NOTIFICATION: {
+    PREFERENCE_UPDATE: 'notification-preference-update',
+    PREFERENCE_CREATE: 'notification-preference-create',
+    PREFERENCE_DELETE: 'notification-preference-delete',
+    FCM_ERROR: 'notification-fcm-error',
+    PERMISSION_DENIED: 'notification-permission-denied',
+    NEW: 'notification-new',
+  },
+  MEDICAL_RECORD: {
+    CREATE: 'medical-record-create',
+    UPDATE: 'medical-record-update',
+    DELETE: 'medical-record-delete',
+    UPLOAD: 'medical-record-upload',
+    TEMPLATE_CREATE: 'medical-record-template-create',
+  },
+  EHR: {
+    HISTORY_CREATE: 'ehr-history-create',
+    HISTORY_UPDATE: 'ehr-history-update',
+    HISTORY_DELETE: 'ehr-history-delete',
+    LAB_CREATE: 'ehr-lab-create',
+    LAB_UPDATE: 'ehr-lab-update',
+    LAB_DELETE: 'ehr-lab-delete',
+    RADIOLOGY_CREATE: 'ehr-radiology-create',
+    RADIOLOGY_UPDATE: 'ehr-radiology-update',
+    RADIOLOGY_DELETE: 'ehr-radiology-delete',
+    SURGICAL_CREATE: 'ehr-surgical-create',
+    SURGICAL_UPDATE: 'ehr-surgical-update',
+    SURGICAL_DELETE: 'ehr-surgical-delete',
+    VITAL_CREATE: 'ehr-vital-create',
+    VITAL_UPDATE: 'ehr-vital-update',
+    VITAL_DELETE: 'ehr-vital-delete',
+    ALLERGY_CREATE: 'ehr-allergy-create',
+    ALLERGY_UPDATE: 'ehr-allergy-update',
+    ALLERGY_DELETE: 'ehr-allergy-delete',
+    MEDICATION_CREATE: 'ehr-medication-create',
+    MEDICATION_UPDATE: 'ehr-medication-update',
+    MEDICATION_DELETE: 'ehr-medication-delete',
+    IMMUNIZATION_CREATE: 'ehr-immunization-create',
+    IMMUNIZATION_UPDATE: 'ehr-immunization-update',
+    IMMUNIZATION_DELETE: 'ehr-immunization-delete',
+  },
+  PRESCRIPTION: {
+    CREATE: 'prescription-create',
+    UPDATE: 'prescription-update',
+    PDF: 'prescription-pdf',
+  },
+  MEDICINE: {
+    CREATE: 'medicine-create',
+    UPDATE: 'medicine-update',
+    DELETE: 'medicine-delete',
+    SEARCH: 'medicine-search',
+    INTERACTIONS: 'medicine-interactions',
+    INVENTORY_UPDATE: 'medicine-inventory-update',
+  },
+  ANALYTICS: {
+    REPORT_GENERATE: 'analytics-report-generate',
+    REPORT_DOWNLOAD: 'analytics-report-download',
+  },
+  PHARMACY: {
+    ORDER_CREATE: 'pharmacy-order-create',
+    PRESCRIPTION_UPDATE: 'pharmacy-prescription-update',
+    INVENTORY_UPDATE: 'pharmacy-inventory-update',
+  },
+  DOCTOR: {
+    CREATE: 'doctor-create',
+    UPDATE: 'doctor-update',
+    DELETE: 'doctor-delete',
+  },
+  QUEUE: {
+    UPDATE: 'queue-update',
+    CALL_NEXT: 'queue-call-next',
+  },
   GLOBAL: {
     ERROR: 'global-error',
     SUCCESS: 'global-success',
+    INFO: 'global-info',
+    WARNING: 'global-warning',
   },
 } as const;
 
@@ -197,6 +315,46 @@ export function showErrorToast(
  */
 export function showLoadingToast(message: string, id: string) {
   sonnerToast.loading(message, { id });
+}
+
+/**
+ * Show info toast with duplicate prevention
+ */
+export function showInfoToast(
+  message: string,
+  options?: {
+    id?: string;
+    description?: string;
+    duration?: number;
+  }
+) {
+  const toastId = options?.id || TOAST_IDS.GLOBAL.INFO;
+  sonnerToast.dismiss(toastId);
+  sonnerToast.info(message, {
+    id: toastId,
+    description: options?.description,
+    duration: options?.duration || 4000,
+  });
+}
+
+/**
+ * Show warning toast with duplicate prevention
+ */
+export function showWarningToast(
+  message: string,
+  options?: {
+    id?: string;
+    description?: string;
+    duration?: number;
+  }
+) {
+  const toastId = options?.id || TOAST_IDS.GLOBAL.WARNING;
+  sonnerToast.dismiss(toastId);
+  sonnerToast.warning(message, {
+    id: toastId,
+    description: options?.description,
+    duration: options?.duration || 5000,
+  });
 }
 
 /**

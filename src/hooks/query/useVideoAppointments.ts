@@ -1,8 +1,8 @@
 // ✅ Video Appointment Hooks - OpenVidu Integration with WebSocket
 // This file provides hooks for video appointment management with OpenVidu integration and real-time WebSocket updates
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useCallback } from 'react';
+import { useQueryData, useMutationOperation, useQueryClient } from '@/hooks/core';
 import { useCurrentClinicId } from './useClinics';
 import { useRBAC } from '../utils/useRBAC';
 import { useToast } from '../utils/use-toast';
@@ -12,6 +12,7 @@ import { Permission } from '@/types/rbac.types';
 import { Role } from '@/types/auth.types';
 import { videoAppointmentService, type OpenViduAPI } from '@/lib/video/openvidu';
 import { APP_CONFIG } from '@/lib/config/config';
+import { TOAST_IDS } from '../utils/use-toast';
 import {
   generateVideoToken,
   startVideoConsultation,
@@ -72,9 +73,9 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
   const queryClient = useQueryClient();
   const { subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents, isConnected } = useVideoAppointmentWebSocket();
 
-  const query = useQuery({
-    queryKey: ['video-appointments', clinicId, filters],
-    queryFn: async () => {
+  const query = useQueryData(
+    ['video-appointments', clinicId, filters],
+    async () => {
       if (!clinicId) throw new Error('Clinic ID is required');
       
       const hasAccess = hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS);
@@ -105,12 +106,14 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       
       return { success: true, data: result, appointments: Array.isArray(result) ? result : [] };
     },
-    enabled: !!clinicId && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
-    staleTime: 2 * 60 * 1000, // 2 minutes (optimized for 10M users)
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    refetchInterval: false, // Disable auto-refetch - rely on WebSocket for real-time updates
-    refetchOnWindowFocus: false,
-  });
+    {
+      enabled: !!clinicId && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
+      staleTime: 2 * 60 * 1000, // 2 minutes (optimized for 10M users)
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      refetchInterval: false, // Disable auto-refetch - rely on WebSocket for real-time updates
+      refetchOnWindowFocus: false,
+    }
+  );
 
   // ✅ Subscribe to real-time updates
   // ⚠️ OPTIMIZED: Only subscribe when connected (not dependent on query.data to avoid re-subscriptions)
@@ -154,9 +157,9 @@ export function useVideoAppointment(id: string) {
   const queryClient = useQueryClient();
   const { subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents } = useVideoAppointmentWebSocket();
 
-  const query = useQuery({
-    queryKey: ['video-appointment', id],
-    queryFn: async () => {
+  const query = useQueryData(
+    ['video-appointment', id],
+    async () => {
       const hasAccess = hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
@@ -164,12 +167,14 @@ export function useVideoAppointment(id: string) {
       
       return { success: true, data: result, appointment: result };
     },
-    enabled: !!id && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
-    staleTime: 1 * 60 * 1000, // 1 minute - WebSocket handles real-time updates
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: false, // Disable polling - WebSocket handles updates
-    refetchOnWindowFocus: false,
-  });
+    {
+      enabled: !!id && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
+      staleTime: 1 * 60 * 1000, // 1 minute - WebSocket handles real-time updates
+      gcTime: 5 * 60 * 1000, // 5 minutes
+      refetchInterval: false, // Disable polling - WebSocket handles updates
+      refetchOnWindowFocus: false,
+    }
+  );
 
   // ✅ Subscribe to real-time updates for this specific appointment
   useEffect(() => {
@@ -208,13 +213,11 @@ export function useVideoAppointment(id: string) {
 
 // ✅ Create Video Appointment Mutation Hook with WebSocket Integration
 export function useCreateVideoAppointment() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
 
-  return useMutation({
-    mutationFn: async (data: CreateVideoAppointmentData) => {
+  return useMutationOperation<{ success: boolean; data: any; token: any }, CreateVideoAppointmentData>(
+    async (data: CreateVideoAppointmentData) => {
       const hasAccess = hasPermission(Permission.CREATE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
@@ -237,40 +240,30 @@ export function useCreateVideoAppointment() {
       
       return { success: true, data: consultationResult, token: tokenResult };
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
-      
-      // Send WebSocket event
-      sendVideoAppointmentEvent('created', {
-        appointmentId: variables.appointmentId,
-        doctorId: variables.doctorId,
-        patientId: variables.patientId,
-      });
-      
-      toast({
-        title: 'Success',
-        description: 'Video appointment created successfully',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.VIDEO.JOIN,
+      loadingMessage: 'Creating video appointment...',
+      successMessage: 'Video appointment created successfully',
+      invalidateQueries: [['video-appointments']],
+      onSuccess: (_, variables) => {
+        // Send WebSocket event
+        sendVideoAppointmentEvent('created', {
+          appointmentId: variables.appointmentId,
+          doctorId: variables.doctorId,
+          patientId: variables.patientId,
+        });
+      },
+    }
+  );
 }
 
 // ✅ Update Video Appointment Mutation Hook with WebSocket Integration
 export function useUpdateVideoAppointment() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
 
-  return useMutation({
-    mutationFn: async (data: UpdateVideoAppointmentData) => {
+  return useMutationOperation<{ success: boolean; data: any }, UpdateVideoAppointmentData>(
+    async (data: UpdateVideoAppointmentData) => {
       const hasAccess = hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
@@ -294,40 +287,30 @@ export function useUpdateVideoAppointment() {
       
       return { success: true, data: result };
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
-      queryClient.invalidateQueries({ queryKey: ['video-appointment', variables.appointmentId] });
-      
-      // Send WebSocket event
-      sendVideoAppointmentEvent('updated', {
-        appointmentId: variables.appointmentId,
-        status: variables.status,
-        updatedFields: Object.keys(variables),
-      });
-      
-      toast({
-        title: 'Success',
-        description: 'Video appointment updated successfully',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.VIDEO.JOIN,
+      loadingMessage: 'Updating video appointment...',
+      successMessage: 'Video appointment updated successfully',
+      invalidateQueries: [['video-appointments'], ['video-appointment']],
+      onSuccess: (_, variables) => {
+        // Send WebSocket event
+        sendVideoAppointmentEvent('updated', {
+          appointmentId: variables.appointmentId,
+          status: variables.status,
+          updatedFields: Object.keys(variables),
+        });
+      },
+    }
+  );
 }
 
 // ✅ Join Video Appointment Mutation Hook with WebSocket Integration
 export function useJoinVideoAppointment() {
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   const { sendParticipantJoined } = useVideoAppointmentWebSocket();
 
-  return useMutation({
-    mutationFn: async (data: { appointmentId: string; userId: string; role: 'doctor' | 'patient' | 'admin' }) => {
+  return useMutationOperation<{ success: boolean; data: any; token: any }, { appointmentId: string; userId: string; role: 'doctor' | 'patient' | 'admin' }>(
+    async (data: { appointmentId: string; userId: string; role: 'doctor' | 'patient' | 'admin' }) => {
       const hasAccess = hasPermission(Permission.JOIN_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
@@ -344,38 +327,29 @@ export function useJoinVideoAppointment() {
       
       return { success: true, data: tokenResult, token: tokenResult };
     },
-    onSuccess: (_, variables) => {
-      // Send WebSocket event for participant joined
-      sendParticipantJoined(variables.appointmentId, {
-        userId: variables.userId,
-        displayName: variables.role,
-        role: variables.role,
-      });
-      
-      toast({
-        title: 'Success',
-        description: 'Joining video appointment...',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.VIDEO.JOIN,
+      loadingMessage: 'Joining video appointment...',
+      successMessage: 'Joining video appointment...',
+      onSuccess: (_, variables) => {
+        // Send WebSocket event for participant joined
+        sendParticipantJoined(variables.appointmentId, {
+          userId: variables.userId,
+          displayName: variables.role,
+          role: variables.role,
+        });
+      },
+    }
+  );
 }
 
 // ✅ End Video Appointment Mutation Hook with WebSocket Integration
 export function useEndVideoAppointment() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
 
-  return useMutation({
-    mutationFn: async (appointmentId: string) => {
+  return useMutationOperation<{ success: boolean; data: any }, string>(
+    async (appointmentId: string) => {
       const hasAccess = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
@@ -387,38 +361,28 @@ export function useEndVideoAppointment() {
       
       return { success: true, data: result };
     },
-    onSuccess: (_, appointmentId) => {
-      queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
-      queryClient.invalidateQueries({ queryKey: ['video-appointment', appointmentId] });
-      
-      // Send WebSocket events
-      sendVideoAppointmentEvent('ended', {
-        appointmentId,
-      });
-      
-      toast({
-        title: 'Success',
-        description: 'Video appointment ended successfully',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.VIDEO.END,
+      loadingMessage: 'Ending video appointment...',
+      successMessage: 'Video appointment ended successfully',
+      invalidateQueries: [['video-appointments'], ['video-appointment']],
+      onSuccess: (_, appointmentId) => {
+        // Send WebSocket events
+        sendVideoAppointmentEvent('ended', {
+          appointmentId,
+        });
+      },
+    }
+  );
 }
 
 // ✅ Delete Video Appointment Mutation Hook
 export function useDeleteVideoAppointment() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
 
-  return useMutation({
-    mutationFn: async (appointmentId: string) => {
+  return useMutationOperation<{ success: boolean; data: any }, string>(
+    async (appointmentId: string) => {
       const hasAccess = hasPermission(Permission.DELETE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
@@ -432,31 +396,25 @@ export function useDeleteVideoAppointment() {
       
       return { success: true, data: result };
     },
-    onSuccess: (_, appointmentId) => {
-      queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
-      queryClient.removeQueries({ queryKey: ['video-appointment', appointmentId] });
-      toast({
-        title: 'Success',
-        description: 'Video appointment deleted successfully',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.VIDEO.END,
+      loadingMessage: 'Deleting video appointment...',
+      successMessage: 'Video appointment deleted successfully',
+      invalidateQueries: [['video-appointments']],
+      onSuccess: (_, appointmentId) => {
+        queryClient.removeQueries({ queryKey: ['video-appointment', appointmentId] });
+      },
+    }
+  );
 }
 
 // ✅ Get Video Recording Query Hook
 export function useVideoRecording(appointmentId: string) {
   const { hasPermission } = useRBAC();
 
-  return useQuery({
-    queryKey: ['video-recording', appointmentId],
-    queryFn: async () => {
+  return useQueryData(
+    ['video-recording', appointmentId],
+    async () => {
       const hasAccess = hasPermission(Permission.VIEW_VIDEO_RECORDINGS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
@@ -464,8 +422,10 @@ export function useVideoRecording(appointmentId: string) {
       
       return { success: true, data: result, recording: result };
     },
-    enabled: !!appointmentId && hasPermission(Permission.VIEW_VIDEO_RECORDINGS),
-  });
+    {
+      enabled: !!appointmentId && hasPermission(Permission.VIEW_VIDEO_RECORDINGS),
+    }
+  );
 }
 
 // ✅ Video Call Management Hook with WebSocket Integration

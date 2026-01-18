@@ -11,7 +11,8 @@ import { useTranslation, useLanguageSwitcher } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useRouter } from "next/navigation";
 import { APP_CONFIG } from "@/lib/config/config";
-import { ROUTES } from "@/lib/config/routes";
+import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
+import { Role } from "@/types/auth.types";
 import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { Globe, ChevronDown, ChevronRight, User, LogOut } from "lucide-react";
 import {
@@ -149,8 +150,8 @@ const Navigation = () => {
       router.push(ROUTES.LOGIN);
       return;
     }
-    // ✅ Consolidated: Use new route format with (dashboard) prefix
-    const dashboardPath = `/(dashboard)/${session.user.role.toLowerCase()}/dashboard`;
+    // ✅ Use centralized getDashboardByRole function for consistency
+    const dashboardPath = getDashboardByRole(session.user.role as Role);
     router.push(dashboardPath);
   };
 
@@ -343,7 +344,6 @@ const Navigation = () => {
                       onMouseEnter={handleMouseEnter}
                       onMouseLeave={handleMouseLeave}
                       role="button"
-                      tabIndex={0}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           setIsTreatmentsDropdownOpen(

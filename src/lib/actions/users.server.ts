@@ -38,13 +38,46 @@ export async function getUserProfile() {
 }
 
 export async function updateUserProfile(profileData: Record<string, unknown>) {
-  return executeAction('updateUserProfile', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.PROFILE, { 
+  // Manual implementation to return error object instead of throwing
+  // This ensures the client receives the actual error message avoiding Next.js error obscuring
+  try {
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get('access_token')?.value;
+    
+    if (!accessToken) {
+      return { success: false, error: 'No access token found' };
+    }
+    
+    // Decode JWT to get user ID
+    const tokenParts = accessToken.split('.');
+    if (tokenParts.length < 2 || !tokenParts[1]) {
+      return { success: false, error: 'Invalid access token format' };
+    }
+    
+    const payload = JSON.parse(atob(tokenParts[1]));
+    const userId = payload.sub;
+    
+    if (!userId) {
+      return { success: false, error: 'User ID not found in token' };
+    }
+
+    logger.debug('[updateUserProfile] Extracted userId from token', { userId });
+    
+    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.UPDATE(userId), { 
       method: 'PATCH', 
       body: JSON.stringify(profileData) 
     });
-    return { status: 200, data: data };
-  }, { hasData: !!profileData });
+    
+    return { success: true, data };
+  } catch (error) {
+    const errorMessage = sanitizeErrorMessage(error);
+    logger.error('[updateUserProfile] Failed', { 
+      error: errorMessage, 
+      originalError: error instanceof Error ? error.message : String(error) 
+    });
+    return { success: false, error: errorMessage };
+  }
 }
 
 export async function getUserById(id: string) {
@@ -140,8 +173,8 @@ export async function createUser(userData: {
  */
 export async function updateUserRole(userId: string, role: string) {
   return executeAction('updateUserRole', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.UPDATE(userId), {
-      method: 'PATCH',
+    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.UPDATE_ROLE(userId), {
+      method: 'PUT',
       body: JSON.stringify({ role })
     });
     return data;

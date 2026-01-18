@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import {
@@ -293,15 +293,15 @@ export default function AnalyticsDashboard() {
   // Add Analytics link to sidebar
   sidebarLinks.push({
     label: "Analytics",
-    href: "/analytics",
-    path: "/analytics",
+    href: ROUTES.SHARED_ANALYTICS,
+    path: ROUTES.SHARED_ANALYTICS,
     icon: <BarChart3 className="w-5 h-5" />,
   });
 
   sidebarLinks.push({
     label: "Logout",
-    href: "/auth/login",
-    path: "/auth/login",
+    href: ROUTES.LOGIN,
+    path: ROUTES.LOGIN,
     icon: <LogOut className="w-5 h-5" />,
   });
 

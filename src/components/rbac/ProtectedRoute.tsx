@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useRBAC, useRoleBasedNavigation } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
 import { Role } from "@/types/auth.types";
+import { ROUTES } from "@/lib/config/routes";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Lock, ArrowLeft } from "lucide-react";
@@ -36,7 +37,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   redirectTo,
   showUnauthorized = true,
 }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isPending } = useAuth();
   const rbac = useRBAC();
   const { getDefaultRoute } = useRoleBasedNavigation();
 
@@ -63,8 +64,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return true;
   }, [rbac, permission, permissions, requireAll, resource, action]);
 
-  // Show isLoading state while checking authentication
-  if (isLoading) {
+  // Show isPending state while checking authentication
+  if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -74,7 +75,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Redirect to login if not authenticated
   if (!isAuthenticated || !user) {
-    redirect("/auth/login");
+    redirect(ROUTES.LOGIN);
   }
 
   const userRole = user?.role as Role;

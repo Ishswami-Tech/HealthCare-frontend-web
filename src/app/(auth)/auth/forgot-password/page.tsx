@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/hooks/auth/useAuth";
 import Link from "next/link";
-import { forgotPasswordSchema } from "@/lib/schema/login-schema";
+import { forgotPasswordSchema } from "@/lib/schema";
 import type { ForgotPasswordFormData } from "@/types/auth.types";
 import useZodForm from "@/hooks/utils/useZodForm";
 import {

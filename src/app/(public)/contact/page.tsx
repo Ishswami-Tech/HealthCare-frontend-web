@@ -37,11 +37,10 @@ import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
 import { SectionSkeleton } from "@/lib/dynamic-imports";
 import { getIconColorScheme } from "@/lib/config/color-palette";
-import { toast } from "sonner";
 import {
   useSubmitContactForm,
   useSubmitConsultationBooking,
-} from "@/hooks/query/useNotifications";
+} from "@/hooks/query/useCommunication";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 
@@ -100,24 +99,27 @@ export default function ContactPage() {
 
     // Validation
     if (!formData.name.trim()) {
-      toast.error(
-        t("contact.form.validation.nameRequired") || "Name is required"
+      showErrorToast(
+        t("contact.form.validation.nameRequired") || "Name is required",
+        { id: TOAST_IDS.CONTACT.SUBMIT }
       );
       return;
     }
 
     if (!validateEmail(formData.email)) {
-      toast.error(
+      showErrorToast(
         t("contact.form.validation.emailInvalid") ||
-          "Please enter a valid email address"
+          "Please enter a valid email address",
+        { id: TOAST_IDS.CONTACT.SUBMIT }
       );
       return;
     }
 
     if (!validatePhone(formData.phone)) {
-      toast.error(
+      showErrorToast(
         t("contact.form.validation.phoneInvalid") ||
-          "Please enter a valid phone number"
+          "Please enter a valid phone number",
+        { id: TOAST_IDS.CONTACT.SUBMIT }
       );
       return;
     }
@@ -174,17 +176,19 @@ export default function ContactPage() {
     e.preventDefault();
 
     if (!bookingData.name.trim() || !bookingData.phone.trim()) {
-      toast.error(
+      showErrorToast(
         t("contact.booking.validation.required") ||
-          "Name and phone number are required"
+          "Name and phone number are required",
+        { id: TOAST_IDS.CONTACT.SUBMIT }
       );
       return;
     }
 
     if (!validatePhone(bookingData.phone)) {
-      toast.error(
+      showErrorToast(
         t("contact.form.validation.phoneInvalid") ||
-          "Please enter a valid phone number"
+          "Please enter a valid phone number",
+        { id: TOAST_IDS.CONTACT.SUBMIT }
       );
       return;
     }
@@ -211,9 +215,10 @@ export default function ContactPage() {
 
           setIsBookingDialogOpen(false);
 
-          toast.success(
+          showSuccessToast(
             t("contact.booking.success.title") || "Consultation Requested!",
             {
+              id: TOAST_IDS.CONTACT.SUBMIT,
               description:
                 t("contact.booking.success.description") ||
                 "We'll contact you soon to confirm your appointment.",
@@ -221,10 +226,11 @@ export default function ContactPage() {
           );
         },
         onError: (error: any) => {
-          toast.error(
+          showErrorToast(
             t("contact.booking.error.title") ||
               "Failed to request consultation",
             {
+              id: TOAST_IDS.CONTACT.SUBMIT,
               description:
                 error?.message ||
                 t("contact.booking.error.description") ||

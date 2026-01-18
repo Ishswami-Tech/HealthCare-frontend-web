@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 
 export default function PatientMedicalRecords() {
-  const { session, isLoading: authLoading } = useAuth();
+  const { session, isPending: authLoading } = useAuth();
   const user = session?.user;
   const [searchTerm, setSearchTerm] = useState("");
 

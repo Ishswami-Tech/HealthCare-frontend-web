@@ -33,7 +33,7 @@ export async function generateVideoToken(data: {
 export async function startVideoConsultation(data: {
   appointmentId: string;
   userId: string;
-  userRole: 'patient' | 'doctor';
+  userRole: 'patient' | 'doctor' | 'receptionist' | 'clinic_admin';
 }) {
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.START, {
     method: 'POST',
@@ -48,12 +48,19 @@ export async function startVideoConsultation(data: {
 export async function endVideoConsultation(data: {
   appointmentId: string;
   userId: string;
-  userRole: 'patient' | 'doctor';
+  userRole: 'patient' | 'doctor' | 'receptionist' | 'clinic_admin';
   endReason?: string;
+  meetingNotes?: string;
 }) {
+  // Map endReason to meetingNotes if notes are not provided, to ensure reason is captured
+  const payload = {
+    ...data,
+    meetingNotes: data.meetingNotes || data.endReason
+  };
+  
   const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.END, {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   return response;
 }

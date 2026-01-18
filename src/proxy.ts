@@ -22,6 +22,7 @@ import {
   shouldSkipProxy as shouldSkipProxyRoute,
   getProtectedRouteRoles,
   isProtectedRoute,
+  getAllowedRolesForPath,
 } from '@/lib/config/routes';
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE_NAME } from '@/lib/i18n/config';
 
@@ -100,6 +101,17 @@ export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // =========================================================================
+  // STEP 0: Rate Limiting for Auth Routes
+  // =========================================================================
+  // Note: Rate limiting is handled client-side in security.ts
+  // Server-side rate limiting would require external state (Redis, etc.)
+  // This is a placeholder for future implementation
+  if (pathname.startsWith('/auth/')) {
+    // Rate limiting can be implemented with Redis or other shared state
+    // For now, basic protection is handled by security.ts on the client
+  }
+
+  // =========================================================================
   // STEP 1: Skip proxy for static files and API routes
   // =========================================================================
   if (shouldSkipProxyRoute(pathname)) {
@@ -176,8 +188,15 @@ export default async function proxy(request: NextRequest) {
     return response;
   }
 
-  // If we have access token but no role, allow the request and let the app handle it
+  // If we have access token but no role, check if trying to access protected route
   if (hasValidToken && !userRole) {
+    // If accessing protected route without valid role, redirect to login
+    if (isProtectedRoute(pathname)) {
+      const loginUrl = new URL(ROUTES.LOGIN, request.url);
+      loginUrl.searchParams.set('error', 'invalid_role');
+      return NextResponse.redirect(loginUrl);
+    }
+    // Otherwise, allow the request and let the app handle it
     return response;
   }
 
@@ -213,14 +232,112 @@ export default async function proxy(request: NextRequest) {
       // Redirect to appropriate dashboard based on role
       // Uses centralized route configuration
       const dashboardPath = getDashboardByRole(userRole);
+      
+      // If getDashboardByRole returns login (invalid role), redirect to login with error
+      if (dashboardPath === ROUTES.LOGIN) {
+        const loginUrl = new URL(ROUTES.LOGIN, request.url);
+        loginUrl.searchParams.set('error', 'invalid_role');
+        loginUrl.searchParams.set('from', pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+      
       const dashboardUrl = new URL(dashboardPath, request.url);
+      // Preserve original path in query params for potential redirect after role fix
+      dashboardUrl.searchParams.set('unauthorized', 'true');
+      dashboardUrl.searchParams.set('from', pathname);
       return NextResponse.redirect(dashboardUrl);
+    }
+  }
+  
+  // Additional check: If user has role but trying to access route not in their role's allowed paths
+  // This catches edge cases where route might not be in PROTECTED_ROUTES but should be role-restricted
+  // Check role-specific paths (route groups don't appear in URLs, so check actual URL paths)
+  if (userRole && (pathname.startsWith('/super-admin') || pathname.startsWith('/clinic-admin') || 
+      pathname.startsWith('/doctor') || pathname.startsWith('/receptionist') || 
+      pathname.startsWith('/pharmacist') || pathname.startsWith('/patient'))) {
+    const rolePathMap = getAllowedRolesForPath(pathname);
+    if (rolePathMap && !rolePathMap.includes(userRole)) {
+      const dashboardPath = getDashboardByRole(userRole);
+      if (dashboardPath !== ROUTES.LOGIN) {
+        const dashboardUrl = new URL(dashboardPath, request.url);
+        dashboardUrl.searchParams.set('unauthorized', 'true');
+        dashboardUrl.searchParams.set('from', pathname);
+        return NextResponse.redirect(dashboardUrl);
+      }
+    }
+  }
+  
+  // Additional check: Shared routes access control
+  // Ensure users can only access shared routes they have permission for
+  if (userRole && (
+    pathname.startsWith('/appointments') ||
+    pathname.startsWith('/queue') ||
+    pathname.startsWith('/ehr') ||
+    pathname.startsWith('/pharmacy') ||
+    pathname.startsWith('/analytics') ||
+    pathname.startsWith('/billing') ||
+    pathname.startsWith('/video-appointments')
+  )) {
+    const sharedRouteRoles = getProtectedRouteRoles(pathname);
+    if (sharedRouteRoles && !sharedRouteRoles.includes(userRole)) {
+      const dashboardPath = getDashboardByRole(userRole);
+      if (dashboardPath !== ROUTES.LOGIN) {
+        const dashboardUrl = new URL(dashboardPath, request.url);
+        dashboardUrl.searchParams.set('unauthorized', 'true');
+        dashboardUrl.searchParams.set('from', pathname);
+        return NextResponse.redirect(dashboardUrl);
+      }
     }
   }
 
   // =========================================================================
   // STEP 9: Allow the request
   // =========================================================================
+  // =========================================================================
+  // STEP 9: Add Security Headers (CSP, HSTS, etc.)
+  // =========================================================================
+  
+  // ✅ Dynamically build allowed hosts from environment variables
+  const apiHost = process.env.NEXT_PUBLIC_API_URL?.replace(/^https?:\/\//, '') || '';
+  const wsHost = process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace(/^https?:\/\//, '') || apiHost;
+  const appHost = process.env.NEXT_PUBLIC_APP_URL?.replace(/^https?:\/\//, '') || '';
+  
+  // Build connect-src dynamically from environment
+  const connectSources = [
+    "'self'",
+    appHost ? `https://${appHost}` : '',
+    appHost ? `wss://${appHost}` : '',
+    apiHost ? `https://${apiHost}` : '',
+    wsHost ? `wss://${wsHost}` : '',
+    'https://*.googleapis.com',
+    'ws://localhost:*',
+    'http://localhost:*',
+  ].filter(Boolean).join(' ');
+  
+  // Strict Content Security Policy
+  const csp = `
+    default-src 'self';
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://www.facebook.com https://connect.facebook.net;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    img-src 'self' blob: data: https://lh3.googleusercontent.com https://graph.facebook.com https://platform-lookaside.fbsbx.com https://storage.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    connect-src ${connectSources};
+    frame-src 'self' https://accounts.google.com https://www.facebook.com;
+    media-src 'self' blob:;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    upgrade-insecure-requests;
+  `.replace(/\s{2,}/g, ' ').trim();
+
+  response.headers.set('Content-Security-Policy', csp);
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+
   return response;
 }
 

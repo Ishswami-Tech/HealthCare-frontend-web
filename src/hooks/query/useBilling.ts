@@ -1,7 +1,7 @@
 // Billing Hooks
 // Integrated with real API - using Docker backend
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryData, useMutationOperation } from '../core';
 import {
   getBillingPlans,
   getBillingPlan,
@@ -29,262 +29,281 @@ import type {
 // ============ Billing Plans Hooks ============
 
 export function useBillingPlans(clinicId?: string) {
-  return useQuery({
-    queryKey: ['billing-plans', clinicId],
-    queryFn: async () => {
+  return useQueryData(
+    ['billing-plans', clinicId],
+    async () => {
       const result = await getBillingPlans(clinicId);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch billing plans');
       }
       return result.plans || [];
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
-    gcTime: 30 * 60 * 1000, // 30 minutes
-    refetchOnWindowFocus: false, // 5 minutes
-  });
+    {
+      staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
+      gcTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnWindowFocus: false,
+    }
+  );
 }
 
 export function useBillingPlan(id: string) {
-  return useQuery({
-    queryKey: ['billing-plan', id],
-    queryFn: async () => {
+  return useQueryData(
+    ['billing-plan', id],
+    async () => {
       const result = await getBillingPlan(id);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch billing plan');
       }
       return result.plan;
     },
-    enabled: !!id,
-  });
+    {
+      enabled: !!id,
+    }
+  );
 }
 
 export function useCreateBillingPlan() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (data: CreateBillingPlanData) => {
+  return useMutationOperation(
+    async (data: CreateBillingPlanData) => {
       const result = await createBillingPlan(data);
       if (!result.success) {
         throw new Error(result.error || 'Failed to create billing plan');
       }
       return result.plan;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['billing-plans'] });
-    },
-  });
+    {
+      toastId: 'billing-plan-create',
+      loadingMessage: 'Creating billing plan...',
+      successMessage: 'Billing plan created successfully',
+      invalidateQueries: [['billing-plans']],
+    }
+  );
 }
 
 export function useUpdateBillingPlan() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<CreateBillingPlanData> }) => {
+  return useMutationOperation(
+    async ({ id, data }: { id: string; data: Partial<CreateBillingPlanData> }) => {
       const result = await updateBillingPlan(id, data);
       if (!result.success) {
         throw new Error(result.error || 'Failed to update billing plan');
       }
       return result.plan;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['billing-plans'] });
-      queryClient.invalidateQueries({ queryKey: ['billing-plan', variables.id] });
-    },
-  });
+    {
+      toastId: 'billing-plan-update',
+      loadingMessage: 'Updating billing plan...',
+      successMessage: 'Billing plan updated successfully',
+      invalidateQueries: [['billing-plans'], ['billing-plan']],
+    }
+  );
 }
 
 export function useDeleteBillingPlan() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (id: string) => {
+  return useMutationOperation(
+    async (id: string) => {
       const result = await deleteBillingPlan(id);
       if (!result.success) {
         throw new Error(result.error || 'Failed to delete billing plan');
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['billing-plans'] });
-    },
-  });
+    {
+      toastId: 'billing-plan-delete',
+      loadingMessage: 'Deleting billing plan...',
+      successMessage: 'Billing plan deleted successfully',
+      invalidateQueries: [['billing-plans']],
+    }
+  );
 }
 
 // ============ Subscriptions Hooks ============
 
 export function useSubscriptions(userId: string) {
-  return useQuery({
-    queryKey: ['subscriptions', userId],
-    queryFn: async () => {
+  return useQueryData(
+    ['subscriptions', userId],
+    async () => {
       const result = await getSubscriptions(userId);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch subscriptions');
       }
       return result.subscriptions || [];
     },
-    enabled: !!userId,
-    staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
-    gcTime: 30 * 60 * 1000, // 30 minutes
-    refetchOnWindowFocus: false,
-  });
+    {
+      enabled: !!userId,
+      staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
+      gcTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnWindowFocus: false,
+    }
+  );
 }
 
 export function useActiveSubscription(userId: string, clinicId: string) {
-  return useQuery({
-    queryKey: ['active-subscription', userId, clinicId],
-    queryFn: async () => {
+  return useQueryData(
+    ['active-subscription', userId, clinicId],
+    async () => {
       const result = await getActiveSubscription(userId, clinicId);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch active subscription');
       }
       return result.subscription;
     },
-    enabled: !!userId && !!clinicId,
-    staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
-    gcTime: 15 * 60 * 1000, // 15 minutes
-    refetchOnWindowFocus: false,
-  });
+    {
+      enabled: !!userId && !!clinicId,
+      staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
+      gcTime: 15 * 60 * 1000, // 15 minutes
+      refetchOnWindowFocus: false,
+    }
+  );
 }
 
 export function useCreateSubscription() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (data: CreateSubscriptionData) => {
+  return useMutationOperation(
+    async (data: CreateSubscriptionData) => {
       const result = await createSubscription(data);
       if (!result.success) {
         throw new Error(result.error || 'Failed to create subscription');
       }
       return result.subscription;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['subscriptions', variables.userId] });
-      queryClient.invalidateQueries({ queryKey: ['active-subscription', variables.userId, variables.clinicId] });
-    },
-  });
+    {
+      toastId: 'subscription-create',
+      loadingMessage: 'Creating subscription...',
+      successMessage: 'Subscription created successfully',
+      invalidateQueries: [['subscriptions'], ['active-subscription']],
+    }
+  );
 }
 
 export function useCancelSubscription() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ id, immediate }: { id: string; immediate?: boolean }) => {
+  return useMutationOperation(
+    async ({ id, immediate }: { id: string; immediate?: boolean }) => {
       const result = await cancelSubscription(id, immediate);
       if (!result.success) {
         throw new Error(result.error || 'Failed to cancel subscription');
       }
       return result.subscription;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
-      queryClient.invalidateQueries({ queryKey: ['active-subscription'] });
-    },
-  });
+    {
+      toastId: 'subscription-cancel',
+      loadingMessage: 'Cancelling subscription...',
+      successMessage: 'Subscription cancelled successfully',
+      invalidateQueries: [['subscriptions'], ['active-subscription']],
+    }
+  );
 }
 
 export function useSubscriptionUsageStats(id: string) {
-  return useQuery({
-    queryKey: ['subscription-usage', id],
-    queryFn: async () => {
+  return useQueryData(
+    ['subscription-usage', id],
+    async () => {
       const result = await getSubscriptionUsageStats(id);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch usage stats');
       }
       return result.stats;
     },
-    enabled: !!id,
-    staleTime: 2 * 60 * 1000, // 2 minutes (optimized for 10M users)
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: false,
-  });
+    {
+      enabled: !!id,
+      staleTime: 2 * 60 * 1000, // 2 minutes (optimized for 10M users)
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      refetchOnWindowFocus: false,
+    }
+  );
 }
 
 // ============ Invoices Hooks ============
 
 export function useInvoices(userId: string) {
-  return useQuery({
-    queryKey: ['invoices', userId],
-    queryFn: async () => {
+  return useQueryData(
+    ['invoices', userId],
+    async () => {
       const result = await getInvoices(userId);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch invoices');
       }
       return result.invoices || [];
     },
-    enabled: !!userId,
-    staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
-    gcTime: 30 * 60 * 1000, // 30 minutes
-    refetchOnWindowFocus: false,
-  });
+    {
+      enabled: !!userId,
+      staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
+      gcTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnWindowFocus: false,
+    }
+  );
 }
 
 export function useCreateInvoice() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (data: CreateInvoiceData) => {
+  return useMutationOperation(
+    async (data: CreateInvoiceData) => {
       const result = await createInvoice(data);
       if (!result.success) {
         throw new Error(result.error || 'Failed to create invoice');
       }
       return result.invoice;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['invoices', variables.userId] });
-    },
-  });
+    {
+      toastId: 'invoice-create',
+      loadingMessage: 'Creating invoice...',
+      successMessage: 'Invoice created successfully',
+      invalidateQueries: [['invoices']],
+    }
+  );
 }
 
 // ============ Payments Hooks ============
 
 export function usePayments(userId: string) {
-  return useQuery({
-    queryKey: ['payments', userId],
-    queryFn: async () => {
+  return useQueryData(
+    ['payments', userId],
+    async () => {
       const result = await getPayments(userId);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch payments');
       }
       return result.payments || [];
     },
-    enabled: !!userId,
-    staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
-    gcTime: 30 * 60 * 1000, // 30 minutes
-    refetchOnWindowFocus: false,
-  });
+    {
+      enabled: !!userId,
+      staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
+      gcTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnWindowFocus: false,
+    }
+  );
 }
 
 export function useCreatePayment() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (data: CreatePaymentData) => {
+  return useMutationOperation(
+    async (data: CreatePaymentData) => {
       const result = await createPayment(data);
       if (!result.success) {
         throw new Error(result.error || 'Failed to create payment');
       }
       return result.payment;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['payments', variables.userId] });
-      queryClient.invalidateQueries({ queryKey: ['invoices', variables.userId] });
-    },
-  });
+    {
+      toastId: 'payment-create',
+      loadingMessage: 'Processing payment...',
+      successMessage: 'Payment processed successfully',
+      invalidateQueries: [['payments'], ['invoices']],
+    }
+  );
 }
 
 // ============ Analytics Hooks ============
 
 export function useBillingAnalytics(clinicId: string) {
-  return useQuery({
-    queryKey: ['billing-analytics', clinicId],
-    queryFn: async () => {
+  return useQueryData(
+    ['billing-analytics', clinicId],
+    async () => {
       const result = await getBillingAnalytics(clinicId);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch analytics');
       }
       return result.analytics;
     },
-    enabled: !!clinicId,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-  });
+    {
+      enabled: !!clinicId,
+      staleTime: 10 * 60 * 1000, // 10 minutes
+    }
+  );
 }
 

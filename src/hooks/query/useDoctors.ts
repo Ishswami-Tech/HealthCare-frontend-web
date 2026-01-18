@@ -1,5 +1,5 @@
-import { useQueryData } from '../core/useQueryData';
-import { useMutationData } from '../core/useMutationData';
+import { useQueryData, useMutationOperation } from '../core';
+import { TOAST_IDS } from '../utils/use-toast';
 import {
   getDoctors,
   getDoctorById,
@@ -170,163 +170,225 @@ export const useDoctorEarnings = (doctorId: string, filters?: {
  * Hook to create doctor
  */
 export const useCreateDoctor = () => {
-  return useMutationData(['createDoctor'], async (doctorData: {
-    userId: string;
-    specialization?: string;
-    licenseNumber?: string;
-    experience?: number;
-    qualifications?: string[];
-    consultationFee?: number;
-    clinicId?: string;
-    schedule?: {
-      dayOfWeek: number;
-      startTime: string;
-      endTime: string;
-      isAvailable: boolean;
-    }[];
-  }) => {
-    const result = await createDoctor(doctorData);
-    return { status: 200, data: result };
-  }, 'doctors');
+  return useMutationOperation(
+    async (doctorData: {
+      userId: string;
+      specialization?: string;
+      licenseNumber?: string;
+      experience?: number;
+      qualifications?: string[];
+      consultationFee?: number;
+      clinicId?: string;
+      schedule?: {
+        dayOfWeek: number;
+        startTime: string;
+        endTime: string;
+        isAvailable: boolean;
+      }[];
+    }) => {
+      return await createDoctor(doctorData);
+    },
+    {
+      toastId: TOAST_IDS.DOCTOR.CREATE,
+      loadingMessage: 'Creating doctor...',
+      successMessage: 'Doctor created successfully',
+      invalidateQueries: [['doctors']],
+    }
+  );
 };
 
 /**
  * Hook to update doctor
  */
 export const useUpdateDoctor = () => {
-  return useMutationData(['updateDoctor'], async ({ doctorId, updates }: {
-    doctorId: string;
-    updates: {
-      specialization?: string;
-      licenseNumber?: string;
-      experience?: number;
-      qualifications?: string[];
-      consultationFee?: number;
-      isActive?: boolean;
-      clinicId?: string;
-    };
-  }) => {
-    const result = await updateDoctor(doctorId, updates);
-    return { status: 200, data: result };
-  }, 'doctors');
+  return useMutationOperation(
+    async ({ doctorId, updates }: {
+      doctorId: string;
+      updates: {
+        specialization?: string;
+        licenseNumber?: string;
+        experience?: number;
+        qualifications?: string[];
+        consultationFee?: number;
+        isActive?: boolean;
+        clinicId?: string;
+      };
+    }) => {
+      return await updateDoctor(doctorId, updates);
+    },
+    {
+      toastId: TOAST_IDS.DOCTOR.UPDATE,
+      loadingMessage: 'Updating doctor...',
+      successMessage: 'Doctor updated successfully',
+      invalidateQueries: [['doctors']],
+    }
+  );
 };
 
 /**
  * Hook to delete doctor
  */
 export const useDeleteDoctor = () => {
-  return useMutationData(['deleteDoctor'], async (doctorId: string) => {
-    const result = await deleteDoctor(doctorId);
-    return { status: 200, data: result };
-  }, 'doctors');
+  return useMutationOperation(
+    async (doctorId: string) => {
+      return await deleteDoctor(doctorId);
+    },
+    {
+      toastId: TOAST_IDS.DOCTOR.DELETE,
+      loadingMessage: 'Deleting doctor...',
+      successMessage: 'Doctor deleted successfully',
+      invalidateQueries: [['doctors']],
+    }
+  );
 };
 
 /**
  * Hook to update doctor schedule
  */
 export const useUpdateDoctorSchedule = () => {
-  return useMutationData(['updateDoctorSchedule'], async ({ doctorId, schedule }: {
-    doctorId: string;
-    schedule: {
-      dayOfWeek: number;
-      startTime: string;
-      endTime: string;
-      isAvailable: boolean;
-    }[];
-  }) => {
-    const result = await updateDoctorSchedule(doctorId, schedule);
-    return { status: 200, data: result };
-  }, 'doctorSchedule');
+  return useMutationOperation(
+    async ({ doctorId, schedule }: {
+      doctorId: string;
+      schedule: {
+        dayOfWeek: number;
+        startTime: string;
+        endTime: string;
+        isAvailable: boolean;
+      }[];
+    }) => {
+      return await updateDoctorSchedule(doctorId, schedule);
+    },
+    {
+      toastId: TOAST_IDS.DOCTOR.UPDATE,
+      loadingMessage: 'Updating doctor schedule...',
+      successMessage: 'Doctor schedule updated successfully',
+      invalidateQueries: [['doctorSchedule']],
+    }
+  );
 };
 
 /**
  * Hook to update doctor availability
  */
 export const useUpdateDoctorAvailability = () => {
-  return useMutationData(['updateDoctorAvailability'], async ({ doctorId, availabilityData }: {
-    doctorId: string;
-    availabilityData: {
-      date: string;
-      timeSlots: {
-        startTime: string;
-        endTime: string;
-        isAvailable: boolean;
-      }[];
-    };
-  }) => {
-    const result = await updateDoctorAvailability(doctorId, availabilityData);
-    return { status: 200, data: result };
-  }, 'doctorAvailability');
+  return useMutationOperation(
+    async ({ doctorId, availabilityData }: {
+      doctorId: string;
+      availabilityData: {
+        date: string;
+        timeSlots: {
+          startTime: string;
+          endTime: string;
+          isAvailable: boolean;
+        }[];
+      };
+    }) => {
+      return await updateDoctorAvailability(doctorId, availabilityData);
+    },
+    {
+      toastId: TOAST_IDS.DOCTOR.UPDATE,
+      loadingMessage: 'Updating doctor availability...',
+      successMessage: 'Doctor availability updated successfully',
+      invalidateQueries: [['doctorAvailability']],
+    }
+  );
 };
 
 /**
  * Hook to add doctor review
  */
 export const useAddDoctorReview = () => {
-  return useMutationData(['addDoctorReview'], async ({ doctorId, reviewData }: {
-    doctorId: string;
-    reviewData: {
-      patientId: string;
-      rating: number;
-      comment?: string;
-      appointmentId?: string;
-    };
-  }) => {
-    const result = await addDoctorReview(doctorId, reviewData);
-    return { status: 200, data: result };
-  }, 'doctorReviews');
+  return useMutationOperation(
+    async ({ doctorId, reviewData }: {
+      doctorId: string;
+      reviewData: {
+        patientId: string;
+        rating: number;
+        comment?: string;
+        appointmentId?: string;
+      };
+    }) => {
+      return await addDoctorReview(doctorId, reviewData);
+    },
+    {
+      toastId: TOAST_IDS.DOCTOR.UPDATE,
+      loadingMessage: 'Adding doctor review...',
+      successMessage: 'Doctor review added successfully',
+      invalidateQueries: [['doctorReviews']],
+    }
+  );
 };
 
 /**
  * Hook to search doctors
  */
 export const useSearchDoctors = () => {
-  return useMutationData(['searchDoctors'], async ({ query, filters }: {
-    query: string;
-    filters?: {
-      specialization?: string;
-      clinicId?: string;
-      location?: string;
-      availability?: string;
-      limit?: number;
-    };
-  }) => {
-    const result = await searchDoctors(query, filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async ({ query, filters }: {
+      query: string;
+      filters?: {
+        specialization?: string;
+        clinicId?: string;
+        location?: string;
+        availability?: string;
+        limit?: number;
+      };
+    }) => {
+      return await searchDoctors(query, filters);
+    },
+    {
+      toastId: TOAST_IDS.DOCTOR.UPDATE,
+      loadingMessage: 'Searching doctors...',
+      successMessage: 'Search completed',
+      showToast: false,
+    }
+  );
 };
 
 /**
  * Hook to update doctor profile
  */
 export const useUpdateDoctorProfile = () => {
-  return useMutationData(['updateDoctorProfile'], async ({ doctorId, profileData }: {
-    doctorId: string;
-    profileData: {
-      bio?: string;
-      education?: string[];
-      certifications?: string[];
-      languages?: string[];
-      profilePicture?: string;
-    };
-  }) => {
-    const result = await updateDoctorProfile(doctorId, profileData);
-    return { status: 200, data: result };
-  }, 'doctor');
+  return useMutationOperation(
+    async ({ doctorId, profileData }: {
+      doctorId: string;
+      profileData: {
+        bio?: string;
+        education?: string[];
+        certifications?: string[];
+        languages?: string[];
+        profilePicture?: string;
+      };
+    }) => {
+      return await updateDoctorProfile(doctorId, profileData);
+    },
+    {
+      toastId: TOAST_IDS.DOCTOR.UPDATE,
+      loadingMessage: 'Updating doctor profile...',
+      successMessage: 'Doctor profile updated successfully',
+      invalidateQueries: [['doctor']],
+    }
+  );
 };
 
 /**
  * Hook to export doctor data
  */
 export const useExportDoctorData = () => {
-  return useMutationData(['exportDoctorData'], async (filters: {
-    format: 'csv' | 'excel' | 'pdf';
-    doctorIds?: string[];
-    includeStats?: boolean;
-    startDate?: string;
-    endDate?: string;
-  }) => {
-    const result = await exportDoctorData(filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (filters: {
+      format: 'csv' | 'excel' | 'pdf';
+      doctorIds?: string[];
+      includeStats?: boolean;
+      startDate?: string;
+      endDate?: string;
+    }) => {
+      return await exportDoctorData(filters);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
+      loadingMessage: 'Exporting doctor data...',
+      successMessage: 'Doctor data exported successfully',
+    }
+  );
 };

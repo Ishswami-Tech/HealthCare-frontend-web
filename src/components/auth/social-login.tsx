@@ -4,14 +4,14 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, showLoadingToast, dismissToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 // Google client ID from environment variable
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 // Constants
-// ✅ Consolidated: Use new route format (removed legacy route)
-const DEFAULT_REDIRECT_URL = "/(dashboard)/patient/dashboard";
+// ✅ Using actual URL (route groups don't appear in URLs)
+const DEFAULT_REDIRECT_URL = "/patient/dashboard";
 
 // Add type definitions for Google OAuth
 declare global {
@@ -80,17 +80,20 @@ export function SocialLogin({
   // Memoized Google response handler
   const handleGoogleResponse = useCallback(
     async (response: { credential: string }) => {
+      const toastId = TOAST_IDS.AUTH.SOCIAL_LOGIN;
       try {
         if (!response.credential) {
           throw new Error("No credential received from Google");
         }
 
-        const toastId = toast.loading("Signing in with Google...");
+        showLoadingToast("Signing in with Google...", toastId);
 
         await googleLogin(response.credential);
 
-        toast.dismiss(toastId);
-        toast.success("Successfully signed in with Google!");
+        dismissToast(toastId);
+        showSuccessToast("Successfully signed in with Google!", {
+          id: toastId,
+        });
 
         // Handle redirection
         const searchParams = new URLSearchParams(window.location.search);
@@ -103,15 +106,16 @@ export function SocialLogin({
         onSuccess?.();
         router.push(redirectUrl);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Google login failed";
-
+        dismissToast(toastId);
+        
         if (process.env.NODE_ENV === "development") {
           console.error("Google login error:", error);
         }
 
-        onError?.(new Error(errorMessage));
-        toast.error(errorMessage);
+        onError?.(error instanceof Error ? error : new Error("Google login failed"));
+        showErrorToast(error, {
+          id: toastId,
+        });
       }
     },
     [googleLogin, router, onSuccess, onError]
@@ -124,7 +128,9 @@ export function SocialLogin({
         console.error(error.message);
       }
       onError?.(error);
-      toast.error("Google login is not configured");
+      showErrorToast("Google login is not configured", {
+        id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
+      });
       return;
     }
 
@@ -181,12 +187,16 @@ export function SocialLogin({
             console.error("Failed to initialize Google OAuth:", error);
           }
           onError?.(new Error(errorMessage));
-          toast.error(errorMessage);
+          showErrorToast(errorMessage, {
+            id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
+          });
         }
       } else {
         const error = new Error("Google OAuth object not available");
         onError?.(error);
-        toast.error("Google login is not available");
+        showErrorToast("Google login is not available", {
+          id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
+        });
       }
     };
 
@@ -196,7 +206,9 @@ export function SocialLogin({
       }
       const error = new Error("Failed to load Google Sign-In");
       onError?.(error);
-      toast.error("Failed to load Google login");
+      showErrorToast("Failed to load Google login", {
+        id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
+      });
     };
 
     document.head.appendChild(script);

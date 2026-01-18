@@ -1,4 +1,5 @@
-// ✅ Notification Components - Notification preference and management components
-// Barrel export for all notification components
-
-export { NotificationPreferences } from './NotificationPreferences';
+export { NotificationBell } from "./NotificationBell";
+export { NotificationPanel } from "./NotificationPanel";
+export { NotificationItem } from "./NotificationItem";
+export { NotificationPreferences } from "./NotificationPreferences";
+export { NotificationInitializer } from "./NotificationInitializer";

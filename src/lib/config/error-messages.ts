@@ -80,6 +80,22 @@ export const ERROR_MESSAGES = {
   MEDICAL_RECORD_NOT_FOUND: 'Medical record not found.',
   MEDICAL_RECORD_CREATE_FAILED: 'Failed to create medical record. Please try again.',
   
+  // Session Management
+  SESSION_TERMINATED: 'Session terminated successfully.',
+  SESSION_TERMINATE_FAILED: 'Failed to terminate session. Please try again.',
+  ALL_SESSIONS_TERMINATED: 'All sessions have been terminated.',
+  
+  // Video Appointments
+  VIDEO_JOIN_FAILED: 'Failed to join video consultation. Please try again.',
+  VIDEO_END_FAILED: 'Failed to end video consultation. Please try again.',
+  VIDEO_PERMISSION_DENIED: 'You do not have permission to perform this video action.',
+  VIDEO_NOT_READY: 'Video consultation is not ready yet. Please wait.',
+  
+  // Push Notifications
+  PUSH_PERMISSION_DENIED: 'Notification permission denied. Please enable it in your browser settings.',
+  PUSH_REGISTRATION_FAILED: 'Failed to register for push notifications.',
+  PUSH_NOT_SUPPORTED: 'Push notifications are not supported in this browser.',
+  
   // Generic
   UNKNOWN_ERROR: 'An unexpected error occurred. Please try again.',
   TRY_AGAIN: 'Something went wrong. Please try again.',

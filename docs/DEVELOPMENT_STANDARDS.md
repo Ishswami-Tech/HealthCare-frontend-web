@@ -27,50 +27,61 @@ export const PatientCard = ({ data }: Props) => {
 };
 ```
 
+### Hook Refactoring & Abstraction
+- **Core Hooks First**: ALWAYS use `@/hooks/core` (e.g., `useQueryData`, `useMutationOperation`) instead of direct `useQuery`/`useMutation` imports.
+- **Mutation Pattern**: Use `useMutationOperation` for consistent error handling and toast notifications.
+- **No Direct Query Client**: Use `useQueryClient` from `@/hooks/core`.
+
 ---
 
-## 2. Performance Best Practices
+## 2. Redirection & Navigation
+
+### Centralized Redirection
+- **Never Hardcode Paths**: Use `ROUTES` or `getDashboardByRole()` from `@/lib/config/routes`.
+- **Profile Redirection**: Use `getProfileCompletionRedirectUrl()` from `@/lib/config/profile`.
+- **Common Flows**:
+    - **Login**: Redirects to `profile-completion` if incomplete, or `dashboard` if complete.
+    - **Logout**: Redirects to `/auth/login`.
+    - **Unauthorized**: Redirects to user's dashboard with `?unauthorized=true`.
+
+---
+
+## 3. Performance Best Practices
 
 ### Image Optimization
 - Always use `next/image` instead of `<img>` tags.
 - Specify `width` and `height` to prevent Layout Shift (CLS).
-```typescript
-import Image from "next/image";
-// ...
-<Image src="/logo.png" width={100} height={50} alt="Logo" />
-```
 
-### Lazy Loading & Code Splitting
-- Use `next/dynamic` for heavy components (charts, maps, rich text editors).
-- Ensure Critical Rendering Path is not blocked by non-essential scripts.
+### Lazy Loading
+- Use `next/dynamic` for heavy components (charts, maps).
+- Ensure Critical Rendering Path is not blocked.
 
 ### Health Checks & Sockets
-- **Do NOT** perform synchronous health checks on page mount.
-- **Do NOT** auto-connect WebSockets on public/auth pages.
-- Use `requestIdleCallback` or `setTimeout` to defer non-critical initialization.
+- **No Sync Health Checks**: Do NOT perform synchronous health checks on mount.
+- **No Auth Page Sockets**: Do NOT auto-connect WebSockets on public/auth pages.
 
 ---
 
-## 3. Type Safety
+## 4. Type Safety
 - **Strict Mode**: `strict: true` is enabled in `tsconfig.json`.
 - **No `any`**: Avoid `any`. Use `unknown` or define specific interfaces.
 - **Zod Validation**: Use Zod schemas for all API inputs and Form data.
 
 ---
 
-## 4. Troubleshooting & Common Fixes
+## 5. Troubleshooting & Common Fixes
 
 ### "Page Hanging" on Login
 - **Cause**: Blocking network requests or infinite loops in `useEffect`.
-- **Fix**: Ensure `useAuth` session checks have `refetchOnWindowFocus: false` during login. Verify WebSocket is not trying to connect without a token.
+- **Fix**: Ensure `useAuth` session checks have `refetchOnWindowFocus: false` during login.
 
 ### Build Errors (Circular Dependencies)
 - **Cause**: Files importing each other (e.g., `config.ts` <-> `routes.ts`).
-- **Fix**: Move shared constants to a dedicated "leaf" file (e.g., `constants.ts`) that imports nothing.
+- **Fix**: Move shared constants to a dedicated "leaf" file (e.g., `constants.ts`).
 
 ---
 
-## 5. Workflow
+## 6. Workflow
 1.  **Linting**: Run `npm run lint` before committing.
-2.  **Building**: Run `npm run build` locally to verify type safety.
-3.  **Commit Messages**: Use semantic commits (e.g., `feat: add user profile`, `fix: resolve middleware conflict`).
+2.  **Building**: Run `npm run build` locally.
+3.  **Commit Messages**: Use semantic commits (e.g., `feat: add user profile`).

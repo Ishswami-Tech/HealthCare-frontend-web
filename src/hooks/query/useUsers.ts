@@ -1,5 +1,5 @@
-import { useQueryData } from '../core/useQueryData';
-import { useMutationData } from '../core/useMutationData';
+import { useQueryData, useMutationOperation } from '../core';
+import { TOAST_IDS } from '../utils/use-toast';
 import { useAuth } from '../auth/useAuth';
 import { APP_CONFIG } from '@/lib/config/config';
 import {
@@ -82,9 +82,17 @@ export const useUserProfile = () => {
  * Hook to update user profile
  */
 export const useUpdateUserProfile = () => {
-  return useMutationData(['updateUserProfile'], async (profileData) => {
-    return await updateUserProfile(profileData as Record<string, unknown>);
-  }, 'userProfile');
+  return useMutationOperation(
+    async (profileData) => {
+      return await updateUserProfile(profileData as Record<string, unknown>);
+    },
+    {
+      toastId: TOAST_IDS.PROFILE.UPDATE,
+      loadingMessage: 'Updating user profile...',
+      successMessage: 'User profile updated successfully',
+      invalidateQueries: [['userProfile']],
+    }
+  );
 };
 
 // ===== USER MANAGEMENT HOOKS =====
@@ -121,8 +129,7 @@ export const useUpdateUser = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<Record<string, unknown>, { id: string; data: Record<string, unknown> }>(
-    ['updateUser'],
+  return useMutationOperation<{ status: number; data: Record<string, unknown> }, { id: string; data: Record<string, unknown> }>(
     async ({ id, data }) => {
       return apiCall<Record<string, unknown>>(`/user/${id}`, {
         method: 'PATCH',
@@ -132,7 +139,12 @@ export const useUpdateUser = () => {
         body: JSON.stringify(data),
       });
     },
-    'users'
+    {
+      toastId: TOAST_IDS.USER.UPDATE,
+      loadingMessage: 'Updating user...',
+      successMessage: 'User updated successfully',
+      invalidateQueries: [['users']],
+    }
   );
 };
 
@@ -144,8 +156,7 @@ export const useDeleteUser = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationData<{ message: string }, string>(
-    ['deleteUser'],
+  return useMutationOperation<{ status: number; data: { message: string } }, string>(
     async (id) => {
       return apiCall<{ message: string }>(`/user/${id}`, {
         method: 'DELETE',
@@ -154,7 +165,12 @@ export const useDeleteUser = () => {
         },
       });
     },
-    'users'
+    {
+      toastId: TOAST_IDS.USER.DELETE,
+      loadingMessage: 'Deleting user...',
+      successMessage: 'User deleted successfully',
+      invalidateQueries: [['users']],
+    }
   );
 };
 
@@ -415,34 +431,48 @@ export const useUserAvatar = () => {
  * Hook to create a new user
  */
 export const useCreateUser = () => {
-  return useMutationData(['createUser'], async (userData: {
-    email: string;
-    password: string;
-    firstName: string;
-    lastName: string;
-    phone?: string;
-    role: string;
-    gender?: string;
-    dateOfBirth?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    country?: string;
-    zipCode?: string;
-  }) => {
-    const result = await createUser(userData);
-    return { status: 200, data: result };
-  }, 'users');
+  return useMutationOperation(
+    async (userData: {
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      phone?: string;
+      role: string;
+      gender?: string;
+      dateOfBirth?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      country?: string;
+      zipCode?: string;
+    }) => {
+      return await createUser(userData);
+    },
+    {
+      toastId: TOAST_IDS.USER.CREATE,
+      loadingMessage: 'Creating user...',
+      successMessage: 'User created successfully',
+      invalidateQueries: [['users']],
+    }
+  );
 };
 
 /**
  * Hook to update user role
  */
 export const useUpdateUserRole = () => {
-  return useMutationData(['updateUserRole'], async ({ userId, role }: { userId: string; role: string }) => {
-    const result = await updateUserRole(userId, role);
-    return { status: 200, data: result };
-  }, 'users');
+  return useMutationOperation(
+    async ({ userId, role }: { userId: string; role: string }) => {
+      return await updateUserRole(userId, role);
+    },
+    {
+      toastId: TOAST_IDS.USER.UPDATE,
+      loadingMessage: 'Updating user role...',
+      successMessage: 'User role updated successfully',
+      invalidateQueries: [['users']],
+    }
+  );
 };
 
 /**
@@ -471,17 +501,24 @@ export const useUsersByClinic = (clinicId: string) => {
  * Hook to search users
  */
 export const useSearchUsers = () => {
-  return useMutationData(['searchUsers'], async ({ query, filters }: {
-    query: string;
-    filters?: {
-      role?: string;
-      clinicId?: string;
-      isVerified?: boolean;
-    };
-  }) => {
-    const result = await searchUsers(query, filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async ({ query, filters }: {
+      query: string;
+      filters?: {
+        role?: string;
+        clinicId?: string;
+        isVerified?: boolean;
+      };
+    }) => {
+      return await searchUsers(query, filters);
+    },
+    {
+      toastId: TOAST_IDS.USER.UPDATE,
+      loadingMessage: 'Searching users...',
+      successMessage: 'Search completed',
+      showToast: false,
+    }
+  );
 };
 
 /**
@@ -497,52 +534,78 @@ export const useUserStats = () => {
  * Hook to bulk update users
  */
 export const useBulkUpdateUsers = () => {
-  return useMutationData(['bulkUpdateUsers'], async ({ userIds, updates }: {
-    userIds: string[];
-    updates: Record<string, any>;
-  }) => {
-    const result = await bulkUpdateUsers(userIds, updates);
-    return { status: 200, data: result };
-  }, 'users');
+  return useMutationOperation(
+    async ({ userIds, updates }: {
+      userIds: string[];
+      updates: Record<string, any>;
+    }) => {
+      return await bulkUpdateUsers(userIds, updates);
+    },
+    {
+      toastId: TOAST_IDS.USER.UPDATE,
+      loadingMessage: 'Updating users...',
+      successMessage: 'Users updated successfully',
+      invalidateQueries: [['users']],
+    }
+  );
 };
 
 /**
  * Hook to export users
  */
 export const useExportUsers = () => {
-  return useMutationData(['exportUsers'], async ({ format, filters }: {
-    format?: 'csv' | 'excel';
-    filters?: Record<string, any>;
-  }) => {
-    const result = await exportUsers(format, filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async ({ format, filters }: {
+      format?: 'csv' | 'excel';
+      filters?: Record<string, any>;
+    }) => {
+      return await exportUsers(format, filters);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
+      loadingMessage: 'Exporting users...',
+      successMessage: 'Users exported successfully',
+    }
+  );
 };
 
 /**
  * Hook to change user password
  */
 export const useChangeUserPassword = () => {
-  return useMutationData(['changeUserPassword'], async ({ userId, newPassword }: {
-    userId: string;
-    newPassword: string;
-  }) => {
-    const result = await changeUserPassword(userId, newPassword);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async ({ userId, newPassword }: {
+      userId: string;
+      newPassword: string;
+    }) => {
+      return await changeUserPassword(userId, newPassword);
+    },
+    {
+      toastId: TOAST_IDS.USER.UPDATE,
+      loadingMessage: 'Changing password...',
+      successMessage: 'Password changed successfully',
+    }
+  );
 };
 
 /**
  * Hook to toggle user verification
  */
 export const useToggleUserVerification = () => {
-  return useMutationData(['toggleUserVerification'], async ({ userId, isVerified }: {
-    userId: string;
-    isVerified: boolean;
-  }) => {
-    const result = await toggleUserVerification(userId, isVerified);
-    return { status: 200, data: result };
-  }, 'users');
+  return useMutationOperation(
+    async ({ userId, isVerified }: {
+      userId: string;
+      isVerified: boolean;
+    }) => {
+      return await toggleUserVerification(userId, isVerified);
+    },
+    {
+      toastId: TOAST_IDS.USER.UPDATE,
+      loadingMessage: 'Updating user verification...',
+      successMessage: 'User verification updated successfully',
+      invalidateQueries: [['users']],
+    }
+  );
 };
 
 /**
@@ -571,11 +634,18 @@ export const useUserSessions = (userId: string) => {
  * Hook to terminate user session
  */
 export const useTerminateUserSession = () => {
-  return useMutationData(['terminateUserSession'], async ({ userId, sessionId }: {
-    userId: string;
-    sessionId: string;
-  }) => {
-    const result = await terminateUserSession(userId, sessionId);
-    return { status: 200, data: result };
-  }, 'userSessions');
+  return useMutationOperation(
+    async ({ userId, sessionId }: {
+      userId: string;
+      sessionId: string;
+    }) => {
+      return await terminateUserSession(userId, sessionId);
+    },
+    {
+      toastId: TOAST_IDS.SESSION.TERMINATE,
+      loadingMessage: 'Terminating user session...',
+      successMessage: 'User session terminated successfully',
+      invalidateQueries: [['userSessions']],
+    }
+  );
 };

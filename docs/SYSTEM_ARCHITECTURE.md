@@ -26,7 +26,7 @@ src/
 │   ├── config/           # App configuration (routes, RBAC)
 │   └── utils/            # Helper functions
 ├── stores/               # Global Client State (Zustand)
-└── middleware.ts         # (OR proxy.ts) Global Request Interception
+└── middleware.ts         # Global Request Interception
 ```
 
 ---
@@ -35,39 +35,44 @@ src/
 
 ### Role-Based Access Control (RBAC)
 The application enforces strict RBAC at multiple levels:
-1.  **Middleware/Proxy Level**: `src/proxy.ts` (or `middleware.ts`) intercepts requests, verifies JWT tokens, and checks role permissions before rendering pages.
+1.  **Middleware Level**: `middleware.ts` intercepts requests, verifies JWT tokens, and checks role permissions before rendering pages.
 2.  **Layout Level**: `(dashboard)/layout.tsx` dynamically renders sidebar links based on the user's role.
 3.  **Component Level**: `useAuth` and `usePermissions` hooks allow conditional rendering of UI elements.
+4.  **Redirection Logic**: `src/lib/config/routes.ts` centralizes redirection logic via `getDashboardByRole(role)`.
 
 ### Authentication Flow
 - **Token Management**: JWTs (Access/Refresh) are stored in HTTP-only cookies.
-- **Session Handling**: `useAuth` hook synchronizes session state with the backend.
+- **Session Handling**: `useAuth` hook synchronizes session state with the backend, leveraging core hooks for data fetching.
 - **Route Protection**: Public routes (e.g., `/auth/*`) are explicitly allow-listed. All others require authentication.
 
 ---
 
 ## 3. Core Architecture Patterns
 
-### State Management
-We follow a strict separation of concerns:
-- **Server State**: Managed by **TanStack Query**. Handles caching, invalidation, and prefetching of API data.
-- **Client UI State**: Managed by **Zustand**. Handles global UI preferences (Sidebar toggle, Theme) and session data.
-- **Form State**: Managed by **React Hook Form** + **Zod** for validation.
+### Data Fetching & State Management
+We utilize a unified **QueryClient Architecture**:
+- **Single Source of Truth**: A single `QueryClient` instance is created in `QueryProvider.tsx` and shared via React Query's context.
+- **Strict Separation**:
+    - **Server State**: Managed by **TanStack Query** (via `useQueryData`, `useMutationOperation` core hooks). Handles caching, invalidation, and prefetching.
+    - **Client UI State**: Managed by **Zustand**. Handles global UI preferences (Sidebar toggle, Theme) and session data.
+- **Core Hooks Abstraction**: All application hooks (e.g., `useAuth`) import from `@/hooks/core` rather than `@tanstack/react-query` directly.
 
-### Loading System (`docs/LOADING_ARCHITECTURE.md`)
+### Notification System
+Consolidated into `src/hooks/query/useNotifications.ts`:
+- **Unified Hook**: `useNotifications()` handles fetching, syncing to Zustand, and optimistic updates.
+- **Communication Separated**: Sending logic (Email, SMS) is isolated in `useCommunication.ts`.
+- **Integration**: `NotificationInitializer.tsx` bootstraps the system, and `useWebSocketIntegration` handles real-time updates.
+
+### Loading System
 The loading architecture uses a 3-tier approach:
 1.  **Global App Loading**: `app.store.ts` manages app-wide blocking states (e.g., "Logging in...").
 2.  **Route Transitions**: optimized `LoadingOverlay` prevents interaction during navigation.
 3.  **Component Loading**: `Skeleton` loaders and `Suspense` boundaries provide instant feedback for async parts.
 
-### Centralized Error Handling (`docs/CENTRALIZED_ERROR_HANDLING.md`)
-All API and Application errors are routed through `src/lib/utils/error-handler.ts`.
+### Centralized Error Handling
+All API and application errors are routed through `src/lib/utils/error-handler.ts`.
 - **User-Friendly Messages**: Technical errors (e.g., 500 Internal Server error) are mapped to friendly toasts.
 - **Consistency**: `handleApiError` utility is used in both Server Actions and Client Components.
-
-### Real-Time Updates
-- **Socket.IO**: Used for live notifications (e.g., Queue updates, Appointment status).
-- **Optimization**: Sockets are lazily connected. Auto-connect is **disabled** on Auth pages to prevent "Page Hanging" issues.
 
 ---
 

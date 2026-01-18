@@ -91,39 +91,65 @@ export const AUTH_ONLY_ROUTES = [
  * Role-based access control (RBAC) configuration
  */
 export const PROTECTED_ROUTES: Record<string, Role[]> = {
-  // Dashboard routes (role-specific)
+  // Dashboard routes (role-specific) - using actual URLs (route groups don't appear in URLs)
   '/dashboard': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
-  '/(dashboard)/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
-  '/(dashboard)/doctor/dashboard': [Role.DOCTOR],
-  '/(dashboard)/patient/dashboard': [Role.PATIENT],
-  '/(dashboard)/receptionist/dashboard': [Role.RECEPTIONIST],
-  '/(dashboard)/pharmacist/dashboard': [Role.PHARMACIST],
-  '/(dashboard)/super-admin/dashboard': [Role.SUPER_ADMIN],
-  
-  // Legacy dashboard routes (for backward compatibility)
-  '/super-admin': [Role.SUPER_ADMIN],
-  '/clinic-admin': [Role.CLINIC_ADMIN],
-  '/doctor': [Role.DOCTOR],
-  '/receptionist': [Role.RECEPTIONIST],
-  '/pharmacist': [Role.PHARMACIST],
-  '/patient': [Role.PATIENT],
-  
-  // Shared routes (multiple roles)
-  '/(shared)/appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
-  '/(shared)/queue': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST],
-  '/(shared)/ehr': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
-  '/(shared)/pharmacy': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.PHARMACIST, Role.DOCTOR],
-  '/(shared)/analytics': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
-  '/(shared)/billing': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
-  '/(shared)/video-appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
-  
-  // Legacy dashboard routes (for backward compatibility - without route groups)
   '/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
   '/doctor/dashboard': [Role.DOCTOR],
   '/patient/dashboard': [Role.PATIENT],
   '/receptionist/dashboard': [Role.RECEPTIONIST],
   '/pharmacist/dashboard': [Role.PHARMACIST],
   '/super-admin/dashboard': [Role.SUPER_ADMIN],
+  
+  // Shared routes (multiple roles) - using actual URLs
+  '/appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
+  '/queue': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST],
+  '/ehr': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
+  '/pharmacy': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.PHARMACIST, Role.DOCTOR],
+  '/analytics': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
+  '/billing': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
+  '/video-appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
+  
+  // Profile routes (role-specific)
+  '/super-admin/profile': [Role.SUPER_ADMIN],
+  '/clinic-admin/profile': [Role.CLINIC_ADMIN],
+  '/doctor/profile': [Role.DOCTOR],
+  '/receptionist/profile': [Role.RECEPTIONIST],
+  '/pharmacist/profile': [Role.PHARMACIST],
+  '/patient/profile': [Role.PATIENT],
+  
+  // Super Admin specific routes
+  '/super-admin/clinics': [Role.SUPER_ADMIN],
+  '/super-admin/users': [Role.SUPER_ADMIN],
+  '/super-admin/settings': [Role.SUPER_ADMIN],
+  '/super-admin/health': [Role.SUPER_ADMIN],
+  '/super-admin/video': [Role.SUPER_ADMIN],
+  
+  // Clinic Admin specific routes
+  '/clinic-admin/staff': [Role.CLINIC_ADMIN],
+  '/clinic-admin/schedule': [Role.CLINIC_ADMIN],
+  '/clinic-admin/locations': [Role.CLINIC_ADMIN],
+  '/clinic-admin/settings': [Role.CLINIC_ADMIN],
+  '/clinic-admin/video': [Role.CLINIC_ADMIN],
+  
+  // Doctor specific routes
+  '/doctor/appointments': [Role.DOCTOR],
+  '/doctor/patients': [Role.DOCTOR],
+  '/doctor/video': [Role.DOCTOR],
+  
+  // Receptionist specific routes
+  '/receptionist/appointments': [Role.RECEPTIONIST],
+  '/receptionist/patients': [Role.RECEPTIONIST],
+  '/receptionist/video': [Role.RECEPTIONIST],
+  
+  // Pharmacist specific routes
+  '/pharmacist/prescriptions': [Role.PHARMACIST],
+  '/pharmacist/inventory': [Role.PHARMACIST],
+  
+  // Patient specific routes
+  '/patient/appointments': [Role.PATIENT],
+  '/patient/medical-records': [Role.PATIENT],
+  '/patient/prescriptions': [Role.PATIENT],
+  '/patient/video': [Role.PATIENT],
   
   // Settings (all authenticated users)
   '/settings': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
@@ -172,86 +198,85 @@ export const ROUTES = {
   TEAM: '/team',
   GALLERY: '/gallery',
   
-  // Shared routes (accessible by multiple roles)
-  SHARED_APPOINTMENTS: '/(shared)/appointments',
-  SHARED_QUEUE: '/(shared)/queue',
-  SHARED_EHR: '/(shared)/ehr',
-  SHARED_PHARMACY: '/(shared)/pharmacy',
-  SHARED_ANALYTICS: '/(shared)/analytics',
-  SHARED_BILLING: '/(shared)/billing',
-  SHARED_VIDEO_APPOINTMENTS: '/(shared)/video-appointments',
+  // Shared routes (accessible by multiple roles) - using actual URLs
+  SHARED_APPOINTMENTS: '/appointments',
+  SHARED_QUEUE: '/queue',
+  SHARED_EHR: '/ehr',
+  SHARED_PHARMACY: '/pharmacy',
+  SHARED_ANALYTICS: '/analytics',
+  SHARED_BILLING: '/billing',
+  SHARED_VIDEO_APPOINTMENTS: '/video-appointments',
 } as const;
 
 export const ROLE_ROUTES: Record<Role, RoleRoutes> = {
   SUPER_ADMIN: {
-    dashboard: '/(dashboard)/super-admin/dashboard',
+    dashboard: '/super-admin/dashboard',
     routes: [
-      { path: '/(dashboard)/super-admin/dashboard', label: 'Dashboard' },
-      { path: '/(dashboard)/super-admin/clinics', label: 'Manage Clinics' },
-      { path: '/(dashboard)/super-admin/users', label: 'User Management' },
-      { path: '/(dashboard)/super-admin/settings', label: 'System Settings' },
-      { path: '/(dashboard)/super-admin/profile', label: 'Profile' },
+      { path: '/super-admin/dashboard', label: 'Dashboard' },
+      { path: '/super-admin/clinics', label: 'Manage Clinics' },
+      { path: '/super-admin/users', label: 'User Management' },
+      { path: '/super-admin/settings', label: 'System Settings' },
+      { path: '/super-admin/profile', label: 'Profile' },
     ],
   },
   CLINIC_ADMIN: {
-    dashboard: '/(dashboard)/clinic-admin/dashboard',
+    dashboard: '/clinic-admin/dashboard',
     routes: [
-      { path: '/(dashboard)/clinic-admin/dashboard', label: 'Dashboard' },
-      { path: '/(dashboard)/clinic-admin/staff', label: 'Staff Management' },
-      { path: '/(dashboard)/clinic-admin/schedule', label: 'Schedule' },
-      { path: '/(dashboard)/clinic-admin/locations', label: 'Locations' },
-      { path: '/(dashboard)/clinic-admin/settings', label: 'Clinic Settings' },
-      { path: '/(dashboard)/clinic-admin/profile', label: 'Profile' },
+      { path: '/clinic-admin/dashboard', label: 'Dashboard' },
+      { path: '/clinic-admin/staff', label: 'Staff Management' },
+      { path: '/clinic-admin/schedule', label: 'Schedule' },
+      { path: '/clinic-admin/locations', label: 'Locations' },
+      { path: '/clinic-admin/settings', label: 'Clinic Settings' },
+      { path: '/clinic-admin/profile', label: 'Profile' },
     ],
   },
   DOCTOR: {
-    dashboard: '/(dashboard)/doctor/dashboard',
+    dashboard: '/doctor/dashboard',
     routes: [
-      { path: '/(dashboard)/doctor/dashboard', label: 'Dashboard' },
-      { path: '/(dashboard)/doctor/appointments', label: 'Appointments' },
-      { path: '/(dashboard)/doctor/patients', label: 'Patients' },
-      { path: '/(dashboard)/doctor/profile', label: 'Profile' },
+      { path: '/doctor/dashboard', label: 'Dashboard' },
+      { path: '/doctor/appointments', label: 'Appointments' },
+      { path: '/doctor/patients', label: 'Patients' },
+      { path: '/doctor/profile', label: 'Profile' },
     ],
   },
   RECEPTIONIST: {
-    dashboard: '/(dashboard)/receptionist/dashboard',
+    dashboard: '/receptionist/dashboard',
     routes: [
-      { path: '/(dashboard)/receptionist/dashboard', label: 'Dashboard' },
-      { path: '/(dashboard)/receptionist/appointments', label: 'Appointments' },
-      { path: '/(dashboard)/receptionist/patients', label: 'Patients' },
-      { path: '/(dashboard)/receptionist/profile', label: 'Profile' },
+      { path: '/receptionist/dashboard', label: 'Dashboard' },
+      { path: '/receptionist/appointments', label: 'Appointments' },
+      { path: '/receptionist/patients', label: 'Patients' },
+      { path: '/receptionist/profile', label: 'Profile' },
     ],
   },
   PHARMACIST: {
-    dashboard: '/(dashboard)/pharmacist/dashboard',
+    dashboard: '/pharmacist/dashboard',
     routes: [
-      { path: '/(dashboard)/pharmacist/dashboard', label: 'Dashboard' },
-      { path: '/(dashboard)/pharmacist/prescriptions', label: 'Prescriptions' },
-      { path: '/(dashboard)/pharmacist/inventory', label: 'Inventory' },
-      { path: '/(dashboard)/pharmacist/profile', label: 'Profile' },
+      { path: '/pharmacist/dashboard', label: 'Dashboard' },
+      { path: '/pharmacist/prescriptions', label: 'Prescriptions' },
+      { path: '/pharmacist/inventory', label: 'Inventory' },
+      { path: '/pharmacist/profile', label: 'Profile' },
     ],
   },
   PATIENT: {
-    dashboard: '/(dashboard)/patient/dashboard',
+    dashboard: '/patient/dashboard',
     routes: [
-      { path: '/(dashboard)/patient/dashboard', label: 'Dashboard' },
-      { path: '/(dashboard)/patient/appointments', label: 'Appointments' },
-      { path: '/(dashboard)/patient/medical-records', label: 'Medical Records' },
-      { path: '/(dashboard)/patient/prescriptions', label: 'Prescriptions' },
-      { path: '/(dashboard)/patient/profile', label: 'Profile' },
+      { path: '/patient/dashboard', label: 'Dashboard' },
+      { path: '/patient/appointments', label: 'Appointments' },
+      { path: '/patient/medical-records', label: 'Medical Records' },
+      { path: '/patient/prescriptions', label: 'Prescriptions' },
+      { path: '/patient/profile', label: 'Profile' },
     ],
   },
 };
 
-// Map of path prefixes to allowed roles
+// Map of path prefixes to allowed roles (using actual URLs, route groups don't appear in URLs)
 export const ROLE_PATH_MAP: Record<string, Role[]> = {
-  '/(dashboard)/super-admin': [Role.SUPER_ADMIN],
-  '/(dashboard)/clinic-admin': [Role.CLINIC_ADMIN],
-  '/(dashboard)/doctor': [Role.DOCTOR],
-  '/(dashboard)/receptionist': [Role.RECEPTIONIST],
-  '/(dashboard)/pharmacist': [Role.PHARMACIST],
-  '/(dashboard)/patient': [Role.PATIENT],
-  // ✅ Removed: Legacy paths - use new route format with (dashboard) prefix
+  '/super-admin': [Role.SUPER_ADMIN],
+  '/clinic-admin': [Role.CLINIC_ADMIN],
+  '/doctor': [Role.DOCTOR],
+  '/receptionist': [Role.RECEPTIONIST],
+  '/pharmacist': [Role.PHARMACIST],
+  '/patient': [Role.PATIENT],
 };
 
 /**
@@ -264,10 +289,44 @@ export function getRoutesByRole(role?: Role): RouteConfig[] {
 
 /**
  * Get the dashboard path for a specific role
+ * @param role - User role
+ * @returns Dashboard path for the role, or login page if role is invalid/unknown
+ */
+/**
+ * Get the dashboard path for a specific role
+ * @param role - User role
+ * @returns Dashboard path for the role, or login page if role is invalid/unknown
+ * 
+ * ✅ Comprehensive role-based redirection:
+ * - Validates role exists in ROLE_ROUTES
+ * - Handles unknown roles gracefully (fallback to patient dashboard)
+ * - Ensures all roles have proper dashboard routes
+ * - Used consistently across all redirection scenarios
  */
 export function getDashboardByRole(role?: Role): string {
-  if (!role) return '/auth/login';
-  return ROLE_ROUTES[role]?.dashboard || '/auth/login';
+  if (!role) return ROUTES.LOGIN;
+  
+  // Validate role exists in ROLE_ROUTES
+  if (!ROLE_ROUTES[role]) {
+    // Fallback to patient dashboard for unknown roles (graceful degradation)
+    // This ensures users with unknown roles can still access the system
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`Unknown role: ${role}, redirecting to patient dashboard`);
+    }
+    return ROLE_ROUTES[Role.PATIENT]?.dashboard || ROUTES.LOGIN;
+  }
+  
+  const dashboardPath = ROLE_ROUTES[role]?.dashboard;
+  
+  // Ensure we always return a valid path
+  if (!dashboardPath || dashboardPath === '') {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`No dashboard path configured for role: ${role}, redirecting to login`);
+    }
+    return ROUTES.LOGIN;
+  }
+  
+  return dashboardPath;
 }
 
 /**

@@ -55,15 +55,39 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly' as const,
       priority: 0.8,
     },
-    // Healthcare dashboard routes
+    // Healthcare dashboard routes (route groups don't appear in URLs)
     {
-      url: `${baseUrl}/dashboard/patient`,
+      url: `${baseUrl}/patient/dashboard`,
       lastModified: currentDate,
       changeFrequency: 'daily' as const,
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/dashboard/doctor`,
+      url: `${baseUrl}/doctor/dashboard`,
+      lastModified: currentDate,
+      changeFrequency: 'daily' as const,
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/clinic-admin/dashboard`,
+      lastModified: currentDate,
+      changeFrequency: 'daily' as const,
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/receptionist/dashboard`,
+      lastModified: currentDate,
+      changeFrequency: 'daily' as const,
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/pharmacist/dashboard`,
+      lastModified: currentDate,
+      changeFrequency: 'daily' as const,
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/super-admin/dashboard`,
       lastModified: currentDate,
       changeFrequency: 'daily' as const,
       priority: 0.7,

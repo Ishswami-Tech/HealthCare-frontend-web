@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/hooks/auth/useAuth";
 import Link from "next/link";
-import { resetPasswordSchema } from "@/types/auth.types";
+
+import { resetPasswordSchema } from "@/lib/schema";
 import type { ResetPasswordFormData } from "@/types/auth.types";
 import useZodForm from "@/hooks/utils/useZodForm";
 import {

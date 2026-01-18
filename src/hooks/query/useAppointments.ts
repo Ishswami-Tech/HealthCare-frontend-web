@@ -1,15 +1,14 @@
 // ✅ Appointments Hooks - Backend Integration
 // This file provides hooks that integrate with the backend appointments system
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { useCurrentClinicId } from './useClinics';
 import { useRBAC } from '../utils/useRBAC';
-import { useToast, TOAST_IDS } from '../utils/use-toast';
 import { Permission } from '@/types/rbac.types';
 import { logger } from '@/lib/utils/logger';
+import { useQueryData, useMutationOperation, useOptimisticMutation, useQueryClient } from '../core';
+import { TOAST_IDS, useToast } from '../utils/use-toast';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
-import { useOptimisticMutation } from '../core/useOptimisticMutation';
 import {
   createAppointment,
   getAppointments,
@@ -68,21 +67,23 @@ export const useAppointments = (clinicIdOrFilters?: string | AppointmentFilters)
     return result;
   }, [clinicId, clinicIdOrFilters]);
   
-  return useQuery({
+  return useQueryData(
     queryKey,
     queryFn,
-    enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
-    staleTime: 5 * 60 * 1000, // 5 minutes for better caching
-    gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
-    refetchOnWindowFocus: false, // Reduce unnecessary refetches
-    refetchOnReconnect: true,
-    retry: (failureCount, error) => {
-      if (error.message.includes('Access denied')) {
-        return false;
-      }
-      return failureCount < 2; // Reduce retry attempts
-    },
-  });
+    {
+      enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      staleTime: 5 * 60 * 1000, // 5 minutes for better caching
+      gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
+      refetchOnWindowFocus: false, // Reduce unnecessary refetches
+      refetchOnReconnect: true,
+      retry: (failureCount, error: Error) => {
+        if (error.message.includes('Access denied')) {
+          return false;
+        }
+        return failureCount < 2; // Reduce retry attempts
+      },
+    }
+  );
 };
 
 // ✅ Removed duplicate useAppointmentsOriginal - useAppointments above handles all cases
@@ -93,24 +94,26 @@ export const useAppointments = (clinicIdOrFilters?: string | AppointmentFilters)
 export const useAppointment = (appointmentId: string) => {
   const { hasPermission } = useRBAC();
   
-  return useQuery({
-    queryKey: ['appointment', appointmentId],
-    queryFn: async () => {
+  return useQueryData(
+    ['appointment', appointmentId],
+    async () => {
       const result = await getAppointmentById(appointmentId);
       if (!result.success) {
         throw new Error(result.error);
       }
       return result.appointment;
     },
-    enabled: !!appointmentId && hasPermission(Permission.VIEW_APPOINTMENTS),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    retry: (failureCount, error) => {
-      if (error.message.includes('Access denied') || error.message.includes('not found')) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-  });
+    {
+      enabled: !!appointmentId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      staleTime: 2 * 60 * 1000, // 2 minutes
+      retry: (failureCount, error: Error) => {
+        if (error.message.includes('Access denied') || error.message.includes('not found')) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+    }
+  );
 };
 
 /**
@@ -195,12 +198,10 @@ export const useCreateAppointment = (clinicId?: string) => {
  * Hook for updating an appointment
  */
 export const useUpdateAppointment = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   
-  return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateAppointmentData }) => {
+  return useMutationOperation(
+    async ({ id, data }: { id: string; data: UpdateAppointmentData }) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to update appointment');
       }
@@ -211,41 +212,24 @@ export const useUpdateAppointment = () => {
       }
       return result.appointment;
     },
-    onSuccess: (appointment) => {
-      // Update appointment in cache
-      if (appointment) {
-        queryClient.setQueryData(['appointment', appointment.id], appointment);
-        
-        // Invalidate appointments list
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        
-        toast({
-          title: 'Success',
-          description: 'Appointment updated successfully',
-        });
-      }
-    },
-    onError: (error: Error) => {
-        logger.error('Failed to update appointment', error, { component: 'useAppointments' });
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to update appointment',
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Updating appointment...',
+      successMessage: 'Appointment updated successfully',
+      invalidateQueries: [['appointments'], ['appointment']],
+    }
+  );
 };
 
 /**
  * Hook for cancelling an appointment
  */
 export const useCancelAppointment = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
+  const queryClient = useQueryClient();
   
-  return useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
+  return useMutationOperation(
+    async ({ id, reason }: { id: string; reason?: string }) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to cancel appointment');
       }
@@ -256,41 +240,35 @@ export const useCancelAppointment = () => {
       }
       return result.appointment;
     },
-    onSuccess: (appointment) => {
-      // Update appointment in cache
-      if (appointment) {
-        queryClient.setQueryData(['appointment', appointment.id], appointment);
-        
-        // Invalidate appointments list
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        
-        toast({
-          title: 'Success',
-          description: 'Appointment cancelled successfully',
-        });
-      }
-    },
-    onError: (error: Error) => {
+    {
+      toastId: TOAST_IDS.APPOINTMENT.CANCEL,
+      loadingMessage: 'Cancelling appointment...',
+      successMessage: 'Appointment cancelled successfully',
+      invalidateQueries: [['appointments'], ['appointment']],
+      onSuccess: (appointment) => {
+        // Update appointment in cache
+        if (appointment) {
+          queryClient.setQueryData(['appointment', appointment.id], appointment);
+          
+          // Invalidate appointments list
+          queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        }
+      },
+      onError: (error: Error) => {
         logger.error('Failed to cancel appointment', error, { component: 'useAppointments' });
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to cancel appointment',
-        variant: 'destructive',
-      });
-    },
-  });
+      },
+    }
+  );
 };
 
 /**
  * Hook for confirming an appointment
  */
 export const useConfirmAppointment = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   
-  return useMutation({
-    mutationFn: async (appointmentId: string) => {
+  return useMutationOperation(
+    async (appointmentId: string) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to confirm appointment');
       }
@@ -301,41 +279,23 @@ export const useConfirmAppointment = () => {
       }
       return result.appointment;
     },
-    onSuccess: (appointment) => {
-      // Update appointment in cache
-      if (appointment) {
-        queryClient.setQueryData(['appointment', appointment.id], appointment);
-        
-        // Invalidate appointments list
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        
-        toast({
-          title: 'Success',
-          description: 'Appointment confirmed successfully',
-        });
-      }
-    },
-    onError: (error: Error) => {
-        logger.error('Failed to confirm appointment', error, { component: 'useAppointments' });
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to confirm appointment',
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Confirming appointment...',
+      successMessage: 'Appointment confirmed successfully',
+      invalidateQueries: [['appointments'], ['appointment']],
+    }
+  );
 };
 
 /**
  * Hook for checking in an appointment
  */
 export const useCheckInAppointment = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   
-  return useMutation({
-    mutationFn: async (appointmentId: string) => {
+  return useMutationOperation(
+    async (appointmentId: string) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to check in appointment');
       }
@@ -346,41 +306,23 @@ export const useCheckInAppointment = () => {
       }
       return result.appointment;
     },
-    onSuccess: (appointment) => {
-      // Update appointment in cache
-      if (appointment) {
-        queryClient.setQueryData(['appointment', appointment.id], appointment);
-        
-        // Invalidate appointments list
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        
-        toast({
-          title: 'Success',
-          description: 'Patient checked in successfully',
-        });
-      }
-    },
-    onError: (error: Error) => {
-        logger.error('Failed to check in appointment', error, { component: 'useAppointments' });
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to check in appointment',
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Checking in patient...',
+      successMessage: 'Patient checked in successfully',
+      invalidateQueries: [['appointments'], ['appointment']],
+    }
+  );
 };
 
 /**
  * Hook for starting an appointment
  */
 export const useStartAppointment = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   
-  return useMutation({
-    mutationFn: async (appointmentId: string) => {
+  return useMutationOperation(
+    async (appointmentId: string) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to start appointment');
       }
@@ -391,41 +333,23 @@ export const useStartAppointment = () => {
       }
       return result.appointment;
     },
-    onSuccess: (appointment) => {
-      // Update appointment in cache
-      if (appointment) {
-        queryClient.setQueryData(['appointment', appointment.id], appointment);
-        
-        // Invalidate appointments list
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        
-        toast({
-          title: 'Success',
-          description: 'Appointment started successfully',
-        });
-      }
-    },
-    onError: (error: Error) => {
-        logger.error('Failed to start appointment', error, { component: 'useAppointments' });
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to start appointment',
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.APPOINTMENT.START,
+      loadingMessage: 'Starting appointment...',
+      successMessage: 'Appointment started successfully',
+      invalidateQueries: [['appointments'], ['appointment']],
+    }
+  );
 };
 
 /**
  * Hook for completing an appointment
  */
 export const useCompleteAppointment = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   
-  return useMutation({
-    mutationFn: async ({ id, data }: { 
+  return useMutationOperation(
+    async ({ id, data }: { 
       id: string; 
       data: {
         diagnosis?: string;
@@ -445,29 +369,13 @@ export const useCompleteAppointment = () => {
       }
       return result.appointment;
     },
-    onSuccess: (appointment) => {
-      // Update appointment in cache
-      if (appointment) {
-        queryClient.setQueryData(['appointment', appointment.id], appointment);
-        
-        // Invalidate appointments list
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        
-        toast({
-          title: 'Success',
-          description: 'Appointment completed successfully',
-        });
-      }
-    },
-    onError: (error: Error) => {
-      console.error('Failed to complete appointment:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to complete appointment',
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.APPOINTMENT.COMPLETE,
+      loadingMessage: 'Completing appointment...',
+      successMessage: 'Appointment completed successfully',
+      invalidateQueries: [['appointments'], ['appointment']],
+    }
+  );
 };
 
 // ✅ Queue Management Hooks
@@ -490,10 +398,11 @@ export const useQueue = (queueType: string) => {
     return result.queue;
   }, [queueType]);
   
-  return useQuery({
+  return useQueryData(
     queryKey,
     queryFn,
-    enabled: !!queueType && hasPermission(Permission.VIEW_QUEUE),
+    {
+      enabled: !!queueType && hasPermission(Permission.VIEW_QUEUE),
     staleTime: 15 * 1000, // 15 seconds for real-time feel
     gcTime: 2 * 60 * 1000, // 2 minutes GC for queue data
     refetchInterval: (query) => {
@@ -519,12 +428,10 @@ export const useQueue = (queueType: string) => {
  * Hook for adding patient to queue
  */
 export const useAddToQueue = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   
-  return useMutation({
-    mutationFn: async (data: {
+  return useMutationOperation(
+    async (data: {
       patientId: string;
       appointmentId?: string;
       queueType: string;
@@ -540,36 +447,23 @@ export const useAddToQueue = () => {
       }
       return result.queueEntry;
     },
-    onSuccess: (_, { queueType }) => {
-      // Invalidate queue
-      queryClient.invalidateQueries({ queryKey: ['queue', queueType] });
-      
-      toast({
-        title: 'Success',
-        description: 'Patient added to queue successfully',
-      });
-    },
-    onError: (error: Error) => {
-        logger.error('Failed to add to queue', error, { component: 'useAppointments' });
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to add to queue',
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.APPOINTMENT.CREATE,
+      loadingMessage: 'Adding to queue...',
+      successMessage: 'Patient added to queue successfully',
+      invalidateQueries: [['queue']],
+    }
+  );
 };
 
 /**
  * Hook for calling next patient from queue
  */
 export const useCallNextPatient = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   
-  return useMutation({
-    mutationFn: async (queueType: string) => {
+  return useMutationOperation(
+    async (queueType: string) => {
       if (!hasPermission(Permission.MANAGE_QUEUE)) {
         throw new Error('Insufficient permissions to call next patient');
       }
@@ -580,24 +474,13 @@ export const useCallNextPatient = () => {
       }
       return result.patient;
     },
-    onSuccess: (patient, queueType) => {
-      // Invalidate queue
-      queryClient.invalidateQueries({ queryKey: ['queue', queueType] });
-      
-      toast({
-        title: 'Next Patient',
-        description: `Calling ${patient.name || 'next patient'}`,
-      });
-    },
-    onError: (error: Error) => {
-        logger.error('Failed to call next patient', error, { component: 'useAppointments' });
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to call next patient',
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Calling next patient...',
+      successMessage: 'Next patient called successfully',
+      invalidateQueries: [['queue']],
+    }
+  );
 };
 
 /**
@@ -606,25 +489,27 @@ export const useCallNextPatient = () => {
 export const useQueueStats = () => {
   const { hasPermission } = useRBAC();
   
-  return useQuery({
-    queryKey: ['queue-stats'],
-    queryFn: async () => {
+  return useQueryData(
+    ['queue-stats'],
+    async () => {
       const result = await getQueueStats();
       if (!result.success) {
         throw new Error(result.error);
       }
       return result.stats;
     },
-    enabled: hasPermission(Permission.VIEW_QUEUE),
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // 1 minute
-    retry: (failureCount, error) => {
-      if (error.message.includes('Access denied')) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-  });
+    {
+      enabled: hasPermission(Permission.VIEW_QUEUE),
+      staleTime: 30 * 1000, // 30 seconds
+      refetchInterval: 60 * 1000, // 1 minute
+      retry: (failureCount, error: Error) => {
+        if (error.message.includes('Access denied')) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+    }
+  );
 };
 
 // ✅ Utility Hooks
@@ -642,19 +527,21 @@ export const useAppointmentAwareQuery = <T>(
 ) => {
   const { hasPermission } = useRBAC();
   
-  return useQuery({
-    queryKey: [...queryKey],
-    queryFn: () => queryFn(queryKey[queryKey.length - 1] as string),
-    enabled: hasPermission(Permission.VIEW_APPOINTMENTS) && (options?.enabled ?? true),
-    refetchInterval: options?.refetchInterval || false,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    retry: (failureCount, error) => {
-      if (error.message.includes('Access denied')) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-  });
+  return useQueryData(
+    [...queryKey],
+    () => queryFn(queryKey[queryKey.length - 1] as string),
+    {
+      enabled: hasPermission(Permission.VIEW_APPOINTMENTS) && (options?.enabled ?? true),
+      refetchInterval: options?.refetchInterval || false,
+      staleTime: 2 * 60 * 1000, // 2 minutes
+      retry: (failureCount, error: Error) => {
+        if (error.message.includes('Access denied')) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+    }
+  );
 };
 
 /**
@@ -701,24 +588,26 @@ export const useMyAppointments = (filters?: {
 }) => {
   const { hasPermission } = useRBAC();
   
-  return useQuery({
-    queryKey: ['myAppointments', filters],
-    queryFn: async () => {
+  return useQueryData(
+    ['myAppointments', filters],
+    async () => {
       const result = await getMyAppointments(filters);
       if (!result.success) {
         throw new Error(result.error);
       }
       return result;
     },
-    enabled: hasPermission(Permission.VIEW_APPOINTMENTS),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    retry: (failureCount, error) => {
-      if (error.message.includes('Access denied')) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-  });
+    {
+      enabled: hasPermission(Permission.VIEW_APPOINTMENTS),
+      staleTime: 2 * 60 * 1000, // 2 minutes
+      retry: (failureCount, error: Error) => {
+        if (error.message.includes('Access denied')) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+    }
+  );
 };
 
 /**
@@ -727,24 +616,26 @@ export const useMyAppointments = (filters?: {
 export const useDoctorAvailability = (doctorId: string, date: string) => {
   const { hasPermission } = useRBAC();
   
-  return useQuery({
-    queryKey: ['doctorAvailability', doctorId, date],
-    queryFn: async () => {
+  return useQueryData(
+    ['doctorAvailability', doctorId, date],
+    async () => {
       const result = await getDoctorAvailability(doctorId, date);
       if (!result.success) {
         throw new Error(result.error);
       }
       return result.availability;
     },
-    enabled: !!doctorId && !!date && hasPermission(Permission.VIEW_APPOINTMENTS),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount, error) => {
-      if (error.message.includes('Access denied')) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-  });
+    {
+      enabled: !!doctorId && !!date && hasPermission(Permission.VIEW_APPOINTMENTS),
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: (failureCount, error: Error) => {
+        if (error.message.includes('Access denied')) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+    }
+  );
 };
 
 /**
@@ -753,24 +644,26 @@ export const useDoctorAvailability = (doctorId: string, date: string) => {
 export const useUserUpcomingAppointments = (userId: string) => {
   const { hasPermission } = useRBAC();
   
-  return useQuery({
-    queryKey: ['userUpcomingAppointments', userId],
-    queryFn: async () => {
+  return useQueryData(
+    ['userUpcomingAppointments', userId],
+    async () => {
       const result = await getUserUpcomingAppointments(userId);
       if (!result.success) {
         throw new Error(result.error);
       }
       return result.appointments;
     },
-    enabled: !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    retry: (failureCount, error) => {
-      if (error.message.includes('Access denied')) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-  });
+    {
+      enabled: !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      staleTime: 2 * 60 * 1000, // 2 minutes
+      retry: (failureCount, error: Error) => {
+        if (error.message.includes('Access denied')) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+    }
+  );
 };
 
 /**
@@ -779,19 +672,21 @@ export const useUserUpcomingAppointments = (userId: string) => {
 export const useTestAppointmentContext = () => {
   const { hasPermission } = useRBAC();
   
-  return useQuery({
-    queryKey: ['testAppointmentContext'],
-    queryFn: async () => {
+  return useQueryData(
+    ['testAppointmentContext'],
+    async () => {
       const result = await testAppointmentContext();
       if (!result.success) {
         throw new Error(result.error);
       }
       return result.context;
     },
-    enabled: hasPermission(Permission.VIEW_APPOINTMENTS) && process.env.NODE_ENV === 'development',
-    staleTime: 0, // Always fresh for debugging
-    retry: false,
-  });
+    {
+      enabled: hasPermission(Permission.VIEW_APPOINTMENTS) && process.env.NODE_ENV === 'development',
+      staleTime: 0, // Always fresh for debugging
+      retry: false,
+    }
+  );
 };
 
 /**
@@ -858,7 +753,19 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
     };
   }, [clinicId, filters, hasPermission]);
   
-  return useQuery(queryConfig);
+  return useQueryData(
+    queryConfig.queryKey,
+    queryConfig.queryFn,
+    {
+      enabled: queryConfig.enabled,
+      staleTime: queryConfig.staleTime,
+      gcTime: queryConfig.gcTime,
+      refetchOnWindowFocus: queryConfig.refetchOnWindowFocus,
+      refetchOnReconnect: queryConfig.refetchOnReconnect,
+      retry: queryConfig.retry,
+      retryDelay: queryConfig.retryDelay,
+    }
+  );
 };
 
 /**
@@ -944,17 +851,29 @@ export const useBulkAppointmentOperations = () => {
     });
   }, [toast]);
   
-  const bulkUpdateStatus = useMutation({
-    mutationFn: bulkUpdateFn,
-    onSuccess,
-    onError,
-    mutationKey: ['bulkUpdateAppointments'],
-  });
+  const bulkUpdateStatus = useMutationOperation(
+    bulkUpdateFn,
+    {
+      toastId: TOAST_IDS.APPOINTMENT.BULK_UPDATE,
+      loadingMessage: 'Updating appointments...',
+      successMessage: 'Appointments updated successfully',
+      invalidateQueries: [['appointments']],
+      onSuccess: (data, _variables) => {
+        onSuccess(data);
+      },
+      onError: (error) => {
+        onError(error);
+      },
+    }
+  );
   
-  return useMemo(() => ({
-    bulkUpdateStatus,
-    isLoading: bulkUpdateStatus.isPending,
-  }), [bulkUpdateStatus]);
+  return {
+    bulkUpdateStatus: {
+      mutate: bulkUpdateStatus.mutate,
+      mutateAsync: bulkUpdateStatus.mutateAsync,
+      isPending: bulkUpdateStatus.isPending,
+    },
+  };
 };
 
 // ✅ Missing hooks that components are trying to import
@@ -966,9 +885,9 @@ export const useAppointmentStats = () => {
   const { hasPermission } = useRBAC();
   const clinicId = useCurrentClinicId();
   
-  return useQuery({
-    queryKey: ['appointmentStats', clinicId],
-    queryFn: async () => {
+  return useQueryData(
+    ['appointmentStats', clinicId],
+    async () => {
       if (!clinicId) {
         throw new Error('No clinic ID available');
       }
@@ -994,21 +913,21 @@ export const useAppointmentStats = () => {
         ).length,
       };
     },
-    enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+    {
+      enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    }
+  );
 };
 
 /**
  * Hook for processing check-in
  */
 export const useProcessCheckIn = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   
-  return useMutation({
-    mutationFn: async (appointmentId: string) => {
+  return useMutationOperation(
+    async (appointmentId: string) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to check in appointment');
       }
@@ -1019,23 +938,13 @@ export const useProcessCheckIn = () => {
       }
       return result.appointment;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      queryClient.invalidateQueries({ queryKey: ['queue'] });
-      
-      toast({
-        title: 'Success',
-        description: 'Patient checked in successfully',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to check in',
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Checking in patient...',
+      successMessage: 'Patient checked in successfully',
+      invalidateQueries: [['appointments'], ['queue']],
+    }
+  );
 };
 
 /**
@@ -1044,9 +953,9 @@ export const useProcessCheckIn = () => {
 export const usePatientQueuePosition = (patientId: string, queueType: string) => {
   const { hasPermission } = useRBAC();
   
-  return useQuery({
-    queryKey: ['patientQueuePosition', patientId, queueType],
-    queryFn: async () => {
+  return useQueryData(
+    ['patientQueuePosition', patientId, queueType],
+    async () => {
       const result = await getQueue(queueType);
       if (!result.success) {
         throw new Error(result.error);
@@ -1061,9 +970,11 @@ export const usePatientQueuePosition = (patientId: string, queueType: string) =>
         totalInQueue: queue.length,
       };
     },
-    enabled: !!patientId && !!queueType && hasPermission(Permission.VIEW_QUEUE),
-    refetchInterval: 30 * 1000, // 30 seconds
-  });
+    {
+      enabled: !!patientId && !!queueType && hasPermission(Permission.VIEW_QUEUE),
+      refetchInterval: 30 * 1000, // 30 seconds
+    }
+  );
 };
 
 /**
@@ -1072,9 +983,9 @@ export const usePatientQueuePosition = (patientId: string, queueType: string) =>
 export const useDoctorQueue = (doctorId: string) => {
   const { hasPermission } = useRBAC();
   
-  return useQuery({
-    queryKey: ['doctorQueue', doctorId],
-    queryFn: async () => {
+  return useQueryData(
+    ['doctorQueue', doctorId],
+    async () => {
       const result = await getQueue('doctor');
       if (!result.success) {
         throw new Error(result.error);
@@ -1086,21 +997,21 @@ export const useDoctorQueue = (doctorId: string) => {
         return entry.appointmentId; // Filter logic can be enhanced
       });
     },
-    enabled: !!doctorId && hasPermission(Permission.VIEW_QUEUE),
-    refetchInterval: 30 * 1000, // 30 seconds
-  });
+    {
+      enabled: !!doctorId && hasPermission(Permission.VIEW_QUEUE),
+      refetchInterval: 30 * 1000, // 30 seconds
+    }
+  );
 };
 
 /**
  * Hook for starting consultation
  */
 export const useStartConsultation = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { hasPermission } = useRBAC();
   
-  return useMutation({
-    mutationFn: async (appointmentId: string) => {
+  return useMutationOperation(
+    async (appointmentId: string) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to start consultation');
       }
@@ -1111,22 +1022,13 @@ export const useStartConsultation = () => {
       }
       return result.appointment;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      
-      toast({
-        title: 'Success',
-        description: 'Consultation started successfully',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to start consultation',
-        variant: 'destructive',
-      });
-    },
-  });
+    {
+      toastId: TOAST_IDS.APPOINTMENT.START,
+      loadingMessage: 'Starting consultation...',
+      successMessage: 'Consultation started successfully',
+      invalidateQueries: [['appointments']],
+    }
+  );
 };
 
 /**
@@ -1135,9 +1037,9 @@ export const useStartConsultation = () => {
 export const useCanCancelAppointment = (appointmentId: string) => {
   const { hasPermission } = useRBAC();
   
-  return useQuery({
-    queryKey: ['canCancelAppointment', appointmentId],
-    queryFn: async () => {
+  return useQueryData(
+    ['canCancelAppointment', appointmentId],
+    async () => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         return { canCancel: false, reason: 'Insufficient permissions' };
       }
@@ -1163,7 +1065,9 @@ export const useCanCancelAppointment = (appointmentId: string) => {
                 'Appointment is already completed or cancelled'
       };
     },
-    enabled: !!appointmentId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+    {
+      enabled: !!appointmentId,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    }
+  );
 };

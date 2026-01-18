@@ -18,6 +18,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/context";
+import { GlobalHealthStatusButton } from "@/components/common/GlobalHealthStatusButton";
 
 const Footer = () => {
   const { t } = useTranslation();
@@ -265,8 +266,9 @@ const Footer = () => {
               </Link>
             </div>
 
-            <div className="text-muted-foreground text-sm">
-              भारतात ❤️ सह बनवले
+            <div className="text-muted-foreground text-sm flex items-center gap-4">
+              <span>भारतात ❤️ सह बनवले</span>
+              <GlobalHealthStatusButton />
             </div>
           </div>
         </div>

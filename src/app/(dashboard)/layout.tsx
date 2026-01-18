@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 
 import { MinimalStatusIndicator } from "@/components/common/MinimalStatusIndicator";
 import { LoadingSpinner } from "@/components/ui/loading";
+import { NotificationBell } from "@/components/notifications";
 import { ROUTES } from "@/lib/config/routes";
 
 export default function DashboardLayout({
@@ -24,15 +25,15 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { session, isLoading, isAuthenticated } = useAuth();
+  const { session, isPending, isAuthenticated } = useAuth();
   const router = useRouter();
 
   // Redirect to login if not authenticated
   React.useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isPending && !isAuthenticated) {
       router.push(ROUTES.LOGIN);
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isPending, isAuthenticated, router]);
 
   const { data: profile, isPending: profileLoading } =
     useQueryData<UserProfile, Error>(
@@ -54,7 +55,7 @@ export default function DashboardLayout({
     );
 
   // ✅ Show inline loading state (non-blocking)
-  if (isLoading || profileLoading) {
+  if (isPending || profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <LoadingSpinner size="lg" text="Loading dashboard..." center />
@@ -86,11 +87,11 @@ export default function DashboardLayout({
       ? `${profile.firstName} ${profile.lastName}`
       : profile?.firstName || session?.user?.firstName || "User";
 
-  // Update sidebar links to use new route structure
+  // Sidebar links already use correct paths (route groups don't appear in URLs)
   const updatedSidebarLinks = sidebarLinks.map((link) => ({
     ...link,
     icon: link.icon(),
-    href: link.path.startsWith("/") ? `/(dashboard)${link.path}` : link.path,
+    href: link.path,
   }));
 
   return (
@@ -103,7 +104,8 @@ export default function DashboardLayout({
         }}
       >
         <div className="flex flex-col min-h-screen relative">
-          <div className="absolute top-4 right-8 z-10">
+          <div className="absolute top-4 right-8 z-10 flex items-center gap-4">
+             <NotificationBell />
              <MinimalStatusIndicator />
           </div>
           <main className="flex-1 p-8 pt-16">{children}</main>

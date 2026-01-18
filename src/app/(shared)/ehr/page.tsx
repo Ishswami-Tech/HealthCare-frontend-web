@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   usePatientLabResults,
@@ -150,7 +150,7 @@ export default function EHRSystem() {
       query,
       filters: { limit: 20 },
     }, {
-      onError: (error) => {
+      onError: (error: Error) => {
         console.error("Failed to search patients:", error);
       }
     });
@@ -172,7 +172,7 @@ export default function EHRSystem() {
       onSuccess: () => {
         medicalRecordsActions.addMedicalRecord(recordData);
       },
-      onError: (error) => {
+      onError: (error: Error) => {
         console.error("Failed to create medical record:", error);
       }
     });
@@ -276,15 +276,15 @@ export default function EHRSystem() {
   // Add EHR link to sidebar
   sidebarLinks.push({
     label: "EHR System",
-    href: "/ehr",
-    path: "/ehr",
+    href: ROUTES.SHARED_EHR,
+    path: ROUTES.SHARED_EHR,
     icon: <Database className="w-5 h-5" />,
   });
 
   sidebarLinks.push({
     label: "Logout",
-    href: "/auth/login",
-    path: "/auth/login",
+    href: ROUTES.LOGIN,
+    path: ROUTES.LOGIN,
     icon: <LogOut className="w-5 h-5" />,
   });
 

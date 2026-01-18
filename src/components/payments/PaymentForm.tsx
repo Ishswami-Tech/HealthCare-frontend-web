@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreatePayment } from "@/hooks/query/useBilling";
 import { CreditCard, Smartphone, Building2, Wallet } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface PaymentFormProps {
@@ -62,10 +62,14 @@ export function PaymentForm({
 
       await createPayment.mutateAsync(paymentData as any);
 
-      toast.success("Payment processed successfully!");
+      showSuccessToast("Payment processed successfully!", {
+        id: TOAST_IDS.PAYMENT.SUCCESS,
+      });
       onSuccess?.();
     } catch (error: any) {
-      toast.error(error.message || "Payment failed. Please try again.");
+      showErrorToast(error.message || "Payment failed. Please try again.", {
+        id: TOAST_IDS.PAYMENT.ERROR,
+      });
     } finally {
       setIsProcessing(false);
     }

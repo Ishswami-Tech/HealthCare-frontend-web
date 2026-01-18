@@ -1,7 +1,8 @@
 "use client";
 
 import { useAuth } from "@/hooks/auth/useAuth";
-import { ROUTES } from "@/lib/config/routes";
+import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
+import { NotificationBell } from "@/components/notifications";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { Button } from "@/components/ui/button";
@@ -24,18 +25,18 @@ export default function SharedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { session, isLoading, isAuthenticated } = useAuth();
+  const { session, isPending, isAuthenticated } = useAuth();
   const router = useRouter();
 
   // Redirect to login if not authenticated
   React.useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (! isPending && !isAuthenticated) {
       router.push(ROUTES.LOGIN);
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isPending, isAuthenticated, router]);
 
   // Show loading state
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -56,7 +57,7 @@ export default function SharedLayout({
     const allTabs = [
       {
         name: "Appointments",
-        href: "/appointments",
+        href: ROUTES.SHARED_APPOINTMENTS,
         icon: Calendar,
         roles: [
           Role.PATIENT,
@@ -67,25 +68,25 @@ export default function SharedLayout({
       },
       {
         name: "Queue",
-        href: "/queue",
+        href: ROUTES.SHARED_QUEUE,
         icon: Users,
         roles: [Role.DOCTOR, Role.RECEPTIONIST, Role.CLINIC_ADMIN],
       },
       {
         name: "EHR",
-        href: "/ehr",
+        href: ROUTES.SHARED_EHR,
         icon: FileText,
         roles: [Role.DOCTOR, Role.CLINIC_ADMIN],
       },
       {
         name: "Pharmacy",
-        href: "/pharmacy",
+        href: ROUTES.SHARED_PHARMACY,
         icon: Pill,
         roles: [Role.PHARMACIST, Role.DOCTOR, Role.CLINIC_ADMIN],
       },
       {
         name: "Analytics",
-        href: "/analytics",
+        href: ROUTES.SHARED_ANALYTICS,
         icon: BarChart3,
         roles: [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
       },
@@ -95,7 +96,8 @@ export default function SharedLayout({
   };
 
   const visibleTabs = getVisibleTabs(userRole);
-  const dashboardPath = `/(dashboard)/${userRole.toLowerCase()}/dashboard`;
+  // ✅ Use centralized getDashboardByRole function for consistency
+  const dashboardPath = getDashboardByRole(userRole);
 
   return (
     <div className="min-h-screen bg-background">
@@ -115,7 +117,7 @@ export default function SharedLayout({
           </div>
 
           <div className="ml-auto flex items-center space-x-4">
-
+            <NotificationBell />
             <div className="flex items-center space-x-2">
               <User className="h-4 w-4 text-gray-500" />
               <span className="text-sm text-gray-700">{userName}</span>
@@ -133,12 +135,12 @@ export default function SharedLayout({
               const Icon = tab.icon;
               const isActive =
                 typeof window !== "undefined" &&
-                window.location.pathname.startsWith(`/(shared)${tab.href}`);
+                window.location.pathname.startsWith(tab.href);
 
               return (
                 <Link
                   key={tab.name}
-                  href={`/(shared)${tab.href}`}
+                  href={tab.href}
                   className={`
                     flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm
                     ${

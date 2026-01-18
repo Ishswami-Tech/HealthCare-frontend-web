@@ -205,22 +205,6 @@ export const useNotificationSelectors = () => {
   };
 };
 
-// Helper hooks for common operations
-export const useNotificationActions = () => {
-  const store = useNotificationStore();
-  
-  return {
-    addNotification: store.addNotification,
-    markAsRead: store.markAsRead,
-    markAllAsRead: store.markAllAsRead,
-    removeNotification: store.removeNotification,
-    clearAllNotifications: store.clearAllNotifications,
-    updateSettings: store.updateSettings,
-    togglePanel: store.toggleNotificationPanel,
-    selectNotification: store.selectNotification,
-  };
-};
-
 // Hook for notification panel state
 export const useNotificationPanel = () => {
   const isOpen = useNotificationStore(state => state.isNotificationPanelOpen);

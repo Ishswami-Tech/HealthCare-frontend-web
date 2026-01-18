@@ -5,10 +5,11 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
 import { queryClientConfig } from "@/hooks/query/config";
 import { ERROR_MESSAGES } from "@/lib/config/config";
-import { 
-  showErrorToast, 
-  shouldHandleErrorGlobally, 
-  TOAST_IDS 
+import { ROUTES } from "@/lib/config/routes";
+import {
+  showErrorToast,
+  shouldHandleErrorGlobally,
+  TOAST_IDS,
 } from "@/hooks/utils/use-toast";
 
 interface ApiError extends Error {
@@ -84,7 +85,7 @@ export default function QueryProvider({
                 });
                 // Use router instead of window.location for better UX
                 setTimeout(() => {
-                  window.location.href = "/auth/login";
+                  window.location.href = ROUTES.LOGIN;
                 }, 1000);
                 return;
               }
@@ -107,9 +108,9 @@ export default function QueryProvider({
               // ✅ Sanitize and use centralized error messages
               showErrorToast(
                 apiError?.response?.data?.message ||
-                apiError?.message ||
-                apiError ||
-                ERROR_MESSAGES.UNKNOWN_ERROR,
+                  apiError?.message ||
+                  apiError ||
+                  ERROR_MESSAGES.UNKNOWN_ERROR,
                 {
                   id: TOAST_IDS.GLOBAL.ERROR,
                 }

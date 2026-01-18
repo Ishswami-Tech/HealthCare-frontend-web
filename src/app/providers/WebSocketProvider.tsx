@@ -66,8 +66,7 @@ export function WebSocketProvider({
           // Use environment-aware WebSocket URL
           const { APP_CONFIG } = await import("@/lib/config/config");
           websocketManager.initialize({
-            url:
-              process.env.NEXT_PUBLIC_WEBSOCKET_URL || APP_CONFIG.WEBSOCKET.URL,
+            url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || APP_CONFIG.WEBSOCKET.URL || '',
             autoConnect: false, // We handle connection through the integration hook
           });
         } catch (error) {

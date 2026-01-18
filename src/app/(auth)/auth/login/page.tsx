@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,13 +14,11 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import useZodForm from "@/hooks/utils/useZodForm";
 import {
   AuthResponse,
-  loginSchema,
-  otpSchema,
-  OTPFormData,
-  Role,
+  type OTPFormData,
 } from "@/types/auth.types";
-import { getDashboardByRole, ROUTES, isAuthPath } from "@/lib/config/routes";
-import { toast } from "sonner";
+import { loginSchema, otpSchema } from "@/lib/schema";
+
+import { ROUTES } from "@/lib/config/routes";
 import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -32,12 +29,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { SocialLogin } from "@/components/auth/social-login";
-import { ERROR_MESSAGES } from "@/lib/config/config";
 import { Loader2 } from "lucide-react";
-import { useAuthForm } from "@/hooks/auth/useAuth";
-import { TOAST_IDS } from "@/hooks/utils/use-toast";
+import { TOAST_IDS, showErrorToast } from "@/hooks/utils/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"password" | "otp">("password");
@@ -45,8 +39,7 @@ export default function LoginPage() {
   const [isSocialLoginLoading, setIsSocialLoginLoading] = useState(false);
   const [sharedEmail, setSharedEmail] = useState("");
   const otpInputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
-  const { login, requestOTP, verifyOTP, isLoggingIn, isVerifyingEmail } =
+  const { loginAsync, requestOTP, verifyOTP, isLoggingIn, isVerifyingOTP } =
     useAuth();
 
   useEffect(() => {
@@ -55,100 +48,36 @@ export default function LoginPage() {
     }
   }, [showOTPInput]);
 
-  const handleSuccess = useCallback(
-    (response: AuthResponse | null) => {
-      if (!response || !response.user) {
-        toast.error(ERROR_MESSAGES.LOGIN_FAILED);
-        return;
-      }
-
-      // If profile is not complete, redirect to the completion page
-      if (response.user.profileComplete === false) {
-        toast.info("Please complete your profile to continue");
-        router.push(ROUTES.PROFILE_COMPLETION);
-        return;
-      }
-
-      // If profile is complete, continue with the original redirect logic
-      const searchParams = new URLSearchParams(window.location.search);
-      const redirectUrl = searchParams.get("redirect");
-
-      const finalRedirectUrl =
-        redirectUrl && !isAuthPath(redirectUrl)
-          ? redirectUrl
-          : response.redirectUrl ||
-            getDashboardByRole(response.user.role as Role);
-
-      router.push(finalRedirectUrl || ROUTES.HOME);
-    },
-    [router]
-  );
-
-  // ✅ Use unified auth form hook for consistent patterns - Login
-  const { executeAuthOperation: executeLogin } = useAuthForm({
-    toastId: TOAST_IDS.AUTH.LOGIN,
-    loadingMessage: "Signing in...",
-    successMessage: "Successfully signed in!",
-    errorMessage: ERROR_MESSAGES.LOGIN_FAILED,
-    showToast: true,
-    onSuccess: (result) => {
-      // Handle success redirect logic
-      if (result) {
-        handleSuccess(result as AuthResponse);
-      }
-    },
-  });
-
-  // ✅ Use unified auth form hook for consistent patterns - OTP Verification
-  const { executeAuthOperation: executeOTP } = useAuthForm({
-    toastId: TOAST_IDS.AUTH.OTP,
-    loadingMessage: "Verifying OTP...",
-    successMessage: "OTP verified successfully!",
-    errorMessage: "OTP verification failed. Please try again.",
-    showToast: true,
-    onSuccess: (result) => {
-      // Handle success redirect logic
-      if (result) {
-        handleSuccess(result as AuthResponse);
-      }
-    },
-  });
-
-  // ✅ Use unified auth form hook for consistent patterns - OTP Request
-  const { executeAuthOperation: executeOTPRequest } = useAuthForm({
-    toastId: TOAST_IDS.AUTH.OTP,
-    loadingMessage: "Sending OTP...",
-    successMessage: "OTP sent successfully!",
-    errorMessage: "Failed to send OTP. Please try again.",
-    showToast: true,
-    onSuccess: () => {
-      setShowOTPInput(true);
-    },
-  });
-
+  // ✅ Use useAuth hook directly - it handles session updates, redirects, and errors
   const loginMutation = useCallback(
     async (data: z.infer<typeof loginSchema>): Promise<AuthResponse> => {
-      const response = await executeLogin(async () => {
-        return await login({
+      try {
+        // loginAsync handles everything: session update, redirect, error handling
+        const result = await loginAsync({
           email: data.email,
           password: data.password,
           rememberMe: data.rememberMe,
         });
-      });
-
-      return (response as unknown as AuthResponse) || ({} as AuthResponse);
+        return result;
+      } catch (error) {
+        // Error is already handled by useAuth hook
+        throw error;
+      }
     },
-    [login, executeLogin]
+    [loginAsync]
   );
 
+  // ✅ Use useAuth hook directly for OTP verification
   const otpMutation = async (
     data: z.infer<typeof otpSchema>
   ): Promise<AuthResponse> => {
-    const response = await executeOTP(async () => {
+    try {
+      // verifyOTP from useAuth handles everything
       return await verifyOTP(data as OTPFormData);
-    });
-
-    return (response as unknown as AuthResponse) || ({} as AuthResponse);
+    } catch (error) {
+      // Error is already handled by useAuth hook
+      throw error;
+    }
   };
 
   const passwordForm = useZodForm(loginSchema, loginMutation, {
@@ -158,16 +87,19 @@ export default function LoginPage() {
   });
 
   const otpForm = useZodForm(otpSchema, otpMutation, {
-    email: sharedEmail,
+    identifier: sharedEmail,
     otp: "",
     rememberMe: false,
   });
 
-  const handleRequestOTP = async (email: string) => {
-    // ✅ Use unified pattern - consistent across all auth pages
-    await executeOTPRequest(async () => {
-      return await requestOTP(email);
-    });
+  const handleRequestOTP = async (identifier: string) => {
+    // ✅ Use useAuth hook directly - it handles errors and toasts
+    try {
+      await requestOTP(identifier);
+      setShowOTPInput(true);
+    } catch (error) {
+      // Error is already handled by useAuth hook
+    }
   };
 
   // Disable form inputs when social login is loading
@@ -177,7 +109,7 @@ export default function LoginPage() {
     setActiveTab(tab);
     setShowOTPInput(false);
     // Optionally reset OTP value
-    otpForm.reset({ email: sharedEmail, otp: "", rememberMe: false });
+    otpForm.reset({ identifier: sharedEmail, otp: "", rememberMe: false });
     passwordForm.reset({ email: sharedEmail, password: "", rememberMe: false });
   };
 
@@ -186,8 +118,6 @@ export default function LoginPage() {
 
   return (
     <div className="space-y-4 px-4 sm:px-6">
-
-
       <Card className="w-full max-w-md mx-auto shadow-lg">
         <CardHeader className="px-4 sm:px-6">
           <h2 className="text-xl sm:text-2xl font-bold text-center">
@@ -198,15 +128,15 @@ export default function LoginPage() {
           </p>
 
           {/* Live status indicator in header */}
-          <div className="flex justify-center mt-3">
-
-          </div>
+          <div className="flex justify-center mt-3"></div>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
           <SocialLogin
             className="mb-6 w-full"
             onError={(error) => {
-              toast.error(error.message);
+              showErrorToast(error.message, {
+                id: TOAST_IDS.AUTH.SOCIAL_LOGIN,
+              });
             }}
             onLoadingStateChange={setIsSocialLoginLoading}
           />
@@ -254,9 +184,20 @@ export default function LoginPage() {
               >
                 <Form {...passwordForm}>
                   <form
-                    onSubmit={passwordForm.onFormSubmit}
+                    onSubmit={(e) => {
+                      passwordForm.onFormSubmit(e).catch((error) => {
+                        passwordForm.setError("root", {
+                          message: error.message || "Invalid credentials. Please try again.",
+                        });
+                      });
+                    }}
                     className="space-y-4"
                   >
+                    {passwordForm.formState.errors.root && (
+                      <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
+                        {passwordForm.formState.errors.root.message}
+                      </div>
+                    )}
                     <FormField
                       control={passwordForm.control}
                       name="email"
@@ -271,7 +212,7 @@ export default function LoginPage() {
                               onChange={(e) => {
                                 setSharedEmail(e.target.value);
                                 field.onChange(e);
-                                otpForm.setValue("email", e.target.value);
+                                otpForm.setValue("identifier", e.target.value);
                               }}
                               disabled={isFormDisabled}
                               className={
@@ -362,13 +303,13 @@ export default function LoginPage() {
                   <form onSubmit={otpForm.onFormSubmit} className="space-y-4">
                     <FormField
                       control={otpForm.control}
-                      name="email"
+                      name="identifier"
                       render={({ field }) => (
                         <FormItem>
                           <FormControl>
                             <Input
-                              type="email"
-                              placeholder="Email"
+                              type="text"
+                              placeholder="Email or Phone Number"
                               {...field}
                               value={sharedEmail}
                               onChange={(e) => {
@@ -422,7 +363,9 @@ export default function LoginPage() {
                           if (sharedEmail) {
                             handleRequestOTP(sharedEmail);
                           } else {
-                            toast.error("Please enter your email first");
+                            showErrorToast("Please enter your email first", {
+                              id: TOAST_IDS.AUTH.OTP,
+                            });
                           }
                         }}
                         disabled={isFormDisabled}
@@ -459,9 +402,9 @@ export default function LoginPage() {
                       <Button
                         type="submit"
                         className="w-full"
-                        disabled={isFormDisabled || isVerifyingEmail}
+                        disabled={isFormDisabled || isVerifyingOTP}
                       >
-                        {isVerifyingEmail ? (
+                        {isVerifyingOTP ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             Verifying...

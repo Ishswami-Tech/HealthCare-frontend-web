@@ -251,5 +251,8 @@ export {
 // Video Appointments
 export * from './useVideoAppointments';
 
-// Notifications
+// Notifications (reading, actions, settings)
 export * from './useNotifications';
+
+// Communication (sending emails, SMS, WhatsApp, chat)
+export * from './useCommunication';

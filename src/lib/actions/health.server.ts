@@ -4,31 +4,6 @@ import type { DetailedHealthStatus } from '@/hooks/query/useHealth';
 import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
 import { fetchWithAbort, FetchTimeoutError } from '@/lib/utils/fetch-with-abort';
 
-// ✅ Public API utility for unauthenticated endpoints
-// This is intentionally NOT using authenticatedApi since /health is public
-async function publicApi<T>(endpoint: string, options: RequestInit = {}): Promise<{ status: number; data: T }> {
-  const API_URL = APP_CONFIG.API.BASE_URL;
-  const url = `${API_URL}${endpoint}`;
-  
-  const response = await fetchWithAbort(url, {
-    ...options,
-    timeout: 5000,
-    headers: {
-      'Accept': 'application/json',
-      ...options.headers,
-    },
-  });
-  
-  let data: unknown = null;
-  try {
-    data = await response.json();
-  } catch {
-    data = {};
-  }
-  
-  return { status: response.status, data: data as T };
-}
-
 // Helper to create unavailable status response
 function createUnavailableStatus(message: string): DetailedHealthStatus {
   return {
@@ -53,17 +28,93 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
   }
   
   try {
-    const { status, data } = await publicApi<DetailedHealthStatus>(
-      `${API_ENDPOINTS.HEALTH.BASE}?detailed=true`,
-      { method: 'GET', cache: 'no-store' }
-    );
+    // Use centralized health endpoint configuration
+    // Health endpoint is at /health (NOT /api/v1/health) - it's excluded from API versioning
+    const healthUrl = `${APP_CONFIG.API.HEALTH_BASE_URL}${API_ENDPOINTS.HEALTH.DETAILED}`;
     
-    // Check for non-OK status
-    if (status >= 400) {
-      return createUnavailableStatus(`Health check failed with status ${status}`);
+    // Debug logging
+    if (APP_CONFIG.IS_DEVELOPMENT) {
+      // console.log('[Health Check] Calling:', healthUrl);
     }
     
-    return data;
+    const response = await fetchWithAbort(healthUrl, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: {
+        'Accept': 'application/json',
+      },
+      timeout: 5000,
+    });
+    
+    let data: unknown = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
+    }
+    
+    // Debug logging
+    if (APP_CONFIG.IS_DEVELOPMENT) {
+      // console.log('[Health Check] Status:', response.status, 'Data:', data);
+    }
+    
+    // Check for non-OK status
+    if (response.status >= 400) {
+      return createUnavailableStatus(`Health check failed with status ${response.status}`);
+    }
+    
+    // Map backend response to frontend expected format
+    const backendData = data as any;
+    const mappedData: DetailedHealthStatus = {
+      uptime: backendData.systemMetrics?.uptime || backendData.realtime?.uptime || 0,
+      system: {
+        cpu: backendData.realtime?.system?.cpu || 0,
+        memory: backendData.realtime?.system?.memory || 0,
+        activeConnections: backendData.realtime?.system?.activeConnections || 0,
+        requestRate: backendData.realtime?.system?.requestRate || 0,
+        errorRate: backendData.realtime?.system?.errorRate || 0,
+      },
+      database: {
+        status: backendData.services?.database?.status === 'healthy' ? 'up' : 'down',
+        isHealthy: backendData.services?.database?.status === 'healthy',
+        avgResponseTime: backendData.services?.database?.responseTime || 0,
+      },
+      cache: {
+        status: backendData.services?.cache?.status === 'healthy' ? 'up' : 'down',
+        healthy: backendData.services?.cache?.status === 'healthy',
+        latency: backendData.services?.cache?.responseTime || 0,
+      },
+      queue: {
+        status: backendData.services?.queue?.status === 'healthy' ? 'up' : 'down',
+        healthy: backendData.services?.queue?.status === 'healthy',
+        connection: {
+          connected: backendData.services?.queue?.status === 'healthy',
+          latency: backendData.services?.queue?.responseTime || 0,
+        },
+      },
+      communication: {
+        status: backendData.services?.communication?.status === 'healthy' ? 'up' : 'down',
+        healthy: backendData.services?.communication?.status === 'healthy',
+        socket: {
+          connected: backendData.services?.communication?.status === 'healthy',
+          latency: backendData.services?.communication?.responseTime || 0,
+        },
+      },
+      video: {
+        status: backendData.services?.video?.status === 'healthy' ? 'up' : 'down',
+        isHealthy: backendData.services?.video?.status === 'healthy',
+      },
+      logging: {
+        status: backendData.services?.logger?.status === 'healthy' ? 'up' : 'down',
+        healthy: backendData.services?.logger?.status === 'healthy',
+        service: {
+          available: backendData.services?.logger?.status === 'healthy',
+          latency: backendData.services?.logger?.responseTime || 0,
+        },
+      },
+    };
+    
+    return mappedData;
   } catch (error) {
     // Handle network errors, timeouts, and other failures gracefully
     const errorMessage = error instanceof Error ? error.message : 'Failed to fetch health status';

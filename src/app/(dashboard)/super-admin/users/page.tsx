@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUsers } from "@/hooks/query/useUsers";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -128,8 +128,8 @@ export default function SuperAdminUsers() {
 
   sidebarLinks.push({
     label: "Logout",
-    href: "/auth/login",
-    path: "/auth/login",
+    href: ROUTES.LOGIN,
+    path: ROUTES.LOGIN,
     icon: <LogOut className="w-5 h-5" />,
   });
 

@@ -8,7 +8,7 @@ const useZodForm = <T extends z.ZodType<any, any, any>>(
   mutation: UseMutateFunction<unknown, unknown, z.infer<T>>,
   defaultValues?: DefaultValues<z.infer<T>>
 ): UseFormReturn<z.infer<T>> & {
-  onFormSubmit: () => Promise<void>;
+  onFormSubmit: (e?: any) => Promise<void>;
 } => {
   const form = useForm<z.infer<T>>({
     resolver: zodResolver(schema) as any,
@@ -30,7 +30,7 @@ const useZodForm = <T extends z.ZodType<any, any, any>>(
     ...form,
     onFormSubmit,
   } as UseFormReturn<z.infer<T>> & {
-    onFormSubmit: () => Promise<void>;
+    onFormSubmit: (e?: any) => Promise<void>;
   };
 };
 

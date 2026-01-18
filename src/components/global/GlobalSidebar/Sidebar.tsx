@@ -31,7 +31,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
+import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useGlobalLoading } from "@/hooks/utils/useGlobalLoading";
 import { ROUTES } from "@/lib/config/routes";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
@@ -41,6 +41,7 @@ import { useTranslation } from "@/lib/i18n/context";
 import { translateSidebarLinks } from "@/lib/utils/index";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
+import { NotificationBell } from "@/components/notifications";
 
 // ============================================================================
 // TYPES
@@ -110,8 +111,15 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
     <>
       {/* Header with Logo */}
       <SidebarHeader className="border-b p-4">
-        <div className="flex items-center justify-center">
-          {open ? <Logo /> : <LogoIcon />}
+        <div className="flex items-center justify-between">
+          <div className="flex-1 flex items-center justify-center">
+            {open ? <Logo /> : <LogoIcon />}
+          </div>
+          {!open && (
+            <div className="ml-2">
+              <NotificationBell />
+            </div>
+          )}
         </div>
       </SidebarHeader>
 
@@ -156,6 +164,12 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
         {open && (
           <div className="mt-4 space-y-3 px-2">
             <Separator />
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-muted-foreground">
+                Notifications
+              </span>
+              <NotificationBell />
+            </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-muted-foreground">
@@ -226,7 +240,9 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
       router.replace(ROUTES.LOGIN);
     } catch {
       stopLoading();
-      toast.error("Logout failed. Please try again.");
+      showErrorToast("Logout failed. Please try again.", {
+        id: TOAST_IDS.AUTH.LOGOUT,
+      });
       router.replace(ROUTES.LOGIN);
     } finally {
       setShowLogoutDialog(false);

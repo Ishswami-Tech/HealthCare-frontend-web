@@ -1,6 +1,6 @@
 import React from 'react';
-import { useQueryData } from '../core/useQueryData';
-import { useMutationData } from '../core/useMutationData';
+import { useQueryData, useMutationOperation } from '../core';
+import { TOAST_IDS } from '../utils/use-toast';
 import {
   getQueue,
   getQueueStats,
@@ -67,67 +67,102 @@ export const useQueueStats = (options?: { enabled?: boolean }) => {
  * Hook to update queue status
  */
 export const useUpdateQueueStatus = () => {
-  return useMutationData(['updateQueueStatus'], async ({ patientId, status }: {
-    patientId: string;
-    status: string;
-  }) => {
-    const result = await updateQueueStatus(patientId, status);
-    return { status: 200, data: result };
-  }, 'queue');
+  return useMutationOperation(
+    async ({ patientId, status }: {
+      patientId: string;
+      status: string;
+    }) => {
+      return await updateQueueStatus(patientId, status);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Updating queue status...',
+      successMessage: 'Queue status updated successfully',
+      invalidateQueries: [['queue']],
+    }
+  );
 };
 
 /**
  * Hook to call next patient
  */
 export const useCallNextPatient = () => {
-  return useMutationData(['callNextPatient'], async ({ queueType }: {
-    queueType: string;
-  }) => {
-    const result = await callNextPatient(queueType);
-    return { status: 200, data: result };
-  }, 'queue');
+  return useMutationOperation(
+    async ({ queueType }: {
+      queueType: string;
+    }) => {
+      return await callNextPatient(queueType);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.CALL_NEXT,
+      loadingMessage: 'Calling next patient...',
+      successMessage: 'Next patient called successfully',
+      invalidateQueries: [['queue']],
+    }
+  );
 };
 
 /**
  * Hook to add patient to queue
  */
 export const useAddToQueue = () => {
-  return useMutationData(['addToQueue'], async (queueData: {
-    patientId: string;
-    appointmentId?: string;
-    queueType: string;
-    priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
-    estimatedDuration?: number;
-  }) => {
-    const result = await addToQueue(queueData);
-    return { status: 200, data: result };
-  }, 'queue');
+  return useMutationOperation(
+    async (queueData: {
+      patientId: string;
+      appointmentId?: string;
+      queueType: string;
+      priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+      estimatedDuration?: number;
+    }) => {
+      return await addToQueue(queueData);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Adding to queue...',
+      successMessage: 'Patient added to queue successfully',
+      invalidateQueries: [['queue']],
+    }
+  );
 };
 
 /**
  * Hook to remove patient from queue
  */
 export const useRemoveFromQueue = () => {
-  return useMutationData(['removeFromQueue'], async ({ queueId, reason }: {
-    queueId: string;
-    reason?: string;
-  }) => {
-    const result = await removeFromQueue(queueId, reason);
-    return { status: 200, data: result };
-  }, 'queue');
+  return useMutationOperation(
+    async ({ queueId, reason }: {
+      queueId: string;
+      reason?: string;
+    }) => {
+      return await removeFromQueue(queueId, reason);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Removing from queue...',
+      successMessage: 'Patient removed from queue successfully',
+      invalidateQueries: [['queue']],
+    }
+  );
 };
 
 /**
  * Hook to reorder queue
  */
 export const useReorderQueue = () => {
-  return useMutationData(['reorderQueue'], async ({ queueType, patientIds }: {
-    queueType: string;
-    patientIds: string[];
-  }) => {
-    const result = await reorderQueue(queueType, patientIds);
-    return { status: 200, data: result };
-  }, 'queue');
+  return useMutationOperation(
+    async ({ queueType, patientIds }: {
+      queueType: string;
+      patientIds: string[];
+    }) => {
+      return await reorderQueue(queueType, patientIds);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Reordering queue...',
+      successMessage: 'Queue reordered successfully',
+      invalidateQueries: [['queue']],
+    }
+  );
 };
 
 /**
@@ -294,38 +329,59 @@ export const useRealTimeQueue = (queueType?: string) => {
  * Hook to update queue position
  */
 export const useUpdateQueuePosition = () => {
-  return useMutationData(['updateQueuePosition'], async ({ queueId, newPosition }: {
-    queueId: string;
-    newPosition: number;
-  }) => {
-    const result = await updateQueuePosition(queueId, newPosition);
-    return { status: 200, data: result };
-  }, 'queue');
+  return useMutationOperation(
+    async ({ queueId, newPosition }: {
+      queueId: string;
+      newPosition: number;
+    }) => {
+      return await updateQueuePosition(queueId, newPosition);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Updating queue position...',
+      successMessage: 'Queue position updated successfully',
+      invalidateQueries: [['queue']],
+    }
+  );
 };
 
 /**
  * Hook to pause queue
  */
 export const usePauseQueue = () => {
-  return useMutationData(['pauseQueue'], async ({ queueType, reason }: {
-    queueType: string;
-    reason?: string;
-  }) => {
-    const result = await pauseQueue(queueType, reason);
-    return { status: 200, data: result };
-  }, 'queue');
+  return useMutationOperation(
+    async ({ queueType, reason }: {
+      queueType: string;
+      reason?: string;
+    }) => {
+      return await pauseQueue(queueType, reason);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Pausing queue...',
+      successMessage: 'Queue paused successfully',
+      invalidateQueries: [['queue']],
+    }
+  );
 };
 
 /**
  * Hook to resume queue
  */
 export const useResumeQueue = () => {
-  return useMutationData(['resumeQueue'], async ({ queueType }: {
-    queueType: string;
-  }) => {
-    const result = await resumeQueue(queueType);
-    return { status: 200, data: result };
-  }, 'queue');
+  return useMutationOperation(
+    async ({ queueType }: {
+      queueType: string;
+    }) => {
+      return await resumeQueue(queueType);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Resuming queue...',
+      successMessage: 'Queue resumed successfully',
+      invalidateQueries: [['queue']],
+    }
+  );
 };
 
 /**
@@ -341,16 +397,23 @@ export const useQueueConfig = () => {
  * Hook to update queue configuration
  */
 export const useUpdateQueueConfig = () => {
-  return useMutationData(['updateQueueConfig'], async (config: {
-    maxWaitTime?: number;
-    averageConsultationTime?: number;
-    autoCallNext?: boolean;
-    allowWalkIns?: boolean;
-    priorityEnabled?: boolean;
-  }) => {
-    const result = await updateQueueConfig(config);
-    return { status: 200, data: result };
-  }, 'queue');
+  return useMutationOperation(
+    async (config: {
+      maxWaitTime?: number;
+      averageConsultationTime?: number;
+      autoCallNext?: boolean;
+      allowWalkIns?: boolean;
+      priorityEnabled?: boolean;
+    }) => {
+      return await updateQueueConfig(config);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Updating queue configuration...',
+      successMessage: 'Queue configuration updated successfully',
+      invalidateQueries: [['queue'], ['queueConfig']],
+    }
+  );
 };
 
 /**
@@ -368,27 +431,41 @@ export const useQueueNotifications = (userId?: string) => {
  * Hook to mark queue notification as read
  */
 export const useMarkQueueNotificationAsRead = () => {
-  return useMutationData(['markQueueNotificationAsRead'], async ({ notificationId }: {
-    notificationId: string;
-  }) => {
-    const result = await markQueueNotificationAsRead(notificationId);
-    return { status: 200, data: result };
-  }, 'queueNotifications');
+  return useMutationOperation(
+    async ({ notificationId }: {
+      notificationId: string;
+    }) => {
+      return await markQueueNotificationAsRead(notificationId);
+    },
+    {
+      toastId: TOAST_IDS.NOTIFICATION.NEW,
+      loadingMessage: 'Marking notification as read...',
+      successMessage: 'Notification marked as read',
+      invalidateQueries: [['queueNotifications']],
+      showToast: false,
+    }
+  );
 };
 
 /**
  * Hook to send queue notification
  */
 export const useSendQueueNotification = () => {
-  return useMutationData(['sendQueueNotification'], async (notificationData: {
-    patientId: string;
-    type: 'CALLED' | 'DELAYED' | 'CANCELLED' | 'REMINDER';
-    message: string;
-    channels?: ('sms' | 'email' | 'push')[];
-  }) => {
-    const result = await sendQueueNotification(notificationData);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (notificationData: {
+      patientId: string;
+      type: 'CALLED' | 'DELAYED' | 'CANCELLED' | 'REMINDER';
+      message: string;
+      channels?: ('sms' | 'email' | 'push')[];
+    }) => {
+      return await sendQueueNotification(notificationData);
+    },
+    {
+      toastId: TOAST_IDS.COMMUNICATION.SEND,
+      loadingMessage: 'Sending queue notification...',
+      successMessage: 'Queue notification sent successfully',
+    }
+  );
 };
 
 /**
@@ -404,13 +481,20 @@ export const useQueueWaitTimes = (queueType?: string) => {
  * Hook to estimate wait time
  */
 export const useEstimateWaitTime = () => {
-  return useMutationData(['estimateWaitTime'], async ({ queueType, priority }: {
-    queueType: string;
-    priority?: string;
-  }) => {
-    const result = await estimateWaitTime(queueType, priority);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async ({ queueType, priority }: {
+      queueType: string;
+      priority?: string;
+    }) => {
+      return await estimateWaitTime(queueType, priority);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Estimating wait time...',
+      successMessage: 'Wait time estimated',
+      showToast: false,
+    }
+  );
 };
 
 /**
@@ -428,13 +512,20 @@ export const useQueueCapacity = (queueType: string) => {
  * Hook to update queue capacity
  */
 export const useUpdateQueueCapacity = () => {
-  return useMutationData(['updateQueueCapacity'], async ({ queueType, capacity }: {
-    queueType: string;
-    capacity: number;
-  }) => {
-    const result = await updateQueueCapacity(queueType, capacity);
-    return { status: 200, data: result };
-  }, 'queueCapacity');
+  return useMutationOperation(
+    async ({ queueType, capacity }: {
+      queueType: string;
+      capacity: number;
+    }) => {
+      return await updateQueueCapacity(queueType, capacity);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Updating queue capacity...',
+      successMessage: 'Queue capacity updated successfully',
+      invalidateQueries: [['queueCapacity']],
+    }
+  );
 };
 
 /**
@@ -454,15 +545,21 @@ export const useQueuePerformanceMetrics = (filters?: {
  * Hook to export queue data
  */
 export const useExportQueueData = () => {
-  return useMutationData(['exportQueueData'], async (filters: {
-    startDate: string;
-    endDate: string;
-    format: 'csv' | 'excel' | 'pdf';
-    queueType?: string;
-  }) => {
-    const result = await exportQueueData(filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (filters: {
+      startDate: string;
+      endDate: string;
+      format: 'csv' | 'excel' | 'pdf';
+      queueType?: string;
+    }) => {
+      return await exportQueueData(filters);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
+      loadingMessage: 'Exporting queue data...',
+      successMessage: 'Queue data exported successfully',
+    }
+  );
 };
 
 /**
@@ -478,41 +575,62 @@ export const useQueueAlerts = () => {
  * Hook to create queue alert
  */
 export const useCreateQueueAlert = () => {
-  return useMutationData(['createQueueAlert'], async (alertData: {
-    type: 'LONG_WAIT' | 'CAPACITY_FULL' | 'NO_SHOW' | 'DELAY';
-    threshold: number;
-    queueType?: string;
-    enabled: boolean;
-  }) => {
-    const result = await createQueueAlert(alertData);
-    return { status: 200, data: result };
-  }, 'queueAlerts');
+  return useMutationOperation(
+    async (alertData: {
+      type: 'LONG_WAIT' | 'CAPACITY_FULL' | 'NO_SHOW' | 'DELAY';
+      threshold: number;
+      queueType?: string;
+      enabled: boolean;
+    }) => {
+      return await createQueueAlert(alertData);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Creating queue alert...',
+      successMessage: 'Queue alert created successfully',
+      invalidateQueries: [['queueAlerts']],
+    }
+  );
 };
 
 /**
  * Hook to update queue alert
  */
 export const useUpdateQueueAlert = () => {
-  return useMutationData(['updateQueueAlert'], async ({ alertId, updates }: {
-    alertId: string;
-    updates: {
-      threshold?: number;
-      enabled?: boolean;
-    };
-  }) => {
-    const result = await updateQueueAlert(alertId, updates);
-    return { status: 200, data: result };
-  }, 'queueAlerts');
+  return useMutationOperation(
+    async ({ alertId, updates }: {
+      alertId: string;
+      updates: {
+        threshold?: number;
+        enabled?: boolean;
+      };
+    }) => {
+      return await updateQueueAlert(alertId, updates);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Updating queue alert...',
+      successMessage: 'Queue alert updated successfully',
+      invalidateQueries: [['queueAlerts']],
+    }
+  );
 };
 
 /**
  * Hook to delete queue alert
  */
 export const useDeleteQueueAlert = () => {
-  return useMutationData(['deleteQueueAlert'], async ({ alertId }: {
-    alertId: string;
-  }) => {
-    const result = await deleteQueueAlert(alertId);
-    return { status: 200, data: result };
-  }, 'queueAlerts');
+  return useMutationOperation(
+    async ({ alertId }: {
+      alertId: string;
+    }) => {
+      return await deleteQueueAlert(alertId);
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Deleting queue alert...',
+      successMessage: 'Queue alert deleted successfully',
+      invalidateQueries: [['queueAlerts']],
+    }
+  );
 };

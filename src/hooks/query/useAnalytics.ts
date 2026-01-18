@@ -1,5 +1,5 @@
-import { useQueryData } from '../core/useQueryData';
-import { useMutationData } from '../core/useMutationData';
+import { useQueryData, useMutationOperation } from '../core';
+import { TOAST_IDS } from '../utils/use-toast';
 import {
   getDashboardAnalytics,
   getAppointmentAnalytics,
@@ -165,80 +165,110 @@ export const useQueueAnalytics = (
  * Hook to generate appointment report
  */
 export const useGenerateAppointmentReport = () => {
-  return useMutationData(['generateAppointmentReport'], async (filters: {
-    startDate: string;
-    endDate: string;
-    format: 'pdf' | 'excel' | 'csv';
-    clinicId?: string;
-    doctorId?: string;
-    status?: string;
-  }) => {
-    const result = await generateAppointmentReport(filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (filters: {
+      startDate: string;
+      endDate: string;
+      format: 'pdf' | 'excel' | 'csv';
+      clinicId?: string;
+      doctorId?: string;
+      status?: string;
+    }) => {
+      return await generateAppointmentReport(filters);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
+      loadingMessage: 'Generating appointment report...',
+      successMessage: 'Appointment report generated successfully',
+    }
+  );
 };
 
 /**
  * Hook to generate patient report
  */
 export const useGeneratePatientReport = () => {
-  return useMutationData(['generatePatientReport'], async (filters: {
-    startDate: string;
-    endDate: string;
-    format: 'pdf' | 'excel' | 'csv';
-    clinicId?: string;
-    includeDetails?: boolean;
-  }) => {
-    const result = await generatePatientReport(filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (filters: {
+      startDate: string;
+      endDate: string;
+      format: 'pdf' | 'excel' | 'csv';
+      clinicId?: string;
+      includeDetails?: boolean;
+    }) => {
+      return await generatePatientReport(filters);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
+      loadingMessage: 'Generating patient report...',
+      successMessage: 'Patient report generated successfully',
+    }
+  );
 };
 
 /**
  * Hook to generate revenue report
  */
 export const useGenerateRevenueReport = () => {
-  return useMutationData(['generateRevenueReport'], async (filters: {
-    startDate: string;
-    endDate: string;
-    format: 'pdf' | 'excel' | 'csv';
-    clinicId?: string;
-    groupBy?: 'day' | 'week' | 'month';
-  }) => {
-    const result = await generateRevenueReport(filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (filters: {
+      startDate: string;
+      endDate: string;
+      format: 'pdf' | 'excel' | 'csv';
+      clinicId?: string;
+      groupBy?: 'day' | 'week' | 'month';
+    }) => {
+      return await generateRevenueReport(filters);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
+      loadingMessage: 'Generating revenue report...',
+      successMessage: 'Revenue report generated successfully',
+    }
+  );
 };
 
 /**
  * Hook to generate doctor performance report
  */
 export const useGenerateDoctorPerformanceReport = () => {
-  return useMutationData(['generateDoctorPerformanceReport'], async (filters: {
-    startDate: string;
-    endDate: string;
-    format: 'pdf' | 'excel' | 'csv';
-    doctorId?: string;
-    clinicId?: string;
-  }) => {
-    const result = await generateDoctorPerformanceReport(filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (filters: {
+      startDate: string;
+      endDate: string;
+      format: 'pdf' | 'excel' | 'csv';
+      doctorId?: string;
+      clinicId?: string;
+    }) => {
+      return await generateDoctorPerformanceReport(filters);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
+      loadingMessage: 'Generating doctor performance report...',
+      successMessage: 'Doctor performance report generated successfully',
+    }
+  );
 };
 
 /**
  * Hook to generate clinic summary report
  */
 export const useGenerateClinicSummaryReport = () => {
-  return useMutationData(['generateClinicSummaryReport'], async (filters: {
-    startDate: string;
-    endDate: string;
-    format: 'pdf' | 'excel' | 'csv';
-    clinicId?: string;
-  }) => {
-    const result = await generateClinicSummaryReport(filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (filters: {
+      startDate: string;
+      endDate: string;
+      format: 'pdf' | 'excel' | 'csv';
+      clinicId?: string;
+    }) => {
+      return await generateClinicSummaryReport(filters);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
+      loadingMessage: 'Generating clinic summary report...',
+      successMessage: 'Clinic summary report generated successfully',
+    }
+  );
 };
 
 /**
@@ -258,20 +288,33 @@ export const useReportHistory = (filters?: {
  * Hook to download report
  */
 export const useDownloadReport = () => {
-  return useMutationData(['downloadReport'], async (reportId: string) => {
-    const result = await downloadReport(reportId);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (reportId: string) => {
+      return await downloadReport(reportId);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
+      loadingMessage: 'Downloading report...',
+      successMessage: 'Report downloaded successfully',
+    }
+  );
 };
 
 /**
  * Hook to delete report
  */
 export const useDeleteReport = () => {
-  return useMutationData(['deleteReport'], async (reportId: string) => {
-    const result = await deleteReport(reportId);
-    return { status: 200, data: result };
-  }, 'reportHistory');
+  return useMutationOperation(
+    async (reportId: string) => {
+      return await deleteReport(reportId);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
+      loadingMessage: 'Deleting report...',
+      successMessage: 'Report deleted successfully',
+      invalidateQueries: [['reportHistory']],
+    }
+  );
 };
 
 // ===== CUSTOM ANALYTICS HOOKS =====
@@ -280,34 +323,48 @@ export const useDeleteReport = () => {
  * Hook to get custom analytics
  */
 export const useCustomAnalytics = () => {
-  return useMutationData(['customAnalytics'], async (query: {
-    metrics: string[];
-    dimensions: string[];
-    filters?: Record<string, any>;
-    startDate: string;
-    endDate: string;
-  }) => {
-    const result = await getCustomAnalytics(query);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (query: {
+      metrics: string[];
+      dimensions: string[];
+      filters?: Record<string, any>;
+      startDate: string;
+      endDate: string;
+    }) => {
+      return await getCustomAnalytics(query);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
+      loadingMessage: 'Fetching custom analytics...',
+      successMessage: 'Custom analytics retrieved successfully',
+      showToast: false, // Query-like operation
+    }
+  );
 };
 
 /**
  * Hook to save custom analytics query
  */
 export const useSaveCustomAnalyticsQuery = () => {
-  return useMutationData(['saveCustomAnalyticsQuery'], async (queryData: {
-    name: string;
-    description?: string;
-    query: {
-      metrics: string[];
-      dimensions: string[];
-      filters?: Record<string, any>;
-    };
-  }) => {
-    const result = await saveCustomAnalyticsQuery(queryData);
-    return { status: 200, data: result };
-  }, 'savedAnalyticsQueries');
+  return useMutationOperation(
+    async (queryData: {
+      name: string;
+      description?: string;
+      query: {
+        metrics: string[];
+        dimensions: string[];
+        filters?: Record<string, any>;
+      };
+    }) => {
+      return await saveCustomAnalyticsQuery(queryData);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_GENERATE,
+      loadingMessage: 'Saving custom analytics query...',
+      successMessage: 'Custom analytics query saved successfully',
+      invalidateQueries: [['savedAnalyticsQueries']],
+    }
+  );
 };
 
 /**

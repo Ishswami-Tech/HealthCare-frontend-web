@@ -1,5 +1,5 @@
-import { useQueryData } from '../core/useQueryData';
-import { useMutationData } from '../core/useMutationData';
+import { useQueryData, useMutationOperation } from '../core';
+import { TOAST_IDS } from '../utils/use-toast';
 import {
   getComprehensiveHealthRecord,
   createMedicalHistory,
@@ -90,50 +90,71 @@ export const useMedicalHistory = (userId: string) => {
  * Hook to create medical history
  */
 export const useCreateMedicalHistory = () => {
-  return useMutationData(['createMedicalHistory'], async (data: {
-    userId: string;
-    condition: string;
-    diagnosis?: string;
-    treatment?: string;
-    startDate?: string;
-    endDate?: string;
-    status?: string;
-    notes?: string;
-  }) => {
-    const result = await createMedicalHistory(data);
-    return { status: 200, data: result };
-  }, ['ehr', 'medical-history']);
-};
-
-/**
- * Hook to update medical history
- */
-export const useUpdateMedicalHistory = () => {
-  return useMutationData(['updateMedicalHistory'], async ({ id, updates }: {
-    id: string;
-    updates: {
-      condition?: string;
+  return useMutationOperation(
+    async (data: {
+      userId: string;
+      condition: string;
       diagnosis?: string;
       treatment?: string;
       startDate?: string;
       endDate?: string;
       status?: string;
       notes?: string;
-    };
-  }) => {
-    const result = await updateMedicalHistory(id, updates);
-    return { status: 200, data: result };
-  }, ['ehr', 'medical-history']);
+    }) => {
+      return await createMedicalHistory(data);
+    },
+    {
+      toastId: TOAST_IDS.EHR.HISTORY_CREATE,
+      loadingMessage: 'Creating medical history...',
+      successMessage: 'Medical history created successfully',
+      invalidateQueries: [['ehr', 'medical-history']],
+    }
+  );
+};
+
+/**
+ * Hook to update medical history
+ */
+export const useUpdateMedicalHistory = () => {
+  return useMutationOperation(
+    async ({ id, updates }: {
+      id: string;
+      updates: {
+        condition?: string;
+        diagnosis?: string;
+        treatment?: string;
+        startDate?: string;
+        endDate?: string;
+        status?: string;
+        notes?: string;
+      };
+    }) => {
+      return await updateMedicalHistory(id, updates);
+    },
+    {
+      toastId: TOAST_IDS.EHR.HISTORY_UPDATE,
+      loadingMessage: 'Updating medical history...',
+      successMessage: 'Medical history updated successfully',
+      invalidateQueries: [['ehr', 'medical-history']],
+    }
+  );
 };
 
 /**
  * Hook to delete medical history
  */
 export const useDeleteMedicalHistory = () => {
-  return useMutationData(['deleteMedicalHistory'], async (id: string) => {
-    const result = await deleteMedicalHistory(id);
-    return { status: 200, data: result };
-  }, ['ehr', 'medical-history']);
+  return useMutationOperation(
+    async (id: string) => {
+      return await deleteMedicalHistory(id);
+    },
+    {
+      toastId: TOAST_IDS.EHR.HISTORY_DELETE,
+      loadingMessage: 'Deleting medical history...',
+      successMessage: 'Medical history deleted successfully',
+      invalidateQueries: [['ehr', 'medical-history']],
+    }
+  );
 };
 
 // ===== LAB REPORTS HOOKS =====
@@ -145,24 +166,45 @@ export const useLabReports = (userId: string) => {
 };
 
 export const useCreateLabReport = () => {
-  return useMutationData(['createLabReport'], async (data: Parameters<typeof createLabReport>[0]) => {
-    const result = await createLabReport(data);
-    return { status: 200, data: result };
-  }, ['ehr', 'lab-reports']);
+  return useMutationOperation(
+    async (data: Parameters<typeof createLabReport>[0]) => {
+      return await createLabReport(data);
+    },
+    {
+      toastId: TOAST_IDS.EHR.LAB_CREATE,
+      loadingMessage: 'Creating lab report...',
+      successMessage: 'Lab report created successfully',
+      invalidateQueries: [['ehr', 'lab-reports']],
+    }
+  );
 };
 
 export const useUpdateLabReport = () => {
-  return useMutationData(['updateLabReport'], async ({ id, updates }: { id: string; updates: Parameters<typeof updateLabReport>[1] }) => {
-    const result = await updateLabReport(id, updates);
-    return { status: 200, data: result };
-  }, ['ehr', 'lab-reports']);
+  return useMutationOperation(
+    async ({ id, updates }: { id: string; updates: Parameters<typeof updateLabReport>[1] }) => {
+      return await updateLabReport(id, updates);
+    },
+    {
+      toastId: TOAST_IDS.EHR.LAB_UPDATE,
+      loadingMessage: 'Updating lab report...',
+      successMessage: 'Lab report updated successfully',
+      invalidateQueries: [['ehr', 'lab-reports']],
+    }
+  );
 };
 
 export const useDeleteLabReport = () => {
-  return useMutationData(['deleteLabReport'], async (id: string) => {
-    const result = await deleteLabReport(id);
-    return { status: 200, data: result };
-  }, ['ehr', 'lab-reports']);
+  return useMutationOperation(
+    async (id: string) => {
+      return await deleteLabReport(id);
+    },
+    {
+      toastId: TOAST_IDS.EHR.LAB_DELETE,
+      loadingMessage: 'Deleting lab report...',
+      successMessage: 'Lab report deleted successfully',
+      invalidateQueries: [['ehr', 'lab-reports']],
+    }
+  );
 };
 
 // ===== RADIOLOGY REPORTS HOOKS =====
@@ -174,24 +216,45 @@ export const useRadiologyReports = (userId: string) => {
 };
 
 export const useCreateRadiologyReport = () => {
-  return useMutationData(['createRadiologyReport'], async (data: Parameters<typeof createRadiologyReport>[0]) => {
-    const result = await createRadiologyReport(data);
-    return { status: 200, data: result };
-  }, ['ehr', 'radiology-reports']);
+  return useMutationOperation(
+    async (data: Parameters<typeof createRadiologyReport>[0]) => {
+      return await createRadiologyReport(data);
+    },
+    {
+      toastId: TOAST_IDS.EHR.RADIOLOGY_CREATE,
+      loadingMessage: 'Creating radiology report...',
+      successMessage: 'Radiology report created successfully',
+      invalidateQueries: [['ehr', 'radiology-reports']],
+    }
+  );
 };
 
 export const useUpdateRadiologyReport = () => {
-  return useMutationData(['updateRadiologyReport'], async ({ id, updates }: { id: string; updates: Parameters<typeof updateRadiologyReport>[1] }) => {
-    const result = await updateRadiologyReport(id, updates);
-    return { status: 200, data: result };
-  }, ['ehr', 'radiology-reports']);
+  return useMutationOperation(
+    async ({ id, updates }: { id: string; updates: Parameters<typeof updateRadiologyReport>[1] }) => {
+      return await updateRadiologyReport(id, updates);
+    },
+    {
+      toastId: TOAST_IDS.EHR.RADIOLOGY_UPDATE,
+      loadingMessage: 'Updating radiology report...',
+      successMessage: 'Radiology report updated successfully',
+      invalidateQueries: [['ehr', 'radiology-reports']],
+    }
+  );
 };
 
 export const useDeleteRadiologyReport = () => {
-  return useMutationData(['deleteRadiologyReport'], async (id: string) => {
-    const result = await deleteRadiologyReport(id);
-    return { status: 200, data: result };
-  }, ['ehr', 'radiology-reports']);
+  return useMutationOperation(
+    async (id: string) => {
+      return await deleteRadiologyReport(id);
+    },
+    {
+      toastId: TOAST_IDS.EHR.RADIOLOGY_DELETE,
+      loadingMessage: 'Deleting radiology report...',
+      successMessage: 'Radiology report deleted successfully',
+      invalidateQueries: [['ehr', 'radiology-reports']],
+    }
+  );
 };
 
 // ===== SURGICAL RECORDS HOOKS =====
@@ -203,24 +266,45 @@ export const useSurgicalRecords = (userId: string) => {
 };
 
 export const useCreateSurgicalRecord = () => {
-  return useMutationData(['createSurgicalRecord'], async (data: Parameters<typeof createSurgicalRecord>[0]) => {
-    const result = await createSurgicalRecord(data);
-    return { status: 200, data: result };
-  }, ['ehr', 'surgical-records']);
+  return useMutationOperation(
+    async (data: Parameters<typeof createSurgicalRecord>[0]) => {
+      return await createSurgicalRecord(data);
+    },
+    {
+      toastId: TOAST_IDS.EHR.SURGICAL_CREATE,
+      loadingMessage: 'Creating surgical record...',
+      successMessage: 'Surgical record created successfully',
+      invalidateQueries: [['ehr', 'surgical-records']],
+    }
+  );
 };
 
 export const useUpdateSurgicalRecord = () => {
-  return useMutationData(['updateSurgicalRecord'], async ({ id, updates }: { id: string; updates: Parameters<typeof updateSurgicalRecord>[1] }) => {
-    const result = await updateSurgicalRecord(id, updates);
-    return { status: 200, data: result };
-  }, ['ehr', 'surgical-records']);
+  return useMutationOperation(
+    async ({ id, updates }: { id: string; updates: Parameters<typeof updateSurgicalRecord>[1] }) => {
+      return await updateSurgicalRecord(id, updates);
+    },
+    {
+      toastId: TOAST_IDS.EHR.SURGICAL_UPDATE,
+      loadingMessage: 'Updating surgical record...',
+      successMessage: 'Surgical record updated successfully',
+      invalidateQueries: [['ehr', 'surgical-records']],
+    }
+  );
 };
 
 export const useDeleteSurgicalRecord = () => {
-  return useMutationData(['deleteSurgicalRecord'], async (id: string) => {
-    const result = await deleteSurgicalRecord(id);
-    return { status: 200, data: result };
-  }, ['ehr', 'surgical-records']);
+  return useMutationOperation(
+    async (id: string) => {
+      return await deleteSurgicalRecord(id);
+    },
+    {
+      toastId: TOAST_IDS.EHR.SURGICAL_DELETE,
+      loadingMessage: 'Deleting surgical record...',
+      successMessage: 'Surgical record deleted successfully',
+      invalidateQueries: [['ehr', 'surgical-records']],
+    }
+  );
 };
 
 // ===== VITALS HOOKS =====
@@ -232,24 +316,45 @@ export const useVitals = (userId: string, type?: string) => {
 };
 
 export const useCreateVital = () => {
-  return useMutationData(['createVital'], async (data: Parameters<typeof createVital>[0]) => {
-    const result = await createVital(data);
-    return { status: 200, data: result };
-  }, ['ehr', 'vitals']);
+  return useMutationOperation(
+    async (data: Parameters<typeof createVital>[0]) => {
+      return await createVital(data);
+    },
+    {
+      toastId: TOAST_IDS.EHR.VITAL_CREATE,
+      loadingMessage: 'Creating vital...',
+      successMessage: 'Vital created successfully',
+      invalidateQueries: [['ehr', 'vitals']],
+    }
+  );
 };
 
 export const useUpdateVital = () => {
-  return useMutationData(['updateVital'], async ({ id, updates }: { id: string; updates: Parameters<typeof updateVital>[1] }) => {
-    const result = await updateVital(id, updates);
-    return { status: 200, data: result };
-  }, ['ehr', 'vitals']);
+  return useMutationOperation(
+    async ({ id, updates }: { id: string; updates: Parameters<typeof updateVital>[1] }) => {
+      return await updateVital(id, updates);
+    },
+    {
+      toastId: TOAST_IDS.EHR.VITAL_UPDATE,
+      loadingMessage: 'Updating vital...',
+      successMessage: 'Vital updated successfully',
+      invalidateQueries: [['ehr', 'vitals']],
+    }
+  );
 };
 
 export const useDeleteVital = () => {
-  return useMutationData(['deleteVital'], async (id: string) => {
-    const result = await deleteVital(id);
-    return { status: 200, data: result };
-  }, ['ehr', 'vitals']);
+  return useMutationOperation(
+    async (id: string) => {
+      return await deleteVital(id);
+    },
+    {
+      toastId: TOAST_IDS.EHR.VITAL_DELETE,
+      loadingMessage: 'Deleting vital...',
+      successMessage: 'Vital deleted successfully',
+      invalidateQueries: [['ehr', 'vitals']],
+    }
+  );
 };
 
 // ===== ALLERGIES HOOKS =====
@@ -261,24 +366,45 @@ export const useAllergies = (userId: string) => {
 };
 
 export const useCreateAllergy = () => {
-  return useMutationData(['createAllergy'], async (data: Parameters<typeof createAllergy>[0]) => {
-    const result = await createAllergy(data);
-    return { status: 200, data: result };
-  }, ['ehr', 'allergies']);
+  return useMutationOperation(
+    async (data: Parameters<typeof createAllergy>[0]) => {
+      return await createAllergy(data);
+    },
+    {
+      toastId: TOAST_IDS.EHR.ALLERGY_CREATE,
+      loadingMessage: 'Creating allergy...',
+      successMessage: 'Allergy created successfully',
+      invalidateQueries: [['ehr', 'allergies']],
+    }
+  );
 };
 
 export const useUpdateAllergy = () => {
-  return useMutationData(['updateAllergy'], async ({ id, updates }: { id: string; updates: Parameters<typeof updateAllergy>[1] }) => {
-    const result = await updateAllergy(id, updates);
-    return { status: 200, data: result };
-  }, ['ehr', 'allergies']);
+  return useMutationOperation(
+    async ({ id, updates }: { id: string; updates: Parameters<typeof updateAllergy>[1] }) => {
+      return await updateAllergy(id, updates);
+    },
+    {
+      toastId: TOAST_IDS.EHR.ALLERGY_UPDATE,
+      loadingMessage: 'Updating allergy...',
+      successMessage: 'Allergy updated successfully',
+      invalidateQueries: [['ehr', 'allergies']],
+    }
+  );
 };
 
 export const useDeleteAllergy = () => {
-  return useMutationData(['deleteAllergy'], async (id: string) => {
-    const result = await deleteAllergy(id);
-    return { status: 200, data: result };
-  }, ['ehr', 'allergies']);
+  return useMutationOperation(
+    async (id: string) => {
+      return await deleteAllergy(id);
+    },
+    {
+      toastId: TOAST_IDS.EHR.ALLERGY_DELETE,
+      loadingMessage: 'Deleting allergy...',
+      successMessage: 'Allergy deleted successfully',
+      invalidateQueries: [['ehr', 'allergies']],
+    }
+  );
 };
 
 // ===== MEDICATIONS HOOKS =====
@@ -290,24 +416,45 @@ export const useMedications = (userId: string, activeOnly?: boolean) => {
 };
 
 export const useCreateMedication = () => {
-  return useMutationData(['createMedication'], async (data: Parameters<typeof createMedication>[0]) => {
-    const result = await createMedication(data);
-    return { status: 200, data: result };
-  }, ['ehr', 'medications']);
+  return useMutationOperation(
+    async (data: Parameters<typeof createMedication>[0]) => {
+      return await createMedication(data);
+    },
+    {
+      toastId: TOAST_IDS.EHR.MEDICATION_CREATE,
+      loadingMessage: 'Creating medication...',
+      successMessage: 'Medication created successfully',
+      invalidateQueries: [['ehr', 'medications']],
+    }
+  );
 };
 
 export const useUpdateMedication = () => {
-  return useMutationData(['updateMedication'], async ({ id, updates }: { id: string; updates: Parameters<typeof updateMedication>[1] }) => {
-    const result = await updateMedication(id, updates);
-    return { status: 200, data: result };
-  }, ['ehr', 'medications']);
+  return useMutationOperation(
+    async ({ id, updates }: { id: string; updates: Parameters<typeof updateMedication>[1] }) => {
+      return await updateMedication(id, updates);
+    },
+    {
+      toastId: TOAST_IDS.EHR.MEDICATION_UPDATE,
+      loadingMessage: 'Updating medication...',
+      successMessage: 'Medication updated successfully',
+      invalidateQueries: [['ehr', 'medications']],
+    }
+  );
 };
 
 export const useDeleteMedication = () => {
-  return useMutationData(['deleteMedication'], async (id: string) => {
-    const result = await deleteMedication(id);
-    return { status: 200, data: result };
-  }, ['ehr', 'medications']);
+  return useMutationOperation(
+    async (id: string) => {
+      return await deleteMedication(id);
+    },
+    {
+      toastId: TOAST_IDS.EHR.MEDICATION_DELETE,
+      loadingMessage: 'Deleting medication...',
+      successMessage: 'Medication deleted successfully',
+      invalidateQueries: [['ehr', 'medications']],
+    }
+  );
 };
 
 // ===== IMMUNIZATIONS HOOKS =====
@@ -319,24 +466,45 @@ export const useImmunizations = (userId: string) => {
 };
 
 export const useCreateImmunization = () => {
-  return useMutationData(['createImmunization'], async (data: Parameters<typeof createImmunization>[0]) => {
-    const result = await createImmunization(data);
-    return { status: 200, data: result };
-  }, ['ehr', 'immunizations']);
+  return useMutationOperation(
+    async (data: Parameters<typeof createImmunization>[0]) => {
+      return await createImmunization(data);
+    },
+    {
+      toastId: TOAST_IDS.EHR.IMMUNIZATION_CREATE,
+      loadingMessage: 'Creating immunization...',
+      successMessage: 'Immunization created successfully',
+      invalidateQueries: [['ehr', 'immunizations']],
+    }
+  );
 };
 
 export const useUpdateImmunization = () => {
-  return useMutationData(['updateImmunization'], async ({ id, updates }: { id: string; updates: Parameters<typeof updateImmunization>[1] }) => {
-    const result = await updateImmunization(id, updates);
-    return { status: 200, data: result };
-  }, ['ehr', 'immunizations']);
+  return useMutationOperation(
+    async ({ id, updates }: { id: string; updates: Parameters<typeof updateImmunization>[1] }) => {
+      return await updateImmunization(id, updates);
+    },
+    {
+      toastId: TOAST_IDS.EHR.IMMUNIZATION_UPDATE,
+      loadingMessage: 'Updating immunization...',
+      successMessage: 'Immunization updated successfully',
+      invalidateQueries: [['ehr', 'immunizations']],
+    }
+  );
 };
 
 export const useDeleteImmunization = () => {
-  return useMutationData(['deleteImmunization'], async (id: string) => {
-    const result = await deleteImmunization(id);
-    return { status: 200, data: result };
-  }, ['ehr', 'immunizations']);
+  return useMutationOperation(
+    async (id: string) => {
+      return await deleteImmunization(id);
+    },
+    {
+      toastId: TOAST_IDS.EHR.IMMUNIZATION_DELETE,
+      loadingMessage: 'Deleting immunization...',
+      successMessage: 'Immunization deleted successfully',
+      invalidateQueries: [['ehr', 'immunizations']],
+    }
+  );
 };
 
 // ===== ANALYTICS HOOKS =====
@@ -381,32 +549,12 @@ export const usePrescription = (prescriptionId: string) => {
  * Hook to create prescription
  */
 export const useCreatePrescription = () => {
-  return useMutationData(['createPrescription'], async (prescriptionData: {
-    patientId: string;
-    doctorId: string;
-    appointmentId?: string;
-    medicines: Array<{
-      medicineId: string;
-      dosage: string;
-      frequency: string;
-      duration: string;
-      instructions?: string;
-    }>;
-    notes?: string;
-  }) => {
-    const result = await createPrescription(prescriptionData);
-    return { status: 200, data: result };
-  }, 'prescriptions');
-};
-
-/**
- * Hook to update prescription
- */
-export const useUpdatePrescription = () => {
-  return useMutationData(['updatePrescription'], async ({ prescriptionId, updates }: {
-    prescriptionId: string;
-    updates: {
-      medicines?: Array<{
+  return useMutationOperation(
+    async (prescriptionData: {
+      patientId: string;
+      doctorId: string;
+      appointmentId?: string;
+      medicines: Array<{
         medicineId: string;
         dosage: string;
         frequency: string;
@@ -414,22 +562,62 @@ export const useUpdatePrescription = () => {
         instructions?: string;
       }>;
       notes?: string;
-      status?: 'active' | 'completed' | 'cancelled';
-    };
-  }) => {
-    const result = await updatePrescription(prescriptionId, updates);
-    return { status: 200, data: result };
-  }, 'prescriptions');
+    }) => {
+      return await createPrescription(prescriptionData);
+    },
+    {
+      toastId: TOAST_IDS.PRESCRIPTION.CREATE,
+      loadingMessage: 'Creating prescription...',
+      successMessage: 'Prescription created successfully',
+      invalidateQueries: [['prescriptions']],
+    }
+  );
+};
+
+/**
+ * Hook to update prescription
+ */
+export const useUpdatePrescription = () => {
+  return useMutationOperation(
+    async ({ prescriptionId, updates }: {
+      prescriptionId: string;
+      updates: {
+        medicines?: Array<{
+          medicineId: string;
+          dosage: string;
+          frequency: string;
+          duration: string;
+          instructions?: string;
+        }>;
+        notes?: string;
+        status?: 'active' | 'completed' | 'cancelled';
+      };
+    }) => {
+      return await updatePrescription(prescriptionId, updates);
+    },
+    {
+      toastId: TOAST_IDS.PRESCRIPTION.UPDATE,
+      loadingMessage: 'Updating prescription...',
+      successMessage: 'Prescription updated successfully',
+      invalidateQueries: [['prescriptions']],
+    }
+  );
 };
 
 /**
  * Hook to generate prescription PDF
  */
 export const useGeneratePrescriptionPDF = () => {
-  return useMutationData(['generatePrescriptionPDF'], async (prescriptionId: string) => {
-    const result = await generatePrescriptionPDF(prescriptionId);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (prescriptionId: string) => {
+      return await generatePrescriptionPDF(prescriptionId);
+    },
+    {
+      toastId: TOAST_IDS.PRESCRIPTION.PDF,
+      loadingMessage: 'Generating prescription PDF...',
+      successMessage: 'Prescription PDF generated successfully',
+    }
+  );
 };
 
 // ===== MEDICINES HOOKS =====
@@ -451,78 +639,113 @@ export const useMedicines = (filters?: {
  * Hook to search medicines
  */
 export const useSearchMedicines = () => {
-  return useMutationData(['searchMedicines'], async ({ query, limit }: {
-    query: string;
-    limit?: number;
-  }) => {
-    const result = await searchMedicines(query, limit);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async ({ query, limit }: {
+      query: string;
+      limit?: number;
+    }) => {
+      return await searchMedicines(query, limit);
+    },
+    {
+      toastId: TOAST_IDS.MEDICINE.SEARCH,
+      loadingMessage: 'Searching medicines...',
+      successMessage: 'Search completed',
+      showToast: false, // Search operations typically don't need success toast
+    }
+  );
 };
 
 /**
  * Hook to create medicine
  */
 export const useCreateMedicine = () => {
-  return useMutationData(['createMedicine'], async (medicineData: {
-    name: string;
-    type: 'CLASSICAL' | 'PROPRIETARY' | 'HERBAL';
-    category?: string;
-    manufacturer?: string;
-    composition?: string;
-    indications?: string;
-    contraindications?: string;
-    sideEffects?: string;
-    dosageForm?: string;
-    strength?: string;
-  }) => {
-    const result = await createMedicine(medicineData);
-    return { status: 200, data: result };
-  }, 'medicines');
+  return useMutationOperation(
+    async (medicineData: {
+      name: string;
+      type: 'CLASSICAL' | 'PROPRIETARY' | 'HERBAL';
+      category?: string;
+      manufacturer?: string;
+      composition?: string;
+      indications?: string;
+      contraindications?: string;
+      sideEffects?: string;
+      dosageForm?: string;
+      strength?: string;
+    }) => {
+      return await createMedicine(medicineData);
+    },
+    {
+      toastId: TOAST_IDS.MEDICINE.CREATE,
+      loadingMessage: 'Creating medicine...',
+      successMessage: 'Medicine created successfully',
+      invalidateQueries: [['medicines']],
+    }
+  );
 };
 
 /**
  * Hook to update medicine
  */
 export const useUpdateMedicine = () => {
-  return useMutationData(['updateMedicine'], async ({ medicineId, updates }: {
-    medicineId: string;
-    updates: Partial<{
-      name: string;
-      type: 'CLASSICAL' | 'PROPRIETARY' | 'HERBAL';
-      category: string;
-      manufacturer: string;
-      composition: string;
-      indications: string;
-      contraindications: string;
-      sideEffects: string;
-      dosageForm: string;
-      strength: string;
-    }>;
-  }) => {
-    const result = await updateMedicine(medicineId, updates);
-    return { status: 200, data: result };
-  }, 'medicines');
+  return useMutationOperation(
+    async ({ medicineId, updates }: {
+      medicineId: string;
+      updates: Partial<{
+        name: string;
+        type: 'CLASSICAL' | 'PROPRIETARY' | 'HERBAL';
+        category: string;
+        manufacturer: string;
+        composition: string;
+        indications: string;
+        contraindications: string;
+        sideEffects: string;
+        dosageForm: string;
+        strength: string;
+      }>;
+    }) => {
+      return await updateMedicine(medicineId, updates);
+    },
+    {
+      toastId: TOAST_IDS.MEDICINE.UPDATE,
+      loadingMessage: 'Updating medicine...',
+      successMessage: 'Medicine updated successfully',
+      invalidateQueries: [['medicines']],
+    }
+  );
 };
 
 /**
  * Hook to delete medicine
  */
 export const useDeleteMedicine = () => {
-  return useMutationData(['deleteMedicine'], async (medicineId: string) => {
-    const result = await deleteMedicine(medicineId);
-    return { status: 200, data: result };
-  }, 'medicines');
+  return useMutationOperation(
+    async (medicineId: string) => {
+      return await deleteMedicine(medicineId);
+    },
+    {
+      toastId: TOAST_IDS.MEDICINE.DELETE,
+      loadingMessage: 'Deleting medicine...',
+      successMessage: 'Medicine deleted successfully',
+      invalidateQueries: [['medicines']],
+    }
+  );
 };
 
 /**
  * Hook to get medicine interactions
  */
 export const useMedicineInteractions = () => {
-  return useMutationData(['medicineInteractions'], async (medicineIds: string[]) => {
-    const result = await getMedicineInteractions(medicineIds);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async (medicineIds: string[]) => {
+      return await getMedicineInteractions(medicineIds);
+    },
+    {
+      toastId: TOAST_IDS.MEDICINE.INTERACTIONS,
+      loadingMessage: 'Checking medicine interactions...',
+      successMessage: 'Interaction check completed',
+      showToast: false, // Query-like operation, no success toast needed
+    }
+  );
 };
 
 /**
@@ -538,18 +761,25 @@ export const useMedicineInventory = (clinicId?: string) => {
  * Hook to update medicine inventory
  */
 export const useUpdateMedicineInventory = () => {
-  return useMutationData(['updateMedicineInventory'], async ({ medicineId, inventoryData }: {
-    medicineId: string;
-    inventoryData: {
-      quantity: number;
-      expiryDate?: string;
-      batchNumber?: string;
-      cost?: number;
-    };
-  }) => {
-    const result = await updateMedicineInventory(medicineId, inventoryData);
-    return { status: 200, data: result };
-  }, 'medicineInventory');
+  return useMutationOperation(
+    async ({ medicineId, inventoryData }: {
+      medicineId: string;
+      inventoryData: {
+        quantity: number;
+        expiryDate?: string;
+        batchNumber?: string;
+        cost?: number;
+      };
+    }) => {
+      return await updateMedicineInventory(medicineId, inventoryData);
+    },
+    {
+      toastId: TOAST_IDS.MEDICINE.INVENTORY_UPDATE,
+      loadingMessage: 'Updating medicine inventory...',
+      successMessage: 'Medicine inventory updated successfully',
+      invalidateQueries: [['medicineInventory']],
+    }
+  );
 };
 
 // ===== MEDICAL RECORDS HOOKS =====
@@ -586,58 +816,86 @@ export const useMedicalRecord = (recordId: string) => {
  * Hook to create medical record
  */
 export const useCreateMedicalRecord = () => {
-  return useMutationData(['createMedicalRecord'], async (recordData: {
-    patientId: string;
-    type: 'LAB_TEST' | 'XRAY' | 'MRI' | 'PRESCRIPTION' | 'DIAGNOSIS_REPORT' | 'PULSE_DIAGNOSIS';
-    title: string;
-    content: string;
-    fileUrl?: string;
-    doctorId?: string;
-    appointmentId?: string;
-  }) => {
-    const result = await createMedicalRecord(recordData);
-    return { status: 200, data: result };
-  }, ['medicalRecords']);
+  return useMutationOperation(
+    async (recordData: {
+      patientId: string;
+      type: 'LAB_TEST' | 'XRAY' | 'MRI' | 'PRESCRIPTION' | 'DIAGNOSIS_REPORT' | 'PULSE_DIAGNOSIS';
+      title: string;
+      content: string;
+      fileUrl?: string;
+      doctorId?: string;
+      appointmentId?: string;
+    }) => {
+      return await createMedicalRecord(recordData);
+    },
+    {
+      toastId: TOAST_IDS.MEDICAL_RECORD.CREATE,
+      loadingMessage: 'Creating medical record...',
+      successMessage: 'Medical record created successfully',
+      invalidateQueries: [['medicalRecords']],
+    }
+  );
 };
 
 /**
  * Hook to update medical record
  */
 export const useUpdateMedicalRecord = () => {
-  return useMutationData(['updateMedicalRecord'], async ({ recordId, updates }: {
-    recordId: string;
-    updates: {
-      title?: string;
-      content?: string;
-      fileUrl?: string;
-    };
-  }) => {
-    const result = await updateMedicalRecord(recordId, updates);
-    return { status: 200, data: result };
-  }, ['medicalRecords']);
+  return useMutationOperation(
+    async ({ recordId, updates }: {
+      recordId: string;
+      updates: {
+        title?: string;
+        content?: string;
+        fileUrl?: string;
+      };
+    }) => {
+      return await updateMedicalRecord(recordId, updates);
+    },
+    {
+      toastId: TOAST_IDS.MEDICAL_RECORD.UPDATE,
+      loadingMessage: 'Updating medical record...',
+      successMessage: 'Medical record updated successfully',
+      invalidateQueries: [['medicalRecords']],
+    }
+  );
 };
 
 /**
  * Hook to delete medical record
  */
 export const useDeleteMedicalRecord = () => {
-  return useMutationData(['deleteMedicalRecord'], async (recordId: string) => {
-    const result = await deleteMedicalRecord(recordId);
-    return { status: 200, data: result };
-  }, ['medicalRecords']);
+  return useMutationOperation(
+    async (recordId: string) => {
+      return await deleteMedicalRecord(recordId);
+    },
+    {
+      toastId: TOAST_IDS.MEDICAL_RECORD.DELETE,
+      loadingMessage: 'Deleting medical record...',
+      successMessage: 'Medical record deleted successfully',
+      invalidateQueries: [['medicalRecords']],
+    }
+  );
 };
 
 /**
  * Hook to upload medical record file
  */
 export const useUploadMedicalRecordFile = () => {
-  return useMutationData(['uploadMedicalRecordFile'], async ({ recordId, file }: {
-    recordId: string;
-    file: File;
-  }) => {
-    const result = await uploadMedicalRecordFile(recordId, file);
-    return { status: 200, data: result };
-  }, ['medicalRecords']);
+  return useMutationOperation(
+    async ({ recordId, file }: {
+      recordId: string;
+      file: File;
+    }) => {
+      return await uploadMedicalRecordFile(recordId, file);
+    },
+    {
+      toastId: TOAST_IDS.MEDICAL_RECORD.UPLOAD,
+      loadingMessage: 'Uploading medical record file...',
+      successMessage: 'Medical record file uploaded successfully',
+      invalidateQueries: [['medicalRecords']],
+    }
+  );
 };
 
 /**
@@ -653,18 +911,25 @@ export const useMedicalRecordTemplates = (type?: string) => {
  * Hook to create medical record template
  */
 export const useCreateMedicalRecordTemplate = () => {
-  return useMutationData(['createMedicalRecordTemplate'], async (templateData: {
-    name: string;
-    type: string;
-    content: string;
-    fields: Array<{
+  return useMutationOperation(
+    async (templateData: {
       name: string;
-      type: 'text' | 'number' | 'date' | 'select';
-      required: boolean;
-      options?: string[];
-    }>;
-  }) => {
-    const result = await createMedicalRecordTemplate(templateData);
-    return { status: 200, data: result };
-  }, ['medicalRecordTemplates']);
+      type: string;
+      content: string;
+      fields: Array<{
+        name: string;
+        type: 'text' | 'number' | 'date' | 'select';
+        required: boolean;
+        options?: string[];
+      }>;
+    }) => {
+      return await createMedicalRecordTemplate(templateData);
+    },
+    {
+      toastId: TOAST_IDS.MEDICAL_RECORD.TEMPLATE_CREATE,
+      loadingMessage: 'Creating medical record template...',
+      successMessage: 'Medical record template created successfully',
+      invalidateQueries: [['medicalRecordTemplates']],
+    }
+  );
 };

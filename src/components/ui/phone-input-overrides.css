@@ -1,0 +1,36 @@
+/* Custom overrides for react-phone-number-input to fix styling issues */
+
+/* Remove all borders and outlines from the phone number input field */
+.PhoneInputInput,
+input[type="tel"].PhoneInputInput {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  pointer-events: auto !important;
+  z-index: 1 !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+/* Remove borders in all states */
+.PhoneInputInput:focus,
+.PhoneInputInput:focus-visible,
+.PhoneInputInput:hover,
+.PhoneInputInput:active,
+input[type="tel"].PhoneInputInput:focus,
+input[type="tel"].PhoneInputInput:focus-visible,
+input[type="tel"].PhoneInputInput:hover,
+input[type="tel"].PhoneInputInput:active {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Ensure the container handles focus styling, not the input */
+.phone-input-container .PhoneInputInput {
+  border: 0 !important;
+  outline: 0 !important;
+  cursor: text !important;
+}
+

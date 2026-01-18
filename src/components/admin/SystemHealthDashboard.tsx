@@ -21,40 +21,97 @@ import {
 } from '@/components/ui/table';
 import {
   Activity,
-
+  Server,
+  Database,
   Wifi,
+  HardDrive,
   RefreshCw,
   AlertTriangle,
   CheckCircle,
   Clock,
   Users,
-  TrendingUp
+  TrendingUp,
+  Video,
+  Zap
 } from 'lucide-react';
-import { BackendStatusIndicator } from '@/components/common/BackendStatusIndicator';
+// import { BackendStatusIndicator } from '@/components/common/BackendStatusIndicator'; // Removed
+import { useDetailedHealthStatus } from '@/hooks/query/useHealth';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useAppStore } from '@/stores';
 import { StatusDot, StatusType } from '@/components/common/StatusIndicator';
 
+// Helper to map status string to StatusType
+const mapStatus = (status?: string, healthy?: boolean): StatusType => {
+  if (status === 'up' || healthy === true) return "active";
+  if (status === 'degraded') return "warning";
+  if (status === 'down' || healthy === false) return "error";
+  return "loading";
+};
+
 export function SystemHealthDashboard({ className }: { className?: string }) {
-  const backend = BackendStatusIndicator();
+  const { data: healthStatus, refetch, isFetching, lastUpdate } = useDetailedHealthStatus();
   const { isConnected, connectionStatus, error: wsError } = useWebSocketStatus();
   const { notifications } = useAppStore();
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   // Calculate system metrics
   const services = [
-    backend.services.api,
-    backend.services.database,
-    backend.services.websocket,
-    backend.services.cache,
+    {
+      name: "API Server",
+      icon: Server,
+      status: mapStatus(healthStatus ? 'up' : undefined, !!healthStatus),
+      responseTime: healthStatus?.system?.requestRate ? Math.round(1000 / (healthStatus.system.requestRate || 1)) : null,
+      lastChecked: lastUpdate,
+      error: null
+    },
+    {
+      name: "Database",
+      icon: Database,
+      status: mapStatus(healthStatus?.database?.status, healthStatus?.database?.isHealthy),
+      responseTime: healthStatus?.database?.avgResponseTime || null,
+      lastChecked: lastUpdate,
+      error: healthStatus?.database?.errors?.[0]
+    },
+    {
+      name: "WebSocket",
+      icon: Wifi,
+      status: mapStatus(healthStatus?.communication?.status, healthStatus?.communication?.healthy),
+      responseTime: healthStatus?.communication?.socket?.latency || null,
+      lastChecked: lastUpdate,
+      error: healthStatus?.communication?.issues?.[0]
+    },
+    {
+      name: "Cache",
+      icon: HardDrive,
+      status: mapStatus(healthStatus?.cache?.status, healthStatus?.cache?.healthy),
+      responseTime: healthStatus?.cache?.latency || null,
+      lastChecked: lastUpdate,
+      error: null
+    },
+      {
+          name: "Queue",
+          icon: Zap,
+          status: mapStatus(healthStatus?.queue?.status, healthStatus?.queue?.healthy),
+          responseTime: healthStatus?.queue?.connection?.latency || null,
+          lastChecked: lastUpdate,
+          error: null
+      },
+       {
+          name: "Video",
+          icon: Video,
+          status: mapStatus(healthStatus?.video?.status, healthStatus?.video?.isHealthy),
+          responseTime: null,
+          lastChecked: lastUpdate,
+          error: healthStatus?.video?.error
+      },
   ];
 
   const healthyServices = services.filter(s => s.status === 'active').length;
   const totalServices = services.length;
-  // const systemUptime = Math.floor((Date.now() - (backend.services.api.lastChecked?.getTime() || Date.now())) / 1000);
+  // const systemUptime = Math.floor((Date.now() - (lastUpdate?.getTime() || Date.now())) / 1000);
   const averageResponseTime = services
     .filter(s => s.responseTime !== null)
-    .reduce((acc, s) => acc + (s.responseTime || 0), 0) / services.filter(s => s.responseTime !== null).length || 0;
+    .reduce((acc, s) => acc + (s.responseTime || 0), 0) / (services.filter(s => s.responseTime !== null).length || 1) || 0;
 
   const getStatusColor = (status: StatusType): string => {
     switch (status) {
@@ -65,8 +122,6 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
       default: return 'text-gray-600 bg-gray-50 border-gray-200';
     }
   };
-
-
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -126,8 +181,8 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {backend.services.lastGlobalCheck 
-                ? new Date(backend.services.lastGlobalCheck).toLocaleTimeString()
+              {lastUpdate 
+                ? new Date(lastUpdate).toLocaleTimeString()
                 : 'Never'
               }
             </div>
@@ -159,10 +214,10 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => backend.refresh(true)}
-                disabled={backend.isChecking}
+                onClick={() => refetch()}
+                disabled={isFetching}
               >
-                <RefreshCw className={cn('h-4 w-4 mr-2', backend.isChecking && 'animate-spin')} />
+                <RefreshCw className={cn('h-4 w-4 mr-2', isFetching && 'animate-spin')} />
                 Refresh
               </Button>
             </div>
@@ -296,14 +351,14 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
 
 // Compact version for embedding in other dashboards
 export function CompactSystemHealth({ className }: { className?: string }) {
-  const backend = BackendStatusIndicator();
+  const { data: healthStatus, lastUpdate } = useDetailedHealthStatus();
   const { isConnected } = useWebSocketStatus();
   
   const services = [
-    backend.services.api,
-    backend.services.database, 
-    backend.services.websocket,
-    backend.services.cache,
+    { name: 'API', status: mapStatus(healthStatus ? 'up' : undefined, !!healthStatus) },
+    { name: 'DB', status: mapStatus(healthStatus?.database?.status, healthStatus?.database?.isHealthy) },
+    { name: 'WS', status: mapStatus(healthStatus?.communication?.status, healthStatus?.communication?.healthy) },
+    { name: 'Cache', status: mapStatus(healthStatus?.cache?.status, healthStatus?.cache?.healthy) },
   ];
   
   const healthyServices = services.filter(s => s.status === 'active').length;
@@ -334,8 +389,8 @@ export function CompactSystemHealth({ className }: { className?: string }) {
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">Last Check</span>
           <span className="text-xs text-gray-500">
-            {backend.services.lastGlobalCheck 
-              ? new Date(backend.services.lastGlobalCheck).toLocaleTimeString()
+            {lastUpdate 
+              ? new Date(lastUpdate).toLocaleTimeString()
               : 'Never'
             }
           </span>

@@ -1,16 +1,26 @@
 "use client";
 
-import { useBackendHealth, BackendService } from "@/hooks/utils/useBackendHealth";
+import { useDetailedHealthStatus } from "@/hooks/query/useHealth";
 import { cn } from "@/lib/utils/index";
-import { CheckCircle2, AlertTriangle, ArrowLeft, RefreshCw, Loader2, Activity, Moon, Sun, XCircle, Clock } from "lucide-react";
-import Link from "next/link";
+import { CheckCircle2, AlertTriangle, RefreshCw, Loader2, Activity, XCircle, Clock, Server, Database, Wifi, HardDrive, Video, Zap, Rocket, GitBranch } from "lucide-react";
 import { motion } from "framer-motion";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+
+// --- Types ---
+interface ServiceStatus {
+    name: string;
+    status: string;
+    icon: any;
+    responseTime?: number | null;
+    lastChecked?: Date | null;
+    error?: string | null | undefined;
+    endpoint?: string;
+}
 
 // --- Service Row ---
 
-function StatusServiceRow({ service }: { service: BackendService }) {
+function StatusServiceRow({ service }: { service: ServiceStatus }) {
   const isHealthy = service.status === 'active';
   const isWarning = service.status === 'warning';
   const isError = service.status === 'error';
@@ -119,28 +129,122 @@ function FormatUptime({ seconds }: { seconds: number }) {
     );
 }
 
+// Helper to map status string to friendly status (active, warning, error, loading)
+const mapStatus = (status?: string, healthy?: boolean): string => {
+    if (status === 'up' || healthy === true) return "active";
+    if (status === 'degraded') return "warning";
+    if (status === 'down' || healthy === false) return "error";
+    return "loading";
+};
+
 export default function StatusPage() {
-  const { backendStatus, checkAllServices } = useBackendHealth();
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const { data: healthStatus, refetch, isFetching, lastUpdate } = useDetailedHealthStatus();
+  
+  // Track Next.js app uptime (client-side)
+  const [appUptime, setAppUptime] = useState(0);
+  
+  useEffect(() => {
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      setAppUptime(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Debug: Log health status
+  console.log('[Status Page] Health Status:', healthStatus);
+  console.log('[Status Page] Last Update:', lastUpdate);
+  
+  // We don't use useTheme here anymore to avoid hydration mismatch with duplicate headers/toggles
+  // const [mounted, setMounted] = useState(false); // Removed unused
 
-  useEffect(() => setMounted(true), []);
+  // useEffect(() => setMounted(true), []); // Removed unused
 
-  const services = [
-    backendStatus.api,
-    backendStatus.database,
-    backendStatus.cache,
-    backendStatus.video,
-    backendStatus.websocket,
-    // backendStatus.realtime, // Removed as per request
-    backendStatus.build,
-    backendStatus.cicd,
+  const services: ServiceStatus[] = [
+    {
+      name: "API Server",
+      icon: Server,
+      // API is healthy if we received health data successfully
+      status: healthStatus ? 'active' : 'error',
+      responseTime: healthStatus?.system?.requestRate ? Math.round(1000 / (healthStatus.system.requestRate || 1)) : null,
+      lastChecked: lastUpdate,
+      error: healthStatus ? null : 'Unable to connect to API server'
+    },
+    {
+      name: "Database",
+      icon: Database,
+      status: mapStatus(healthStatus?.database?.status, healthStatus?.database?.isHealthy),
+      responseTime: healthStatus?.database?.avgResponseTime || null,
+      lastChecked: lastUpdate,
+      error: healthStatus?.database?.errors?.[0] || null
+    },
+    {
+        name: "WebSocket",
+        icon: Wifi,
+        status: mapStatus(healthStatus?.communication?.status, healthStatus?.communication?.healthy),
+        responseTime: healthStatus?.communication?.socket?.latency || null,
+        lastChecked: lastUpdate,
+        error: healthStatus?.communication?.issues?.[0] || null
+    },
+    {
+      name: "Cache",
+      icon: HardDrive,
+      status: mapStatus(healthStatus?.cache?.status, healthStatus?.cache?.healthy),
+      responseTime: healthStatus?.cache?.latency || null,
+      lastChecked: lastUpdate,
+      error: null
+    },
+      {
+          name: "Queue",
+          icon: Zap,
+          status: mapStatus(healthStatus?.queue?.status, healthStatus?.queue?.healthy),
+          responseTime: healthStatus?.queue?.connection?.latency || null,
+          lastChecked: lastUpdate,
+          error: null
+      },
+       {
+          name: "Video",
+          icon: Video,
+          status: mapStatus(healthStatus?.video?.status, healthStatus?.video?.isHealthy),
+          responseTime: null,
+          lastChecked: lastUpdate,
+          error: healthStatus?.video?.error || null
+      },
+      {
+          name: "Build & Deploy",
+          icon: Rocket,
+          status: healthStatus ? 'active' : 'error',
+          responseTime: null,
+          lastChecked: lastUpdate,
+          error: healthStatus ? null : 'Build/Deploy not accessible or server offline',
+          endpoint: '/health'
+      },
+      {
+          name: "CI/CD",
+          icon: GitBranch,
+          status: healthStatus ? 'active' : 'error',
+          responseTime: null,
+          lastChecked: lastUpdate,
+          error: healthStatus ? null : 'CI/CD pipeline status unavailable',
+          endpoint: '/health'
+      },
   ];
 
-  const isHealthy = backendStatus.globalStatus === 'operational';
-  const isDegraded = backendStatus.globalStatus === 'degraded';
+  const healthyServices = services.filter(s => s.status === 'active').length;
+  const totalServices = services.length;
+  const healthPercentage = totalServices > 0 ? Math.round((healthyServices / totalServices) * 100) : 0;
+  
+  const isHealthy = healthPercentage === 100;
+  const isDegraded = healthPercentage < 100 && healthPercentage > 60;
+  // const isError = healthPercentage <= 60; // Unused
   
   const glowColor = isHealthy ? "rgba(16, 185, 129, 0.15)" : isDegraded ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)";
+  
+  // Backend server uptime from health status
+  const systemUptime = healthStatus?.uptime || 0;
+  // Next.js app uptime (client-side tracking)
+  const frontendUptime = appUptime;
 
   return (
     <div className="min-h-screen bg-background dark:bg-[#050911] text-foreground dark:text-slate-50 font-sans selection:bg-emerald-500/30 overflow-hidden relative transition-colors duration-300">
@@ -151,45 +255,24 @@ export default function StatusPage() {
         style={{ background: glowColor }}
       />
 
-      {/* Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b border-border dark:border-white/5 bg-background/80 dark:bg-[#050911]/80 backdrop-blur-xl transition-colors">
-        <div className="container mx-auto flex h-20 max-w-4xl items-center justify-between px-6">
-          <div className="flex items-center gap-5">
-            <Link href="/" className="rounded-full p-2.5 transition-all hover:bg-muted/50 dark:hover:bg-white/5 border border-transparent hover:border-border dark:hover:border-white/10">
-               <ArrowLeft className="h-5 w-5 text-muted-foreground dark:text-slate-400" />
-            </Link>
-            <div className="h-6 w-[1px] bg-border dark:bg-white/10" />
-            <div className="flex items-center gap-3">
-               <div className="relative flex h-3 w-3">
-                  <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", isHealthy ? "bg-emerald-500" : isDegraded ? "bg-amber-500" : "bg-red-500")} />
-                  <span className={cn("relative inline-flex rounded-full h-3 w-3", isHealthy ? "bg-emerald-500" : isDegraded ? "bg-amber-500" : "bg-red-500")} />
-               </div>
-               <span className="font-bold tracking-tight text-lg text-foreground dark:text-slate-100">System Status</span>
-            </div>
+      {/* Main Content (Header removed to avoid double-header issue) */}
+      <div className="container mx-auto max-w-4xl px-6 py-6 relative z-10">
+          <div className="flex justify-between items-center mb-8">
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                  <Activity className="h-6 w-6 text-primary" />
+                  System Status
+              </h1>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="gap-2"
+              >
+                 <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+                 Refresh
+              </Button>
           </div>
-          
-          <div className="flex items-center gap-3">
-             <button
-               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-               className="rounded-full p-2.5 hover:bg-muted dark:hover:bg-white/5 border border-transparent hover:border-border transition-all"
-               title="Toggle Theme"
-             >
-                {mounted && theme === 'dark' ? <Sun className="h-5 w-5 text-slate-400" /> : <Moon className="h-5 w-5 text-slate-600" />}
-             </button>
-
-             <button 
-               onClick={() => checkAllServices(true)}
-               disabled={backendStatus.isChecking}
-               className="group flex items-center gap-2.5 rounded-full border border-border dark:border-white/10 bg-card dark:bg-white/5 px-5 py-2 text-xs font-semibold text-muted-foreground dark:text-slate-300 transition-all hover:border-foreground/20 dark:hover:border-white/20 hover:bg-muted/50 dark:hover:bg-white/10 disabled:opacity-50"
-             >
-               <RefreshCw className={cn("h-4 w-4 transition-all group-hover:text-foreground dark:group-hover:text-white", backendStatus.isChecking && "animate-spin")} />
-               <span>REFRESH</span>
-             </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto max-w-4xl px-6 py-12 md:py-20 relative z-10">
         
         {/* Metrics Banner */}
         <div className="mb-12 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -199,7 +282,7 @@ export default function StatusPage() {
                 <h2 className="text-sm font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest mb-1">Overall Health</h2>
                 <div className="flex flex-col sm:flex-row sm:items-baseline gap-4 mt-2">
                     <span className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground dark:from-white dark:to-slate-400">
-                        {backendStatus.healthPercentage}%
+                        {healthPercentage}%
                     </span>
                     <span className={cn(
                         "text-sm sm:text-lg font-bold px-3 py-1 rounded-full border w-fit",
@@ -212,32 +295,32 @@ export default function StatusPage() {
                 </div>
                 <div className="mt-8 flex items-center gap-3 text-sm text-muted-foreground dark:text-slate-400">
                    <Activity className="h-4 w-4" />
-                   <span>Monitoring {services.length} core services and infrastructure</span>
+                   <span>Monitoring {services.length} core services, infrastructure, build and deployment</span>
                 </div>
             </div>
 
             <div className="col-span-1 rounded-3xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/[0.02] p-6 backdrop-blur-md flex flex-col justify-center gap-6 shadow-sm">
-                 {/* Backend Uptime */}
+                 {/* Backend Server Uptime */}
                  <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-1">
-                        <Activity className="h-3 w-3 text-muted-foreground" />
-                        <h2 className="text-xs font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest">API Server</h2>
+                        <Server className="h-3 w-3 text-muted-foreground" />
+                        <h2 className="text-xs font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest">Backend Server</h2>
                     </div>
                     <div className="text-2xl font-bold font-mono text-foreground dark:text-slate-200">
-                        <FormatUptime seconds={backendStatus.systemUptime || 0} />
+                        <FormatUptime seconds={systemUptime} />
                     </div>
                  </div>
 
                  <div className="h-px bg-border dark:bg-white/5 w-full" />
 
-                 {/* Frontend System Uptime */}
+                 {/* Frontend App Uptime */}
                  <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-1">
                         <Clock className="h-3 w-3 text-muted-foreground" />
-                        <h2 className="text-xs font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest">App Server</h2>
+                        <h2 className="text-xs font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest">App Uptime</h2>
                     </div>
                     <div className="text-xl font-bold font-mono text-foreground dark:text-slate-300">
-                        <FormatUptime seconds={backendStatus.frontendUptime || 0} />
+                        <FormatUptime seconds={frontendUptime} />
                     </div>
                  </div>
             </div>
@@ -250,7 +333,7 @@ export default function StatusPage() {
            ))}
         </div>
 
-      </main>
+      </div>
     </div>
   );
 }

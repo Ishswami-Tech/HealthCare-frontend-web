@@ -31,7 +31,8 @@ export * from './utils';
 // ============================================================================
 // Re-export commonly used hooks at root level for convenience
 export { useAuth, useAuthForm } from './auth';
-export { useQueryData, useMutationData } from './core';
+export { useQueryData } from './core';
+// ⚠️ REMOVED: useMutationData has been removed. Use useMutationOperation instead.
 export { useToast, TOAST_IDS } from './utils';
 export { 
   useRBAC,

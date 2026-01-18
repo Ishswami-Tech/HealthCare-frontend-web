@@ -56,7 +56,7 @@ export default function ReceptionistAppointments() {
   );
 
   // Fetch real appointment data
-  const { data: appointmentsData, isLoading: isLoadingAppointments } =
+  const { data: appointmentsData, isPending: isLoadingAppointments } =
     useAppointments({
       ...(clinicId ? { clinicId } : {}),
       ...(statusFilter !== "all" ? { status: statusFilter as any } : {}),

@@ -43,7 +43,7 @@ import {
   Stethoscope,
   Loader2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 export default function ClinicAdminSchedule() {
   const { session } = useAuth();
@@ -205,7 +205,9 @@ export default function ClinicAdminSchedule() {
 
   const handleSaveSchedule = async () => {
     if (!selectedDoctor || !selectedDoctorId) {
-      toast.error("Please select a doctor");
+      showErrorToast("Please select a doctor", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       return;
     }
 
@@ -230,9 +232,13 @@ export default function ClinicAdminSchedule() {
         schedule: scheduleToSave,
       });
 
-      toast.success("Schedule updated successfully");
+      showSuccessToast("Schedule updated successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
     } catch (error) {
-      toast.error("Failed to update schedule");
+      showErrorToast("Failed to update schedule", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       console.error(error);
     }
   };

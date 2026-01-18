@@ -19,7 +19,7 @@ export class WebSocketManager {
 
   constructor() {
     // Use centralized config for WebSocket URL
-    this.defaultUrl = APP_CONFIG.WEBSOCKET.URL;
+    this.defaultUrl = APP_CONFIG.WEBSOCKET.URL || '';
   }
 
   static getInstance(): WebSocketManager {

@@ -27,7 +27,7 @@ export function isTechnicalError(message: string): boolean {
     /Cannot PUT/i,
     /Cannot DELETE/i,
     /Cannot PATCH/i,
-    /\d{3}/, // HTTP status codes
+    /(?:^|\s)[45]\d{2}(?:\s|$)/, // HTTP status codes (4xx, 5xx) with boundaries
     /Not Found/i,
     /Internal Server Error/i,
     /http:\/\//i,
@@ -62,7 +62,7 @@ export function getErrorMessageForStatus(status: number, backendMessage?: string
       // ✅ More specific message for 404 - could be endpoint not found or service down
       // Check if backend message suggests endpoint issue
       if (backendMessage && (backendMessage.includes('Cannot POST') || backendMessage.includes('Cannot GET'))) {
-        return 'The registration service is currently unavailable. Please contact support if this persists.';
+        return 'The service is currently unavailable. Please try again later or contact support if this persists.';
       }
       return ERROR_MESSAGES.SERVICE_UNAVAILABLE;
     case 409:
@@ -108,7 +108,12 @@ export function sanitizeErrorMessage(
     errorMessage = error;
   } else if (error && typeof error === 'object') {
     const apiError = error as ApiErrorResponse;
-    errorMessage = apiError.message || apiError.error || apiError.details || '';
+    // Handle array of messages (common in NestJS/class-validator)
+    if (Array.isArray(apiError.message)) {
+      errorMessage = apiError.message.join(', ');
+    } else {
+      errorMessage = apiError.message || apiError.error || apiError.details || '';
+    }
     httpStatus = apiError.statusCode || httpStatus;
   }
   
@@ -150,7 +155,15 @@ export async function handleApiError(
     }
   }
   
-  const backendMessage = responseData?.message || responseData?.error || responseData?.details || '';
+  let backendMessage = responseData?.message || responseData?.error || responseData?.details || '';
+  
+  // Handle array of messages
+  if (Array.isArray(backendMessage)) {
+    backendMessage = backendMessage.join(', ');
+  } else if (typeof backendMessage !== 'string') {
+    backendMessage = String(backendMessage);
+  }
+
   return getErrorMessageForStatus(response.status, backendMessage);
 }
 

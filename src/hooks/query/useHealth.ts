@@ -140,15 +140,19 @@ export const useDetailedHealthStatus = () => {
   const lastUpdate = useHealthStore((state) => state.lastUpdate);
   const error = useHealthStore((state) => state.error);
 
-  // Use React Query with server action for initial fetch (only if no Socket.IO data)
+  // Strategy: Try Socket.IO first, fallback to REST polling if Socket.IO fails
+  // Only enable REST API if Socket.IO connection has failed or is disconnected
+  const shouldUseRestFallback = connectionStatus === 'disconnected' || connectionStatus === 'error';
+  
   const queryResult = useQueryData<DetailedHealthStatus>(
     ['detailedHealthStatus'],
     getDetailedHealthStatus,
     { 
-      refetchInterval: false, // No polling - Socket.IO handles updates
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      enabled: !healthStatus && connectionStatus === 'disconnected', // Only fetch if no Socket.IO data
+      // Only use REST polling as fallback when Socket.IO fails
+      refetchInterval: shouldUseRestFallback ? 15000 : false, // Poll every 15s only if Socket.IO failed
+      refetchOnWindowFocus: shouldUseRestFallback,
+      refetchOnReconnect: true,
+      enabled: shouldUseRestFallback, // Only fetch via REST if Socket.IO failed
     }
   );
 
@@ -159,9 +163,9 @@ export const useDetailedHealthStatus = () => {
     }
   }, [socket, subscribe]);
 
-  // Use Zustand store data (from Socket.IO) or fallback to React Query (initial fetch)
+  // Prefer Socket.IO data (real-time), fallback to REST API data
   const data = healthStatus || queryResult.data || null;
-  const isPending = !healthStatus && connectionStatus === 'connecting';
+  const isPending = connectionStatus === 'connecting' || (queryResult.isPending && shouldUseRestFallback);
   
   return {
     data,

@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useCallback, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@/hooks/core';
 import { useWebSocketStore, useAppStore, useAppointmentsStore } from '@/stores';
 import { websocketManager } from '@/lib/config/websocket';
 import { APP_CONFIG } from '@/lib/config/config';
 // ✅ Consolidated: Import types from @/types (single source of truth)
 import type { Appointment } from '@/types/appointment.types';
+import { useNotificationStore, Notification } from '@/stores/notifications.store';
+import { showInfoToast, showWarningToast, TOAST_IDS } from '@/hooks/utils/use-toast';
 
 export interface UseWebSocketIntegrationOptions {
   tenantId?: string | undefined;
@@ -20,6 +22,7 @@ export interface UseWebSocketIntegrationOptions {
 export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions = {}) {
   const queryClient = useQueryClient();
   const { user, currentClinic } = useAppStore();
+  const { addNotification } = useNotificationStore();
   const { 
     updateAppointment, 
     addAppointment, 
@@ -187,30 +190,70 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     }
 
     // Subscribe to general notifications
+    // Backend handles push/email/SMS/WhatsApp delivery
+    // Frontend only shows in-app notification and toast for reading
     const unsubscribeNotification = subscribe('notification', (rawData: unknown) => {
       const data = rawData as Record<string, unknown>;
-      console.log('🔔 Received notification:', data);
-      useAppStore.getState().addNotification({
-        type: (data.type as 'error' | 'success' | 'warning' | 'info') || 'info',
-        title: data.title as string,
-        message: data.message as string,
-        read: false,
-      });
+      
+      if (!user?.id) return;
+
+      // Map WebSocket notification to store format
+      const notificationType = (data.type || data.category || 'SYSTEM') as Notification['type'];
+      const notification: Notification = {
+        id: data.id as string || `ws-${Date.now()}-${Math.random()}`,
+        userId: user.id,
+        type: notificationType,
+        title: (data.title as string) || 'New Notification',
+        message: (data.message as string) || (data.body as string) || '',
+        data: {
+          ...((data.data || data.metadata || {}) as Record<string, any>),
+          url: (data.url as string) || (data.link as string),
+        },
+        isRead: false,
+        createdAt: (data.createdAt as string) || new Date().toISOString(),
+      };
+      
+      // Show toast for important notification types
+      if (notificationType === 'SYSTEM' || notificationType === 'APPOINTMENT') {
+        showInfoToast(notification.title, {
+          id: TOAST_IDS.NOTIFICATION.NEW,
+          description: notification.message,
+          duration: 5000,
+        });
+      }
+      
+      // Add to notification store for reading
+      addNotification(notification);
     });
 
     const unsubscribeSystemUpdate = subscribe('system:update', (rawData: unknown) => {
       const data = rawData as Record<string, unknown>;
-      console.log('⚙️ System update:', data);
+      
       // Handle system-wide updates
-      if (data.type === 'maintenance') {
-        useAppStore.getState().addNotification({
-          type: 'warning',
-          title: 'System Maintenance',
-          message: data.message as string,
-          persistent: true,
-          read: false,
-        });
-      }
+      // Backend handles delivery via all channels
+      // Frontend only shows in-app notification and toast for reading
+      if (data.type !== 'maintenance' || !user?.id) return;
+
+      const notification: Notification = {
+        id: `system-${Date.now()}-${Math.random()}`,
+        userId: user.id,
+        type: 'SYSTEM',
+        title: 'System Maintenance',
+        message: (data.message as string) || 'System maintenance scheduled',
+        data: (data.data as Record<string, any>) || {},
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      };
+      
+      // Show toast
+      showWarningToast(notification.title, {
+        id: TOAST_IDS.NOTIFICATION.NEW,
+        description: notification.message,
+        duration: 10000,
+      });
+      
+      // Add to notification store for reading
+      addNotification(notification);
     });
 
     unsubscribeCallbacks.push(unsubscribeNotification, unsubscribeSystemUpdate);

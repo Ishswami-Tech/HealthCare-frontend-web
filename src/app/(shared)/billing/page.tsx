@@ -63,7 +63,7 @@ import {
   Download,
   Send,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 function BillingPageContent() {
   const { session } = useAuth();
@@ -98,7 +98,9 @@ function BillingPageContent() {
 
   const handleCreateSubscription = () => {
     if (!selectedPlan) {
-      toast.error("Please select a plan");
+      showErrorToast("Please select a plan", {
+        id: TOAST_IDS.PAYMENT.ERROR,
+      });
       return;
     }
 
@@ -111,12 +113,16 @@ function BillingPageContent() {
       },
       {
         onSuccess: () => {
-          toast.success("Subscription created successfully");
+          showSuccessToast("Subscription created successfully", {
+            id: TOAST_IDS.PAYMENT.SUCCESS,
+          });
           setIsCreateSubscriptionDialogOpen(false);
           setSelectedPlan("");
         },
         onError: (error: Error) => {
-          toast.error(error.message || "Failed to create subscription");
+          showErrorToast(error.message || "Failed to create subscription", {
+            id: TOAST_IDS.PAYMENT.ERROR,
+          });
         },
       }
     );
@@ -129,10 +135,14 @@ function BillingPageContent() {
       { id: subscriptionId, immediate: false },
       {
         onSuccess: () => {
-          toast.success("Subscription cancelled successfully");
+          showSuccessToast("Subscription cancelled successfully", {
+            id: TOAST_IDS.PAYMENT.SUCCESS,
+          });
         },
         onError: (error: Error) => {
-          toast.error(error.message || "Failed to cancel subscription");
+          showErrorToast(error.message || "Failed to cancel subscription", {
+            id: TOAST_IDS.PAYMENT.ERROR,
+          });
         },
       }
     );
@@ -290,8 +300,9 @@ function BillingPageContent() {
                       </Button>
                       <Button
                         onClick={() => {
-                          toast.info(
-                            "API integration pending - This will create a plan when API is connected"
+                          showInfoToast(
+                            "API integration pending - This will create a plan when API is connected",
+                            { id: TOAST_IDS.GLOBAL.INFO }
                           );
                           setIsCreatePlanDialogOpen(false);
                         }}
@@ -565,11 +576,14 @@ function BillingPageContent() {
                                     if (result.pdfUrl) {
                                       window.open(result.pdfUrl, "_blank");
                                     } else {
-                                      toast.error("Failed to generate PDF");
+                                      showErrorToast("Failed to generate PDF", {
+                                        id: TOAST_IDS.GLOBAL.ERROR,
+                                      });
                                     }
                                   } catch (error: any) {
-                                    toast.error(
-                                      error.message || "Failed to generate PDF"
+                                    showErrorToast(
+                                      error.message || "Failed to generate PDF",
+                                      { id: TOAST_IDS.GLOBAL.ERROR }
                                     );
                                   }
                                 }}
@@ -609,11 +623,14 @@ function BillingPageContent() {
                                   if (result.pdfUrl) {
                                     window.open(result.pdfUrl, "_blank");
                                   } else {
-                                    toast.error("Failed to generate PDF");
+                                    showErrorToast("Failed to generate PDF", {
+                                      id: TOAST_IDS.GLOBAL.ERROR,
+                                    });
                                   }
                                 } catch (error: any) {
-                                  toast.error(
-                                    error.message || "Failed to generate PDF"
+                                  showErrorToast(
+                                    error.message || "Failed to generate PDF",
+                                    { id: TOAST_IDS.GLOBAL.ERROR }
                                   );
                                 }
                               }}
@@ -749,12 +766,16 @@ function BillingPageContent() {
                       onSuccess={async (_) => {
                         setIsPaymentDialogOpen(false);
                         setSelectedInvoiceForPayment(null);
-                        toast.success("Payment completed successfully!");
+                        showSuccessToast("Payment completed successfully!", {
+                          id: TOAST_IDS.PAYMENT.SUCCESS,
+                        });
                         // Refresh invoices
                         window.location.reload();
                       }}
                       onError={(error) => {
-                        toast.error(error || "Payment failed");
+                        showErrorToast(error || "Payment failed", {
+                          id: TOAST_IDS.PAYMENT.ERROR,
+                        });
                       }}
                       className="w-full"
                     >

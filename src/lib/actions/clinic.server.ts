@@ -115,9 +115,16 @@ export async function createClinic(data: CreateClinicData): Promise<{ success: b
     }
 
     // Create clinic via API - match the expected API client signature
+    // Create clinic via API - match the expected API client signature
     const apiData = {
       name: validatedData.name,
+      type: 'GENERAL', // ✅ required by backend DTO
       address: validatedData.address,
+      // ✅ Breakdown address fields from mainLocation required by backend DTO root
+      city: validatedData.mainLocation.city,
+      state: validatedData.mainLocation.state,
+      country: validatedData.mainLocation.country,
+      zipCode: validatedData.mainLocation.zipCode,
       phone: validatedData.phone,
       email: validatedData.email,
       subdomain: validatedData.subdomain,

@@ -55,7 +55,7 @@ import {
   Search,
   Loader2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 export default function ClinicLocationsPage() {
   const { session } = useAuth();
@@ -125,7 +125,9 @@ export default function ClinicLocationsPage() {
 
   const handleCreateLocation = async () => {
     if (!clinicId) {
-      toast.error("Clinic ID is required");
+      showErrorToast("Clinic ID is required", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       return;
     }
 
@@ -135,7 +137,9 @@ export default function ClinicLocationsPage() {
         data: newLocation,
       });
 
-      toast.success("Location created successfully");
+      showSuccessToast("Location created successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
       setNewLocation({
         name: "",
         address: "",
@@ -159,7 +163,9 @@ export default function ClinicLocationsPage() {
       });
       setIsCreateDialogOpen(false);
     } catch (error: any) {
-      toast.error(error?.message || "Failed to create location");
+      showErrorToast(error?.message || "Failed to create location", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
     }
   };
 
@@ -170,7 +176,9 @@ export default function ClinicLocationsPage() {
 
   const handleUpdateLocation = async () => {
     if (!clinicId || !selectedLocation?.id) {
-      toast.error("Clinic ID and Location ID are required");
+      showErrorToast("Clinic ID and Location ID are required", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       return;
     }
 
@@ -181,11 +189,15 @@ export default function ClinicLocationsPage() {
         data: selectedLocation,
       });
 
-      toast.success("Location updated successfully");
+      showSuccessToast("Location updated successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
       setIsEditDialogOpen(false);
       setSelectedLocation(null);
     } catch (error) {
-      toast.error("Failed to update location");
+      showErrorToast("Failed to update location", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       console.error(error);
     }
   };
@@ -193,7 +205,9 @@ export default function ClinicLocationsPage() {
   const handleDeleteLocation = async (locationId: string) => {
     if (!confirm("Are you sure you want to delete this location?")) return;
     if (!clinicId) {
-      toast.error("Clinic ID is required");
+      showErrorToast("Clinic ID is required", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       return;
     }
 
@@ -204,9 +218,13 @@ export default function ClinicLocationsPage() {
         locationId,
       });
 
-      toast.success("Location deleted successfully");
+      showSuccessToast("Location deleted successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
     } catch (error) {
-      toast.error("Failed to delete location");
+      showErrorToast("Failed to delete location", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       console.error(error);
     } finally {
       setIsDeleting(false);

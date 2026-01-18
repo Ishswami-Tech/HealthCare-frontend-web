@@ -4,56 +4,36 @@
  */
 
 import { useCallback } from 'react';
-import { useToast } from './use-toast';
+import { useOptimisticMutation, useQueryClient } from '@/hooks/core';
 import { updateQueueStatus, callNextPatient } from '@/lib/actions/queue.server';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 /**
  * Hook for updating queue status with optimistic updates
  */
 export function useOptimisticUpdateQueueStatus(clinicId?: string) {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  return useMutation({
+  return useOptimisticMutation<any, { patientId: string; status: string }>({
+    queryKey: ['queue', clinicId],
     mutationFn: useCallback(async ({ patientId, status }: { patientId: string; status: string }) => {
       const result = await updateQueueStatus(patientId, status) as { success: boolean; error?: string; data?: unknown };
       if (!result.success) {
         throw new Error(result.error || 'Failed to update queue status');
       }
-      return result;
+      return result.data as any;
     }, []),
-    onMutate: async (variables) => {
-      await queryClient.cancelQueries({ queryKey: ['queue', clinicId] });
-      const previous = queryClient.getQueryData(['queue', clinicId]);
-      queryClient.setQueryData(['queue', clinicId], (old: any) => {
-        if (!old) return old;
-        return old.map((item: any) =>
-          item.patientId === variables.patientId
-            ? { ...item, status: variables.status, updatedAt: new Date().toISOString() }
-            : item
-        );
-      });
-      return { previous };
+    optimisticUpdate: (current, variables) => {
+      if (!current) return current;
+      return current.map((item: any) =>
+        item.patientId === variables.patientId
+          ? { ...item, status: variables.status, updatedAt: new Date().toISOString() }
+          : item
+      );
     },
-    onError: (_err, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['queue', clinicId], context.previous);
-      }
-      toast({
-        title: 'Error',
-        description: 'Failed to update queue status',
-        variant: 'destructive',
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Success',
-        description: 'Queue status updated successfully',
-      });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['queue', clinicId] });
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['queue', clinicId] });
+      },
     },
   });
 }
@@ -62,44 +42,25 @@ export function useOptimisticUpdateQueueStatus(clinicId?: string) {
  * Hook for calling next patient with optimistic updates
  */
 export function useOptimisticCallNextPatient(clinicId?: string, queueType: string = 'general') {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  return useMutation({
+  return useOptimisticMutation<any, void>({
+    queryKey: ['queue', clinicId],
     mutationFn: useCallback(async () => {
       const result = await callNextPatient(queueType) as { success: boolean; error?: string; data?: unknown };
       if (!result.success) {
         throw new Error(result.error || 'Failed to call next patient');
       }
-      return result;
+      return result.data as any;
     }, [queueType]),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['queue', clinicId] });
-      const previous = queryClient.getQueryData(['queue', clinicId]);
-      queryClient.setQueryData(['queue', clinicId], (old: any) => {
-        if (!old || !Array.isArray(old)) return old;
-        return old.slice(1);
-      });
-      return { previous };
+    optimisticUpdate: (current) => {
+      if (!current || !Array.isArray(current)) return current;
+      return current.slice(1);
     },
-    onError: (_err, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['queue', clinicId], context.previous);
-      }
-      toast({
-        title: 'Error',
-        description: 'Failed to call next patient',
-        variant: 'destructive',
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Success',
-        description: 'Next patient called',
-      });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['queue', clinicId] });
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['queue', clinicId] });
+      },
     },
   });
 }

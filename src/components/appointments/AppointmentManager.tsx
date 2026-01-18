@@ -185,8 +185,9 @@ export default function AppointmentManager() {
           });
 
           // Update Zustand store
-          if (data?.data) {
-            useAppointmentsStore.getState().addAppointment(data.data);
+          // ✅ useOptimisticMutation returns data directly, not wrapped in { status, data }
+          if (data) {
+            useAppointmentsStore.getState().addAppointment(data);
           }
         },
         onError: () => {

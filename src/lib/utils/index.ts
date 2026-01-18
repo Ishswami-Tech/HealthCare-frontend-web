@@ -139,6 +139,11 @@ export function translateSidebarLinks(links: SidebarLink[], t: TranslationFuncti
   return links.map(link => translateSidebarLink(link, t));
 }
 
+// Export new utilities
+export * from './security';
+export * from './metrics';
+export * from './redirect';
+
 // ============================================================================
 // RE-EXPORTS FROM UTILS FOLDER
 // ============================================================================

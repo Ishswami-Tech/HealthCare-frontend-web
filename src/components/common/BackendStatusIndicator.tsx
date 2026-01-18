@@ -5,123 +5,209 @@ import { cn } from "@/lib/utils/index";
 import {
   Activity,
   RefreshCw,
+  Server,
+  Database,
+  Wifi,
+  HardDrive,
+  Video,
+  Zap,
 } from "lucide-react";
 import { StatusIndicator, StatusType, StatusDot } from "./StatusIndicator";
-import { useBackendHealth } from "@/hooks/utils/useBackendHealth";
+import { useDetailedHealthStatus } from "@/hooks/query/useHealth";
 
-// Re-export specific components/functions if they were exported before?
-// The file exported: BackendStatusIndicator, CompactBackendStatus, DetailedBackendStatus, BackendStatusWidget
+// Helper to map status string to StatusType
+const mapStatus = (status?: string, healthy?: boolean): StatusType => {
+  if (status === 'up' || healthy === true) return "active";
+  if (status === 'degraded') return "warning";
+  if (status === 'down' || healthy === false) return "error";
+  return "loading";
+};
 
 export function BackendStatusIndicator() {
-  const { backendStatus, checkAllServices } = useBackendHealth();
+  const { data: healthStatus, refetch, isFetching, lastUpdate, isConnected } = useDetailedHealthStatus();
 
   const getOverallStatus = (): StatusType => {
-      // Use the computed global status from the hook
-      if (backendStatus.globalStatus === 'operational') return "active";
-      if (backendStatus.globalStatus === 'degraded') return "warning";
-      return "error";
+    if (!healthStatus) return "loading";
+    
+    // Simple logic: if any critical service is down, global is error
+    // If any service is degraded, global is warning
+    const services = [
+      healthStatus.database,
+      healthStatus.cache,
+      healthStatus.queue,
+      healthStatus.communication,
+      healthStatus.video
+    ];
+
+    const isUnhealthy = (s: any) => {
+      if (!s) return false;
+      if (s.status === 'down') return true;
+      if ('healthy' in s && s.healthy === false) return true;
+      if ('isHealthy' in s && s.isHealthy === false) return true;
+      return false;
+    };
+
+    const isDegraded = (s: any) => {
+      if (!s) return false;
+      if (s.status === 'degraded') return true;
+      if ('degraded' in s && s.degraded === true) return true;
+      return false;
+    };
+
+    if (services.some(isUnhealthy)) return "error";
+    if (services.some(isDegraded)) return "warning";
+    
+    return "active";
   };
 
   const getOverallLabel = () => {
-    return `${backendStatus.healthPercentage}% Operational`;
+    if (!healthStatus) return "Connecting...";
+    const status = getOverallStatus();
+    if (status === "active") return "100% Operational";
+    if (status === "warning") return "Services Degraded";
+    return "Partial Outage";
   };
 
-  return {
-    indicator: (
-      <StatusIndicator
-        status={getOverallStatus()}
-        label={getOverallLabel()}
-        icon={Activity}
-        size="sm"
-      />
-    ),
-    detailed: (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h4 className="font-medium text-sm">Backend Services Status</h4>
-          <button
-            onClick={() => checkAllServices(true)}
-            disabled={backendStatus.isChecking}
-            className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-            title="Refresh backend status"
-            aria-label="Refresh backend status"
-          >
-            <RefreshCw
-              className={cn(
-                "h-4 w-4",
-                backendStatus.isChecking && "animate-spin"
-              )}
-            />
-          </button>
-        </div>
+  // Helper to construct service objects for display
+  const services = [
+    {
+      name: "API Server",
+      icon: Server,
+      status: mapStatus(healthStatus ? 'up' : undefined, !!healthStatus), // API is up if we have data
+      responseTime: healthStatus?.system?.requestRate ? Math.round(1000 / (healthStatus.system.requestRate || 1)) : 1, // Estimate from rate
+    },
+    {
+      name: "Database",
+      icon: Database,
+      status: mapStatus(healthStatus?.database?.status, healthStatus?.database?.isHealthy),
+      responseTime: healthStatus?.database?.avgResponseTime,
+    },
+    {
+      name: "Cache Service",
+      icon: HardDrive,
+      status: mapStatus(healthStatus?.cache?.status, healthStatus?.cache?.healthy),
+      responseTime: healthStatus?.cache?.latency,
+    },
+    {
+      name: "Queue System",
+      icon: Zap,
+      status: mapStatus(healthStatus?.queue?.status, healthStatus?.queue?.healthy),
+      responseTime: healthStatus?.queue?.connection?.latency,
+    },
+    {
+      name: "Communication",
+      icon: Wifi,
+      status: mapStatus(healthStatus?.communication?.status, healthStatus?.communication?.healthy),
+      responseTime: healthStatus?.communication?.socket?.latency,
+    },
+    {
+      name: "Video Service",
+      icon: Video,
+      status: mapStatus(healthStatus?.video?.status, healthStatus?.video?.isHealthy),
+      responseTime: undefined,
+    },
+    {
+      name: "Logger Service",
+      icon: HardDrive,
+      status: mapStatus(healthStatus?.logging?.status, healthStatus?.logging?.healthy),
+      responseTime: healthStatus?.logging?.service?.latency,
+    },
+  ];
 
-        <div className="space-y-1">
-          {[
-            backendStatus.api,
-            backendStatus.database,
-            backendStatus.cache,
-            backendStatus.video,
-            backendStatus.websocket,
-            backendStatus.realtime,
-            backendStatus.build,
-            backendStatus.cicd,
-          ].map((service) => {
-            const statusColor =
-              {
-                active: "text-green-600",
-                warning: "text-yellow-700",
-                error: "text-red-700",
-                loading: "text-blue-600",
-                inactive: "text-gray-500",
-              }[service.status] || "text-gray-600";
+  const indicator = (
+    <StatusIndicator
+      status={getOverallStatus()}
+      label={getOverallLabel()}
+      icon={Activity}
+      size="sm"
+    />
+  );
 
-            return (
-              <div
-                key={service.name}
-                className="flex items-center justify-between text-xs"
-              >
-                <div className="flex items-center gap-2">
-                  <service.icon className={cn("h-3 w-3", statusColor)} />
-                  <span className={cn("font-medium", statusColor)}>
-                    {service.name}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {service.responseTime !== null &&
-                    service.responseTime !== undefined &&
-                    service.responseTime > 0 && (
-                      <span
-                        className={cn(
-                          "text-xs",
-                          service.status === "active"
-                            ? "text-green-600"
-                            : service.status === "warning"
-                            ? "text-yellow-600"
-                            : service.status === "error"
-                            ? "text-red-600"
-                            : "text-gray-500"
-                        )}
-                      >
-                        {service.responseTime}ms
-                      </span>
-                    )}
-                  <StatusDot status={service.status} size="sm" />
-                </div>
+  const detailed = (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="font-medium text-sm">Backend Services Status</h4>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          title="Refresh backend status"
+          aria-label="Refresh backend status"
+        >
+          <RefreshCw
+            className={cn(
+              "h-4 w-4",
+              isFetching && "animate-spin"
+            )}
+          />
+        </button>
+      </div>
+
+      <div className="space-y-1">
+        {services.map((service) => {
+          const statusColor =
+            {
+              active: "text-green-600",
+              warning: "text-yellow-700",
+              error: "text-red-700",
+              loading: "text-blue-600",
+              inactive: "text-gray-500",
+            }[service.status] || "text-gray-600";
+
+          return (
+            <div
+              key={service.name}
+              className="flex items-center justify-between text-xs"
+            >
+              <div className="flex items-center gap-2">
+                <service.icon className={cn("h-3 w-3", statusColor)} />
+                <span className={cn("font-medium", statusColor)}>
+                  {service.name}
+                </span>
               </div>
-            );
-          })}
-        </div>
+              <div className="flex items-center gap-2">
+                {service.responseTime !== undefined &&
+                  service.responseTime !== null && (
+                    <span
+                      className={cn(
+                        "text-xs",
+                        service.status === "active"
+                          ? "text-green-600"
+                          : service.status === "warning"
+                          ? "text-yellow-600"
+                          : service.status === "error"
+                          ? "text-red-600"
+                          : "text-gray-500"
+                      )}
+                    >
+                      {Math.round(service.responseTime)}ms
+                    </span>
+                  )}
+                <StatusDot status={service.status} size="sm" />
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-        {backendStatus.lastGlobalCheck && (
-          <div className="text-xs text-gray-500 border-t pt-2">
-            Last checked: {backendStatus.lastGlobalCheck.toLocaleTimeString()}
+      <div className="flex justify-between items-center border-t pt-2">
+         {lastUpdate && (
+          <div className="text-xs text-gray-500">
+            Last update: {lastUpdate.toLocaleTimeString()}
           </div>
         )}
+        <div className="text-xs text-gray-500">
+           {isConnected ? 'Realtime Connected' : 'Updates Paused'}
+        </div>
       </div>
-    ),
-    services: backendStatus,
-    refresh: checkAllServices,
-    isChecking: backendStatus.isChecking,
+    </div>
+  );
+
+  return {
+    indicator,
+    detailed,
+    refresh: refetch,
+    isChecking: isFetching
   };
 }
 

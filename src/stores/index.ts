@@ -5,6 +5,15 @@
  */
 
 export * from './app.store';
+// Re-export auth.store but exclude useIsAuthenticated to avoid duplicate export
+export { 
+  useAuthStore, 
+  useAuthUser, 
+  useAuthSession, 
+  useAuthLoading, 
+  useAuthError,
+  type AuthState 
+} from './auth.store';
 export * from './websocket.store';
 export * from './appointments.store';
 export * from './medical-records.store';
@@ -15,6 +24,7 @@ export * from './health.store';
 // Store provider for SSR compatibility
 import { ReactNode, useEffect } from 'react';
 import { useAppStore } from './app.store';
+import { useAuthStore } from './auth.store';
 import { useWebSocketStore } from './websocket.store';
 import { useAppointmentsStore } from './appointments.store';
 import { useHealthStore } from './health.store';
@@ -38,6 +48,7 @@ import { useMedicalRecordsStore } from './medical-records.store';
 
 export const getStoreState = () => ({
   app: useAppStore.getState(),
+  auth: useAuthStore.getState(),
   websocket: useWebSocketStore.getState(),
   appointments: useAppointmentsStore.getState(),
   health: useHealthStore.getState(),
@@ -48,6 +59,7 @@ export const getStoreState = () => ({
 
 export const resetAllStores = () => {
   useAppStore.getState().reset();
+  useAuthStore.getState().reset();
   useAppointmentsStore.getState().reset();
   // Add reset methods for other stores if they have them
   if ('reset' in usePharmacyStore.getState()) {
@@ -70,6 +82,13 @@ export const useStoreActions = () => ({
     setLoading: useAppStore.getState().setLoading,
     setError: useAppStore.getState().setError,
   },
+  auth: {
+    setSession: useAuthStore.getState().setSession,
+    setUser: useAuthStore.getState().setUser,
+    clearAuth: useAuthStore.getState().clearAuth,
+    setLoading: useAuthStore.getState().setLoading,
+    setError: useAuthStore.getState().setError,
+  },
   websocket: {
     connect: useWebSocketStore.getState().connect,
     disconnect: useWebSocketStore.getState().disconnect,
@@ -88,6 +107,7 @@ export const useStoreActions = () => ({
 if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
   (window as any).__HEALTHCARE_STORES__ = {
     app: useAppStore,
+    auth: useAuthStore,
     websocket: useWebSocketStore,
     appointments: useAppointmentsStore,
     health: useHealthStore,

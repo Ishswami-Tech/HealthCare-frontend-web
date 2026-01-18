@@ -42,7 +42,7 @@ import {
   User,
   Loader2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { format } from "date-fns";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -160,20 +160,28 @@ export default function VideoAppointmentsPage() {
           `/video-consultation/${appointmentId}?token=${result.token.token}`,
           "_blank"
         );
-        toast.success("Joining video consultation...");
+        showSuccessToast("Joining video consultation...", {
+          id: TOAST_IDS.VIDEO.JOIN,
+        });
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to join appointment");
+      showErrorToast(error.message || "Failed to join appointment", {
+        id: TOAST_IDS.VIDEO.ERROR,
+      });
     }
   };
 
   const handleEndAppointment = async (appointmentId: string) => {
     try {
       await endVideoAppointment.mutateAsync(appointmentId);
-      toast.success("Video appointment ended successfully");
+      showSuccessToast("Video appointment ended successfully", {
+        id: TOAST_IDS.VIDEO.END,
+      });
       refetch();
     } catch (error: any) {
-      toast.error(error.message || "Failed to end appointment");
+      showErrorToast(error.message || "Failed to end appointment", {
+        id: TOAST_IDS.VIDEO.ERROR,
+      });
     }
   };
 

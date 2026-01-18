@@ -117,13 +117,14 @@ function convertRealtimeToDetailed(realtime: RealtimeHealthStatus): DetailedHeal
   
   // Queue
   if (services.queue) {
-    // Cast to any to bypass strict type checking for the connection object construction if needed, 
-    // or just strictly conform to the interface
-    const queueConnection = {
+    const queueConnection: any = {
       connected: services.queue.status === 'healthy',
       provider: 'bullmq',
-      latency: services.queue.responseTime
     };
+    
+    if (services.queue.responseTime !== undefined) {
+      queueConnection.latency = services.queue.responseTime;
+    }
     
     result.queue = {
       status: services.queue.status === 'healthy' ? 'up' : 'down',
@@ -198,16 +199,26 @@ function convertRealtimeToDetailed(realtime: RealtimeHealthStatus): DetailedHeal
     if (srv) {
         const isHealthy = srv.status === 'healthy';
         
-        result.logging = {
-          status: isHealthy ? 'up' : 'down',
-          service: {
-              available: isHealthy,
-              serviceName: 'LoggingService',
-              latency: srv.responseTime
-          },
-          healthy: isHealthy,
-          error: srv.error
+        const loggingService: any = {
+          available: isHealthy,
+          serviceName: "LoggingService",
         };
+
+        if (srv.responseTime !== undefined) {
+          loggingService.latency = srv.responseTime;
+        }
+
+        const loggingUpdate: any = {
+          status: isHealthy ? "up" : "down",
+          service: loggingService,
+          healthy: isHealthy,
+        };
+
+        if (srv.error) {
+          loggingUpdate.error = srv.error;
+        }
+
+        result.logging = loggingUpdate;
     }
   }
 
@@ -265,18 +276,18 @@ export function useHealthRealtime(
   useEffect(() => {
     if (!enabled) return;
 
-    // ✅ FIX: Use base URL and proper namespace syntax
-    // Socket.IO namespaces are added automatically, don't use path in URL
-    const API_URL = APP_CONFIG.API.BASE_URL;
+    // ✅ FIX: Use WebSocket URL, not API URL (API URL has /api/v1 prefix)
+    // Socket.IO health namespace is at base WebSocket URL + /health
+    const WEBSOCKET_URL = APP_CONFIG.WEBSOCKET.URL || '';
     
     // Normalize URL (remove /socket.io if present, convert ws:// to http://)
-    let normalizedUrl = API_URL.trim();
+    let normalizedUrl = (WEBSOCKET_URL || '').trim();
     normalizedUrl = normalizedUrl.replace(/\/socket\.io\/?$/, '');
     normalizedUrl = normalizedUrl.replace(/^ws:\/\//, 'http://');
     normalizedUrl = normalizedUrl.replace(/^wss:\/\//, 'https://');
     
     // Socket.IO namespace syntax: base URL + namespace
-    // This creates: https://backend-service-v1.ishswami.in/health
+    // This creates: {WEBSOCKET_URL}/health
     // Remove trailing slash from normalized URL before adding namespace
     const baseUrl = normalizedUrl.replace(/\/$/, '');
     const healthSocketUrl = `${baseUrl}/health`;
@@ -284,7 +295,7 @@ export function useHealthRealtime(
     console.log('🔌 Connecting to health namespace:', {
       baseUrl,
       healthSocketUrl,
-      apiUrl: API_URL,
+      websocketUrl: WEBSOCKET_URL,
     });
     
     const healthSocket = io(healthSocketUrl, {
@@ -317,7 +328,9 @@ export function useHealthRealtime(
         if (response.success && response.status) {
           const converted = convertRealtimeToDetailed(response.status);
           setHealthStatus(converted);
-          setLastUpdate(new Date(response.status.t));
+          if (response.status.t) {
+            setLastUpdate(new Date(response.status.t));
+          }
           console.log('✅ Auto-subscribed to health updates on connection');
         }
       });
@@ -356,7 +369,9 @@ export function useHealthRealtime(
       try {
         const converted = convertRealtimeToDetailed(data);
         setHealthStatus(converted);
-        setLastUpdate(new Date(data.t));
+        if (data.t) {
+          setLastUpdate(new Date(data.t));
+        }
         setError(null);
       } catch (err) {
         console.error('Error converting health status:', err);
@@ -492,7 +507,9 @@ export function useHealthRealtime(
         if (response.success && response.status) {
           const converted = convertRealtimeToDetailed(response.status);
           setHealthStatus(converted);
-          setLastUpdate(new Date(response.status.t));
+          if (response.status?.t) {
+            setLastUpdate(new Date(response.status.t));
+          }
         }
       });
     }

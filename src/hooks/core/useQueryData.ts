@@ -17,6 +17,15 @@ import { queryClientConfig } from '../query/config';
  * 
  * Returns: Commonly used query states and the refetch function
  */
+export interface UseQueryDataReturn<TData, TError = Error> {
+  data: TData | undefined;
+  isPending: boolean;
+  isFetched: boolean;
+  isFetching: boolean;
+  error: TError | null;
+  refetch: (options?: { throwOnError?: boolean; cancelRefetch?: boolean }) => Promise<any>;
+}
+
 export const useQueryData = <
   TData = unknown,
   TError = Error
@@ -24,7 +33,7 @@ export const useQueryData = <
   queryKey: QueryKey,
   queryFn: (() => Promise<TData>) | (() => TData),
   options?: Omit<UseQueryOptions<TData, TError, TData>, 'queryKey' | 'queryFn'>
-) => {
+): UseQueryDataReturn<TData, TError> => {
   // ✅ Merge with default query config for consistent behavior
   const defaultOptions = queryClientConfig.defaultOptions?.queries || {};
   
@@ -44,7 +53,7 @@ export const useQueryData = <
 
   return { 
     data,       // The fetched data
-    isPending,  // Loading state for first fetch
+    isPending,  // Loading state for first fetch (React Query v5)
     isFetched,  // Whether data has been fetched
     isFetching, // Current loading state
     error,      // Error object if query failed

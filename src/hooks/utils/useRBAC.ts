@@ -8,7 +8,7 @@ import {
   PermissionContext, 
   PermissionResult
 } from '@/types/rbac.types';
-import { ROUTES } from '@/lib/config/routes';
+import { ROUTES, getDashboardByRole } from '@/lib/config/routes';
 
 /**
  * Main RBAC hook for permission checking
@@ -235,23 +235,9 @@ export const useRoleBasedNavigation = () => {
     
     const role = user.role as Role;
     
-    // ✅ Consolidated: Use new route format (removed legacy routes)
-    switch (role) {
-      case Role.SUPER_ADMIN:
-        return '/(dashboard)/super-admin/dashboard';
-      case Role.CLINIC_ADMIN:
-        return '/(dashboard)/clinic-admin/dashboard';
-      case Role.DOCTOR:
-        return '/(dashboard)/doctor/dashboard';
-      case Role.RECEPTIONIST:
-        return '/(dashboard)/receptionist/dashboard';
-      case Role.PHARMACIST:
-        return '/(dashboard)/pharmacist/dashboard';
-      case Role.PATIENT:
-        return '/(dashboard)/patient/dashboard';
-      default:
-        return '/(dashboard)/patient/dashboard';
-    }
+    // ✅ Use centralized getDashboardByRole function for consistency
+    // Falls back to login if role is invalid/unknown
+    return getDashboardByRole(role) || ROUTES.LOGIN;
   };
 
   const getAvailableRoutes = () => {

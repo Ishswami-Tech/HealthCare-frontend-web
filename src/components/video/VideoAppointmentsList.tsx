@@ -35,7 +35,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useVideoAppointments,
@@ -100,7 +100,7 @@ export function VideoAppointmentsList({
   // Fetch video appointments
   const {
     data: appointmentsData,
-    isLoading,
+    isPending: isLoading,
     refetch,
   } = useVideoAppointments({
     ...filters,
@@ -166,7 +166,9 @@ export function VideoAppointmentsList({
 
   const handleJoinAppointment = async (appointment: VideoAppointment) => {
     if (!canJoin) {
-      toast.error("You don't have permission to join video appointments");
+      showErrorToast("You don't have permission to join video appointments", {
+        id: TOAST_IDS.VIDEO.PERMISSION,
+      });
       return;
     }
 
@@ -189,29 +191,35 @@ export function VideoAppointmentsList({
       if (result?.token) {
         setSelectedAppointment(appointment);
         setIsVideoRoomOpen(true);
-        toast.success("Joining video consultation...");
+        showSuccessToast("Joining video consultation...", {
+          id: TOAST_IDS.VIDEO.JOIN,
+        });
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to join appointment";
-      toast.error(errorMessage);
+      showErrorToast(error, {
+        id: TOAST_IDS.VIDEO.ERROR,
+      });
     }
   };
 
   const handleEndAppointment = async (appointmentId: string) => {
     if (!canEnd) {
-      toast.error("You don't have permission to end video appointments");
+      showErrorToast("You don't have permission to end video appointments", {
+        id: TOAST_IDS.VIDEO.PERMISSION,
+      });
       return;
     }
 
     try {
       await endVideoAppointment.mutateAsync(appointmentId);
-      toast.success("Video appointment ended successfully");
+      showSuccessToast("Video appointment ended successfully", {
+        id: TOAST_IDS.VIDEO.END,
+      });
       refetch();
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to end appointment";
-      toast.error(errorMessage);
+      showErrorToast(error, {
+        id: TOAST_IDS.VIDEO.ERROR,
+      });
     }
   };
 

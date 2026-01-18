@@ -350,3 +350,195 @@ export async function submitConsultationBooking(data: {
   });
   return response;
 }
+
+/**
+ * Register FCM device token with backend
+ */
+export async function registerFCMToken(data: {
+  token: string;
+  platform: string;
+  userId: string;
+  deviceModel?: string;
+  osVersion?: string;
+  appVersion?: string;
+}) {
+  const { data: result } = await authenticatedApi(
+    API_ENDPOINTS.COMMUNICATION.PUSH.REGISTER_DEVICE_TOKEN,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  );
+  return result;
+}
+
+// ===== MESSAGING MANAGEMENT =====
+
+/**
+ * Send SMS
+ */
+export async function sendSMS(messageData: {
+  to: string;
+  message: string;
+  templateId?: string;
+  variables?: Record<string, string>;
+}) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.SMS, {
+    method: 'POST',
+    body: JSON.stringify(messageData),
+  });
+  return data;
+}
+
+/**
+ * Send WhatsApp message
+ */
+export async function sendWhatsAppMessage(messageData: {
+  to: string;
+  message: string;
+  templateId?: string;
+  variables?: Record<string, string>;
+  mediaUrl?: string;
+}) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.WHATSAPP, {
+    method: 'POST',
+    body: JSON.stringify(messageData),
+  });
+  return data;
+}
+
+/**
+ * Get message templates
+ */
+export async function getMessageTemplates(type?: 'sms' | 'email' | 'whatsapp') {
+  const params = type ? `?type=${type}` : '';
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.BASE}${params}`);
+  return data;
+}
+
+/**
+ * Create message template
+ */
+export async function createMessageTemplate(templateData: {
+  name: string;
+  type: 'sms' | 'email' | 'whatsapp';
+  subject?: string;
+  content: string;
+  variables?: string[];
+  category?: string;
+}) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.CREATE, {
+    method: 'POST',
+    body: JSON.stringify(templateData),
+  });
+  return data;
+}
+
+/**
+ * Update message template
+ */
+export async function updateMessageTemplate(templateId: string, updates: {
+  name?: string;
+  subject?: string;
+  content?: string;
+  variables?: string[];
+  category?: string;
+  isActive?: boolean;
+}) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.UPDATE(templateId), {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  });
+  return data;
+}
+
+/**
+ * Delete message template
+ */
+export async function deleteMessageTemplate(templateId: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.DELETE(templateId), {
+    method: 'DELETE',
+  });
+  return data;
+}
+
+/**
+ * Get message history
+ */
+export async function getMessageHistory(filters?: {
+  userId?: string;
+  type?: 'sms' | 'email' | 'whatsapp';
+  status?: 'sent' | 'delivered' | 'failed';
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined) {
+        params.append(key, value.toString());
+      }
+    });
+  }
+  
+  const endpoint = `${API_ENDPOINTS.COMMUNICATION.MESSAGING.HISTORY}${params.toString() ? `?${params.toString()}` : ''}`;
+  const { data } = await authenticatedApi(endpoint);
+  return data;
+}
+
+/**
+ * Get messaging statistics
+ */
+export async function getMessagingStats(period: 'day' | 'week' | 'month' | 'year' = 'month') {
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.MESSAGING.STATS}?period=${period}`);
+  return data;
+}
+
+/**
+ * Schedule message
+ */
+export async function scheduleMessage(messageData: {
+  type: 'sms' | 'email' | 'whatsapp';
+  to: string | string[];
+  content: string;
+  subject?: string;
+  scheduledFor: string;
+  templateId?: string;
+  variables?: Record<string, string>;
+}) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.CREATE, {
+    method: 'POST',
+    body: JSON.stringify(messageData),
+  });
+  return data;
+}
+
+/**
+ * Cancel scheduled message
+ */
+export async function cancelScheduledMessage(messageId: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.DELETE(messageId), {
+    method: 'DELETE',
+  });
+  return data;
+}
+
+/**
+ * Get scheduled messages
+ */
+export async function getScheduledMessages(filters?: {
+  type?: 'sms' | 'email' | 'whatsapp';
+  status?: 'pending' | 'sent' | 'cancelled';
+}) {
+  const params = new URLSearchParams();
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.append(key, value);
+    });
+  }
+  
+  const endpoint = `${API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.BASE}${params.toString() ? `?${params.toString()}` : ''}`;
+  const { data } = await authenticatedApi(endpoint);
+  return data;
+}

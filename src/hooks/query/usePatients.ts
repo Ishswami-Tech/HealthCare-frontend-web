@@ -1,5 +1,5 @@
-import { useQueryData } from '../core/useQueryData';
-import { useMutationData } from '../core/useMutationData';
+import { useQueryData, useMutationOperation } from '../core';
+import { TOAST_IDS } from '../utils/use-toast';
 import {
   getPatients,
   getPatientById,
@@ -175,7 +175,8 @@ export const usePatientCarePlan = (patientId: string) => {
  * Hook to create patient
  */
 export const useCreatePatient = () => {
-  return useMutationData(['createPatient'], async (patientData: {
+  return useMutationOperation(
+    async (patientData: {
     userId: string;
     dateOfBirth?: string;
     gender?: 'MALE' | 'FEMALE' | 'OTHER';
@@ -195,16 +196,23 @@ export const useCreatePatient = () => {
       groupNumber?: string;
     };
   }) => {
-    const result = await createPatient(patientData);
-    return { status: 200, data: result };
-  }, 'patients');
+      return await createPatient(patientData);
+    },
+    {
+      toastId: TOAST_IDS.PATIENT.CREATE,
+      loadingMessage: 'Creating patient...',
+      successMessage: 'Patient created successfully',
+      invalidateQueries: [['patients']],
+    }
+  );
 };
 
 /**
  * Hook to update patient
  */
 export const useUpdatePatient = () => {
-  return useMutationData(['updatePatient'], async ({ patientId, updates }: {
+  return useMutationOperation(
+    async ({ patientId, updates }: {
     patientId: string;
     updates: {
       dateOfBirth?: string;
@@ -227,26 +235,40 @@ export const useUpdatePatient = () => {
       isActive?: boolean;
     };
   }) => {
-    const result = await updatePatient(patientId, updates);
-    return { status: 200, data: result };
-  }, 'patients');
+      return await updatePatient(patientId, updates);
+    },
+    {
+      toastId: TOAST_IDS.PATIENT.UPDATE,
+      loadingMessage: 'Updating patient...',
+      successMessage: 'Patient updated successfully',
+      invalidateQueries: [['patients']],
+    }
+  );
 };
 
 /**
  * Hook to delete patient
  */
 export const useDeletePatient = () => {
-  return useMutationData(['deletePatient'], async (patientId: string) => {
-    const result = await deletePatient(patientId);
-    return { status: 200, data: result };
-  }, 'patients');
+  return useMutationOperation(
+    async (patientId: string) => {
+      return await deletePatient(patientId);
+    },
+    {
+      toastId: TOAST_IDS.PATIENT.DELETE,
+      loadingMessage: 'Deleting patient...',
+      successMessage: 'Patient deleted successfully',
+      invalidateQueries: [['patients']],
+    }
+  );
 };
 
 /**
  * Hook to add patient medical history
  */
 export const useAddPatientMedicalHistory = () => {
-  return useMutationData(['addPatientMedicalHistory'], async ({ clinicId, patientId, historyData }: {
+  return useMutationOperation(
+    async ({ clinicId, patientId, historyData }: {
     clinicId: string;
     patientId: string;
     historyData: {
@@ -258,16 +280,23 @@ export const useAddPatientMedicalHistory = () => {
       severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
     };
   }) => {
-    const result = await addPatientMedicalHistory(clinicId, patientId, historyData);
-    return { status: 200, data: result };
-  }, 'patientMedicalHistory');
+      return await addPatientMedicalHistory(clinicId, patientId, historyData);
+    },
+    {
+      toastId: TOAST_IDS.EHR.HISTORY_CREATE,
+      loadingMessage: 'Adding medical history...',
+      successMessage: 'Medical history added successfully',
+      invalidateQueries: [['patientMedicalHistory']],
+    }
+  );
 };
 
 /**
  * Hook to add patient vital signs
  */
 export const useAddPatientVitalSigns = () => {
-  return useMutationData(['addPatientVitalSigns'], async ({ patientId, vitalsData }: {
+  return useMutationOperation(
+    async ({ patientId, vitalsData }: {
     patientId: string;
     vitalsData: {
       bloodPressureSystolic?: number;
@@ -284,16 +313,23 @@ export const useAddPatientVitalSigns = () => {
       notes?: string;
     };
   }) => {
-    const result = await addPatientVitalSigns(patientId, vitalsData);
-    return { status: 200, data: result };
-  }, 'patientVitalSigns');
+      return await addPatientVitalSigns(patientId, vitalsData);
+    },
+    {
+      toastId: TOAST_IDS.EHR.VITAL_CREATE,
+      loadingMessage: 'Adding vital signs...',
+      successMessage: 'Vital signs added successfully',
+      invalidateQueries: [['patientVitalSigns']],
+    }
+  );
 };
 
 /**
  * Hook to add patient lab result
  */
 export const useAddPatientLabResult = () => {
-  return useMutationData(['addPatientLabResult'], async ({ patientId, labData }: {
+  return useMutationOperation(
+    async ({ patientId, labData }: {
     patientId: string;
     labData: {
       testType: string;
@@ -309,16 +345,23 @@ export const useAddPatientLabResult = () => {
       notes?: string;
     };
   }) => {
-    const result = await addPatientLabResult(patientId, labData);
-    return { status: 200, data: result };
-  }, 'patientLabResults');
+      return await addPatientLabResult(patientId, labData);
+    },
+    {
+      toastId: TOAST_IDS.EHR.LAB_CREATE,
+      loadingMessage: 'Adding lab result...',
+      successMessage: 'Lab result added successfully',
+      invalidateQueries: [['patientLabResults']],
+    }
+  );
 };
 
 /**
  * Hook to search patients
  */
 export const useSearchPatients = () => {
-  return useMutationData(['searchPatients'], async ({ query, filters }: {
+  return useMutationOperation(
+    async ({ query, filters }: {
     query: string;
     filters?: {
       gender?: string;
@@ -328,16 +371,23 @@ export const useSearchPatients = () => {
       limit?: number;
     };
   }) => {
-    const result = await searchPatients(query, filters);
-    return { status: 200, data: result };
-  });
+      return await searchPatients(query, filters);
+    },
+    {
+      toastId: TOAST_IDS.PATIENT.UPDATE,
+      loadingMessage: 'Searching patients...',
+      successMessage: 'Search completed',
+      showToast: false,
+    }
+  );
 };
 
 /**
  * Hook to export patient data
  */
 export const useExportPatientData = () => {
-  return useMutationData(['exportPatientData'], async (filters: {
+  return useMutationOperation(
+    async (filters: {
     format: 'csv' | 'excel' | 'pdf';
     patientIds?: string[];
     includeHistory?: boolean;
@@ -346,16 +396,22 @@ export const useExportPatientData = () => {
     startDate?: string;
     endDate?: string;
   }) => {
-    const result = await exportPatientData(filters);
-    return { status: 200, data: result };
-  });
+      return await exportPatientData(filters);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
+      loadingMessage: 'Exporting patient data...',
+      successMessage: 'Patient data exported successfully',
+    }
+  );
 };
 
 /**
  * Hook to update patient care plan
  */
 export const useUpdatePatientCarePlan = () => {
-  return useMutationData(['updatePatientCarePlan'], async ({ patientId, carePlanData }: {
+  return useMutationOperation(
+    async ({ patientId, carePlanData }: {
     patientId: string;
     carePlanData: {
       goals?: string[];
@@ -372,7 +428,13 @@ export const useUpdatePatientCarePlan = () => {
       doctorId: string;
     };
   }) => {
-    const result = await updatePatientCarePlan(patientId, carePlanData);
-    return { status: 200, data: result };
-  }, 'patientCarePlan');
+      return await updatePatientCarePlan(patientId, carePlanData);
+    },
+    {
+      toastId: TOAST_IDS.PATIENT.UPDATE,
+      loadingMessage: 'Updating patient care plan...',
+      successMessage: 'Patient care plan updated successfully',
+      invalidateQueries: [['patientCarePlan']],
+    }
+  );
 };

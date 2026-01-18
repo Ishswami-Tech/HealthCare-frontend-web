@@ -133,7 +133,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 // External libraries (SECOND)
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+// ✅ ALWAYS use core hooks - never import directly from @tanstack/react-query
+import { useQueryData, useMutationOperation, useOptimisticMutation, useQueryClient } from '@/hooks/core';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -2295,7 +2296,7 @@ export const performancePatterns = {
 ```typescript
 // ✅ Complete TanStack Query implementation
 export function usePatients(clinicId: string, filters?: PatientFilters) {
-  return useQuery({
+  return useQueryData(
     queryKey: ['patients', clinicId, filters],
     queryFn: () => getPatients(clinicId, filters),
     enabled: !!clinicId,
@@ -2315,7 +2316,7 @@ export function useCreatePatient() {
   const queryClient = useQueryClient();
   const clinicId = useCurrentClinicId();
 
-  return useMutation({
+  return useMutationOperation(
     mutationFn: (data: CreatePatientData) => 
       createPatient(clinicId, data),
     onSuccess: (newPatient) => {

@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useAuth } from "@/hooks/auth/useAuth";
-import type { OTPFormData } from "@/types/auth.types";
-import { otpSchema } from "@/types/auth.types";
+import { otpSchema } from "@/lib/schema";
+import type { OtpVerifyFormData as OTPFormData } from "@/types/auth.types";
 import useZodForm from "@/hooks/utils/useZodForm";
 import {
   Form,

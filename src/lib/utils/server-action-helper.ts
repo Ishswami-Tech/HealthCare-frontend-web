@@ -14,6 +14,8 @@ import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
 import { handleApiError, sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { APP_CONFIG, ERROR_MESSAGES } from '@/lib/config/config';
 import { cookies } from 'next/headers';
+import { trackApiCall, isEndpointAvailable } from '@/lib/utils/metrics';
+import { checkApiRateLimit, getClientIdentifier } from '@/lib/utils/security';
 
 // API URL configuration from central config
 const API_URL = APP_CONFIG.API.BASE_URL;
@@ -68,6 +70,20 @@ export async function executeServerAction<T = any>(
   } = options;
 
   try {
+    // ✅ Check circuit breaker
+    if (!isEndpointAvailable(endpoint)) {
+      throw new Error('Service temporarily unavailable. Please try again later.');
+    }
+
+    // ✅ Check rate limiting (client-side only)
+    if (typeof window !== 'undefined') {
+      const clientId = getClientIdentifier();
+      const rateLimit = checkApiRateLimit(`${clientId}:${endpoint}`);
+      if (!rateLimit.allowed) {
+        throw new Error(`Rate limit exceeded. Please try again in a moment.`);
+      }
+    }
+
     // ✅ Get authentication headers if required
     const requestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -108,14 +124,22 @@ export async function executeServerAction<T = any>(
       });
     }
 
-    // ✅ Execute request
+    // ✅ Execute request with performance tracking
+    const startTime = Date.now();
     const requestBody = typeof body === 'string' ? body : body ? JSON.stringify(body) : null;
+    const requestSize = requestBody ? new Blob([requestBody]).size : 0;
+    
     const response = await fetchWithAbort(fullUrl, {
       method,
       headers: requestHeaders,
       body: requestBody,
       timeout,
     });
+    
+    const responseTime = Date.now() - startTime;
+    const responseSize = response.headers.get('content-length') 
+      ? parseInt(response.headers.get('content-length') || '0', 10) 
+      : 0;
 
     // ✅ Handle response
     let responseData: any;
@@ -129,6 +153,17 @@ export async function executeServerAction<T = any>(
       // ✅ Use centralized error handler
       const errorMessage = await handleApiError(response, responseData);
       
+      // ✅ Track API call with error
+      trackApiCall(
+        endpoint,
+        method,
+        response.status,
+        responseTime,
+        errorMessage,
+        requestSize,
+        responseSize
+      );
+      
       logger.error(`[${operationName}] Error`, {
         status: response.status,
         statusText: response.statusText,
@@ -136,10 +171,22 @@ export async function executeServerAction<T = any>(
         url: fullUrl,
         originalError: responseData.message || responseData.error,
         userMessage: errorMessage,
+        responseTime,
       });
 
       throw new Error(errorMessage || errorMessage || ERROR_MESSAGES.UNKNOWN_ERROR);
     }
+
+    // ✅ Track successful API call
+    trackApiCall(
+      endpoint,
+      method,
+      response.status,
+      responseTime,
+      undefined,
+      requestSize,
+      responseSize
+    );
 
     // ✅ Log success in development
     if (APP_CONFIG.IS_DEVELOPMENT || APP_CONFIG.FEATURES.DEBUG) {

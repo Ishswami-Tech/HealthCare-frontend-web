@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { clinicApiClient } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/config/config";
 
@@ -146,7 +146,9 @@ export function RazorpayPaymentButton({
             );
 
             if (verifyResponse.success) {
-              toast.success("Payment successful!");
+              showSuccessToast("Payment successful!", {
+                id: TOAST_IDS.PAYMENT.SUCCESS,
+              });
               onSuccess?.(response.razorpay_payment_id);
             } else {
               throw new Error(
@@ -154,7 +156,9 @@ export function RazorpayPaymentButton({
               );
             }
           } catch (error: any) {
-            toast.error(error.message || "Payment verification failed");
+            showErrorToast(error.message || "Payment verification failed", {
+              id: TOAST_IDS.PAYMENT.ERROR,
+            });
             onError?.(error.message);
           } finally {
             setIsProcessing(false);
@@ -171,7 +175,9 @@ export function RazorpayPaymentButton({
         modal: {
           ondismiss: () => {
             setIsProcessing(false);
-            toast.info("Payment cancelled");
+            showInfoToast("Payment cancelled", {
+              id: TOAST_IDS.PAYMENT.CANCELLED,
+            });
           },
         },
       };
@@ -179,8 +185,9 @@ export function RazorpayPaymentButton({
       const razorpay = new window.Razorpay(options);
       razorpay.on("payment.failed", (response: any) => {
         setIsProcessing(false);
-        toast.error(
-          `Payment failed: ${response.error.description || "Unknown error"}`
+        showErrorToast(
+          `Payment failed: ${response.error.description || "Unknown error"}`,
+          { id: TOAST_IDS.PAYMENT.ERROR }
         );
         onError?.(response.error.description || "Payment failed");
       });
@@ -188,7 +195,9 @@ export function RazorpayPaymentButton({
       razorpay.open();
     } catch (error: any) {
       setIsProcessing(false);
-      toast.error(error.message || "Failed to initiate payment");
+      showErrorToast(error.message || "Failed to initiate payment", {
+        id: TOAST_IDS.PAYMENT.ERROR,
+      });
       onError?.(error.message || "Failed to initiate payment");
     }
   };

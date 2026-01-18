@@ -1,5 +1,5 @@
-import { useQueryData } from '../core/useQueryData';
-import { useMutationData } from '../core/useMutationData';
+import { useQueryData, useMutationOperation } from '../core';
+import { TOAST_IDS } from '../utils/use-toast';
 import {
   getMedicines,
   getMedicineById,
@@ -68,19 +68,26 @@ export const useMedicineCategories = () => {
  * Hook to search medicines for a clinic
  */
 export const useSearchMedicines = () => {
-  return useMutationData(['searchMedicines'], async ({ clinicId, query, filters }: {
-    clinicId: string;
-    query: string;
-    filters?: {
-      category?: string;
-      prescriptionRequired?: boolean;
-      inStock?: boolean;
-      limit?: number;
-    };
-  }) => {
-    const result = await searchMedicines(clinicId, query, filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async ({ clinicId, query, filters }: {
+      clinicId: string;
+      query: string;
+      filters?: {
+        category?: string;
+        prescriptionRequired?: boolean;
+        inStock?: boolean;
+        limit?: number;
+      };
+    }) => {
+      return await searchMedicines(clinicId, query, filters);
+    },
+    {
+      toastId: TOAST_IDS.MEDICINE.SEARCH,
+      loadingMessage: 'Searching medicines...',
+      successMessage: 'Search completed',
+      showToast: false,
+    }
+  );
 };
 
 // ===== PRESCRIPTIONS HOOKS =====
@@ -204,157 +211,219 @@ export const useSuppliers = () => {
  * Hook to create medicine for a clinic
  */
 export const useCreateMedicine = () => {
-  return useMutationData(['createMedicine'], async ({ clinicId, ...medicineData }: {
-    clinicId: string;
-    name: string;
-    genericName?: string;
-    manufacturer: string;
-    category: string;
-    dosageForm: string;
-    strength: string;
-    packSize: number;
-    unitPrice: number;
-    stockQuantity: number;
-    minStockLevel: number;
-    maxStockLevel: number;
-    expiryDate: string;
-    batchNumber: string;
-    prescriptionRequired: boolean;
-    description?: string;
-    sideEffects?: string[];
-    contraindications?: string[];
-    storageConditions?: string;
-  }) => {
-    const result = await createMedicine(clinicId, medicineData);
-    return { status: 200, data: result };
-  }, 'medicines');
+  return useMutationOperation(
+    async ({ clinicId, ...medicineData }: {
+      clinicId: string;
+      name: string;
+      genericName?: string;
+      manufacturer: string;
+      category: string;
+      dosageForm: string;
+      strength: string;
+      packSize: number;
+      unitPrice: number;
+      stockQuantity: number;
+      minStockLevel: number;
+      maxStockLevel: number;
+      expiryDate: string;
+      batchNumber: string;
+      prescriptionRequired: boolean;
+      description?: string;
+      sideEffects?: string[];
+      contraindications?: string[];
+      storageConditions?: string;
+    }) => {
+      return await createMedicine(clinicId, medicineData);
+    },
+    {
+      toastId: TOAST_IDS.MEDICINE.CREATE,
+      loadingMessage: 'Creating medicine...',
+      successMessage: 'Medicine created successfully',
+      invalidateQueries: [['medicines']],
+    }
+  );
 };
 
 /**
  * Hook to update medicine
  */
 export const useUpdateMedicine = () => {
-  return useMutationData(['updateMedicine'], async ({ clinicId, medicineId, updates }: {
-    clinicId: string;
-    medicineId: string;
-    updates: any;
-  }) => {
-    const result = await updateMedicine(clinicId, medicineId, updates);
-    return { status: 200, data: result };
-  }, 'medicines');
+  return useMutationOperation(
+    async ({ clinicId, medicineId, updates }: {
+      clinicId: string;
+      medicineId: string;
+      updates: any;
+    }) => {
+      return await updateMedicine(clinicId, medicineId, updates);
+    },
+    {
+      toastId: TOAST_IDS.MEDICINE.UPDATE,
+      loadingMessage: 'Updating medicine...',
+      successMessage: 'Medicine updated successfully',
+      invalidateQueries: [['medicines']],
+    }
+  );
 };
 
 /**
  * Hook to delete medicine
  */
 export const useDeleteMedicine = () => {
-  return useMutationData(['deleteMedicine'], async ({ clinicId, medicineId }: {
-    clinicId: string;
-    medicineId: string;
-  }) => {
-    const result = await deleteMedicine(clinicId, medicineId);
-    return { status: 200, data: result };
-  }, 'medicines');
+  return useMutationOperation(
+    async ({ clinicId, medicineId }: {
+      clinicId: string;
+      medicineId: string;
+    }) => {
+      return await deleteMedicine(clinicId, medicineId);
+    },
+    {
+      toastId: TOAST_IDS.MEDICINE.DELETE,
+      loadingMessage: 'Deleting medicine...',
+      successMessage: 'Medicine deleted successfully',
+      invalidateQueries: [['medicines']],
+    }
+  );
 };
 
 /**
  * Hook to create prescription for a clinic
  */
 export const useCreatePrescription = () => {
-  return useMutationData(['createPrescription'], async ({ clinicId, ...prescriptionData }: {
-    clinicId: string;
-    patientId: string;
-    doctorId: string;
-    medications: {
-      medicineId: string;
-      dosage: string;
-      frequency: string;
-      duration: string;
-      instructions?: string;
-      quantity: number;
-    }[];
-    diagnosis?: string;
-    notes?: string;
-    validUntil?: string;
-  }) => {
-    const result = await createPrescription(clinicId, prescriptionData);
-    return { status: 200, data: result };
-  }, 'prescriptions');
+  return useMutationOperation(
+    async ({ clinicId, ...prescriptionData }: {
+      clinicId: string;
+      patientId: string;
+      doctorId: string;
+      medications: {
+        medicineId: string;
+        dosage: string;
+        frequency: string;
+        duration: string;
+        instructions?: string;
+        quantity: number;
+      }[];
+      diagnosis?: string;
+      notes?: string;
+      validUntil?: string;
+    }) => {
+      return await createPrescription(clinicId, prescriptionData);
+    },
+    {
+      toastId: TOAST_IDS.PRESCRIPTION.CREATE,
+      loadingMessage: 'Creating prescription...',
+      successMessage: 'Prescription created successfully',
+      invalidateQueries: [['prescriptions']],
+    }
+  );
 };
 
 /**
  * Hook to update prescription status
  */
 export const useUpdatePrescriptionStatus = () => {
-  return useMutationData(['updatePrescriptionStatus'], async ({ prescriptionId, status, notes }: {
-    prescriptionId: string;
-    status: string;
-    notes?: string;
-  }) => {
-    const result = await updatePrescriptionStatus(prescriptionId, status, notes);
-    return { status: 200, data: result };
-  }, 'prescriptions');
+  return useMutationOperation(
+    async ({ prescriptionId, status, notes }: {
+      prescriptionId: string;
+      status: string;
+      notes?: string;
+    }) => {
+      return await updatePrescriptionStatus(prescriptionId, status, notes);
+    },
+    {
+      toastId: TOAST_IDS.PHARMACY.PRESCRIPTION_UPDATE,
+      loadingMessage: 'Updating prescription status...',
+      successMessage: 'Prescription status updated successfully',
+      invalidateQueries: [['prescriptions']],
+    }
+  );
 };
 
 /**
  * Hook to dispense prescription
  */
 export const useDispensePrescription = () => {
-  return useMutationData(['dispensePrescription'], async ({ prescriptionId, dispensingData }: {
-    prescriptionId: string;
-    dispensingData: any;
-  }) => {
-    const result = await dispensePrescription(prescriptionId, dispensingData);
-    return { status: 200, data: result };
-  }, 'prescriptions');
+  return useMutationOperation(
+    async ({ prescriptionId, dispensingData }: {
+      prescriptionId: string;
+      dispensingData: any;
+    }) => {
+      return await dispensePrescription(prescriptionId, dispensingData);
+    },
+    {
+      toastId: TOAST_IDS.PHARMACY.PRESCRIPTION_UPDATE,
+      loadingMessage: 'Dispensing prescription...',
+      successMessage: 'Prescription dispensed successfully',
+      invalidateQueries: [['prescriptions']],
+    }
+  );
 };
 
 /**
  * Hook to update inventory
  */
 export const useUpdateInventory = () => {
-  return useMutationData(['updateInventory'], async ({ clinicId, medicineId, inventoryData }: {
-    clinicId: string;
-    medicineId: string;
-    inventoryData: any;
-  }) => {
-    const result = await updateInventory(clinicId, medicineId, inventoryData);
-    return { status: 200, data: result };
-  }, 'inventory');
+  return useMutationOperation(
+    async ({ clinicId, medicineId, inventoryData }: {
+      clinicId: string;
+      medicineId: string;
+      inventoryData: any;
+    }) => {
+      return await updateInventory(clinicId, medicineId, inventoryData);
+    },
+    {
+      toastId: TOAST_IDS.PHARMACY.INVENTORY_UPDATE,
+      loadingMessage: 'Updating inventory...',
+      successMessage: 'Inventory updated successfully',
+      invalidateQueries: [['inventory']],
+    }
+  );
 };
 
 /**
  * Hook to create pharmacy order for a clinic
  */
 export const useCreatePharmacyOrder = () => {
-  return useMutationData(['createPharmacyOrder'], async ({ clinicId, medicines, ...orderData }: {
-    clinicId: string;
-    supplierId: string;
-    medicines: {
-      medicineId: string;
-      quantity: number;
-      unitPrice: number;
-    }[];
-    expectedDeliveryDate?: string;
-    notes?: string;
-  }) => {
-    const result = await createPharmacyOrder(clinicId, { ...orderData, items: medicines });
-    return { status: 200, data: result };
-  }, 'pharmacyOrders');
+  return useMutationOperation(
+    async ({ clinicId, medicines, ...orderData }: {
+      clinicId: string;
+      supplierId: string;
+      medicines: {
+        medicineId: string;
+        quantity: number;
+        unitPrice: number;
+      }[];
+      expectedDeliveryDate?: string;
+      notes?: string;
+    }) => {
+      return await createPharmacyOrder(clinicId, { ...orderData, items: medicines });
+    },
+    {
+      toastId: TOAST_IDS.PHARMACY.ORDER_CREATE,
+      loadingMessage: 'Creating pharmacy order...',
+      successMessage: 'Pharmacy order created successfully',
+      invalidateQueries: [['pharmacyOrders']],
+    }
+  );
 };
 
 /**
  * Hook to export pharmacy data for a clinic
  */
 export const useExportPharmacyData = () => {
-  return useMutationData(['exportPharmacyData'], async ({ clinicId, ...filters }: {
-    clinicId: string;
-    type: 'medicines' | 'prescriptions' | 'sales' | 'inventory';
-    format: 'csv' | 'excel' | 'pdf';
-    startDate?: string;
-    endDate?: string;
-  }) => {
-    const result = await exportPharmacyData(clinicId, filters);
-    return { status: 200, data: result };
-  });
+  return useMutationOperation(
+    async ({ clinicId, ...filters }: {
+      clinicId: string;
+      type: 'medicines' | 'prescriptions' | 'sales' | 'inventory';
+      format: 'csv' | 'excel' | 'pdf';
+      startDate?: string;
+      endDate?: string;
+    }) => {
+      return await exportPharmacyData(clinicId, filters);
+    },
+    {
+      toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
+      loadingMessage: 'Exporting pharmacy data...',
+      successMessage: 'Pharmacy data exported successfully',
+    }
+  );
 };

@@ -18,6 +18,7 @@ import { LanguageProvider } from "@/lib/i18n/context";
 import { WebSocketProvider } from "@/app/providers/WebSocketProvider";
 import { StoreProvider } from "@/stores";
 import { PushNotificationProvider } from "@/app/providers/PushNotificationProvider";
+import { NotificationInitializer } from "@/components/notifications/NotificationInitializer";
 import { HealthStatusProvider } from "@/app/providers/HealthStatusProvider";
 import { ERROR_MESSAGES } from "@/lib/config/config";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
@@ -87,12 +88,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
             <StoreProvider>
               <QueryProvider>
                 <WebSocketProvider
-                  autoConnect={false}
+                  autoConnect={true}
                   enableRetry={true}
                   enableErrorBoundary={true}
                 >
                   <PushNotificationProvider>
                     <HealthStatusProvider />
+                    <NotificationInitializer />
                     {children}
                     <Toaster
                       richColors

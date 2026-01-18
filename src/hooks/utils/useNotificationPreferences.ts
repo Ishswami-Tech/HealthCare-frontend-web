@@ -3,8 +3,8 @@
  * Dedicated hooks for managing notification preferences
  */
 
-import { useQueryData } from '../core/useQueryData';
-import { useMutationData } from '../core/useMutationData';
+import { useQueryData, useMutationOperation } from '../core';
+import { TOAST_IDS } from './use-toast';
 import { authenticatedApi } from '@/lib/actions/auth.server';
 import { API_ENDPOINTS } from '@/lib/config/config';
 
@@ -43,8 +43,7 @@ export const useUserNotificationPreferences = (userId: string) => {
  * Hook to create notification preferences
  */
 export const useCreateNotificationPreferences = () => {
-  return useMutationData(
-    ['createNotificationPreferences'],
+  return useMutationOperation(
     async (data: {
       email?: boolean;
       sms?: boolean;
@@ -61,9 +60,14 @@ export const useCreateNotificationPreferences = () => {
         method: 'POST',
         body: JSON.stringify(data),
       });
-      return { status: 200, data: response };
+      return response;
     },
-    ['notificationPreferences']
+    {
+      toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_CREATE,
+      loadingMessage: 'Creating notification preferences...',
+      successMessage: 'Notification preferences created successfully',
+      invalidateQueries: [['notificationPreferences']],
+    }
   );
 };
 
@@ -71,8 +75,7 @@ export const useCreateNotificationPreferences = () => {
  * Hook to update notification preferences
  */
 export const useUpdateNotificationPreferences = () => {
-  return useMutationData(
-    ['updateNotificationPreferences'],
+  return useMutationOperation(
     async (data: {
       userId?: string;
       email?: boolean;
@@ -98,9 +101,14 @@ export const useUpdateNotificationPreferences = () => {
         method: 'PUT',
         body: JSON.stringify(updateData),
       });
-      return { status: 200, data: response };
+      return response;
     },
-    ['notificationPreferences']
+    {
+      toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_UPDATE,
+      loadingMessage: 'Updating notification preferences...',
+      successMessage: 'Notification preferences updated successfully',
+      invalidateQueries: [['notificationPreferences']],
+    }
   );
 };
 
@@ -108,8 +116,7 @@ export const useUpdateNotificationPreferences = () => {
  * Hook to delete notification preferences
  */
 export const useDeleteNotificationPreferences = () => {
-  return useMutationData(
-    ['deleteNotificationPreferences'],
+  return useMutationOperation(
     async (userId?: string) => {
       const endpoint = userId
         ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE(userId)
@@ -118,9 +125,14 @@ export const useDeleteNotificationPreferences = () => {
       const { data } = await authenticatedApi(endpoint, {
         method: 'DELETE',
       });
-      return { status: 200, data };
+      return data;
     },
-    ['notificationPreferences']
+    {
+      toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_DELETE,
+      loadingMessage: 'Deleting notification preferences...',
+      successMessage: 'Notification preferences deleted successfully',
+      invalidateQueries: [['notificationPreferences']],
+    }
   );
 };
 
