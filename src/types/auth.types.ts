@@ -115,6 +115,9 @@ export interface OTPFormData {
   identifier: string;
   otp: string;
   rememberMe?: boolean;
+  isRegistration?: boolean;
+  firstName?: string;
+  lastName?: string;
 }
 
 // User Types
@@ -129,6 +132,7 @@ export interface User {
   profileComplete?: boolean;
   profilePicture?: string;
   googleId?: string;
+  phone?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -254,12 +258,16 @@ export interface PasswordLoginFormData {
 
 export interface OtpRequestFormData {
   identifier: string;
+  isRegistration?: boolean;
 }
 
 export interface OtpVerifyFormData {
   identifier: string;
   otp: string;
   rememberMe?: boolean;
+  isRegistration?: boolean;
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface ProfileCompletionFormData {

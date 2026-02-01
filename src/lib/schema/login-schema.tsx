@@ -50,7 +50,7 @@ export const registerSchema = z
     phone: z.string().min(10, "Phone number must be at least 10 characters"),
     gender: z.enum(["male", "female", "other"]).default("male"),
     role: createRoleEnum().default(Role.PATIENT),
-    age: z.number().default(18),
+    age: z.number().optional(),
     terms: z.boolean().refine((val) => val === true, {
       message: "You must accept the terms and conditions",
     }),

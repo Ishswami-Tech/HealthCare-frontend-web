@@ -177,7 +177,7 @@ const Navigation = () => {
   return (
     <>
       {/* Top Trust Bar */}
-      <div className="bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4 relative z-40 -mt-[56px]">
+      <div className="bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4 relative z-40">
         <div className="container mx-auto max-w-7xl flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs md:text-sm gap-2 sm:gap-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <Badge

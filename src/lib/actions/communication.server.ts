@@ -1,7 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
-import { API_ENDPOINTS } from '../config/config';
+import { API_ENDPOINTS, APP_CONFIG } from '../config/config';
 
 // ===== UNIFIED COMMUNICATION =====
 
@@ -299,9 +299,28 @@ export async function submitContactForm(data: {
   message: string;
   type?: 'contact' | 'consultation';
 }) {
-  // Use unified communication to send contact form submission
-  const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
+  // Use public API call for contact form
+  const API_URL = APP_CONFIG.API.BASE_URL;
+  const CLINIC_ID = APP_CONFIG.CLINIC.ID;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (CLINIC_ID) {
+    headers['X-Clinic-ID'] = CLINIC_ID;
+  }
+
+  // Use fetchWithAbort directly to avoid "No tokens found" error for public users
+  const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
+  
+  // Note: We're using the unified communication endpoint.
+  // Ideally this should be a public endpoint like /contact/submit
+  // If this endpoint requires auth, this call will fail with 401 from backend,
+  // but it won't crash the frontend with "No tokens found".
+  const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.COMMUNICATION.SEND}`, {
     method: 'POST',
+    headers,
     body: JSON.stringify({
       type: 'email',
       title: `Contact Form Submission - ${data.type === 'consultation' ? 'Consultation Request' : 'General Inquiry'}`,
@@ -318,7 +337,13 @@ export async function submitContactForm(data: {
       priority: 'normal',
     }),
   });
-  return response;
+
+  if (!response.ok) {
+    throw new Error(`Failed to submit form: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.data || result;
 }
 
 /**
@@ -331,9 +356,23 @@ export async function submitConsultationBooking(data: {
   preferredTime?: string;
   reason?: string;
 }) {
-  // Use unified communication to send consultation booking
-  const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
+  // Use public API call for consultation booking
+  const API_URL = APP_CONFIG.API.BASE_URL;
+  const CLINIC_ID = APP_CONFIG.CLINIC.ID;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (CLINIC_ID) {
+    headers['X-Clinic-ID'] = CLINIC_ID;
+  }
+
+  const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
+
+  const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.COMMUNICATION.SEND}`, {
     method: 'POST',
+    headers,
     body: JSON.stringify({
       type: 'email',
       title: 'Consultation Booking Request',
@@ -348,7 +387,13 @@ export async function submitConsultationBooking(data: {
       priority: 'high',
     }),
   });
-  return response;
+
+  if (!response.ok) {
+    throw new Error(`Failed to submit booking: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.data || result;
 }
 
 /**

@@ -47,7 +47,49 @@ export async function createMedicalHistory(createDto: {
   return data;
 }
 
-// ... get/update/delete Medical History methods ...
+/**
+ * Get medical history for a user
+ */
+export async function getMedicalHistory(userId: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICAL_HISTORY.GET_BY_USER(userId));
+  return data;
+}
+
+/**
+ * Update medical history record
+ */
+export async function updateMedicalHistory(id: string, updates: {
+  condition?: string;
+  diagnosis?: string;
+  treatment?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+  notes?: string;
+}) {
+  // Map frontend DTO to backend structure if needed
+  const payload = {
+    ...updates,
+    date: updates.startDate, 
+    // clinicId, userId - typically not modifiable or taken from context
+  };
+
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICAL_HISTORY.UPDATE(id), {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+/**
+ * Delete medical history record
+ */
+export async function deleteMedicalHistory(id: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICAL_HISTORY.DELETE(id), {
+    method: 'DELETE',
+  });
+  return data;
+}
 
 // ===== LAB REPORTS =====
 
@@ -81,7 +123,46 @@ export async function createLabReport(createDto: {
   return data;
 }
 
-// ... get/update/delete Lab Reports ...
+/**
+ * Get lab reports for a user
+ */
+export async function getLabReports(userId: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.LAB_REPORTS.GET_BY_USER(userId));
+  return data;
+}
+
+/**
+ * Update lab report
+ */
+export async function updateLabReport(id: string, updates: {
+  testName?: string;
+  testDate?: string;
+  results?: Record<string, any>;
+  normalRange?: Record<string, any>;
+  status?: string;
+  notes?: string;
+}) {
+  const payload: any = { ...updates };
+  if (updates.testDate) payload.date = updates.testDate;
+  if (updates.results) payload.result = JSON.stringify(updates.results);
+  if (updates.normalRange) payload.normalRange = JSON.stringify(updates.normalRange);
+
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.LAB_REPORTS.UPDATE(id), {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+/**
+ * Delete lab report
+ */
+export async function deleteLabReport(id: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.LAB_REPORTS.DELETE(id), {
+    method: 'DELETE',
+  });
+  return data;
+}
 
 // ===== RADIOLOGY REPORTS =====
 
@@ -115,7 +196,46 @@ export async function createRadiologyReport(createDto: {
   return data;
 }
 
-// ... get/update/delete Radiology ...
+/**
+ * Get radiology reports for a user
+ */
+export async function getRadiologyReports(userId: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.RADIOLOGY_REPORTS.GET_BY_USER(userId));
+  return data;
+}
+
+/**
+ * Update radiology report
+ */
+export async function updateRadiologyReport(id: string, updates: {
+  studyType?: string;
+  studyDate?: string;
+  findings?: string;
+  impression?: string;
+  recommendations?: string;
+  images?: string[];
+}) {
+  const payload: any = { ...updates };
+  if (updates.studyType) payload.imageType = updates.studyType;
+  if (updates.studyDate) payload.date = updates.studyDate;
+  if (updates.impression) payload.conclusion = updates.impression;
+
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.RADIOLOGY_REPORTS.UPDATE(id), {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+/**
+ * Delete radiology report
+ */
+export async function deleteRadiologyReport(id: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.RADIOLOGY_REPORTS.DELETE(id), {
+    method: 'DELETE',
+  });
+  return data;
+}
 
 // ===== SURGICAL RECORDS =====
 
@@ -149,7 +269,46 @@ export async function createSurgicalRecord(createDto: {
   return data;
 }
 
-// ... get/update/delete Surgical ...
+/**
+ * Get surgical records for a user
+ */
+export async function getSurgicalRecords(userId: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.SURGICAL_RECORDS.GET_BY_USER(userId));
+  return data;
+}
+
+/**
+ * Update surgical record
+ */
+export async function updateSurgicalRecord(id: string, updates: {
+  procedureName?: string;
+  procedureDate?: string;
+  surgeon?: string;
+  anesthesia?: string;
+  complications?: string;
+  outcome?: string;
+  notes?: string;
+}) {
+  const payload: any = { ...updates };
+  if (updates.procedureName) payload.surgeryName = updates.procedureName;
+  if (updates.procedureDate) payload.date = updates.procedureDate;
+
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.SURGICAL_RECORDS.UPDATE(id), {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+/**
+ * Delete surgical record
+ */
+export async function deleteSurgicalRecord(id: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.SURGICAL_RECORDS.DELETE(id), {
+    method: 'DELETE',
+  });
+  return data;
+}
 
 // ===== VITALS =====
 
@@ -179,7 +338,44 @@ export async function createVital(createDto: {
   return data;
 }
 
-// ... get/update/delete Vitals ...
+/**
+ * Get vitals for a user
+ */
+export async function getVitals(userId: string, type?: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.VITALS.GET_BY_USER(userId, type));
+  return data;
+}
+
+/**
+ * Update vital record
+ */
+export async function updateVital(id: string, updates: {
+  type?: string;
+  value?: number;
+  unit?: string;
+  recordedAt?: string;
+  recordedBy?: string;
+  notes?: string;
+}) {
+  const payload: any = { ...updates };
+  if (updates.value !== undefined) payload.value = String(updates.value);
+
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.VITALS.UPDATE(id), {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+/**
+ * Delete vital record
+ */
+export async function deleteVital(id: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.VITALS.DELETE(id), {
+    method: 'DELETE',
+  });
+  return data;
+}
 
 // ===== ALLERGIES =====
 
@@ -209,7 +405,44 @@ export async function createAllergy(createDto: {
   return data;
 }
 
-// ... get/update/delete Allergies ...
+/**
+ * Get allergies for a user
+ */
+export async function getAllergies(userId: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.ALLERGIES.GET_BY_USER(userId));
+  return data;
+}
+
+/**
+ * Update allergy record
+ */
+export async function updateAllergy(id: string, updates: {
+  allergen?: string;
+  severity?: 'mild' | 'moderate' | 'severe';
+  reaction?: string;
+  onsetDate?: string;
+  status?: 'active' | 'resolved';
+  notes?: string;
+}) {
+  const payload: any = { ...updates };
+  if (updates.onsetDate) payload.diagnosedDate = updates.onsetDate;
+
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.ALLERGIES.UPDATE(id), {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+/**
+ * Delete allergy record
+ */
+export async function deleteAllergy(id: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.ALLERGIES.DELETE(id), {
+    method: 'DELETE',
+  });
+  return data;
+}
 
 // ===== MEDICATIONS =====
 
@@ -244,7 +477,48 @@ export async function createMedication(createDto: {
   return data;
 }
 
-// ... get/update/delete Medications ...
+/**
+ * Get medications for a user
+ */
+export async function getMedications(userId: string, activeOnly?: boolean) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICATIONS.GET_BY_USER(userId, activeOnly));
+  return data;
+}
+
+/**
+ * Update medication record
+ */
+export async function updateMedication(id: string, updates: {
+  medicationName?: string;
+  dosage?: string;
+  frequency?: string;
+  startDate?: string;
+  endDate?: string;
+  prescribedBy?: string;
+  instructions?: string;
+  status?: 'active' | 'completed' | 'discontinued';
+  notes?: string;
+}) {
+  const payload: any = { ...updates };
+  if (updates.medicationName) payload.name = updates.medicationName;
+  if (updates.notes) payload.instructions = updates.notes; // Map notes to instructions if provided
+
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICATIONS.UPDATE(id), {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+/**
+ * Delete medication record
+ */
+export async function deleteMedication(id: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICATIONS.DELETE(id), {
+    method: 'DELETE',
+  });
+  return data;
+}
 
 // ===== IMMUNIZATIONS =====
 

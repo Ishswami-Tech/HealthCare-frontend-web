@@ -774,3 +774,124 @@ export async function getAllClinics(params?: {
     };
   }
 }
+
+/**
+ * Assign Clinic Admin
+ */
+export async function assignClinicAdmin(data: { userId: string; clinicId: string }) {
+  try {
+    const { userId } = await getSessionData();
+    const hasAccess = await validateClinicAccess(userId, 'clinics.update');
+    
+    if (!hasAccess) {
+       return { success: false, error: 'Access denied' };
+    }
+
+    const response = await clinicApiClient.post('/clinics/admin', data);
+    return response.success ? { success: true, data: response.data } : { success: false, error: 'Failed to assign admin' };
+  } catch (error) {
+    logger.error('Failed to assign clinic admin', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Unexpected error' };
+  }
+}
+
+/**
+ * Get Clinic Doctors
+ */
+export async function getClinicDoctors(clinicId: string) {
+  try {
+    const { userId } = await getSessionData();
+    // Receptionist/Doctor/Admin accessible
+    const hasAccess = await validateClinicAccess(userId, 'clinics.read'); 
+    
+    if (!hasAccess) {
+       return { success: false, error: 'Access denied' };
+    }
+
+    const response = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId));
+    return response.success ? { success: true, doctors: response.data } : { success: false, error: 'Failed to get doctors' };
+  } catch (error) {
+    logger.error('Failed to get clinic doctors', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Unexpected error' };
+  }
+}
+
+/**
+ * Get Clinic Patients
+ */
+export async function getClinicPatients(clinicId: string) {
+  try {
+     const { userId } = await getSessionData();
+    const hasAccess = await validateClinicAccess(userId, 'clinics.read');
+    
+    if (!hasAccess) {
+       return { success: false, error: 'Access denied' };
+    }
+
+    const response = await clinicApiClient.get(API_ENDPOINTS.PATIENTS.GET_CLINIC_PATIENTS(clinicId));
+    return response.success ? { success: true, patients: response.data } : { success: false, error: 'Failed to get patients' };
+  } catch (error) {
+    logger.error('Failed to get clinic patients', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Unexpected error' };
+  }
+}
+
+/**
+ * Validate App Name
+ */
+export async function validateAppName(appName: string) {
+  try {
+    // Public endpoint, no session required essentially, but let's keep it safe
+    const response = await clinicApiClient.post('/clinics/validate-app-name', { appName });
+    return response.success ? { success: true, data: response.data } : { success: false, error: 'App name validation failed' };
+  } catch (error) {
+    logger.error('Failed to validate app name', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Unexpected error' };
+  }
+}
+
+/**
+ * Associate User with Clinic
+ */
+export async function associateUser(clinicId: string) {
+  try {
+    const { userId } = await getSessionData();
+    // No specific permission needed other than being authenticated usually, but let's use read
+    const hasAccess = await validateClinicAccess(userId, 'clinics.read');
+
+     if (!hasAccess) {
+       return { success: false, error: 'Access denied' };
+    }
+    
+    const response = await clinicApiClient.post('/clinics/associate-user', { clinicId });
+    return response.success ? { success: true, data: response.data } : { success: false, error: 'Failed to associate user' };
+  } catch (error) {
+     logger.error('Failed to associate user', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Unexpected error' };
+  }
+}
+
+/**
+ * Get Clinic Location By ID
+ */
+export async function getClinicLocationById(clinicId: string, locationId: string): Promise<{ success: boolean; location?: ClinicLocation; error?: string }> {
+  try {
+    const { userId } = await getSessionData();
+    const hasAccess = await validateClinicAccess(userId, 'clinics.read');
+    
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    const response = await clinicApiClient.get(API_ENDPOINTS.CLINIC_LOCATIONS.GET_BY_ID(clinicId, locationId));
+
+    if (!response.success || !response.data) {
+      return { success: false, error: 'Location not found' };
+    }
+    
+    return { success: true, location: response.data as ClinicLocation };
+  } catch (error) {
+    logger.error('Failed to get clinic location', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Unexpected error' };
+  }
+}

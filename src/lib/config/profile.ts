@@ -58,8 +58,8 @@ export function checkProfileCompletion(profileData: UserProfileData): ProfileCom
     'phone',
     'dateOfBirth',
     'gender',
-    'address',
-    'emergencyContact'
+    'address'
+    // emergencyContact removed - not collected in profile completion form
   ];
 
   const optionalFields: string[] = [];
@@ -188,8 +188,8 @@ export function getRequiredFieldsForRole(): string[] {
     'phone',
     'dateOfBirth',
     'gender',
-    'address',
-    'emergencyContact'
+    'address'
+    // emergencyContact removed - not collected in profile completion form
   ];
 
   return baseFields;

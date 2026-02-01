@@ -32,6 +32,7 @@ const PhoneInputComponent = forwardRef<HTMLInputElement, PhoneInputProps>(
           autoComplete: "off",
           readOnly: false
         }}
+        defaultCountry="IN"
         {...props}
       />
     );

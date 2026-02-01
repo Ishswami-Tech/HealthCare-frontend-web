@@ -672,7 +672,7 @@ export class ClinicApiClient extends ApiClient {
     page?: number;
     limit?: number;
   }) {
-    return this.get(API_ENDPOINTS.APPOINTMENTS.GET_ALL, params);
+    return this.get(API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS, params);
   }
 
   async getAppointmentById(id: string) {
@@ -792,19 +792,19 @@ export class ClinicApiClient extends ApiClient {
   }
 
   async getPatients() {
-    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('patient'));
+    return this.get(API_ENDPOINTS.PATIENTS.GET_ALL);
   }
 
   async getDoctors() {
-    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('doctors'));
+    return this.get(API_ENDPOINTS.DOCTORS.GET_ALL);
   }
 
   async getReceptionists() {
-    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('receptionists'));
+    return this.get(API_ENDPOINTS.STAFF.GET_ALL, { role: 'RECEPTIONIST' });
   }
 
   async getClinicAdmins() {
-    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('clinic-admins'));
+    return this.get(API_ENDPOINTS.STAFF.GET_ALL, { role: 'CLINIC_ADMIN' });
   }
 
   async updateUserRole(id: string, data: { role: string; clinicId?: string }) {

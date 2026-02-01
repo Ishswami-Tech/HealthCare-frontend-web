@@ -542,6 +542,14 @@ export async function login(data: { email: string; password?: string; otp?: stri
     }
 
     if (!response.ok) {
+      // ✅ Log raw error details for debugging
+      const errorText = JSON.stringify(responseData);
+      logger.error(`[login] API Error: ${response.status} ${response.statusText}`, new Error(errorText), {
+        url: response.url,
+        status: response.status,
+        responseData
+      });
+
       // ✅ Use centralized error handler
       const errorMessage = await handleApiError(response, responseData);
       // ✅ Return error object instead of throwing to prevent 500s and masking
@@ -838,8 +846,11 @@ export async function register(data: RegisterFormData & { clinicId?: string }) {
       return { error: errorMessage };
     }
 
-    logger.info('Registration successful', { email: responseData.user?.email, userId: responseData.user?.id });
-    return responseData;
+    // ✅ Handle wrapped response structure (backend returns { status, message, timestamp, data })
+    const result = responseData.data || responseData;
+
+    logger.info('Registration successful', { email: result.user?.email, userId: result.user?.id });
+    return result;
   } catch (error) {
     if (error instanceof Error) {
       throw error;
@@ -896,7 +907,8 @@ export async function requestOTP(data: OtpRequestFormData) {
     
     const requestBody: Record<string, unknown> = { 
       identifier,
-      clinicId: CLINIC_ID 
+      clinicId: CLINIC_ID,
+      isRegistration: data.isRegistration
     };
     
     // Always include clinic ID in request body for redundancy

@@ -36,6 +36,7 @@ import {
 } from '@/lib/actions/auth.server';
 import type {
   OTPFormData,
+  OtpRequestFormData,
   RegisterData,
   SocialLoginData,
   AuthResponse,
@@ -555,9 +556,9 @@ export function useAuth() {
   );
 
   // Request OTP mutation - ✅ Use core hook
-  const requestOTPMutation = useMutationOperation<{ success: boolean; message: string }, string>(
-    async (identifier: string) => {
-      return requestOTPAction({ identifier });
+  const requestOTPMutation = useMutationOperation<{ success: boolean; message: string }, OtpRequestFormData>(
+    async (data: OtpRequestFormData) => {
+      return requestOTPAction(data);
     },
     {
       toastId: TOAST_IDS.AUTH.OTP,

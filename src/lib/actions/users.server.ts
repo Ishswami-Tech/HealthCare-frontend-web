@@ -111,33 +111,13 @@ export async function getAllUsers() {
   });
 }
 
-export async function getPatients() {
-  return executeAction('getPatients', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ROLE('patient'), { method: 'GET' });
-    return data;
-  });
-}
 
-export async function getDoctors() {
-  return executeAction('getDoctors', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ROLE('doctors'), { method: 'GET' });
-    return data;
-  });
-}
 
-export async function getReceptionists() {
-  return executeAction('getReceptionists', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ROLE('receptionists'), { method: 'GET' });
-    return data;
-  });
-}
 
-export async function getClinicAdmins() {
-  return executeAction('getClinicAdmins', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ROLE('clinic-admins'), { method: 'GET' });
-    return data;
-  });
-}
+
+
+
+
 
 // ===== ENHANCED USER MANAGEMENT ACTIONS =====
 
@@ -318,4 +298,17 @@ export async function terminateUserSession(userId: string, sessionId: string) {
     const { data } = await authenticatedApi(API_ENDPOINTS.USERS.TERMINATE_SESSION(userId, sessionId), { method: 'DELETE' });
     return data;
   }, { userId, sessionId });
+}
+
+/**
+ * Change user location
+ */
+export async function changeUserLocation(userId: string, locationId: string) {
+  return executeAction('changeUserLocation', async () => {
+    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.CHANGE_LOCATION(userId), {
+      method: 'POST',
+      body: JSON.stringify({ locationId })
+    });
+    return data;
+  }, { userId, locationId });
 }

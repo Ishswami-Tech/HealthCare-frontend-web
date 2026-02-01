@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useHealthRealtime } from '@/hooks/realtime/useHealthRealtime';
 import { useHealthStore } from '@/stores';
-import { GlobalHealthStatusButton } from '@/components/common/GlobalHealthStatusButton';
+
 
 /**
  * Health Status Provider
@@ -34,10 +34,5 @@ export function HealthStatusProvider() {
     }
   }, [socket, isConnected, subscribe, isAuthPage]);
 
-  return (
-    <>
-      {/* Global health status button */}
-      <GlobalHealthStatusButton variant="floating" position="bottom-right" />
-    </>
-  );
+  return null;
 }

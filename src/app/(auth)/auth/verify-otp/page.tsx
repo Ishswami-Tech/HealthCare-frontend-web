@@ -56,7 +56,7 @@ export default function VerifyOTPPage() {
       // The AuthLayout component will handle the redirection based on role
     },
     {
-      email: email,
+      identifier: email,
       otp: "",
     }
   );
@@ -119,7 +119,7 @@ export default function VerifyOTPPage() {
   const handleResendOTP = async () => {
     // ✅ Use unified pattern - consistent across all auth pages
     await executeOTPResend(async () => {
-      return await requestOTP(email);
+      return await requestOTP({ identifier: email });
     });
   };
 

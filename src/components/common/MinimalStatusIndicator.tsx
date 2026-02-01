@@ -62,16 +62,20 @@ export function MinimalStatusIndicator({ className }: { className?: string }) {
   } else {
      // Operational
      statusColor = "bg-emerald-500";
-     textColor = "text-emerald-500";
-     label = "All Systems Operational";
+     textColor = "text-emerald-700 dark:text-emerald-400";
+     label = "All systems normal.";
   }
 
   return (
     <Link href="/status" className={cn("inline-flex items-center group", className)}>
       <motion.div 
         className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-full border bg-background/50 backdrop-blur-sm shadow-sm transition-all hover:bg-accent/50 cursor-pointer",
-          status === 'down' ? "border-red-500/20" : "border-emerald-500/20"
+          "flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-sm transition-all cursor-pointer",
+          status === 'operational' 
+            ? "bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-800 dark:hover:bg-emerald-950/50" 
+            : "bg-background/50 backdrop-blur-sm hover:bg-accent/50",
+          status === 'down' && "border-red-500/20 bg-red-50 text-red-700",
+          status === 'degraded' && "border-amber-500/20 bg-amber-50 text-amber-700"
         )}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}

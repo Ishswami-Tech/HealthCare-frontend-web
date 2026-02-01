@@ -387,6 +387,7 @@ export const API_ENDPOINTS = {
     BASE: '/appointments',
     CREATE: '/appointments',
     GET_ALL: '/appointments',
+    MY_APPOINTMENTS: '/appointments/my-appointments', // Patient-specific endpoint
     GET_BY_TENANT: (tenantId: string) => `/appointments/tenant/${tenantId}`,
     GET_BY_ID: (id: string) => `/appointments/${id}`,
     UPDATE: (id: string) => `/appointments/${id}`,
@@ -486,6 +487,7 @@ export const API_ENDPOINTS = {
   // Patients Endpoints
   PATIENTS: {
     BASE: '/patients',
+    GET_ALL: '/patients',
     GET_CLINIC_PATIENTS: (clinicId: string) => `/clinics/${clinicId}/patients`,
     GET_BY_ID: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}`,
     CREATE: '/patients',
@@ -517,6 +519,7 @@ export const API_ENDPOINTS = {
   // Doctors Endpoints
   DOCTORS: {
     BASE: '/doctors',
+    GET_ALL: '/doctors',
     GET_CLINIC_DOCTORS: (clinicId: string) => `/clinics/${clinicId}/doctors`,
     GET_BY_ID: (doctorId: string) => `/doctors/${doctorId}`,
     CREATE: '/doctors',
@@ -546,8 +549,18 @@ export const API_ENDPOINTS = {
     EARNINGS: (doctorId: string) => `/doctors/${doctorId}/earnings`,
     EXPORT: '/doctors/export',
   },
+
+  // Staff Endpoints
+  STAFF: {
+    BASE: '/staff',
+    GET_ALL: '/staff',
+    GET_BY_ID: (id: string) => `/staff/${id}`,
+    CREATE: '/staff',
+    UPDATE: (id: string) => `/staff/${id}`,
+    DELETE: (id: string) => `/staff/${id}`,
+  },
   
-  // Users Endpoints (Backend uses /user, not /users)
+  // Users Endpoints (Updated to /users for naming consistency)
   USERS: {
     BASE: '/user',
     PROFILE: '/user/profile',
@@ -555,18 +568,19 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/user/${id}`,
     DELETE: (id: string) => `/user/${id}`,
     GET_ALL: '/user/all',
-    GET_BY_ROLE: (role: string) => `/user/role/${role}`,
-    GET_BY_CLINIC: (clinicId: string) => `/user/clinic/${clinicId}`,
-    SEARCH: '/user/search',
-    STATS: '/user/stats',
-    BULK_UPDATE: '/user/bulk-update',
-    EXPORT: '/user/export',
-    CHANGE_PASSWORD: (id: string) => `/user/${id}/password`,
-    TOGGLE_VERIFICATION: (id: string) => `/user/${id}/verification`,
-    ACTIVITY_LOGS: (id: string) => `/user/${id}/activity`,
-    SESSIONS: (id: string) => `/user/${id}/sessions`,
-    TERMINATE_SESSION: (id: string, sessionId: string) => `/user/${id}/sessions/${sessionId}`,
+    CREATE: '/user',
+    GET_BY_ROLE: {
+      PATIENT: '/user/role/patient',
+      DOCTORS: '/user/role/doctors',
+      RECEPTIONISTS: '/user/role/receptionists',
+    },
     UPDATE_ROLE: (id: string) => `/user/${id}/role`,
+    CHANGE_LOCATION: (id: string) => `/user/${id}/change-location`,
+    SESSIONS: {
+      GET_ALL: '/user/sessions',
+      REVOKE: (sessionId: string) => `/user/sessions/${sessionId}`,
+      REVOKE_ALL: '/user/sessions/revoke-all',
+    },
   },
   
   // Health Check Endpoints (Public, no /api/v1 prefix)
@@ -893,7 +907,7 @@ export const API_ENDPOINTS = {
   // Prescriptions Endpoints
   PRESCRIPTIONS: {
     BASE: '/prescriptions',
-    GET_BY_PATIENT: (patientId: string) => `/prescriptions/patient/${patientId}`,
+    GET_BY_PATIENT: (patientId: string) => `/pharmacy/prescriptions/patient/${patientId}`,
     CREATE: '/prescriptions',
     UPDATE: (prescriptionId: string) => `/prescriptions/${prescriptionId}`,
     GET_BY_ID: (prescriptionId: string) => `/prescriptions/${prescriptionId}`,
