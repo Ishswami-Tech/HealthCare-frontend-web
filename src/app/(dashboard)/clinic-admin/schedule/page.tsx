@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import {
@@ -260,28 +260,7 @@ export default function ClinicAdminSchedule() {
     setHolidays(holidays.filter((h: any) => h.id !== id));
   };
 
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route: any) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("staff") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("schedule") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.CLINIC_ADMIN);
 
   if (isPendingDoctors) {
     return (

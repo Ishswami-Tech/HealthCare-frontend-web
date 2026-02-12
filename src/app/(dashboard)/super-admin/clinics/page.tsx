@@ -8,17 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinics } from "@/hooks/query/useClinics";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
-  Building2,
-  Users,
-  Settings,
-  Activity,
-  LogOut,
   Plus,
   Search,
   MapPin,
@@ -27,6 +22,9 @@ import {
   Edit,
   Trash2,
   Loader2,
+  Building2,
+  Users,
+  Activity,
 } from "lucide-react";
 
 export default function SuperAdminClinics() {
@@ -66,28 +64,7 @@ export default function SuperAdminClinics() {
     );
   }, [clinics, searchTerm]);
 
-  const sidebarLinks = getRoutesByRole(Role.SUPER_ADMIN).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: ROUTES.LOGIN,
-    path: ROUTES.LOGIN,
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.SUPER_ADMIN);
 
   if (isLoadingClinics) {
     return (

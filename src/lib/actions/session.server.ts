@@ -1,8 +1,10 @@
 'use server';
 
 import { getServerSession } from './auth.server';
-import { API_URL } from '@/lib/config';
-import { logger } from '@/lib/logger';
+import { APP_CONFIG } from '@/lib/config/config';
+import { logger } from '@/lib/utils/logger';
+
+const API_URL = APP_CONFIG.API.BASE_URL;
 
 interface Session {
   id: string;
@@ -34,10 +36,10 @@ export async function getActiveSessions(): Promise<Session[]> {
     }
 
     const data = await response.json();
-    logger.info('[getActiveSessions] Fetched sessions', { count: data.data?.length || 0 });
+    logger.info('[getActiveSessions] Fetched sessions', { component: 'sessions', action: 'fetch' });
     return data.data || [];
   } catch (error) {
-    logger.error('[getActiveSessions] Error:', error);
+    logger.error('[getActiveSessions] Error', error instanceof Error ? error : undefined, { component: 'sessions', action: 'fetch' });
     throw error;
   }
 }
@@ -66,9 +68,9 @@ export async function revokeSession(sessionId: string): Promise<void> {
       throw new Error(error.message || 'Failed to revoke session');
     }
 
-    logger.info('[revokeSession] Session revoked successfully', { sessionId });
+    logger.info('[revokeSession] Session revoked successfully', { component: 'sessions', action: 'revoke' });
   } catch (error) {
-    logger.error('[revokeSession] Error:', error);
+    logger.error('[revokeSession] Error', error instanceof Error ? error : undefined, { component: 'sessions', action: 'revoke' });
     throw error;
   }
 }

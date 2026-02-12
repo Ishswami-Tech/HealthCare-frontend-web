@@ -19,15 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { 
   Activity,
-  Calendar, 
   FileText,
   Pill,
   User,
-  LogOut,
   Save,
   MapPin,
   Camera,
@@ -157,23 +155,7 @@ export default function PatientProfile() {
     return 'bg-gray-50 text-gray-700';
   };
 
-  const sidebarLinks = getRoutesByRole(Role.PHARMACIST).map(route => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes('dashboard') ? <Activity className="w-5 h-5" /> :
-          route.path.includes('appointments') ? <Calendar className="w-5 h-5" /> :
-          route.path.includes('medical-records') ? <FileText className="w-5 h-5" /> :
-          route.path.includes('prescriptions') ? <Pill className="w-5 h-5" /> :
-          route.path.includes('profile') ? <User className="w-5 h-5" /> :
-          <Activity className="w-5 h-5" />
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.PHARMACIST);
 
   return (
     <DashboardLayout title="Pharmacist Profile" allowedRole={Role.PHARMACIST}>

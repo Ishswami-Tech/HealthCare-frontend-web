@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useInventory } from "@/hooks/query/usePharmacy";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -184,11 +184,7 @@ export default function InventoryPage() {
   const expiringItems = inventoryItems.filter((item: any) => isExpiringSoon(item.expiryDate)).length;
   const totalValue = inventoryItems.reduce((sum: number, item: any) => sum + (item.currentStock * item.costPerUnit), 0);
 
-  const sidebarLinks = getRoutesByRole(Role.PHARMACIST).map((route: any) => ({
-    ...route,
-    href: route.path,
-    icon: route.icon || <Package className="w-5 h-5" />,
-  }));
+  const sidebarLinks = getSidebarLinksByRole(Role.PHARMACIST);
 
   // Filter inventory items
   const filteredInventory = inventoryItems.filter((item: any) => {

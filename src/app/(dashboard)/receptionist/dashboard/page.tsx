@@ -7,15 +7,13 @@ import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import {
   Activity,
   Calendar,
   Users,
-  UserCheck,
-  LogOut,
   Clock,
   CheckCircle,
   AlertCircle,
@@ -170,28 +168,7 @@ export default function ReceptionistDashboard() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.RECEPTIONIST).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <UserCheck className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: ROUTES.LOGIN,
-    path: ROUTES.LOGIN,
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.RECEPTIONIST);
 
   return (
     <DashboardLayout

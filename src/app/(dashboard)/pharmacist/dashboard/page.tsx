@@ -7,7 +7,7 @@ import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   usePrescriptions,
@@ -17,15 +17,12 @@ import {
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
-  Activity,
   Pill,
   Package,
   AlertTriangle,
   CheckCircle,
   Clock,
   TrendingUp,
-  Users,
-  LogOut,
   Plus,
   Search,
   Eye,
@@ -165,26 +162,7 @@ export default function PharmacistDashboard() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.PHARMACIST).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("prescriptions") ? (
-      <Pill className="w-5 h-5" />
-    ) : route.path.includes("inventory") ? (
-      <Package className="w-5 h-5" />
-    ) : (
-      <Users className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: ROUTES.LOGIN,
-    path: ROUTES.LOGIN,
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.PHARMACIST);
 
   return (
     <DashboardLayout title="Pharmacist Dashboard" allowedRole={Role.PHARMACIST}>

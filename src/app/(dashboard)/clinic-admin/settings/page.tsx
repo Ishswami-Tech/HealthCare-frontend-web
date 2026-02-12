@@ -18,19 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { 
-  Activity,
-  Users, 
-  Calendar, 
-  Settings as SettingsIcon,
-  LogOut,
   Save,
-  Building2,
   Clock,
   Bell,
-  CreditCard
+  CreditCard,
+  Building2,
+  Calendar,
 } from "lucide-react";
 
 export default function ClinicAdminSettings() {
@@ -113,22 +109,7 @@ export default function ClinicAdminSettings() {
     setPaymentSettings(prev => ({ ...prev, [field]: value }));
   };
 
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map(route => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes('dashboard') ? <Activity className="w-5 h-5" /> :
-          route.path.includes('staff') ? <Users className="w-5 h-5" /> :
-          route.path.includes('schedule') ? <Calendar className="w-5 h-5" /> :
-          route.path.includes('settings') ? <SettingsIcon className="w-5 h-5" /> :
-          <Activity className="w-5 h-5" />
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.CLINIC_ADMIN);
 
   return (
     <DashboardLayout title="Clinic Settings" allowedRole={Role.CLINIC_ADMIN}>

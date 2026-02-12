@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   usePrescriptions,
@@ -345,11 +345,7 @@ export default function PrescriptionsPage() {
     </Card>
   );
 
-  const sidebarLinks = getRoutesByRole(Role.PHARMACIST).map((route: any) => ({
-    ...route,
-    href: route.path,
-    icon: route.icon || <Pill className="w-5 h-5" />,
-  }));
+  const sidebarLinks = getSidebarLinksByRole(Role.PHARMACIST);
 
   // Show loading state
   if (prescriptionsPending) {

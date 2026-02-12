@@ -15,24 +15,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUsers } from "@/hooks/query/useUsers";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { Loader2 } from "lucide-react";
 import {
-  Building2,
   Users,
-  Settings,
-  Activity,
-  LogOut,
   Plus,
   Search,
-  UserCheck,
-  UserX,
   Edit,
   Trash2,
+  UserCheck,
+  UserX,
   Mail,
   Phone,
 } from "lucide-react";
@@ -108,30 +104,7 @@ export default function SuperAdminUsers() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.SUPER_ADMIN).map((route) => {
-    let icon = <Activity className="w-5 h-5" />;
-    if (route.path.includes("dashboard")) {
-      icon = <Activity className="w-5 h-5" />;
-    } else if (route.path.includes("clinics")) {
-      icon = <Building2 className="w-5 h-5" />;
-    } else if (route.path.includes("users")) {
-      icon = <Users className="w-5 h-5" />;
-    } else if (route.path.includes("settings")) {
-      icon = <Settings className="w-5 h-5" />;
-    }
-    return {
-      ...route,
-      href: route.path,
-      icon,
-    };
-  });
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: ROUTES.LOGIN,
-    path: ROUTES.LOGIN,
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.SUPER_ADMIN);
 
   if (isLoadingUsers) {
     return (

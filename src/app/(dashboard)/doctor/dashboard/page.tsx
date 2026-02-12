@@ -7,7 +7,7 @@ import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -20,7 +20,6 @@ import {
   UserCheck,
   Clock,
   Stethoscope,
-  LogOut,
   Play,
   CheckCircle,
   AlertCircle,
@@ -160,28 +159,7 @@ export default function DoctorDashboard() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.DOCTOR).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <UserCheck className="w-5 h-5" />
-    ) : (
-      <Stethoscope className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.DOCTOR);
 
   return (
     <DashboardLayout title="Doctor Dashboard" allowedRole={Role.DOCTOR}>

@@ -756,8 +756,6 @@ export default function PatientPrescriptions() {
                               </Button>
                             </div>
                           </div>
-
-                          </div>
                         </div>
                       ))}
                     </div>

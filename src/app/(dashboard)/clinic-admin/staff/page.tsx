@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useUsersByClinic } from "@/hooks/query/useUsers";
@@ -127,30 +127,7 @@ export default function ClinicAdminStaff() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route: any) => {
-    let icon = <UserCheck className="w-5 h-5" />;
-    if (route.path.includes("dashboard")) {
-      icon = <Activity className="w-5 h-5" />;
-    } else if (route.path.includes("staff")) {
-      icon = <Users className="w-5 h-5" />;
-    } else if (route.path.includes("schedule")) {
-      icon = <Calendar className="w-5 h-5" />;
-    } else if (route.path.includes("settings")) {
-      icon = <Settings className="w-5 h-5" />;
-    }
-    return {
-      ...route,
-      href: route.path,
-      icon,
-    };
-  });
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.CLINIC_ADMIN);
 
   if (isLoadingStaff) {
     return (

@@ -7,14 +7,13 @@ import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 // import { useClinicContext } from "@/hooks/query/useClinics";
 import { useUsers } from "@/hooks/query/useUsers";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 
 import {
-  Activity,
   Users,
   Calendar,
   Settings,
@@ -22,7 +21,6 @@ import {
   Clock,
   TrendingUp,
   AlertCircle,
-  LogOut,
   Plus,
   CalendarDays,
   Stethoscope,
@@ -117,28 +115,7 @@ export default function ClinicAdminDashboard() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("staff") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("schedule") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <UserCheck className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.CLINIC_ADMIN);
 
   return (
     <DashboardLayout
@@ -331,7 +308,7 @@ export default function ClinicAdminDashboard() {
                 <div className="space-y-4">
                   {recentActivities.map((activity, index) => (
                     <div key={index} className="flex items-start gap-3">
-                      <div className="flex-shrink-0">
+                      <div className="shrink-0">
                         {activity.type === "appointment" && (
                           <Calendar className="w-4 h-4 text-blue-600" />
                         )}

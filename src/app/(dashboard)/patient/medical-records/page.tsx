@@ -995,4 +995,3 @@ export default function PatientMedicalRecords() {
     </DashboardLayout>
   );
 }
-```

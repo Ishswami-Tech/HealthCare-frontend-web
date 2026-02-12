@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useClinicContext,
@@ -231,30 +231,7 @@ export default function ClinicLocationsPage() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route: any) => {
-    let icon = <Activity className="w-5 h-5" />;
-    if (route.path.includes("dashboard")) {
-      icon = <Activity className="w-5 h-5" />;
-    } else if (route.path.includes("staff")) {
-      icon = <Users className="w-5 h-5" />;
-    } else if (route.path.includes("schedule")) {
-      icon = <Calendar className="w-5 h-5" />;
-    } else if (route.path.includes("settings")) {
-      icon = <SettingsIcon className="w-5 h-5" />;
-    }
-    return {
-      ...route,
-      href: route.path,
-      icon,
-    };
-  });
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.CLINIC_ADMIN);
 
   if (isPendingLocations) {
     return (

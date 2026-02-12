@@ -16,17 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
-  Activity,
-  Calendar,
-  Users,
-  UserCheck,
-  LogOut,
   Search,
   Plus,
   QrCode,
@@ -148,28 +143,7 @@ export default function ReceptionistAppointments() {
     [filteredAppointments]
   );
 
-  const sidebarLinks = getRoutesByRole(Role.RECEPTIONIST).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <UserCheck className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.RECEPTIONIST);
 
   if (isLoadingAppointments) {
     return (
@@ -256,12 +230,7 @@ export default function ReceptionistAppointments() {
     console.log("Marking as no-show:", appointmentId);
   };
 
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
+
 
   return (
     <DashboardLayout

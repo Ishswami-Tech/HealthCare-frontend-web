@@ -11,14 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
-  Building2,
-  Users,
-  Settings as SettingsIcon,
-  Activity,
-  LogOut,
   Save,
   Bell,
   Shield,
@@ -74,28 +69,7 @@ export default function SuperAdminSettings() {
     setNotificationSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  const sidebarLinks = getRoutesByRole(Role.SUPER_ADMIN).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <SettingsIcon className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: ROUTES.LOGIN,
-    path: ROUTES.LOGIN,
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.SUPER_ADMIN);
 
   return (
     <DashboardLayout title="System Settings" allowedRole={Role.SUPER_ADMIN}>

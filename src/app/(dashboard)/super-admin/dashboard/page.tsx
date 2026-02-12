@@ -6,21 +6,18 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinics } from "@/hooks/query/useClinics";
 import { useUsers } from "@/hooks/query/useUsers";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useRevenueAnalytics } from "@/hooks/query/useAnalytics";
 import {
+  TrendingUp,
   Building2,
   Users,
   Calendar,
   Settings,
-  TrendingUp,
-  Activity,
-  Shield,
-  LogOut,
 } from "lucide-react";
 
 export default function SuperAdminDashboard() {
@@ -78,29 +75,7 @@ export default function SuperAdminDashboard() {
     },
   ];
 
-  const sidebarLinks = getRoutesByRole(Role.SUPER_ADMIN).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <Shield className="w-5 h-5" />
-    ),
-  }));
-
-  // Add logout link
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.SUPER_ADMIN);
 
   return (
     <DashboardLayout

@@ -24,28 +24,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { getRoutesByRole } from "@/lib/config/routes";
+import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { usePatients, useCreatePatient } from "@/hooks/query/usePatients";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
-  Activity,
   Calendar,
   Users,
-  UserCheck,
-  LogOut,
   Search,
-  Plus,
+  Eye,
   Phone,
   Mail,
   MapPin,
-  Edit,
-  Eye,
-  UserPlus,
   Loader2,
+  Plus,
+  Edit,
+  UserPlus,
   AlertCircle,
   Heart,
+  UserCheck,
 } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
@@ -209,28 +207,7 @@ export default function ReceptionistPatients() {
 
 
 
-  const sidebarLinks = getRoutesByRole(Role.RECEPTIONIST).map((route: any) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <UserCheck className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  const sidebarLinks = getSidebarLinksByRole(Role.RECEPTIONIST);
 
   return (
     <DashboardLayout title="Patient Management" allowedRole={Role.RECEPTIONIST}>
