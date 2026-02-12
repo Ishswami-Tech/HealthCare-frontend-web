@@ -62,6 +62,7 @@ export default function SharedLayout({
         roles: [
           Role.PATIENT,
           Role.DOCTOR,
+          Role.ASSISTANT_DOCTOR,
           Role.RECEPTIONIST,
           Role.CLINIC_ADMIN,
         ],
@@ -70,25 +71,25 @@ export default function SharedLayout({
         name: "Queue",
         href: ROUTES.SHARED_QUEUE,
         icon: Users,
-        roles: [Role.DOCTOR, Role.RECEPTIONIST, Role.CLINIC_ADMIN],
+        roles: [Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.RECEPTIONIST, Role.CLINIC_ADMIN],
       },
       {
         name: "EHR",
         href: ROUTES.SHARED_EHR,
         icon: FileText,
-        roles: [Role.DOCTOR, Role.CLINIC_ADMIN],
+        roles: [Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.CLINIC_ADMIN],
       },
       {
         name: "Pharmacy",
         href: ROUTES.SHARED_PHARMACY,
         icon: Pill,
-        roles: [Role.PHARMACIST, Role.DOCTOR, Role.CLINIC_ADMIN],
+        roles: [Role.PHARMACIST, Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.CLINIC_ADMIN],
       },
       {
         name: "Analytics",
         href: ROUTES.SHARED_ANALYTICS,
         icon: BarChart3,
-        roles: [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
+        roles: [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR],
       },
     ];
 

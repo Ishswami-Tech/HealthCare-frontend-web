@@ -231,6 +231,13 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.UPDATE_APPOINTMENTS,
     Permission.MANAGE_APPOINTMENT_QUEUE,
     
+    // Doctor permissions (own schedule, view others for referral)
+    Permission.VIEW_DOCTORS,
+    Permission.MANAGE_DOCTOR_SCHEDULE,
+    
+    // Clinic (locations for schedule/booking)
+    Permission.VIEW_CLINICS,
+    
     // Patient permissions
     Permission.VIEW_PATIENTS,
     Permission.CREATE_PATIENTS,
@@ -238,9 +245,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_PATIENT_MEDICAL_RECORDS,
     Permission.CREATE_PATIENT_MEDICAL_RECORDS,
     Permission.UPDATE_PATIENT_MEDICAL_RECORDS,
-    
-    // Doctor permissions (own schedule)
-    Permission.MANAGE_DOCTOR_SCHEDULE,
     
     // Pharmacy
     Permission.VIEW_PHARMACY,
@@ -263,6 +267,70 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     // Settings (personal)
     Permission.MANAGE_USER_SETTINGS,
     
+    // Video appointments
+    Permission.VIEW_VIDEO_APPOINTMENTS,
+    Permission.CREATE_VIDEO_APPOINTMENTS,
+    Permission.UPDATE_VIDEO_APPOINTMENTS,
+    Permission.JOIN_VIDEO_APPOINTMENTS,
+    
+    // Billing (view plans)
+    Permission.VIEW_BILLING,
+    
+    // Analytics (limited)
+    Permission.VIEW_DOCTOR_ANALYTICS,
+  ],
+  
+  [Role.ASSISTANT_DOCTOR]: [
+    // Appointment permissions (assist doctors)
+    Permission.VIEW_APPOINTMENTS,
+    Permission.CREATE_APPOINTMENTS,
+    Permission.UPDATE_APPOINTMENTS,
+    Permission.MANAGE_APPOINTMENT_QUEUE,
+    
+    // Doctor permissions (view for referral)
+    Permission.VIEW_DOCTORS,
+    Permission.MANAGE_DOCTOR_SCHEDULE,
+    
+    // Clinic (locations for schedule/booking)
+    Permission.VIEW_CLINICS,
+    
+    // Patient permissions
+    Permission.VIEW_PATIENTS,
+    Permission.CREATE_PATIENTS,
+    Permission.UPDATE_PATIENTS,
+    Permission.VIEW_PATIENT_MEDICAL_RECORDS,
+    Permission.CREATE_PATIENT_MEDICAL_RECORDS,
+    Permission.UPDATE_PATIENT_MEDICAL_RECORDS,
+    
+    // Pharmacy (prescriptions under supervision)
+    Permission.VIEW_PHARMACY,
+    Permission.MANAGE_PRESCRIPTIONS,
+    
+    // Queue
+    Permission.VIEW_QUEUE,
+    Permission.CALL_NEXT_PATIENT,
+    Permission.UPDATE_QUEUE_STATUS,
+    
+    // Medical records
+    Permission.VIEW_MEDICAL_RECORDS,
+    Permission.CREATE_MEDICAL_RECORDS,
+    Permission.UPDATE_MEDICAL_RECORDS,
+    
+    // Notifications
+    Permission.VIEW_NOTIFICATIONS,
+    Permission.SEND_NOTIFICATIONS,
+    
+    // Settings (personal)
+    Permission.MANAGE_USER_SETTINGS,
+    
+    // Video appointments (join, no end)
+    Permission.VIEW_VIDEO_APPOINTMENTS,
+    Permission.CREATE_VIDEO_APPOINTMENTS,
+    Permission.JOIN_VIDEO_APPOINTMENTS,
+    
+    // Billing (view)
+    Permission.VIEW_BILLING,
+    
     // Analytics (limited)
     Permission.VIEW_DOCTOR_ANALYTICS,
   ],
@@ -272,6 +340,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_APPOINTMENTS,
     Permission.CREATE_APPOINTMENTS,
     Permission.UPDATE_APPOINTMENTS,
+    Permission.DELETE_APPOINTMENTS,
     Permission.MANAGE_APPOINTMENT_QUEUE,
     Permission.VIEW_ALL_APPOINTMENTS,
     
@@ -280,20 +349,56 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.CREATE_PATIENTS,
     Permission.UPDATE_PATIENTS,
     
+    // Doctor permissions (view for scheduling)
+    Permission.VIEW_DOCTORS,
+    
+    // Clinic permissions (view locations)
+    Permission.VIEW_CLINICS,
+    
     // Queue
     Permission.VIEW_QUEUE,
     Permission.MANAGE_QUEUE,
+    Permission.ADD_TO_QUEUE,
+    Permission.REMOVE_FROM_QUEUE,
     Permission.CALL_NEXT_PATIENT,
     Permission.UPDATE_QUEUE_STATUS,
+    
+    // Billing (front desk)
+    Permission.VIEW_BILLING,
+    Permission.PROCESS_PAYMENTS,
+    Permission.CREATE_BILLS,
+    Permission.UPDATE_BILLS,
+    
+    // Video (view, manage)
+    Permission.VIEW_VIDEO_APPOINTMENTS,
+    Permission.JOIN_VIDEO_APPOINTMENTS,
+    
+    // Medical records (view for check-in)
+    Permission.VIEW_MEDICAL_RECORDS,
     
     // Notifications
     Permission.VIEW_NOTIFICATIONS,
     Permission.SEND_NOTIFICATIONS,
+    Permission.MANAGE_NOTIFICATION_SETTINGS,
     
     // Settings (personal)
     Permission.MANAGE_USER_SETTINGS,
   ],
   
+  [Role.NURSE]: [
+    Permission.VIEW_APPOINTMENTS,
+    Permission.UPDATE_APPOINTMENTS,
+    Permission.VIEW_PATIENTS,
+    Permission.UPDATE_PATIENTS,
+    Permission.VIEW_PATIENT_MEDICAL_RECORDS,
+    Permission.VIEW_MEDICAL_RECORDS,
+    Permission.VIEW_QUEUE,
+    Permission.UPDATE_QUEUE_STATUS,
+    Permission.VIEW_NOTIFICATIONS,
+    Permission.SEND_NOTIFICATIONS,
+    Permission.MANAGE_USER_SETTINGS,
+  ],
+
   [Role.PHARMACIST]: [
     // Pharmacy permissions
     Permission.VIEW_PHARMACY,
@@ -302,8 +407,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.MANAGE_INVENTORY,
     Permission.DISPENSE_MEDICINES,
     
-    // Patient permissions (limited)
+    // Patient permissions (limited - for dispensing context)
     Permission.VIEW_PATIENTS,
+    Permission.VIEW_PATIENT_MEDICAL_RECORDS,
     
     // Notifications
     Permission.VIEW_NOTIFICATIONS,
@@ -314,14 +420,26 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   
   [Role.PATIENT]: [
-    // Appointment permissions (own only)
+    // Appointment permissions (own only - cancel/reschedule)
     Permission.VIEW_APPOINTMENTS,
     Permission.CREATE_APPOINTMENTS,
+    Permission.UPDATE_APPOINTMENTS,
+    
+    // Doctors (view for booking – backend allows PATIENT on GET doctors)
+    Permission.VIEW_DOCTORS,
+    
+    // Clinics (view locations for booking – backend allows PATIENT on GET locations)
+    Permission.VIEW_CLINICS,
+    
+    // Video appointments (propose, view, join)
+    Permission.VIEW_VIDEO_APPOINTMENTS,
+    Permission.CREATE_VIDEO_APPOINTMENTS,
+    Permission.JOIN_VIDEO_APPOINTMENTS,
     
     // Medical records (own only)
     Permission.VIEW_MEDICAL_RECORDS,
     
-    // Billing (own only)
+    // Billing (own only – view, create/cancel subscriptions; backend enforces ownership)
     Permission.VIEW_BILLING,
     
     // Notifications

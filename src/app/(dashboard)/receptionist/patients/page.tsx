@@ -571,7 +571,7 @@ export default function ReceptionistPatients() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
+                      <div className="w-16 h-16 bg-linear-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
                         <span className="text-blue-800 font-semibold text-xl">
                           {patient.name.charAt(0)}
                         </span>

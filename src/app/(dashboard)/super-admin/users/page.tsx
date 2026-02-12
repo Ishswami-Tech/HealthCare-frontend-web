@@ -94,6 +94,7 @@ export default function SuperAdminUsers() {
       case Role.CLINIC_ADMIN:
         return "bg-purple-100 text-purple-800";
       case Role.DOCTOR:
+      case Role.ASSISTANT_DOCTOR:
         return "bg-blue-100 text-blue-800";
       case Role.RECEPTIONIST:
         return "bg-green-100 text-green-800";
@@ -175,7 +176,7 @@ export default function SuperAdminUsers() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {users.filter((u: any) => u.role === Role.DOCTOR).length}
+                  {users.filter((u: any) => u.role === Role.DOCTOR || u.role === Role.ASSISTANT_DOCTOR).length}
                 </div>
               </CardContent>
             </Card>
@@ -240,6 +241,7 @@ export default function SuperAdminUsers() {
                   <SelectContent>
                     <SelectItem value="all">All Roles</SelectItem>
                     <SelectItem value={Role.DOCTOR}>Doctors</SelectItem>
+                    <SelectItem value={Role.ASSISTANT_DOCTOR}>Assistant Doctors</SelectItem>
                     <SelectItem value={Role.CLINIC_ADMIN}>
                       Clinic Admins
                     </SelectItem>

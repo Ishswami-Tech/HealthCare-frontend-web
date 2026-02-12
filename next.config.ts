@@ -196,7 +196,7 @@ const config: NextConfig = {
   // TypeScript configuration for build
   typescript: {
     // Enable TypeScript error checking for production build
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 };
 

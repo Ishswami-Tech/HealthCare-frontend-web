@@ -296,7 +296,7 @@ export default function AppointmentsPage() {
       const result = await joinVideoAppointment.mutateAsync({
         appointmentId,
         userId,
-        role: userRole === Role.DOCTOR ? "doctor" : "patient",
+        role: (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) ? "doctor" : "patient",
       });
 
       const resultData = result as { token?: { token?: string } | string };

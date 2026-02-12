@@ -407,35 +407,39 @@ export class ApiClient {
   }
 
   // ✅ HTTP Method Helpers
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
+  async get<T>(endpoint: string, params?: Record<string, any>, options?: RequestInit): Promise<ApiResponse<T>> {
     const url = params ? `${endpoint}?${new URLSearchParams(params)}` : endpoint;
-    return this.request<T>(url);
+    return this.request<T>(url, options);
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : null,
+      ...options,
     });
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: data ? JSON.stringify(data) : null,
+      ...options,
     });
   }
 
-  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async patch<T>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PATCH',
       body: data ? JSON.stringify(data) : null,
+      ...options,
     });
   }
 
-  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+  async delete<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'DELETE',
+      ...options,
     });
   }
 
@@ -454,7 +458,7 @@ export class ApiClient {
   }
 
   // ✅ File Upload Helper
-  async upload<T>(endpoint: string, file: File, additionalData?: Record<string, any>): Promise<ApiResponse<T>> {
+  async upload<T>(endpoint: string, file: File, additionalData?: Record<string, any>, options?: RequestInit): Promise<ApiResponse<T>> {
     const formData = new FormData();
     formData.append('file', file);
     
@@ -471,13 +475,15 @@ export class ApiClient {
       method: 'POST',
       headers: headers as HeadersInit,
       body: formData,
+      ...options,
     });
   }
 
   // ✅ Paginated Request Helper
   async getPaginated<T>(
     endpoint: string,
-    params?: PaginationParams
+    params?: PaginationParams,
+    options?: RequestInit
   ): Promise<PaginatedResponse<T>> {
     const queryParams: Record<string, any> = {
       page: params?.page || 1,
@@ -491,7 +497,7 @@ export class ApiClient {
       queryParams.search = params.search;
     }
 
-    const response = await this.get<PaginatedResponse<T>>(endpoint, queryParams);
+    const response = await this.get<PaginatedResponse<T>>(endpoint, queryParams, options);
     return response.data as PaginatedResponse<T>;
   }
 }
@@ -592,12 +598,12 @@ export class ClinicApiClient extends ApiClient {
   }
 
   // ✅ Clinic Management Methods
-  async getClinics(params?: PaginationParams) {
-    return this.getPaginated(API_ENDPOINTS.CLINICS.GET_ALL, params);
+  async getClinics(params?: PaginationParams, options?: RequestInit) {
+    return this.getPaginated(API_ENDPOINTS.CLINICS.GET_ALL, params, options);
   }
 
-  async getClinicById(id: string) {
-    return this.get(API_ENDPOINTS.CLINICS.GET_BY_ID(id));
+  async getClinicById(id: string, options?: RequestInit) {
+    return this.get(API_ENDPOINTS.CLINICS.GET_BY_ID(id), undefined, options);
   }
 
   async getClinicByAppName(appName: string) {
@@ -605,6 +611,7 @@ export class ClinicApiClient extends ApiClient {
   }
 
   // ✅ Clinic Methods
+
   async createClinic(data: {
     name: string;
     address: string;
@@ -629,8 +636,8 @@ export class ClinicApiClient extends ApiClient {
     timezone: string;
     currency: string;
     language: string;
-  }) {
-    return this.post(API_ENDPOINTS.CLINICS.CREATE, data);
+  }, options?: RequestInit) {
+    return this.post(API_ENDPOINTS.CLINICS.CREATE, data, options);
   }
 
   async updateClinic(id: string, data: {
@@ -645,12 +652,12 @@ export class ClinicApiClient extends ApiClient {
     currency?: string;
     language?: string;
     isActive?: boolean;
-  }) {
-    return this.put(API_ENDPOINTS.CLINICS.UPDATE(id), data);
+  }, options?: RequestInit) {
+    return this.put(API_ENDPOINTS.CLINICS.UPDATE(id), data, options);
   }
 
-  async deleteClinic(id: string) {
-    return this.delete(API_ENDPOINTS.CLINICS.DELETE(id));
+  async deleteClinic(id: string, options?: RequestInit) {
+    return this.delete(API_ENDPOINTS.CLINICS.DELETE(id), options);
   }
 
   // ✅ Appointments Methods (Enhanced to match backend)
@@ -703,7 +710,7 @@ export class ClinicApiClient extends ApiClient {
     duration?: number;
     type?: string;
     notes?: string;
-    status?: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+    status?: 'SCHEDULED' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
     symptoms?: string[];
     diagnosis?: string;
     prescription?: string;
@@ -720,8 +727,29 @@ export class ClinicApiClient extends ApiClient {
     return this.post(API_ENDPOINTS.APPOINTMENTS.CONFIRM(id));
   }
 
+  async proposeVideoAppointment(data: {
+    patientId: string;
+    doctorId: string;
+    clinicId: string;
+    duration: number;
+    proposedSlots: Array<{ date: string; time: string }>;
+    notes?: string;
+  }) {
+    return this.post(API_ENDPOINTS.APPOINTMENTS.VIDEO_PROPOSE, data);
+  }
+
+  async confirmVideoSlot(appointmentId: string, confirmedSlotIndex: number) {
+    return this.post(API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_SLOT(appointmentId), {
+      confirmedSlotIndex,
+    });
+  }
+
   async checkInAppointment(id: string) {
     return this.post(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id));
+  }
+
+  async scanLocationQRAndCheckIn(data: { qrCode: string; locationId?: string }) {
+    return this.post(API_ENDPOINTS.APPOINTMENTS.SCAN_QR, data);
   }
 
   async startAppointment(id: string) {

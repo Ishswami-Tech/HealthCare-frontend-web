@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
+import { AssignRoleModal } from "@/components/clinic/AssignRoleModal";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,9 +25,6 @@ import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Activity,
   Users,
-  Calendar,
-  Settings,
-  LogOut,
   Plus,
   Search,
   UserCheck,
@@ -47,9 +45,15 @@ export default function ClinicAdminStaff() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [assignModalStaff, setAssignModalStaff] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null>(null);
 
-  // Fetch real staff data
-  const { data: staffData, isPending: isLoadingStaff } = useUsersByClinic(
+  // Fetch real staff data (uses /clinics/:id/staff endpoint)
+  const { data: staffData, isPending: isLoadingStaff, refetch } = useUsersByClinic(
     clinicId || ""
   );
 
@@ -101,12 +105,17 @@ export default function ClinicAdminStaff() {
     });
   }, [staff, searchTerm, roleFilter, statusFilter]);
 
-  const getRoleColor = (role: Role) => {
+  const getRoleColor = (role: Role | string) => {
     switch (role) {
       case Role.DOCTOR:
+      case Role.ASSISTANT_DOCTOR:
         return "bg-blue-100 text-blue-800";
       case Role.RECEPTIONIST:
         return "bg-green-100 text-green-800";
+      case Role.PHARMACIST:
+        return "bg-amber-100 text-amber-800";
+      case Role.NURSE:
+        return "bg-teal-100 text-teal-800";
       case Role.CLINIC_ADMIN:
         return "bg-purple-100 text-purple-800";
       default:
@@ -196,7 +205,7 @@ export default function ClinicAdminStaff() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {staff.filter((s: any) => s.role === Role.DOCTOR).length}
+                  {staff.filter((s: any) => s.role === Role.DOCTOR || s.role === Role.ASSISTANT_DOCTOR).length}
                 </div>
               </CardContent>
             </Card>
@@ -210,7 +219,9 @@ export default function ClinicAdminStaff() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {staff.filter((s: any) => s.role === Role.RECEPTIONIST).length}
+                  {staff.filter((s: any) =>
+                    [Role.RECEPTIONIST, Role.PHARMACIST, Role.NURSE].includes(s.role as Role)
+                  ).length}
                 </div>
               </CardContent>
             </Card>
@@ -250,12 +261,13 @@ export default function ClinicAdminStaff() {
                   <SelectTrigger className="w-full md:w-48">
                     <SelectValue placeholder="Filter by role" />
                   </SelectTrigger>
-                  <SelectContent>
+                    <SelectContent>
                     <SelectItem value="all">All Roles</SelectItem>
                     <SelectItem value={Role.DOCTOR}>Doctors</SelectItem>
-                    <SelectItem value={Role.RECEPTIONIST}>
-                      Receptionists
-                    </SelectItem>
+                    <SelectItem value={Role.ASSISTANT_DOCTOR}>Assistant Doctors</SelectItem>
+                    <SelectItem value={Role.RECEPTIONIST}>Receptionists</SelectItem>
+                    <SelectItem value={Role.PHARMACIST}>Pharmacists</SelectItem>
+                    <SelectItem value={Role.NURSE}>Nurses</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -280,7 +292,7 @@ export default function ClinicAdminStaff() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+                      <div className="w-16 h-16 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
                         <span className="text-blue-800 font-semibold text-xl">
                           {member.name.charAt(0)}
                         </span>
@@ -319,7 +331,19 @@ export default function ClinicAdminStaff() {
 
                     <div className="text-right space-y-2">
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setAssignModalStaff({
+                              id: member.id,
+                              name: member.name,
+                              email: member.email,
+                              role: member.role,
+                            })
+                          }
+                          title="Assign role & permissions"
+                        >
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button variant="outline" size="sm">
@@ -423,6 +447,17 @@ export default function ClinicAdminStaff() {
             </CardContent>
           </Card>
         </div>
+
+        {assignModalStaff && (
+          <AssignRoleModal
+            open={!!assignModalStaff}
+            onOpenChange={(open) => !open && setAssignModalStaff(null)}
+            staffMember={assignModalStaff}
+            currentUserRole={Role.CLINIC_ADMIN}
+            clinicId={clinicId || undefined}
+            onSuccess={() => refetch?.()}
+          />
+        )}
       </Sidebar>
     </DashboardLayout>
   );

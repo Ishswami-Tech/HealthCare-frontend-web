@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { AppointmentType } from "@/types/appointment.types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,12 +23,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useDoctors } from "@/hooks/query/useDoctors";
-import { useCreateAppointment } from "@/hooks/query/useAppointments";
+import { useCreateAppointment, useDoctorAvailability } from "@/hooks/query/useAppointments";
+import { useActiveLocations } from "@/hooks/query/useClinics";
 import { APP_CONFIG } from "@/lib/config/config";
 import { toast } from "sonner";
 import { theme } from "@/lib/utils/theme-utils";
+import { format, addDays, startOfDay, isSameDay } from "date-fns";
 import {
   Activity,
   Plus,
@@ -45,6 +49,12 @@ import {
   Wind,
   CheckCircle,
   Info,
+  ChevronRight,
+  ChevronLeft,
+  Calendar as CalendarIcon,
+  Stethoscope,
+  User,
+  ArrowRight
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -211,52 +221,99 @@ export function BookAppointmentDialog({
 }: BookAppointmentDialogProps) {
   const { session } = useAuth();
   const user = session?.user;
+  const activeClinicId = clinicId || APP_CONFIG.CLINIC.ID;
 
+  // ─── State ────────────────────────────────────────────────────────────────
   const [open, setOpen] = useState(defaultOpen);
-  const [activeTab, setActiveTab] = useState("consultation-types");
-  const [selectedConsultationType, setSelectedConsultationType] = useState("");
-  const [isVideoConsultation, setIsVideoConsultation] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  
+  // Form Data
+  const [selectedLocationId, setSelectedLocationId] = useState<string>(locationId || "");
+  const [consultationMode, setConsultationMode] = useState<"VIDEO" | "IN_PERSON" | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedSlot, setSelectedSlot] = useState<string>("");
+  
+  // Additional Details
+  const [chiefComplaint, setChiefComplaint] = useState("");
+  const [symptoms, setSymptoms] = useState("");
+  const [urgency, setUrgency] = useState("Normal");
+  const [preferredLanguage, setPreferredLanguage] = useState("English");
 
-  const [bookingForm, setBookingForm] = useState({
-    doctorId: "",
-    date: "",
-    time: "",
-    duration: 30,
-    chiefComplaint: "",
-    symptoms: "",
-    urgency: "Normal",
-    preferredLanguage: "English",
-    clinicId: clinicId || APP_CONFIG.CLINIC.ID,
-    locationId: locationId || "",
-  });
+  // ─── Queries ──────────────────────────────────────────────────────────────
+  const { data: locations = [], isPending: locationsLoading } = useActiveLocations(activeClinicId);
+  const { data: doctorsData, isPending: doctorsLoading } = useDoctors(activeClinicId);
+  
+  // Construct date string YYYY-MM-DD for availability check
+  const dateString = useMemo(() => {
+     return selectedDate ? format(selectedDate, 'yyyy-MM-dd') : "";
+  }, [selectedDate]);
 
-  // Keep clinicId / locationId in sync with props
-  useEffect(() => {
-    if (clinicId) setBookingForm((f) => ({ ...f, clinicId }));
-    if (locationId) setBookingForm((f) => ({ ...f, locationId }));
-  }, [clinicId, locationId]);
-
-  const { data: doctorsData, isPending: doctorsLoading } = useDoctors(bookingForm.clinicId);
+  const { data: availability, isPending: availabilityLoading } = useDoctorAvailability(
+    selectedDoctorId, 
+    dateString
+  );
+  
   const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment();
 
-  const selectedType = CONSULTATION_TYPES.find((t) => t.id === selectedConsultationType);
+  const selectedService = useMemo(() => 
+    CONSULTATION_TYPES.find((t) => t.id === selectedServiceId), 
+  [selectedServiceId]);
+
+  const selectedLocation = useMemo(() => 
+    locations.find((l) => l.id === selectedLocationId), 
+  [locations, selectedLocationId]);
+
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
-  const handleConsultationTypeSelect = (typeId: string) => {
-    const type = CONSULTATION_TYPES.find((t) => t.id === typeId);
-    setSelectedConsultationType(typeId);
-    setBookingForm((prev) => ({
-      ...prev,
-      duration: type?.duration || 30,
-    }));
-    if (type && !type.videoAvailable) {
-      setIsVideoConsultation(false);
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setCurrentStep(1);
+      setSelectedLocationId(locationId || "");
+      setConsultationMode(null);
+      setSelectedServiceId("");
+      setSelectedDoctorId("");
+      setSelectedDate(new Date());
+      setSelectedSlot("");
+      setChiefComplaint("");
+      setSymptoms("");
+      setUrgency("Normal");
     }
+  }, [open, locationId]);
+
+  // Skip Step 1 if location is pre-selected and there's only one or it's forced
+  useEffect(() => {
+    if (open && currentStep === 1 && locationId) {
+      // If location is provided via props, we pre-select it
+      setSelectedLocationId(locationId);
+      // We don't auto-advance because user might want to check the location details
+      // But we could auto-advance if needed. For now let's keep it explicit.
+    }
+  }, [open, currentStep, locationId]);
+
+  const handleNext = () => {
+    if (currentStep === 1 && !selectedLocationId) {
+      toast.error("Please select a location");
+      return;
+    }
+    if (currentStep === 2 && !consultationMode) {
+      toast.error("Please select a consultation mode");
+      return;
+    }
+    if (currentStep === 3 && !selectedServiceId) {
+      toast.error("Please select a service");
+      return;
+    }
+    
+    setCurrentStep((prev) => Math.min(prev + 1, 4));
   };
 
-  const handleVideoToggle = (checked: boolean) => {
-    setIsVideoConsultation(checked);
+  const handleBack = () => {
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
   const handleBookAppointment = async () => {
@@ -264,47 +321,46 @@ export function BookAppointmentDialog({
       toast.error("You must be logged in to book an appointment");
       return;
     }
-    if (!selectedConsultationType) {
-      toast.error("Please select a treatment type");
-      setActiveTab("consultation-types");
+    
+    if (!selectedDoctorId || !selectedDate || !selectedSlot) {
+      toast.error("Please select doctor, date and time");
       return;
     }
-    if (!bookingForm.doctorId) {
-      toast.error("Please select a doctor");
-      setActiveTab("appointment-details");
-      return;
-    }
-    if (!bookingForm.date || !bookingForm.time) {
-      toast.error("Please select date and time");
-      setActiveTab("appointment-details");
-      return;
+
+    if (!selectedService) {
+        toast.error("Invalid service selection");
+        return;
     }
 
     try {
-      // Resolve the correct backend AppointmentType
-      const resolvedType: AppointmentType = (() => {
-        if (!selectedType) return isVideoConsultation ? "VIDEO_CALL" : "IN_PERSON";
-        if (isVideoConsultation && selectedType.videoAvailable) return "VIDEO_CALL";
-        return selectedType.backendType;
-      })();
+      // Logic:
+      // If Video Mode -> Type is VIDEO_CALL, Location is Omitted (backend logic)
+      // If In-Person -> Type is SERVICE_backendType, Location is Required
+      
+      const payloadType = consultationMode === "VIDEO" ? "VIDEO_CALL" : selectedService.backendType;
+      // Note: Even for VIDEO_CALL, we might want to send locationId if the backend allows it for record keeping,
+      // but per requirements, In-Person definitely needs it.
+      // If mode is VIDEO, we send the locationId only if the backend doesn't reject it, 
+      // otherwise undefined. Let's send it if available, as the controller might use it for 'clinic' context.
+      // Actually, plan said "Video Mode: locationId is omitted". Let's stick to that to be safe.
+      const payloadLocationId = consultationMode === "IN_PERSON" ? selectedLocationId : undefined;
 
       await createAppointment({
         patientId: user.id as string,
-        doctorId: bookingForm.doctorId,
-        type: resolvedType,
-        date: bookingForm.date,
-        time: bookingForm.time,
-        duration: bookingForm.duration,
-        notes: bookingForm.chiefComplaint,
-        symptoms: bookingForm.symptoms ? [bookingForm.symptoms] : [],
-        priority: bookingForm.urgency.toUpperCase() as "LOW" | "NORMAL" | "HIGH" | "URGENT",
-        clinicId: bookingForm.clinicId,
-        locationId: bookingForm.locationId,
+        doctorId: selectedDoctorId,
+        type: payloadType,
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        time: selectedSlot,
+        duration: selectedService.duration,
+        notes: chiefComplaint,
+        symptoms: symptoms ? [symptoms] : [],
+        priority: urgency.toUpperCase() as "LOW" | "NORMAL" | "HIGH" | "URGENT",
+        clinicId: activeClinicId,
+        locationId: payloadLocationId,
       });
 
       toast.success("Appointment booked successfully!");
       setOpen(false);
-      resetForm();
       onBooked?.();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Failed to book appointment";
@@ -312,28 +368,329 @@ export function BookAppointmentDialog({
     }
   };
 
-  const resetForm = () => {
-    setSelectedConsultationType("");
-    setIsVideoConsultation(false);
-    setActiveTab("consultation-types");
-    setBookingForm({
-      doctorId: "",
-      date: "",
-      time: "",
-      duration: 30,
-      chiefComplaint: "",
-      symptoms: "",
-      urgency: "Normal",
-      preferredLanguage: "English",
-      clinicId: clinicId || APP_CONFIG.CLINIC.ID,
-      locationId: locationId || "",
+  // ─── Step Renderers ───────────────────────────────────────────────────────
+
+  const renderStep1_Location = () => (
+    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold mb-1">Select Clinic Location</h3>
+        <p className={`text-sm ${theme.textColors.secondary}`}>
+          Where would you like to visit?
+        </p>
+      </div>
+
+      {locationsLoading ? (
+        <div className="p-8 text-center text-muted-foreground">Loading locations...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {locations.map((loc) => (
+            <div
+              key={loc.id}
+              onClick={() => setSelectedLocationId(loc.id)}
+              className={`p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md ${
+                selectedLocationId === loc.id
+                  ? `${theme.borders.primary} ${theme.containers.featureBlue} ring-1 ring-blue-500`
+                  : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30`}>
+                  <MapPin className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-foreground">{loc.name}</h4>
+                  <p className="text-sm text-muted-foreground mt-1">{loc.address}, {loc.city}</p>
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {loc.workingHours ? "Open Now" : "9:00 AM - 6:00 PM"}
+                  </p>
+                </div>
+                {selectedLocationId === loc.id && (
+                  <CheckCircle className="w-5 h-5 text-blue-600 ml-auto" />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {locations.length === 0 && !locationsLoading && (
+        <div className="text-center p-8 bg-gray-50 rounded-lg dark:bg-gray-800/50">
+          <p>No active locations found for this clinic.</p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderStep2_Mode = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold mb-1">Consultation Mode</h3>
+        <p className={`text-sm ${theme.textColors.secondary}`}>
+          How would you like to consult with the doctor?
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div
+          onClick={() => { setConsultationMode("IN_PERSON"); handleNext(); }}
+          className={`p-6 border-2 rounded-xl cursor-pointer transition-all hover:shadow-lg group ${
+            consultationMode === "IN_PERSON"
+              ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20"
+              : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
+          }`}
+        >
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="p-4 rounded-full bg-blue-100 text-blue-600 group-hover:scale-110 transition-transform">
+              <User className="w-8 h-8" />
+            </div>
+            <div>
+              <h4 className="font-bold text-lg mb-1">In-Person Visit</h4>
+              <p className="text-sm text-muted-foreground">
+                Visit the clinic for a physical examination and direct consultation.
+              </p>
+            </div>
+            <div className="mt-2 text-xs font-medium text-blue-600">
+                RECOMMENDED FOR THERAPIES
+            </div>
+          </div>
+        </div>
+
+        <div
+          onClick={() => { setConsultationMode("VIDEO"); handleNext(); }}
+          className={`p-6 border-2 rounded-xl cursor-pointer transition-all hover:shadow-lg group ${
+            consultationMode === "VIDEO"
+              ? "border-purple-600 bg-purple-50 dark:bg-purple-900/20"
+              : "border-gray-200 dark:border-gray-700 hover:border-purple-300"
+          }`}
+        >
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="p-4 rounded-full bg-purple-100 text-purple-600 group-hover:scale-110 transition-transform">
+              <Video className="w-8 h-8" />
+            </div>
+            <div>
+              <h4 className="font-bold text-lg mb-1">Video Consultation</h4>
+              <p className="text-sm text-muted-foreground">
+                Connect with doctors remotely from the comfort of your home.
+              </p>
+            </div>
+            <div className="mt-2 text-xs font-medium text-purple-600">
+                IDEAL FOR FOLLOW-UPS
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStep3_Service = () => {
+    // Filter types based on mode
+    const filteredTypes = CONSULTATION_TYPES.filter(t => {
+      if (consultationMode === "VIDEO") return t.videoAvailable;
+      return true; // In-Person usually allows everything
     });
+
+    // Group by category
+    const categories = Array.from(new Set(filteredTypes.map(t => t.category)));
+    const filteredByCategory = selectedCategory === "All" 
+        ? filteredTypes 
+        : filteredTypes.filter(t => t.category === selectedCategory);
+
+    return (
+      <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold mb-1">Select Service</h3>
+          <p className={`text-sm ${theme.textColors.secondary}`}>
+            Choose the specific treatment or consultation type.
+          </p>
+        </div>
+
+        {/* Category Filters */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">
+          <Badge 
+            variant={selectedCategory === "All" ? "default" : "outline"}
+            className="cursor-pointer px-4 py-2"
+            onClick={() => setSelectedCategory("All")}
+          >
+            All
+          </Badge>
+          {categories.map(cat => (
+             <Badge 
+             key={cat}
+             variant={selectedCategory === cat ? "default" : "outline"}
+             className="cursor-pointer px-4 py-2"
+             onClick={() => setSelectedCategory(cat)}
+           >
+             {cat}
+           </Badge>
+          ))}
+        </div>
+
+        {/* Grid */}
+        <ScrollArea className="h-[400px] pr-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredByCategory.map((type) => (
+                <div
+                key={type.id}
+                onClick={() => { setSelectedServiceId(type.id); }}
+                className={`p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md ${
+                    selectedServiceId === type.id
+                    ? `${theme.borders.primary} ${theme.containers.featureBlue} ring-1 ring-blue-500`
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                }`}
+                >
+                <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-xl ${type.color} shadow-sm`}>{type.icon}</div>
+                    <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                            <h4 className="font-semibold">{type.name}</h4>
+                            <span className="font-bold text-sm">₹{type.price}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                            {type.description}
+                        </p>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                                <Clock className="w-3 h-3" /> {type.duration} min
+                            </span>
+                            {type.videoAvailable && (
+                                <span className="flex items-center gap-1 text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded">
+                                <Video className="w-3 h-3" /> Video
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                </div>
+            ))}
+            </div>
+        </ScrollArea>
+      </div>
+    );
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  const renderStep4_DoctorTime = () => (
+    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 h-full">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+        {/* Left: Doctors List */}
+        <div className="lg:col-span-4 flex flex-col h-full border-r pr-4">
+            <h3 className="font-semibold mb-4">Select Doctor</h3>
+            <ScrollArea className="h-[400px]">
+                <div className="space-y-3">
+                    {doctorsLoading ? (
+                        <p className="text-sm text-muted-foreground">Loading doctors...</p>
+                    ) : (doctorsData as any)?.doctors?.map((doctor: any) => (
+                        <div
+                            key={doctor.id}
+                            onClick={() => {
+                                setSelectedDoctorId(doctor.id);
+                                setSelectedSlot(""); // Reset slot when doctor changes
+                            }}
+                            className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                                selectedDoctorId === doctor.id
+                                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                                : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                    <Stethoscope className="w-5 h-5 text-gray-500" />
+                                </div>
+                                <div>
+                                    <p className="font-medium text-sm">{doctor.name}</p>
+                                    <p className="text-xs text-muted-foreground">{doctor.specialization}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </ScrollArea>
+        </div>
+
+        {/* Right: Date & Time */}
+        <div className="lg:col-span-8 space-y-4">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                     <h3 className="font-semibold mb-4">Select Date</h3>
+                     <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        disabled={(date) => date < startOfDay(new Date())}
+                        className="border rounded-md shadow-sm w-full"
+                    />
+                </div>
+                <div>
+                    <h3 className="font-semibold mb-4">Available Slots</h3>
+                    {selectedDoctorId ? (
+                        <ScrollArea className="h-[300px]">
+                            {availabilityLoading ? (
+                                <div className="flex items-center justify-center h-40">
+                                    <p className="text-muted-foreground text-sm">Loading slots...</p>
+                                </div>
+                            ) : availability?.availableSlots?.length ? (
+                                <div className="grid grid-cols-3 gap-2">
+                                    {availability.availableSlots.map((slot: string) => (
+                                        <Button
+                                            key={slot}
+                                            variant={selectedSlot === slot ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => setSelectedSlot(slot)}
+                                            className="w-full"
+                                        >
+                                            {slot}
+                                        </Button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg">
+                                    <Clock className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                                    <p className="text-sm">No slots available for this date.</p>
+                                </div>
+                            )}
+                        </ScrollArea>
+                    ) : (
+                        <div className="text-center py-10 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
+                             <p className="text-sm">Select a doctor to view availability</p>
+                        </div>
+                    )}
+                </div>
+             </div>
+        
+            {/* Additional Inputs */}
+            <div className="pt-4 border-t">
+                <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <Label>Urgency</Label>
+                        <Select value={urgency} onValueChange={setUrgency}>
+                            <SelectTrigger className="h-9">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Low">Low</SelectItem>
+                                <SelectItem value="Normal">Normal</SelectItem>
+                                <SelectItem value="High">High</SelectItem>
+                            </SelectContent>
+                        </Select>
+                     </div>
+                     <div>
+                         <Label>Chief Complaint</Label>
+                         <Input 
+                            value={chiefComplaint} 
+                            onChange={(e) => setChiefComplaint(e.target.value)}
+                            placeholder="Brief reason for visit" 
+                            className="h-9"
+                        />
+                     </div>
+                </div>
+            </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
           <Button className="flex items-center gap-2 bg-linear-to-r from-blue-600 to-purple-600 hover:scale-105 transition-transform">
@@ -343,409 +700,77 @@ export function BookAppointmentDialog({
         )}
       </DialogTrigger>
 
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Book Ayurvedic Consultation</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+        {/* Header */}
+        <div className="p-6 border-b">
+          <DialogHeader>
+             <div className="flex items-center justify-between">
+                <DialogTitle className="text-2xl">New Appointment</DialogTitle>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className={currentStep >= 1 ? "text-primary font-medium" : ""}>Location</span>
+                    <ChevronRight className="w-4 h-4" />
+                    <span className={currentStep >= 2 ? "text-primary font-medium" : ""}>Mode</span>
+                    <ChevronRight className="w-4 h-4" />
+                    <span className={currentStep >= 3 ? "text-primary font-medium" : ""}>Service</span>
+                    <ChevronRight className="w-4 h-4" />
+                    <span className={currentStep >= 4 ? "text-primary font-medium" : ""}>Details</span>
+                </div>
+             </div>
+          </DialogHeader>
+          
+          {/* Progress Bar */}
+          <div className="mt-4 h-2 w-full bg-secondary rounded-full overflow-hidden">
+             <div 
+                className="h-full bg-primary transition-all duration-500 ease-out"
+                style={{ width: `${(currentStep / 4) * 100}%` }}
+             />
+          </div>
+        </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="consultation-types">Select Treatment</TabsTrigger>
-            <TabsTrigger value="appointment-details">Appointment Details</TabsTrigger>
-            <TabsTrigger value="payment-summary">Payment Summary</TabsTrigger>
-          </TabsList>
+        {/* Content */}
+        <div className="flex-1 p-6 overflow-y-auto bg-gray-50/50 dark:bg-black/20">
+            {currentStep === 1 && renderStep1_Location()}
+            {currentStep === 2 && renderStep2_Mode()}
+            {currentStep === 3 && renderStep3_Service()}
+            {currentStep === 4 && renderStep4_DoctorTime()}
+        </div>
 
-          {/* ── Tab 1 — Select Treatment ─────────────────────────────── */}
-          <TabsContent value="consultation-types">
-            <div className="space-y-4">
-              <div className={`text-sm ${theme.textColors.secondary} mb-4`}>
-                Choose the type of Ayurvedic consultation or treatment you need:
-              </div>
+        {/* Footer */}
+        <div className="p-4 border-t bg-background flex justify-between items-center">
+            <Button
+                variant="ghost"
+                onClick={handleBack}
+                disabled={currentStep === 1}
+                className="gap-2"
+            >
+                <ChevronLeft className="w-4 h-4" /> Back
+            </Button>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {CONSULTATION_TYPES.map((type) => (
-                  <div
-                    key={type.id}
-                    className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
-                      selectedConsultationType === type.id
-                        ? `${theme.borders.blue} ${theme.containers.featureBlue}`
-                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
-                    }`}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleConsultationTypeSelect(type.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleConsultationTypeSelect(type.id);
-                      }
-                    }}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`p-2 rounded-lg ${type.color}`}>{type.icon}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold">{type.name}</h3>
-                          <Badge variant="outline">{type.category}</Badge>
-                        </div>
-                        <p className={`text-sm ${theme.textColors.secondary} mb-3`}>
-                          {type.description}
+            <div className="flex gap-4 items-center">
+                 {currentStep === 4 && (
+                     <div className="text-right mr-4 hidden md:block">
+                        <p className="text-sm font-medium">{selectedService?.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                            {selectedDate ? format(selectedDate, "MMM d") : ""} • {selectedSlot || "No time selected"}
                         </p>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-4">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {type.duration} min
-                            </span>
-                            {type.videoAvailable && (
-                              <span className={`flex items-center gap-1 ${theme.iconColors.green}`}>
-                                <Video className="w-3 h-3" />
-                                Video available
-                              </span>
-                            )}
-                          </div>
-                          <span className={`font-semibold ${theme.iconColors.blue}`}>
-                            ₹{type.price}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Next button */}
-              <div className="flex justify-end pt-2">
-                <Button
-                  disabled={!selectedConsultationType}
-                  onClick={() => setActiveTab("appointment-details")}
-                >
-                  Next: Appointment Details
-                </Button>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ── Tab 2 — Appointment Details ────────────────────────── */}
-          <TabsContent value="appointment-details">
-            <div className="space-y-6">
-              {selectedType && (
-                <div className={`p-4 ${theme.containers.featureBlue} rounded-lg`}>
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-lg ${selectedType.color}`}>
-                      {selectedType.icon}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">{selectedType.name}</h3>
-                      <p className={`text-sm ${theme.textColors.secondary}`}>
-                        {selectedType.duration} minutes • ₹{selectedType.price}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <Label htmlFor="doctor">Select Doctor</Label>
-                  <Select
-                    value={bookingForm.doctorId}
-                    onValueChange={(value) =>
-                      setBookingForm((prev) => ({ ...prev, doctorId: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={doctorsLoading ? "Loading doctors..." : "Select doctor"}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(doctorsData as any)?.doctors?.map((doctor: any) => (
-                        <SelectItem key={doctor.id} value={doctor.id}>
-                          {doctor.name} ({doctor.specialization})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="date">Preferred Date</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    min={new Date().toISOString().split("T")[0]}
-                    value={bookingForm.date}
-                    onChange={(e) =>
-                      setBookingForm((prev) => ({ ...prev, date: e.target.value }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="time">Preferred Time</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setBookingForm((prev) => ({ ...prev, time: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select time" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="09:00">09:00 AM</SelectItem>
-                      <SelectItem value="10:00">10:00 AM</SelectItem>
-                      <SelectItem value="11:00">11:00 AM</SelectItem>
-                      <SelectItem value="14:00">02:00 PM</SelectItem>
-                      <SelectItem value="15:00">03:00 PM</SelectItem>
-                      <SelectItem value="16:00">04:00 PM</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {selectedType?.videoAvailable && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Video className="w-4 h-4" />
-                        <Label>Video Consultation</Label>
-                      </div>
-                      <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Consult from the comfort of your home
-                      </p>
-                    </div>
-                    <Switch
-                      checked={isVideoConsultation}
-                      onCheckedChange={handleVideoToggle}
-                    />
-                  </div>
-
-                  {isVideoConsultation && (
-                    <div
-                      className={`p-4 ${theme.containers.featureGreen} border ${theme.borders.green} rounded-lg`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <Info className={`w-4 h-4 ${theme.iconColors.green} mt-0.5`} />
-                        <div className={`text-sm ${theme.textColors.success}`}>
-                          <p className="font-medium mb-1">Video Consultation Benefits:</p>
-                          <ul className="list-disc list-inside space-y-1">
-                            <li>No travel required</li>
-                            <li>Same quality consultation</li>
-                            <li>Secure &amp; private</li>
-                            <li>Digital prescription provided</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="urgency">Urgency Level</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setBookingForm((prev) => ({ ...prev, urgency: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select urgency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Low">Low - Routine consultation</SelectItem>
-                      <SelectItem value="Normal">Normal - Standard appointment</SelectItem>
-                      <SelectItem value="High">High - Need consultation soon</SelectItem>
-                      <SelectItem value="Urgent">Urgent - Within 24 hours</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="language">Preferred Language</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setBookingForm((prev) => ({ ...prev, preferredLanguage: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="English">English</SelectItem>
-                      <SelectItem value="Hindi">Hindi</SelectItem>
-                      <SelectItem value="Marathi">Marathi</SelectItem>
-                      <SelectItem value="Tamil">Tamil</SelectItem>
-                      <SelectItem value="Telugu">Telugu</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="chiefComplaint">Chief Complaint</Label>
-                <Input
-                  id="chiefComplaint"
-                  value={bookingForm.chiefComplaint}
-                  onChange={(e) =>
-                    setBookingForm((prev) => ({ ...prev, chiefComplaint: e.target.value }))
-                  }
-                  placeholder="Brief description of your main concern"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="symptoms">Detailed Symptoms &amp; Medical History</Label>
-                <Textarea
-                  id="symptoms"
-                  value={bookingForm.symptoms}
-                  onChange={(e) =>
-                    setBookingForm((prev) => ({ ...prev, symptoms: e.target.value }))
-                  }
-                  placeholder="Describe your symptoms, duration, any previous treatments, current medications, etc."
-                  rows={4}
-                />
-              </div>
-
-              {/* Navigation */}
-              <div className="flex justify-between pt-2">
-                <Button variant="outline" onClick={() => setActiveTab("consultation-types")}>
-                  Back
-                </Button>
-                <Button
-                  onClick={() => setActiveTab("payment-summary")}
-                  disabled={!bookingForm.doctorId || !bookingForm.date || !bookingForm.time}
-                >
-                  Next: Review &amp; Pay
-                </Button>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ── Tab 3 — Payment Summary ──────────────────────────── */}
-          <TabsContent value="payment-summary">
-            <div className="space-y-6">
-              {selectedType && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Booking Summary</h3>
-
-                  <div className="p-4 border rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span>Treatment:</span>
-                      <span className="font-medium">{selectedType.name}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Duration:</span>
-                      <span>{selectedType.duration} minutes</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Consultation Type:</span>
-                      <div className="flex items-center gap-2">
-                        {isVideoConsultation ? (
-                          <>
-                            <Video className="w-4 h-4" />
-                            <span>Video Consultation</span>
-                          </>
-                        ) : (
-                          <>
-                            <MapPin className="w-4 h-4" />
-                            <span>In-Person Visit</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Date &amp; Time:</span>
-                      <span>
-                        {bookingForm.date} at {bookingForm.time}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Urgency:</span>
-                      <Badge variant="outline">{bookingForm.urgency}</Badge>
-                    </div>
-                  </div>
-
-                  <div className={`p-4 ${theme.backgrounds.secondary} rounded-lg space-y-2`}>
-                    <div className="flex items-center justify-between">
-                      <span>Consultation Fee:</span>
-                      <span>₹{selectedType.price}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Platform Fee:</span>
-                      <span>₹50</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>GST (18%):</span>
-                      <span>₹{Math.round((selectedType.price + 50) * 0.18)}</span>
-                    </div>
-                    <div className="border-t pt-2 flex items-center justify-between font-semibold text-lg">
-                      <span>Total Amount:</span>
-                      <span>
-                        ₹{selectedType.price + 50 + Math.round((selectedType.price + 50) * 0.18)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Payment Method</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div
-                        className={`p-3 border rounded-lg cursor-pointer ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <CreditCard className="w-4 h-4" />
-                          <span>Credit/Debit Card</span>
-                        </div>
-                      </div>
-                      <div
-                        className={`p-3 border rounded-lg cursor-pointer ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Droplets className="w-4 h-4" />
-                          <span>UPI</span>
-                        </div>
-                      </div>
-                      <div
-                        className={`p-3 border rounded-lg cursor-pointer ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Activity className="w-4 h-4" />
-                          <span>Net Banking</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => setActiveTab("appointment-details")}
-                    >
-                      Back
+                     </div>
+                 )}
+                 
+                 {currentStep < 4 ? (
+                    <Button onClick={handleNext} className="gap-2 w-32">
+                        Next <ChevronRight className="w-4 h-4" />
                     </Button>
-                    <Button
-                      className="flex-1"
-                      onClick={handleBookAppointment}
-                      disabled={isBooking}
+                 ) : (
+                    <Button 
+                        onClick={handleBookAppointment} 
+                        disabled={isBooking || !selectedSlot}
+                        className="gap-2 w-40 bg-green-600 hover:bg-green-700"
                     >
-                      {isBooking ? "Booking..." : "Confirm & Pay"}
+                        {isBooking ? "Booking..." : "Confirm Booking"}
                     </Button>
-                  </div>
-                </div>
-              )}
-
-              {!selectedType && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>Please select a treatment type first.</p>
-                  <Button className="mt-4" onClick={() => setActiveTab("consultation-types")}>
-                    Select Treatment
-                  </Button>
-                </div>
-              )}
+                 )}
             </div>
-          </TabsContent>
-        </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );

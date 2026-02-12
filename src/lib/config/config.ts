@@ -77,6 +77,7 @@ const envSchema = z.object({
   // Third-party API Keys
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().optional(),
   NEXT_PUBLIC_RAZORPAY_KEY: z.string().optional(),
+  NEXT_PUBLIC_CASHFREE_APP_ID: z.string().optional(),
   
   // Firebase Configuration
   NEXT_PUBLIC_FIREBASE_API_KEY: z.string().optional(),
@@ -264,6 +265,7 @@ export const APP_CONFIG = {
   SERVICES: {
     GOOGLE_MAPS_API_KEY: env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     RAZORPAY_KEY: env.NEXT_PUBLIC_RAZORPAY_KEY || '',
+    CASHFREE_APP_ID: env.NEXT_PUBLIC_CASHFREE_APP_ID || '',
   },
   
   // ============================================
@@ -394,7 +396,10 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/appointments/${id}`,
     CANCEL: (id: string) => `/appointments/${id}/cancel`,
     CONFIRM: (id: string) => `/appointments/${id}/confirm`,
+    VIDEO_PROPOSE: '/appointments/video/propose',
+    VIDEO_CONFIRM_SLOT: (id: string) => `/appointments/${id}/video/confirm-slot`,
     CHECK_IN: (id: string) => `/appointments/${id}/check-in`,
+    SCAN_QR: '/appointments/check-in/scan-qr',
     START: (id: string) => `/appointments/${id}/start`,
     COMPLETE: (id: string) => `/appointments/${id}/complete`,
     RESCHEDULE: (id: string) => `/appointments/${id}/reschedule`,
@@ -467,7 +472,9 @@ export const API_ENDPOINTS = {
     },
     PRESCRIPTIONS: {
       GET: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
-      CREATE: (clinicId: string) => `/clinics/${clinicId}/prescriptions`,
+      LIST: '/pharmacy/prescriptions',
+      GET_BY_PATIENT: (userId: string) => `/pharmacy/prescriptions/patient/${userId}`,
+      CREATE: '/pharmacy/prescriptions',
       UPDATE_STATUS: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/status`,
       DISPENSE: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/dispense`,
     },
@@ -574,6 +581,7 @@ export const API_ENDPOINTS = {
       DOCTORS: '/user/role/doctors',
       RECEPTIONISTS: '/user/role/receptionists',
     },
+    GET_BY_CLINIC: (clinicId: string) => `/clinics/${clinicId}/staff`,
     UPDATE_ROLE: (id: string) => `/user/${id}/role`,
     CHANGE_LOCATION: (id: string) => `/user/${id}/change-location`,
     SESSIONS: {
@@ -636,7 +644,9 @@ export const API_ENDPOINTS = {
       GET_BY_ID: (id: string) => `/billing/payments/${id}`,
       GET_USER_PAYMENTS: (userId: string) => `/billing/payments/user/${userId}`,
       UPDATE: (id: string) => `/billing/payments/${id}`,
-      CALLBACK: '/billing/payments/callback',
+      // Backend PaymentController: POST /payments/callback
+      CALLBACK: '/payments/callback',
+      PAYMENT_CALLBACK: '/payments/callback',
       REFUND: (id: string) => `/billing/payments/${id}/refund`,
     },
     APPOINTMENT_PAYMENTS: {
@@ -904,14 +914,14 @@ export const API_ENDPOINTS = {
     },
   },
   
-  // Prescriptions Endpoints
+  // Prescriptions Endpoints (align with pharmacy backend)
   PRESCRIPTIONS: {
-    BASE: '/prescriptions',
+    BASE: '/pharmacy/prescriptions',
     GET_BY_PATIENT: (patientId: string) => `/pharmacy/prescriptions/patient/${patientId}`,
-    CREATE: '/prescriptions',
-    UPDATE: (prescriptionId: string) => `/prescriptions/${prescriptionId}`,
-    GET_BY_ID: (prescriptionId: string) => `/prescriptions/${prescriptionId}`,
-    GENERATE_PDF: (prescriptionId: string) => `/prescriptions/${prescriptionId}/pdf`,
+    CREATE: '/pharmacy/prescriptions',
+    UPDATE: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/status`,
+    GET_BY_ID: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
+    GENERATE_PDF: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/pdf`,
   },
   
   // Medicines Endpoints

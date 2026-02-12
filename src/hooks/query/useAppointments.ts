@@ -16,6 +16,7 @@ import {
   getAppointments,
   getAppointmentById,
   updateAppointment,
+  bulkUpdateAppointmentStatus,
   cancelAppointment,
   confirmAppointment,
   checkInAppointment,
@@ -28,7 +29,9 @@ import {
   getDoctorAvailability,
   getUserUpcomingAppointments,
   getMyAppointments,
-  testAppointmentContext
+  testAppointmentContext,
+  proposeVideoAppointment,
+  confirmVideoSlot,
 } from '@/lib/actions/enhanced-appointments.server';
 import type { 
   CreateAppointmentData, 
@@ -197,6 +200,63 @@ export const useCreateAppointment = (clinicId?: string) => {
 };
 
 /**
+ * Hook for proposing video appointment with 3-4 time slots (patient flow)
+ */
+export const useProposeVideoAppointment = () => {
+  const { hasPermission } = useRBAC();
+  return useMutationOperation(
+    async (data: {
+      patientId: string;
+      doctorId: string;
+      clinicId: string;
+      duration: number;
+      proposedSlots: Array<{ date: string; time: string }>;
+      notes?: string;
+    }) => {
+      if (!hasPermission(Permission.CREATE_APPOINTMENTS)) {
+        throw new Error('Insufficient permissions');
+      }
+      const result = await proposeVideoAppointment(data);
+      if (!result.success || !result.appointment) {
+        throw new Error(result.error || 'Failed to propose video appointment');
+      }
+      return result.appointment;
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.CREATE,
+      loadingMessage: 'Proposing video appointment...',
+      successMessage: 'Slots proposed. Doctor will confirm one.',
+      invalidateQueries: [['appointments'], ['video-appointments']],
+    }
+  );
+};
+
+/**
+ * Hook for confirming video slot (doctor flow)
+ */
+export const useConfirmVideoSlot = () => {
+  const { hasPermission } = useRBAC();
+  return useMutationOperation(
+    async ({ appointmentId, confirmedSlotIndex }: { appointmentId: string; confirmedSlotIndex: number }) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error('Insufficient permissions');
+      }
+      const result = await confirmVideoSlot(appointmentId, confirmedSlotIndex);
+      if (!result.success || !result.appointment) {
+        throw new Error(result.error || 'Failed to confirm slot');
+      }
+      return result.appointment;
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Confirming slot...',
+      successMessage: 'Slot confirmed. Patient can now pay.',
+      invalidateQueries: [['appointments'], ['video-appointments'], ['appointment']],
+    }
+  );
+};
+
+/**
  * Hook for updating an appointment
  */
 export const useUpdateAppointment = () => {
@@ -339,7 +399,7 @@ export const useStartAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.START,
       loadingMessage: 'Starting appointment...',
       successMessage: 'Appointment started successfully',
-      invalidateQueries: [['appointments'], ['appointment']],
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
     }
   );
 };
@@ -375,7 +435,7 @@ export const useCompleteAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.COMPLETE,
       loadingMessage: 'Completing appointment...',
       successMessage: 'Appointment completed successfully',
-      invalidateQueries: [['appointments'], ['appointment']],
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
     }
   );
 };
@@ -778,47 +838,30 @@ export const useBulkAppointmentOperations = () => {
   const { toast } = useToast();
   const { hasPermission } = useRBAC();
   
-  // Memoize bulk update function for better performance
+  // Memoize bulk update function - uses server action for batch processing with failedIds
   const bulkUpdateFn = useCallback(async (data: { 
     appointmentIds: string[]; 
-    status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' 
+    status: 'SCHEDULED' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' 
   }) => {
     if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
       throw new Error('Insufficient permissions for bulk operations');
     }
     
-    // Process in batches of 10 for better server handling
-    const BATCH_SIZE = 10;
-    const batches = [];
+    const result = await bulkUpdateAppointmentStatus(data.appointmentIds, data.status);
     
-    for (let i = 0; i < data.appointmentIds.length; i += BATCH_SIZE) {
-      const batch = data.appointmentIds.slice(i, i + BATCH_SIZE);
-      batches.push(batch);
-    }
-    
-    let successful = 0;
-    let failed = 0;
-    
-    // Process batches sequentially to avoid overwhelming the server
-    for (const batch of batches) {
-      const results = await Promise.allSettled(
-        batch.map(id => updateAppointment(id, { status: data.status }))
-      );
-      
-      successful += results.filter(r => r.status === 'fulfilled').length;
-      failed += results.filter(r => r.status === 'rejected').length;
-      
-      // Small delay between batches to prevent server overload
-      if (batches.indexOf(batch) < batches.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-    
-    return { successful, failed, total: data.appointmentIds.length };
+    return {
+      successful: result.updated ?? 0,
+      failed: result.failed ?? 0,
+      total: data.appointmentIds.length,
+      failedIds: result.failedIds ?? [],
+      failedReasons: result.failedReasons ?? {},
+    };
   }, [hasPermission]);
   
-  // Optimized success handler
-  const onSuccess = useCallback((result: { successful: number; failed: number; total: number }) => {
+  // Optimized success handler - shows failedIds when available
+  const onSuccess = useCallback((
+    result: { successful: number; failed: number; total: number; failedIds?: string[]; failedReasons?: Record<string, string> }
+  ) => {
     // More targeted cache invalidation
     queryClient.invalidateQueries({ 
       queryKey: ['appointments'],
@@ -826,17 +869,23 @@ export const useBulkAppointmentOperations = () => {
     });
     
     if (result.failed > 0) {
+      const failedDetail = result.failedIds?.length
+        ? ` Failed: ${result.failedIds.slice(0, 5).join(', ')}${result.failedIds.length > 5 ? ` +${result.failedIds.length - 5} more` : ''}`
+        : '';
+      const reasonSample = result.failedReasons && Object.keys(result.failedReasons).length > 0
+        ? ` — ${Object.values(result.failedReasons)[0]}`
+        : '';
       toast({
         title: 'Partial Success',
-        description: `Updated ${result.successful} appointments. ${result.failed} failed.`,
+        description: `Updated ${result.successful} appointments. ${result.failed} failed.${failedDetail}${reasonSample}`,
         variant: 'default',
-        id: TOAST_IDS.APPOINTMENT.BULK_UPDATE, // ✅ Prevent duplicates
+        id: TOAST_IDS.APPOINTMENT.BULK_UPDATE,
       });
     } else {
       toast({
         title: 'Success',
         description: `Successfully updated ${result.successful} appointments.`,
-        id: TOAST_IDS.APPOINTMENT.BULK_UPDATE, // ✅ Prevent duplicates
+        id: TOAST_IDS.APPOINTMENT.BULK_UPDATE,
       });
     }
   }, [queryClient, toast]);

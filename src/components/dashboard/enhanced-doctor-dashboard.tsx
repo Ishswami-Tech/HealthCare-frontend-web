@@ -194,7 +194,7 @@ export default function EnhancedDoctorDashboard() {
   });
 
   return (
-    <DashboardLayout title="Doctor Dashboard" allowedRole={Role.DOCTOR}>
+    <DashboardLayout title="Doctor Dashboard" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
       <Sidebar
         links={sidebarLinks}
         user={{

@@ -65,7 +65,7 @@ export function checkProfileCompletion(profileData: UserProfileData): ProfileCom
   const optionalFields: string[] = [];
 
   // Add role-specific optional fields
-  if (profileData.role === Role.DOCTOR) {
+  if (profileData.role === Role.DOCTOR || profileData.role === Role.ASSISTANT_DOCTOR) {
     optionalFields.push('specialization', 'licenseNumber', 'experience');
   } else if (profileData.role === Role.CLINIC_ADMIN) {
     optionalFields.push('clinicName', 'clinicAddress');
@@ -201,6 +201,7 @@ export function getRequiredFieldsForRole(): string[] {
 export function getOptionalFieldsForRole(role: Role): string[] {
   switch (role) {
     case Role.DOCTOR:
+    case Role.ASSISTANT_DOCTOR:
       return ['specialization', 'licenseNumber', 'experience'];
     case Role.CLINIC_ADMIN:
       return ['clinicName', 'clinicAddress'];

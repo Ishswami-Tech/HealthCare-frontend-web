@@ -7,7 +7,7 @@ import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { ProtectedRoute } from "@/components/rbac/ProtectedRoute";
 import { Permission } from "@/types/rbac.types";
 import { Invoice } from "@/types/billing.types";
-import { generateInvoicePDF } from "@/lib/actions/billing.server";
+import { generateInvoicePDF, sendInvoiceViaWhatsApp } from "@/lib/actions/billing.server";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,10 +44,10 @@ import {
 import { getRoutesByRole } from "@/lib/config/routes";
 import { useAuth } from "@/hooks/auth/useAuth";
 
-// ✅ Lazy load heavy components for code splitting (optimized for 10M users)
-const RazorpayPaymentButton = lazy(() =>
-  import("@/components/payments/RazorpayPaymentButton").then((module) => ({
-    default: module.RazorpayPaymentButton,
+// ✅ Lazy load payment components
+const PaymentButton = lazy(() =>
+  import("@/components/payments/PaymentButton").then((module) => ({
+    default: module.PaymentButton,
   }))
 );
 import {
@@ -79,7 +79,7 @@ function BillingPageContent() {
     useBillingPlans(clinicId);
   const { data: subscriptions = [], isPending: subscriptionsPending } =
     useSubscriptions(userId);
-  const { data: invoices = [], isPending: invoicesPending } =
+  const { data: invoices = [], isPending: invoicesPending, refetch: refetchInvoices } =
     useInvoices(userId);
   const { data: payments = [], isPending: paymentsPending } =
     usePayments(userId);
@@ -173,8 +173,8 @@ function BillingPageContent() {
             <WebSocketStatusIndicator />
           </div>
 
-          {/* Analytics Overview */}
-          {analytics && (
+          {/* Analytics Overview - hidden for patients */}
+          {analytics && user?.role !== Role.PATIENT && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -251,6 +251,7 @@ function BillingPageContent() {
             <TabsContent value="plans" className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold">Billing Plans</h2>
+                {user?.role !== Role.PATIENT && (
                 <Dialog
                   open={isCreatePlanDialogOpen}
                   onOpenChange={setIsCreatePlanDialogOpen}
@@ -312,6 +313,7 @@ function BillingPageContent() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+                )}
               </div>
 
               {plansPending ? (
@@ -640,7 +642,30 @@ function BillingPageContent() {
                             </Button>
                           )}
                           {invoice.status === "PENDING" && (
-                            <Button size="sm" variant="outline">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  const result = await sendInvoiceViaWhatsApp(invoice.id);
+                                  if (result.success) {
+                                    showSuccessToast("Invoice sent via WhatsApp", {
+                                      id: TOAST_IDS.COMMUNICATION.WHATSAPP,
+                                    });
+                                    void refetchInvoices();
+                                  } else {
+                                    showErrorToast(result.error || "Failed to send via WhatsApp", {
+                                      id: TOAST_IDS.GLOBAL.ERROR,
+                                    });
+                                  }
+                                } catch (error: any) {
+                                  showErrorToast(
+                                    error.message || "Failed to send via WhatsApp",
+                                    { id: TOAST_IDS.GLOBAL.ERROR }
+                                  );
+                                }
+                              }}
+                            >
                               <Send className="w-4 h-4 mr-2" />
                               Send via WhatsApp
                             </Button>
@@ -754,11 +779,11 @@ function BillingPageContent() {
                       ₹{selectedInvoiceForPayment.amount?.toLocaleString() || "0"}
                     </p>
                     <p className="text-sm text-muted-foreground mt-2">
-                      You will be redirected to Razorpay secure payment gateway
+                      Pay securely (Razorpay / Cashfree / PhonePe - one at a time, fallback on failure)
                     </p>
                   </div>
                   <Suspense fallback={<div className="text-center py-4">Loading payment button...</div>}>
-                    <RazorpayPaymentButton
+                    <PaymentButton
                       invoiceId={selectedInvoiceForPayment.id}
                       amount={selectedInvoiceForPayment.amount || 0}
                       currency={selectedInvoiceForPayment.currency || "INR"}
@@ -769,7 +794,6 @@ function BillingPageContent() {
                         showSuccessToast("Payment completed successfully!", {
                           id: TOAST_IDS.PAYMENT.SUCCESS,
                         });
-                        // Refresh invoices
                         window.location.reload();
                       }}
                       onError={(error) => {
@@ -779,8 +803,8 @@ function BillingPageContent() {
                       }}
                       className="w-full"
                     >
-                      Pay with Razorpay
-                    </RazorpayPaymentButton>
+                      Pay ₹{selectedInvoiceForPayment.amount?.toLocaleString() || "0"}
+                    </PaymentButton>
                   </Suspense>
                   <Button
                     variant="outline"
@@ -806,7 +830,7 @@ export default function BillingPage() {
   return (
     <ProtectedRoute 
       permission={Permission.VIEW_BILLING}
-      allowedRoles={[Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT]}
+      allowedRoles={[Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.RECEPTIONIST, Role.PATIENT]}
     >
       <BillingPageContent />
     </ProtectedRoute>

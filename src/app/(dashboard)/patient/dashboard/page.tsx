@@ -40,6 +40,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClinicSelectDialog } from "@/components/appointments/ClinicSelectDialog";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
+import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 
 export default function PatientDashboard() {
   const { session, isPending: isAuthPending } = useAuth();
@@ -243,6 +244,17 @@ export default function PatientDashboard() {
               <Button
                 variant="outline"
                 className="flex items-center gap-2 hover:scale-105 transition-transform"
+                onClick={() => window.location.href = '/patient/check-in'}
+              >
+                <div className="w-4 h-4 flex items-center justify-center border-2 border-current rounded-sm">
+                   <div className="w-2 h-2 bg-current rounded-[1px]" />
+                </div>
+                Scan Check-In
+              </Button>
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 hover:scale-105 transition-transform"
+                onClick={() => window.location.href = "/video-appointments"}
               >
                 <Video className="w-4 h-4" />
                 {t("appointments.bookNew")}
@@ -256,6 +268,12 @@ export default function PatientDashboard() {
                 }
               />
             </div>
+          </div>
+
+          
+          {/* Real-time Queue Status */}
+          <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+             <PatientQueueCard />
           </div>
 
           {/* Health Overview Cards */}
@@ -570,10 +588,14 @@ export default function PatientDashboard() {
                   ))
                   )}
 
-                  <Button variant="outline" className="w-full">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Schedule New Appointment
-                  </Button>
+                  <BookAppointmentDialog
+                    trigger={
+                      <Button variant="outline" className="w-full">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Schedule New Appointment
+                      </Button>
+                    }
+                  />
                 </div>
                )}
               </CardContent>
@@ -711,7 +733,7 @@ export default function PatientDashboard() {
                 {patientData.recentActivity.length > 0 ? (
                   patientData.recentActivity.map((activity: any, index: number) => (
                     <div key={index} className="flex items-start gap-3">
-                      <div className="flex-shrink-0">
+                      <div className="shrink-0">
                         {activity.type === "appointment" && (
                           <Calendar
                             className={`w-4 h-4 ${theme.iconColors.blue}`}
@@ -832,6 +854,7 @@ export default function PatientDashboard() {
                 <Button
                   variant="outline"
                   className="h-16 flex flex-col items-center justify-center gap-2"
+                  onClick={() => window.location.href = "/video-appointments"}
                 >
                   <Video className="w-5 h-5" />
                   <span className="text-sm">Video Consult</span>
@@ -839,6 +862,7 @@ export default function PatientDashboard() {
                 <Button
                   variant="outline"
                   className="h-16 flex flex-col items-center justify-center gap-2"
+                  onClick={() => window.location.href = "/patient/medical-records"}
                 >
                   <FileText className="w-5 h-5" />
                   <span className="text-sm">View Reports</span>
@@ -846,6 +870,7 @@ export default function PatientDashboard() {
                 <Button
                   variant="outline"
                   className="h-16 flex flex-col items-center justify-center gap-2"
+                  onClick={() => window.location.href = "/patient/prescriptions"}
                 >
                   <Pill className="w-5 h-5" />
                   <span className="text-sm">Refill Prescription</span>

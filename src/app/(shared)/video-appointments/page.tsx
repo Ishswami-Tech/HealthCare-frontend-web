@@ -32,6 +32,13 @@ import {
   useEndVideoAppointment,
 } from "@/hooks/query/useVideoAppointments";
 import {
+  useAppointments,
+  useProposeVideoAppointment,
+  useConfirmVideoSlot,
+} from "@/hooks/query/useAppointments";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { ProposeVideoAppointmentDialog } from "@/components/appointments/ProposeVideoAppointmentDialog";
+import {
   Video,
   Plus,
   Play,
@@ -41,6 +48,8 @@ import {
   Calendar,
   User,
   Loader2,
+  CheckCircle,
+  CreditCard,
 } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { format } from "date-fns";
@@ -49,14 +58,22 @@ import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import { ProtectedComponent } from "@/components/rbac/ProtectedComponent";
 import { Permission } from "@/types/rbac.types";
+import { Role } from "@/types/auth.types";
+import { PaymentButton } from "@/components/payments/PaymentButton";
+import { useMyAppointments } from "@/hooks/query/useAppointments";
+import { useQueryClient } from "@/hooks/core";
 
 export default function VideoAppointmentsPage() {
   const { session } = useAuth();
+  const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isProposeDialogOpen, setIsProposeDialogOpen] = useState(false);
 
   const userId = session?.user?.id || "";
+  const userRole = (session?.user?.role as Role) ?? "";
+  const queryClient = useQueryClient();
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -121,9 +138,36 @@ export default function VideoAppointmentsPage() {
 
 
 
+  // Appointments with AWAITING_SLOT_CONFIRMATION (for doctor to confirm)
+  const { data: appointmentsApi } = useAppointments({
+    clinicId: clinicId || "",
+    type: "VIDEO_CALL",
+    status: "AWAITING_SLOT_CONFIRMATION",
+    limit: 50,
+  });
+  const awaitingConfirmation = Array.isArray((appointmentsApi as any)?.appointments)
+    ? (appointmentsApi as any).appointments
+    : Array.isArray((appointmentsApi as any)?.data)
+    ? (appointmentsApi as any).data
+    : [];
+
+  // Patient's proposed appointments (awaiting slot confirmation + payment)
+  const { data: myAppointmentsData } = useMyAppointments();
+  const myProposedVideo = React.useMemo(() => {
+    const list = Array.isArray((myAppointmentsData as any)?.appointments)
+      ? (myAppointmentsData as any).appointments
+      : [];
+    return list.filter(
+      (apt: any) =>
+        String(apt.status) === "AWAITING_SLOT_CONFIRMATION" &&
+        String(apt.type) === "VIDEO_CALL"
+    );
+  }, [myAppointmentsData]);
+
   // Mutations
   const joinVideoAppointment = useJoinVideoAppointment();
   const endVideoAppointment = useEndVideoAppointment();
+  const confirmSlotMutation = useConfirmVideoSlot();
 
   // Filter appointments
   const filteredAppointments = appointments.filter((apt: any) => {
@@ -349,16 +393,16 @@ export default function VideoAppointmentsPage() {
         <WebSocketStatusIndicator />
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Video Appointment
+            <Button variant="outline" className="gap-2">
+              <Video className="h-4 w-4" />
+              Direct Schedule
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Video Appointment</DialogTitle>
               <DialogDescription>
-                Create a new video consultation appointment
+                Schedule directly from the appointments page with video consultation enabled.
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">
@@ -378,6 +422,20 @@ export default function VideoAppointmentsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {(userRole === Role.PATIENT || userRole === Role.RECEPTIONIST || userRole === Role.ASSISTANT_DOCTOR) && (
+          <>
+            <Button className="gap-2" onClick={() => setIsProposeDialogOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Propose Video Appointment
+            </Button>
+            <ProposeVideoAppointmentDialog
+              open={isProposeDialogOpen}
+              onOpenChange={setIsProposeDialogOpen}
+              patientId={userId}
+              userRole={userRole}
+            />
+          </>
+        )}
       </div>
 
       {/* Filters */}
@@ -407,6 +465,103 @@ export default function VideoAppointmentsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Patient: Pay for proposed video appointments (payment required before doctor confirms) */}
+      {userRole === Role.PATIENT && myProposedVideo.length > 0 && (
+        <Card className="mb-6 border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900">
+          <CardContent className="pt-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-amber-600" />
+              Pay for Proposed Video Appointment
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Complete payment so the doctor can confirm your preferred time slot.
+            </p>
+            <div className="space-y-4">
+              {myProposedVideo.map((apt: any) => (
+                <Card key={apt.id}>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-medium">
+                          Video appointment with {apt.doctor?.user?.name ?? apt.doctorName ?? "Doctor"}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Proposed slots:{" "}
+                          {(apt.proposedSlots || [])
+                            .map((s: { date: string; time: string }) => `${s.date} @ ${s.time}`)
+                            .join(", ")}
+                        </p>
+                      </div>
+                      <PaymentButton
+                        appointmentId={apt.id}
+                        amount={500}
+                        description="Video consultation"
+                        onSuccess={() => {
+                          queryClient.invalidateQueries({ queryKey: ["appointments"] });
+                          queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+                          refetch();
+                        }}
+                        className="gap-2"
+                      >
+                        Pay ₹500
+                      </PaymentButton>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Awaiting Slot Confirmation (Doctor only) */}
+      {(userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR || userRole === Role.RECEPTIONIST) && awaitingConfirmation.length > 0 && (
+        <Card className="mb-6 border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900">
+          <CardContent className="pt-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-amber-600" />
+              Awaiting Slot Confirmation ({awaitingConfirmation.length})
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Patients have proposed time slots. Select one to confirm each appointment.
+            </p>
+            <div className="space-y-4">
+              {awaitingConfirmation.map((apt: any) => (
+                <Card key={apt.id}>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-medium">
+                          {apt.patient?.user?.name ?? apt.patientName ?? "Patient"} – Video appointment
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Proposed slots:
+                        </p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {(apt.proposedSlots || []).map((s: { date: string; time: string }, i: number) => (
+                            <Button
+                              key={i}
+                              size="sm"
+                              variant="outline"
+                              disabled={confirmSlotMutation.isPending}
+                              onClick={() =>
+                                confirmSlotMutation.mutate({ appointmentId: apt.id, confirmedSlotIndex: i })
+                              }
+                            >
+                              {s.date} @ {s.time}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Appointments List */}
       <Tabs defaultValue="upcoming" className="space-y-4">

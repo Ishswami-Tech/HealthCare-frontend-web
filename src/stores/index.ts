@@ -58,19 +58,13 @@ export const getStoreState = () => ({
 });
 
 export const resetAllStores = () => {
+  useWebSocketStore.getState().disconnect();
   useAppStore.getState().reset();
   useAuthStore.getState().reset();
   useAppointmentsStore.getState().reset();
-  // Add reset methods for other stores if they have them
-  if ('reset' in usePharmacyStore.getState()) {
-    (usePharmacyStore.getState() as any).reset();
-  }
-  if ('reset' in useNotificationStore.getState()) {
-    (useNotificationStore.getState() as any).reset();
-  }
-  if ('reset' in useMedicalRecordsStore.getState()) {
-    (useMedicalRecordsStore.getState() as any).reset();
-  }
+  usePharmacyStore.getState().reset();
+  useNotificationStore.getState().reset();
+  useMedicalRecordsStore.getState().reset();
 };
 
 export const useStoreActions = () => ({

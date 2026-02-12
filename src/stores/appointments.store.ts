@@ -122,11 +122,18 @@ export interface AppointmentsState {
   getTodayAppointments: () => StoreAppointment[];
   getUpcomingAppointments: (limit?: number) => StoreAppointment[];
   
-  // Utility Actions
+  // Utility Actions - ONLY call after successful server mutation (backend is source of truth)
+  /** Sync appointment from server response. Use this after API success. */
+  syncAppointmentFromServer: (appointment: StoreAppointment) => void;
+  /** @deprecated Use syncAppointmentFromServer with server response. Only for post-mutation cache sync. */
   markAsCompleted: (id: string) => void;
+  /** @deprecated Use syncAppointmentFromServer with server response. Only for post-mutation cache sync. */
   markAsNoShow: (id: string) => void;
+  /** @deprecated Use syncAppointmentFromServer with server response. Only for post-mutation cache sync. */
   checkInPatient: (id: string) => void;
+  /** @deprecated Use syncAppointmentFromServer with server response. Only for post-mutation cache sync. */
   cancelAppointment: (id: string, reason?: string) => void;
+  /** @deprecated Use syncAppointmentFromServer with server response. Only for post-mutation cache sync. */
   rescheduleAppointment: (id: string, newDate: string, newTime: string) => void;
   
   updateLastSync: () => void;
@@ -136,7 +143,7 @@ export interface AppointmentsState {
 const initialState: Omit<AppointmentsState, 
   'getAppointmentsByDate' | 'getAppointmentsByDoctor' | 'getAppointmentsByPatient' | 
   'getFilteredAppointments' | 'getTodayAppointments' | 'getUpcomingAppointments' | 
-  'markAsCompleted' | 'markAsNoShow' | 'checkInPatient' | 'cancelAppointment' | 
+  'syncAppointmentFromServer' | 'markAsCompleted' | 'markAsNoShow' | 'checkInPatient' | 'cancelAppointment' | 
   'rescheduleAppointment' | 'updateLastSync' | 'reset' | 'setAppointments' | 
   'addAppointment' | 'updateAppointment' | 'removeAppointment' | 'setSelectedAppointment' |
   'setSelectedDate' | 'setCurrentView' | 'setFilters' | 'setStats' | 'setAvailableSlots' |
@@ -428,7 +435,17 @@ export const useAppointmentsStore = create<AppointmentsState>()(
             .slice(0, limit);
         },
 
-        // Utility Actions
+        // Utility Actions - Prefer syncAppointmentFromServer after server success
+        syncAppointmentFromServer: (appointment) =>
+          set((state) => {
+            if (state.appointments[appointment.id]) {
+              Object.assign(state.appointments[appointment.id], appointment);
+              if (state.selectedAppointment?.id === appointment.id) {
+                Object.assign(state.selectedAppointment, appointment);
+              }
+            }
+          }),
+
         markAsCompleted: (id) =>
           set((state) => {
             if (state.appointments[id]) {
@@ -469,7 +486,7 @@ export const useAppointmentsStore = create<AppointmentsState>()(
             if (state.appointments[id]) {
               state.appointments[id].appointmentDate = newDate;
               state.appointments[id].startTime = newTime;
-              state.appointments[id].status = 'SCHEDULED'; // RESCHEDULED not in AppointmentStatus type
+              state.appointments[id].status = 'SCHEDULED';
               state.appointments[id].updatedAt = new Date().toISOString();
             }
           }),

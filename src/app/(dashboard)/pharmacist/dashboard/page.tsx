@@ -49,7 +49,7 @@ export default function PharmacistDashboard() {
     clinicId || "",
     {
       limit: 100,
-    }
+    },
   );
 
   const { data: pharmacyStats } = usePharmacyStats(clinicId || "");
@@ -58,21 +58,22 @@ export default function PharmacistDashboard() {
   const stats = {
     pendingPrescriptions:
       (prescriptions as any[]).filter(
-        (p: any) => p.status === "PENDING" || p.status === "pending"
+        (p: any) => p.status === "PENDING" || p.status === "pending",
       )?.length || 0,
     preparedPrescriptions:
       (prescriptions as any[]).filter(
-        (p: any) => p.status === "PREPARED" || p.status === "prepared"
+        (p: any) => p.status === "PREPARED" || p.status === "prepared",
       )?.length || 0,
     lowStockItems:
-      (inventory as any[]).filter((i: any) => i.currentStock < i.minStock)?.length || 0,
+      (inventory as any[]).filter((i: any) => i.currentStock < i.minStock)
+        ?.length || 0,
     totalHandovers: (pharmacyStats as any)?.totalHandovers || 0,
     monthlyDispensed: (pharmacyStats as any)?.monthlyDispensed || 0,
     inventoryValue:
       (pharmacyStats as any)?.inventoryValue ||
       (inventory as any[]).reduce(
         (sum: number, item: any) => sum + item.costPerUnit * item.currentStock,
-        0
+        0,
       ),
     expiringItems:
       (inventory as any[]).filter((i: any) => {
@@ -82,13 +83,14 @@ export default function PharmacistDashboard() {
         in30Days.setDate(in30Days.getDate() + 30);
         return expiry <= in30Days;
       })?.length || 0,
-    averagePreparationTime: (pharmacyStats as any)?.averagePreparationTime || 15,
+    averagePreparationTime:
+      (pharmacyStats as any)?.averagePreparationTime || 15,
   };
 
   // Use real prescriptions data
   const pendingPrescriptions = (prescriptions as any[])
     .filter(
-      (p: any) => (p.status === "PENDING" || p.status === "pending") && p.id
+      (p: any) => (p.status === "PENDING" || p.status === "pending") && p.id,
     )
     .slice(0, 10)
     .map((p: any) => ({
@@ -148,15 +150,19 @@ export default function PharmacistDashboard() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    const s = status?.toLowerCase();
+    switch (s) {
       case "pending":
         return "bg-yellow-100 text-yellow-800";
-      case "preparing":
-        return "bg-blue-100 text-blue-800";
+      case "filled":
+      case "dispensed":
+      case "completed":
       case "prepared":
         return "bg-green-100 text-green-800";
-      case "completed":
-        return "bg-gray-100 text-gray-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
+      case "preparing":
+        return "bg-blue-100 text-blue-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -201,7 +207,9 @@ export default function PharmacistDashboard() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
               <p className="text-sm text-blue-800">
-                Loading {prescriptionsPending && "prescriptions"}{prescriptionsPending && inventoryPending && " and "}{inventoryPending && "inventory"}...
+                Loading {prescriptionsPending && "prescriptions"}
+                {prescriptionsPending && inventoryPending && " and "}
+                {inventoryPending && "inventory"}...
               </p>
             </div>
           )}

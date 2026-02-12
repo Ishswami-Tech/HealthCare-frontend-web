@@ -18,9 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
-import {
-  usePrescriptions,
-} from "@/hooks/query/usePharmacy";
+import { usePrescriptions } from "@/hooks/query/usePharmacy";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
@@ -56,8 +54,6 @@ export default function PrescriptionsPage() {
       status: filterStatus,
       limit: 100,
     });
-
-
 
   // Transform prescriptions data
   const prescriptions = (prescriptionsData as any[]).map((p: any) => ({
@@ -185,9 +181,15 @@ export default function PrescriptionsPage() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    const s = status?.toLowerCase();
+    switch (s) {
       case "pending":
         return "bg-yellow-100 text-yellow-800";
+      case "filled":
+      case "dispensed":
+        return "bg-green-100 text-green-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
       case "preparing":
         return "bg-blue-100 text-blue-800";
       case "prepared":
@@ -200,15 +202,19 @@ export default function PrescriptionsPage() {
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    const s = status?.toLowerCase();
+    switch (s) {
       case "pending":
         return <Clock className="w-4 h-4" />;
       case "preparing":
         return <Timer className="w-4 h-4" />;
       case "prepared":
-        return <Package className="w-4 h-4" />;
+      case "filled":
+      case "dispensed":
       case "completed":
         return <CheckCircle className="w-4 h-4" />;
+      case "cancelled":
+        return <AlertTriangle className="w-4 h-4" />;
       default:
         return <AlertTriangle className="w-4 h-4" />;
     }
@@ -242,7 +248,7 @@ export default function PrescriptionsPage() {
             </Badge>
             <Badge
               className={`${getStatusColor(
-                prescription.status
+                prescription.status,
               )} flex items-center gap-1`}
             >
               {getStatusIcon(prescription.status)}
@@ -498,7 +504,8 @@ export default function PrescriptionsPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium">
-                            Handed over: {item.preparedAt || item.handedOverAt || "N/A"}
+                            Handed over:{" "}
+                            {item.preparedAt || item.handedOverAt || "N/A"}
                           </p>
                           <p className="text-xs text-gray-500">
                             {item.medicines?.length || 0} medicines

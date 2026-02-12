@@ -23,6 +23,11 @@ import type {
 } from '@/types/appointment.types';
 
 // ✅ Enhanced Input Validation Schemas
+const scanQRSchema = z.object({
+  code: z.string().min(1, 'QR code is required'),
+  locationId: z.string().uuid().optional(),
+});
+
 const createAppointmentSchema = z.object({
   patientId: z.string().uuid(),
   doctorId: z.string().uuid(),
@@ -43,7 +48,7 @@ const updateAppointmentSchema = z.object({
   duration: z.number().min(15).max(480).optional(),
   type: z.string().min(1).max(100).optional(),
   notes: z.string().max(1000).optional(),
-  status: z.enum(['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
+  status: z.enum(['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
   symptoms: z.array(z.string()).optional(),
   diagnosis: z.string().max(1000).optional(),
   prescription: z.string().max(1000).optional(),
@@ -63,6 +68,23 @@ const addToQueueSchema = z.object({
   appointmentId: z.string().uuid().optional(),
   queueType: z.string().min(1).max(50),
   priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).default('NORMAL'),
+});
+
+const proposeVideoSlotsSchema = z.object({
+  patientId: z.string().uuid(),
+  doctorId: z.string().uuid(),
+  clinicId: z.string().min(1),
+  duration: z.number().min(15).max(120),
+  proposedSlots: z
+    .array(
+      z.object({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        time: z.string().regex(/^\d{1,2}:\d{2}$/),
+      })
+    )
+    .min(3, 'Must propose at least 3 time slots')
+    .max(4, 'Must propose at most 4 time slots'),
+  notes: z.string().max(1000).optional(),
 });
 
 // ✅ Helper Functions
@@ -221,6 +243,94 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
 }
 
 /**
+ * Propose video appointment with 3-4 time slots (patient flow)
+ */
+export async function proposeVideoAppointment(data: {
+  patientId: string;
+  doctorId: string;
+  clinicId: string;
+  duration: number;
+  proposedSlots: Array<{ date: string; time: string }>;
+  notes?: string;
+}): Promise<{ success: boolean; appointment?: Appointment; error?: string; code?: string }> {
+  try {
+    const validatedData = proposeVideoSlotsSchema.parse(data);
+    const { userId, clinicId } = await getSessionData();
+
+    const hasAccess = await validateClinicAccess(userId, 'appointments.create');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions', code: 'AUTH_INSUFFICIENT_PERMISSIONS' };
+    }
+
+    const response = await clinicApiClient.proposeVideoAppointment({
+      ...validatedData,
+      clinicId: clinicId || validatedData.clinicId,
+    });
+
+    if (!response.success || !(response as any).data) {
+      return {
+        success: false,
+        error: (response as any).message || 'Failed to propose video appointment',
+        code: 'VIDEO_PROPOSE_FAILED',
+      };
+    }
+
+    revalidatePath('/video-appointments');
+    revalidatePath('/appointments');
+    revalidateTag('appointments');
+    return { success: true, appointment: (response as any).data as Appointment };
+  } catch (error) {
+    logger.error('Failed to propose video appointment', error instanceof Error ? error : new Error(String(error)));
+    if (error instanceof z.ZodError) {
+      return { success: false, error: `Validation: ${error.issues[0]?.message}`, code: 'VALIDATION_ERROR' };
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to propose video appointment',
+      code: 'VIDEO_PROPOSE_FAILED',
+    };
+  }
+}
+
+/**
+ * Confirm video slot (doctor flow)
+ */
+export async function confirmVideoSlot(
+  appointmentId: string,
+  confirmedSlotIndex: number
+): Promise<{ success: boolean; appointment?: Appointment; error?: string; code?: string }> {
+  try {
+    const { userId } = await getSessionData();
+    const hasAccess = await validateClinicAccess(userId, 'appointments.update');
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied: Insufficient permissions', code: 'AUTH_INSUFFICIENT_PERMISSIONS' };
+    }
+
+    const response = await clinicApiClient.confirmVideoSlot(appointmentId, confirmedSlotIndex);
+
+    if (!response.success || !(response as any).data) {
+      return {
+        success: false,
+        error: (response as any).message || 'Failed to confirm slot',
+        code: 'VIDEO_CONFIRM_FAILED',
+      };
+    }
+
+    revalidatePath('/video-appointments');
+    revalidatePath('/appointments');
+    revalidateTag('appointments');
+    return { success: true, appointment: (response as any).data as Appointment };
+  } catch (error) {
+    logger.error('Failed to confirm video slot', error instanceof Error ? error : new Error(String(error)));
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to confirm slot',
+      code: 'VIDEO_CONFIRM_FAILED',
+    };
+  }
+}
+
+/**
  * ✅ Consolidated: Get appointments with enhanced filtering
  * Removed legacy clinicIdOrFilters parameter - now uses filters only
  * Follows DRY, SOLID, KISS principles
@@ -253,6 +363,7 @@ export async function getAppointments(filters?: AppointmentFilters): Promise<{
     
     if (filters?.doctorId) appointmentParams.doctorId = filters.doctorId;
     if (filters?.status) appointmentParams.status = filters.status;
+    if (filters?.type) appointmentParams.type = filters.type;
     if (filters?.date) appointmentParams.date = filters.date;
     if (filters?.startDate) appointmentParams.startDate = filters.startDate;
     if (filters?.endDate) appointmentParams.endDate = filters.endDate;
@@ -1234,6 +1345,8 @@ export async function bulkUpdateAppointmentStatus(appointmentIds: string[], stat
   success: boolean; 
   updated?: number; 
   failed?: number;
+  failedIds?: string[];
+  failedReasons?: Record<string, string>;
   error?: string;
   code?: string;
 }> {
@@ -1251,7 +1364,8 @@ export async function bulkUpdateAppointmentStatus(appointmentIds: string[], stat
     }
 
     let updated = 0;
-    let failed = 0;
+    const failedIds: string[] = [];
+    const failedReasons: Record<string, string> = {};
 
     // Process appointments in batches
     for (const id of appointmentIds) {
@@ -1260,10 +1374,12 @@ export async function bulkUpdateAppointmentStatus(appointmentIds: string[], stat
         if (response.success) {
           updated++;
         } else {
-          failed++;
+          failedIds.push(id);
+          failedReasons[id] = response.message || 'Update rejected by backend';
         }
-      } catch {
-        failed++;
+      } catch (err) {
+        failedIds.push(id);
+        failedReasons[id] = err instanceof Error ? err.message : 'Unknown error';
       }
     }
 
@@ -1281,7 +1397,8 @@ export async function bulkUpdateAppointmentStatus(appointmentIds: string[], stat
       metadata: {
         totalRequested: appointmentIds.length,
         updated,
-        failed,
+        failed: failedIds.length,
+        failedIds,
         status
       }
     });
@@ -1290,14 +1407,24 @@ export async function bulkUpdateAppointmentStatus(appointmentIds: string[], stat
     revalidatePath('/dashboard/appointments');
     revalidateTag('appointments', 'max');
 
-    const result: any = { 
+    const result: { 
+      success: boolean; 
+      updated: number; 
+      failed: number;
+      failedIds?: string[];
+      failedReasons?: Record<string, string>;
+      error?: string;
+      code?: string;
+    } = { 
       success: updated > 0, 
       updated, 
-      failed
+      failed: failedIds.length
     };
     
-    if (failed > 0) {
-      result.error = `${failed} appointments failed to update`;
+    if (failedIds.length > 0) {
+      result.failedIds = failedIds;
+      result.failedReasons = failedReasons;
+      result.error = `${failedIds.length} appointment(s) failed to update`;
     }
     
     return result;
@@ -1310,6 +1437,77 @@ export async function bulkUpdateAppointmentStatus(appointmentIds: string[], stat
       failed: appointmentIds.length,
       error: error instanceof Error ? error.message : 'Bulk update failed',
       code: 'BULK_UPDATE_FAILED'
+    };
+  }
+}
+
+/**
+ * Scan location QR and check in
+ */
+export async function scanLocationQRAndCheckIn(data: { code: string; locationId?: string }): Promise<{
+  success: boolean;
+  appointment?: Appointment;
+  error?: string;
+  code?: string;
+}> {
+  try {
+    // Validate input
+    const validatedData = scanQRSchema.parse(data);
+    const { userId } = await getSessionData();
+
+    // Verify QR and check in via enhanced API client (backend expects qrCode, not code)
+    const payload = {
+      qrCode: validatedData.code,
+      ...(validatedData.locationId ? { locationId: validatedData.locationId } : {})
+    };
+    const response = await clinicApiClient.scanLocationQRAndCheckIn(payload);
+
+    if (!response.success || !response.data) {
+      return {
+        success: false,
+        error: response.message || 'Failed to process QR check-in',
+        code: response.code || 'QR_CHECKIN_FAILED'
+      };
+    }
+
+    // Audit log
+    const { ipAddress, userAgent } = await getClientInfo();
+    await auditLog({
+      userId,
+      action: 'QR_CHECK_IN',
+      resource: 'APPOINTMENT',
+      resourceId: (response.data as any).id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      metadata: {
+        code: validatedData.code,
+        locationId: validatedData.locationId
+      }
+    });
+
+    // Revalidate cache
+    revalidatePath('/dashboard/appointments');
+    revalidateTag('appointments', 'max');
+
+    return { success: true, appointment: response.data as Appointment };
+
+  } catch (error) {
+    logger.error('Failed QR check-in', error instanceof Error ? error : new Error(String(error)));
+    
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: `Validation error: ${error.issues[0]?.message}`,
+        code: 'VALIDATION_ERROR'
+      };
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred during QR check-in',
+      code: 'QR_CHECKIN_FAILED'
     };
   }
 }

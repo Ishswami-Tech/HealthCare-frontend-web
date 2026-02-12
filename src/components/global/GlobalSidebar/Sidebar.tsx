@@ -107,7 +107,7 @@ interface SidebarInnerProps {
 }
 
 function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
-  const { open, setOpen } = useSidebar(); // Access setOpen to toggle on hover
+  const { open } = useSidebar(); // Access setOpen to toggle on hover
   const { t } = useTranslation();
   const pathname = usePathname();
   const [avatarError, setAvatarError] = useState(false);

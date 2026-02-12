@@ -92,27 +92,27 @@ export const AUTH_ONLY_ROUTES = [
  */
 export const PROTECTED_ROUTES: Record<string, Role[]> = {
   // Dashboard routes (role-specific) - using actual URLs (route groups don't appear in URLs)
-  '/dashboard': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
+  '/dashboard': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
   '/clinic-admin/dashboard': [Role.CLINIC_ADMIN],
-  '/doctor/dashboard': [Role.DOCTOR],
+  '/doctor/dashboard': [Role.DOCTOR, Role.ASSISTANT_DOCTOR],
   '/patient/dashboard': [Role.PATIENT],
   '/receptionist/dashboard': [Role.RECEPTIONIST],
   '/pharmacist/dashboard': [Role.PHARMACIST],
   '/super-admin/dashboard': [Role.SUPER_ADMIN],
   
   // Shared routes (multiple roles) - using actual URLs
-  '/appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
-  '/queue': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST],
-  '/ehr': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
-  '/pharmacy': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.PHARMACIST, Role.DOCTOR],
-  '/analytics': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR],
-  '/billing': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
-  '/video-appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.PATIENT],
+  '/appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
+  '/queue': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.RECEPTIONIST],
+  '/ehr': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR],
+  '/pharmacy': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.PHARMACIST, Role.DOCTOR, Role.ASSISTANT_DOCTOR],
+  '/analytics': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR],
+  '/billing': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
+  '/video-appointments': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.RECEPTIONIST, Role.PATIENT],
   
   // Profile routes (role-specific)
   '/super-admin/profile': [Role.SUPER_ADMIN],
   '/clinic-admin/profile': [Role.CLINIC_ADMIN],
-  '/doctor/profile': [Role.DOCTOR],
+  '/doctor/profile': [Role.DOCTOR, Role.ASSISTANT_DOCTOR],
   '/receptionist/profile': [Role.RECEPTIONIST],
   '/pharmacist/profile': [Role.PHARMACIST],
   '/patient/profile': [Role.PATIENT],
@@ -131,15 +131,16 @@ export const PROTECTED_ROUTES: Record<string, Role[]> = {
   '/clinic-admin/settings': [Role.CLINIC_ADMIN],
   '/clinic-admin/video': [Role.CLINIC_ADMIN],
   
-  // Doctor specific routes
-  '/doctor/appointments': [Role.DOCTOR],
-  '/doctor/patients': [Role.DOCTOR],
-  '/doctor/video': [Role.DOCTOR],
+  // Doctor specific routes (shared with Assistant Doctor)
+  '/doctor/appointments': [Role.DOCTOR, Role.ASSISTANT_DOCTOR],
+  '/doctor/patients': [Role.DOCTOR, Role.ASSISTANT_DOCTOR],
+  '/doctor/video': [Role.DOCTOR, Role.ASSISTANT_DOCTOR],
   
   // Receptionist specific routes
   '/receptionist/appointments': [Role.RECEPTIONIST],
   '/receptionist/patients': [Role.RECEPTIONIST],
   '/receptionist/video': [Role.RECEPTIONIST],
+  '/receptionist/check-in': [Role.RECEPTIONIST],
   
   // Pharmacist specific routes
   '/pharmacist/prescriptions': [Role.PHARMACIST],
@@ -147,12 +148,13 @@ export const PROTECTED_ROUTES: Record<string, Role[]> = {
   
   // Patient specific routes
   '/patient/appointments': [Role.PATIENT],
+  '/patient/check-in': [Role.PATIENT],
   '/patient/medical-records': [Role.PATIENT],
   '/patient/prescriptions': [Role.PATIENT],
   '/patient/video': [Role.PATIENT],
   
   // Settings (all authenticated users)
-  '/settings': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
+  '/settings': [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.RECEPTIONIST, Role.PHARMACIST, Role.PATIENT],
 };
 
 // ============================================================================
@@ -236,6 +238,17 @@ export const ROLE_ROUTES: Record<Role, RoleRoutes> = {
       { path: '/doctor/dashboard', label: 'Dashboard' },
       { path: '/doctor/appointments', label: 'Appointments' },
       { path: '/doctor/patients', label: 'Patients' },
+      { path: '/doctor/video', label: 'Video Consultations' },
+      { path: '/doctor/profile', label: 'Profile' },
+    ],
+  },
+  ASSISTANT_DOCTOR: {
+    dashboard: '/doctor/dashboard',
+    routes: [
+      { path: '/doctor/dashboard', label: 'Dashboard' },
+      { path: '/doctor/appointments', label: 'Appointments' },
+      { path: '/doctor/patients', label: 'Patients' },
+      { path: '/doctor/video', label: 'Video Consultations' },
       { path: '/doctor/profile', label: 'Profile' },
     ],
   },
@@ -244,7 +257,11 @@ export const ROLE_ROUTES: Record<Role, RoleRoutes> = {
     routes: [
       { path: '/receptionist/dashboard', label: 'Dashboard' },
       { path: '/receptionist/appointments', label: 'Appointments' },
+      { path: '/receptionist/check-in', label: 'Patient Check-in' },
       { path: '/receptionist/patients', label: 'Patients' },
+      { path: '/receptionist/video', label: 'Video Consultations' },
+      { path: '/queue', label: 'Queue' },
+      { path: '/billing', label: 'Billing' },
       { path: '/receptionist/profile', label: 'Profile' },
     ],
   },
@@ -252,6 +269,7 @@ export const ROLE_ROUTES: Record<Role, RoleRoutes> = {
     dashboard: '/pharmacist/dashboard',
     routes: [
       { path: '/pharmacist/dashboard', label: 'Dashboard' },
+      { path: '/pharmacy', label: 'Pharmacy' },
       { path: '/pharmacist/prescriptions', label: 'Prescriptions' },
       { path: '/pharmacist/inventory', label: 'Inventory' },
       { path: '/pharmacist/profile', label: 'Profile' },
@@ -262,9 +280,11 @@ export const ROLE_ROUTES: Record<Role, RoleRoutes> = {
     routes: [
       { path: '/patient/dashboard', label: 'Dashboard' },
       { path: '/patient/appointments', label: 'Appointments' },
+      { path: '/patient/check-in', label: 'QR Check-in' },
+      { path: '/video-appointments', label: 'Video Appointments' },
+      { path: '/billing', label: 'Billing & Payments' },
       { path: '/patient/medical-records', label: 'Medical Records' },
       { path: '/patient/prescriptions', label: 'Prescriptions' },
-      { path: '/video-appointments', label: 'Video Appointments' },
       { path: '/patient/profile', label: 'Profile' },
       { path: '/settings', label: 'Settings' },
       { path: '#logout', label: 'Logout' },
@@ -276,7 +296,7 @@ export const ROLE_ROUTES: Record<Role, RoleRoutes> = {
 export const ROLE_PATH_MAP: Record<string, Role[]> = {
   '/super-admin': [Role.SUPER_ADMIN],
   '/clinic-admin': [Role.CLINIC_ADMIN],
-  '/doctor': [Role.DOCTOR],
+  '/doctor': [Role.DOCTOR, Role.ASSISTANT_DOCTOR],
   '/receptionist': [Role.RECEPTIONIST],
   '/pharmacist': [Role.PHARMACIST],
   '/patient': [Role.PATIENT],

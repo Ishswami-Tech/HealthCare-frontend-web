@@ -1,6 +1,7 @@
 "use client";
 
-
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useMyAppointments } from "@/hooks/query/useAppointments";
+import { useMyAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 // import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -17,7 +18,6 @@ import {
   Activity,
   Calendar,
   Users,
-  UserCheck,
   Clock,
   Stethoscope,
   Play,
@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 
 export default function DoctorDashboard() {
+  const router = useRouter();
   const { session } = useAuth();
   const user = session?.user;
 
@@ -39,18 +40,57 @@ export default function DoctorDashboard() {
 
   // Fetch real data using existing hooks and server actions
   const { data: appointments } = useMyAppointments();
+  const startAppointmentMutation = useStartAppointment();
+  const completeAppointmentMutation = useCompleteAppointment();
 
   // Calculate real stats from fetched data
   const appointmentsArray = appointments?.appointments || [];
+
+  // Today's queue from real appointments (sorted by time)
+  const todaysQueue = useMemo(() => {
+    const today = new Date().toDateString();
+    return appointmentsArray
+      .filter((apt) => new Date(apt.date).toDateString() === today)
+      .sort(
+        (a, b) =>
+          (a.time || "").localeCompare(b.time || "", undefined, { numeric: true })
+      )
+      .map((apt) => {
+        const patientName =
+          apt.patient?.name ||
+          `${apt.patient?.firstName || ""} ${apt.patient?.lastName || ""}`.trim() ||
+          "Unknown Patient";
+        const statusLabels: Record<string, string> = {
+          IN_PROGRESS: "In Progress",
+          CHECKED_IN: "Checked In",
+          SCHEDULED: "Scheduled",
+          CONFIRMED: "Scheduled",
+          COMPLETED: "Completed",
+          CANCELLED: "Cancelled",
+          NO_SHOW: "No Show",
+        };
+        return {
+          id: apt.id,
+          patientName,
+          time: apt.time || "",
+          status: statusLabels[apt.status] || apt.status,
+          statusEnum: apt.status,
+          type: apt.type || "Consultation",
+          duration: `${apt.duration || 30} min`,
+          notes: apt.notes || "",
+          isVideo: apt.type === "VIDEO_CALL",
+        };
+      });
+  }, [appointmentsArray]);
+
   const stats = {
     todayAppointments:
       appointmentsArray.filter((apt) => {
         const today = new Date().toDateString();
         return new Date(apt.date).toDateString() === today;
-      }).length || 8,
+      }).length || 0,
     checkedInPatients:
-      appointmentsArray.filter((apt) => apt.status === "CHECKED_IN").length ||
-      3,
+      appointmentsArray.filter((apt) => apt.status === "CHECKED_IN").length || 0,
     completedToday:
       appointmentsArray.filter((apt) => {
         const today = new Date().toDateString();
@@ -58,7 +98,7 @@ export default function DoctorDashboard() {
           new Date(apt.date).toDateString() === today &&
           apt.status === "COMPLETED"
         );
-      }).length || 5,
+      }).length || 0,
     totalPatients:
       appointmentsArray.reduce((acc: { patientId: string }[], apt) => {
         const patientIds = new Set(acc.map((p) => p.patientId));
@@ -66,50 +106,17 @@ export default function DoctorDashboard() {
           acc.push({ patientId: apt.patientId });
         }
         return acc;
-      }, []).length || 124,
+      }, []).length || 0,
     avgConsultationTime: 25,
     patientSatisfaction: 4.8,
-    nextAppointment: "10:30 AM",
+    nextAppointment:
+      todaysQueue.find(
+        (a) =>
+          a.statusEnum === "SCHEDULED" ||
+          a.statusEnum === "CONFIRMED" ||
+          a.statusEnum === "CHECKED_IN"
+      )?.time || "—",
   };
-
-  const todaysQueue = [
-    {
-      id: "1",
-      patientName: "Rajesh Kumar",
-      time: "10:00 AM",
-      status: "In Progress",
-      type: "Consultation",
-      duration: "30 min",
-      notes: "Follow-up for Panchakarma treatment",
-    },
-    {
-      id: "2",
-      patientName: "Priya Sharma",
-      time: "10:30 AM",
-      status: "Checked In",
-      type: "Nadi Pariksha",
-      duration: "45 min",
-      notes: "Initial consultation for dosha analysis",
-    },
-    {
-      id: "3",
-      patientName: "Amit Singh",
-      time: "11:15 AM",
-      status: "Checked In",
-      type: "Follow-up",
-      duration: "15 min",
-      notes: "Review treatment progress",
-    },
-    {
-      id: "4",
-      patientName: "Sunita Devi",
-      time: "12:00 PM",
-      status: "Scheduled",
-      type: "Shirodhara",
-      duration: "60 min",
-      notes: "Stress management therapy session",
-    },
-  ];
 
   const recentActivities = [
     {
@@ -162,7 +169,7 @@ export default function DoctorDashboard() {
   const sidebarLinks = getSidebarLinksByRole(Role.DOCTOR);
 
   return (
-    <DashboardLayout title="Doctor Dashboard" allowedRole={Role.DOCTOR}>
+    <DashboardLayout title="Doctor Dashboard" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
       <Sidebar
         links={sidebarLinks}
         user={{
@@ -293,15 +300,27 @@ export default function DoctorDashboard() {
                 <CardTitle className="text-lg">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => router.push("/doctor/video")}
+                >
                   <Video className="w-4 h-4 mr-2" />
                   Start Video Consultation
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => router.push("/doctor/appointments")}
+                >
                   <FileText className="w-4 h-4 mr-2" />
                   Write Prescription
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => router.push("/doctor/patients")}
+                >
                   <Users className="w-4 h-4 mr-2" />
                   View Patient History
                 </Button>
@@ -353,8 +372,22 @@ export default function DoctorDashboard() {
                         </Badge>
                       </div>
                       {appointment.status === "Checked In" && (
-                        <Button size="sm" className="flex items-center gap-1">
-                          <Play className="w-3 h-3" />
+                        <Button
+                          size="sm"
+                          className="flex items-center gap-1"
+                          disabled={startAppointmentMutation.isPending}
+                          onClick={async () => {
+                            await startAppointmentMutation.mutateAsync(appointment.id);
+                            if (appointment.isVideo) {
+                              router.push("/doctor/video");
+                            }
+                          }}
+                        >
+                          {startAppointmentMutation.isPending ? (
+                            <Clock className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Play className="w-3 h-3" />
+                          )}
                           Start
                         </Button>
                       )}
@@ -363,8 +396,19 @@ export default function DoctorDashboard() {
                           size="sm"
                           variant="outline"
                           className="flex items-center gap-1"
+                          disabled={completeAppointmentMutation.isPending}
+                          onClick={() =>
+                            completeAppointmentMutation.mutateAsync({
+                              id: appointment.id,
+                              data: {},
+                            })
+                          }
                         >
-                          <CheckCircle className="w-3 h-3" />
+                          {completeAppointmentMutation.isPending ? (
+                            <Clock className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-3 h-3" />
+                          )}
                           Complete
                         </Button>
                       )}
@@ -385,7 +429,7 @@ export default function DoctorDashboard() {
                 <div className="space-y-4">
                   {recentActivities.map((activity, index) => (
                     <div key={index} className="flex items-start gap-3">
-                      <div className="flex-shrink-0">
+                      <div className="shrink-0">
                         {activity.type === "consultation" && (
                           <Stethoscope className="w-4 h-4 text-blue-600" />
                         )}

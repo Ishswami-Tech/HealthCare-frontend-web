@@ -58,15 +58,27 @@ const updateClinicSchema = z.object({
 // ✅ Helper Functions
 async function getSessionData() {
   const cookieStore = await cookies();
-  const sessionId = cookieStore.get('session_id')?.value;
-  const userId = cookieStore.get('user_id')?.value;
-  const clinicId = cookieStore.get('clinic_id')?.value;
+  let sessionId = cookieStore.get('session_id')?.value;
+  let userId = cookieStore.get('user_id')?.value;
+  let clinicId = cookieStore.get('clinic_id')?.value;
+  let accessToken = cookieStore.get('access_token')?.value;
+
+  // Fallback: If userId is missing (JWT auth) or accessToken is missing, try to get it from getServerSession
+  if (!userId || !accessToken) {
+    const { getServerSession } = await import('@/lib/actions/auth.server');
+    const session = await getServerSession();
+    if (session?.user?.id) {
+      userId = session.user.id;
+      sessionId = sessionId || session.session_id; // Also sync sessionId if missing
+      accessToken = session.access_token;
+    }
+  }
 
   if (!sessionId || !userId) {
     throw new Error('Unauthorized: Please log in again');
   }
 
-  return { sessionId, userId, clinicId };
+  return { sessionId, userId, clinicId, accessToken };
 }
 
 async function getClientIP(): Promise<string> {
@@ -94,10 +106,11 @@ export async function createClinic(data: CreateClinicData): Promise<{ success: b
     const validatedData = createClinicSchema.parse(data);
 
     // Get session data
-    const { sessionId, userId } = await getSessionData();
+    const { sessionId, userId, accessToken } = await getSessionData();
 
     // Validate permissions
     const hasAccess = await validateClinicAccess(userId, 'clinics.create');
+    
     if (!hasAccess) {
       await auditLog({
         userId,
@@ -138,7 +151,11 @@ export async function createClinic(data: CreateClinicData): Promise<{ success: b
       language: validatedData.language || 'en',
     };
 
-    const response = await clinicApiClient.createClinic(apiData);
+    const response = await clinicApiClient.createClinic(apiData, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Failed to create clinic' };
@@ -196,7 +213,7 @@ export async function getClinics(filters?: {
   sortOrder?: 'asc' | 'desc';
 }): Promise<{ success: boolean; clinics?: Clinic[]; meta?: any; error?: string }> {
   try {
-    const { userId } = await getSessionData();
+    const { userId, accessToken } = await getSessionData();
 
     // Validate permissions
     const hasAccess = await validateClinicAccess(userId, 'clinics.read');
@@ -204,8 +221,12 @@ export async function getClinics(filters?: {
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Get clinics via API
-    const response = await clinicApiClient.getClinics(filters);
+    // Get clinics via API - Pass auth headers explicitly
+    const response = await clinicApiClient.getClinics(filters, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
 
     if (!response.success) {
       return { success: false, error: 'Failed to fetch clinics' };
@@ -231,7 +252,7 @@ export async function getClinics(filters?: {
  */
 export async function getClinicById(id: string): Promise<{ success: boolean; clinic?: Clinic; error?: string }> {
   try {
-    const { userId } = await getSessionData();
+    const { userId, accessToken } = await getSessionData();
 
     // Validate permissions
     const hasAccess = await validateClinicAccess(userId, 'clinics.read');
@@ -240,7 +261,11 @@ export async function getClinicById(id: string): Promise<{ success: boolean; cli
     }
 
     // Get clinic via API
-    const response = await clinicApiClient.getClinicById(id);
+    const response = await clinicApiClient.getClinicById(id, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Clinic not found' };
@@ -800,7 +825,7 @@ export async function assignClinicAdmin(data: { userId: string; clinicId: string
  */
 export async function getClinicDoctors(clinicId: string) {
   try {
-    const { userId } = await getSessionData();
+    const { userId, accessToken } = await getSessionData();
     // Receptionist/Doctor/Admin accessible
     const hasAccess = await validateClinicAccess(userId, 'clinics.read'); 
     
@@ -808,7 +833,11 @@ export async function getClinicDoctors(clinicId: string) {
        return { success: false, error: 'Access denied' };
     }
 
-    const response = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId));
+    const response = await clinicApiClient.get(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId), undefined, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
     return response.success ? { success: true, doctors: response.data } : { success: false, error: 'Failed to get doctors' };
   } catch (error) {
     logger.error('Failed to get clinic doctors', error instanceof Error ? error : new Error(String(error)));
@@ -821,14 +850,18 @@ export async function getClinicDoctors(clinicId: string) {
  */
 export async function getClinicPatients(clinicId: string) {
   try {
-     const { userId } = await getSessionData();
+     const { userId, accessToken } = await getSessionData();
     const hasAccess = await validateClinicAccess(userId, 'clinics.read');
     
     if (!hasAccess) {
        return { success: false, error: 'Access denied' };
     }
 
-    const response = await clinicApiClient.get(API_ENDPOINTS.PATIENTS.GET_CLINIC_PATIENTS(clinicId));
+    const response = await clinicApiClient.get(API_ENDPOINTS.PATIENTS.GET_CLINIC_PATIENTS(clinicId), undefined, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
     return response.success ? { success: true, patients: response.data } : { success: false, error: 'Failed to get patients' };
   } catch (error) {
     logger.error('Failed to get clinic patients', error instanceof Error ? error : new Error(String(error)));
@@ -876,14 +909,18 @@ export async function associateUser(clinicId: string) {
  */
 export async function getClinicLocationById(clinicId: string, locationId: string): Promise<{ success: boolean; location?: ClinicLocation; error?: string }> {
   try {
-    const { userId } = await getSessionData();
+    const { userId, accessToken } = await getSessionData();
     const hasAccess = await validateClinicAccess(userId, 'clinics.read');
     
     if (!hasAccess) {
       return { success: false, error: 'Access denied' };
     }
 
-    const response = await clinicApiClient.get(API_ENDPOINTS.CLINIC_LOCATIONS.GET_BY_ID(clinicId, locationId));
+    const response = await clinicApiClient.get(API_ENDPOINTS.CLINIC_LOCATIONS.GET_BY_ID(clinicId, locationId), undefined, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
 
     if (!response.success || !response.data) {
       return { success: false, error: 'Location not found' };

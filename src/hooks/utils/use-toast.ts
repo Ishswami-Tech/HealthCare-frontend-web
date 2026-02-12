@@ -44,6 +44,7 @@ export const TOAST_IDS = {
     START: 'appointment-start',
     COMPLETE: 'appointment-complete',
     CANCEL: 'appointment-cancel',
+    CHECK_IN: 'appointment-check-in',
     REMINDER: 'appointment-reminder',
     BOOKING: 'consultation-booking',
   },

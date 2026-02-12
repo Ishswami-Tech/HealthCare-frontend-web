@@ -67,7 +67,8 @@ interface PharmacyStore {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
-  
+  reset: () => void;
+
   // Computed getters
   getFilteredMedicines: () => Medicine[];
   getLowStockMedicines: () => Medicine[];
@@ -170,6 +171,19 @@ export const usePharmacyStore = create<PharmacyStore>()(
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),
+      reset: () =>
+        set({
+          medicines: [],
+          prescriptions: [],
+          inventory: [],
+          orders: [],
+          filters: defaultFilters,
+          stats: null,
+          selectedMedicine: null,
+          selectedPrescription: null,
+          isLoading: false,
+          error: null,
+        }),
 
       // Computed getters
       getFilteredMedicines: () => {

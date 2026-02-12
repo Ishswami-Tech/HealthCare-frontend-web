@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ export default function DoctorPatients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [genderFilter, setGenderFilter] = useState("all");
   const [ageFilter, setAgeFilter] = useState("all");
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [drawerPatient, setDrawerPatient] = useState<any>(null);
 
   // Fetch real patient data
   const { data: patientsData, isPending: isPendingPatients } = usePatients(
@@ -71,10 +72,11 @@ export default function DoctorPatients() {
   }, [patientsData]);
 
   const filteredPatients = patients.filter((patient: any) => {
+    const name = patient.name || `${patient.firstName || ""} ${patient.lastName || ""}`.trim() || "";
     const matchesSearch =
-      patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.chiefComplaints.some((complaint: string) =>
-        complaint.toLowerCase().includes(searchTerm.toLowerCase())
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (patient.chiefComplaints || []).some((complaint: string) =>
+        String(complaint).toLowerCase().includes(searchTerm.toLowerCase())
       );
     const matchesGender =
       genderFilter === "all" || patient.gender.toLowerCase() === genderFilter;
@@ -91,7 +93,7 @@ export default function DoctorPatients() {
 
   if (isPendingPatients) {
     return (
-      <DashboardLayout title="Doctor Patients" allowedRole={Role.DOCTOR}>
+      <DashboardLayout title="Doctor Patients" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
         <Sidebar
           links={sidebarLinks}
           user={{
@@ -109,7 +111,7 @@ export default function DoctorPatients() {
   }
 
   return (
-    <DashboardLayout title="Doctor Patients" allowedRole={Role.DOCTOR}>
+    <DashboardLayout title="Doctor Patients" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
       <Sidebar
         links={sidebarLinks}
         user={{
@@ -236,9 +238,9 @@ export default function DoctorPatients() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
+                      <div className="w-16 h-16 bg-linear-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
                         <span className="text-blue-800 font-semibold text-xl">
-                          {patient.name.charAt(0)}
+                          {(patient.name || patient.firstName || "?")[0]}
                         </span>
                       </div>
                       <div>
@@ -301,175 +303,14 @@ export default function DoctorPatients() {
                         )}
                       </div>
                       <div className="flex gap-2">
-                        <Drawer>
-                          <DrawerTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedPatient(patient)}
-                            >
-                              <Eye className="w-4 h-4 mr-1" />
-                              View EHR
-                            </Button>
-                          </DrawerTrigger>
-                          <DrawerContent className="max-w-4xl mx-auto">
-                            <DrawerHeader>
-                              <DrawerTitle>
-                                {selectedPatient?.name ||
-                                  `${selectedPatient?.firstName || ""} ${
-                                    selectedPatient?.lastName || ""
-                                  }`.trim() ||
-                                  "Unknown Patient"}{" "}
-                                - Electronic Health Record
-                              </DrawerTitle>
-                            </DrawerHeader>
-                            {selectedPatient && (
-                              <div className="px-6 pb-6">
-                                <Tabs
-                                  defaultValue="overview"
-                                  className="space-y-4"
-                                >
-                                  <TabsList className="grid w-full grid-cols-4">
-                                    <TabsTrigger value="overview">
-                                      Overview
-                                    </TabsTrigger>
-                                    <TabsTrigger value="history">
-                                      Treatment History
-                                    </TabsTrigger>
-                                    <TabsTrigger value="reports">
-                                      Lab Reports
-                                    </TabsTrigger>
-                                    <TabsTrigger value="medications">
-                                      Medications
-                                    </TabsTrigger>
-                                  </TabsList>
-
-                                  <TabsContent value="overview">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle className="text-lg">
-                                            Patient Information
-                                          </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                          {selectedPatient.age && (
-                                            <div>
-                                              <strong>Age:</strong>{" "}
-                                              {selectedPatient.age} years
-                                            </div>
-                                          )}
-                                          {selectedPatient.gender && (
-                                            <div>
-                                              <strong>Gender:</strong>{" "}
-                                              {selectedPatient.gender}
-                                            </div>
-                                          )}
-                                          {selectedPatient.address && (
-                                            <div className="flex items-center gap-2">
-                                              <MapPin className="w-4 h-4" />
-                                              <span>
-                                                {selectedPatient.address}
-                                              </span>
-                                            </div>
-                                          )}
-                                          {selectedPatient.totalVisits !==
-                                            undefined && (
-                                            <div>
-                                              <strong>Total Visits:</strong>{" "}
-                                              {selectedPatient.totalVisits}
-                                            </div>
-                                          )}
-                                          {selectedPatient.phone && (
-                                            <div>
-                                              <strong>Phone:</strong>{" "}
-                                              {selectedPatient.phone}
-                                            </div>
-                                          )}
-                                          {selectedPatient.email && (
-                                            <div>
-                                              <strong>Email:</strong>{" "}
-                                              {selectedPatient.email}
-                                            </div>
-                                          )}
-                                        </CardContent>
-                                      </Card>
-
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle className="text-lg">
-                                            Medical Information
-                                          </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                          <div className="space-y-2 text-sm">
-                                            {selectedPatient.bloodGroup && (
-                                              <div>
-                                                <strong>Blood Group:</strong>{" "}
-                                                {selectedPatient.bloodGroup}
-                                              </div>
-                                            )}
-                                            {selectedPatient.allergies && (
-                                              <div>
-                                                <strong>Allergies:</strong>{" "}
-                                                {Array.isArray(
-                                                  selectedPatient.allergies
-                                                )
-                                                  ? selectedPatient.allergies.join(
-                                                      ", "
-                                                    )
-                                                  : selectedPatient.allergies}
-                                              </div>
-                                            )}
-                                          </div>
-                                        </CardContent>
-                                      </Card>
-                                    </div>
-                                  </TabsContent>
-
-                                  <TabsContent value="history">
-                                    <div className="space-y-4">
-                                      <p className="text-sm text-gray-600">
-                                        Treatment history will be loaded from
-                                        medical records.
-                                      </p>
-                                    </div>
-                                  </TabsContent>
-
-                                  <TabsContent value="reports">
-                                    <div className="space-y-4">
-                                      <p className="text-sm text-gray-600">
-                                        Lab reports will be loaded from medical
-                                        records.
-                                      </p>
-                                    </div>
-                                  </TabsContent>
-
-                                  <TabsContent value="medications">
-                                    <div className="space-y-4">
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle className="text-lg flex items-center gap-2">
-                                            <Pill className="w-5 h-5" />
-                                            Current Medications
-                                          </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                          <div className="space-y-3">
-                                            <p className="text-sm text-gray-600">
-                                              Medications will be loaded from
-                                              prescriptions.
-                                            </p>
-                                          </div>
-                                        </CardContent>
-                                      </Card>
-                                    </div>
-                                  </TabsContent>
-                                </Tabs>
-                              </div>
-                            )}
-                          </DrawerContent>
-                        </Drawer>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDrawerPatient(patient)}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View EHR
+                        </Button>
 
                         <Button size="sm" className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
@@ -496,8 +337,245 @@ export default function DoctorPatients() {
               </CardContent>
             </Card>
           )}
+
+          {/* EHR Drawer */}
+          <Drawer
+            open={!!drawerPatient}
+            onOpenChange={(open) => !open && setDrawerPatient(null)}
+          >
+            <DrawerContent className="max-w-4xl mx-auto max-h-[90vh] overflow-y-auto">
+              {drawerPatient && (
+                <EhrDrawerContent
+                  patient={drawerPatient}
+                  onClose={() => setDrawerPatient(null)}
+                />
+              )}
+            </DrawerContent>
+          </Drawer>
         </div>
       </Sidebar>
     </DashboardLayout>
+  );
+}
+
+function EhrDrawerContent({
+  patient,
+  onClose,
+}: {
+  patient: any;
+  onClose: () => void;
+}) {
+  const patientUserId = patient?.userId || patient?.user?.id;
+  const { data: ehrData, isPending: isEhrLoading } =
+    useComprehensiveHealthRecord(patientUserId || "");
+
+  const patientName =
+    patient?.name ||
+    `${patient?.firstName || ""} ${patient?.lastName || ""}`.trim() ||
+    "Unknown Patient";
+
+  return (
+    <>
+      <DrawerHeader>
+        <DrawerTitle>{patientName} - Electronic Health Record</DrawerTitle>
+      </DrawerHeader>
+      <div className="px-6 pb-6">
+        {isEhrLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        ) : (
+          <Tabs defaultValue="overview" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="history">Treatment History</TabsTrigger>
+              <TabsTrigger value="reports">Lab Reports</TabsTrigger>
+              <TabsTrigger value="medications">Medications</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Patient Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {patient?.age && (
+                      <div>
+                        <strong>Age:</strong> {patient.age} years
+                      </div>
+                    )}
+                    {patient?.gender && (
+                      <div>
+                        <strong>Gender:</strong> {patient.gender}
+                      </div>
+                    )}
+                    {(patient?.address || patient?.user?.address) && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        <span>
+                          {typeof patient.address === "string"
+                            ? patient.address
+                            : patient?.address?.street
+                              ? `${patient.address.street}, ${patient.address.city || ""}`
+                              : patient?.user?.address || "—"}
+                        </span>
+                      </div>
+                    )}
+                    {patient?.totalVisits != null && (
+                      <div>
+                        <strong>Total Visits:</strong> {patient.totalVisits}
+                      </div>
+                    )}
+                    {patient?.phone && (
+                      <div>
+                        <strong>Phone:</strong> {patient.phone}
+                      </div>
+                    )}
+                    {(patient?.email || patient?.user?.email) && (
+                      <div>
+                        <strong>Email:</strong>{" "}
+                        {patient.email || patient.user?.email}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Medical Information</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 text-sm">
+                      {(patient?.bloodGroup || ehrData?.bloodGroup) && (
+                        <div>
+                          <strong>Blood Group:</strong>{" "}
+                          {patient?.bloodGroup || ehrData?.bloodGroup}
+                        </div>
+                      )}
+                      {((patient?.allergies?.length && patient.allergies) ||
+                        (ehrData?.allergies?.length && ehrData.allergies)) && (
+                        <div>
+                          <strong>Allergies:</strong>{" "}
+                          {Array.isArray(patient?.allergies)
+                            ? patient.allergies.join(", ")
+                            : Array.isArray(ehrData?.allergies)
+                              ? ehrData.allergies.map((a: any) => a.allergen || a).join(", ")
+                              : "—"}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="history">
+              <div className="space-y-4">
+                {(ehrData?.medicalHistory?.length && (
+                  <div className="space-y-2">
+                    {ehrData.medicalHistory.map((r: any, i: number) => (
+                      <Card key={r.id || i}>
+                        <CardContent className="pt-4">
+                          <div className="flex justify-between">
+                            <span className="font-medium">{r.condition || r.diagnosis || "Record"}</span>
+                            {r.date && (
+                              <span className="text-sm text-gray-500">
+                                {new Date(r.date).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                          {r.treatment && <p className="text-sm mt-1">{r.treatment}</p>}
+                          {r.notes && <p className="text-sm text-gray-600">{r.notes}</p>}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )) || (
+                  <p className="text-sm text-gray-600">
+                    No treatment history on record.
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="reports">
+              <div className="space-y-4">
+                {(ehrData?.labReports?.length && (
+                  <div className="space-y-2">
+                    {ehrData.labReports.map((r: any, i: number) => (
+                      <Card key={r.id || i}>
+                        <CardContent className="pt-4">
+                          <div className="flex justify-between">
+                            <span className="font-medium">{r.reportType || r.type || "Lab Report"}</span>
+                            {r.date && (
+                              <span className="text-sm text-gray-500">
+                                {new Date(r.date).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                          {r.results && (
+                            <p className="text-sm mt-1">{r.results}</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )) || (
+                  <p className="text-sm text-gray-600">No lab reports on record.</p>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="medications">
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Pill className="w-5 h-5" />
+                      Current Medications
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {(ehrData?.medications?.length && (
+                        <div className="space-y-2">
+                          {ehrData.medications.map((m: any, i: number) => (
+                            <div key={m.id || i} className="flex justify-between text-sm">
+                              <span>{m.medicineName || m.name || m.medication}</span>
+                              {m.dosage && <span className="text-gray-500">{m.dosage}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )) ||
+                        (ehrData?.prescriptions?.length && (
+                          <div className="space-y-2">
+                            {ehrData.prescriptions.map((p: any, i: number) => (
+                              <div key={p.id || i} className="text-sm">
+                                {p.medicines?.map?.((m: any, j: number) => (
+                                  <div key={j} className="flex justify-between">
+                                    <span>{m.medicineName || m.name}</span>
+                                    {m.dosage && (
+                                      <span className="text-gray-500">{m.dosage}</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        )) || (
+                          <p className="text-sm text-gray-600">
+                            No medications on record.
+                          </p>
+                        )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        )}
+      </div>
+    </>
   );
 }

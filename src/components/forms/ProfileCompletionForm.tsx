@@ -317,7 +317,7 @@ export default function ProfileCompletionForm({
       let roleSpecificData = {};
       const userRole = session?.user?.role;
 
-        if (userRole === Role.DOCTOR) {
+        if (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) {
           roleSpecificData = {
             specialization: data.specialization,
             experience: data.experience ? parseInt(data.experience, 10) : undefined,
@@ -411,7 +411,7 @@ export default function ProfileCompletionForm({
   };
 
   const userRole = session?.user?.role as Role;
-  const isDoctor = userRole === Role.DOCTOR;
+  const isDoctor = userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
   const isClinicAdmin = userRole === Role.CLINIC_ADMIN;
 
   // Show loading state while fetching profile data

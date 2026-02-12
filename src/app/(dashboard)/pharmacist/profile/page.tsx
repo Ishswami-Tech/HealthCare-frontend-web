@@ -180,7 +180,7 @@ export default function PatientProfile() {
             <CardContent className="p-6">
               <div className="flex items-center gap-6">
                 <div className="relative">
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
+                  <div className="w-24 h-24 bg-linear-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
                     <span className="text-blue-800 font-semibold text-3xl">
                       {profileData.personalInfo.firstName.charAt(0)}
                     </span>

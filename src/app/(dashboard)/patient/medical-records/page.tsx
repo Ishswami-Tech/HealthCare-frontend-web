@@ -23,11 +23,8 @@ import { LoadingSpinner, PageLoading, ErrorState, EmptyState } from "@/component
 import { getComprehensiveHealthRecord } from "@/lib/actions/ehr.server";
 import { useEffect } from "react";
 import {
-  Activity,
-  Calendar,
   FileText,
   Pill,
-  LogOut,
   Upload,
   Download,
   Eye,
@@ -381,7 +378,7 @@ export default function PatientMedicalRecords() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {prescriptions.map((prescription) => (
+                      {prescriptions.map((prescription: any) => (
                         <div
                           key={prescription.id}
                           className="border rounded-lg p-4"
@@ -414,7 +411,7 @@ export default function PatientMedicalRecords() {
 
                           <div className="space-y-3">
                             <h4 className="font-medium">Medications:</h4>
-                            {prescription.medications.map((med, index) => (
+                            {prescription.medications.map((med: any, index: number) => (
                               <div
                                 key={index}
                                 className={`flex items-center justify-between p-3 ${theme.containers.featureGreen} rounded-lg`}
@@ -479,7 +476,7 @@ export default function PatientMedicalRecords() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {labReports.map((report) => (
+                      {labReports.map((report: any) => (
                         <div key={report.id} className="border rounded-lg p-4">
                           <div className="flex items-center justify-between mb-4">
                             <div>
@@ -506,7 +503,7 @@ export default function PatientMedicalRecords() {
                           <div className="space-y-3">
                             <h4 className="font-medium">Results:</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                              {report.results.map((result, index) => (
+                              {report.results.map((result: any, index: number) => (
                                 <div
                                   key={index}
                                   className="p-3 border rounded-lg"
@@ -678,7 +675,7 @@ export default function PatientMedicalRecords() {
                               </tr>
                             </thead>
                             <tbody>
-                              {vitalSigns.map((vital, index) => (
+                              {vitalSigns.map((vital: any, index: number) => (
                                 <tr key={vital.date} className="border-t">
                                   <td className="px-4 py-2">
                                     {new Date(vital.date).toLocaleDateString()}
@@ -844,7 +841,7 @@ export default function PatientMedicalRecords() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="p-4 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-lg">
+                        <div className="p-4 bg-linear-to-br from-orange-50 to-yellow-50 rounded-lg">
                           <h4 className="font-semibold text-orange-800 mb-2">
                             Morning Routine
                           </h4>
@@ -856,7 +853,7 @@ export default function PatientMedicalRecords() {
                           </ul>
                         </div>
 
-                        <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg">
+                        <div className="p-4 bg-linear-to-br from-blue-50 to-cyan-50 rounded-lg">
                           <h4 className="font-semibold text-blue-800 mb-2">
                             Meal Guidelines
                           </h4>
@@ -868,7 +865,7 @@ export default function PatientMedicalRecords() {
                           </ul>
                         </div>
 
-                        <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg">
+                        <div className="p-4 bg-linear-to-br from-purple-50 to-pink-50 rounded-lg">
                           <h4 className="font-semibold text-purple-800 mb-2">
                             Evening Routine
                           </h4>

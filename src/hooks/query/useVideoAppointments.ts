@@ -69,22 +69,28 @@ export interface VideoAppointmentFilters {
 // ✅ Video Appointments Query Hook with WebSocket Integration
 export function useVideoAppointments(filters?: VideoAppointmentFilters) {
   const clinicId = useCurrentClinicId();
+  const { session } = useAuth();
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
   const { subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents, isConnected } = useVideoAppointmentWebSocket();
 
+  const isPatient = (session?.user?.role as string) === Role.PATIENT;
+  // PATIENT can fetch video history without clinicId; staff need clinicId
+  const canFetch = hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS) && (!!clinicId || isPatient);
+
   const query = useQueryData(
     ['video-appointments', clinicId, filters],
     async () => {
-      if (!clinicId) throw new Error('Clinic ID is required');
-      
       const hasAccess = hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+      // Staff roles require clinicId; PATIENT can fetch across clinics
+      if (!isPatient && !clinicId) throw new Error('Clinic ID is required');
 
       // Build filters object without undefined values (for exactOptionalPropertyTypes)
       const historyFilters: {
         userId?: string;
         patientId?: string;
+        clinicId?: string;
         appointmentId?: string;
         startDate?: string;
         endDate?: string;
@@ -98,16 +104,21 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       if (filters?.status) historyFilters.status = filters.status;
       if (filters?.page) historyFilters.page = filters.page;
       if (filters?.limit) historyFilters.limit = filters.limit;
+      if (clinicId) historyFilters.clinicId = clinicId;
       // ✅ FIX: Separate doctorId and patientId (was overwriting userId)
       if (filters?.doctorId) historyFilters.userId = filters.doctorId;
       if (filters?.patientId) historyFilters.patientId = filters.patientId;
 
       const result = await getVideoConsultationHistory(historyFilters);
-      
-      return { success: true, data: result, appointments: Array.isArray(result) ? result : [] };
+      const calls = (result as { calls?: unknown[] })?.calls;
+      return {
+        success: true,
+        data: result,
+        appointments: Array.isArray(calls) ? calls : [],
+      };
     },
     {
-      enabled: !!clinicId && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
+      enabled: canFetch,
       staleTime: 2 * 60 * 1000, // 2 minutes (optimized for 10M users)
       gcTime: 10 * 60 * 1000, // 10 minutes
       refetchInterval: false, // Disable auto-refetch - rely on WebSocket for real-time updates

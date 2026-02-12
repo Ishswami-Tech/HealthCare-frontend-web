@@ -21,6 +21,7 @@ const createRoleEnum = () => {
     Role.SUPER_ADMIN,
     Role.CLINIC_ADMIN,
     Role.DOCTOR,
+    Role.ASSISTANT_DOCTOR,
     Role.RECEPTIONIST,
     Role.PHARMACIST,
     Role.PATIENT,

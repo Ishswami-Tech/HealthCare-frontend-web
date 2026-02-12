@@ -29,11 +29,7 @@ import {
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
-  Activity,
-  Users,
   Calendar,
-  Settings,
-  LogOut,
   Plus,
   Trash2,
   Save,

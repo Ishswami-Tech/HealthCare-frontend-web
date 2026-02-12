@@ -90,6 +90,7 @@ interface MedicalRecordsState {
   getPrescriptionsByPatient: (patientId: string) => Prescription[];
   getMedicinesByType: (type: string) => Medicine[];
   searchMedicinesLocal: (query: string) => Medicine[];
+  reset: () => void;
 }
 
 export const useMedicalRecordsStore = create<MedicalRecordsState>()(
@@ -243,6 +244,24 @@ export const useMedicalRecordsStore = create<MedicalRecordsState>()(
           medicine.manufacturer?.toLowerCase().includes(searchTerm)
         );
       },
+
+      reset: () =>
+        set({
+          medicalRecords: [],
+          selectedRecord: null,
+          prescriptions: [],
+          selectedPrescription: null,
+          medicines: [],
+          selectedMedicine: null,
+          medicineSearchResults: [],
+          isRecordModalOpen: false,
+          isPrescriptionModalOpen: false,
+          isMedicineModalOpen: false,
+          currentTab: 'records',
+          recordFilters: {},
+          prescriptionFilters: {},
+          medicineFilters: {},
+        }),
     }),
     {
       name: "medical-records-storage",

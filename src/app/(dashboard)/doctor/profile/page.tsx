@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Role } from "@/types/auth.types";
+import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,14 +31,17 @@ import {
   Clock,
   Camera,
   Edit,
-  Stethoscope
+  Stethoscope,
+  Loader2,
 } from "lucide-react";
 
 export default function DoctorProfile() {
   const { session } = useAuth();
   const user = session?.user;
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Mock profile data
+  // Profile data
   const [profileData, setProfileData] = useState({
     personalInfo: {
       firstName: user?.firstName || "Priya",
@@ -158,12 +163,72 @@ export default function DoctorProfile() {
     }));
   };
 
+  // Fetch profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      try {
+        setIsLoading(true);
+        const data = (await getUserProfile()) as Record<string, unknown> | null;
+        if (data) {
+          setProfileData(prev => ({
+            ...prev,
+            personalInfo: {
+              firstName: (data.firstName as string) || prev.personalInfo.firstName,
+              lastName: (data.lastName as string) || prev.personalInfo.lastName,
+              email: (data.email as string) || prev.personalInfo.email,
+              phone: (data.phone as string) || prev.personalInfo.phone,
+              dateOfBirth: (data.dateOfBirth as string) || prev.personalInfo.dateOfBirth,
+              gender: (data.gender as string) || prev.personalInfo.gender,
+              address: (data.address as string) || prev.personalInfo.address,
+              city: (data.city as string) || prev.personalInfo.city,
+              state: (data.state as string) || prev.personalInfo.state,
+              country: (data.country as string) || prev.personalInfo.country,
+              zipCode: (data.zipCode as string) || prev.personalInfo.zipCode,
+            },
+          }));
+        }
+      } catch (err) {
+        showErrorToast(err instanceof Error ? err.message : "Failed to load profile", { id: TOAST_IDS.GLOBAL.ERROR });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [user]);
 
+  const handleSaveProfile = async () => {
+    try {
+      setIsSaving(true);
+      const { personalInfo } = profileData;
+      const result = await updateUserProfile({
+        firstName: personalInfo.firstName,
+        lastName: personalInfo.lastName,
+        phone: personalInfo.phone,
+        dateOfBirth: personalInfo.dateOfBirth,
+        gender: personalInfo.gender?.toUpperCase(),
+        address: personalInfo.address,
+        city: personalInfo.city,
+        state: personalInfo.state,
+        country: personalInfo.country,
+        zipCode: personalInfo.zipCode,
+      });
+      if (result.success) {
+        showSuccessToast("Profile saved successfully", { id: TOAST_IDS.GLOBAL.SUCCESS });
+      } else {
+        showErrorToast(result.error || "Failed to save", { id: TOAST_IDS.GLOBAL.ERROR });
+      }
+    } catch (err) {
+      showErrorToast(err instanceof Error ? err.message : "Failed to save profile", { id: TOAST_IDS.GLOBAL.ERROR });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const sidebarLinks = getSidebarLinksByRole(Role.DOCTOR);
 
   return (
-    <DashboardLayout title="Doctor Profile" allowedRole={Role.DOCTOR}>
+    <DashboardLayout title="Doctor Profile" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
       <Sidebar
         links={sidebarLinks}
         user={{ 
@@ -174,8 +239,12 @@ export default function DoctorProfile() {
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Doctor Profile</h1>
-            <Button className="flex items-center gap-2">
-              <Save className="w-4 h-4" />
+            <Button
+              className="flex items-center gap-2"
+              onClick={handleSaveProfile}
+              disabled={isSaving || isLoading}
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Changes
             </Button>
           </div>
@@ -185,7 +254,7 @@ export default function DoctorProfile() {
             <CardContent className="p-6">
               <div className="flex items-center gap-6">
                 <div className="relative">
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+                  <div className="w-24 h-24 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
                     <span className="text-blue-800 font-semibold text-3xl">
                       {profileData.personalInfo.firstName.charAt(0)}
                     </span>

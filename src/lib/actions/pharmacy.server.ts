@@ -111,7 +111,9 @@ export async function deleteMedicine(clinicId: string, medicineId: string) {
 }
 
 /**
- * Get prescriptions for a clinic
+ * Get prescriptions - uses correct backend endpoints:
+ * - Pharmacist: GET /pharmacy/prescriptions (clinicId from x-clinic-id header)
+ * - Patient: GET /pharmacy/prescriptions/patient/:userId
  */
 export async function getPrescriptions(clinicId: string, filters?: {
   patientId?: string;
@@ -128,8 +130,18 @@ export async function getPrescriptions(clinicId: string, filters?: {
     });
   }
 
-  const endpoint = `${API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.CREATE(clinicId)}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
+  // Patient view: use /pharmacy/prescriptions/patient/:userId
+  if (filters?.patientId) {
+    const endpoint = `${API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.GET_BY_PATIENT(filters.patientId)}${params.toString() ? `?${params.toString()}` : ''}`;
+    const { data } = await authenticatedApi(endpoint);
+    return data;
+  }
+
+  // Pharmacist view: GET /pharmacy/prescriptions (clinicId from header)
+  const endpoint = `${API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.LIST}${params.toString() ? `?${params.toString()}` : ''}`;
+  const { data } = await authenticatedApi(endpoint, {
+    headers: clinicId ? { 'X-Clinic-ID': clinicId } : {},
+  });
   return data;
 }
 
@@ -142,7 +154,7 @@ export async function getPrescriptionById(prescriptionId: string) {
 }
 
 /**
- * Create prescription for a clinic
+ * Create prescription - POST /pharmacy/prescriptions (clinicId from x-clinic-id header)
  */
 export async function createPrescription(clinicId: string, prescriptionData: {
   patientId: string;
@@ -159,9 +171,20 @@ export async function createPrescription(clinicId: string, prescriptionData: {
   notes?: string;
   validUntil?: string;
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.CREATE(clinicId), {
+  const items = prescriptionData.medications.map((m) => ({
+    medicineId: m.medicineId,
+    dosage: m.dosage,
+    quantity: m.quantity,
+  }));
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.CREATE, {
     method: 'POST',
-    body: JSON.stringify(prescriptionData),
+    body: JSON.stringify({
+      patientId: prescriptionData.patientId,
+      doctorId: prescriptionData.doctorId,
+      items,
+      notes: prescriptionData.notes,
+    }),
+    headers: clinicId ? { 'X-Clinic-ID': clinicId } : {},
   });
   return data;
 }
@@ -178,17 +201,17 @@ export async function updatePrescriptionStatus(prescriptionId: string, status: s
 }
 
 /**
- * Dispense prescription
+ * Dispense prescription - updates status to FILLED via backend PATCH /pharmacy/prescriptions/:id/status
  */
-export async function dispensePrescription(prescriptionId: string, dispensingData: {
-  pharmacistId: string;
-  dispensedMedications: {
+export async function dispensePrescription(prescriptionId: string, _dispensingData?: {
+  pharmacistId?: string;
+  dispensedMedications?: {
     medicineId: string;
     quantityDispensed: number;
     batchNumber: string;
     expiryDate: string;
   }[];
-  totalAmount: number;
+  totalAmount?: number;
   paymentMethod?: string;
   insuranceClaim?: {
     insuranceProvider: string;
@@ -196,9 +219,9 @@ export async function dispensePrescription(prescriptionId: string, dispensingDat
     approvedAmount: number;
   };
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.DISPENSE(prescriptionId), {
-    method: 'POST',
-    body: JSON.stringify(dispensingData),
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.UPDATE_STATUS(prescriptionId), {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'FILLED' }),
   });
   return data;
 }

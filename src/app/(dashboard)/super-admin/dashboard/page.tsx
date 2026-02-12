@@ -221,7 +221,7 @@ export default function SuperAdminDashboard() {
               <div className="space-y-4">
                 {recentActivities.map((activity, index) => (
                   <div key={index} className="flex items-start gap-3">
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       {activity.type === "clinic" && (
                         <Building2 className="w-4 h-4 text-blue-600" />
                       )}

@@ -3,3 +3,7 @@
 
 export { PaymentForm } from './PaymentForm';
 export { RazorpayPaymentButton } from './RazorpayPaymentButton';
+export {
+  PaymentButton,
+  type PaymentProvider,
+} from './PaymentButton';

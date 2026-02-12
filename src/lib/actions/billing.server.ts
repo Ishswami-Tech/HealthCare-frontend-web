@@ -229,6 +229,20 @@ export async function markInvoiceAsPaid(id: string): Promise<{
   }
 }
 
+export async function sendInvoiceViaWhatsApp(invoiceId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.SEND_WHATSAPP(invoiceId), {
+      method: 'POST',
+    });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to send invoice via WhatsApp' };
+  }
+}
+
 export async function generateInvoicePDF(id: string): Promise<{
   success: boolean;
   pdfUrl?: string;
@@ -282,8 +296,8 @@ export async function createPayment(data: CreatePaymentData): Promise<{
 // ✅ NEW: Missing Payment Processing Actions
 
 export async function processSubscriptionPayment(
-  subscriptionId: string, 
-  provider: 'razorpay' | 'phonepe'
+  subscriptionId: string,
+  provider: 'razorpay' | 'cashfree' | 'phonepe'
 ): Promise<{
   success: boolean;
   invoice?: any;
@@ -310,7 +324,7 @@ export async function processAppointmentPayment(
   appointmentId: string,
   amount: number,
   appointmentType: 'VIDEO_CALL' | 'IN_PERSON' | 'HOME_VISIT',
-  provider: 'razorpay' | 'phonepe'
+  provider: 'razorpay' | 'cashfree' | 'phonepe'
 ): Promise<{
   success: boolean;
   invoice?: any;
@@ -319,7 +333,7 @@ export async function processAppointmentPayment(
   error?: string;
 }> {
   try {
-    const { data } = await authenticatedApi(`${API_ENDPOINTS.APPOINTMENTS.BASE}/${appointmentId}/process-payment?provider=${provider}`, {
+    const { data } = await authenticatedApi(`${API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(appointmentId)}?provider=${provider}`, {
       method: 'POST',
       body: JSON.stringify({ amount, appointmentType }),
     });

@@ -17,6 +17,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { VideoAppointmentRoom } from "@/components/video/VideoAppointmentRoom";
+import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -48,6 +56,8 @@ export default function DoctorAppointments() {
   const [consultationNotes, setConsultationNotes] = useState("");
   const [prescription, setPrescription] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
+  const [videoRoomAppointment, setVideoRoomAppointment] = useState<VideoAppointment | null>(null);
+  const [isVideoRoomOpen, setIsVideoRoomOpen] = useState(false);
 
   // Fetch real appointment data
   const appointmentsQuery = useAppointments({
@@ -70,6 +80,9 @@ export default function DoctorAppointments() {
     
     return apps.map((app: any) => ({
       id: app.id,
+      appointmentId: app.id,
+      patientId: app.patientId || app.patient?.id || app.patient?.userId,
+      doctorId: app.doctorId || app.doctor?.id || app.doctor?.userId,
       patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
       patientAge: app.patient?.age || app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null,
       patientGender: app.patient?.gender || "Unknown",
@@ -109,7 +122,7 @@ export default function DoctorAppointments() {
 
   if (isLoadingAppointments) {
     return (
-      <DashboardLayout title="Doctor Appointments" allowedRole={Role.DOCTOR}>
+      <DashboardLayout title="Doctor Appointments" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
         <Sidebar
           links={sidebarLinks}
           user={{ 
@@ -182,7 +195,7 @@ export default function DoctorAppointments() {
   };
 
   return (
-    <DashboardLayout title="Doctor Appointments" allowedRole={Role.DOCTOR}>
+    <DashboardLayout title="Doctor Appointments" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
       <Sidebar
         links={sidebarLinks}
         user={{ 
@@ -357,10 +370,26 @@ export default function DoctorAppointments() {
                         
                         {appointment.status === 'In Progress' && (
                           <>
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               className="flex items-center gap-1"
+                              onClick={() => {
+                                const videoAppt: VideoAppointment = {
+                                  id: appointment.id,
+                                  appointmentId: appointment.id,
+                                  roomName: `room-${appointment.id}`,
+                                  doctorId: appointment.doctorId || user?.id || "",
+                                  patientId: appointment.patientId || "",
+                                  startTime: new Date().toISOString(),
+                                  endTime: new Date().toISOString(),
+                                  status: "in-progress",
+                                  createdAt: new Date().toISOString(),
+                                  updatedAt: new Date().toISOString(),
+                                };
+                                setVideoRoomAppointment(videoAppt);
+                                setIsVideoRoomOpen(true);
+                              }}
                             >
                               <Video className="w-3 h-3" />
                               Video
@@ -598,6 +627,29 @@ export default function DoctorAppointments() {
                 </Tabs>
               </CardContent>
             </Card>
+          )}
+
+          {/* Video Consultation Dialog */}
+          {videoRoomAppointment && (
+            <Dialog open={isVideoRoomOpen} onOpenChange={setIsVideoRoomOpen}>
+              <DialogContent className="max-w-7xl w-full h-[90vh] p-0">
+                <DialogHeader className="sr-only">
+                  <DialogTitle>Video Consultation - {videoRoomAppointment.appointmentId}</DialogTitle>
+                </DialogHeader>
+                <VideoAppointmentRoom
+                  appointment={videoRoomAppointment}
+                  onEndCall={() => {
+                    setIsVideoRoomOpen(false);
+                    setVideoRoomAppointment(null);
+                    appointmentsQuery.refetch();
+                  }}
+                  onLeaveRoom={() => {
+                    setIsVideoRoomOpen(false);
+                    setVideoRoomAppointment(null);
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
           )}
         </div>
       </Sidebar>

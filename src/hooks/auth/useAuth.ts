@@ -8,7 +8,7 @@ import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { ERROR_MESSAGES } from '@/lib/config/config';
 import { useGlobalLoading } from '@/hooks/utils/useGlobalLoading';
 import { logger } from '@/lib/utils/logger';
-import { useAuthStore } from '@/stores/auth.store';
+import { useAuthStore, resetAllStores } from '@/stores';
 import { resolveRedirect } from '@/lib/utils/redirect';
 import {
   login as loginAction,
@@ -437,10 +437,10 @@ export function useAuth() {
       successMessage: 'Logged out successfully',
       showToast: false, // Handle manually for custom messages
       onSuccess: () => {
-        // Clear all query cache and session data
+        // Clear all query cache, session data, and Zustand stores (prevent cross-role state leakage)
         queryClient.clear();
         queryClient.setQueryData(['session'], null);
-        clearAuth(); // ✅ Use auth store clearAuth
+        resetAllStores();
         clearSession();
 
         // ✅ Use centralized redirect utility
@@ -463,10 +463,10 @@ export function useAuth() {
           logger.error('Logout error', error, { component: 'useAuth' });
         }
 
-        // Clear client state even if server logout fails
+        // Clear client state even if server logout fails (prevent cross-role state leakage)
         queryClient.clear();
         queryClient.setQueryData(['session'], null);
-        clearAuth(); // ✅ Use auth store clearAuth
+        resetAllStores();
         clearSession();
 
         // ✅ Use centralized redirect utility

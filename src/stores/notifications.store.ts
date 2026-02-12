@@ -77,6 +77,7 @@ interface NotificationState {
   getUnreadNotifications: () => Notification[];
   getNotificationsByType: (type: Notification['type']) => Notification[];
   updateUnreadCount: () => void;
+  reset: () => void;
 }
 
 const defaultSettings: NotificationSettings = {
@@ -169,6 +170,15 @@ export const useNotificationStore = create<NotificationState>()(
         const unreadCount = get().notifications.filter(n => !n.isRead).length;
         set({ unreadCount });
       },
+
+      reset: () =>
+        set({
+          notifications: [],
+          unreadCount: 0,
+          settings: defaultSettings,
+          isNotificationPanelOpen: false,
+          selectedNotification: null,
+        }),
     }),
     {
       name: "notification-storage",

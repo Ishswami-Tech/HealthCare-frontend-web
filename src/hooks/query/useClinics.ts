@@ -707,7 +707,7 @@ export const useActiveLocations = (clinicId: string) => {
   return useQueryData<ClinicLocation[]>(
     ['activeLocations', clinicId],
     async () => {
-      const response = await apiCall<ClinicLocation[]>(`/clinics/${clinicId}/locations/active`, {
+      const response = await apiCall<ClinicLocation[]>(`/clinics/${clinicId}/locations`, {
         headers: {
           ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },

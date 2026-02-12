@@ -96,6 +96,10 @@ export const useRBAC = (): PermissionCheck => {
       
       'billing:read': Permission.VIEW_BILLING,
       'billing:manage': Permission.MANAGE_BILLING,
+      
+      'video:read': Permission.VIEW_VIDEO_APPOINTMENTS,
+      'video:create': Permission.CREATE_VIDEO_APPOINTMENTS,
+      'video:update': Permission.UPDATE_VIDEO_APPOINTMENTS,
     };
 
     const key = `${resource}:${action}`;
@@ -311,7 +315,7 @@ export const useContextualPermissions = (context: PermissionContext) => {
     }
     
     // Doctors can access their patients' resources
-    if (userRole === Role.DOCTOR && resourceType === 'patient') {
+    if ((userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) && resourceType === 'patient') {
       // Check if patient is assigned to this doctor (would need additional logic)
       return { allowed: true, context };
     }

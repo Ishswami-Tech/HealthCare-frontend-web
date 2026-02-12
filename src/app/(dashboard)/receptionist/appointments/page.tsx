@@ -408,7 +408,7 @@ export default function ReceptionistAppointments() {
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+                          <div className="w-12 h-12 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
                             <span className="text-blue-800 font-semibold text-lg">
                               {appointment.patientName.charAt(0)}
                             </span>

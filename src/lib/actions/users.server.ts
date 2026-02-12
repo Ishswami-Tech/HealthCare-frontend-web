@@ -186,12 +186,20 @@ export async function createUser(userData: {
 
 /**
  * Update user role
+ * clinicId required when caller is clinic admin
  */
-export async function updateUserRole(userId: string, role: string) {
+export async function updateUserRole(
+  userId: string,
+  role: string,
+  options?: { clinicId?: string; locationId?: string }
+) {
   return executeAction('updateUserRole', async () => {
+    const body: { role: string; clinicId?: string; locationId?: string } = { role };
+    if (options?.clinicId) body.clinicId = options.clinicId;
+    if (options?.locationId) body.locationId = options.locationId;
     const { data } = await authenticatedApi(API_ENDPOINTS.USERS.UPDATE_ROLE(userId), {
       method: 'PUT',
-      body: JSON.stringify({ role })
+      body: JSON.stringify(body)
     });
     return data;
   }, { userId, role });

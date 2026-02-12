@@ -112,6 +112,8 @@ export async function shareMedicalImage(appointmentId: string, data: {
  */
 export async function getVideoConsultationHistory(filters?: {
   userId?: string;
+  patientId?: string;
+  clinicId?: string;
   appointmentId?: string;
   startDate?: string;
   endDate?: string;

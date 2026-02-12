@@ -101,7 +101,8 @@ export default function PatientProfile() {
       stressLevel: "",
       waterIntake: "",
       smokingStatus: "",
-      alcoholConsumption: ""
+      alcoholConsumption: "",
+      meditationPractice: ""
     },
     vitals: {
       height: "",
@@ -109,11 +110,14 @@ export default function PatientProfile() {
       bmi: "",
       bloodPressure: "",
       heartRate: "",
-      temperature: ""
+      temperature: "",
+      bloodGroup: ""
     },
     preferences: {
       language: "",
       communicationPreference: "",
+      communicationMethod: "",
+      preferredDoctor: "",
       timezone: "",
       notificationSettings: {
         email: true,
@@ -121,9 +125,12 @@ export default function PatientProfile() {
         push: true,
         appointmentReminders: true,
         prescriptionRefills: true,
-        healthTips: false
+        healthTips: false,
+        medicationReminders: false,
+        treatmentUpdates: false
       }
-    }
+    },
+    documents: [] as { name: string; type: string; date: string; size: string }[]
   });
 
   // Fetch profile data on mount
@@ -159,6 +166,7 @@ export default function PatientProfile() {
             lifestyle: data.lifestyle || prev.lifestyle,
             vitals: data.vitals || prev.vitals,
             preferences: data.preferences || prev.preferences,
+            documents: data.documents || prev.documents,
           }));
         }
       } catch (error) {
@@ -210,6 +218,19 @@ export default function PatientProfile() {
     setProfileData(prev => ({
       ...prev,
       preferences: { ...prev.preferences, [field]: value }
+    }));
+  };
+
+  const updateNotificationSettings = (field: string, value: boolean) => {
+    setProfileData(prev => ({
+      ...prev,
+      preferences: {
+        ...prev.preferences,
+        notificationSettings: {
+          ...prev.preferences.notificationSettings,
+          [field]: value
+        }
+      }
     }));
   };
 
@@ -293,7 +314,7 @@ export default function PatientProfile() {
             <CardContent className="p-6">
               <div className="flex items-center gap-6">
                 <div className="relative">
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
+                  <div className="w-24 h-24 bg-linear-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
                     <span className={`${theme.textColors.info} font-semibold text-3xl`}>
                       {profileData.personalInfo.firstName.charAt(0)}
                     </span>
@@ -856,7 +877,7 @@ export default function PatientProfile() {
                   </div>
 
                   <div className="grid gap-4">
-                    {profileData.documents.map((doc, index) => (
+                    {profileData.documents.map((doc: any, index: number) => (
                       <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -977,8 +998,8 @@ export default function PatientProfile() {
                             <p className="text-sm text-gray-600">Get reminded about upcoming appointments</p>
                           </div>
                           <Switch
-                            checked={profileData.preferences.appointmentReminders}
-                            onCheckedChange={(checked) => updatePreferences('appointmentReminders', checked)}
+                            checked={profileData.preferences.notificationSettings.appointmentReminders}
+                            onCheckedChange={(checked) => updateNotificationSettings('appointmentReminders', checked)}
                           />
                         </div>
 
@@ -988,8 +1009,8 @@ export default function PatientProfile() {
                             <p className="text-sm text-gray-600">Daily reminders for your medicines</p>
                           </div>
                           <Switch
-                            checked={profileData.preferences.medicationReminders}
-                            onCheckedChange={(checked) => updatePreferences('medicationReminders', checked)}
+                            checked={profileData.preferences.notificationSettings.medicationReminders}
+                            onCheckedChange={(checked) => updateNotificationSettings('medicationReminders', checked)}
                           />
                         </div>
 
@@ -999,8 +1020,8 @@ export default function PatientProfile() {
                             <p className="text-sm text-gray-600">Updates about your treatment progress</p>
                           </div>
                           <Switch
-                            checked={profileData.preferences.treatmentUpdates}
-                            onCheckedChange={(checked) => updatePreferences('treatmentUpdates', checked)}
+                            checked={profileData.preferences.notificationSettings.treatmentUpdates}
+                            onCheckedChange={(checked) => updateNotificationSettings('treatmentUpdates', checked)}
                           />
                         </div>
 
@@ -1010,8 +1031,8 @@ export default function PatientProfile() {
                             <p className="text-sm text-gray-600">Receive Ayurvedic health tips and advice</p>
                           </div>
                           <Switch
-                            checked={profileData.preferences.healthTips}
-                            onCheckedChange={(checked) => updatePreferences('healthTips', checked)}
+                            checked={profileData.preferences.notificationSettings.healthTips}
+                            onCheckedChange={(checked) => updateNotificationSettings('healthTips', checked)}
                           />
                         </div>
                       </div>

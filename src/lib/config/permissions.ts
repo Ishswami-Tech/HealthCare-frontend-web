@@ -18,41 +18,49 @@ export interface PermissionResult {
 }
 
 /**
- * Validate clinic access for a user
- * This function checks if a user has the required permission for clinic operations
+ * Architecture: Zero-Trust Frontend - Backend is Single Source of Truth
+ *
+ * Frontend permission checks are intentionally lightweight:
+ * - validateClinicAccess returns true for authenticated users
+ * - Backend RBAC enforces actual permissions on every API call
+ * - 403 responses are handled by error-handler and QueryProvider (redirect/toast)
+ *
+ * When backend returns 403:
+ * - handleApiError maps to user-friendly "Access denied" message
+ * - QueryProvider triggers toast and optional redirect
+ * - UI should disable/hide actions that consistently return 403
+ */
+
+/**
+ * Validate clinic access for a user.
+ * Returns true for authenticated users; backend RBAC enforces actual permissions.
  */
 export async function validateClinicAccess(
-  userId: string, 
-  permission: string,
+  userId: string,
+  _permission: string,
   _clinicId?: string
 ): Promise<boolean> {
   try {
-    // TODO: Implement actual permission checking against your backend
-    // For now, we'll return true for development
-    // In production, this should check against your user's actual permissions
-    
-    // Example implementation:
-    // const response = await fetch(`/api/auth/permissions/validate`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ userId, permission, clinicId }),
-    // });
-    // const result = await response.json();
-    // return result.hasAccess;
-
-    // Development fallback - allow all operations
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🔐 Permission check: ${userId} -> ${permission} -> ALLOWED (dev mode)`);
-      return true;
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      return false;
     }
-
-    // Production fallback - deny by default
-    console.log(`🔐 Permission check: ${userId} -> ${permission} -> DENIED (no backend)`);
-    return false;
+    return true;
   } catch (error) {
     console.error('Permission validation failed:', error);
     return false;
   }
+}
+
+/**
+ * Check if error is a 403 Forbidden (permission denied).
+ * Use when handling API errors to show appropriate UI.
+ */
+export function isForbiddenError(error: unknown): boolean {
+  if (error && typeof error === 'object') {
+    const err = error as { statusCode?: number; status?: number; response?: { status?: number } };
+    return err.statusCode === 403 || err.status === 403 || err.response?.status === 403;
+  }
+  return false;
 }
 
 /**

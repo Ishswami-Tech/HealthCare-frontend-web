@@ -10,6 +10,8 @@ import {
   Pill,
   Package,
   ArrowLeft,
+  DollarSign,
+  QrCode,
 } from "lucide-react";
 import { Role } from "@/types/auth.types";
 import { ROLE_ROUTES } from "@/lib/config/routes";
@@ -41,6 +43,8 @@ const BuildingIcon = iconWrapper(Building2);
 const PillIcon = iconWrapper(Pill);
 const PackageIcon = iconWrapper(Package);
 const LogOutIcon = iconWrapper(ArrowLeft);
+const BillingIcon = iconWrapper(DollarSign);
+const QrCheckInIcon = iconWrapper(QrCode);
 
 // Helper function to map route label to icon
 const getIconForRoute = (path: string): (() => ReactNode) => {
@@ -59,6 +63,8 @@ const getIconForRoute = (path: string): (() => ReactNode) => {
   if (path.includes("prescriptions")) return PillIcon;
   if (path.includes("inventory")) return PackageIcon;
   if (path.includes("medical-records")) return FileTextIcon;
+  if (path.includes("billing")) return BillingIcon;
+  if (path.includes("check-in")) return QrCheckInIcon;
   if (path.includes("logout") || path === "#logout") return LogOutIcon;
   return DashboardIcon; // Default icon
 };
@@ -77,6 +83,11 @@ export const sidebarLinksByRole: Record<Role, SidebarLink[]> = {
     icon: getIconForRoute(route.path),
   })),
   [Role.DOCTOR]: ROLE_ROUTES.DOCTOR.routes.map((route) => ({
+    label: route.label,
+    path: route.path,
+    icon: getIconForRoute(route.path),
+  })),
+  [Role.ASSISTANT_DOCTOR]: ROLE_ROUTES.ASSISTANT_DOCTOR.routes.map((route) => ({
     label: route.label,
     path: route.path,
     icon: getIconForRoute(route.path),
