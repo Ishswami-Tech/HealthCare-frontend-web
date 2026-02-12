@@ -209,17 +209,19 @@ export function useAuth() {
   }, [session, isPending, setSession, clearAuth, setLoading, setError]);
 
   // Function to manually refresh the session
-  const refreshSession = async (): Promise<SessionData | null> => {
+  const refreshSession = async (force?: boolean): Promise<SessionData | null> => {
     try {
-      // First try to get the session from the server
-      const serverSession = await getServerSession();
+      // If not forced, try to get the session from the server first (fastest)
+      if (!force) {
+        const serverSession = await getServerSession();
 
-      if (serverSession) {
-        queryClient.setQueryData(['session'], serverSession);
-        return serverSession;
+        if (serverSession) {
+          queryClient.setQueryData(['session'], serverSession);
+          return serverSession;
+        }
       }
 
-      // If no server session, try to refresh the token
+      // If forced or no server session, try to refresh the token (hits backend)
       const refreshedSession = await refreshToken();
 
       if (refreshedSession) {

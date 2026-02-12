@@ -69,7 +69,43 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       body: JSON.stringify(profileData) 
     });
     
-    return { success: true, data };
+    // Import calculateProfileCompletion to check if profile is now complete
+    const { calculateProfileCompletion } = await import('@/lib/config/profile');
+    
+    // Merge updated data with existing profile to check completion
+    // Ensure data is an object before spreading
+    const updatedProfileData = typeof data === 'object' && data !== null
+      ? { ...profileData, ...data }
+      : profileData;
+    const isProfileComplete = calculateProfileCompletion(updatedProfileData as any);
+    
+    // Update profile_complete cookie if profile is now complete
+    if (isProfileComplete) {
+      cookieStore.set({
+        name: 'profile_complete',
+        value: 'true',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+      logger.info('[updateUserProfile] Profile is now complete, cookie updated');
+    } else {
+      // Set to false if still incomplete
+      cookieStore.set({
+        name: 'profile_complete',
+        value: 'false',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+      logger.debug('[updateUserProfile] Profile still incomplete, cookie updated');
+    }
+    
+    return { success: true, data, profileComplete: isProfileComplete };
   } catch (error) {
     const errorMessage = sanitizeErrorMessage(error);
     logger.error('[updateUserProfile] Failed', { 

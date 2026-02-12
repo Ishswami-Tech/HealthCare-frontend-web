@@ -178,6 +178,13 @@ export function DashboardLayout({
 
     // Check profile completeness
     if (mergedProfile) {
+      // ✅ FIX: Trust session cookie status to prevent redirection loops
+      // The API might return incomplete data (security filtering), but if the session/cookie 
+      // says it's complete, we should trust it.
+      if (user?.profileComplete) {
+        return;
+      }
+
       const { isComplete } = checkProfileCompletion(mergedProfile);
       if (!isComplete) {
         router.replace(ROUTES.PROFILE_COMPLETION);
@@ -194,13 +201,13 @@ export function DashboardLayout({
     router,
   ]);
 
-  // Show loading state while checking authentication or profile completeness
-  if (isPending || !user || loadingProfile || !profile) {
+  // Non-blocking load: If we have a user, render content even if profile is loading
+  if (isPending || (!user && !session)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading dashboard...</p>
+          <p className="text-gray-600">Verifying access...</p>
         </div>
       </div>
     );
@@ -227,7 +234,7 @@ export function DashboardLayout({
             <AlertDescription className="text-red-800">
               {!hasRoleAccess && allowedRoles.length > 0 && (
                 <>
-                  Your role ({user.role}) is not authorized for this area.
+                  Your role ({user?.role}) is not authorized for this area.
                   Required roles: {allowedRoles.join(", ")}.
                 </>
               )}
@@ -260,17 +267,21 @@ export function DashboardLayout({
     );
   }
 
-  // Check profile completeness before rendering children
-  if (!mergedProfile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
+  // We allow rendering even if mergedProfile is not ready yet (handled by layout skeleton)
+  if (!mergedProfile && loadingProfile) {
+    // Optional: Return a local skeleton here if needed, or null to wait slightly
+    // but preventing full blocking is key.
+    // For now, let's allow children to render if user exists.
   }
 
-  const { isComplete } = checkProfileCompletion(mergedProfile);
-  if (!isComplete) {
+  // Check profile completeness
+  const isProfileComplete = useMemo(() => {
+    if (!mergedProfile) return true; // Assume complete while loading to avoid blocking
+    const { isComplete } = checkProfileCompletion(mergedProfile);
+    return isComplete;
+  }, [mergedProfile]);
+
+  if (!isProfileComplete) {
     return null; // Will redirect in useEffect
   }
 
@@ -314,21 +325,10 @@ export function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">{title}</h1>
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <Shield className="h-4 w-4" />
-            <span>Role: {user.role}</span>
-          </div>
-        </div>
-
-        {renderPermissionWarnings()}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {children}
-        </div>
+    <div className="w-full">
+      {renderPermissionWarnings()}
+      <div className="w-full">
+        {children}
       </div>
     </div>
   );

@@ -36,6 +36,10 @@ if (!API_URL) {
 // Clinic ID from central config
 const CLINIC_ID = APP_CONFIG.CLINIC.ID;
 
+// ✅ Module-level Map to synchronize token refresh across concurrent requests
+// This prevents multiple simultaneous refreshes for the same session which can trigger backend lockouts
+const activeRefreshPromises = new Map<string, Promise<any>>();
+
 // ✅ Environment-aware logging - only log once per process startup
 // Use a module-level flag to prevent duplicate logs
 let hasLoggedEnvironment = false;
@@ -95,25 +99,31 @@ async function checkApiConnection(): Promise<boolean> {
   }
 }
 
-// Update cookie options with better security
+// Update cookie options with better usage
 const COOKIE_OPTIONS: Partial<ResponseCookie> = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict',
   path: '/',
-  maxAge: 60 * 60 * 24 * 7, // 7 days
+  maxAge: 60 * 60 * 24 * 7, // 7 days default
 };
 
-// Add session token options
 const SESSION_TOKEN_OPTIONS: Partial<ResponseCookie> = {
   ...COOKIE_OPTIONS,
-  maxAge: 60 * 60 * 5, // 5 hours for access token
+  maxAge: 60 * 60 * 5, // 5 hours
 };
 
 const REFRESH_TOKEN_OPTIONS: Partial<ResponseCookie> = {
   ...COOKIE_OPTIONS,
-  maxAge: 60 * 60 * 24 * 30, // 30 days for refresh token
+  maxAge: 60 * 60 * 24 * 30, // 30 days
 };
+
+// Access token cookie options (alias for consistency)
+const accessTokenOptions = SESSION_TOKEN_OPTIONS;
+// Refresh token cookie options (alias for consistency)
+const refreshTokenOptions = REFRESH_TOKEN_OPTIONS;
+// Session options (alias for consistency)
+const sessionOptions = COOKIE_OPTIONS;
 
 interface GoogleLoginResponse {
   user: {
@@ -166,6 +176,8 @@ export async function getServerSession(): Promise<Session | null> {
     const refreshTokenValue = cookieStore.get('refresh_token')?.value;
     const sessionId = cookieStore.get('session_id')?.value;
     const userRole = cookieStore.get('user_role')?.value;
+    const profileCompleteCookie = cookieStore.get('profile_complete')?.value;
+    const profileComplete = profileCompleteCookie === 'true';
 
     // ✅ Only log in development - use request-scoped deduplication
     // In Next.js server actions, each request gets a new execution context
@@ -181,7 +193,8 @@ export async function getServerSession(): Promise<Session | null> {
           hasAccessToken: !!accessToken,
           hasRefreshToken: !!refreshTokenValue,
           hasSessionId: !!sessionId,
-          userRole
+          userRole,
+          profileComplete
         });
       }
     }
@@ -233,7 +246,7 @@ export async function getServerSession(): Promise<Session | null> {
           lastName: '',
           name: '',
           isVerified: true,
-          profileComplete: false
+          profileComplete: profileComplete // Use cookie value instead of hardcoded false
         },
         access_token: accessToken,
         session_id: sessionId || '',
@@ -297,7 +310,9 @@ export async function getServerSession(): Promise<Session | null> {
           gender: userData.gender || '',
           address: userData.address || '',
           isVerified: userData.isVerified || true,
-          profileComplete: userData.profileComplete || false
+          // ✅ Calculate profile completion dynamically from user data to ensure accuracy
+          // This fixes issues where backend might return false/undefined or cookie is out of sync
+          profileComplete: calculateProfileCompletion(userData) || (userData.profileComplete ?? profileComplete)
         },
         access_token: accessToken,
         session_id: sessionId || '',
@@ -334,65 +349,68 @@ export async function setSession(data: {
     gender?: string;
     address?: string;
     isVerified?: boolean;
+    profileComplete?: boolean;
   };
 }) {
   const cookieStore = await cookies();
-  // Check if user object exists
+  // Check if we have complete user data
   if (!data.user) {
-    // If we have an access token, try to decode it to get minimal user info
-    // or fetch profile if needed. For now, to prevent crash, we return existing session structure if possible
-    // or throw a more descriptive error so it can be handled upstream (e.g. by logging out)
-    // However, refreshToken flow expects this to succeed.
+    // If user data is missing (token refresh scenario), try to merge with existing session from cookies
+    const currentSessionId = cookieStore.get('session_id')?.value;
+    const currentUserRole = cookieStore.get('user_role')?.value as Role;
+    const currentProfileComplete = cookieStore.get('profile_complete')?.value === 'true';
+
+    // We can't reconstruct the full user object securely without data, 
+    // but for token refresh we just need to ensure cookies are updated.
     
-    // If user is missing, we can't create a valid Session object locally without fetching it.
-    // But throwing here crashes the flow.
-    // Let's check if we can survive with just tokens (unlikely, Session type requires user).
-    
-    // Better fix: check if we can merge with existing session if called from a context where we have cookies?
-    // But setSession is standalone.
-    
-    console.warn('[setSession] User data missing in session update. preventing crash.');
-    // If critical data is missing, we might need to rely on what we have or fail gracefully.
-    // Let's assume if user is missing, we cannot properly set the session user block.
-    // We return early or throw specific error.
-    if (!data.user) { // Double check for TypeScript narrowing if needed
-        // If it's a refresh flow, the calling function refreshToken might handle null return.
-        // But setSession return type is Promise<Session>.
-        
-        // Let's attempt to use a placeholder or check upstream usage. 
-        // Realistically, if user IS missing, we shouldn't overwrite the valid session with an invalid one.
-        // But we need to update the tokens!
-        
-        // We will read the CURRENT user from cookies if available, and update only tokens.
-        const currentSession = await getServerSession();
-        if (currentSession?.user) {
-           const session: Session = {
-             ...currentSession,
-            access_token: data.access_token || currentSession.access_token,
-            session_id: data.session_id || currentSession.session_id,
-            isAuthenticated: true
-          };
-          
-          // Update cookies with new tokens
-          if (data.access_token) {
-             cookieStore.set({
-                name: 'access_token',
-                value: data.access_token,
-                ...SESSION_TOKEN_OPTIONS,
-             });
-          }
-          if (data.refresh_token) {
-             cookieStore.set({
-                name: 'refresh_token',
-                value: data.refresh_token,
-                ...REFRESH_TOKEN_OPTIONS,
-             });
-          }
-           return session;
-        }
-        
-        throw new Error('Invalid session data: User object missing and no active session to merge');
+    // If we have at least the critical session identifiers, we can proceed with updating tokens
+    if (currentSessionId && currentUserRole) {
+       // Update tokens in cookies
+       const accessTokenValue = data.access_token || (data as any).accessToken;
+       const refreshTokenValue = data.refresh_token || (data as any).refreshToken;
+
+       if (accessTokenValue) {
+          cookieStore.set({
+             name: 'access_token',
+             value: accessTokenValue,
+             ...accessTokenOptions,
+          });
+       }
+       if (refreshTokenValue) {
+          cookieStore.set({
+             name: 'refresh_token',
+             value: refreshTokenValue,
+             ...refreshTokenOptions,
+          });
+       }
+       
+       // Construct a partial session object to return
+       // Note: This matches the structure of Session but with potential missing user details
+       // The caller (refreshToken) mainly cares about the tokens and success state
+      const session: Session = {
+        access_token: data.access_token || '',
+        session_id: currentSessionId,
+        user: {
+          id: '', // We don't have ID here, but downstream logic usually uses the token
+          email: '',
+          role: currentUserRole,
+          firstName: '',
+          lastName: '',
+          phone: '',
+          dateOfBirth: null,
+          gender: '',
+          address: '',
+          isVerified: true,
+          profileComplete: currentProfileComplete
+        },
+        isAuthenticated: true
+      };
+      return session;
     }
+    
+    // If we can't merge, we can't set a valid session.
+    console.warn('[setSession] Failed to merge session: missing existing cookies');
+    throw new Error('Invalid session data: User object missing and no active session keys to merge');
   }
 
   const session: Session = {
@@ -410,34 +428,43 @@ export async function setSession(data: {
       gender: data.user.gender || '',
       address: data.user.address || '',
       isVerified: data.user.isVerified || false,
-      profileComplete: false // Ideally this should come from data.user too if available
+      profileComplete: data.user.profileComplete || false
     },
     isAuthenticated: true
   };
 
+  const accessTokenValue = data.access_token || (data as any).accessToken;
+  const refreshTokenValue = data.refresh_token || (data as any).refreshToken;
+
   // Set cookies using Next.js 15 cookie API
   cookieStore.set({
     name: 'access_token',
-    value: data.access_token,
-    ...SESSION_TOKEN_OPTIONS,
+    value: accessTokenValue,
+    ...accessTokenOptions,
   });
   
   cookieStore.set({
     name: 'refresh_token',
-    value: data.refresh_token,
-    ...REFRESH_TOKEN_OPTIONS,
+    value: refreshTokenValue,
+    ...refreshTokenOptions,
   });
   
   cookieStore.set({
     name: 'session_id',
     value: data.session_id,
-    ...COOKIE_OPTIONS,
+    ...sessionOptions,
   });
   
   cookieStore.set({
     name: 'user_role',
     value: data.user.role,
-    ...COOKIE_OPTIONS,
+    ...sessionOptions,
+  });
+  
+  cookieStore.set({
+    name: 'profile_complete',
+    value: String(data.user.profileComplete || false),
+    ...sessionOptions,
   });
 
   return session;
@@ -636,7 +663,7 @@ export async function login(data: { email: string; password?: string; otp?: stri
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax', // Use lax for better compatibility with redirects
         path: '/',
-        maxAge: 60 * 60 * 5, // 5 hours
+        maxAge: 15 * 60, // 15 minutes - matches backend JWT_ACCESS_EXPIRES_IN
       });
       
       if (APP_CONFIG.IS_DEVELOPMENT) {
@@ -674,7 +701,7 @@ export async function login(data: { email: string; password?: string; otp?: stri
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax', // Use lax for better compatibility with redirects
         path: '/',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
+        maxAge: 7 * 24 * 60 * 60, // 7 days - matches backend JWT_REFRESH_EXPIRES_IN
       });
     }
 
@@ -701,6 +728,24 @@ export async function login(data: { email: string; password?: string; otp?: stri
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
+
+    // Verify cookies were set successfully (debugging aid)
+    if (APP_CONFIG.IS_DEVELOPMENT) {
+      const verifyAccess = cookieStore.get('access_token');
+      const verifyRefresh = cookieStore.get('refresh_token');
+      const verifySession = cookieStore.get('session_id');
+      const verifyRole = cookieStore.get('user_role');
+      
+      logger.debug('[login] Cookie verification after setting', {
+        hasAccessToken: !!verifyAccess,
+        hasRefreshToken: !!verifyRefresh,
+        hasSessionId: !!verifySession,
+        hasUserRole: !!verifyRole,
+        accessTokenLength: verifyAccess?.value.length || 0,
+        environment: process.env.NODE_ENV,
+        secure: process.env.NODE_ENV === 'production',
+      });
+    }
 
     // Return structured response
     return {
@@ -1159,7 +1204,7 @@ export async function resetPassword(data: ResetPasswordFormData) {
 /**
  * Change Password
  */
-export async function changePassword(formData: FormData) {
+export async function changePassword(data: { currentPassword?: string; newPassword: string }) {
   const session = await getServerSession();
   if (!session) {
     throw new Error('Not authenticated');
@@ -1168,11 +1213,12 @@ export async function changePassword(formData: FormData) {
     const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.AUTH.CHANGE_PASSWORD}`, {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`,
         'X-Session-ID': session.session_id,
       },
       timeout: 10000,
-      body: formData,
+      body: JSON.stringify(data),
     });
 
   if (!response.ok) {
@@ -1221,15 +1267,41 @@ export async function refreshToken(): Promise<Session | null> {
       headers,
       body: JSON.stringify({ refreshToken: refreshTokenValue }),
       timeout: 10000,
+      credentials: 'include', // ✅ FIX: Ensure cookies are sent and received
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      logger.error('[refreshToken] Backend refresh failed', new Error(errorData.message || 'Failed to refresh token'), { status: response.status });
       throw new Error('Failed to refresh token');
     }
 
     const responseData = await response.json();
-    await setSession(responseData);
-    return responseData;
+    
+    // ✅ FIX: Verify backend returned new tokens
+    if (!responseData.data?.accessToken || !responseData.data?.refreshToken) {
+      logger.error('[refreshToken] Invalid response - missing tokens', new Error('Backend did not return tokens'));
+      throw new Error('Invalid refresh response');
+    }
+
+    logger.info('[refreshToken] Successfully refreshed tokens', {
+      hasNewAccessToken: !!responseData.data.accessToken,
+      hasNewRefreshToken: !!responseData.data.refreshToken,
+    });
+
+    // setSession will update cookies with new tokens
+    const session = await setSession(responseData.data);
+    
+    // Verify cookies were updated
+    const verifyAccess = cookieStore.get('access_token');
+    const verifyRefresh = cookieStore.get('refresh_token');
+    logger.debug('[refreshToken] Cookie verification after refresh', {
+      hasAccessToken: !!verifyAccess,
+      hasRefreshToken: !!verifyRefresh,
+      accessTokenUpdated: verifyAccess?.value !== expiredAccessToken,
+    });
+    
+    return session; // Return fresh session with new tokens
   } catch (error) {
     logger.error('Token refresh failed', error instanceof Error ? error : new Error(String(error)));
     await clearSession();
@@ -1412,47 +1484,22 @@ async function setAuthCookies(data: {
   };
 }) {
   const cookieStore = await cookies();
-  const secure = process.env.NODE_ENV === 'production';
   
-  // Access token cookie options (5 hours for development)
-  const accessTokenOptions: Partial<ResponseCookie> = {
-    httpOnly: true,
-    secure,
-    sameSite: 'strict',
-    path: '/',
-    maxAge: 60 * 60 * 5, // 5 hours
-  };
-  
-  // Refresh token cookie options (30 days)
-  const refreshTokenOptions: Partial<ResponseCookie> = {
-    httpOnly: true,
-    secure,
-    sameSite: 'strict',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-  };
-  
-  // Session and user cookie options (7 days)
-  const sessionOptions: Partial<ResponseCookie> = {
-    httpOnly: true,
-    secure,
-    sameSite: 'strict',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  };
-  
-  if (data.access_token) {
+  const accessTokenValue = data.access_token || (data as any).accessToken;
+  const refreshTokenValue = data.refresh_token || (data as any).refreshToken;
+
+  if (accessTokenValue) {
     cookieStore.set({
       name: 'access_token',
-      value: data.access_token,
+      value: accessTokenValue,
       ...accessTokenOptions,
     });
   }
 
-  if (data.refresh_token) {
+  if (refreshTokenValue) {
     cookieStore.set({
       name: 'refresh_token',
-      value: data.refresh_token,
+      value: refreshTokenValue,
       ...refreshTokenOptions,
     });
   }
@@ -1465,19 +1512,19 @@ async function setAuthCookies(data: {
     });
   }
 
-  if (data.user?.role) {
-    cookieStore.set({
-      name: 'user_role',
-      value: data.user.role,
-      ...sessionOptions,
-    });
+  // Set profile completion status
+  let profileComplete: string | undefined;
+  if (data.user?.profileComplete !== undefined) {
+    profileComplete = data.user.profileComplete.toString();
+  } else if (data.user && (data.user as any).id && (data.user as any).email) {
+    // Only calculate if we have basically enough info
+    profileComplete = calculateProfileCompletion(data.user as any).toString();
   }
 
-  // Set profile completion status
-  if (data.user?.profileComplete !== undefined) {
+  if (profileComplete !== undefined) {
     cookieStore.set({
       name: 'profile_complete',
-      value: data.user.profileComplete.toString(),
+      value: profileComplete,
       ...sessionOptions,
     });
   }
@@ -1499,10 +1546,18 @@ export async function authenticatedApi<T>(
   const API_URL = APP_CONFIG.API.BASE_URL;
 
   // If no access token but have refresh token, try to refresh first
-  if (!accessToken && refreshTokenValue) {
-    logger.debug('[authenticatedApi] No access token, attempting refresh first');
+  if (!accessToken && refreshTokenValue && sessionId) {
+    logger.debug('[authenticatedApi] No access token, checking for active refresh promise');
+    
+    let refreshPromise = activeRefreshPromises.get(sessionId);
+    if (!refreshPromise) {
+      refreshPromise = refreshToken();
+      activeRefreshPromises.set(sessionId, refreshPromise);
+      refreshPromise.finally(() => activeRefreshPromises.delete(sessionId));
+    }
+
     try {
-      const refreshedSession = await refreshToken();
+      const refreshedSession = await refreshPromise;
       if (refreshedSession?.access_token) {
         accessToken = refreshedSession.access_token;
         logger.debug('[authenticatedApi] Token refreshed successfully');
@@ -1555,10 +1610,21 @@ export async function authenticatedApi<T>(
   }
 
   // ✅ Handle 401 by attempting token refresh and retrying
-  if (response.status === 401 && refreshTokenValue) {
-    logger.debug('[authenticatedApi] Received 401, attempting token refresh');
+  if (response.status === 401 && refreshTokenValue && sessionId) {
+    logger.debug('[authenticatedApi] Received 401, checking for active refresh promise', { sessionId });
+    
+    let refreshPromise = activeRefreshPromises.get(sessionId);
+    if (!refreshPromise) {
+      logger.debug('[authenticatedApi] Starting new refresh promise');
+      refreshPromise = refreshToken();
+      activeRefreshPromises.set(sessionId, refreshPromise);
+      refreshPromise.finally(() => activeRefreshPromises.delete(sessionId));
+    } else {
+      logger.debug('[authenticatedApi] Waiting for already active refresh promise');
+    }
+
     try {
-      const refreshedSession = await refreshToken();
+      const refreshedSession = await refreshPromise;
       if (refreshedSession?.access_token) {
         logger.debug('[authenticatedApi] Token refreshed, retrying request');
         // Update authorization header with new token
@@ -1581,7 +1647,6 @@ export async function authenticatedApi<T>(
       }
     } catch (refreshError) {
       logger.error('[authenticatedApi] Token refresh failed after 401', refreshError instanceof Error ? refreshError : new Error(String(refreshError)));
-      // Continue with original error
     }
   }
 
@@ -1947,3 +2012,4 @@ export async function setProfileComplete(complete: boolean) {
   
   logger.debug('Profile completion cookie set successfully');
 }
+

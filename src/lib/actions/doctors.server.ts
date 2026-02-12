@@ -24,7 +24,11 @@ export async function getDoctors(clinicId: string, filters?: {
     });
   }
 
-  const endpoint = `/clinics/${clinicId}/doctors${params.toString() ? `?${params.toString()}` : ''}`;
+  if (clinicId) {
+    params.append('clinicId', clinicId);
+  }
+
+  const endpoint = `${API_ENDPOINTS.DOCTORS.GET_ALL}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -45,7 +49,7 @@ export async function createDoctor(doctorData: {
   specialization?: string;
   licenseNumber?: string;
   experience?: number;
-  qualifications?: string[];
+  qualification?: string;
   consultationFee?: number;
   clinicId?: string;
   schedule?: {
@@ -69,7 +73,7 @@ export async function updateDoctor(doctorId: string, updates: {
   specialization?: string;
   licenseNumber?: string;
   experience?: number;
-  qualifications?: string[];
+  qualification?: string;
   consultationFee?: number;
   isActive?: boolean;
   clinicId?: string;

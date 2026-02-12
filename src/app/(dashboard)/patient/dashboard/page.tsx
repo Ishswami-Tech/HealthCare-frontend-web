@@ -3,11 +3,9 @@
 import { useMemo } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRoutesByRole } from "@/lib/config/routes";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -20,17 +18,13 @@ import {
   useComprehensiveHealthRecord,
 } from "@/hooks/query/useMedicalRecords";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-
 import { useTranslation } from "@/lib/i18n/context";
-import { translateSidebarLinks } from "@/lib/utils/index";
 import { theme } from "@/lib/utils/theme-utils";
 import {
   Activity,
   Calendar,
   FileText,
   Pill,
-  User,
-  LogOut,
   Clock,
   CheckCircle,
   Plus,
@@ -43,9 +37,12 @@ import {
   Waves,
   Stethoscope,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ClinicSelectDialog } from "@/components/appointments/ClinicSelectDialog";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 
 export default function PatientDashboard() {
-  const { session } = useAuth();
+  const { session, isPending: isAuthPending } = useAuth();
   const user = session?.user;
   const { t } = useTranslation();
 
@@ -55,50 +52,91 @@ export default function PatientDashboard() {
   const { clinicId } = useClinicContext();
   const patientId = user?.id || "";
 
-  // Fetch real data using hooks
-  const { data: appointmentsData } = useMyAppointments();
-  const { data: medicalRecordsData } = usePatientMedicalRecords(
+  // Fetch real data using hooks with loading and error states
+  const { data: appointmentsData, isPending: isPendingAppointments, error: appointmentsError } = useMyAppointments();
+  const { data: medicalRecordsData, isPending: isPendingRecords, error: recordsError } = usePatientMedicalRecords(
     clinicId || "",
     patientId
   );
-  const { data: vitalSignsData } = usePatientVitalSigns(patientId);
-  const { data: prescriptionsData } = usePatientPrescriptions(
+  const { data: vitalSignsData, isPending: isPendingVitals, error: vitalsError } = usePatientVitalSigns(patientId);
+  const { data: prescriptionsData, isPending: isPendingPrescriptions, error: prescriptionsError } = usePatientPrescriptions(
     patientId,
     "active"
   );
-  const { data: comprehensiveData } = useComprehensiveHealthRecord(patientId);
+  const { data: comprehensiveData, isPending: isPendingComprehensive, error: comprehensiveError } = useComprehensiveHealthRecord(patientId);
 
   // Transform real data
   const patientData = useMemo(() => {
-    const appointments = appointmentsData?.appointments || [];
-    const upcomingAppointments = appointments
-      .filter((apt: any) => new Date(apt.startTime || apt.date) >= new Date())
-      .slice(0, 5)
-      .map((apt: any) => ({
-        id: apt.id,
-        doctor:
-          apt.doctor?.name ||
-          `${apt.doctor?.firstName || ""} ${
-            apt.doctor?.lastName || ""
-          }`.trim() ||
-          "Unknown Doctor",
-        type: apt.type || apt.appointmentType || "Consultation",
-        date: apt.startTime
-          ? new Date(apt.startTime).toISOString().split("T")[0]
-          : "",
-        time: apt.startTime
-          ? new Date(apt.startTime).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "",
-        location: apt.location || apt.clinic?.name || "Clinic",
-        status: apt.status || "Scheduled",
-        isOnline: apt.isOnline || false,
-      }));
+    // Helper for safe date formatting
+    const safeFormatDate = (dateString: any, options?: Intl.DateTimeFormatOptions) => {
+      try {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return "";
+        return date.toLocaleDateString("en-US", options);
+      } catch (e) {
+        return "";
+      }
+    };
+
+    const safeFormatTime = (dateString: any, options?: Intl.DateTimeFormatOptions) => {
+      try {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return "";
+        return date.toLocaleTimeString("en-US", options);
+      } catch (e) {
+        return "";
+      }
+    };
+
+    const appointments = Array.isArray(appointmentsData?.appointments) ? appointmentsData.appointments : [];
+    
+    // Safety check for appointments array
+    const upcomingAppointments = Array.isArray(appointments) 
+      ? appointments
+          .filter((apt: any) => {
+            try {
+               return new Date(apt.startTime || apt.date) >= new Date();
+            } catch { return false; }
+          })
+          .slice(0, 5)
+          .map((apt: any) => ({
+            id: apt.id,
+            doctor:
+              apt.doctor?.name ||
+              `${apt.doctor?.firstName || ""} ${
+                apt.doctor?.lastName || ""
+              }`.trim() ||
+              "Unknown Doctor",
+            type: apt.type || apt.appointmentType || "Consultation",
+            date: apt.startTime
+              ? safeFormatDate(apt.startTime).split("T")[0] // Fallback if regular date
+              : "",
+            time: safeFormatTime(apt.startTime, {
+                 hour: "2-digit",
+                 minute: "2-digit",
+            }),
+            location: apt.location || apt.clinic?.name || "Clinic",
+            status: apt.status || "Scheduled",
+            isOnline: apt.isOnline || false,
+          }))
+      : [];
 
     const latestVitals = (vitalSignsData as any)?.[0] || {};
-    const latestPrescriptions = (prescriptionsData as any) || [];
+    const latestPrescriptions = Array.isArray(prescriptionsData) ? prescriptionsData : [];
+
+    const calculateAge = (dob: any) => {
+      if (!dob) return null;
+      try {
+        const date = new Date(dob);
+        if (isNaN(date.getTime())) return null;
+        return Math.floor(
+          (new Date().getTime() - date.getTime()) /
+          (1000 * 60 * 60 * 24 * 365)
+        );
+      } catch { return null; }
+    };
 
     return {
       personalInfo: {
@@ -106,12 +144,7 @@ export default function PatientDashboard() {
           user?.name ||
           `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
           "Patient",
-        age: (user as any)?.dateOfBirth
-          ? Math.floor(
-              (new Date().getTime() - new Date((user as any).dateOfBirth).getTime()) /
-                (1000 * 60 * 60 * 24 * 365)
-            )
-          : null,
+        age: calculateAge((user as any)?.dateOfBirth),
         gender: (user as any)?.gender || "Unknown",
         phone: (user as any)?.phone || (user as any)?.phoneNumber || "",
         email: user?.email || "",
@@ -119,7 +152,7 @@ export default function PatientDashboard() {
       healthOverview: {
         primaryDosha: (comprehensiveData as any)?.doshaBalance?.dominant || "Unknown",
         currentTreatment: (medicalRecordsData as any)?.[0]?.treatment || "None",
-        treatmentProgress: 0, // Note: To be calculated from treatment history when available
+        treatmentProgress: 0, 
         nextAppointment: upcomingAppointments[0]?.date || null,
         lastVisit:
           appointments
@@ -134,19 +167,19 @@ export default function PatientDashboard() {
             )[0]?.time || null,
       },
       upcomingAppointments,
-      recentActivity: [] as Array<{ type: string; message: string; time: string }>, // Note: Activity feed from medical records to be implemented
-      currentTreatments: [] as Array<{ name: string; type: string; doctor: string; progress: number; nextSession: string }>, // Note: To be extracted from medical records when available
-      medications: (latestPrescriptions as any[]).slice(0, 5).map((presc: any) => ({
+      recentActivity: [] as Array<{ type: string; message: string; time: string }>,
+      currentTreatments: [] as Array<{ name: string; type: string; doctor: string; progress: number; nextSession: string }>,
+      medications: latestPrescriptions.slice(0, 5).map((presc: any) => ({
         name: presc.medicineName || presc.name || "Unknown",
         dosage: presc.dosage || "As prescribed",
-        nextRefill: presc.nextRefillDate || null,
+        nextRefill: presc.nextRefillDate ? safeFormatDate(presc.nextRefillDate) : null,
       })),
       vitalStats: {
         bloodPressure: latestVitals.bloodPressure || "N/A",
         heartRate: latestVitals.heartRate || "N/A",
         weight: latestVitals.weight || "N/A",
         lastUpdated: latestVitals.recordedAt
-          ? new Date(latestVitals.recordedAt).toLocaleDateString()
+          ? safeFormatDate(latestVitals.recordedAt)
           : "N/A",
       },
       doshaBalance: (comprehensiveData as any)?.doshaBalance || {
@@ -191,44 +224,9 @@ export default function PatientDashboard() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.PATIENT).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="size-6" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="size-6" />
-    ) : route.path.includes("medical-records") ? (
-      <FileText className="size-6" />
-    ) : route.path.includes("prescriptions") ? (
-      <Pill className="size-6" />
-    ) : route.path.includes("profile") ? (
-      <User className="size-6" />
-    ) : (
-      <Activity className="size-6" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="size-6" />,
-  });
-
-  // Translate sidebar links
-  const translatedSidebarLinks = translateSidebarLinks(sidebarLinks, t);
-
   return (
     <DashboardLayout title={t("sidebar.dashboard")} allowedRole={Role.PATIENT}>
-      <Sidebar
-        links={translatedSidebarLinks}
-        user={{
-          name: patientData.personalInfo.name,
-          avatarUrl: user?.profilePicture || "/avatar.png",
-        }}
-      >
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1
@@ -249,15 +247,27 @@ export default function PatientDashboard() {
                 <Video className="w-4 h-4" />
                 {t("appointments.bookNew")}
               </Button>
-              <Button className="flex items-center gap-2 hover:scale-105 transition-transform bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500">
-                <Plus className="w-4 h-4" />
-                {t("dashboard.bookAppointment")}
-              </Button>
+              <ClinicSelectDialog 
+                trigger={
+                  <Button className="flex items-center gap-2 hover:scale-105 transition-transform bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500">
+                    <Plus className="w-4 h-4" />
+                    {t("dashboard.bookAppointment")}
+                  </Button>
+                }
+              />
             </div>
           </div>
 
           {/* Health Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Diagnosis Card */}
+            {isPendingComprehensive ? (
+               <div className="border rounded-lg p-4 space-y-3">
+                 <Skeleton className="h-4 w-1/2" />
+                 <Skeleton className="h-8 w-3/4" />
+                 <Skeleton className="h-3 w-1/2" />
+               </div>
+            ) : (
             <Card
               className={`hover:shadow-lg transition-shadow duration-300 border-l-4 ${theme.borders.green}`}
             >
@@ -278,7 +288,9 @@ export default function PatientDashboard() {
                 </p>
               </CardContent>
             </Card>
+            )}
 
+            {/* Treatment Card */}
             <Card
               className={`hover:shadow-lg transition-shadow duration-300 border-l-4 ${theme.borders.blue}`}
             >
@@ -295,11 +307,19 @@ export default function PatientDashboard() {
                   {patientData.healthOverview.treatmentProgress}%
                 </div>
                 <p className={`text-xs ${theme.textColors.muted}`}>
-                  {patientData.healthOverview.currentTreatment}
+                  {patientData.healthOverview.currentTreatment?.slice(0, 30) || "None"}
                 </p>
               </CardContent>
             </Card>
 
+            {/* Next Appointment Card */}
+            {isPendingAppointments ? (
+               <div className="border rounded-lg p-4 space-y-3">
+                 <Skeleton className="h-4 w-1/2" />
+                 <Skeleton className="h-8 w-3/4" />
+                 <Skeleton className="h-3 w-1/2" />
+               </div>
+            ) : (
             <Card
               className={`hover:shadow-lg transition-shadow duration-300 border-l-4 ${theme.borders.purple}`}
             >
@@ -318,7 +338,7 @@ export default function PatientDashboard() {
                   ).toLocaleDateString("en-IN", {
                     month: "short",
                     day: "numeric",
-                  }) : "N/A"}
+                  }) : "No appointments"}
                 </div>
                 <p className={`text-xs ${theme.textColors.muted}`}>
                   {patientData.healthOverview.nextAppointment ? new Date(
@@ -327,11 +347,20 @@ export default function PatientDashboard() {
                     hour: "numeric",
                     minute: "2-digit",
                     hour12: true,
-                  }) : ""}
+                  }) : "Schedule one now"}
                 </p>
               </CardContent>
             </Card>
+            )}
 
+            {/* Vitals Card */}
+            {isPendingVitals ? (
+               <div className="border rounded-lg p-4 space-y-3">
+                 <Skeleton className="h-4 w-1/2" />
+                 <Skeleton className="h-8 w-3/4" />
+                 <Skeleton className="h-3 w-1/2" />
+               </div>
+            ) : (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle
@@ -350,6 +379,7 @@ export default function PatientDashboard() {
                 </p>
               </CardContent>
             </Card>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -362,6 +392,13 @@ export default function PatientDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+               {isPendingComprehensive ? (
+                 <div className="space-y-4">
+                   <Skeleton className="h-8 w-full" />
+                   <Skeleton className="h-8 w-full" />
+                   <Skeleton className="h-8 w-full" />
+                 </div>
+               ) : (
                 <div className="space-y-4">
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -438,6 +475,7 @@ export default function PatientDashboard() {
                     </p>
                   </div>
                 </div>
+               )}
               </CardContent>
             </Card>
 
@@ -450,8 +488,19 @@ export default function PatientDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+               {isPendingAppointments ? (
+                  <div className="space-y-4">
+                     <Skeleton className="h-16 w-full" />
+                     <Skeleton className="h-16 w-full" />
+                  </div>
+               ) : (
                 <div className="space-y-4">
-                  {patientData.upcomingAppointments.map((appointment: any) => (
+                  {patientData.upcomingAppointments.length === 0 ? (
+                     <div className="text-center py-8 text-gray-500">
+                        No upcoming appointments
+                     </div>
+                  ) : (
+                  patientData.upcomingAppointments.map((appointment: any) => (
                     <div
                       key={appointment.id}
                       className={`flex items-center justify-between p-4 border rounded-lg ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}
@@ -518,13 +567,15 @@ export default function PatientDashboard() {
                         </Badge>
                       </div>
                     </div>
-                  ))}
+                  ))
+                  )}
 
                   <Button variant="outline" className="w-full">
                     <Plus className="w-4 h-4 mr-2" />
                     Schedule New Appointment
                   </Button>
                 </div>
+               )}
               </CardContent>
             </Card>
           </div>
@@ -538,6 +589,11 @@ export default function PatientDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {patientData.currentTreatments.length === 0 ? (
+                 <div className="text-center py-4 text-gray-500">
+                    No active treatment programs
+                 </div>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {patientData.currentTreatments.map((treatment: any, index: number) => (
                   <div key={index} className="p-4 border rounded-lg">
@@ -571,6 +627,7 @@ export default function PatientDashboard() {
                   </div>
                 ))}
               </div>
+              )}
             </CardContent>
           </Card>
 
@@ -584,8 +641,17 @@ export default function PatientDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+               {isPendingPrescriptions ? (
+                  <div className="space-y-4">
+                     <Skeleton className="h-12 w-full" />
+                     <Skeleton className="h-12 w-full" />
+                  </div>
+               ) : (
                 <div className="space-y-4">
-                  {patientData.medications.map((medication: any, index: number) => (
+                  {patientData.medications.length === 0 ? (
+                     <div className="text-center py-4 text-gray-500">No active medications</div>
+                  ) : (
+                  patientData.medications.map((medication: any, index: number) => (
                     <div
                       key={index}
                       className="flex items-center justify-between p-3 border rounded-lg"
@@ -616,17 +682,19 @@ export default function PatientDashboard() {
                           Refill due:
                         </p>
                         <p className="text-sm font-medium">
-                          {new Date(medication.nextRefill).toLocaleDateString()}
+                          {medication.nextRefill}
                         </p>
                       </div>
                     </div>
-                  ))}
+                  ))
+                  )}
 
                   <Button variant="outline" className="w-full">
                     <Plus className="w-4 h-4 mr-2" />
                     Request Prescription Refill
                   </Button>
                 </div>
+               )}
               </CardContent>
             </Card>
 
@@ -640,7 +708,8 @@ export default function PatientDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {patientData.recentActivity.map((activity: any, index: number) => (
+                {patientData.recentActivity.length > 0 ? (
+                  patientData.recentActivity.map((activity: any, index: number) => (
                     <div key={index} className="flex items-start gap-3">
                       <div className="flex-shrink-0">
                         {activity.type === "appointment" && (
@@ -670,7 +739,9 @@ export default function PatientDashboard() {
                         </p>
                       </div>
                     </div>
-                  ))}
+                  ))) : (
+                     <div className="text-center py-4 text-gray-500">No recent activity</div>
+                  )}
 
                   <Button variant="outline" className="w-full">
                     View All Activity
@@ -747,13 +818,17 @@ export default function PatientDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button
-                  variant="outline"
-                  className="h-16 flex flex-col items-center justify-center gap-2"
-                >
-                  <Calendar className="w-5 h-5" />
-                  <span className="text-sm">Book Appointment</span>
-                </Button>
+                <BookAppointmentDialog
+                  trigger={
+                    <Button
+                      variant="outline"
+                      className="h-16 flex flex-col items-center justify-center gap-2"
+                    >
+                      <Calendar className="w-5 h-5" />
+                      <span className="text-sm">Book Appointment</span>
+                    </Button>
+                  }
+                />
                 <Button
                   variant="outline"
                   className="h-16 flex flex-col items-center justify-center gap-2"
@@ -779,7 +854,6 @@ export default function PatientDashboard() {
             </CardContent>
           </Card>
         </div>
-      </Sidebar>
     </DashboardLayout>
   );
 }

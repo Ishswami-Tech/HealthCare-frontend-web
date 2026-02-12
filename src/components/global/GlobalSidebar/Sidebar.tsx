@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils/index";
 import Link from "next/link";
 import NextImage from "next/image";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -34,14 +34,12 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useGlobalLoading } from "@/hooks/utils/useGlobalLoading";
 import { ROUTES } from "@/lib/config/routes";
-import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
-import { LanguageSwitcher } from "@/components/ui/language-switcher";
-import { Separator } from "@/components/ui/separator";
 import { useTranslation } from "@/lib/i18n/context";
 import { translateSidebarLinks } from "@/lib/utils/index";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
-import { NotificationBell } from "@/components/notifications";
+
+import { motion } from "framer-motion";
 
 // ============================================================================
 // TYPES
@@ -49,13 +47,13 @@ import { NotificationBell } from "@/components/notifications";
 
 export interface SidebarLinkItem {
   label: string;
-  href: string;
-  icon: React.ReactNode;
+  path: string;
+  icon: () => React.ReactNode;
 }
 
 export interface SidebarProps {
   links: SidebarLinkItem[];
-  user: { name: string; avatarUrl?: string };
+  user: { name: string; avatarUrl?: string; role?: string };
   children: React.ReactNode;
 }
 
@@ -67,9 +65,20 @@ const Logo = memo(function Logo() {
   return (
     <Link
       href="/"
-      className="flex items-center gap-2 py-2 text-lg font-semibold"
+      className="flex items-center gap-2 py-2"
     >
-      <span className="text-primary">Ishswami</span>
+      <div className="size-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
+        <span className="text-primary-foreground font-bold text-xl">I</span>
+      </div>
+      <motion.span
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2, ease: "linear" }}
+        className="text-lg font-bold tracking-tight text-sidebar-foreground truncate"
+      >
+        Ishswami
+      </motion.span>
     </Link>
   );
 });
@@ -78,9 +87,11 @@ const LogoIcon = memo(function LogoIcon() {
   return (
     <Link
       href="/"
-      className="flex items-center justify-center py-2 text-lg font-bold text-primary"
+      className="flex items-center justify-center py-2"
     >
-      I
+      <div className="size-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
+        <span className="text-primary-foreground font-bold text-xl">I</span>
+      </div>
     </Link>
   );
 });
@@ -91,13 +102,14 @@ const LogoIcon = memo(function LogoIcon() {
 
 interface SidebarInnerProps {
   links: SidebarLinkItem[];
-  user: { name: string; avatarUrl?: string };
+  user: { name: string; avatarUrl?: string; role?: string };
   onLogoutClick: () => void;
 }
 
 function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
-  const { open } = useSidebar();
+  const { open, setOpen } = useSidebar(); // Access setOpen to toggle on hover
   const { t } = useTranslation();
+  const pathname = usePathname();
   const [avatarError, setAvatarError] = useState(false);
 
   const translatedLinks = useMemo(
@@ -110,106 +122,108 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
   return (
     <>
       {/* Header with Logo */}
-      <SidebarHeader className="border-b p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex-1 flex items-center justify-center">
+      <SidebarHeader className={cn("py-4 px-4 transition-all duration-300", !open && "px-2")}>
+        <div className="flex items-center">
+          <div className={cn("flex-1 flex items-center", open ? "justify-start" : "justify-center")}>
             {open ? <Logo /> : <LogoIcon />}
           </div>
-          {!open && (
-            <div className="ml-2">
-              <NotificationBell />
-            </div>
-          )}
         </div>
       </SidebarHeader>
 
       {/* Main Navigation */}
-      <SidebarContent className="flex-1 overflow-y-auto p-2">
+      <SidebarContent className={cn("flex-1 overflow-y-auto overflow-x-hidden", open ? "p-2" : "p-0 py-2")}>
         <SidebarMenu>
           {translatedLinks.map((link, idx) => {
-            const isLogout =
-              link.label === t("sidebar.logout") || link.label === "Logout";
-
-            if (isLogout) {
-              return (
-                <SidebarMenuItem key={idx}>
-                  <SidebarMenuButton
-                    onClick={onLogoutClick}
-                    className="text-destructive hover:bg-destructive/10"
-                    {...(!open && { tooltip: link.label })}
-                  >
-                    <LogOut className="size-4" />
-                    {open && <span>{link.label}</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            }
+            const isLogout = link.path === "#logout" || link.label === t("sidebar.logout");
 
             return (
-              <SidebarMenuItem key={idx}>
-                <SidebarMenuButton asChild {...(!open && { tooltip: link.label })}>
-                  <Link href={link.href}>
-                    <span className="size-4 flex items-center justify-center">
-                      {link.icon}
-                    </span>
-                    {open && <span>{link.label}</span>}
-                  </Link>
+              <SidebarMenuItem key={idx} className="">
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === link.path}
+                  tooltip={link.label}
+                  className={cn("text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors overflow-hidden", !open && "mx-auto justify-center")}
+                  {...(isLogout ? { onClick: (e) => { e.preventDefault(); onLogoutClick(); } } : {})}
+                >
+                  {isLogout ? (
+                    <button className={cn("flex items-center gap-2 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
+                      <span className="size-4 flex items-center justify-center shrink-0">
+                        {link.icon()}
+                      </span>
+                      {open && (
+                        <motion.span
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -10 }}
+                          transition={{ duration: 0.2 }}
+                          className="truncate whitespace-pre"
+                        >
+                          {link.label}
+                        </motion.span>
+                      )}
+                    </button>
+                  ) : (
+                    <Link href={link.path} className={cn("flex items-center gap-2 w-full", !open && "justify-center")}>
+                      <span className="size-4 flex items-center justify-center shrink-0">
+                        {link.icon()}
+                      </span>
+                      {open && (
+                        <motion.span
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -10 }}
+                          transition={{ duration: 0.2 }}
+                          className="truncate whitespace-pre"
+                        >
+                          {link.label}
+                        </motion.span>
+                      )}
+                    </Link>
+                  )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );
           })}
         </SidebarMenu>
-
-        {/* Theme and Language Controls - Only when expanded */}
-        {open && (
-          <div className="mt-4 space-y-3 px-2">
-            <Separator />
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-muted-foreground">
-                Notifications
-              </span>
-              <NotificationBell />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {t("theme.toggleTheme")}
-                </span>
-                <ThemeSwitcher />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {t("language.changeLanguage")}
-                </span>
-                <LanguageSwitcher showLabel={true} />
-              </div>
-            </div>
-          </div>
-        )}
-      </SidebarContent>
+    </SidebarContent>
 
       {/* Footer with User Info */}
-      <SidebarFooter className="border-t p-2">
+      <SidebarFooter className="border-t border-sidebar-border/50 px-2 py-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton className="w-full justify-start" {...(!open && { tooltip: user.name })}>
-              {!avatarError && user.avatarUrl ? (
-                <NextImage
-                  src={user.avatarUrl}
-                  className="size-8 shrink-0 rounded-full object-cover"
-                  width={32}
-                  height={32}
-                  alt="Avatar"
-                  onError={() => setAvatarError(true)}
-                />
-              ) : (
-                <div className="size-8 flex items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-sm">
-                  {firstLetter}
-                </div>
-              )}
-              {open && (
-                <span className="truncate text-sm font-medium">{user.name}</span>
-              )}
+            <SidebarMenuButton asChild className={cn("h-auto p-2 hover:bg-sidebar-accent transition-colors overflow-hidden", !open && "mx-auto justify-center")}>
+              <Link href={`/${user.role?.toLowerCase() || 'patient'}/profile`} className={cn("flex items-center gap-3 w-full", !open && "justify-center")}>
+                {!avatarError && user.avatarUrl ? (
+                  <NextImage
+                    src={user.avatarUrl}
+                    className="size-8 shrink-0 rounded-full object-cover border border-sidebar-border/50"
+                    width={32}
+                    height={32}
+                    alt="Avatar"
+                    onError={() => setAvatarError(true)}
+                  />
+                ) : (
+                  <div className="size-8 flex items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-sm shrink-0">
+                    {firstLetter}
+                  </div>
+                )}
+                {open && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col min-w-0 flex-1 text-left"
+                  >
+                    <span className="truncate text-sm text-sidebar-foreground font-semibold leading-tight">
+                      {user.name}
+                    </span>
+                    <span className="truncate text-[10px] text-sidebar-foreground/50 uppercase tracking-wider font-bold">
+                      {user.role || t("common.user")}
+                    </span>
+                  </motion.div>
+                )}
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -228,6 +242,8 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
   const router = useRouter();
   const { startLoading, stopLoading } = useGlobalLoading();
   const { t } = useTranslation();
+
+  const [open, setOpen] = useState(false);
 
   const handleLogoutClick = useCallback(() => {
     setShowLogoutDialog(true);
@@ -251,9 +267,14 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
 
   return (
     <>
-      <SidebarProvider defaultOpen={false}>
-        <div className={cn("flex h-screen w-full")}>
-          <SidebarComponent collapsible="icon" className="border-r">
+      <SidebarProvider open={open} onOpenChange={setOpen}>
+        <div className={cn("flex h-screen w-full bg-neutral-100 dark:bg-neutral-900 overflow-hidden")}>
+          <SidebarComponent
+            collapsible="icon"
+            className="border-none bg-neutral-100 dark:bg-neutral-900 text-sidebar-foreground transition-all duration-300 ease-in-out"
+            onMouseEnter={() => setOpen(true)}
+            onMouseLeave={() => setOpen(false)}
+          >
             <SidebarInner
               links={links}
               user={user}
@@ -261,10 +282,11 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
             />
           </SidebarComponent>
 
-          {/* Main Content */}
-          <main className="flex-1 overflow-auto bg-background">
-            {children}
-          </main>
+          <div className="flex flex-1 overflow-hidden">
+             <div className="flex flex-1 flex-col h-full w-full overflow-hidden rounded-tl-3xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 shadow-xl">
+                {children}
+             </div>
+          </div>
         </div>
       </SidebarProvider>
 

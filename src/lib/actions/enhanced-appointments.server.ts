@@ -254,6 +254,8 @@ export async function getAppointments(filters?: AppointmentFilters): Promise<{
     if (filters?.doctorId) appointmentParams.doctorId = filters.doctorId;
     if (filters?.status) appointmentParams.status = filters.status;
     if (filters?.date) appointmentParams.date = filters.date;
+    if (filters?.startDate) appointmentParams.startDate = filters.startDate;
+    if (filters?.endDate) appointmentParams.endDate = filters.endDate;
     if (filters?.locationId) appointmentParams.locationId = filters.locationId;
     if (filters?.clinicId) appointmentParams.clinicId = filters.clinicId;
     

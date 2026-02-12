@@ -1,7 +1,7 @@
 // ✅ Video Appointment Hooks - OpenVidu Integration with WebSocket
 // This file provides hooks for video appointment management with OpenVidu integration and real-time WebSocket updates
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useQueryData, useMutationOperation, useQueryClient } from '@/hooks/core';
 import { useCurrentClinicId } from './useClinics';
 import { useRBAC } from '../utils/useRBAC';
@@ -433,9 +433,45 @@ export function useVideoCall() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { sendVideoAppointmentEvent, sendParticipantJoined, sendParticipantLeft, sendRecordingStarted, sendRecordingStopped } = useVideoAppointmentWebSocket();
+  
+  // State for video streams
+  const [publisher, setPublisher] = useState<any>(null); // Type: Publisher
+  const [subscribers, setSubscribers] = useState<any[]>([]); // Type: Subscriber[]
+
+  // ✅ State Management Effects
+  useEffect(() => {
+    // Listen for OpenVidu stream events
+    const handleStreamCreated = (event: any) => {
+      // In a real app we might want to debate if we update state here or wait for manual getSubscribers()
+      // But for reactive UI, we should update state
+      if (videoAppointmentService.isInCall()) {
+        const currentCall = videoAppointmentService.getCurrentCall();
+        if (currentCall) {
+          setSubscribers([...currentCall.getSubscribers()]);
+        }
+      }
+    };
+
+    const handleStreamDestroyed = (event: any) => {
+      if (videoAppointmentService.isInCall()) {
+        const currentCall = videoAppointmentService.getCurrentCall();
+        if (currentCall) {
+          setSubscribers([...currentCall.getSubscribers()]);
+        }
+      }
+    };
+
+    window.addEventListener('openvidu-stream-created', handleStreamCreated);
+    window.addEventListener('openvidu-stream-destroyed', handleStreamDestroyed);
+
+    return () => {
+      window.removeEventListener('openvidu-stream-created', handleStreamCreated);
+      window.removeEventListener('openvidu-stream-destroyed', handleStreamDestroyed);
+    };
+  }, []);
 
   // ✅ Start Video Call
-  const startCall = useCallback(async (appointmentData: VideoAppointment, userInfo: { userId?: string; role?: string; displayName?: string; email?: string }, container?: HTMLElement) => {
+  const startCall = useCallback(async (appointmentData: VideoAppointment, userInfo: { userId?: string; role?: string; displayName?: string; email?: string }) => {
     try {
       // First, generate token from backend
       const tokenResult = await generateVideoToken({
@@ -464,10 +500,12 @@ export function useVideoCall() {
         openviduServerUrl
       );
 
-      // Initialize with container if provided
-      if (container) {
-        await call.initialize(container);
-      }
+      // Initialize without container - React will handle rendering
+      await call.initialize();
+      
+      // Update local state
+      setPublisher(call.getPublisher());
+      setSubscribers(call.getSubscribers());
       
       // Send WebSocket events
       sendVideoAppointmentEvent('started', {
@@ -501,6 +539,9 @@ export function useVideoCall() {
     try {
       await videoAppointmentService.endVideoAppointment();
       
+      setPublisher(null);
+      setSubscribers([]);
+
       // Send WebSocket events
       sendVideoAppointmentEvent('ended', {
         appointmentId,
@@ -537,6 +578,10 @@ export function useVideoCall() {
       displayName: userInfo.displayName,
       role: userInfo.role,
     });
+    
+    // Also clear state locally
+    setPublisher(null);
+    setSubscribers([]);
   }, [sendParticipantLeft]);
 
   // ✅ Start recording
@@ -557,6 +602,8 @@ export function useVideoCall() {
     leaveCall,
     startRecording,
     stopRecording,
+    publisher,
+    subscribers
   };
 }
 

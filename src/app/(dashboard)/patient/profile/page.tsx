@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,16 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/lib/config/routes";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { theme } from "@/lib/utils/theme-utils";
+import { PageLoading, ErrorState } from "@/components/ui/loading";
+import { PasswordChangeModal, DataExportModal } from "@/components/patient/PatientModals";
+import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
+import { useEffect } from "react";
 import { 
   Activity,
-  Calendar, 
   FileText,
   Pill,
   User,
-  LogOut,
   Save,
   MapPin,
   Camera,
@@ -44,87 +45,155 @@ import {
   AlertTriangle,
   Info,
   Download,
-  Upload
+  Upload,
+  Lock
 } from "lucide-react";
 
 export default function PatientProfile() {
   const { session } = useAuth();
   const user = session?.user;
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // Mock profile data
+  // Profile data from backend
   const [profileData, setProfileData] = useState({
     personalInfo: {
-      firstName: user?.firstName || "Rajesh",
-      lastName: user?.lastName || "Kumar",
-      email: user?.email || "rajesh.kumar@email.com",
-      phone: "+91 9876543210",
-      dateOfBirth: "1978-03-15",
-      gender: "Male",
-      address: "123 Wellness Street, Mumbai, MH 400001",
-      city: "Mumbai",
-      state: "Maharashtra",
-      country: "India",
-      zipCode: "400001",
-      emergencyContact: "Priya Kumar (Wife)",
-      emergencyPhone: "+91 9876543211",
-      occupation: "Software Engineer",
-      maritalStatus: "Married"
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      email: user?.email || "",
+      phone: "",
+      dateOfBirth: "",
+      gender: "",
+      address: "",
+      city: "",
+      state: "",
+      country: "",
+      zipCode: "",
+      emergencyContact: "",
+      emergencyPhone: "",
+      occupation: "",
+      maritalStatus: ""
     },
     ayurvedaProfile: {
-      primaryDosha: "Vata-Pitta",
-      constitution: "Vata-Pitta Prakriti",
-      currentImbalances: ["Elevated Vata", "Mild Pitta excess"],
-      bodyType: "Mesomorphic-Ectomorphic",
-      mentalConstitution: "Rajasic-Sattvic",
-      digestiveFire: "Variable (Vishama Agni)",
-      preferredTreatments: ["Panchakarma", "Shirodhara", "Abhyanga"],
-      seasonalTendencies: ["Vata aggravation in winter", "Pitta issues in summer"]
+      primaryDosha: "",
+      constitution: "",
+      currentImbalances: [] as string[],
+      bodyType: "",
+      mentalConstitution: "",
+      digestiveFire: "",
+      preferredTreatments: [] as string[],
+      seasonalTendencies: [] as string[]
     },
     medicalHistory: {
-      chronicConditions: ["Hypertension (controlled)", "Chronic stress"],
-      allergies: ["Tree nuts", "Shellfish"],
-      currentMedications: [
-        "Triphala Churna - 1 tsp twice daily",
-        "Ashwagandha Capsules - 2 at bedtime"
-      ],
-      familyHistory: ["Diabetes (father)", "Hypertension (mother)"],
-      surgeries: ["Appendectomy (2015)"],
-      lastCheckup: "2024-01-15"
+      chronicConditions: [] as string[],
+      allergies: [] as string[],
+      currentMedications: [] as string[],
+      familyHistory: [] as string[],
+      surgeries: [] as string[],
+      lastCheckup: ""
     },
     lifestyle: {
-      dietPreferences: "Vegetarian",
-      exerciseRoutine: "Yoga 4x/week, Walking daily",
-      sleepPattern: "10 PM - 6 AM (8 hours)",
-      stressLevel: "Moderate",
-      smokingStatus: "Never",
-      alcoholConsumption: "Occasional",
-      waterIntake: "3-4 liters/day",
-      meditationPractice: "Daily pranayama and meditation"
-    },
-    preferences: {
-      language: "English",
-      preferredDoctor: "Dr. Priya Sharma",
-      communicationMethod: "Phone",
-      appointmentReminders: true,
-      medicationReminders: true,
-      treatmentUpdates: true,
-      healthTips: true
+      dietPreferences: "",
+      exerciseRoutine: "",
+      sleepPattern: "",
+      stressLevel: "",
+      waterIntake: "",
+      smokingStatus: "",
+      alcoholConsumption: ""
     },
     vitals: {
-      height: "175 cm",
-      weight: "70 kg",
-      bmi: "22.9",
-      bloodGroup: "O+",
-      bloodPressure: "128/82",
-      heartRate: "72 bpm",
-      lastUpdated: "2024-01-15"
+      height: "",
+      weight: "",
+      bmi: "",
+      bloodPressure: "",
+      heartRate: "",
+      temperature: ""
     },
-    documents: [
-      { name: "Recent Blood Test", type: "Lab Report", date: "2024-01-10", size: "2.4 MB" },
-      { name: "X-Ray Chest", type: "Medical Image", date: "2024-01-05", size: "1.8 MB" },
-      { name: "Prescription - Jan 2024", type: "Prescription", date: "2024-01-15", size: "0.5 MB" }
-    ]
+    preferences: {
+      language: "",
+      communicationPreference: "",
+      timezone: "",
+      notificationSettings: {
+        email: true,
+        sms: false,
+        push: true,
+        appointmentReminders: true,
+        prescriptionRefills: true,
+        healthTips: false
+      }
+    }
   });
+
+  // Fetch profile data on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setIsLoading(true);
+        setHasError(false);
+        const data = await getUserProfile() as any;
+        
+        // Map backend data to frontend structure
+        if (data) {
+          setProfileData(prev => ({
+            personalInfo: {
+              firstName: data.firstName || prev.personalInfo.firstName,
+              lastName: data.lastName || prev.personalInfo.lastName,
+              email: data.email || prev.personalInfo.email,
+              phone: data.phone || prev.personalInfo.phone,
+              dateOfBirth: data.dateOfBirth || prev.personalInfo.dateOfBirth,
+              gender: data.gender || prev.personalInfo.gender,
+              address: data.address || prev.personalInfo.address,
+              city: data.city || prev.personalInfo.city,
+              state: data.state || prev.personalInfo.state,
+              country: data.country || prev.personalInfo.country,
+              zipCode: data.zipCode || prev.personalInfo.zipCode,
+              emergencyContact: data.emergencyContact || prev.personalInfo.emergencyContact,
+              emergencyPhone: data.emergencyPhone || prev.personalInfo.emergencyPhone,
+              occupation: data.occupation || prev.personalInfo.occupation,
+              maritalStatus: data.maritalStatus || prev.personalInfo.maritalStatus,
+            },
+            ayurvedaProfile: data.ayurvedaProfile || prev.ayurvedaProfile,
+            medicalHistory: data.medicalHistory || prev.medicalHistory,
+            lifestyle: data.lifestyle || prev.lifestyle,
+            vitals: data.vitals || prev.vitals,
+            preferences: data.preferences || prev.preferences,
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to fetch profile:', error);
+        setHasError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  // Save profile changes
+  const handleSaveProfile = async () => {
+    try {
+      setIsSaving(true);
+      setValidationErrors({});
+      
+      const result = await updateUserProfile(profileData);
+      
+      if (result.success) {
+        // Success handled by toast in updateUserProfile
+      } else {
+        setValidationErrors({ general: result.error || 'Failed to save profile' });
+      }
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      setValidationErrors({ general: 'An unexpected error occurred' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const [showPassword, setShowPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -158,41 +227,66 @@ export default function PatientProfile() {
     return theme.badges.gray;
   };
 
-  const sidebarLinks = getRoutesByRole(Role.PATIENT).map(route => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes('dashboard') ? <Activity className="w-5 h-5" /> :
-          route.path.includes('appointments') ? <Calendar className="w-5 h-5" /> :
-          route.path.includes('medical-records') ? <FileText className="w-5 h-5" /> :
-          route.path.includes('prescriptions') ? <Pill className="w-5 h-5" /> :
-          route.path.includes('profile') ? <User className="w-5 h-5" /> :
-          <Activity className="w-5 h-5" />
-  }));
+  // Show error state if data fetch failed
+  if (hasError) {
+    return (
+      <DashboardLayout title="Patient Profile" allowedRole={Role.PATIENT}>
+        <ErrorState
+          title="Unable to load profile"
+          message="We couldn't fetch your profile data. Please try again."
+          onRetry={() => setHasError(false)}
+        />
+      </DashboardLayout>
+    );
+  }
 
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />
-  });
+  // Show loading state while data is fetching
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Patient Profile" allowedRole={Role.PATIENT}>
+        <PageLoading text="Loading your profile..." />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Patient Profile" allowedRole={Role.PATIENT}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{ 
-          name: user?.name || `${user?.firstName} ${user?.lastName}` || "Patient",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png" 
-        }}
-      >
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">My Profile</h1>
-            <Button className="flex items-center gap-2">
-              <Save className="w-4 h-4" />
-              Save Changes
-            </Button>
+            <div className="flex items-center gap-2">
+              <PasswordChangeModal
+                trigger={
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    Change Password
+                  </Button>
+                }
+              />
+              <DataExportModal
+                dataType="profile"
+                trigger={
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Download className="w-4 h-4" />
+                    Export Data
+                  </Button>
+                }
+              />
+              <Button className="flex items-center gap-2" disabled={isSaving} onClick={handleSaveProfile}>
+                <Save className="w-4 h-4" />
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
           </div>
+
+          {validationErrors.general && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                {validationErrors.general}
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Profile Overview */}
           <Card>
@@ -989,7 +1083,6 @@ export default function PatientProfile() {
             </TabsContent>
           </Tabs>
         </div>
-      </Sidebar>
     </DashboardLayout>
   );
 }

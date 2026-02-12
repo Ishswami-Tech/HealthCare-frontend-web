@@ -3,7 +3,7 @@
 // ✅ Video Appointment Room Component with WebSocket Integration
 // This component provides a complete video appointment interface using OpenVidu with real-time WebSocket updates
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,7 @@ import { ScreenAnnotation } from "./ScreenAnnotation";
 import { CallTranscription } from "./CallTranscription";
 import { EnhancedRecordingControls } from "./EnhancedRecordingControls";
 import { EnhancedParticipantControls } from "./EnhancedParticipantControls";
+import { UserVideoComponent } from "./UserVideoComponent";
 import {
   useVideoCall,
   useVideoCallControls,
@@ -69,6 +70,8 @@ export function VideoAppointmentRoom({
     startCall,
     endCall,
     isInCall,
+    publisher,
+    subscribers,
   } = useVideoCall();
   const { getCallControls } = useVideoCallControls();
   const {
@@ -87,7 +90,7 @@ export function VideoAppointmentRoom({
     isConnected,
   } = useVideoAppointmentWebSocket();
 
-  const videoContainerRef = useRef<HTMLDivElement>(null);
+  // const videoContainerRef = useRef<HTMLDivElement>(null); // No longer needed
   const [call, setCall] = useState<OpenViduAPI | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -117,7 +120,10 @@ export function VideoAppointmentRoom({
             userId: participantData.userId,
             displayName: participantData.displayName,
           };
-          setParticipants((prev) => [...prev, participant]);
+          setParticipants((prev) => {
+            if (prev.some(p => p.userId === participant.userId)) return prev;
+            return [...prev, participant];
+          });
           toast({
             title: "Participant Joined",
             description: `${participantData.displayName} joined the call`,
@@ -238,8 +244,8 @@ export function VideoAppointmentRoom({
         role: user?.role || "patient",
       };
 
-      // Start call with container
-      const videoCall = await startCall(appointment, userInfo, videoContainerRef.current || undefined);
+      // Start call without container - React handles rendering
+      const videoCall = await startCall(appointment, userInfo);
       setCall(videoCall);
 
       // Send WebSocket event for participant joined
@@ -487,44 +493,61 @@ export function VideoAppointmentRoom({
         </div>
       </div>
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex overflow-hidden">
         {/* Main Video Area */}
-        <div className="flex-1 flex flex-col">
-          {/* Video Container */}
-          <div className="flex-1 relative bg-black">
-            <div
-              ref={videoContainerRef}
-              className="w-full h-full"
-              id="openvidu-container"
-            />
-
-            {/* Connection Status */}
+        <div className="flex-1 flex flex-col bg-black relative">
+          
+          {/* Dynamic Video Grid */}
+          <div className="flex-1 p-4 overflow-hidden">
+             {isInCall() ? (
+                <div className={`grid gap-4 w-full h-full ${
+                  subscribers.length === 0 ? 'grid-cols-1' : 
+                  subscribers.length === 1 ? 'grid-cols-2' : 
+                  'grid-cols-2 md:grid-cols-3'
+                }`}>
+                  {/* Local User (Publisher) */}
+                  {publisher && (
+                    <div className="relative rounded-lg overflow-hidden border-2 border-green-500/50">
+                      <UserVideoComponent streamManager={publisher} isLocal={true} />
+                    </div>
+                  )}
+                  
+                  {/* Remote Users (Subscribers) */}
+                  {subscribers.map((sub: any) => (
+                    <div key={sub.stream.streamId} className="relative rounded-lg overflow-hidden border border-gray-700">
+                      <UserVideoComponent streamManager={sub} isLocal={false} />
+                    </div>
+                  ))}
+                </div>
+             ) : (
+                /* No Call State */
+                !isConnecting && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center text-white">
+                      <Phone className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                      <h2 className="text-2xl font-semibold mb-2">Ready to Join</h2>
+                      <p className="text-gray-400 mb-6">
+                        Click the button below to start your video appointment
+                      </p>
+                      <Button
+                        onClick={handleStartCall}
+                        size="lg"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Phone className="h-5 w-5 mr-2" />
+                        Start Video Call
+                      </Button>
+                    </div>
+                  </div>
+                )
+             )}
+             
+            {/* Connection Status Overlay */}
             {isConnecting && (
-              <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center">
                 <div className="text-center text-white">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                   <p>Connecting to video call...</p>
-                </div>
-              </div>
-            )}
-
-            {/* No Call State */}
-            {!isInCall() && !isConnecting && (
-              <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
-                <div className="text-center text-white">
-                  <Phone className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                  <h2 className="text-2xl font-semibold mb-2">Ready to Join</h2>
-                  <p className="text-gray-400 mb-6">
-                    Click the button below to start your video appointment
-                  </p>
-                  <Button
-                    onClick={handleStartCall}
-                    size="lg"
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Phone className="h-5 w-5 mr-2" />
-                    Start Video Call
-                  </Button>
                 </div>
               </div>
             )}
@@ -532,7 +555,7 @@ export function VideoAppointmentRoom({
 
           {/* Control Bar */}
           {isInCall() && (
-            <div className="bg-white border-t px-6 py-4">
+            <div className="bg-white border-t px-6 py-4 absolute bottom-0 left-0 right-0 z-50">
               <div className="flex items-center justify-center space-x-4">
                 {/* Audio Control */}
                 <Button
@@ -764,7 +787,7 @@ export function VideoAppointmentRoom({
                           className="border-0"
                         />
                       ) : (
-                        <div className="text-center text-gray-500 py-8">
+                      <div className="text-center text-gray-500 py-8">
                           <Pen className="h-8 w-8 mx-auto mb-2" />
                           <p className="text-sm">Start screen sharing to enable annotation</p>
                         </div>

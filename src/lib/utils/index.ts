@@ -45,8 +45,8 @@ export function debounce<T extends (...args: unknown[]) => void>(
 
 interface SidebarLink {
   label: string;
-  href: string;
-  icon: React.ReactNode;
+  path: string;
+  icon: () => React.ReactNode;
   children?: SidebarLink[];
 }
 

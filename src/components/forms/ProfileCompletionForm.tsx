@@ -242,8 +242,8 @@ export default function ProfileCompletionForm({
             id: TOAST_IDS.PROFILE.COMPLETE,
           });
 
-          // Refresh session to get updated user data
-          await refreshSession();
+          // Refresh session to get updated user data (force refresh from backend)
+          await refreshSession(true);
 
           // Set profile complete cookie
           await setProfileComplete(true);
@@ -262,7 +262,8 @@ export default function ProfileCompletionForm({
                   redirectUrl
                 );
                 console.log("Redirecting to:", finalRedirect);
-                router.push(finalRedirect);
+                // Use hard redirect to ensure navigation happens
+                window.location.href = finalRedirect;
               }
             } catch (redirectError) {
               console.error("Error during redirect:", redirectError);
@@ -271,7 +272,7 @@ export default function ProfileCompletionForm({
                 { id: TOAST_IDS.PROFILE.COMPLETE }
               );
             }
-          }, 1000); // Increased timeout to ensure cookies are set
+          }, 1500); // Increased timeout to ensure cookies are set and propagated
         } catch (error) {
           console.error("Error in profile completion success handler:", error);
           showErrorToast(

@@ -1,24 +1,19 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/routes";
-import { useAuth } from "@/hooks/auth/useAuth";
 import { theme } from "@/lib/utils/theme-utils";
+import { PageLoading, ErrorState, EmptyState } from "@/components/ui/loading";
+import { RefillRequestModal, DataExportModal } from "@/components/patient/PatientModals";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { getPrescriptions } from "@/lib/actions/pharmacy.server";
 import {
-  Activity,
-  Calendar,
-  FileText,
-  Pill,
-  User,
-  LogOut,
   Search,
   Filter,
   Download,
@@ -28,13 +23,14 @@ import {
   CheckCircle,
   Bell,
   Leaf,
+  Pill,
   Package,
   Truck,
-  CreditCard,
   MapPin,
   Phone,
   Star,
   Eye,
+  CreditCard,
 } from "lucide-react";
 
 export default function PatientPrescriptions() {
@@ -42,9 +38,60 @@ export default function PatientPrescriptions() {
   const user = session?.user;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [selectedRefillPrescription, setSelectedRefillPrescription] = useState<any>(null);
+  const [isRefillModalOpen, setIsRefillModalOpen] = useState(false);
+
+  // Fetch prescriptions for patient on mount
+  useEffect(() => {
+    const fetchPrescriptions = async () => {
+      if (!user?.clinicId) return;
+
+      try {
+        setIsLoading(true);
+        setHasError(false);
+        // Get prescriptions for the patient's clinic filtered by patientId
+        const data = await getPrescriptions(user.clinicId, {
+          patientId: user.id,
+        });
+        setPrescriptions(data || []);
+      } catch (error) {
+        console.error('Failed to fetch prescriptions:', error);
+        setHasError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPrescriptions();
+  }, [user?.id, user?.clinicId]);
+
+  // Show error state if data fetch failed
+  if (hasError) {
+    return (
+      <DashboardLayout title="Prescriptions" allowedRole={Role.PATIENT}>
+        <ErrorState
+          title="Unable to load prescriptions"
+          message="We couldn't fetch your prescriptions. Please try again."
+          onRetry={() => setHasError(false)}
+        />
+      </DashboardLayout>
+    );
+  }
+
+  // Show loading state while data is fetching
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Prescriptions" allowedRole={Role.PATIENT}>
+        <PageLoading text="Loading your prescriptions..." />
+      </DashboardLayout>
+    );
+  }
 
   // Mock prescription data
-  const prescriptions = [
+  const mockPrescriptions = [
     {
       id: "RX001",
       date: "2024-01-15",
@@ -224,7 +271,9 @@ export default function PatientPrescriptions() {
     },
   ];
 
-  const filteredPrescriptions = prescriptions.filter((prescription) => {
+  const displayPrescriptions = prescriptions.length > 0 ? prescriptions : mockPrescriptions;
+
+  const filteredPrescriptions = displayPrescriptions.filter((prescription) => {
     const matchesSearch =
       prescription.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       prescription.doctor.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -269,7 +318,11 @@ export default function PatientPrescriptions() {
   };
 
   const handleRefillRequest = (prescriptionId: string) => {
-    console.log("Requesting refill for prescription:", prescriptionId);
+    const pres = displayPrescriptions.find(p => p.id === prescriptionId);
+    if (pres) {
+      setSelectedRefillPrescription(pres);
+      setIsRefillModalOpen(true);
+    }
   };
 
   const handleOrderFromPharmacy = (
@@ -284,42 +337,11 @@ export default function PatientPrescriptions() {
     );
   };
 
-  const sidebarLinks = getRoutesByRole(Role.PATIENT).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("medical-records") ? (
-      <FileText className="w-5 h-5" />
-    ) : route.path.includes("prescriptions") ? (
-      <Pill className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <User className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
 
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
 
   return (
     <DashboardLayout title="Prescriptions" allowedRole={Role.PATIENT}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name || `${user?.firstName} ${user?.lastName}` || "Patient",
-          avatarUrl: user?.profilePicture || "/avatar.png",
-        }}
-      >
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">My Prescriptions</h1>
             <div className="flex gap-2">
@@ -380,7 +402,16 @@ export default function PatientPrescriptions() {
 
                 {/* Prescriptions List */}
                 <div className="space-y-6">
-                  {filteredPrescriptions.map((prescription) => (
+                  {filteredPrescriptions.length === 0 ? (
+                    <EmptyState
+                      title="No prescriptions found"
+                      description={searchTerm || statusFilter !== "all" 
+                        ? "No prescriptions match your current filters. Try adjusting your search criteria."
+                        : "You don't have any prescriptions yet. Your prescriptions will appear here after a consultation."}
+                      icon={Pill}
+                    />
+                  ) : (
+                    filteredPrescriptions.map((prescription) => (
                     <Card key={prescription.id}>
                       <CardHeader>
                         <div className="flex items-center justify-between">
@@ -534,7 +565,8 @@ export default function PatientPrescriptions() {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </TabsContent>
@@ -724,6 +756,8 @@ export default function PatientPrescriptions() {
                               </Button>
                             </div>
                           </div>
+
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -774,56 +808,8 @@ export default function PatientPrescriptions() {
                         </div>
                         <div className="flex gap-2 mt-3">
                           <Button variant="outline" size="sm">
-                            <Eye className="w-3 h-3 mr-1" />
-                            View Details
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <RefreshCw className="w-3 h-3 mr-1" />
+                            <RefreshCw className="w-4 h-4 mr-1" />
                             Reorder
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Download className="w-3 h-3 mr-1" />
-                            Invoice
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <h3 className="font-semibold">Order #ORD12344</h3>
-                            <p className={`text-sm ${theme.textColors.secondary}`}>
-                              Herbal Care Center • Jan 15, 2024
-                            </p>
-                          </div>
-                          <Badge className={theme.badges.blue}>
-                            In Transit
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <span className={theme.textColors.secondary}>Items:</span>
-                            <span className="ml-2">
-                              Brahmi Ghrita, Saraswatarishta
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Total:</span>
-                            <span className="ml-2 font-semibold">₹980</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Expected:</span>
-                            <span className="ml-2">Jan 22, 2024</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 mt-3">
-                          <Button variant="outline" size="sm">
-                            <Truck className="w-3 h-3 mr-1" />
-                            Track Order
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Phone className="w-3 h-3 mr-1" />
-                            Contact Pharmacy
                           </Button>
                         </div>
                       </div>
@@ -833,47 +819,17 @@ export default function PatientPrescriptions() {
               </div>
             </TabsContent>
           </Tabs>
+      </div>
 
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <RefreshCw className="w-6 h-6" />
-                  <span className="text-sm">Request Refill</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <ShoppingCart className="w-6 h-6" />
-                  <span className="text-sm">Order Medicine</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <Bell className="w-6 h-6" />
-                  <span className="text-sm">Set Reminder</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <Download className="w-6 h-6" />
-                  <span className="text-sm">Download Prescription</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </Sidebar>
+      {/* Refill Request Modal */}
+      {selectedRefillPrescription && (
+        <RefillRequestModal
+          prescription={selectedRefillPrescription}
+          open={isRefillModalOpen}
+          onOpenChange={setIsRefillModalOpen}
+        />
+      )}
     </DashboardLayout>
   );
 }
+

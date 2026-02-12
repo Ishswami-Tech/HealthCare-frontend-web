@@ -1,14 +1,15 @@
 import React, { ReactNode } from "react";
 import {
-  Home,
+  LayoutDashboard,
   User,
-  Settings,
+  Settings2,
   Calendar,
   Users,
   FileText,
   Building2,
   Pill,
   Package,
+  ArrowLeft,
 } from "lucide-react";
 import { Role } from "@/types/auth.types";
 import { ROLE_ROUTES } from "@/lib/config/routes";
@@ -30,19 +31,20 @@ const iconWrapper = (Icon: React.ComponentType<{ className?: string }>) => {
 };
 
 // Icon components
-const HomeIcon = iconWrapper(Home);
+const DashboardIcon = iconWrapper(LayoutDashboard);
 const UserIcon = iconWrapper(User);
-const SettingsIcon = iconWrapper(Settings);
+const SettingsIcon = iconWrapper(Settings2);
 const CalendarIcon = iconWrapper(Calendar);
 const UsersIcon = iconWrapper(Users);
 const FileTextIcon = iconWrapper(FileText);
 const BuildingIcon = iconWrapper(Building2);
 const PillIcon = iconWrapper(Pill);
 const PackageIcon = iconWrapper(Package);
+const LogOutIcon = iconWrapper(ArrowLeft);
 
 // Helper function to map route label to icon
 const getIconForRoute = (path: string): (() => ReactNode) => {
-  if (path.includes("dashboard")) return HomeIcon;
+  if (path.includes("dashboard")) return DashboardIcon;
   if (path.includes("appointments")) return CalendarIcon;
   if (
     path.includes("patients") ||
@@ -57,7 +59,8 @@ const getIconForRoute = (path: string): (() => ReactNode) => {
   if (path.includes("prescriptions")) return PillIcon;
   if (path.includes("inventory")) return PackageIcon;
   if (path.includes("medical-records")) return FileTextIcon;
-  return HomeIcon; // Default icon
+  if (path.includes("logout") || path === "#logout") return LogOutIcon;
+  return DashboardIcon; // Default icon
 };
 
 // Role-based sidebar links

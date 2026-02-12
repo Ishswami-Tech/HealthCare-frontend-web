@@ -3,22 +3,30 @@
 import { useState } from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/lib/config/routes";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { theme } from "@/lib/utils/theme-utils";
-import { LoadingSpinner } from "@/components/ui/loading";
+import { LoadingSpinner, PageLoading, ErrorState, EmptyState } from "@/components/ui/loading";
+import { getComprehensiveHealthRecord } from "@/lib/actions/ehr.server";
+import { useEffect } from "react";
 import {
   Activity,
   Calendar,
   FileText,
   Pill,
-  User,
   LogOut,
   Upload,
   Download,
@@ -44,7 +52,49 @@ import {
 export default function PatientMedicalRecords() {
   const { session, isPending: authLoading } = useAuth();
   const user = session?.user;
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [healthData, setHealthData] = useState<any>(null);
+  
+  // View Details State
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+
+  const handleViewRecord = (record: any) => {
+    setSelectedRecord(record);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleDownload = (e: React.MouseEvent, recordType: string) => {
+    e.stopPropagation();
+    toast({
+      title: "Download Started",
+      description: `Downloading ${recordType}...`,
+    });
+  };
+
+  // Fetch comprehensive health records on mount
+  useEffect(() => {
+    const fetchHealthRecords = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setIsLoading(true);
+        setHasError(false);
+        const data = await getComprehensiveHealthRecord(user.id);
+        setHealthData(data);
+      } catch (error) {
+        console.error('Failed to fetch health records:', error);
+        setHasError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHealthRecords();
+  }, [user?.id]);
 
   // ✅ Show loading only if auth is actually loading (not just if user is null initially)
   // Don't block content if user data is being fetched in background
@@ -65,194 +115,47 @@ export default function PatientMedicalRecords() {
     return null;
   }
 
-  // Mock medical records data
-  const medicalHistory = [
-    {
-      id: "1",
-      date: "2024-01-15",
-      type: "Consultation",
-      doctor: "Dr. Priya Sharma",
-      diagnosis: "Vata-Pitta imbalance with chronic stress",
-      treatment: "Panchakarma therapy recommended",
-      notes:
-        "Patient shows signs of elevated Vata dosha. Recommended lifestyle changes and Shirodhara sessions.",
-      status: "Completed",
-    },
-    {
-      id: "2",
-      date: "2024-01-08",
-      type: "Therapy Session",
-      doctor: "Dr. Priya Sharma",
-      diagnosis: "Stress-induced insomnia",
-      treatment: "Shirodhara with Brahmi oil",
-      notes:
-        "Patient responded well to therapy. Improved sleep quality reported.",
-      status: "Completed",
-    },
-    {
-      id: "3",
-      date: "2023-12-20",
-      type: "Nadi Pariksha",
-      doctor: "Dr. Amit Singh",
-      diagnosis: "Constitutional analysis - Vata-Pitta Prakriti",
-      treatment: "Personalized diet and lifestyle plan",
-      notes:
-        "Initial assessment reveals strong Vata tendencies with Pitta secondary. Recommended cooling foods.",
-      status: "Completed",
-    },
-  ];
+  // Show error state if data fetch failed
+  if (hasError) {
+    return (
+      <DashboardLayout title="Medical Records" allowedRole={Role.PATIENT}>
+        <ErrorState
+          title="Unable to load medical records"
+          message="We couldn't fetch your medical records. Please try again."
+          onRetry={() => setHasError(false)}
+        />
+      </DashboardLayout>
+    );
+  }
 
-  const prescriptions = [
-    {
-      id: "1",
-      date: "2024-01-15",
-      doctor: "Dr. Priya Sharma",
-      medications: [
-        {
-          name: "Triphala Churna",
-          dosage: "1 tsp twice daily with warm water",
-          duration: "30 days",
-        },
-        {
-          name: "Ashwagandha Capsules",
-          dosage: "2 capsules at bedtime",
-          duration: "60 days",
-        },
-        {
-          name: "Brahmi Ghrita",
-          dosage: "5 drops in each nostril morning",
-          duration: "21 days",
-        },
-      ],
-      instructions:
-        "Take medicines 30 minutes before meals. Avoid cold foods and drinks.",
-      status: "Active",
-    },
-    {
-      id: "2",
-      date: "2024-01-08",
-      doctor: "Dr. Priya Sharma",
-      medications: [
-        {
-          name: "Saraswatarishta",
-          dosage: "15ml twice daily after meals",
-          duration: "45 days",
-        },
-        {
-          name: "Jatamansi Churna",
-          dosage: "1/2 tsp with honey at bedtime",
-          duration: "30 days",
-        },
-      ],
-      instructions:
-        "Continue meditation and yoga practice. Follow prescribed sleep schedule.",
-      status: "Completed",
-    },
-  ];
+  // Show loading state while data is fetching
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Medical Records" allowedRole={Role.PATIENT}>
+        <PageLoading text="Loading your medical records..." />
+      </DashboardLayout>
+    );
+  }
 
-  const labReports = [
-    {
-      id: "1",
-      date: "2024-01-10",
-      type: "Blood Test",
-      testName: "Complete Blood Count",
-      results: [
-        {
-          parameter: "Hemoglobin",
-          value: "13.2 g/dl",
-          normalRange: "12.0-16.0",
-          status: "Normal",
-        },
-        {
-          parameter: "WBC Count",
-          value: "7,200 cells/mcL",
-          normalRange: "4,000-11,000",
-          status: "Normal",
-        },
-        {
-          parameter: "Platelet Count",
-          value: "2.8 lakhs/mcL",
-          normalRange: "1.5-4.5 lakhs",
-          status: "Normal",
-        },
-      ],
-      doctor: "Dr. Priya Sharma",
-      status: "Normal",
-    },
-    {
-      id: "2",
-      date: "2024-01-05",
-      type: "Lipid Profile",
-      testName: "Cholesterol Test",
-      results: [
-        {
-          parameter: "Total Cholesterol",
-          value: "195 mg/dl",
-          normalRange: "<200",
-          status: "Normal",
-        },
-        {
-          parameter: "LDL",
-          value: "125 mg/dl",
-          normalRange: "<100",
-          status: "High",
-        },
-        {
-          parameter: "HDL",
-          value: "48 mg/dl",
-          normalRange: ">40",
-          status: "Normal",
-        },
-        {
-          parameter: "Triglycerides",
-          value: "140 mg/dl",
-          normalRange: "<150",
-          status: "Normal",
-        },
-      ],
-      doctor: "Dr. Priya Sharma",
-      status: "Attention Required",
-    },
-  ];
+  // Use real data if available, otherwise show empty state
+  const medicalHistory = healthData?.medicalHistory || [];
+  
+  // Filter medical history based on search term
+  const filteredMedicalHistory = medicalHistory.filter((record: any) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      record.diagnosis?.toLowerCase().includes(term) ||
+      record.treatment?.toLowerCase().includes(term) ||
+      record.doctor?.toLowerCase().includes(term) ||
+      record.notes?.toLowerCase().includes(term) ||
+      record.type?.toLowerCase().includes(term)
+    );
+  });
 
-  const vitalSigns = [
-    {
-      date: "2024-01-15",
-      bp: "128/82",
-      hr: "72",
-      temp: "98.6",
-      weight: "70",
-      height: "175",
-      bmi: "22.9",
-    },
-    {
-      date: "2024-01-08",
-      bp: "132/85",
-      hr: "75",
-      temp: "98.4",
-      weight: "70.5",
-      height: "175",
-      bmi: "23.0",
-    },
-    {
-      date: "2024-01-01",
-      bp: "135/88",
-      hr: "78",
-      temp: "98.8",
-      weight: "71",
-      height: "175",
-      bmi: "23.2",
-    },
-    {
-      date: "2023-12-20",
-      bp: "138/90",
-      hr: "80",
-      temp: "98.6",
-      weight: "71.5",
-      height: "175",
-      bmi: "23.3",
-    },
-  ];
+  const prescriptions = healthData?.prescriptions || [];
+  const labReports = healthData?.labReports || [];
+  const vitalSigns = healthData?.vitals || [];
 
   const allergies = [
     {
@@ -322,42 +225,11 @@ export default function PatientMedicalRecords() {
     return <Minus className={`w-4 h-4 ${theme.iconColors.gray}`} />;
   };
 
-  const sidebarLinks = getRoutesByRole(Role.PATIENT).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("medical-records") ? (
-      <FileText className="w-5 h-5" />
-    ) : route.path.includes("prescriptions") ? (
-      <Pill className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <User className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
 
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
 
   return (
     <DashboardLayout title="Medical Records" allowedRole={Role.PATIENT}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name || `${user?.firstName} ${user?.lastName}` || "Patient",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Medical Records</h1>
             <div className="flex gap-2">
@@ -412,7 +284,14 @@ export default function PatientMedicalRecords() {
                       </div>
 
                       <div className="space-y-4">
-                        {medicalHistory.map((record) => (
+                        {filteredMedicalHistory.length === 0 ? (
+                          <EmptyState
+                            title={searchTerm ? "No matching records" : "No medical history"}
+                            description={searchTerm ? "Try adjusting your search terms." : "You don't have any medical history records yet."}
+                            icon={FileText}
+                          />
+                        ) : (
+                          filteredMedicalHistory.map((record: any) => (
                           <div
                             key={record.id}
                             className={`border rounded-lg p-4 ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}
@@ -465,16 +344,25 @@ export default function PatientMedicalRecords() {
                                 )}
                               </div>
                               <div className="flex gap-2 ml-4">
-                                <Button variant="outline" size="sm">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleViewRecord(record)}
+                                >
                                   <Eye className="w-4 h-4" />
                                 </Button>
-                                <Button variant="outline" size="sm">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={(e) => handleDownload(e, "Medical Record")}
+                                >
                                   <Download className="w-4 h-4" />
                                 </Button>
                               </div>
                             </div>
                           </div>
-                        ))}
+                          ))
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -1040,8 +928,71 @@ export default function PatientMedicalRecords() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </Sidebar>
+      </div>
+
+      {/* View Record Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Medical Record Details</DialogTitle>
+            <DialogDescription>
+              View detailed information about this medical record.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedRecord && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground mb-1">Date</h4>
+                  <p>{new Date(selectedRecord.date).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground mb-1">Doctor</h4>
+                  <p>{selectedRecord.doctor}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground mb-1">Type</h4>
+                  <p>{selectedRecord.type}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground mb-1">Status</h4>
+                  <Badge className={getStatusColor(selectedRecord.status)}>{selectedRecord.status}</Badge>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-semibold text-sm text-muted-foreground mb-1">Diagnosis</h4>
+                <p className="bg-muted/50 p-2 rounded-md">{selectedRecord.diagnosis}</p>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-sm text-muted-foreground mb-1">Treatment Plan</h4>
+                <p className="bg-muted/50 p-2 rounded-md">{selectedRecord.treatment}</p>
+              </div>
+
+              {selectedRecord.notes && (
+                <div>
+                  <h4 className="font-semibold text-sm text-muted-foreground mb-1">Notes</h4>
+                  <p className="bg-muted/50 p-2 rounded-md text-sm">{selectedRecord.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+            <Button onClick={(e) => {
+              handleDownload(e, "Medical Record");
+              setIsViewDialogOpen(false);
+            }}>
+              <Download className="w-4 h-4 mr-2" />
+              Download Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
+```

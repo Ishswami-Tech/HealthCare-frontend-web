@@ -94,7 +94,7 @@ export async function updatePatient(patientId: string, updates: {
   isActive?: boolean;
 }) {
   const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.UPDATE(patientId), {
-    method: 'PATCH',
+    method: 'PUT',
     body: JSON.stringify(updates),
   });
   return data;

@@ -1,3 +1,5 @@
+"use client";
+
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
 import {
@@ -176,7 +178,7 @@ export const useCreateDoctor = () => {
       specialization?: string;
       licenseNumber?: string;
       experience?: number;
-      qualifications?: string[];
+      qualification?: string;
       consultationFee?: number;
       clinicId?: string;
       schedule?: {
@@ -208,7 +210,7 @@ export const useUpdateDoctor = () => {
         specialization?: string;
         licenseNumber?: string;
         experience?: number;
-        qualifications?: string[];
+        qualification?: string;
         consultationFee?: number;
         isActive?: boolean;
         clinicId?: string;

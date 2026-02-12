@@ -123,6 +123,41 @@ export interface TranslationKeys {
     months: string;
     days: string;
   };
+  sidebar: {
+    dashboard: string;
+    appointments: string;
+    patients: string;
+    doctors: string;
+    prescriptions: string;
+    pharmacy: string;
+    reports: string;
+    analytics: string;
+    settings: string;
+    profile: string;
+    logout: string;
+    clinics: string;
+    staff: string;
+    queue: string;
+    ehr: string;
+    billing: string;
+    inventory: string;
+  };
+  dashboard: {
+    welcomeBack: string;
+    overview: string;
+    bookAppointment: string;
+  };
+  healthcare: {
+    diagnosis: string;
+    treatment: string;
+  };
+  patients: {
+    personalInfo: string;
+  };
+  appointments: {
+    upcoming: string;
+    bookNew: string;
+  };
   navigation: {
     logo: string;
     clinicName: string;

@@ -88,14 +88,14 @@
   --chart-3: oklch(0.7536 0.1626 130.5022);
   --chart-4: oklch(0.8555 0.1766 114.846);
   --chart-5: oklch(0.9285 0.1803 102.4974);
-  --sidebar: oklch(0.4684 0.0958 167.151);
-  --sidebar-foreground: oklch(1 0 0);
-  --sidebar-primary: oklch(1 0 0);
-  --sidebar-primary-foreground: oklch(0.4684 0.0958 167.151);
-  --sidebar-accent: oklch(0.684 0.144 154.999);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0.6731 0.1624 144.2083);
-  --sidebar-ring: oklch(1 0 0);
+  --sidebar: oklch(0.98 0.001 240);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.98 0.001 240);
+  --sidebar-accent: oklch(0.96 0.002 240);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.92 0.002 240);
+  --sidebar-ring: oklch(0.4684 0.0958 167.151);
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -149,14 +149,14 @@
   --chart-3: oklch(0.7536 0.1626 130.5022);
   --chart-4: oklch(0.8555 0.1766 114.846);
   --chart-5: oklch(0.9285 0.1803 102.4974);
-  --sidebar: oklch(0.4684 0.0958 167.151);
-  --sidebar-foreground: oklch(1 0 0);
-  --sidebar-primary: oklch(1 0 0);
-  --sidebar-primary-foreground: oklch(0.4684 0.0958 167.151);
-  --sidebar-accent: oklch(0.684 0.144 154.999);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0.6731 0.1624 144.2083);
-  --sidebar-ring: oklch(1 0 0);
+  --sidebar: oklch(0.18 0.001 240);
+  --sidebar-foreground: oklch(0.98 0.001 240);
+  --sidebar-primary: oklch(0.4684 0.0958 167.151);
+  --sidebar-primary-foreground: oklch(0.98 0.001 240);
+  --sidebar-accent: oklch(0.24 0.002 240);
+  --sidebar-accent-foreground: oklch(0.98 0.001 240);
+  --sidebar-border: oklch(0.24 0.002 240);
+  --sidebar-ring: oklch(0.4684 0.0958 167.151);
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,

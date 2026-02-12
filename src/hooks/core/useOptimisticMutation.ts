@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * React 19 useOptimistic Hook Integration
  * Provides optimistic UI updates for mutations

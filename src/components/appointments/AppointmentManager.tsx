@@ -14,8 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useWebSocketIntegration,
 } from "@/hooks/realtime/useWebSocketIntegration";
@@ -36,6 +44,7 @@ import {
   useStartConsultation,
   useCanCancelAppointment,
   useDoctorQueue,
+  useUpdateAppointment,
 } from "@/hooks/query/useAppointments";
 import {
   AppointmentWithRelations,
@@ -47,6 +56,8 @@ import { useClinicLocations, useClinicDoctors } from "@/hooks/query/useClinics";
 
 export default function AppointmentManager() {
   const { toast } = useToast();
+  const { session } = useAuth();
+  const user = session?.user;
 
   // Real-time WebSocket integration
   const { isConnected, isReady: isRealTimeEnabled } = useWebSocketIntegration({
@@ -65,19 +76,48 @@ export default function AppointmentManager() {
   const [selectedAppointment, setSelectedAppointment] =
     useState<AppointmentWithRelations | null>(null);
   const [newAppointment, setNewAppointment] = useState<CreateAppointmentData>({
-    patientId: "",
+    patientId: user?.id || "",
     doctorId: "",
     locationId: "",
     date: "",
     time: "",
     duration: 30,
-    type: "CONSULTATION",
+    type: "IN_PERSON",
     notes: "",
+  });
+
+  // Reschedule state
+  const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
+  const [rescheduleData, setRescheduleData] = useState({
+    date: "",
+    time: "",
+  });
+
+  // Date filtering state
+  const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({
+    start: "",
+    end: "",
   });
 
   // Appointment CRUD hooks (fallback for non-real-time)
   const { data: appointments, isPending: appointmentsLoading } =
-    useAppointments();
+    useAppointments({
+      ...(dateFilter.start ? { startDate: dateFilter.start } : {}),
+      ...(dateFilter.end ? { endDate: dateFilter.end } : {}),
+    });
+
+  // Date filtering state defined above
+
+  const handleDateFilterChange = (type: 'start' | 'end', value: string) => {
+    setDateFilter(prev => ({
+      ...prev,
+      [type]: value
+    }));
+  };
+
+  const clearFilters = () => {
+    setDateFilter({ start: "", end: "" });
+  };
 
   // Use real-time data if available, otherwise fallback to regular data
   const appointmentData = realTimeAppointments?.success
@@ -88,6 +128,8 @@ export default function AppointmentManager() {
     useCreateAppointment();
   const { mutate: cancelAppointment, isPending: cancellingAppointment } =
     useCancelAppointment();
+  const { mutate: updateAppointment, isPending: updatingAppointment } =
+    useUpdateAppointment();
 
   // Doctor availability
   const { data: doctorAvailability } = useDoctorAvailability(
@@ -96,7 +138,7 @@ export default function AppointmentManager() {
   );
 
   // User appointments
-  const { data: upcomingAppointments } = useUserUpcomingAppointments("user-id");
+  const { data: upcomingAppointments } = useUserUpcomingAppointments(user?.id || "");
 
   // Location and doctor data (memoized)
   // Use environment-aware clinic ID with fallback
@@ -111,7 +153,7 @@ export default function AppointmentManager() {
   const { mutate: processCheckIn, isPending: processingCheckIn } =
     useProcessCheckIn();
   const { data: queuePosition } = usePatientQueuePosition(
-    selectedAppointment?.patientId || "",
+    selectedAppointment?.patientId || user?.id || "",
     "appointment"
   );
 
@@ -180,7 +222,7 @@ export default function AppointmentManager() {
             date: "",
             time: "",
             duration: 30,
-            type: "CONSULTATION",
+            type: "IN_PERSON",
             notes: "",
           });
 
@@ -213,7 +255,7 @@ export default function AppointmentManager() {
             date: "",
             time: "",
             duration: 30,
-            type: "CONSULTATION",
+            type: "IN_PERSON",
             notes: "",
           });
         },
@@ -313,6 +355,52 @@ export default function AppointmentManager() {
         });
       },
     });
+  };
+
+  const handleRescheduleClick = () => {
+    if (selectedAppointment) {
+      setRescheduleData({
+        date: selectedAppointment.date,
+        time: selectedAppointment.time,
+      });
+      setIsRescheduleDialogOpen(true);
+    }
+  };
+
+  const handleRescheduleSubmit = () => {
+    if (!selectedAppointment) return;
+
+    updateAppointment(
+      {
+        id: selectedAppointment.id,
+        data: {
+          date: rescheduleData.date,
+          time: rescheduleData.time,
+          // Optional: reset status to SCHEDULED if it was something else, 
+          // or let backend handle it. Usually rescheduling implies re-confirmation might be needed?
+          // For now, we'll keep it simple.
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Success",
+            description: "Appointment rescheduled successfully",
+          });
+          setIsRescheduleDialogOpen(false);
+          // Update selected appointment in local state to reflect changes immediately if needed
+          // (The query invalidation will handle the list)
+          setSelectedAppointment(prev => prev ? { ...prev, date: rescheduleData.date, time: rescheduleData.time } : null);
+        },
+        onError: (error) => {
+           toast({
+            title: "Error",
+            description: sanitizeErrorMessage(error) || "Failed to reschedule appointment",
+            variant: "destructive",
+          });
+        }
+      }
+    );
   };
 
   // Show real-time connection status
@@ -485,12 +573,15 @@ export default function AppointmentManager() {
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CONSULTATION">Consultation</SelectItem>
-                  <SelectItem value="FOLLOW_UP">Follow Up</SelectItem>
-                  <SelectItem value="EMERGENCY">Emergency</SelectItem>
-                  <SelectItem value="ROUTINE_CHECKUP">
-                    Routine Checkup
-                  </SelectItem>
+                  <SelectItem value="IN_PERSON">In-Person</SelectItem>
+                  <SelectItem value="VIDEO_CALL">Video Call</SelectItem>
+                  <SelectItem value="NADI_PARIKSHA">Nadi Pariksha</SelectItem>
+                  <SelectItem value="DOSHA_ANALYSIS">Dosha Analysis</SelectItem>
+                  <SelectItem value="PANCHAKARMA">Panchakarma</SelectItem>
+                  <SelectItem value="SHIRODHARA">Shirodhara</SelectItem>
+                  <SelectItem value="ABHYANGA">Abhyanga</SelectItem>
+                  <SelectItem value="AGNIKARMA">Agnikarma</SelectItem>
+                  <SelectItem value="VIDDHAKARMA">Viddhakarma</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -556,6 +647,42 @@ export default function AppointmentManager() {
           </CardContent>
         </Card>
       )}
+
+      {/* Date Filter */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filter Appointments</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4 items-end">
+             <div className="w-full md:w-auto">
+               <Label htmlFor="filter-start-date">Start Date</Label>
+               <Input
+                 id="filter-start-date"
+                 type="date"
+                 value={dateFilter.start}
+                 onChange={(e) => handleDateFilterChange('start', e.target.value)}
+                 className="w-full"
+               />
+             </div>
+             <div className="w-full md:w-auto">
+               <Label htmlFor="filter-end-date">End Date</Label>
+               <Input
+                 id="filter-end-date"
+                 type="date"
+                 value={dateFilter.end}
+                 onChange={(e) => handleDateFilterChange('end', e.target.value)}
+                 className="w-full"
+               />
+             </div>
+             <div className="w-full md:w-auto">
+               <Button variant="outline" onClick={clearFilters} className="w-full">
+                 Clear Filters
+               </Button>
+             </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Appointments List */}
       <Card>
@@ -641,6 +768,16 @@ export default function AppointmentManager() {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                {(selectedAppointment?.status === "SCHEDULED" ||
+                  selectedAppointment?.status === "CONFIRMED") && (
+                  <Button
+                    variant="outline"
+                    onClick={handleRescheduleClick}
+                    disabled={updatingAppointment}
+                  >
+                    Reschedule
+                  </Button>
+                )}
                 {canCancelData && (
                   <Button
                     variant="destructive"
@@ -743,6 +880,54 @@ export default function AppointmentManager() {
           </CardContent>
         </Card>
       )}
+      
+      {/* Reschedule Dialog */}
+      <Dialog open={isRescheduleDialogOpen} onOpenChange={setIsRescheduleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="reschedule-date">New Date</Label>
+              <Input
+                id="reschedule-date"
+                type="date"
+                min={new Date().toISOString().split('T')[0]}
+                value={rescheduleData.date}
+                onChange={(e) =>
+                  setRescheduleData({ ...rescheduleData, date: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reschedule-time">New Time</Label>
+              <Input
+                id="reschedule-time"
+                type="time"
+                value={rescheduleData.time}
+                onChange={(e) =>
+                  setRescheduleData({ ...rescheduleData, time: e.target.value })
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRescheduleDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleRescheduleSubmit} 
+              disabled={updatingAppointment}
+            >
+              {updatingAppointment ? "Rescheduling..." : "Confirm Reschedule"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

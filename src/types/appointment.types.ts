@@ -24,15 +24,21 @@ export type AppointmentPriority =
   | 'URGENT';
 
 export type AppointmentType = 
-  | 'CONSULTATION'
-  | 'FOLLOW_UP'
-  | 'EMERGENCY'
-  | 'TELEMEDICINE'
-  | 'PROCEDURE'
-  | 'VACCINATION'
-  | 'ROUTINE_CHECKUP'
-  | 'SPECIALIST_VISIT'
-  | 'LAB_TEST';
+  | 'IN_PERSON'
+  | 'VIDEO_CALL'
+  | 'HOME_VISIT'
+  | 'VIDDHAKARMA'
+  | 'AGNIKARMA'
+  | 'PANCHAKARMA'
+  | 'NADI_PARIKSHA'
+  | 'DOSHA_ANALYSIS'
+  | 'SHIRODHARA'
+  | 'VIRECHANA'
+  | 'ABHYANGA'
+  | 'SWEDANA'
+  | 'BASTI'
+  | 'NASYA'
+  | 'RAKTAMOKSHANA';
 
 export interface CreateAppointmentData {
   patientId: string;

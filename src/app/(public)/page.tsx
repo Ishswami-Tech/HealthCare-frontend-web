@@ -15,6 +15,7 @@ import {
 } from "@/lib/dynamic-imports";
 import WhyChooseUsSection from "@/components/ayurveda/WhyChooseUsSection";
 import SpecializationsSection from "@/components/ayurveda/SpecializationsSection";
+import { AuthRedirect } from "@/components/auth/AuthRedirect";
 
 // Generate SEO metadata using our SEO utility
 export const metadata = generateSEOMetadata({
@@ -39,6 +40,7 @@ export default function AyurvedaHomePage() {
     <PageTransition>
       <div className="overflow-hidden">
         {/* Critical above-the-fold content - load immediately */}
+        <AuthRedirect />
         <HeroSection />
         <StatsSection />
 

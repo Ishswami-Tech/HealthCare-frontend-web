@@ -264,7 +264,10 @@ export const ROLE_ROUTES: Record<Role, RoleRoutes> = {
       { path: '/patient/appointments', label: 'Appointments' },
       { path: '/patient/medical-records', label: 'Medical Records' },
       { path: '/patient/prescriptions', label: 'Prescriptions' },
+      { path: '/video-appointments', label: 'Video Appointments' },
       { path: '/patient/profile', label: 'Profile' },
+      { path: '/settings', label: 'Settings' },
+      { path: '#logout', label: 'Logout' },
     ],
   },
 };

@@ -1,3 +1,5 @@
+"use client";
+
 // ✅ Appointments Hooks - Backend Integration
 // This file provides hooks that integrate with the backend appointments system
 

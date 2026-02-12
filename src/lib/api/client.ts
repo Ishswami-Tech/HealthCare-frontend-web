@@ -585,7 +585,7 @@ export class ClinicApiClient extends ApiClient {
 
   async getUserSessions(userId?: string) {
     if (userId) {
-      return this.get(API_ENDPOINTS.USERS.SESSIONS(userId));
+      return this.get(API_ENDPOINTS.USERS.SESSIONS.GET_ALL, { userId });
     }
     // Fallback to profile endpoint if no userId provided
     return this.get(API_ENDPOINTS.USERS.PROFILE);
@@ -659,6 +659,8 @@ export class ClinicApiClient extends ApiClient {
     doctorId?: string;
     status?: string;
     date?: string;
+    startDate?: string;
+    endDate?: string;
     locationId?: string;
     page?: number;
     limit?: number;
