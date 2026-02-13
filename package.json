@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:local": "NODE_ENV=development next dev --turbopack",
-    "build": "next build",
+    "build": "LIGHTNINGCSS_DISABLE_NATIVE=1 next build",
     "build:dev": "NODE_ENV=development next build",
     "build:staging": "NODE_ENV=production next build",
     "build:prod": "NODE_ENV=production next build",
