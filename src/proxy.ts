@@ -19,6 +19,7 @@ import {
   ROUTES,
   isPublicRoute,
   isAuthOnlyRoute,
+  isAuthPath, // Imported for middleware parity
   shouldSkipProxy as shouldSkipProxyRoute,
   getProtectedRouteRoles,
   isProtectedRoute,
@@ -77,6 +78,7 @@ function extractUserDataFromToken(accessToken: string): Record<string, unknown> 
         dateOfBirth: payload.dateOfBirth || '',
         gender: payload.gender || '',
         address: payload.address || '',
+        role: payload.role || undefined, // Extract role from token
       };
     }
   } catch {
@@ -160,12 +162,19 @@ export default async function proxy(request: NextRequest) {
                       request.cookies.get('next-auth.session-token')?.value;
   
   const hasValidToken = accessToken || legacyToken;
-  const userRoleStr = request.cookies.get('user_role')?.value;
-  const userRole = parseRole(userRoleStr);
-  const profileCompleteCookie = request.cookies.get('profile_complete')?.value;
-
-  // Extract user data from JWT token
+  
+  // Extract user data from JWT token (including role)
   const userData = accessToken ? extractUserDataFromToken(accessToken) : null;
+  
+  // Get role from cookie or fallback to token
+  const cookieRoleStr = request.cookies.get('user_role')?.value;
+  const tokenRoleStr = userData?.role as string | undefined;
+  
+  // Prioritize cookie, fallback to token (middleware parity)
+  const userRoleStr = cookieRoleStr || tokenRoleStr;
+  const userRole = parseRole(userRoleStr);
+  
+  const profileCompleteCookie = request.cookies.get('profile_complete')?.value;
 
   // =========================================================================
   // STEP 5: Handle authentication
@@ -197,11 +206,25 @@ export default async function proxy(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
     // Otherwise, allow the request and let the app handle it
+    // Otherwise, allow the request and let the app handle it
     return response;
   }
 
   // =========================================================================
-  // STEP 6: Check auth-only routes (requires auth but not profile completion)
+  // STEP 6: Handle Auth Routes (Redirect if already authenticated)
+  // =========================================================================
+  // Parity with middleware.ts: Don't let logged-in users see login page
+  if (isAuthPath(pathname)) {
+    if (hasValidToken && userRole) {
+      const dashboardUrl = getDashboardByRole(userRole);
+      return NextResponse.redirect(new URL(dashboardUrl, request.url));
+    }
+    // Allow access to auth pages if not authenticated
+    return response;
+  }
+
+  // =========================================================================
+  // STEP 7: Check auth-only routes (requires auth but not profile completion)
   // =========================================================================
   if (isAuthOnlyRoute(pathname)) {
     return response;

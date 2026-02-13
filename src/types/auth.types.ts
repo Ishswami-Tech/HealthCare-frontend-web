@@ -135,6 +135,7 @@ export interface User {
   profilePicture?: string;
   googleId?: string;
   phone?: string;
+  clinicId?: string;
   createdAt?: string;
   updatedAt?: string;
 }

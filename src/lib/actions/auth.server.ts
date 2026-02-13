@@ -160,6 +160,8 @@ export interface Session {
     address?: string;
     isVerified?: boolean;
     profileComplete?: boolean;
+
+    clinicId?: string | undefined;
   };
   access_token: string;
   session_id: string;
@@ -246,7 +248,8 @@ export async function getServerSession(): Promise<Session | null> {
           lastName: '',
           name: '',
           isVerified: true,
-          profileComplete: profileComplete // Use cookie value instead of hardcoded false
+          profileComplete: profileComplete, // Use cookie value instead of hardcoded false
+          clinicId: cookieStore.get('clinic_id')?.value
         },
         access_token: accessToken,
         session_id: sessionId || '',
@@ -312,7 +315,8 @@ export async function getServerSession(): Promise<Session | null> {
           isVerified: userData.isVerified || true,
           // ✅ Calculate profile completion dynamically from user data to ensure accuracy
           // This fixes issues where backend might return false/undefined or cookie is out of sync
-          profileComplete: calculateProfileCompletion(userData) || (userData.profileComplete ?? profileComplete)
+          profileComplete: calculateProfileCompletion(userData) || (userData.profileComplete ?? profileComplete),
+          clinicId: userData.clinicId || userData.primaryClinicId
         },
         access_token: accessToken,
         session_id: sessionId || '',
@@ -350,6 +354,7 @@ export async function setSession(data: {
     address?: string;
     isVerified?: boolean;
     profileComplete?: boolean;
+    clinicId?: string;
   };
 }) {
   const cookieStore = await cookies();
@@ -401,7 +406,8 @@ export async function setSession(data: {
           gender: '',
           address: '',
           isVerified: true,
-          profileComplete: currentProfileComplete
+          profileComplete: currentProfileComplete,
+          clinicId: cookieStore.get('clinic_id')?.value
         },
         isAuthenticated: true
       };
@@ -428,7 +434,8 @@ export async function setSession(data: {
       gender: data.user.gender || '',
       address: data.user.address || '',
       isVerified: data.user.isVerified || false,
-      profileComplete: data.user.profileComplete || false
+      profileComplete: data.user.profileComplete || false,
+      clinicId: data.user.clinicId
     },
     isAuthenticated: true
   };
@@ -467,6 +474,14 @@ export async function setSession(data: {
     ...sessionOptions,
   });
 
+  if (data.user.clinicId) {
+    cookieStore.set({
+      name: 'clinic_id',
+      value: data.user.clinicId,
+      ...sessionOptions,
+    });
+  }
+
   return session;
 }
 
@@ -501,6 +516,12 @@ export async function clearSession() {
   
   cookieStore.set({
     name: 'user_role',
+    value: '',
+    ...expiredOptions,
+  });
+
+  cookieStore.set({
+    name: 'clinic_id',
     value: '',
     ...expiredOptions,
   });
@@ -593,7 +614,10 @@ export async function login(data: { email: string; password?: string; otp?: stri
       access_token: result.access_token || result.accessToken,
       refresh_token: result.refresh_token || result.refreshToken,
       session_id: result.session_id || result.sessionId,
-      user: result.user,
+      user: {
+        ...result.user,
+        clinicId: result.user.clinicId || result.user.primaryClinicId
+      },
     };
     
     // ✅ Extract session_id from token if not provided directly
@@ -729,6 +753,31 @@ export async function login(data: { email: string; password?: string; otp?: stri
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
+    // Set clinic ID cookie if available
+    if (normalizedResult.user.clinicId) {
+       cookieStore.set({
+        name: 'clinic_id',
+        value: normalizedResult.user.clinicId,
+        httpOnly: true, // Should be httpOnly as it is identifying info? client.ts reads it from cookieStore on server, but what about client side?
+        // client.ts line 105: clinicId = localStorage.getItem('clinic_id') || undefined;
+        // client.ts line 97: clinicId = cookieStore.get('clinic_id')?.value;
+        // If httpOnly is true, client-side JS cannot read it from document.cookie, but we are using localStorage on client side?
+        // Wait, client.ts checks localStorage on client side.
+        // auth.server.ts is server-side actions.
+        // If we want client-side to have access, we might need to expose it or have a client component set it.
+        // BUT, client.ts on server-side reads cookies.
+        // client.ts on client-side reads localStorage.
+        // Login action returns the user object. The UI component calling login can set localStorage.
+        // So for server-side `clinic_id` cookie, checking httpOnly:
+        // If we want to read it via `cookies()` in server components, httpOnly is fine.
+        // If we want the browser to send it in requests automatically? No, we manually set headers.
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+    }
+
     // Verify cookies were set successfully (debugging aid)
     if (APP_CONFIG.IS_DEVELOPMENT) {
       const verifyAccess = cookieStore.get('access_token');
@@ -744,6 +793,7 @@ export async function login(data: { email: string; password?: string; otp?: stri
         accessTokenLength: verifyAccess?.value.length || 0,
         environment: process.env.NODE_ENV,
         secure: process.env.NODE_ENV === 'production',
+        clinicId: normalizedResult.user.clinicId
       });
     }
 
@@ -761,7 +811,8 @@ export async function login(data: { email: string; password?: string; otp?: stri
         gender: normalizedResult.user.gender || '',
         address: normalizedResult.user.address || '',
         isVerified: normalizedResult.user.isVerified || false,
-        profileComplete
+        profileComplete,
+        clinicId: normalizedResult.user.clinicId
       },
       access_token: normalizedResult.access_token,
       refresh_token: normalizedResult.refresh_token || '',

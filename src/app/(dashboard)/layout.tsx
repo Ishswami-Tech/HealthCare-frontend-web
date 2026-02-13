@@ -96,14 +96,16 @@ export default function DashboardLayout({
   // Get sidebar links for the user's role
   const sidebarLinks: SidebarLink[] = sidebarLinksByRole[userRole] as SidebarLink[];
 
-  // User avatar fallback
-  const userAvatar = profile?.profilePicture || "/avatar.png";
-
   // Get display name
   const displayName =
     profile?.firstName && profile?.lastName
       ? `${profile.firstName} ${profile.lastName}`
       : profile?.firstName || session?.user?.firstName || "User";
+
+  // User avatar fallback
+  const userAvatar =
+    profile?.profilePicture ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
 
   // Sidebar links already use correct paths (route groups don't appear in URLs)
   const updatedSidebarLinks: SidebarLink[] = sidebarLinks.map((link) => ({

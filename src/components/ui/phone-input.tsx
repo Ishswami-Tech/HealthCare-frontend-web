@@ -3,7 +3,7 @@
 import React, { forwardRef } from "react";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
-import "./phone-input-overrides.css"; // Our custom overrides AFTER library CSS
+// Custom overrides moved to globals.css
 import { cn } from "@/lib/utils";
 
 export interface PhoneInputProps

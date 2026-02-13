@@ -52,3 +52,6 @@ next-env.d.ts
 .env*.local
 !.env.example
 !.env.local.example
+.env.production
+.env.production.local
+
