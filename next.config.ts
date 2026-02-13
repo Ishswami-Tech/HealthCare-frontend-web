@@ -14,7 +14,16 @@ const config: NextConfig = {
   // Compress output for faster loading
   compress: true,
   
-  // Enable experimental features for better performance
+  // ✅ Output configuration
+  output: 'standalone', // Optimize for Docker deployment
+
+  // ✅ Turbopack Configuration
+  // @ts-ignore - The 'turbo' property is not yet in the NextConfig type definition for this version
+  turbo: {
+    rules: {},
+  },
+
+  // ✅ Force Webpack (User suggestion to fix Vercel build)
   experimental: {
     // Optimize package imports
     optimizePackageImports: [
@@ -24,15 +33,6 @@ const config: NextConfig = {
       'sonner',
     ],
   },
-  
-  // ✅ Production optimizations
-  productionBrowserSourceMaps: false, // Disable source maps in production for smaller bundles
-  
-  // ✅ Output configuration
-  output: 'standalone', // Optimize for Docker deployment
-  
-  // ✅ Turbopack configuration (Next.js 16 default)
-  turbopack: {},
   
   // ✅ Webpack optimizations for 10M users (fallback for non-turbopack builds)
   webpack: (config, { dev, isServer }) => {
