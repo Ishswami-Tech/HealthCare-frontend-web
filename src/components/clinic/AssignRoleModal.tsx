@@ -65,7 +65,7 @@ interface AssignRoleModalProps {
     role: string;
   };
   currentUserRole: Role;
-  clinicId?: string;
+  clinicId?: string | undefined;
   onSuccess?: () => void;
 }
 
@@ -103,13 +103,13 @@ export function AssignRoleModal({
       await updateUserRole(staffMember.id, selectedRole, {
         ...(clinicId && { clinicId }),
       });
-      showSuccessToast("Role updated successfully", { toastId: TOAST_IDS.USER.UPDATE });
+      showSuccessToast("Role updated successfully", { id: TOAST_IDS.USER.UPDATE });
       onSuccess?.();
       onOpenChange(false);
     } catch (error) {
       showErrorToast(
         error instanceof Error ? error.message : "Failed to update role",
-        { toastId: TOAST_IDS.USER.UPDATE }
+        { id: TOAST_IDS.USER.UPDATE }
       );
     } finally {
       setIsSubmitting(false);
