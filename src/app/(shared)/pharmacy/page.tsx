@@ -362,29 +362,29 @@ export default function PharmacySystem() {
     ...route,
     href: route.path,
     icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
+      () => <Activity className="w-5 h-5" />
     ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
+      () => <Calendar className="w-5 h-5" />
     ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
+      () => <Users className="w-5 h-5" />
     ) : route.path.includes("medical-records") ? (
-      <FileText className="w-5 h-5" />
+      () => <FileText className="w-5 h-5" />
     ) : route.path.includes("prescriptions") ? (
-      <Pill className="w-5 h-5" />
+      () => <Pill className="w-5 h-5" />
     ) : route.path.includes("profile") ? (
-      <User className="w-5 h-5" />
+      () => <User className="w-5 h-5" />
     ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
+      () => <Building2 className="w-5 h-5" />
     ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
+      () => <Users className="w-5 h-5" />
     ) : route.path.includes("staff") ? (
-      <Users className="w-5 h-5" />
+      () => <Users className="w-5 h-5" />
     ) : route.path.includes("schedule") ? (
-      <Calendar className="w-5 h-5" />
+      () => <Calendar className="w-5 h-5" />
     ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
+      () => <Settings className="w-5 h-5" />
     ) : (
-      <Activity className="w-5 h-5" />
+      () => <Activity className="w-5 h-5" />
     ),
   }));
 
@@ -393,14 +393,14 @@ export default function PharmacySystem() {
     label: "Pharmacy System",
     href: ROUTES.SHARED_PHARMACY,
     path: ROUTES.SHARED_PHARMACY,
-    icon: <Pill className="w-5 h-5" />,
+    icon: () => <Pill className="w-5 h-5" />,
   });
 
   sidebarLinks.push({
     label: "Logout",
     href: ROUTES.LOGIN,
     path: ROUTES.LOGIN,
-    icon: <LogOut className="w-5 h-5" />,
+    icon: () => <LogOut className="w-5 h-5" />,
   });
 
   return (

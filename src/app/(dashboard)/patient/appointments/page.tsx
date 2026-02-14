@@ -32,8 +32,8 @@ export default function PatientAppointments() {
 
           {/* ✅ Single reusable BookAppointmentDialog */}
           <BookAppointmentDialog
-            clinicId={queryClinicId}
-            locationId={queryLocationId}
+            {...(queryClinicId && { clinicId: queryClinicId })}
+            {...(queryLocationId && { locationId: queryLocationId })}
             defaultOpen={!!queryClinicId}
           />
         </div>

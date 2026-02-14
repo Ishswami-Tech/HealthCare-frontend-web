@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { theme } from "@/lib/utils/theme-utils";
 import { PageLoading, ErrorState, EmptyState } from "@/components/ui/loading";
-import { RefillRequestModal, DataExportModal } from "@/components/patient/PatientModals";
+import { RefillRequestModal } from "@/components/patient/PatientModals";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { getPrescriptions } from "@/lib/actions/pharmacy.server";
 import {
@@ -29,7 +29,6 @@ import {
   MapPin,
   Phone,
   Star,
-  Eye,
   CreditCard,
 } from "lucide-react";
 
@@ -56,7 +55,7 @@ export default function PatientPrescriptions() {
         const data = await getPrescriptions(user.clinicId, {
           patientId: user.id,
         });
-        setPrescriptions(data || []);
+        setPrescriptions((data as any) || []);
       } catch (error) {
         console.error('Failed to fetch prescriptions:', error);
         setHasError(true);
@@ -277,7 +276,7 @@ export default function PatientPrescriptions() {
     const matchesSearch =
       prescription.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       prescription.doctor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prescription.medications.some((med) =>
+      prescription.medications.some((med: any) =>
         med.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     const matchesStatus =
@@ -445,7 +444,7 @@ export default function PatientPrescriptions() {
                             </h4>
                             <div className="grid gap-3">
                               {prescription.medications.map(
-                                (medication, index) => (
+                                (medication: any, index: number) => (
                                   <div
                                     key={index}
                                     className={`p-4 ${theme.containers.featureGreen} rounded-lg border ${theme.borders.green}`}

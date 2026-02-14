@@ -203,7 +203,7 @@ export default function ReceptionistCheckInPage() {
                             "Unknown";
                           const time =
                             apt.startTime || apt.time
-                              ? new Date(apt.startTime || apt.time).toLocaleTimeString("en-IN", {
+                              ? new Date((apt.startTime || apt.time)!).toLocaleTimeString("en-IN", {
                                   hour: "2-digit",
                                   minute: "2-digit",
                                   hour12: true,

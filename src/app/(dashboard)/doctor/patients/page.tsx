@@ -20,7 +20,6 @@ import {
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
-  DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
@@ -347,7 +346,6 @@ export default function DoctorPatients() {
               {drawerPatient && (
                 <EhrDrawerContent
                   patient={drawerPatient}
-                  onClose={() => setDrawerPatient(null)}
                 />
               )}
             </DrawerContent>
@@ -360,17 +358,14 @@ export default function DoctorPatients() {
 
 function EhrDrawerContent({
   patient,
-  onClose,
 }: {
   patient: any;
-  onClose: () => void;
 }) {
   const patientUserId = patient?.userId || patient?.user?.id;
   const { data: ehrData, isPending: isEhrLoading } =
-    useComprehensiveHealthRecord(patientUserId || "");
+    useComprehensiveHealthRecord(patientUserId || "") as { data: any; isPending: boolean };
 
   const patientName =
-    patient?.name ||
     `${patient?.firstName || ""} ${patient?.lastName || ""}`.trim() ||
     "Unknown Patient";
 

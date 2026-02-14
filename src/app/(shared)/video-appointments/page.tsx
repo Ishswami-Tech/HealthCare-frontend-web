@@ -33,7 +33,6 @@ import {
 } from "@/hooks/query/useVideoAppointments";
 import {
   useAppointments,
-  useProposeVideoAppointment,
   useConfirmVideoSlot,
 } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";

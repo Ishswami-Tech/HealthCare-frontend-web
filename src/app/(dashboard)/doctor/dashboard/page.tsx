@@ -57,7 +57,6 @@ export default function DoctorDashboard() {
       )
       .map((apt) => {
         const patientName =
-          apt.patient?.name ||
           `${apt.patient?.firstName || ""} ${apt.patient?.lastName || ""}`.trim() ||
           "Unknown Patient";
         const statusLabels: Record<string, string> = {

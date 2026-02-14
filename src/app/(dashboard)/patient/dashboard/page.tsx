@@ -43,7 +43,7 @@ import { BookAppointmentDialog } from "@/components/appointments/BookAppointment
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 
 export default function PatientDashboard() {
-  const { session, isPending: isAuthPending } = useAuth();
+  const { session } = useAuth();
   const user = session?.user;
   const { t } = useTranslation();
 
@@ -54,17 +54,17 @@ export default function PatientDashboard() {
   const patientId = user?.id || "";
 
   // Fetch real data using hooks with loading and error states
-  const { data: appointmentsData, isPending: isPendingAppointments, error: appointmentsError } = useMyAppointments();
-  const { data: medicalRecordsData, isPending: isPendingRecords, error: recordsError } = usePatientMedicalRecords(
+  const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments();
+  const { data: medicalRecordsData } = usePatientMedicalRecords(
     clinicId || "",
     patientId
   );
-  const { data: vitalSignsData, isPending: isPendingVitals, error: vitalsError } = usePatientVitalSigns(patientId);
-  const { data: prescriptionsData, isPending: isPendingPrescriptions, error: prescriptionsError } = usePatientPrescriptions(
+  const { data: vitalSignsData, isPending: isPendingVitals } = usePatientVitalSigns(patientId);
+  const { data: prescriptionsData, isPending: isPendingPrescriptions } = usePatientPrescriptions(
     patientId,
     "active"
   );
-  const { data: comprehensiveData, isPending: isPendingComprehensive, error: comprehensiveError } = useComprehensiveHealthRecord(patientId);
+  const { data: comprehensiveData, isPending: isPendingComprehensive } = useComprehensiveHealthRecord(patientId);
 
   // Transform real data
   const patientData = useMemo(() => {

@@ -263,7 +263,7 @@ export default function AnalyticsDashboard() {
   const sidebarLinks = getRoutesByRole(userRole).map((route) => ({
     ...route,
     href: route.path,
-    icon: route.path.includes("dashboard") ? (
+    icon: () => route.path.includes("dashboard") ? (
       <Activity className="w-5 h-5" />
     ) : route.path.includes("appointments") ? (
       <Calendar className="w-5 h-5" />
@@ -295,14 +295,14 @@ export default function AnalyticsDashboard() {
     label: "Analytics",
     href: ROUTES.SHARED_ANALYTICS,
     path: ROUTES.SHARED_ANALYTICS,
-    icon: <BarChart3 className="w-5 h-5" />,
+    icon: () => <BarChart3 className="w-5 h-5" />,
   });
 
   sidebarLinks.push({
     label: "Logout",
     href: ROUTES.LOGIN,
     path: ROUTES.LOGIN,
-    icon: <LogOut className="w-5 h-5" />,
+    icon: () => <LogOut className="w-5 h-5" />,
   });
 
   return (
