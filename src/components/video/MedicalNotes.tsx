@@ -22,7 +22,7 @@ import {
   getMedicalNotes,
   deleteMedicalNote,
   type MedicalNote,
-} from "@/lib/actions/video-enhanced.server";
+} from "@/lib/actions/video.server";
 import { useToast } from "@/hooks/utils/use-toast";
 import { format } from "date-fns";
 

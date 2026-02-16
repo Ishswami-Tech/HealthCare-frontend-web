@@ -14,6 +14,7 @@ export async function getDoctors(clinicId: string, filters?: {
   isActive?: boolean;
   limit?: number;
   offset?: number;
+  locationId?: string;
 }) {
   const params = new URLSearchParams();
   if (filters) {
@@ -29,7 +30,7 @@ export async function getDoctors(clinicId: string, filters?: {
   }
 
   const endpoint = `${API_ENDPOINTS.DOCTORS.GET_ALL}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
+  const { data } = await authenticatedApi(endpoint, {});
   return data;
 }
 
@@ -37,7 +38,7 @@ export async function getDoctors(clinicId: string, filters?: {
  * Get doctor by ID
  */
 export async function getDoctorById(doctorId: string) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId));
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.GET_BY_ID(doctorId), {});
   return data;
 }
 
@@ -100,7 +101,7 @@ export async function deleteDoctor(doctorId: string) {
  */
 export async function getDoctorSchedule(clinicId: string, doctorId: string, date?: string) {
   const params = date ? `?date=${date}` : '';
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.SCHEDULE.GET(clinicId, doctorId)}${params}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.SCHEDULE.GET(clinicId, doctorId)}${params}`, {});
   return data;
 }
 
@@ -123,8 +124,12 @@ export async function updateDoctorSchedule(doctorId: string, schedule: {
 /**
  * Get doctor availability
  */
-export async function getDoctorAvailability(doctorId: string, date: string) {
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.AVAILABILITY.GET(doctorId)}?date=${date}`);
+export async function getDoctorAvailability(doctorId: string, date: string, locationId?: string) {
+  let endpoint = `${API_ENDPOINTS.DOCTORS.AVAILABILITY.GET(doctorId)}?date=${date}`;
+  if (locationId) {
+    endpoint += `&locationId=${locationId}`;
+  }
+  const { data } = await authenticatedApi(endpoint, {});
   return data;
 }
 
@@ -162,7 +167,7 @@ export async function getDoctorAppointments(doctorId: string, filters?: {
   }
   
   const endpoint = `${API_ENDPOINTS.DOCTORS.APPOINTMENTS(doctorId)}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
+  const { data } = await authenticatedApi(endpoint, {});
   return data;
 }
 
@@ -181,7 +186,7 @@ export async function getDoctorPatients(clinicId: string, doctorId: string, filt
   }
 
   const endpoint = `/clinics/${clinicId}/doctors/${doctorId}/patients${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
+  const { data } = await authenticatedApi(endpoint, {});
   return data;
 }
 
@@ -190,7 +195,7 @@ export async function getDoctorPatients(clinicId: string, doctorId: string, filt
  */
 export async function getDoctorStats(doctorId: string, period?: 'day' | 'week' | 'month' | 'year') {
   const params = period ? `?period=${period}` : '';
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.STATS(doctorId)}${params}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.STATS(doctorId)}${params}`, {});
   return data;
 }
 
@@ -198,7 +203,7 @@ export async function getDoctorStats(doctorId: string, period?: 'day' | 'week' |
  * Get doctor reviews
  */
 export async function getDoctorReviews(doctorId: string, limit: number = 10) {
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.REVIEWS.GET(doctorId)}?limit=${limit}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.REVIEWS.GET(doctorId)}?limit=${limit}`, {});
   return data;
 }
 
@@ -222,7 +227,7 @@ export async function addDoctorReview(doctorId: string, reviewData: {
  * Get doctor specializations
  */
 export async function getDoctorSpecializations() {
-  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.SPECIALIZATIONS);
+  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.SPECIALIZATIONS, {});
   return data;
 }
 
@@ -243,7 +248,7 @@ export async function searchDoctors(query: string, filters?: {
     });
   }
   
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.SEARCH}?${params.toString()}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.SEARCH}?${params.toString()}`, {});
   return data;
 }
 
@@ -262,7 +267,7 @@ export async function getDoctorPerformanceMetrics(doctorId: string, filters?: {
   }
   
   const endpoint = `${API_ENDPOINTS.DOCTORS.PERFORMANCE(doctorId)}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
+  const { data } = await authenticatedApi(endpoint, {});
   return data;
 }
 
@@ -299,7 +304,7 @@ export async function getDoctorEarnings(doctorId: string, filters?: {
   }
   
   const endpoint = `/doctors/${doctorId}/earnings${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
+  const { data } = await authenticatedApi(endpoint, {});
   return data;
 }
 

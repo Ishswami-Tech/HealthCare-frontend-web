@@ -20,7 +20,7 @@ export type TherapyType =
   | "VIDDHAKARMA"
   | "PANCHAKARMA"
   | "SHIRODHARA"
-  | "CONSULTATION"
+  | "GENERAL_CONSULTATION"
   | "NADI_PARIKSHA"
   | "ABHYANGA"
   | "SWEDANA"
@@ -64,7 +64,7 @@ const THERAPY_CONFIG = {
     color: "bg-primary/10 text-primary border-primary/20",
     iconColor: "text-primary",
   },
-  CONSULTATION: {
+  GENERAL_CONSULTATION: {
     label: "therapies.consultation.name",
     description: "therapies.consultation.description",
     icon: Stethoscope,
@@ -201,7 +201,7 @@ export function TherapySelect({
 // Helper function to get therapy duration
 export function getTherapyDuration(type: TherapyType): string {
   const durations: Record<TherapyType, string> = {
-    CONSULTATION: "therapies.durations.consultation",
+    GENERAL_CONSULTATION: "therapies.durations.consultation",
     NADI_PARIKSHA: "therapies.durations.nadiPariksha",
     AGNIKARMA: "therapies.durations.agnikarma",
     VIDDHAKARMA: "therapies.durations.viddhakarma",
@@ -219,7 +219,7 @@ export function getTherapyDuration(type: TherapyType): string {
 // Helper function to get therapy category
 export function getTherapyCategory(type: TherapyType): string {
   const categories: Record<TherapyType, string> = {
-    CONSULTATION: "therapies.categories.diagnosis",
+    GENERAL_CONSULTATION: "therapies.categories.diagnosis",
     NADI_PARIKSHA: "therapies.categories.diagnosis",
     AGNIKARMA: "therapies.categories.surgical",
     VIDDHAKARMA: "therapies.categories.surgical",

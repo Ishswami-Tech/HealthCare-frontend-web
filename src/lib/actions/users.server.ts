@@ -210,7 +210,10 @@ export async function updateUserRole(
  */
 export async function getUsersByRole(role: string) {
   return executeAction('getUsersByRole', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ROLE(role), { method: 'GET' });
+    // Use search endpoint which supports role filtering
+    // Function reused from searchUsers
+    const params = new URLSearchParams({ roles: role });
+    const { data } = await authenticatedApi(`${API_ENDPOINTS.USERS.SEARCH}?${params.toString()}`, { method: 'GET' });
     return data;
   }, { role });
 }
@@ -329,7 +332,8 @@ export async function getUserActivityLogs(userId: string, limit: number = 50) {
  */
 export async function getUserSessions(userId: string) {
   return executeAction('getUserSessions', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.SESSIONS(userId), { method: 'GET' });
+    // SESSIONS is an object, use GET_ALL and pass userId as query param
+    const { data } = await authenticatedApi(`${API_ENDPOINTS.USERS.SESSIONS.GET_ALL}?userId=${userId}`, { method: 'GET' });
     return data;
   }, { userId });
 }
@@ -339,7 +343,8 @@ export async function getUserSessions(userId: string) {
  */
 export async function terminateUserSession(userId: string, sessionId: string) {
   return executeAction('terminateUserSession', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.TERMINATE_SESSION(userId, sessionId), { method: 'DELETE' });
+    // TERMINATE_SESSION takes only sessionId
+    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.TERMINATE_SESSION(sessionId), { method: 'DELETE' });
     return data;
   }, { userId, sessionId });
 }

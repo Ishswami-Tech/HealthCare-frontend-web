@@ -29,8 +29,8 @@ interface AyurvedaConsultationTypesProps {
 }
 
 const CONSULTATION_DETAILS: Record<TherapyType, ConsultationType> = {
-  CONSULTATION: {
-    type: "CONSULTATION",
+  GENERAL_CONSULTATION: {
+    type: "GENERAL_CONSULTATION",
     name: "General Consultation",
     description: "Comprehensive Ayurvedic consultation including pulse diagnosis, lifestyle assessment, and treatment planning.",
     duration: 30,

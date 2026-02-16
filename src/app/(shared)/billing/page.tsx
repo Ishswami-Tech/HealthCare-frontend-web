@@ -148,12 +148,7 @@ function BillingPageContent() {
     );
   };
 
-  const sidebarLinks = getRoutesByRole((user?.role as Role) || Role.PATIENT).map(
-    (route: any) => ({
-      ...route,
-      href: route.path,
-    })
-  );
+  const sidebarLinks = [...getRoutesByRole((user?.role as Role) || Role.PATIENT)];
 
   return (
     <DashboardLayout

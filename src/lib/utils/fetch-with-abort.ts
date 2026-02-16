@@ -1,20 +1,17 @@
-/**
- * ✅ Secure Fetch Utility with AbortController
- * Provides fetch wrapper with timeout and cancellation support
- * Replaces direct fetch calls throughout the codebase
- */
-
 export interface FetchWithAbortOptions extends RequestInit {
   timeout?: number;
   requireAuth?: boolean;
 }
 
-export class FetchTimeoutError extends Error {
+// Renaming to TimeoutError to match client.ts expectation
+export class TimeoutError extends Error {
   constructor(message: string = 'Request timeout') {
     super(message);
-    this.name = 'FetchTimeoutError';
+    this.name = 'TimeoutError';
   }
 }
+
+export { TimeoutError as FetchTimeoutError };
 
 /**
  * Fetch with AbortController and timeout support
@@ -46,7 +43,7 @@ export async function fetchWithAbort(
     clearTimeout(timeoutId);
 
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new FetchTimeoutError(`Request to ${url} timed out after ${timeout}ms`);
+      throw new TimeoutError(`Request to ${url} timed out after ${timeout}ms`);
     }
 
     throw error;

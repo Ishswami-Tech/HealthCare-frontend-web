@@ -37,6 +37,8 @@ export function ChangePasswordForm() {
       return;
     }
 
+    const currentPassword = formData.get('currentPassword') as string;
+    
     if (newPassword.length < 8) {
       setError('Password must be at least 8 characters long');
       setLoading(false);
@@ -44,7 +46,10 @@ export function ChangePasswordForm() {
     }
 
     try {
-      await changePassword(formData);
+      await changePassword({
+        ...(currentPassword ? { currentPassword } : {}),
+        newPassword: newPassword,
+      });
       setSuccess(true);
       e.currentTarget.reset();
       

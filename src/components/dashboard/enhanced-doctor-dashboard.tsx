@@ -13,18 +13,16 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import {
-  Activity,
   Calendar,
   Users,
-  UserCheck,
   Clock,
   Stethoscope,
   LogOut,
-  Play,
   CheckCircle,
   AlertCircle,
   FileText,
   Video,
+  Play,
   Heart,
   Brain,
   Eye,
@@ -46,7 +44,7 @@ export default function EnhancedDoctorDashboard() {
   // Enhanced stats with better calculations
   const stats = {
     todayAppointments:
-      appointments?.appointments?.filter((apt) => {
+      appointments?.appointments?.filter((apt: any) => {
         const today = new Date().toDateString();
         return new Date(apt.date).toDateString() === today;
       })?.length || 8,
@@ -170,27 +168,12 @@ export default function EnhancedDoctorDashboard() {
     },
   ];
 
-  const sidebarLinks = getRoutesByRole(Role.DOCTOR).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <UserCheck className="w-5 h-5" />
-    ) : (
-      <Stethoscope className="w-5 h-5" />
-    ),
-  }));
+  const sidebarLinks = [...getRoutesByRole(Role.DOCTOR)];
 
   sidebarLinks.push({
-    label: "Logout",
+    title: "Logout",
     href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
+    icon: LogOut,
   });
 
   return (

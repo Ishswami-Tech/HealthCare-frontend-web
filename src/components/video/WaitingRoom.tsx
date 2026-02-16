@@ -23,7 +23,7 @@ import {
   getWaitingRoomQueue,
   admitFromWaitingRoom,
   type WaitingRoomParticipant,
-} from "@/lib/actions/video-enhanced.server";
+} from "@/lib/actions/video.server";
 import { useToast } from "@/hooks/utils/use-toast";
 import { formatDistanceToNow } from "date-fns";
 

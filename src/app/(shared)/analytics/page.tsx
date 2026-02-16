@@ -26,17 +26,6 @@ import {
   useQueueAnalytics,
 } from "@/hooks/query/useAnalytics";
 import {
-  Activity,
-  Calendar,
-  FileText,
-  Pill,
-  User,
-  Users,
-  Building2,
-  Settings,
-  LogOut,
-  TrendingUp,
-  TrendingDown,
   BarChart3,
   LineChart,
   Download,
@@ -44,13 +33,21 @@ import {
   Eye,
   CheckCircle,
   AlertTriangle,
-  Stethoscope,
+  Users,
+  TrendingUp,
+  TrendingDown,
+  LogOut,
+  Calendar,
   DollarSign,
-  Zap,
-  Globe,
-  Smartphone,
-  MapPin,
   Star,
+  Building2,
+  Zap,
+  MapPin,
+  Stethoscope,
+  Smartphone,
+  Globe,
+  Activity,
+  FileText,
 } from "lucide-react";
 
 export default function AnalyticsDashboard() {
@@ -260,49 +257,19 @@ export default function AnalyticsDashboard() {
   };
 
 
-  const sidebarLinks = getRoutesByRole(userRole).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: () => route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("medical-records") ? (
-      <FileText className="w-5 h-5" />
-    ) : route.path.includes("prescriptions") ? (
-      <Pill className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <User className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("staff") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("schedule") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
+  const sidebarLinks = [...getRoutesByRole(userRole)];
 
   // Add Analytics link to sidebar
   sidebarLinks.push({
-    label: "Analytics",
+    title: "Analytics",
     href: ROUTES.SHARED_ANALYTICS,
-    path: ROUTES.SHARED_ANALYTICS,
-    icon: () => <BarChart3 className="w-5 h-5" />,
+    icon: BarChart3,
   });
 
   sidebarLinks.push({
-    label: "Logout",
+    title: "Logout",
     href: ROUTES.LOGIN,
-    path: ROUTES.LOGIN,
-    icon: () => <LogOut className="w-5 h-5" />,
+    icon: LogOut,
   });
 
   return (

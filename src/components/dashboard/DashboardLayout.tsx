@@ -214,7 +214,7 @@ export function DashboardLayout({
         return;
       }
 
-      const { isComplete } = checkProfileCompletion(mergedProfile);
+      const { isComplete } = checkProfileCompletion(mergedProfile as any);
       if (!isComplete) {
         router.replace(ROUTES.PROFILE_COMPLETION);
         return;
@@ -306,7 +306,7 @@ export function DashboardLayout({
   // Check profile completeness
   const isProfileComplete = useMemo(() => {
     if (!mergedProfile) return true; // Assume complete while loading to avoid blocking
-    const { isComplete } = checkProfileCompletion(mergedProfile);
+    const { isComplete } = checkProfileCompletion(mergedProfile as any);
     return isComplete;
   }, [mergedProfile]);
 

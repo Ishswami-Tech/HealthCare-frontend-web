@@ -36,6 +36,7 @@ export const useDoctors = (clinicId: string, filters?: {
   isActive?: boolean;
   limit?: number;
   offset?: number;
+  locationId?: string;
 }) => {
   return useQueryData(['doctors', clinicId, filters], async () => {
     return await getDoctors(clinicId, filters);
@@ -69,9 +70,9 @@ export const useDoctorSchedule = (doctorId: string, date?: string) => {
 /**
  * Hook to get doctor availability
  */
-export const useDoctorAvailability = (doctorId: string, date: string) => {
-  return useQueryData(['doctorAvailability', doctorId, date], async () => {
-    return await getDoctorAvailability(doctorId, date);
+export const useDoctorAvailability = (doctorId: string, date: string, locationId?: string) => {
+  return useQueryData(['doctorAvailability', doctorId, date, locationId || 'all'], async () => {
+    return await getDoctorAvailability(doctorId, date, locationId);
   }, {
     enabled: !!doctorId && !!date,
   });

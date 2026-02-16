@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import type { AppointmentType } from "@/types/appointment.types";
+import type { AppointmentType, TreatmentType } from "@/types/appointment.types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -22,7 +20,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -32,14 +29,13 @@ import { useActiveLocations } from "@/hooks/query/useClinics";
 import { APP_CONFIG } from "@/lib/config/config";
 import { toast } from "sonner";
 import { theme } from "@/lib/utils/theme-utils";
-import { format, addDays, startOfDay, isSameDay } from "date-fns";
+import { format, startOfDay } from "date-fns";
 import {
   Activity,
   Plus,
   Video,
   MapPin,
   Clock,
-  CreditCard,
   Leaf,
   Waves,
   Flame,
@@ -48,13 +44,10 @@ import {
   Droplets,
   Wind,
   CheckCircle,
-  Info,
   ChevronRight,
   ChevronLeft,
-  Calendar as CalendarIcon,
   Stethoscope,
-  User,
-  ArrowRight
+  User
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -70,6 +63,7 @@ interface ConsultationTypeItem {
   videoAvailable: boolean;
   category: string;
   backendType: AppointmentType;
+  treatmentType: TreatmentType;
 }
 
 interface BookAppointmentDialogProps {
@@ -99,6 +93,7 @@ const CONSULTATION_TYPES: ConsultationTypeItem[] = [
     videoAvailable: true,
     category: "Consultation",
     backendType: "IN_PERSON",
+    treatmentType: "GENERAL_CONSULTATION",
   },
   {
     id: "nadi_pariksha",
@@ -110,7 +105,8 @@ const CONSULTATION_TYPES: ConsultationTypeItem[] = [
     color: theme.badges.red,
     videoAvailable: false,
     category: "Diagnosis",
-    backendType: "NADI_PARIKSHA",
+    backendType: "IN_PERSON",
+    treatmentType: "NADI_PARIKSHA",
   },
   {
     id: "dosha_analysis",
@@ -122,7 +118,21 @@ const CONSULTATION_TYPES: ConsultationTypeItem[] = [
     color: theme.badges.green,
     videoAvailable: true,
     category: "Analysis",
-    backendType: "DOSHA_ANALYSIS",
+    backendType: "IN_PERSON",
+    treatmentType: "DOSHA_ANALYSIS",
+  },
+  {
+    id: "ayurveda_consultation",
+    name: "Ayurveda Consultation",
+    description: "Holistic health assessment based on Doshas",
+    duration: 45,
+    price: 800,
+    icon: <Leaf className="w-5 h-5" />,
+    color: theme.badges.orange,
+    videoAvailable: true,
+    category: "Ayurveda",
+    backendType: "IN_PERSON",
+    treatmentType: "GENERAL_CONSULTATION", // Or specific Ayurveda type if available
   },
   {
     id: "panchakarma",
@@ -134,7 +144,8 @@ const CONSULTATION_TYPES: ConsultationTypeItem[] = [
     color: theme.badges.cyan,
     videoAvailable: false,
     category: "Therapy",
-    backendType: "PANCHAKARMA",
+    backendType: "IN_PERSON",
+    treatmentType: "PANCHAKARMA",
   },
   {
     id: "shirodhara",
@@ -146,7 +157,8 @@ const CONSULTATION_TYPES: ConsultationTypeItem[] = [
     color: theme.badges.indigo,
     videoAvailable: false,
     category: "Therapy",
-    backendType: "SHIRODHARA",
+    backendType: "IN_PERSON",
+    treatmentType: "SHIRODHARA",
   },
   {
     id: "abhyanga",
@@ -158,7 +170,8 @@ const CONSULTATION_TYPES: ConsultationTypeItem[] = [
     color: theme.badges.purple,
     videoAvailable: false,
     category: "Therapy",
-    backendType: "ABHYANGA",
+    backendType: "IN_PERSON",
+    treatmentType: "ABHYANGA",
   },
   {
     id: "viddhakarma",
@@ -170,7 +183,8 @@ const CONSULTATION_TYPES: ConsultationTypeItem[] = [
     color: theme.badges.orange,
     videoAvailable: false,
     category: "Surgery",
-    backendType: "VIDDHAKARMA",
+    backendType: "IN_PERSON",
+    treatmentType: "VIDDHAKARMA",
   },
   {
     id: "agnikarma",
@@ -182,7 +196,8 @@ const CONSULTATION_TYPES: ConsultationTypeItem[] = [
     color: theme.badges.red,
     videoAvailable: false,
     category: "Surgery",
-    backendType: "AGNIKARMA",
+    backendType: "IN_PERSON",
+    treatmentType: "AGNIKARMA",
   },
   {
     id: "lifestyle_counseling",
@@ -195,6 +210,7 @@ const CONSULTATION_TYPES: ConsultationTypeItem[] = [
     videoAvailable: true,
     category: "Counseling",
     backendType: "IN_PERSON",
+    treatmentType: "GENERAL_CONSULTATION",
   },
   {
     id: "follow_up",
@@ -207,6 +223,7 @@ const CONSULTATION_TYPES: ConsultationTypeItem[] = [
     videoAvailable: true,
     category: "Consultation",
     backendType: "IN_PERSON",
+    treatmentType: "FOLLOW_UP",
   },
 ];
 
@@ -240,11 +257,12 @@ export function BookAppointmentDialog({
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [symptoms, setSymptoms] = useState("");
   const [urgency, setUrgency] = useState("Normal");
-  const [preferredLanguage, setPreferredLanguage] = useState("English");
 
   // ─── Queries ──────────────────────────────────────────────────────────────
   const { data: locations = [], isPending: locationsLoading } = useActiveLocations(activeClinicId);
-  const { data: doctorsData, isPending: doctorsLoading } = useDoctors(activeClinicId);
+  const { data: doctorsData, isPending: doctorsLoading } = useDoctors(activeClinicId, {
+    locationId: selectedLocationId
+  });
   
   // Construct date string YYYY-MM-DD for availability check
   const dateString = useMemo(() => {
@@ -253,7 +271,8 @@ export function BookAppointmentDialog({
 
   const { data: availability, isPending: availabilityLoading } = useDoctorAvailability(
     selectedDoctorId, 
-    dateString
+    dateString,
+    selectedLocationId
   );
   
   const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment();
@@ -262,9 +281,7 @@ export function BookAppointmentDialog({
     CONSULTATION_TYPES.find((t) => t.id === selectedServiceId), 
   [selectedServiceId]);
 
-  const selectedLocation = useMemo(() => 
-    locations.find((l) => l.id === selectedLocationId), 
-  [locations, selectedLocationId]);
+
 
 
   // ─── Handlers ─────────────────────────────────────────────────────────────

@@ -34,17 +34,23 @@ export function getAppointmentStatusDisplayName(status: string): string {
   return statusNames[status] || status;
 }
 
+// Theme-aware status colors
 export function getAppointmentStatusColor(status: string): string {
+  // Normalize status to lowercase for comparison if needed, or match keys exactly
+  // Assuming keys are uppercase from backend
   const statusColors: Record<string, string> = {
-    SCHEDULED: 'bg-blue-100 text-blue-800',
-    CONFIRMED: 'bg-green-100 text-green-800',
-    CHECKED_IN: 'bg-yellow-100 text-yellow-800',
-    IN_PROGRESS: 'bg-purple-100 text-purple-800',
-    COMPLETED: 'bg-gray-100 text-gray-800',
-    CANCELLED: 'bg-red-100 text-red-800',
-    NO_SHOW: 'bg-orange-100 text-orange-800',
+    SCHEDULED: 'bg-primary/10 text-primary border-primary/20',
+    CONFIRMED: 'bg-primary/10 text-primary border-primary/20',
+    CHECKED_IN: 'bg-primary/10 text-primary border-primary/20',
+    IN_PROGRESS: 'bg-primary/10 text-primary border-primary/20',
+    COMPLETED: 'bg-green-500/10 text-green-700 border-green-500/20', // Distinct green for completed
+    CANCELLED: 'bg-destructive/10 text-destructive border-destructive/20',
+    NO_SHOW: 'bg-destructive/10 text-destructive border-destructive/20',
   };
-  return statusColors[status] || 'bg-gray-100 text-gray-800';
+  
+  // Handle lowercase variants just in case
+  const normalizedStatus = status.toUpperCase();
+  return statusColors[normalizedStatus] || 'bg-muted text-muted-foreground border-border';
 }
 
 export function formatAppointmentDateTime(date: string, time: string): string {
@@ -57,4 +63,22 @@ export function formatAppointmentDateTime(date: string, time: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-} 
+}
+
+export function formatAppointmentDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+export function formatAppointmentTime(timeString: string): string {
+  // Append dummy date to parse time correctly
+  return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}

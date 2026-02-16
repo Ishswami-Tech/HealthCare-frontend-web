@@ -18,7 +18,7 @@ import {
   getChatMessages,
   updateTypingIndicator,
   type ChatMessage,
-} from "@/lib/actions/video-enhanced.server";
+} from "@/lib/actions/video.server";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/utils/use-toast";
 

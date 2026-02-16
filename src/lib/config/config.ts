@@ -354,6 +354,7 @@ export const API_ENDPOINTS = {
     MAGIC_LINK: '/auth/magic-link',
     VERIFY_MAGIC_LINK: '/auth/verify-magic-link',
     VERIFY_EMAIL: '/auth/verify-email',
+    RESEND_VERIFICATION: '/auth/resend-verification',
     FACEBOOK_LOGIN: '/auth/facebook',
     APPLE_LOGIN: '/auth/apple',
   },
@@ -368,6 +369,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/clinics/${id}`,
     DELETE: (id: string) => `/clinics/${id}`,
     STATS: (id: string) => `/clinics/${id}/stats`,
+    OPERATING_HOURS: (id: string) => `/clinics/${id}/operating-hours`,
     ANALYTICS: (id: string) => `/clinics/${id}/analytics`,
     SETTINGS: (id: string) => `/clinics/${id}/settings`,
   },
@@ -396,6 +398,7 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/appointments/${id}`,
     CANCEL: (id: string) => `/appointments/${id}/cancel`,
     CONFIRM: (id: string) => `/appointments/${id}/confirm`,
+    STATUS: (id: string) => `/appointments/${id}/status`, // Consolidated endpoint
     VIDEO_PROPOSE: '/appointments/video/propose',
     VIDEO_CONFIRM_SLOT: (id: string) => `/appointments/${id}/video/confirm-slot`,
     CHECK_IN: (id: string) => `/appointments/${id}/check-in`,
@@ -424,6 +427,9 @@ export const API_ENDPOINTS = {
       MARK_READ: (notificationId: string) => `/appointments/notifications/${notificationId}/read`,
     },
     ANALYTICS: '/appointments/analytics/wait-times',
+    UPCOMING: '/appointments/upcoming',
+    TEST_CONTEXT: '/appointments/test-context',
+    BULK_STATUS: '/appointments/bulk-status',
   },
   
   // Queue Endpoints (Standalone queue management)
@@ -537,8 +543,8 @@ export const API_ENDPOINTS = {
       UPDATE: (doctorId: string) => `/doctors/${doctorId}/schedule`,
     },
     AVAILABILITY: {
-      GET: (doctorId: string) => `/doctors/${doctorId}/availability`,
-      UPDATE: (doctorId: string) => `/doctors/${doctorId}/availability`,
+      GET: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
+      UPDATE: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     },
     APPOINTMENTS: (doctorId: string) => `/doctors/${doctorId}/appointments`,
     PATIENTS: (clinicId: string, doctorId: string) => `/clinics/${clinicId}/doctors/${doctorId}/patients`,
@@ -584,6 +590,14 @@ export const API_ENDPOINTS = {
     GET_BY_CLINIC: (clinicId: string) => `/clinics/${clinicId}/staff`,
     UPDATE_ROLE: (id: string) => `/user/${id}/role`,
     CHANGE_LOCATION: (id: string) => `/user/${id}/change-location`,
+    SEARCH: '/user/search',
+    STATS: '/user/stats',
+    BULK_UPDATE: '/user/bulk-update',
+    EXPORT: '/user/export',
+    CHANGE_PASSWORD: (id: string) => `/user/${id}/change-password`,
+    TOGGLE_VERIFICATION: (id: string) => `/user/${id}/toggle-verification`,
+    ACTIVITY_LOGS: (id: string) => `/user/${id}/activity-logs`,
+    TERMINATE_SESSION: (sessionId: string) => `/user/sessions/${sessionId}`,
     SESSIONS: {
       GET_ALL: '/user/sessions',
       REVOKE: (sessionId: string) => `/user/sessions/${sessionId}`,
@@ -998,6 +1012,7 @@ export { HTTP_STATUS, ERROR_CODES } from './constants';
 // Re-exported from error-messages.ts for convenience
 
 export { ERROR_MESSAGES } from './error-messages';
+export * from './constants';
 
 // ============================================================================
 // TYPE DEFINITIONS

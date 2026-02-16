@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Dialog, 
@@ -10,7 +10,7 @@ import {
   DialogTrigger 
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useClinics, useClinicLocations } from "@/hooks/query/useClinics";
+import { useClinics, useClinicLocations, useMyClinic } from "@/hooks/query/useClinics";
 import { MapPin, Building, ChevronRight, Loader2, Plus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -25,9 +25,22 @@ export function ClinicSelectDialog({ trigger }: ClinicSelectDialogProps) {
   const [selectedClinicId, setSelectedClinicId] = useState<string | null>(null);
 
   const { data: clinicsResponse, isPending: clinicsLoading } = useClinics();
-  const clinics = clinicsResponse?.clinics || [];
+  const { data: myClinic, isPending: myClinicLoading } = useMyClinic();
+  
+  // Use all clinics if available (Admin/Staff), otherwise fallback to my clinic (Patient)
+  const clinics = (clinicsResponse && clinicsResponse.length > 0) 
+    ? clinicsResponse 
+    : (myClinic ? [myClinic] : []);
+    
+  const isLoading = clinicsLoading || myClinicLoading;
 
   const { data: locations, isPending: locationsLoading } = useClinicLocations(selectedClinicId || "");
+
+  useEffect(() => {
+    if (!selectedClinicId && clinics && clinics.length === 1 && clinics[0]) {
+      setSelectedClinicId(clinics[0].id);
+    }
+  }, [clinics, selectedClinicId]);
 
   const handleSelectLocation = (clinicId: string, locationId: string) => {
     setOpen(false);
@@ -63,7 +76,7 @@ export function ClinicSelectDialog({ trigger }: ClinicSelectDialogProps) {
             </p>
             <ScrollArea className="h-[300px] md:h-[450px]">
               <div className="p-2 space-y-1">
-                {clinicsLoading ? (
+                {isLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                   </div>

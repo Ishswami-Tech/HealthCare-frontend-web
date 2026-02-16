@@ -108,11 +108,7 @@ export default function DashboardLayout({
     `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
 
   // Sidebar links already use correct paths (route groups don't appear in URLs)
-  const updatedSidebarLinks: SidebarLink[] = sidebarLinks.map((link) => ({
-    label: link.label,
-    path: link.path,
-    icon: link.icon,
-  }));
+  const updatedSidebarLinks = sidebarLinks;
 
   return (
     <div className="relative min-h-screen bg-muted/40 dark:bg-muted/10">

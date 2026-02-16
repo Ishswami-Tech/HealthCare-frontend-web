@@ -58,7 +58,7 @@ export async function revokeSession(sessionId: string): Promise<void> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ 
-        refreshToken: session.refresh_token,
+        refreshToken: (session as any).refreshToken || (session as any).refresh_token,
         sessionId 
       }),
     });

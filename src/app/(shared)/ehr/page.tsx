@@ -38,31 +38,27 @@ import {
 import { useMedicalRecordsActions } from "@/stores";
 import { LoadingSpinner } from "@/components/ui/loading";
 import {
-  Activity,
-  Calendar,
   FileText,
-  Pill,
-  User,
   Users,
-  Building2,
-  Settings,
   LogOut,
   Search,
   Filter,
+  User,
+  Clipboard,
+  Bell,
   Plus,
   Eye,
   Edit,
   Download,
   Upload,
-  Clipboard,
   AlertTriangle,
-  CheckCircle,
   Clock,
   TrendingUp,
   Database,
   Shield,
+  CheckCircle,
+  Settings,
   Zap,
-  Bell,
 } from "lucide-react";
 
 export default function EHRSystem() {
@@ -243,49 +239,19 @@ export default function EHRSystem() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(userRole).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      () => <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      () => <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      () => <Users className="w-5 h-5" />
-    ) : route.path.includes("medical-records") ? (
-      () => <FileText className="w-5 h-5" />
-    ) : route.path.includes("prescriptions") ? (
-      () => <Pill className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      () => <User className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      () => <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      () => <Users className="w-5 h-5" />
-    ) : route.path.includes("staff") ? (
-      () => <Users className="w-5 h-5" />
-    ) : route.path.includes("schedule") ? (
-      () => <Calendar className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      () => <Settings className="w-5 h-5" />
-    ) : (
-      () => <Activity className="w-5 h-5" />
-    ),
-  }));
+  const sidebarLinks = [...getRoutesByRole(userRole)];
 
   // Add EHR link to sidebar
   sidebarLinks.push({
-    label: "EHR System",
+    title: "EHR System",
     href: ROUTES.SHARED_EHR,
-    path: ROUTES.SHARED_EHR,
-    icon: () => <Database className="w-5 h-5" />,
+    icon: Database,
   });
 
   sidebarLinks.push({
-    label: "Logout",
+    title: "Logout",
     href: ROUTES.LOGIN,
-    path: ROUTES.LOGIN,
-    icon: () => <LogOut className="w-5 h-5" />,
+    icon: LogOut,
   });
 
 

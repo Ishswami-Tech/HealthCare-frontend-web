@@ -41,7 +41,7 @@ export default function SuperAdminClinics() {
   // Transform clinics data
   const clinics = useMemo(() => {
     if (!clinicsData) return [];
-    const clinicsArray = clinicsData.clinics || [];
+    const clinicsArray = (Array.isArray(clinicsData) ? clinicsData : (clinicsData as any)?.clinics) || [];
 
     return clinicsArray.map((clinic: any) => ({
       id: clinic.id,

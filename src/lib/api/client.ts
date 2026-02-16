@@ -3,6 +3,9 @@
 
 import { APP_CONFIG, API_ENDPOINTS, HTTP_STATUS, ERROR_CODES, ERROR_MESSAGES } from '@/lib/config/config';
 import { sanitizeErrorMessage, handleApiError } from '@/lib/utils/error-handler';
+import { logger } from '@/lib/utils/logger';
+import { trackApiCall } from '@/lib/utils/metrics';
+import { checkApiRateLimit, getClientIdentifier } from '@/lib/utils/security';
 import type { 
   ApiResponse, 
   PaginationParams, 
@@ -10,6 +13,9 @@ import type {
   ErrorResponse, 
   ApiClientConfig 
 } from '@/lib/config/config';
+
+import { fetchWithAbort, TimeoutError } from '@/lib/utils/fetch-with-abort';
+import { getAccessToken, getSessionId, getClinicId } from '@/lib/utils/token-manager';
 
 // ✅ Custom Error Classes
 export class ApiError extends Error {
@@ -48,13 +54,6 @@ export class NetworkError extends ApiError {
   constructor(message: string = 'Network error occurred') {
     super(message, 0, ERROR_CODES.NETWORK_ERROR);
     this.name = 'NetworkError';
-  }
-}
-
-export class TimeoutError extends ApiError {
-  constructor(message: string = 'Request timeout') {
-    super(message, 408, ERROR_CODES.TIMEOUT_ERROR);
-    this.name = 'TimeoutError';
   }
 }
 
@@ -99,10 +98,10 @@ async function getAuthHeaders(requireAuth: boolean = true): Promise<Record<strin
       // If cookies() is not available, fall back to empty values
     }
   } else {
-    // Client-side: use localStorage
-    accessToken = localStorage.getItem('access_token') || undefined;
-    sessionId = localStorage.getItem('session_id') || undefined;
-    clinicId = localStorage.getItem('clinic_id') || undefined;
+    // Client-side: use token-manager
+    accessToken = (await getAccessToken()) || undefined;
+    sessionId = (await getSessionId()) || undefined;
+    clinicId = (await getClinicId()) || undefined;
   }
 
   // ✅ Fallback to APP_CONFIG.CLINIC.ID if clinic ID is not in cookies/localStorage
@@ -113,11 +112,32 @@ async function getAuthHeaders(requireAuth: boolean = true): Promise<Record<strin
 
   // ✅ Enforce authentication unless explicitly disabled
   if (requireAuth && !accessToken) {
-    throw new ApiError(
-      'Authentication required. Please log in to continue.',
-      HTTP_STATUS.UNAUTHORIZED,
-      ERROR_CODES.AUTH_TOKEN_INVALID
-    );
+    // If on server and we have a refresh token, we might be able to refresh. 
+    // But getAuthHeaders is usually called before the request.
+    // We'll let the request fail with 401 -> retry logic will handle refresh.
+    // But if we throw here, we never make the request.
+    // So if we have a refresh token, we should perhaps skip this throw?
+    // Let's check for refresh token.
+    let hasRefreshToken = false;
+    if (typeof window === 'undefined') {
+       try {
+        const { cookies } = await import('next/headers');
+        const cookieStore = await cookies();
+        hasRefreshToken = !!cookieStore.get('refresh_token')?.value;
+       } catch {}
+    } else {
+       hasRefreshToken = !!localStorage.getItem('refresh_token');
+    }
+
+    if (!hasRefreshToken) {
+        throw new ApiError(
+        'Authentication required. Please log in to continue.',
+        HTTP_STATUS.UNAUTHORIZED,
+        ERROR_CODES.AUTH_TOKEN_INVALID
+        );
+    }
+    // If we have refresh token, we proceed. The request will likely fail with 401 (or 403?) 
+    // cause we send no/expired access token, then retry logic will refresh.
   }
 
   const headers = await getDefaultHeaders();
@@ -247,6 +267,9 @@ interface RequestCache {
   };
 }
 
+// ✅ Active Refresh Promises for Deduplication (Keyed by Session ID)
+const activeRefreshPromises = new Map<string, Promise<any>>();
+
 // ✅ Base API Client Class (Optimized for 10M+ users)
 export class ApiClient {
   private baseURL: string;
@@ -340,11 +363,24 @@ export class ApiClient {
   }
   
   // ✅ Execute Request with Connection Pooling Optimization (10M users)
-  private async executeRequest<T>(
+  protected async executeRequest<T>(
     url: string,
     options: RequestInit = {},
     requireAuth: boolean = true
   ): Promise<ApiResponse<T>> {
+    // ✅ Rate Limiting Check (Client-side)
+    if (typeof window !== 'undefined') {
+      const clientId = getClientIdentifier();
+      const rateLimit = checkApiRateLimit(`${clientId}:${url}`);
+      if (!rateLimit.allowed) {
+        logger.warn('Client-side rate limit exceeded', { url, clientId });
+        throw new ApiError('Rate limit exceeded. Please try again later.', 429, ERROR_CODES.RATE_LIMIT_EXCEEDED);
+      }
+    }
+
+    const startTime = Date.now();
+    logger.debug('API Request Starting', { url, options });
+
     // ✅ Authentication is required for all API calls (unless explicitly public)
     // Check if this is a public endpoint (auth endpoints, health checks, etc.)
     const isPublicEndpoint = url.includes('/auth/') || url.includes('/health');
@@ -366,23 +402,58 @@ export class ApiClient {
     }
 
     // Add timeout with AbortController
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-    config.signal = controller.signal;
-
+    // fetchWithAbort handles the abort controller internally
+    
     try {
       const response = await retryRequest(async () => {
-        const res = await fetch(url, config);
-        clearTimeout(timeoutId);
+        // Use fetchWithAbort for timeout support
+        const res = await fetchWithAbort(url, {
+           ...config,
+           timeout: this.timeout
+        });
+        
+        if (res.status === HTTP_STATUS.UNAUTHORIZED && requireAuth) {
+           // Attempt refresh
+           await this.performTokenRefresh();
+           // Retry request with new headers
+           const newHeaders = await getAuthHeaders(shouldRequireAuth);
+           // Update headers in config
+           const newConfig = { 
+               ...config, 
+               headers: { ...newHeaders, ...options.headers } as HeadersInit,
+               timeout: this.timeout
+           };
+           return fetchWithAbort(url, newConfig);
+        }
+
         return res;
       });
 
-      return await handleResponse<T>(response);
-    } catch (error) {
-      clearTimeout(timeoutId);
+      const result = await handleResponse<T>(response);
       
+      // ✅ Track Metrics & Log Success
+      const duration = Date.now() - startTime;
+      trackApiCall(url, config.method || 'GET', response.status, duration, undefined, undefined, undefined);
+      logger.debug('API Request Success', { url, status: response.status, duration });
+
+      return result;
+    } catch (error) {
       if (error instanceof ApiError) {
         throw error;
+      }
+      
+      // FetchTimeoutError is already a subclass of Error, check name or instance if we imported it
+      // but here we just need to catch it.
+      // Actually fetchWithAbort throws FetchTimeoutError.
+      // Let's check if we can just rethrow it wrapped or as is.
+      // Client expects TimeoutError (from client.ts) which inherits ApiError.
+      // We should probably convert FetchTimeoutError to client.ts TimeoutError or make them compatible.
+      // For now, let's just handle the error message.
+      
+      if ((error as any).name === 'FetchTimeoutError' || (error as any).name === 'TimeoutError') {
+          // If it's already our TimeoutError (imported), rethrow
+          // If it's FetchTimeoutError, wrap it
+          throw new TimeoutError(ERROR_MESSAGES.TIMEOUT_ERROR);
       }
       
       if ((error as any).name === 'AbortError') {
@@ -398,12 +469,131 @@ export class ApiClient {
         error instanceof Error ? error : new Error(String(error))
       );
       
+      // ✅ Track Metrics & Log Error
+      const duration = Date.now() - startTime;
+      trackApiCall(url, config.method || 'GET', 500, duration, errorMessage);
+      logger.error('API Request Failed', { url, error: errorMessage, duration });
+
       throw new ApiError(
         errorMessage,
         500,
         ERROR_CODES.SYSTEM_ERROR
       );
     }
+  }
+
+  // ✅ Token Refresh Logic
+  private async performTokenRefresh(): Promise<void> {
+    let refreshToken: string | undefined;
+    let sessionId: string | undefined;
+
+    // Get tokens context
+    if (typeof window === 'undefined') {
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      refreshToken = cookieStore.get('refresh_token')?.value;
+      sessionId = cookieStore.get('session_id')?.value;
+    } else {
+      refreshToken = localStorage.getItem('refresh_token') || undefined;
+      sessionId = localStorage.getItem('session_id') || undefined;
+    }
+
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    // Use session ID for deduplication, or 'default' for client-side single user
+    const refreshKey = sessionId || 'default';
+    
+    // Check if refresh is already in progress
+    if (activeRefreshPromises.has(refreshKey)) {
+      await activeRefreshPromises.get(refreshKey);
+      return;
+    }
+
+    const refreshPromise = (async () => {
+      try {
+        // Call refresh endpoint directly (bypassing executeRequest to avoid infinite loop)
+        const response = await fetch(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionId ? { 'X-Session-ID': sessionId } : {})
+          },
+          body: JSON.stringify({ refreshToken })
+        });
+
+        if (!response.ok) {
+          throw new Error('Token refresh failed');
+        }
+
+        const data = await response.json();
+        const tokens = data.data || data;
+
+        // Update session with new tokens
+        await this.updateSession(tokens);
+      } catch (error) {
+        // If refresh fails, clear session and throw
+        await this.clearAuthSession();
+        throw error;
+      } finally {
+        activeRefreshPromises.delete(refreshKey);
+      }
+    })();
+
+    activeRefreshPromises.set(refreshKey, refreshPromise);
+    await refreshPromise;
+  }
+
+  // ✅ Session Management Implementation
+  private async updateSession(data: any) {
+    const accessToken = data.access_token || data.accessToken;
+    const refreshToken = data.refresh_token || data.refreshToken;
+    const sessionId = data.session_id || data.sessionId;
+    const user = data.user;
+    
+    if (typeof window === 'undefined') {
+       // Server-side: Update cookies
+       const { cookies } = await import('next/headers');
+       const cookieStore = await cookies();
+       const isProduction = process.env.NODE_ENV === 'production';
+       const cookieOptions = {
+         httpOnly: true,
+         secure: isProduction,
+         sameSite: 'lax' as const,
+         path: '/'
+       };
+
+       if (accessToken) cookieStore.set('access_token', accessToken, { ...cookieOptions, maxAge: 900 }); // 15m
+       if (refreshToken) cookieStore.set('refresh_token', refreshToken, { ...cookieOptions, maxAge: 604800 }); // 7d
+       if (sessionId) cookieStore.set('session_id', sessionId, { ...cookieOptions, maxAge: 604800 });
+       if (user?.role) cookieStore.set('user_role', user.role, { ...cookieOptions, maxAge: 604800 });
+       if (user?.clinicId) cookieStore.set('clinic_id', user.clinicId, { ...cookieOptions, maxAge: 604800 });
+
+    } else {
+       // Client-side: Update localStorage
+       if (accessToken) localStorage.setItem('access_token', accessToken);
+       if (refreshToken) localStorage.setItem('refresh_token', refreshToken);
+       if (sessionId) localStorage.setItem('session_id', sessionId);
+       if (user?.role) localStorage.setItem('user_role', user.role);
+       if (user?.clinicId) localStorage.setItem('clinic_id', user.clinicId);
+    }
+  }
+
+  private async clearAuthSession() {
+     if (typeof window === 'undefined') {
+       const { cookies } = await import('next/headers');
+       const cookieStore = await cookies();
+       cookieStore.delete('access_token');
+       cookieStore.delete('refresh_token');
+       cookieStore.delete('session_id');
+       cookieStore.delete('user_role');
+     } else {
+       localStorage.removeItem('access_token');
+       localStorage.removeItem('refresh_token');
+       localStorage.removeItem('session_id');
+       localStorage.removeItem('user_role');
+     }
   }
 
   // ✅ HTTP Method Helpers
@@ -523,13 +713,24 @@ export class ClinicApiClient extends ApiClient {
     return ClinicApiClient.instance;
   }
 
-  // ✅ Batch Request Helper for High Load
+  // ✅ Batch Request Helper (Integrated with centralized RequestBatcher)
   async batchRequest<T>(requests: Array<{ endpoint: string; options?: RequestInit }>): Promise<Array<ApiResponse<T>>> {
-    const batchPromises = requests.map(({ endpoint, options }) => 
-      this.request<T>(endpoint, options).catch(error => ({ error, success: false }))
+    const { requestBatcher } = await import('@/lib/config/request-batcher');
+    
+    // Process requests through the batcher
+    const promises = requests.map(({ endpoint, options }) => 
+      requestBatcher.batchRequest<ApiResponse<T>>(
+        `${this['baseURL']}${endpoint}`, 
+        options || {},
+        (url, opt) => this.executeRequest<T>(url, opt)
+      ).catch(error => ({ 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error),
+        statusCode: 500
+      } as ApiResponse<T>))
     );
     
-    return Promise.all(batchPromises) as Promise<Array<ApiResponse<T>>>;
+    return Promise.all(promises);
   }
 
   // ✅ Authentication Methods (Enhanced to match backend)
@@ -583,6 +784,28 @@ export class ClinicApiClient extends ApiClient {
 
   async changePassword(data: { currentPassword: string; newPassword: string }) {
     return this.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, data);
+  }
+
+  async verifyEmail(token: string) {
+    return this.post(API_ENDPOINTS.AUTH.VERIFY_EMAIL, { token });
+  }
+
+  async socialLogin(data: { provider: string; token: string; clinicId?: string }) {
+    let endpoint = '';
+    switch (data.provider) {
+      case 'google':
+        endpoint = API_ENDPOINTS.AUTH.GOOGLE_LOGIN;
+        break;
+      case 'facebook':
+        endpoint = API_ENDPOINTS.AUTH.FACEBOOK_LOGIN;
+        break;
+      case 'apple':
+        endpoint = API_ENDPOINTS.AUTH.APPLE_LOGIN;
+        break;
+      default:
+        throw new Error('Invalid provider');
+    }
+    return this.post(endpoint, { token: data.token, clinicId: data.clinicId });
   }
 
   async getProfile() {
@@ -691,36 +914,65 @@ export class ClinicApiClient extends ApiClient {
   async createAppointment(data: {
     patientId: string;
     doctorId: string;
-    date: string;
-    time: string;
+    appointmentDate: string;
     duration: number;
     type: string;
-    notes?: string;
-    clinicId?: string;
-    locationId?: string;
-    symptoms?: string[];
-    priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+    notes?: string | undefined;
+    clinicId?: string | undefined;
+    locationId?: string | undefined;
+    symptoms?: string[] | undefined;
+    priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | undefined;
   }) {
     return this.post(API_ENDPOINTS.APPOINTMENTS.CREATE, data);
   }
 
   async updateAppointment(id: string, data: {
-    date?: string;
-    time?: string;
-    duration?: number;
-    type?: string;
-    notes?: string;
-    status?: 'SCHEDULED' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
-    symptoms?: string[];
-    diagnosis?: string;
-    prescription?: string;
-    followUpDate?: string;
+    appointmentDate?: string | undefined;
+    duration?: number | undefined;
+    type?: string | undefined;
+    notes?: string | undefined;
+    status?: 'SCHEDULED' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | undefined;
+    symptoms?: string[] | undefined;
+    diagnosis?: string | undefined;
+    prescription?: string | undefined;
+    followUpDate?: string | undefined;
   }) {
     return this.put(API_ENDPOINTS.APPOINTMENTS.UPDATE(id), data);
   }
 
   async cancelAppointment(id: string) {
     return this.delete(API_ENDPOINTS.APPOINTMENTS.CANCEL(id));
+  }
+
+  /**
+   * Update appointment status (Consolidated method)
+   * Replaces checkIn, start, complete, cancel, etc.
+   */
+  async updateAppointmentStatus(id: string, data: {
+    status: 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'CONFIRMED' | 'NO_SHOW' | 'SCHEDULED' | 'PENDING';
+    reason?: string;
+    notes?: string;
+    // Check-in specific
+    locationId?: string;
+    qrCode?: string;
+    checkInMethod?: string;
+    coordinates?: { lat: number; lng: number };
+    // Consultation specific
+    consultationType?: string;
+    // Completion specific
+    diagnosis?: string;
+    treatmentPlan?: string;
+    prescription?: string;
+    followUpRequired?: boolean;
+    followUpDate?: string;
+    followUpType?: string;
+    followUpInstructions?: string;
+    followUpPriority?: string;
+    medications?: any[];
+    tests?: any[];
+    restrictions?: string[];
+  }) {
+    return this.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(id), data);
   }
 
   async confirmAppointment(id: string) {
@@ -733,7 +985,7 @@ export class ClinicApiClient extends ApiClient {
     clinicId: string;
     duration: number;
     proposedSlots: Array<{ date: string; time: string }>;
-    notes?: string;
+    notes?: string | undefined;
   }) {
     return this.post(API_ENDPOINTS.APPOINTMENTS.VIDEO_PROPOSE, data);
   }
@@ -765,8 +1017,10 @@ export class ClinicApiClient extends ApiClient {
     return this.post(API_ENDPOINTS.APPOINTMENTS.COMPLETE(id), data);
   }
 
-  async getDoctorAvailability(doctorId: string, date: string) {
-    return this.get(API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId), { date });
+  async getDoctorAvailability(doctorId: string, date: string, locationId?: string) {
+    const params: Record<string, string> = { date };
+    if (locationId) params.locationId = locationId;
+    return this.get(API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId), params);
   }
 
   async getUserUpcomingAppointments(userId: string) {
@@ -842,6 +1096,19 @@ export class ClinicApiClient extends ApiClient {
   }
 
   // ✅ Health Check Methods (Enhanced to match backend)
+  async getHealthDetailed() {
+    return this.get(API_ENDPOINTS.HEALTH.DETAILED);
+  }
+
+  // ✅ Clinic Enhancements Methods
+  async getClinicStats(id: string) {
+    return this.get(API_ENDPOINTS.CLINICS.STATS(id));
+  }
+
+  async getClinicOperatingHours(id: string) {
+    return this.get(API_ENDPOINTS.CLINICS.OPERATING_HOURS(id));
+  }
+
   async getHealthStatus() {
     return this.get(API_ENDPOINTS.HEALTH.BASE);
   }
@@ -891,8 +1158,8 @@ export async function getAuthenticatedApiClient(): Promise<ClinicApiClient> {
   return ClinicApiClient.getInstance();
 }
 
-// ✅ Preload Critical Connections for 100K Users
+// ✅ Preload// Initialize connection check for clinic service
 if (typeof window !== 'undefined') {
-  // Warm up connection pool on client load
-  clinicApiClient.ping().catch(() => {});
+  // Pre-fetch health status to warm up connection
+  ClinicApiClient.getInstance().ping().catch(() => {});
 }

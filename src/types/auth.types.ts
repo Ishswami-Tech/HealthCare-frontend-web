@@ -8,7 +8,13 @@ export enum Role {
   ASSISTANT_DOCTOR = 'ASSISTANT_DOCTOR',
   RECEPTIONIST = 'RECEPTIONIST',
   PHARMACIST = 'PHARMACIST',
+  THERAPIST = 'THERAPIST',
+  LAB_TECHNICIAN = 'LAB_TECHNICIAN',
+  SUPPORT_STAFF = 'SUPPORT_STAFF',
   NURSE = 'NURSE',
+  FINANCE_BILLING = 'FINANCE_BILLING',
+  COUNSELOR = 'COUNSELOR',
+  HR_MANAGER = 'HR_MANAGER',
   PATIENT = 'PATIENT'
 }
 
@@ -127,17 +133,20 @@ export interface User {
   id: string;
   email: string;
   role: Role | string;
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  isVerified?: boolean;
-  profileComplete?: boolean;
-  profilePicture?: string;
-  googleId?: string;
-  phone?: string;
-  clinicId?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  firstName?: string | undefined;
+  lastName?: string | undefined;
+  name?: string | undefined;
+  isVerified?: boolean | undefined;
+  profileComplete?: boolean | undefined;
+  profilePicture?: string | undefined;
+  googleId?: string | undefined;
+  phone?: string | undefined;
+  clinicId?: string | undefined;
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
+  dateOfBirth?: string | null | undefined;
+  gender?: string | undefined;
+  address?: string | undefined;
 }
 
 export interface UserProfile extends User {

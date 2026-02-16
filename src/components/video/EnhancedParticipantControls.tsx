@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
-import { manageParticipantEnhanced } from "@/lib/actions/video-enhanced.server";
+import { manageParticipantEnhanced } from "@/lib/actions/video.server";
 import { useToast } from "@/hooks/utils/use-toast";
 import type { ParticipantInfo } from "@/lib/video/openvidu";
 

@@ -1,120 +1,66 @@
-import React, { ReactNode } from "react";
-import {
-  LayoutDashboard,
-  User,
-  Settings2,
-  Calendar,
-  Users,
-  FileText,
+import { 
+  LayoutDashboard, 
+  Settings, 
+  Users, 
+  Calendar, 
+  FileText, 
+  Pill, 
   Building2,
-  Pill,
-  Package,
-  ArrowLeft,
-  DollarSign,
-  QrCode,
+  UserCog,
+  ClipboardList
 } from "lucide-react";
-import { Role } from "@/types/auth.types";
-import { ROLE_ROUTES } from "@/lib/config/routes";
 
-export type SidebarLink = {
-  label: string;
-  path: string;
-  icon: () => ReactNode;
+export interface SidebarLink {
+  title: string;
+  href: string;
+  icon: any;
+  variant?: "default" | "ghost";
+  submenu?: SidebarLink[];
+}
+
+export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
+  SUPER_ADMIN: [
+    { title: "Dashboard", href: "/super-admin/dashboard", icon: LayoutDashboard },
+    { title: "Clinics", href: "/super-admin/clinics", icon: Building2 },
+    { title: "Users", href: "/super-admin/users", icon: Users },
+    { title: "Settings", href: "/super-admin/settings", icon: Settings },
+  ],
+  CLINIC_ADMIN: [
+    { title: "Dashboard", href: "/clinic-admin/dashboard", icon: LayoutDashboard },
+    { title: "Staff", href: "/clinic-admin/staff", icon: Users },
+    { title: "Schedule", href: "/clinic-admin/schedule", icon: Calendar },
+    { title: "Locations", href: "/clinic-admin/locations", icon: Building2 },
+    { title: "Settings", href: "/clinic-admin/settings", icon: Settings },
+  ],
+  DOCTOR: [
+    { title: "Dashboard", href: "/doctor/dashboard", icon: LayoutDashboard },
+    { title: "Appointments", href: "/doctor/appointments", icon: Calendar },
+    { title: "Patients", href: "/doctor/patients", icon: Users },
+    { title: "Profile", href: "/doctor/profile", icon: UserCog },
+  ],
+  PATIENT: [
+    { title: "Dashboard", href: "/patient/dashboard", icon: LayoutDashboard },
+    { title: "Appointments", href: "/patient/appointments", icon: Calendar },
+    { title: "Prescriptions", href: "/patient/prescriptions", icon: Pill },
+    { title: "Medical Records", href: "/patient/medical-records", icon: FileText },
+    { title: "Profile", href: "/patient/profile", icon: UserCog },
+  ],
+  RECEPTIONIST: [
+    { title: "Dashboard", href: "/receptionist/dashboard", icon: LayoutDashboard },
+    { title: "Appointments", href: "/receptionist/appointments", icon: Calendar },
+    { title: "Patients", href: "/receptionist/patients", icon: Users },
+    { title: "Check-In", href: "/receptionist/check-in", icon: ClipboardList },
+    { title: "Profile", href: "/receptionist/profile", icon: UserCog },
+  ],
+  PHARMACIST: [
+    { title: "Dashboard", href: "/pharmacist/dashboard", icon: LayoutDashboard },
+    { title: "Prescriptions", href: "/pharmacist/prescriptions", icon: Pill },
+    { title: "Inventory", href: "/pharmacist/inventory", icon: ClipboardList },
+    { title: "Profile", href: "/pharmacist/profile", icon: UserCog },
+  ],
 };
 
-// Helper to DRY icon rendering with consistent size
-const iconWrapper = (Icon: React.ComponentType<{ className?: string }>) => {
-  const Wrapped = () => <Icon className="size-6" />;
-  const iconMeta = Icon as { displayName?: string; name?: string };
-  Wrapped.displayName = `SidebarIconWrapper(${
-    iconMeta.displayName || iconMeta.name || "Icon"
-  })`;
-  return Wrapped;
-};
-
-// Icon components
-const DashboardIcon = iconWrapper(LayoutDashboard);
-const UserIcon = iconWrapper(User);
-const SettingsIcon = iconWrapper(Settings2);
-const CalendarIcon = iconWrapper(Calendar);
-const UsersIcon = iconWrapper(Users);
-const FileTextIcon = iconWrapper(FileText);
-const BuildingIcon = iconWrapper(Building2);
-const PillIcon = iconWrapper(Pill);
-const PackageIcon = iconWrapper(Package);
-const LogOutIcon = iconWrapper(ArrowLeft);
-const BillingIcon = iconWrapper(DollarSign);
-const QrCheckInIcon = iconWrapper(QrCode);
-
-// Helper function to map route label to icon
-const getIconForRoute = (path: string): (() => ReactNode) => {
-  if (path.includes("dashboard")) return DashboardIcon;
-  if (path.includes("appointments")) return CalendarIcon;
-  if (
-    path.includes("patients") ||
-    path.includes("users") ||
-    path.includes("staff")
-  )
-    return UsersIcon;
-  if (path.includes("profile")) return UserIcon;
-  if (path.includes("settings")) return SettingsIcon;
-  if (path.includes("clinics") || path.includes("locations"))
-    return BuildingIcon;
-  if (path.includes("prescriptions")) return PillIcon;
-  if (path.includes("inventory")) return PackageIcon;
-  if (path.includes("medical-records")) return FileTextIcon;
-  if (path.includes("billing")) return BillingIcon;
-  if (path.includes("check-in")) return QrCheckInIcon;
-  if (path.includes("logout") || path === "#logout") return LogOutIcon;
-  return DashboardIcon; // Default icon
-};
-
-// Role-based sidebar links
-// ✅ Uses centralized routes from routes.ts - single source of truth
-export const sidebarLinksByRole: Record<Role, SidebarLink[]> = {
-  [Role.SUPER_ADMIN]: ROLE_ROUTES.SUPER_ADMIN.routes.map((route) => ({
-    label: route.label,
-    path: route.path,
-    icon: getIconForRoute(route.path),
-  })),
-  [Role.CLINIC_ADMIN]: ROLE_ROUTES.CLINIC_ADMIN.routes.map((route) => ({
-    label: route.label,
-    path: route.path,
-    icon: getIconForRoute(route.path),
-  })),
-  [Role.DOCTOR]: ROLE_ROUTES.DOCTOR.routes.map((route) => ({
-    label: route.label,
-    path: route.path,
-    icon: getIconForRoute(route.path),
-  })),
-  [Role.ASSISTANT_DOCTOR]: ROLE_ROUTES.ASSISTANT_DOCTOR.routes.map((route) => ({
-    label: route.label,
-    path: route.path,
-    icon: getIconForRoute(route.path),
-  })),
-  [Role.RECEPTIONIST]: ROLE_ROUTES.RECEPTIONIST.routes.map((route) => ({
-    label: route.label,
-    path: route.path,
-    icon: getIconForRoute(route.path),
-  })),
-  [Role.PATIENT]: ROLE_ROUTES.PATIENT.routes.map((route) => ({
-    label: route.label,
-    path: route.path,
-    icon: getIconForRoute(route.path),
-  })),
-  [Role.PHARMACIST]: ROLE_ROUTES.PHARMACIST.routes.map((route) => ({
-    label: route.label,
-    path: route.path,
-    icon: getIconForRoute(route.path),
-  })),
-};
-
-/**
- * Get sidebar links for a role
- */
-export function getSidebarLinksByRole(
-  role: Role | string | undefined
-): SidebarLink[] {
-  if (!role) return [];
-  return sidebarLinksByRole[role as Role] || [];
+export function getSidebarLinksByRole(role: string): SidebarLink[] {
+  const normalizedRole = role.toUpperCase().replace(' ', '_');
+  return sidebarLinksByRole[normalizedRole] || [];
 }

@@ -19,6 +19,11 @@ import {
   FileText,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/context";
+import { 
+  getAppointmentStatusColor, 
+  formatAppointmentDate, 
+  formatAppointmentTime 
+} from "@/lib/utils/appointmentUtils";
 
 interface AppointmentCardProps {
   appointment: {
@@ -59,21 +64,6 @@ function AppointmentCardComponent({
 }: AppointmentCardProps) {
   const { t } = useTranslation();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "scheduled":
-        return "bg-primary/10 text-primary border-primary/20";
-      case "completed":
-        return "bg-primary/10 text-primary border-primary/20";
-      case "cancelled":
-        return "bg-destructive/10 text-destructive border-destructive/20";
-      case "in-progress":
-        return "bg-primary/10 text-primary border-primary/20";
-      default:
-        return "bg-muted text-muted-foreground border-border";
-    }
-  };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "scheduled":
@@ -100,23 +90,6 @@ function AppointmentCardComponent({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const formatTime = (timeString: string) => {
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
   return (
     <Card
       className={cn(
@@ -133,14 +106,14 @@ function AppointmentCardComponent({
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="w-4 h-4" />
-              {formatDate(appointment.date)}
+              {formatAppointmentDate(appointment.date)}
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
-              {formatTime(appointment.time)}
+              {formatAppointmentTime(appointment.time)}
             </div>
           </div>
-          <Badge className={cn("text-xs", getStatusColor(appointment.status))}>
+          <Badge className={cn("text-xs", getAppointmentStatusColor(appointment.status))}>
             {getStatusIcon(appointment.status)}
             <span className="ml-1">
               {t(`appointments.${appointment.status}`)}

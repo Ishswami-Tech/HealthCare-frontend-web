@@ -27,7 +27,7 @@ import {
   getAnnotations,
   deleteAnnotation,
   type Annotation,
-} from "@/lib/actions/video-enhanced.server";
+} from "@/lib/actions/video.server";
 import { useToast } from "@/hooks/utils/use-toast";
 
 interface ScreenAnnotationProps {

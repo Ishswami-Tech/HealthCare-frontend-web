@@ -58,6 +58,24 @@ export function setAccessToken(token: string): void {
 }
 
 /**
+ * Set session ID (for client-side operations)
+ */
+export function setSessionId(sessionId: string): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('session_id', sessionId);
+  }
+}
+
+/**
+ * Set clinic ID (for client-side operations)
+ */
+export function setClinicId(clinicId: string): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('clinic_id', clinicId);
+  }
+}
+
+/**
  * Clear all tokens (logout)
  */
 export function clearTokens(): void {

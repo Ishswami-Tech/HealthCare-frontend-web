@@ -26,21 +26,12 @@ import {
   Plus,
   AlertTriangle,
   CheckCircle,
-  TrendingUp,
   Package,
   Droplets,
   Leaf,
   Sun,
   Moon,
   LogOut,
-  Activity,
-  Calendar,
-  FileText,
-  Users,
-  Building2,
-  Settings,
-  Filter,
-  User,
   ShoppingCart,
   Eye,
   Edit,
@@ -48,9 +39,13 @@ import {
   Download,
   MapPin,
   Star,
+  Filter,
+  Building2,
   Clock,
   Phone,
   BarChart3,
+  TrendingUp,
+  Settings,
   CreditCard,
 } from "lucide-react";
 
@@ -358,49 +353,19 @@ export default function PharmacySystem() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(userRole).map((route: any) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      () => <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      () => <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      () => <Users className="w-5 h-5" />
-    ) : route.path.includes("medical-records") ? (
-      () => <FileText className="w-5 h-5" />
-    ) : route.path.includes("prescriptions") ? (
-      () => <Pill className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      () => <User className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      () => <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      () => <Users className="w-5 h-5" />
-    ) : route.path.includes("staff") ? (
-      () => <Users className="w-5 h-5" />
-    ) : route.path.includes("schedule") ? (
-      () => <Calendar className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      () => <Settings className="w-5 h-5" />
-    ) : (
-      () => <Activity className="w-5 h-5" />
-    ),
-  }));
+  const sidebarLinks = [...getRoutesByRole(userRole)];
 
   // Add Pharmacy link to sidebar
   sidebarLinks.push({
-    label: "Pharmacy System",
+    title: "Pharmacy System",
     href: ROUTES.SHARED_PHARMACY,
-    path: ROUTES.SHARED_PHARMACY,
-    icon: () => <Pill className="w-5 h-5" />,
+    icon: Pill,
   });
 
   sidebarLinks.push({
-    label: "Logout",
+    title: "Logout",
     href: ROUTES.LOGIN,
-    path: ROUTES.LOGIN,
-    icon: () => <LogOut className="w-5 h-5" />,
+    icon: LogOut,
   });
 
   return (

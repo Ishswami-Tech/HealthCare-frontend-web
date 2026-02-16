@@ -27,7 +27,7 @@ import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 // 5. Server actions & utils
-import { checkInAppointment } from "@/lib/actions/enhanced-appointments.server";
+import { checkInAppointment } from "@/lib/actions/appointments.server";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { logger } from "@/lib/utils/logger";
 // 6. Types

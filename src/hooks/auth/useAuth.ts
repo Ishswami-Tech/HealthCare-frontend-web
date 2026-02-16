@@ -9,7 +9,7 @@ import { ERROR_MESSAGES } from '@/lib/config/config';
 import { useGlobalLoading } from '@/hooks/utils/useGlobalLoading';
 import { logger } from '@/lib/utils/logger';
 import { useAuthStore, resetAllStores } from '@/stores';
-import { resolveRedirect } from '@/lib/utils/redirect';
+import { resolveRedirect, RedirectContext } from '@/lib/utils/redirect';
 import {
   login as loginAction,
   register as registerAction,
@@ -46,6 +46,11 @@ import type {
 } from '@/types/auth.types';
 import { Role } from '@/types/auth.types';
 import { getDashboardByRole, ROUTES } from '@/lib/config/routes';
+import { 
+  setAccessToken, 
+  setSessionId, 
+  clearTokens 
+} from '@/lib/utils/token-manager';
 
 // Constants
 const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes
@@ -61,12 +66,7 @@ interface GoogleLoginResponse {
   redirectUrl?: string;
 }
 
-interface SessionData {
-  user: User;
-  access_token: string;
-  session_id: string;
-  isAuthenticated: boolean;
-}
+// SessionData is replaced by imported Session type
 
 // Helper functions
 function getRedirectPath(user: { role?: Role | string } | null | undefined, redirectUrl?: string): string {
@@ -114,9 +114,9 @@ export function useAuth() {
   const setError = useAuthStore((state) => state.setError);
 
   // Get current session with auto-refresh using core hook
-  const { data: session, isPending } = useQueryData<SessionData | null>(
+  const { data: session, isPending } = useQueryData<Session | null>(
     ['session'],
-    async (): Promise<SessionData | null> => {
+    async (): Promise<Session | null> => {
       try {
         const result = await getServerSession();
 
@@ -128,8 +128,16 @@ export function useAuth() {
         if (result.user && result.access_token && isTokenExpiringSoon(result.access_token)) {
           try {
             const refreshedSession = await refreshToken();
-            if (refreshedSession) {
-              return refreshedSession;
+            if (refreshedSession && refreshedSession.access_token && refreshedSession.user) {
+              setAccessToken(refreshedSession.access_token);
+              // Ensure clinicId is compatible by allowing undefined
+              return {
+                ...refreshedSession,
+                user: {
+                  ...refreshedSession.user,
+                  clinicId: refreshedSession.user.clinicId || undefined
+                }
+              };
             }
             // If refresh failed, clear session and return null
             await clearSession();
@@ -194,22 +202,21 @@ export function useAuth() {
       };
       setSession(sessionForStore);
       
-      // Sync to localStorage for legacy API clients
-      localStorage.setItem('access_token', session.access_token);
+      // Sync to localStorage using token-manager
+      setAccessToken(session.access_token);
       if (session.session_id) {
-        localStorage.setItem('session_id', session.session_id);
+        setSessionId(session.session_id);
       }
       setError(null);
     } else if (session === null && !isPending) {
       // Only clear if explicitly null (logged out) and not loading
       clearAuth();
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('session_id');
+      clearTokens();
     }
   }, [session, isPending, setSession, clearAuth, setLoading, setError]);
 
   // Function to manually refresh the session
-  const refreshSession = async (force?: boolean): Promise<SessionData | null> => {
+  const refreshSession = async (force?: boolean): Promise<Session | null> => {
     try {
       // If not forced, try to get the session from the server first (fastest)
       if (!force) {
@@ -278,9 +285,13 @@ export function useAuth() {
         });
       },
       onSuccess: (data) => {
-        // Convert AuthResponse to SessionData
-        const sessionData: SessionData = {
-          user: data.user,
+        // Convert AuthResponse to Session
+        const { profileComplete, ...restUser } = data.user;
+        const sessionData: Session = {
+          user: {
+            ...restUser,
+            profileComplete: !!profileComplete,
+          } as User,
           access_token: data.access_token,
           session_id: data.session_id,
           isAuthenticated: true,
@@ -292,7 +303,10 @@ export function useAuth() {
         // ✅ Use centralized redirect utility
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
         const redirect = resolveRedirect({
-          user: data.user,
+          user: {
+            role: data.user.role as Role,
+            profileComplete: !!data.user.profileComplete,
+          },
           redirectUrl: data.redirectUrl,
           ...(currentPath ? { currentPath } : {}),
           isAuthenticated: true,
@@ -333,7 +347,7 @@ export function useAuth() {
         }
 
         // Create session data with proper defaults
-        const sessionData: SessionData = {
+        const sessionData: Session = {
           user: {
             id: data.user.id,
             email: data.user.email,
@@ -395,14 +409,14 @@ export function useAuth() {
   const registerMutation = useMutationOperation<AuthResponse, RegisterData>(
     async (data: RegisterData) => {
        // @ts-ignore - fixing type mismatch with updated server action return type
-       const result = await registerAction(data);
+       const result = await registerAction(data) as AuthResponse | { error: string };
        
        // ✅ Check for explicit error return
        if ((result as any).error) {
          throw new Error((result as any).error);
        }
        
-       return result;
+       return result as AuthResponse;
     },
     {
       toastId: TOAST_IDS.AUTH.REGISTER,
@@ -513,27 +527,35 @@ export function useAuth() {
 
   // OTP verification mutation - ✅ Use core hook
   const verifyOTPMutation = useMutationOperation<AuthResponse, OTPFormData>(
-    (data) => verifyOTPAction(data),
+    (data) => verifyOTPAction(data) as Promise<AuthResponse>,
     {
       toastId: TOAST_IDS.AUTH.OTP,
       loadingMessage: 'Verifying OTP...',
       successMessage: 'OTP verified successfully! Welcome back!',
       showToast: false, // Handle manually for custom message
       onSuccess: (data) => {
-        // Convert AuthResponse to SessionData
-        const sessionData: SessionData = {
-          user: data.user,
-          access_token: data.access_token || '',
-          session_id: data.session_id || '',
-          isAuthenticated: true,
+        // Convert AuthResponse to Session
+        const { profileComplete, ...restUser } = data.user;
+        const sessionData: Session = {
+           user: {
+             ...restUser,
+             profileComplete: !!profileComplete,
+           } as User,
+           access_token: data.access_token || '',
+           session_id: data.session_id || '',
+           isAuthenticated: true,
         };
         
         queryClient.setQueryData(['session'], sessionData);
         
         // ✅ Use centralized redirect utility
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
-        const redirectContext: Parameters<typeof resolveRedirect>[0] = {
-          user: data.user,
+        // ... (rest of function)
+        const redirectContext: RedirectContext = {
+          user: {
+            role: data.user.role as Role,
+            profileComplete: !!data.user.profileComplete,
+          },
           isAuthenticated: true,
         };
         if (currentPath) {
@@ -560,7 +582,7 @@ export function useAuth() {
   // Request OTP mutation - ✅ Use core hook
   const requestOTPMutation = useMutationOperation<{ success: boolean; message: string }, OtpRequestFormData>(
     async (data: OtpRequestFormData) => {
-      return requestOTPAction(data);
+      return requestOTPAction(data) as Promise<{ success: boolean; message: string }>;
     },
     {
       toastId: TOAST_IDS.AUTH.OTP,
@@ -577,7 +599,7 @@ export function useAuth() {
 
   // Password reset mutations - ✅ Use core hooks
   const forgotPasswordMutation = useMutationOperation<MessageResponse, string>(
-    (email) => forgotPasswordAction({ email }),
+    (email) => forgotPasswordAction({ email }) as Promise<MessageResponse>,
     {
       toastId: TOAST_IDS.AUTH.FORGOT_PASSWORD,
       loadingMessage: 'Sending reset instructions...',
@@ -589,12 +611,16 @@ export function useAuth() {
       },
     }
   );
-  
+
   const forgotPassword = forgotPasswordMutation.mutate;
   const isRequestingReset = forgotPasswordMutation.isPending;
 
   const resetPasswordMutation = useMutationOperation<MessageResponse, { token: string; newPassword: string }>(
-    (data) => resetPasswordAction({ token: data.token, password: data.newPassword, confirmPassword: data.newPassword }),
+    (data) => resetPasswordAction({ 
+      token: data.token, 
+      password: data.newPassword, 
+      confirmPassword: data.newPassword 
+    }) as Promise<MessageResponse>,
     {
       toastId: TOAST_IDS.AUTH.RESET_PASSWORD,
       loadingMessage: 'Resetting password...',
@@ -671,7 +697,7 @@ export function useAuth() {
   const isVerifyingMagicLink = verifyMagicLinkMutation.isPending;
 
   // Change password mutation - ✅ Use core hook
-  const changePasswordMutation = useMutationOperation<AuthResponse, FormData>(
+  const changePasswordMutation = useMutationOperation<AuthResponse, { currentPassword?: string; newPassword: string }>(
     (data) => changePasswordAction(data),
     {
       toastId: TOAST_IDS.AUTH.RESET_PASSWORD,
@@ -704,7 +730,7 @@ export function useAuth() {
 
   // Check OTP Status mutation - ✅ Use core hook
   const checkOTPStatusMutation = useMutationOperation<{ hasActiveOTP: boolean }, string>(
-    (email) => checkOTPStatusAction(email),
+    (email) => checkOTPStatusAction(email) as Promise<{ hasActiveOTP: boolean }>,
     {
       toastId: TOAST_IDS.VERIFICATION.OTP,
       loadingMessage: 'Checking OTP status...',
@@ -718,7 +744,7 @@ export function useAuth() {
 
   // Invalidate OTP mutation - ✅ Use core hook
   const invalidateOTPMutation = useMutationOperation<{ message: string }, string>(
-    (email) => invalidateOTPAction(email),
+    (email) => invalidateOTPAction(email) as Promise<{ message: string }>,
     {
       toastId: TOAST_IDS.AUTH.OTP,
       loadingMessage: 'Invalidating OTP...',
@@ -735,16 +761,18 @@ export function useAuth() {
   const isInvalidatingOTP = invalidateOTPMutation.isPending;
 
   // Verify Email mutation - ✅ Use core hook
-  const verifyEmailMutation = useMutationOperation<{ message: string }, string>(
-    (token) => verifyEmailAction(token),
+  const verifyEmailMutation = useMutationOperation<{ success: boolean; message: string }, { email: string; otp: string }>(
+    (data) => verifyEmailAction(data.email, data.otp),
     {
-      toastId: TOAST_IDS.VERIFICATION.EMAIL,
+      toastId: 'verify-email', // Fallback string ID
       loadingMessage: 'Verifying email...',
-      successMessage: 'Email verified successfully',
-      invalidateQueries: [['session']],
+      successMessage: 'Email verified successfully!',
       onSuccess: (data) => {
-        showSuccessToast(data.message, {
-          id: TOAST_IDS.VERIFICATION.EMAIL,
+        if (!data.success) {
+           throw new Error(data.message);
+        }
+        showSuccessToast(data.message || 'Email verified successfully!', {
+          id: 'verify-email',
         });
         router.push(ROUTES.LOGIN);
       },

@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 // import { useClinicContext } from "@/hooks/query/useClinics";
 import { useUsers } from "@/hooks/query/useUsers";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
+import { AppointmentWithRelations } from "@/types/appointment.types";
 
 import {
   Users,
@@ -39,7 +40,7 @@ export default function ClinicAdminDashboard() {
   const stats = {
     totalAppointments: appointmentsArray.length || 156,
     todayAppointments:
-      appointmentsArray.filter((apt) => {
+      appointmentsArray.filter((apt: AppointmentWithRelations) => {
         const today = new Date().toDateString();
         return new Date(apt.date).toDateString() === today;
       }).length || 24,

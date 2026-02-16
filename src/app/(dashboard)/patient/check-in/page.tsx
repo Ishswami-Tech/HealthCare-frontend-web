@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { QRScanner } from "@/components/qr/QRScanner";
-import { scanLocationQRAndCheckIn } from "@/lib/actions/enhanced-appointments.server";
+import { scanLocationQRAndCheckIn } from "@/lib/actions/appointments.server";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

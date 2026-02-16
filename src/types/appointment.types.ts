@@ -11,6 +11,7 @@ import type { Clinic, ClinicLocation } from './clinic.types';
 export type AppointmentStatus = 
   | 'SCHEDULED'
   | 'CONFIRMED' 
+  | 'AWAITING_SLOT_CONFIRMATION'
   | 'CHECKED_IN'
   | 'IN_PROGRESS'
   | 'COMPLETED'
@@ -26,7 +27,17 @@ export type AppointmentPriority =
 export type AppointmentType = 
   | 'IN_PERSON'
   | 'VIDEO_CALL'
-  | 'HOME_VISIT'
+  | 'HOME_VISIT';
+
+export type TreatmentType = 
+  | 'GENERAL_CONSULTATION'
+  | 'FOLLOW_UP'
+  | 'THERAPY'
+  | 'SURGERY'
+  | 'LAB_TEST'
+  | 'IMAGING'
+  | 'VACCINATION'
+  // Ayurveda Types
   | 'VIDDHAKARMA'
   | 'AGNIKARMA'
   | 'PANCHAKARMA'
@@ -47,9 +58,10 @@ export interface CreateAppointmentData {
   time: string;
   duration: number;
   type: AppointmentType; // ✅ Use AppointmentType instead of string
+  treatmentType?: TreatmentType;
   notes?: string;
   clinicId?: string;
-  locationId?: string;
+  locationId?: string | undefined;
   symptoms?: string[];
   priority?: AppointmentPriority;
 }
@@ -59,6 +71,7 @@ export interface UpdateAppointmentData {
   time?: string;
   duration?: number;
   type?: AppointmentType; // ✅ Use AppointmentType instead of string
+  treatmentType?: TreatmentType;
   notes?: string;
   status?: AppointmentStatus;
   symptoms?: string[];
@@ -84,6 +97,7 @@ export interface Appointment {
   time: string;
   duration: number;
   type: AppointmentType; // ✅ Use AppointmentType instead of string
+  treatmentType?: TreatmentType;
   status: AppointmentStatus;
   priority: AppointmentPriority;
   notes?: string;
@@ -217,7 +231,10 @@ export interface QueueStats {
 export interface DoctorAvailability {
   doctorId: string;
   date: string;
-  slots: Array<{
+  available?: boolean;
+  availableSlots?: string[];
+  bookedSlots?: string[];
+  slots?: Array<{
     startTime: string;
     endTime: string;
     isAvailable: boolean;

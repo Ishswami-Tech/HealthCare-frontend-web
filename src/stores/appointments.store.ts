@@ -439,7 +439,7 @@ export const useAppointmentsStore = create<AppointmentsState>()(
         syncAppointmentFromServer: (appointment) =>
           set((state) => {
             if (state.appointments[appointment.id]) {
-              Object.assign(state.appointments[appointment.id], appointment);
+              Object.assign(state.appointments[appointment.id]!, appointment);
               if (state.selectedAppointment?.id === appointment.id) {
                 Object.assign(state.selectedAppointment, appointment);
               }

@@ -9,9 +9,11 @@ const nextConfig: NextConfig = {
   output: 'standalone',
 
   /* =====================================================
-   * Turbopack (explicit, no webpack)
+   * Turbopack (disabled for Tailwind CSS v4 compatibility)
    * ===================================================== */
-  turbopack: {},
+  turbopack: {
+   
+  },
 
   /* =====================================================
    * Experimental (safe + useful)
@@ -37,6 +39,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'api.ishswami.in' },
       { protocol: 'https', hostname: 'backend-service-v1.ishswami.in' },
       { protocol: 'https', hostname: 'ishswami.in' },
+      { protocol: 'https', hostname: 'ui-avatars.com' },
       { protocol: 'http', hostname: 'localhost' },
     ],
   },

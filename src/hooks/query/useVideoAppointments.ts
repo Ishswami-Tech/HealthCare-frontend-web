@@ -452,7 +452,7 @@ export function useVideoCall() {
   // ✅ State Management Effects
   useEffect(() => {
     // Listen for OpenVidu stream events
-    const handleStreamCreated = (event: any) => {
+    const handleStreamCreated = (_event: any) => {
       // In a real app we might want to debate if we update state here or wait for manual getSubscribers()
       // But for reactive UI, we should update state
       if (videoAppointmentService.isInCall()) {
@@ -463,7 +463,7 @@ export function useVideoCall() {
       }
     };
 
-    const handleStreamDestroyed = (event: any) => {
+    const handleStreamDestroyed = (_event: any) => {
       if (videoAppointmentService.isInCall()) {
         const currentCall = videoAppointmentService.getCurrentCall();
         if (currentCall) {

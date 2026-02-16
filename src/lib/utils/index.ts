@@ -3,7 +3,7 @@
  * All utility functions in one place for better organization
  */
 
-import React from "react";
+
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { useTranslation } from '@/lib/i18n/context';
@@ -39,16 +39,14 @@ export function debounce<T extends (...args: unknown[]) => void>(
   };
 }
 
+
+
 // ============================================================================
 // SIDEBAR TRANSLATIONS
 // ============================================================================
 
-interface SidebarLink {
-  label: string;
-  path: string;
-  icon: () => React.ReactNode;
-  children?: SidebarLink[];
-}
+import { SidebarLink } from "@/lib/config/sidebarLinks";
+export type { SidebarLink };
 
 type TranslationFunction = (key: string) => string;
 
@@ -124,12 +122,18 @@ export function useTranslatedSidebarLabel(originalLabel: string): string {
  * Function to translate a sidebar link
  */
 export function translateSidebarLink(link: SidebarLink, t: TranslationFunction): SidebarLink {
-  const translationKey = SIDEBAR_LABEL_MAP[link.label];
+  const translationKey = SIDEBAR_LABEL_MAP[link.title];
   
-  return {
+  const translatedLink: SidebarLink = {
     ...link,
-    label: translationKey ? t(translationKey) : link.label,
+    title: translationKey ? t(translationKey) : link.title,
   };
+
+  if (link.submenu) {
+    translatedLink.submenu = translateSidebarLinks(link.submenu, t);
+  }
+
+  return translatedLink;
 }
 
 /**
@@ -155,4 +159,22 @@ export * from './theme-utils';
 export * from './audit';
 export * from './logger';
 export * from './performance';
+
+// ============================================================================
+// OBJECT UTILITIES
+// ============================================================================
+
+/**
+ * Remove keys with undefined values from an object
+ * Useful for satisfying exactOptionalPropertyTypes in TypeScript
+ */
+export function clean<T extends object>(obj: T): T {
+  const result = { ...obj };
+  (Object.keys(result) as Array<keyof T>).forEach((key) => {
+    if (result[key] === undefined) {
+      delete result[key];
+    }
+  });
+  return result;
+}
 

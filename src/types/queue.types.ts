@@ -6,7 +6,7 @@ export interface QueueItem {
   patientId: string;
   doctorId?: string;
   appointmentId?: string;
-  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | 'EMERGENCY';
   status: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'CALLED';
   position: number;
@@ -83,7 +83,7 @@ export interface QueueStats {
 export interface QueueConfiguration {
   id: string;
   clinicId: string;
-  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   isActive: boolean;
   maxCapacity?: number;
   estimatedServiceTime: number; // in minutes
@@ -112,7 +112,7 @@ export interface QueueConfiguration {
 // ===== QUEUE FILTERS =====
 
 export interface QueueFilters {
-  queueType?: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  queueType?: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   status?: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'CALLED';
   priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | 'EMERGENCY';
   doctorId?: string;
@@ -132,7 +132,7 @@ export interface AddToQueueData {
   patientId: string;
   doctorId?: string;
   appointmentId?: string;
-  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | 'EMERGENCY';
   notes?: string;
 }
@@ -144,13 +144,13 @@ export interface UpdateQueueStatusData {
 }
 
 export interface CallNextPatientData {
-  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   doctorId?: string;
 }
 
 export interface TransferQueueItemData {
   queueItemId: string;
-  newQueueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  newQueueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   newDoctorId?: string;
   reason?: string;
 }
@@ -186,7 +186,7 @@ export interface QueueDisplay {
   id: string;
   clinicId: string;
   name: string;
-  queueTypes: ('CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION')[];
+  queueTypes: ('CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT')[];
   displaySettings: {
     layout: 'LIST' | 'GRID' | 'TICKER';
     theme: 'LIGHT' | 'DARK' | 'CUSTOM';

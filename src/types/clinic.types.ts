@@ -68,14 +68,19 @@ export interface ClinicUser {
 
 export interface ClinicStats {
   totalUsers: number;
-  totalDoctors: number;
-  totalPatients: number;
-  totalReceptionists: number;
-  totalClinicAdmins: number;
+  totalLocations: number;
   totalAppointments: number;
-  activeLocations: number;
-  completionRate: number;
-  avgWaitTime: number;
+  activeDoctors: number;
+  todayAppointments: number;
+  revenue: number;
+  // Legacy/Additional fields
+  totalDoctors?: number;
+  totalPatients?: number;
+  totalReceptionists?: number;
+  totalClinicAdmins?: number;
+  activeLocations?: number;
+  completionRate?: number;
+  avgWaitTime?: number;
   totalRevenue?: number;
   monthlyGrowth?: number;
 }

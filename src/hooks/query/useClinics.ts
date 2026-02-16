@@ -19,8 +19,9 @@ import {
 } from '@/types/clinic.types';
 import {
   createClinic,
-  getAllClinics,
+  getClinics,
   getClinicById,
+  getClinicLocations,
   getHealthStatus,
   getHealthReady,
   getHealthLive
@@ -113,7 +114,7 @@ export const useCreateClinic = () => {
  */
 export const useClinics = () => {
   return useQueryData(['clinics'], async () => {
-    return await getAllClinics();
+    return await getClinics();
   });
 };
 
@@ -123,32 +124,19 @@ export const useClinics = () => {
  * Hook to get clinic by ID
  */
 export const useClinic = (clinicId?: string) => {
-  const { session, isPending } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
   const id = clinicId || CLINIC_ID;
   
   return useQueryData<ClinicWithRelations>(
     ['clinic', id],
     async () => {
-      const headers = getAuthHeaders(token, sessionId, id);
-      // ✅ PERFORMANCE: Use fetch with AbortController
-      const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
-      const response = await fetchWithAbort(`${API_URL}/clinics/${id}`, {
-        headers,
-        timeout: 10000,
-      });
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        // ✅ Use centralized error handler
-        const { handleApiError } = await import('@/lib/utils/error-handler');
-        const errorMessage = await handleApiError(response, error);
-        throw new Error(errorMessage);
+      const result = await getClinicById(id);
+      if (!result) {
+        throw new Error('Failed to fetch clinic');
       }
-      return response.json();
+      return result as ClinicWithRelations;
     },
     {
-      enabled: !!token && !!sessionId && !!id && !isPending,
+      enabled: !!id,
     }
   );
 };
@@ -290,19 +278,15 @@ export const useCreateClinicLocation = () => {
  * Hook to get all locations for a clinic
  */
 export const useClinicLocations = (clinicId: string) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
   
   return useQueryData<ClinicLocation[]>(
     ['clinicLocations', clinicId],
     async () => {
-      const response = await apiCall<ClinicLocation[]>(`/clinics/${clinicId}/locations`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      const result = await getClinicLocations(clinicId);
+      if (!result) {
+        throw new Error('Failed to fetch clinic locations');
+      }
+      return result;
     },
     {
       enabled: !!clinicId,
@@ -646,6 +630,30 @@ export const useClinicStats = (clinicId: string) => {
 };
 
 /**
+ * Hook to get clinic operating hours
+ */
+export const useClinicOperatingHours = (clinicId: string) => {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const sessionId = session?.session_id;
+  
+  return useQueryData<any[]>(
+    ['clinicOperatingHours', clinicId],
+    async () => {
+      const response = await apiCall<any[]>(`/clinics/${clinicId}/operating-hours`, {
+        headers: {
+          ...getAuthHeaders(token, sessionId, CLINIC_ID),
+        },
+      });
+      return response.data;
+    },
+    {
+      enabled: !!clinicId,
+    }
+  );
+};
+
+/**
  * Hook to get clinic settings
  */
 export const useClinicSettings = (clinicId: string) => {
@@ -700,19 +708,16 @@ export const useUpdateClinicSettings = () => {
  * Hook to get active locations
  */
 export const useActiveLocations = (clinicId: string) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
   
   return useQueryData<ClinicLocation[]>(
     ['activeLocations', clinicId],
     async () => {
-      const response = await apiCall<ClinicLocation[]>(`/clinics/${clinicId}/locations`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      const result = await getClinicLocations(clinicId);
+      if (!result) {
+        throw new Error('Failed to fetch active locations');
+      }
+      // TODO: Filter by active status if the API returns inactive ones too
+      return result;
     },
     {
       enabled: !!clinicId,
@@ -864,12 +869,11 @@ export const useCurrentClinic = () => {
       if (!clinicId) {
         throw new Error('No clinic ID available');
       }
-      
       const result = await getClinicById(clinicId);
-      if (!result.success) {
-        throw new Error(result.error);
+      if (!result) {
+        throw new Error('Failed to fetch clinic');
       }
-      return result.clinic;
+      return result;
     },
     {
       enabled: !!clinicId,
@@ -883,7 +887,7 @@ export const useHealthStatus = () => {
   return useQueryData(
     ['health-status'],
     async () => {
-      const result = await getHealthStatus();
+      const result = (await getHealthStatus()) as any;
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -903,7 +907,7 @@ export const useHealthReady = () => {
   return useQueryData(
     ['health-ready'],
     async () => {
-      const result = await getHealthReady();
+      const result = (await getHealthReady()) as any;
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -923,7 +927,7 @@ export const useHealthLive = () => {
   return useQueryData(
     ['health-live'],
     async () => {
-      const result = await getHealthLive();
+      const result = (await getHealthLive()) as any;
       if (!result.success) {
         throw new Error(result.error);
       }

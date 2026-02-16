@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
+import { AppointmentWithRelations } from "@/types/appointment.types";
 import { useClinicContext } from "@/hooks/query/useClinics";
 // import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -50,12 +51,12 @@ export default function DoctorDashboard() {
   const todaysQueue = useMemo(() => {
     const today = new Date().toDateString();
     return appointmentsArray
-      .filter((apt) => new Date(apt.date).toDateString() === today)
+      .filter((apt: AppointmentWithRelations) => new Date(apt.date).toDateString() === today)
       .sort(
-        (a, b) =>
+        (a: AppointmentWithRelations, b: AppointmentWithRelations) =>
           (a.time || "").localeCompare(b.time || "", undefined, { numeric: true })
       )
-      .map((apt) => {
+      .map((apt: AppointmentWithRelations) => {
         const patientName =
           `${apt.patient?.firstName || ""} ${apt.patient?.lastName || ""}`.trim() ||
           "Unknown Patient";
@@ -84,14 +85,14 @@ export default function DoctorDashboard() {
 
   const stats = {
     todayAppointments:
-      appointmentsArray.filter((apt) => {
+      appointmentsArray.filter((apt: AppointmentWithRelations) => {
         const today = new Date().toDateString();
         return new Date(apt.date).toDateString() === today;
       }).length || 0,
     checkedInPatients:
-      appointmentsArray.filter((apt) => apt.status === "CHECKED_IN").length || 0,
+      appointmentsArray.filter((apt: AppointmentWithRelations) => apt.status === "CHECKED_IN").length || 0,
     completedToday:
-      appointmentsArray.filter((apt) => {
+      appointmentsArray.filter((apt: AppointmentWithRelations) => {
         const today = new Date().toDateString();
         return (
           new Date(apt.date).toDateString() === today &&
@@ -99,7 +100,7 @@ export default function DoctorDashboard() {
         );
       }).length || 0,
     totalPatients:
-      appointmentsArray.reduce((acc: { patientId: string }[], apt) => {
+      appointmentsArray.reduce((acc: { patientId: string }[], apt: AppointmentWithRelations) => {
         const patientIds = new Set(acc.map((p) => p.patientId));
         if (!patientIds.has(apt.patientId)) {
           acc.push({ patientId: apt.patientId });
@@ -110,7 +111,7 @@ export default function DoctorDashboard() {
     patientSatisfaction: 4.8,
     nextAppointment:
       todaysQueue.find(
-        (a) =>
+        (a: any) =>
           a.statusEnum === "SCHEDULED" ||
           a.statusEnum === "CONFIRMED" ||
           a.statusEnum === "CHECKED_IN"
@@ -337,7 +338,7 @@ export default function DoctorDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {todaysQueue.map((appointment) => (
+                {todaysQueue.map((appointment: any) => (
                   <div
                     key={appointment.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"

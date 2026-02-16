@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
+import { AppointmentWithRelations } from "@/types/appointment.types";
 import {
   Activity,
   Calendar,
@@ -37,16 +38,16 @@ export default function ReceptionistDashboard() {
   const appointmentsArray = appointments?.appointments || [];
   const stats = {
     todayAppointments:
-      appointmentsArray.filter((apt) => {
+      appointmentsArray.filter((apt: AppointmentWithRelations) => {
         const today = new Date().toDateString();
         return new Date(apt.date).toDateString() === today;
       }).length || 0,
     checkedInPatients:
-      appointmentsArray.filter((apt) => apt.status === "CHECKED_IN").length || 0,
+      appointmentsArray.filter((apt: AppointmentWithRelations) => apt.status === "CHECKED_IN").length || 0,
     waitingPatients:
-      appointmentsArray.filter((apt) => apt.status === "SCHEDULED").length || 0,
+      appointmentsArray.filter((apt: AppointmentWithRelations) => apt.status === "SCHEDULED").length || 0,
     completedToday:
-      appointmentsArray.filter((apt) => {
+      appointmentsArray.filter((apt: AppointmentWithRelations) => {
         const today = new Date().toDateString();
         return (
           new Date(apt.date).toDateString() === today &&

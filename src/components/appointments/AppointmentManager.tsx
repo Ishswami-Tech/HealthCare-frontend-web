@@ -138,7 +138,7 @@ export default function AppointmentManager() {
   );
 
   // User appointments
-  const { data: upcomingAppointments } = useUserUpcomingAppointments(user?.id || "");
+  const { data: upcomingAppointments } = useUserUpcomingAppointments();
 
   // Location and doctor data (memoized)
   // Use environment-aware clinic ID with fallback
@@ -299,7 +299,7 @@ export default function AppointmentManager() {
 
   const handleProcessCheckIn = useCallback(
     (appointmentId: string) => {
-      processCheckIn(appointmentId, {
+      processCheckIn({ appointmentId, patientId: user?.id || "" }, {
         onSuccess: () => {
           toast({
             title: "Success",
@@ -315,7 +315,7 @@ export default function AppointmentManager() {
         },
       });
     },
-    [processCheckIn, toast]
+    [processCheckIn, toast, user?.id]
   );
 
   const handleConfirmAppointment = useCallback(
@@ -392,7 +392,7 @@ export default function AppointmentManager() {
           // (The query invalidation will handle the list)
           setSelectedAppointment(prev => prev ? { ...prev, date: rescheduleData.date, time: rescheduleData.time } : null);
         },
-        onError: (error) => {
+        onError: (error: Error) => {
            toast({
             title: "Error",
             description: sanitizeErrorMessage(error) || "Failed to reschedule appointment",
@@ -857,7 +857,7 @@ export default function AppointmentManager() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {upcomingAppointments.map((appointment) => (
+              {upcomingAppointments.map((appointment: any) => (
                 <div
                   key={appointment.id}
                   className="flex justify-between items-center"

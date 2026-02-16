@@ -65,6 +65,7 @@ export const ERROR_CODES = {
   // Business Logic
   OPERATION_NOT_ALLOWED: 'OPERATION_NOT_ALLOWED',
   QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
 } as const;
 
 export type HttpStatus = typeof HTTP_STATUS[keyof typeof HTTP_STATUS];

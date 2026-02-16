@@ -15,7 +15,7 @@ import {
   getCallQuality,
   updateQualityMetrics,
   type CallQualityMetrics,
-} from "@/lib/actions/video-enhanced.server";
+} from "@/lib/actions/video.server";
 import { useToast } from "@/hooks/utils/use-toast";
 import {
   Tooltip,

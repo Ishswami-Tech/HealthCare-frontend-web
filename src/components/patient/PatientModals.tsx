@@ -64,20 +64,16 @@ export function PasswordChangeModal({
     setIsLoading(true);
 
     try {
-      const result = await changePassword({
+      await changePassword({
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
       });
 
-      if (result.error) {
-        setError(result.error);
-      } else {
-        toast.success("Password changed successfully");
-        handleOpenChange(false);
-        setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      }
+      toast.success("Password changed successfully");
+      handleOpenChange(false);
+      setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
     } catch (err) {
-      setError("Failed to change password. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to change password. Please try again.");
     } finally {
       setIsLoading(false);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -50,8 +50,8 @@ export function ProposeVideoAppointmentDialog({
     userRole === Role.RECEPTIONIST ? (clinicId || "") : "",
     { limit: 200 }
   );
-  const doctors = Array.isArray(doctorsData?.doctors) ? doctorsData.doctors : doctorsData?.data ?? [];
-  const patients = Array.isArray(patientsData?.patients) ? patientsData.patients : patientsData?.data ?? [];
+  const doctors = Array.isArray((doctorsData as any)?.doctors) ? (doctorsData as any).doctors : (doctorsData as any)?.data ?? [];
+  const patients = Array.isArray((patientsData as any)?.patients) ? (patientsData as any).patients : (patientsData as any)?.data ?? [];
 
   const [selectedPatientId, setSelectedPatientId] = useState("");
   const patientId = userRole === Role.RECEPTIONIST ? selectedPatientId : initialPatientId;
@@ -79,7 +79,11 @@ export function ProposeVideoAppointmentDialog({
 
   const updateSlot = (index: number, field: "date" | "time", value: string) => {
     const updated = [...proposedSlots];
-    updated[index] = { ...updated[index], [field]: value };
+    if (field === "date") {
+      updated[index] = { ...updated[index], date: value } as { date: string; time: string };
+    } else {
+      updated[index] = { ...updated[index], time: value } as { date: string; time: string };
+    }
     setProposedSlots(updated);
   };
 
@@ -103,7 +107,7 @@ export function ProposeVideoAppointmentDialog({
       clinicId,
       duration,
       proposedSlots: validSlots,
-      notes: notes || undefined,
+      ...(notes ? { notes } : {}),
     });
 
     onOpenChange(false);

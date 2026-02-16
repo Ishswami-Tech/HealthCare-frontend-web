@@ -448,6 +448,61 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     // Settings (personal)
     Permission.MANAGE_USER_SETTINGS,
   ],
+
+  [Role.THERAPIST]: [
+    Permission.VIEW_APPOINTMENTS,
+    Permission.UPDATE_APPOINTMENTS,
+    Permission.VIEW_PATIENTS,
+    Permission.VIEW_MEDICAL_RECORDS,
+    Permission.VIEW_NOTIFICATIONS,
+    Permission.MANAGE_USER_SETTINGS,
+  ],
+
+  [Role.LAB_TECHNICIAN]: [
+    Permission.VIEW_APPOINTMENTS,
+    Permission.VIEW_PATIENTS,
+    Permission.VIEW_MEDICAL_RECORDS,
+    Permission.UPDATE_MEDICAL_RECORDS,
+    Permission.CREATE_MEDICAL_RECORDS,
+    Permission.VIEW_NOTIFICATIONS,
+    Permission.MANAGE_USER_SETTINGS,
+  ],
+
+  [Role.SUPPORT_STAFF]: [
+    Permission.VIEW_APPOINTMENTS,
+    Permission.VIEW_PATIENTS,
+    Permission.VIEW_QUEUE,
+    Permission.VIEW_NOTIFICATIONS,
+    Permission.MANAGE_USER_SETTINGS,
+  ],
+
+  [Role.FINANCE_BILLING]: [
+    Permission.VIEW_BILLING,
+    Permission.MANAGE_BILLING,
+    Permission.PROCESS_PAYMENTS,
+    Permission.CREATE_BILLS,
+    Permission.UPDATE_BILLS,
+    Permission.DELETE_BILLS,
+    Permission.VIEW_FINANCIAL_REPORTS,
+    Permission.VIEW_NOTIFICATIONS,
+    Permission.MANAGE_USER_SETTINGS,
+  ],
+
+  [Role.COUNSELOR]: [
+    Permission.VIEW_APPOINTMENTS,
+    Permission.UPDATE_APPOINTMENTS,
+    Permission.VIEW_PATIENTS,
+    Permission.VIEW_MEDICAL_RECORDS,
+    Permission.VIEW_NOTIFICATIONS,
+    Permission.MANAGE_USER_SETTINGS,
+  ],
+
+  [Role.HR_MANAGER]: [
+    Permission.VIEW_USERS,
+    Permission.UPDATE_USERS,
+    Permission.VIEW_NOTIFICATIONS,
+    Permission.MANAGE_USER_SETTINGS,
+  ],
 };
 
 // Permission check interface

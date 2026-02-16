@@ -1,21 +1,8 @@
-/**
- * ✅ CONSOLIDATED AUTH SCHEMAS
- * Single source of truth for all authentication Zod schemas
- * Following DRY, SOLID, KISS principles
- * 
- * @module Schema/Auth
- */
 
 import * as z from 'zod';
 import { Role } from '@/types/auth.types';
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
 
-/**
- * Helper function to safely use Role enum with Zod
- */
 const createRoleEnum = () => {
   return z.enum([
     Role.SUPER_ADMIN,
@@ -28,13 +15,7 @@ const createRoleEnum = () => {
   ] as [string, ...string[]]);
 };
 
-// ============================================================================
-// LOGIN SCHEMAS
-// ============================================================================
 
-/**
- * Schema for password-based login
- */
 export const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
@@ -44,22 +25,13 @@ export const loginSchema = z.object({
   }),
 });
 
-/**
- * Schema for password login (alias with stricter validation)
- */
 export const passwordLoginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   rememberMe: z.boolean().optional(),
 });
 
-// ============================================================================
-// OTP SCHEMAS
-// ============================================================================
 
-/**
- * Schema for requesting OTP
- */
 export const requestOtpSchema = z.object({
   identifier: z.string().refine(
     (value) => {
@@ -71,9 +43,6 @@ export const requestOtpSchema = z.object({
   ),
 });
 
-/**
- * Schema for OTP verification/login
- */
 export const otpSchema = z.object({
   identifier: z.string().refine(
     (value) => {
@@ -90,18 +59,9 @@ export const otpSchema = z.object({
   }),
 });
 
-/**
- * Alias for OTP verification
- */
 export const otpVerifySchema = otpSchema;
 
-// ============================================================================
-// REGISTRATION SCHEMAS
-// ============================================================================
 
-/**
- * Password validation rules (reusable)
- */
 const passwordValidation = z
   .string()
   .min(8, 'Password must be at least 8 characters')
@@ -110,9 +70,6 @@ const passwordValidation = z
   .regex(/[0-9]/, 'Password must contain at least one number')
   .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
 
-/**
- * Schema for user registration
- */
 export const registerSchema = z
   .object({
     email: z.string().email('Please enter a valid email address'),
@@ -133,20 +90,11 @@ export const registerSchema = z
     path: ['confirmPassword'],
   });
 
-// ============================================================================
-// PASSWORD RESET SCHEMAS
-// ============================================================================
 
-/**
- * Schema for forgot password request
- */
 export const forgotPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
 });
 
-/**
- * Schema for password reset with token
- */
 export const resetPasswordSchema = z
   .object({
     token: z.string(),
@@ -158,9 +106,6 @@ export const resetPasswordSchema = z
     path: ['confirmPassword'],
   });
 
-/**
- * Schema for changing password (when logged in)
- */
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),
@@ -172,13 +117,7 @@ export const changePasswordSchema = z
     path: ['confirmPassword'],
   });
 
-// ============================================================================
-// PROFILE SCHEMAS
-// ============================================================================
 
-/**
- * Schema for profile completion
- */
 export const profileCompletionSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
   lastName: z.string().min(2, 'Last name must be at least 2 characters'),
@@ -213,11 +152,6 @@ export const profileCompletionSchema = z.object({
   clinicAddress: z.string().optional(),
 });
 
-// ============================================================================
-// INFERRED TYPES FROM SCHEMAS
-// These are exported here for Zod resolver compatibility, and re-exported 
-// from @/types for unified access
-// ============================================================================
 
 export type SchemaLoginFormData = z.infer<typeof loginSchema>;
 export type SchemaPasswordLoginFormData = z.infer<typeof passwordLoginSchema>;

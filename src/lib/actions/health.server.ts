@@ -1,71 +1,41 @@
 'use server';
 
-import type { DetailedHealthStatus } from '@/hooks/query/useHealth';
-import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
+import { logger } from '@/lib/utils/logger';
 import { fetchWithAbort, FetchTimeoutError } from '@/lib/utils/fetch-with-abort';
+import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
+import type { DetailedHealthStatus } from '@/hooks/query/useHealth';
 
-// Helper to create unavailable status response
-function createUnavailableStatus(message: string): DetailedHealthStatus {
-  return {
-    status: 'unavailable',
-    timestamp: new Date().toISOString(),
-    message,
-    database: { status: 'unknown', isHealthy: false },
-    cache: { status: 'unknown', healthy: false },
-    queue: { status: 'unknown', healthy: false },
-    communication: { status: 'unknown', healthy: false },
-  } as DetailedHealthStatus;
-}
+const createUnavailableStatus = (): DetailedHealthStatus => ({
+  database: { status: 'unavailable', isHealthy: false },
+  cache: { status: 'unavailable', healthy: false },
+  queue: { status: 'unavailable', healthy: false },
+  communication: { status: 'unavailable', healthy: false },
+  video: { status: 'unavailable', isHealthy: false },
+  logging: { status: 'unavailable', healthy: false }
+});
 
-// Health check server action for initial fetch
-// ✅ Uses publicApi - Health endpoint is public, no authentication required
-// ⚠️ SECURITY: Gracefully handles backend unavailability to prevent 500 errors
 export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
-  const API_URL = APP_CONFIG.API.BASE_URL;
-  
-  if (!API_URL || API_URL.trim() === '') {
-    return createUnavailableStatus('API URL is not configured');
-  }
+  const HEALTH_URL = `${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.HEALTH.STATUS}`;
   
   try {
-    // Use centralized health endpoint configuration
-    // Health endpoint is at /health (NOT /api/v1/health) - it's excluded from API versioning
-    const healthUrl = `${APP_CONFIG.API.HEALTH_BASE_URL}${API_ENDPOINTS.HEALTH.DETAILED}`;
-    
-    // Debug logging
-    if (APP_CONFIG.IS_DEVELOPMENT) {
-      // console.log('[Health Check] Calling:', healthUrl);
-    }
-    
-    const response = await fetchWithAbort(healthUrl, {
+    const response = await fetchWithAbort(HEALTH_URL, {
       method: 'GET',
-      cache: 'no-store',
       headers: {
         'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
       },
       timeout: 5000,
+      cache: 'no-store'
     });
+
+    const data = await response.json();
     
-    let data: unknown = null;
-    try {
-      data = await response.json();
-    } catch {
-      data = {};
-    }
-    
-    // Debug logging
-    if (APP_CONFIG.IS_DEVELOPMENT) {
-      // console.log('[Health Check] Status:', response.status, 'Data:', data);
-    }
-    
-    // Check for non-OK status
     if (response.status >= 400) {
-      return createUnavailableStatus(`Health check failed with status ${response.status}`);
+      return createUnavailableStatus();
     }
     
-    // Map backend response to frontend expected format
-    const backendData = data as any;
-    const mappedData: DetailedHealthStatus = {
+    const backendData = data as Record<string, any>;
+    return {
       uptime: backendData.systemMetrics?.uptime || backendData.realtime?.uptime || 0,
       system: {
         cpu: backendData.realtime?.system?.cpu || 0,
@@ -107,38 +77,22 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
       logging: {
         status: backendData.services?.logger?.status === 'healthy' ? 'up' : 'down',
         healthy: backendData.services?.logger?.status === 'healthy',
-        service: {
-          available: backendData.services?.logger?.status === 'healthy',
-          latency: backendData.services?.logger?.responseTime || 0,
-        },
-      },
+      }
     };
-    
-    return mappedData;
-  } catch (error) {
-    // Handle network errors, timeouts, and other failures gracefully
-    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch health status';
-    
-    const isNetworkError = 
-      error instanceof FetchTimeoutError ||
-      errorMessage.includes('fetch failed') || 
-      errorMessage.includes('aborted') ||
-      errorMessage.includes('ECONNREFUSED') ||
-      errorMessage.includes('ENOTFOUND') ||
-      errorMessage.includes('timeout');
-    
-    return createUnavailableStatus(
-      isNetworkError 
-        ? `Backend service is unavailable. Please ensure the backend is running at ${API_URL}` 
-        : errorMessage
-    );
+
+  } catch (error: unknown) {
+    if (error instanceof FetchTimeoutError) {
+      logger.error('Health check timed out', { url: HEALTH_URL });
+      return createUnavailableStatus();
+    }
+
+    logger.error('Health check failed', error instanceof Error ? error : new Error(String(error)));
+    return createUnavailableStatus();
   }
 }
 
-// ✅ New: Get Frontend Server System Metrics
 export async function getFrontendSystemMetrics() {
   const os = await import('os');
-  
   return {
     uptime: os.uptime(),
     platform: os.platform(),
