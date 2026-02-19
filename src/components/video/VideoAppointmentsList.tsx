@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -33,6 +35,9 @@ import {
   Play,
   Square,
   Loader2,
+  CalendarClock,
+  XCircle,
+  Ban,
 } from "lucide-react";
 import { format } from "date-fns";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
@@ -41,6 +46,9 @@ import {
   useVideoAppointments,
   useJoinVideoAppointment,
   useEndVideoAppointment,
+  useRescheduleVideoAppointment,
+  useCancelVideoAppointment,
+  useRejectVideoProposal,
   type VideoAppointment,
 } from "@/hooks/query/useVideoAppointments";
 import { useClinics } from "@/hooks/query/useClinics";
@@ -53,6 +61,50 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+// ─── Module-scope pure helpers (DRY, no re-creation on render) ───────────────
+
+/** Maps user role strings to the three values the backend accepts */
+function getRoleString(role?: string): 'doctor' | 'patient' | 'admin' {
+  if (!role) return 'patient';
+  const r = role.toUpperCase();
+  if (r === 'DOCTOR') return 'doctor';
+  if (r === 'CLINIC_ADMIN' || r === 'SUPER_ADMIN' || r === 'ADMIN') return 'admin';
+  return 'patient';
+}
+
+/** Safely unwraps appointments from any backend response shape */
+function extractAppointments(data: unknown): VideoAppointment[] {
+  if (!data || typeof data !== 'object') return [];
+  const d = data as Record<string, unknown>;
+  if (Array.isArray(d.appointments)) return d.appointments as VideoAppointment[];
+  if (Array.isArray(d.data)) return d.data as VideoAppointment[];
+  if (Array.isArray(data)) return data as VideoAppointment[];
+  return [];
+}
+
+/** Single-pass statistics from the filtered list */
+interface AppointmentStats {
+  total: number;
+  active: number;
+  scheduled: number;
+  completed: number;
+  cancelled: number;
+}
+
+function computeStats(appointments: VideoAppointment[]): AppointmentStats {
+  return appointments.reduce<AppointmentStats>(
+    (acc, apt) => {
+      acc.total += 1;
+      if (apt.status === 'in-progress') acc.active += 1;
+      else if (apt.status === 'scheduled') acc.scheduled += 1;
+      else if (apt.status === 'completed') acc.completed += 1;
+      else if (apt.status === 'cancelled') acc.cancelled += 1;
+      return acc;
+    },
+    { total: 0, active: 0, scheduled: 0, completed: 0, cancelled: 0 }
+  );
+}
 
 interface VideoAppointmentsListProps {
   title?: string;
@@ -89,6 +141,17 @@ export function VideoAppointmentsList({
   const [selectedAppointment, setSelectedAppointment] =
     useState<VideoAppointment | null>(null);
   const [isVideoRoomOpen, setIsVideoRoomOpen] = useState(false);
+  
+  // Action states
+  const [actionAppointment, setActionAppointment] = useState<VideoAppointment | null>(null);
+  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [isRejectOpen, setIsRejectOpen] = useState(false);
+  
+  // Form states
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [actionReason, setActionReason] = useState("");
 
   const userId = session?.user?.id || "";
 
@@ -113,55 +176,44 @@ export function VideoAppointmentsList({
   const { data: clinicsData } = useClinics();
   const clinics = (Array.isArray(clinicsData) ? clinicsData : (clinicsData as any)?.clinics) || [];
 
-  const appointments =
-    (appointmentsData && "appointments" in appointmentsData
-      ? appointmentsData.appointments
-      : undefined) ||
-    (appointmentsData && "data" in appointmentsData
-      ? appointmentsData.data
-      : undefined) ||
-    [];
+  // ── Data extraction (resilient to backend shape variations) ──────────────
+  const appointments = extractAppointments(appointmentsData);
 
   // Mutations
   const joinVideoAppointment = useJoinVideoAppointment();
   const endVideoAppointment = useEndVideoAppointment();
+  const rescheduleAppointment = useRescheduleVideoAppointment();
+  const cancelAppointment = useCancelVideoAppointment();
+  const rejectProposal = useRejectVideoProposal();
 
-  // Filter appointments
-  const filteredAppointments = Array.isArray(appointments)
-    ? appointments.filter((apt: VideoAppointment) => {
-        const matchesSearch =
-          !searchTerm ||
-          apt.appointmentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          apt.roomName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          apt.doctorId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          apt.patientId?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStatus = !filterStatus || apt.status === filterStatus;
-        return matchesSearch && matchesStatus;
-      })
-    : [];
+  // ── Single filtered list ──────────────────────────────────────────────────
+  const searchLower = searchTerm.toLowerCase();
+  const filteredAppointments = appointments.filter((apt) => {
+    const matchesSearch =
+      !searchTerm ||
+      apt.appointmentId?.toLowerCase().includes(searchLower) ||
+      apt.roomName?.toLowerCase().includes(searchLower) ||
+      apt.doctorId?.toLowerCase().includes(searchLower) ||
+      apt.patientId?.toLowerCase().includes(searchLower);
+    const matchesStatus = !filterStatus || apt.status === filterStatus;
+    const matchesClinic =
+      !filterClinicId || (apt as any).clinicId === filterClinicId;
+    return matchesSearch && matchesStatus && matchesClinic;
+  });
 
-  // Statistics
-  const totalAppointments = filteredAppointments.length;
-  const activeAppointments = filteredAppointments.filter(
-    (apt: VideoAppointment) => apt.status === "in-progress"
-  ).length;
-  const completedAppointmentsCount = filteredAppointments.filter(
-    (apt: VideoAppointment) => apt.status === "completed"
-  ).length;
-  const scheduledAppointments = filteredAppointments.filter(
-    (apt: VideoAppointment) => apt.status === "scheduled"
-  ).length;
-  const cancelledAppointments = filteredAppointments.filter(
-    (apt: VideoAppointment) => apt.status === "cancelled"
-  ).length;
+  // ── Single-pass statistics (O(n) not O(5n)) ───────────────────────────────
+  const stats = computeStats(filteredAppointments);
+  const { total: totalAppointments, active: activeAppointments,
+          scheduled: scheduledAppointments,
+          completed: completedAppointmentsCount,
+          cancelled: cancelledAppointments } = stats;
 
-  // Separate by status
+  // Derived sub-lists for tabs
   const upcomingAppointments = filteredAppointments.filter(
-    (apt: VideoAppointment) =>
-      apt.status === "scheduled" || apt.status === "in-progress"
+    (apt) => apt.status === 'scheduled' || apt.status === 'in-progress'
   );
   const completedAppointments = filteredAppointments.filter(
-    (apt: VideoAppointment) => apt.status === "completed"
+    (apt) => apt.status === 'completed'
   );
 
   const handleJoinAppointment = async (appointment: VideoAppointment) => {
@@ -171,15 +223,6 @@ export function VideoAppointmentsList({
       });
       return;
     }
-
-    // Convert role enum to lowercase string for backend
-    const getRoleString = (role?: string): "doctor" | "patient" | "admin" => {
-      if (!role) return "patient";
-      const roleLower = role.toLowerCase();
-      if (roleLower === "doctor" || roleLower === "DOCTOR") return "doctor";
-      if (roleLower === "admin" || roleLower === "CLINIC_ADMIN" || roleLower === "SUPER_ADMIN") return "admin";
-      return "patient";
-    };
 
     try {
       const result = await joinVideoAppointment.mutateAsync({
@@ -223,6 +266,76 @@ export function VideoAppointmentsList({
     }
   };
 
+  const handleRescheduleSubmit = async () => {
+    if (!actionAppointment || !rescheduleDate || !rescheduleTime) return;
+    
+    try {
+      await rescheduleAppointment.mutateAsync({
+        appointmentId: actionAppointment.appointmentId,
+        date: rescheduleDate,
+        time: rescheduleTime,
+        reason: actionReason || "Rescheduled by user"
+      });
+      setIsRescheduleOpen(false);
+      resetActionState();
+    } catch (error) {
+       // Toast handled by hook
+    }
+  };
+
+  const handleCancelSubmit = async () => {
+    if (!actionAppointment) return;
+    
+    try {
+      await cancelAppointment.mutateAsync({
+        appointmentId: actionAppointment.appointmentId,
+        reason: actionReason || "Cancelled by user"
+      });
+      setIsCancelOpen(false);
+      resetActionState();
+    } catch (error) {
+      // Toast handled by hook
+    }
+  };
+
+  const handleRejectSubmit = async () => {
+    if (!actionAppointment) return;
+    
+    try {
+      await rejectProposal.mutateAsync({
+        appointmentId: actionAppointment.appointmentId,
+        reason: actionReason || "Rejected by doctor"
+      });
+      setIsRejectOpen(false);
+      resetActionState();
+    } catch (error) {
+      // Toast handled by hook
+    }
+  };
+
+  const resetActionState = () => {
+    setActionAppointment(null);
+    setRescheduleDate("");
+    setRescheduleTime("");
+    setActionReason("");
+  };
+
+  const openReschedule = (apt: VideoAppointment) => {
+    setActionAppointment(apt);
+    setRescheduleDate(apt.startTime ? (new Date(apt.startTime).toISOString().split('T')[0] ?? '') : '');
+    setIsRescheduleOpen(true);
+  };
+
+  const openCancel = (apt: VideoAppointment) => {
+    setActionAppointment(apt);
+    setIsCancelOpen(true);
+  };
+
+  const openReject = (apt: VideoAppointment) => {
+    setActionAppointment(apt);
+    setIsRejectOpen(true);
+  };
+
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<
       string,
@@ -235,6 +348,7 @@ export function VideoAppointmentsList({
       "in-progress": { label: "In Progress", variant: "default" },
       completed: { label: "Completed", variant: "secondary" },
       cancelled: { label: "Cancelled", variant: "destructive" },
+      proposed: { label: "Proposed", variant: "secondary" }, // Added proposed status
     };
 
     const config = statusConfig[status] || {
@@ -300,7 +414,41 @@ export function VideoAppointmentsList({
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
+            {/* Action Buttons */}
+            {appointment.status === 'scheduled' && (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => openReschedule(appointment)}
+                  className="gap-1"
+                >
+                  <CalendarClock className="h-4 w-4" /> Reschedule
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => openCancel(appointment)}
+                  className="gap-1"
+                >
+                  <XCircle className="h-4 w-4" /> Cancel
+                </Button>
+              </>
+            )}
+
+            {/* Reject Proposal (assuming status 'proposed' exists or logic determines it) */}
+            {appointment.status === 'proposed' && (
+               <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => openReject(appointment)}
+                  className="gap-1"
+               >
+                  <Ban className="h-4 w-4" /> Reject Proposal
+               </Button>
+            )}
+
             {showJoinButton && canJoin && (
               <>
                 {appointment.status === "scheduled" && (
@@ -688,6 +836,110 @@ export function VideoAppointmentsList({
             </DialogContent>
           </Dialog>
         )}
+        
+        {/* Reschedule Dialog */}
+        <Dialog open={isRescheduleOpen} onOpenChange={setIsRescheduleOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reschedule Appointment</DialogTitle>
+              <DialogDescription>
+                Select a new date and time for this appointment.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Date <span className="text-xs text-muted-foreground">(min. 24h notice)</span></Label>
+                  <Input 
+                    type="date" 
+                    value={rescheduleDate} 
+                    min={(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()}
+                    onChange={(e) => setRescheduleDate(e.target.value)} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Time</Label>
+                  <Input 
+                    type="time" 
+                    value={rescheduleTime} 
+                    onChange={(e) => setRescheduleTime(e.target.value)} 
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Reason</Label>
+                <Textarea 
+                  placeholder="Reason for rescheduling..."
+                  value={actionReason}
+                  onChange={(e) => setActionReason(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsRescheduleOpen(false)}>Cancel</Button>
+              <Button onClick={handleRescheduleSubmit} disabled={rescheduleAppointment.isPending}>
+                {rescheduleAppointment.isPending ? "Saving..." : "Reschedule"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Cancel Dialog */}
+        <Dialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Cancel Appointment</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to cancel this appointment? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label>Reason for Cancellation</Label>
+                <Textarea 
+                  placeholder="Please provide a reason..."
+                  value={actionReason}
+                  onChange={(e) => setActionReason(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsCancelOpen(false)}>Back</Button>
+              <Button variant="destructive" onClick={handleCancelSubmit} disabled={cancelAppointment.isPending}>
+                {cancelAppointment.isPending ? "Cancelling..." : "Confirm Cancellation"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+         {/* Reject Proposal Dialog */}
+         <Dialog open={isRejectOpen} onOpenChange={setIsRejectOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject Proposal</DialogTitle>
+              <DialogDescription>
+                Reject the proposed time slot for this appointment.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label>Reason for Rejection</Label>
+                <Textarea 
+                  placeholder="Please provide a reason..."
+                  value={actionReason}
+                  onChange={(e) => setActionReason(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsRejectOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleRejectSubmit} disabled={rejectProposal.isPending}>
+                {rejectProposal.isPending ? "Rejecting..." : "Reject Proposal"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </ProtectedComponent>
   );

@@ -26,7 +26,9 @@ import {
   updateAppointmentSchema, 
   completeAppointmentSchema, 
   proposeVideoSlotsSchema,
-  updateAppointmentStatusSchema
+  updateAppointmentStatusSchema,
+  rescheduleAppointmentSchema,
+  rejectVideoProposalSchema
 } from '@/lib/schema/appointments.schema';
 
 // ===== APPOINTMENT ACTIONS =====
@@ -384,6 +386,88 @@ export async function confirmVideoSlot(appointmentId: string, confirmedSlotIndex
   } catch (error) {
     logger.error('Failed to confirm video slot', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Failed to confirm video slot' };
+  }
+}
+
+/**
+ * Reschedule appointment
+ */
+export async function rescheduleAppointment(id: string, data: any) {
+  try {
+    const validatedData = rescheduleAppointmentSchema.parse(data);
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const payload = {
+      date: validatedData.date,
+      time: validatedData.time,
+      reason: validatedData.reason
+    };
+
+    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.RESCHEDULE(id), {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+
+    const { ipAddress, userAgent } = await getClientInfo();
+    await auditLog({
+      userId: session.user.id,
+      action: 'APPOINTMENT_RESCHEDULED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: payload
+    });
+
+    revalidatePath(`/dashboard/appointments/${id}`);
+    revalidateCache('appointments');
+    
+    return { success: true, appointment };
+  } catch (error) {
+    logger.error('Failed to reschedule appointment', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Failed to reschedule appointment' };
+  }
+}
+
+/**
+ * Reject video appointment proposal
+ */
+export async function rejectVideoProposal(id: string, reason: string) {
+  try {
+    const validatedData = rejectVideoProposalSchema.parse({ reason });
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const { data: result } = await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.VIDEO_REJECT_PROPOSAL(id), {
+      method: 'POST',
+      body: JSON.stringify(validatedData)
+    });
+
+    const { ipAddress, userAgent } = await getClientInfo();
+    await auditLog({
+      userId: session.user.id,
+      action: 'APPOINTMENT_PROPOSAL_REJECTED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'MEDIUM',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: { reason }
+    });
+
+    revalidatePath(`/dashboard/appointments/${id}`);
+    revalidateCache('appointments');
+    
+    return { success: true, ...((result as any) || {}) };
+  } catch (error) {
+    logger.error('Failed to reject video proposal', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Failed to reject proposal' };
   }
 }
 

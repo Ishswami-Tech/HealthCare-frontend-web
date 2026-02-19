@@ -1,6 +1,11 @@
 /**
  * EHR Clinic Hooks
  * Handles clinic-wide EHR features (analytics, search, alerts)
+ * 
+ * 🔒 TENANT ISOLATION: clinicId is auto-sourced from the server session
+ * in the server actions. These hooks still accept clinicId for cache key 
+ * purposes and backward compatibility, but the actual API call uses the
+ * session-validated clinicId.
  */
 
 import { useQueryData } from '../core/useQueryData';
@@ -28,6 +33,7 @@ export const useComprehensiveEHR = (userId: string) => {
 
 /**
  * Hook to get clinic patient records
+ * 🔒 clinicId is used for cache key only — server action auto-sources from session
  */
 export const useClinicPatientRecords = (
   clinicId: string,
@@ -48,6 +54,7 @@ export const useClinicPatientRecords = (
 
 /**
  * Hook to get clinic EHR analytics
+ * 🔒 clinicId is used for cache key only — server action auto-sources from session
  */
 export const useClinicEHRAnalytics = (clinicId: string, period?: 'day' | 'week' | 'month' | 'year') => {
   return useQueryData(
@@ -61,6 +68,7 @@ export const useClinicEHRAnalytics = (clinicId: string, period?: 'day' | 'week' 
 
 /**
  * Hook to get clinic patient summary
+ * 🔒 clinicId is used for cache key only — server action auto-sources from session
  */
 export const useClinicPatientSummary = (
   clinicId: string,
@@ -80,6 +88,7 @@ export const useClinicPatientSummary = (
 
 /**
  * Hook to search clinic EHR records
+ * 🔒 clinicId is used for cache key only — server action auto-sources from session
  */
 export const useSearchClinicEHR = (
   clinicId: string,
@@ -103,6 +112,7 @@ export const useSearchClinicEHR = (
 
 /**
  * Hook to get clinic critical alerts
+ * 🔒 clinicId is used for cache key only — server action auto-sources from session
  */
 export const useClinicCriticalAlerts = (
   clinicId: string,
@@ -121,6 +131,3 @@ export const useClinicCriticalAlerts = (
     { enabled: !!clinicId }
   );
 };
-
-
-

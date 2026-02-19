@@ -4,13 +4,17 @@ import { authenticatedApi } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 
 // ===== ANALYTICS & REPORTING =====
+// 🔒 TENANT ISOLATION: All analytics endpoints use the X-Clinic-ID header
+// (auto-injected by authenticatedApi) for tenant scoping. The clinicId query
+// parameter is accepted for backward compatibility but the backend ClinicGuard
+// uses the header value as the authoritative source.
 
 /**
  * Get dashboard analytics
  */
-export async function getDashboardAnalytics(period: 'day' | 'week' | 'month' | 'year' = 'month', clinicId?: string) {
+export async function getDashboardAnalytics(period: 'day' | 'week' | 'month' | 'year' = 'month', _clinicId?: string) {
   const params = new URLSearchParams({ period });
-  if (clinicId) params.append('clinicId', clinicId);
+  // 🔒 clinicId is auto-provided via X-Clinic-ID header — query param ignored by backend
   
   const { data } = await authenticatedApi(`${API_ENDPOINTS.ANALYTICS.DASHBOARD}?${params.toString()}`);
   return data;
@@ -97,9 +101,9 @@ export async function getDoctorPerformanceAnalytics(doctorId?: string, period: '
 /**
  * Get clinic performance analytics
  */
-export async function getClinicPerformanceAnalytics(clinicId?: string, period: 'day' | 'week' | 'month' | 'year' = 'month') {
+export async function getClinicPerformanceAnalytics(_clinicId?: string, period: 'day' | 'week' | 'month' | 'year' = 'month') {
   const params = new URLSearchParams({ period });
-  if (clinicId) params.append('clinicId', clinicId);
+  // 🔒 clinicId is auto-provided via X-Clinic-ID header — query param ignored by backend
   
   const { data } = await authenticatedApi(`${API_ENDPOINTS.ANALYTICS.CLINICS_PERFORMANCE}?${params.toString()}`);
   return data;

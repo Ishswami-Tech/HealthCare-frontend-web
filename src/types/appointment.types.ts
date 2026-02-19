@@ -89,10 +89,115 @@ export interface CompleteAppointmentData {
   doctorId?: string; // ✅ Consolidated: merged from duplicate definition
 }
 
+export type VideoCallStatus = 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+
+export interface AppointmentTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  clinicId: string;
+  doctorId: string;
+  type: string;
+  duration: number;
+  timeSlots: any;
+  recurringPattern: string;
+  recurringDays?: any;
+  recurringInterval: number;
+  startDate: string;
+  endDate?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecurringAppointmentSeries {
+  id: string;
+  templateId: string;
+  patientId: string;
+  clinicId: string;
+  startDate: string;
+  endDate?: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  template?: AppointmentTemplate;
+}
+
+export interface FollowUpPlan {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  clinicId: string;
+  followUpType: string;
+  scheduledFor: string;
+  daysAfter?: number;
+  status: string;
+  priority: string;
+  instructions: string;
+  medications?: string[];
+  tests?: string[];
+  restrictions?: string[];
+  notes?: string;
+  followUpAppointmentId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VideoConsultation {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  clinicId: string;
+  roomId: string;
+  meetingUrl: string;
+  status: VideoCallStatus;
+  startTime?: string;
+  endTime?: string;
+  duration?: number;
+  recordingUrl?: string;
+  recordingId?: string;
+  isRecording: boolean;
+  maxParticipants: number;
+  recordingEnabled: boolean;
+  screenSharingEnabled: boolean;
+  chatEnabled: boolean;
+  waitingRoomEnabled: boolean;
+  autoRecord: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Resource {
+  id: string;
+  name: string;
+  type: string;
+  clinicId: string;
+  capacity?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResourceBooking {
+  id: string;
+  resourceId: string;
+  appointmentId?: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  clinicId?: string;
+  resource?: Resource;
+}
+
 export interface Appointment {
   id: string;
   patientId: string;
   doctorId: string;
+  userId?: string;
   date: string;
   time: string;
   duration: number;
@@ -107,6 +212,27 @@ export interface Appointment {
   followUpDate?: string;
   clinicId?: string;
   locationId?: string;
+
+  // New Fields
+  proposedSlots?: any;
+  confirmedSlotIndex?: number;
+  seriesId?: string;
+  seriesSequence?: number;
+  parentAppointmentId?: string;
+  isFollowUp?: boolean;
+  followUpReason?: string;
+  originalAppointmentId?: string;
+  subscriptionId?: string;
+  isSubscriptionBased?: boolean;
+  therapyId?: string;
+  startedAt?: string;
+  checkedInAt?: string;
+  completedAt?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
+  cancellationReason?: string;
+  metadata?: Record<string, any>;
+
   createdAt: string;
   updatedAt: string;
   // Relations
@@ -114,6 +240,12 @@ export interface Appointment {
   doctor?: Doctor;
   clinic?: Clinic;
   location?: ClinicLocation;
+  videoConsultations?: VideoConsultation[];
+  series?: RecurringAppointmentSeries;
+  followUpPlan?: FollowUpPlan;
+  resourceBookings?: ResourceBooking[];
+  parentAppointment?: Appointment;
+  followUpAppointments?: Appointment[];
 }
 
 export interface AppointmentWithRelations extends Appointment {

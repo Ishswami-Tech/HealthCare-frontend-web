@@ -10,10 +10,10 @@ import {
   DialogTrigger 
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useClinics, useClinicLocations, useMyClinic } from "@/hooks/query/useClinics";
+import { useClinics, useClinicLocations, useMyClinic, useClinic } from "@/hooks/query/useClinics";
 import { MapPin, Building, ChevronRight, Loader2, Plus } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+
 
 interface ClinicSelectDialogProps {
   trigger?: React.ReactNode;
@@ -26,13 +26,14 @@ export function ClinicSelectDialog({ trigger }: ClinicSelectDialogProps) {
 
   const { data: clinicsResponse, isPending: clinicsLoading } = useClinics();
   const { data: myClinic, isPending: myClinicLoading } = useMyClinic();
+  const { data: defaultClinic, isPending: defaultClinicLoading } = useClinic();
   
-  // Use all clinics if available (Admin/Staff), otherwise fallback to my clinic (Patient)
-  const clinics = (clinicsResponse && clinicsResponse.length > 0) 
-    ? clinicsResponse 
-    : (myClinic ? [myClinic] : []);
+  // Prioritize user's associated clinic for isolation, fallback to all clinics only if no association
+  const clinics = myClinic 
+    ? [myClinic] 
+    : (clinicsResponse && clinicsResponse.length > 0 ? clinicsResponse : (defaultClinic ? [defaultClinic] : []));
     
-  const isLoading = clinicsLoading || myClinicLoading;
+const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
 
   const { data: locations, isPending: locationsLoading } = useClinicLocations(selectedClinicId || "");
 
@@ -44,7 +45,9 @@ export function ClinicSelectDialog({ trigger }: ClinicSelectDialogProps) {
 
   const handleSelectLocation = (clinicId: string, locationId: string) => {
     setOpen(false);
-    router.push(`/patient/appointments?clinicId=${clinicId}&locationId=${locationId}`);
+    const selectedClinic = clinics.find(c => c.id === clinicId);
+    const clinicName = selectedClinic?.name || "";
+    router.push(`/patient/appointments?clinicId=${clinicId}&locationId=${locationId}&clinicName=${encodeURIComponent(clinicName)}`);
   };
 
   return (
@@ -68,97 +71,110 @@ export function ClinicSelectDialog({ trigger }: ClinicSelectDialogProps) {
           </p>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row border-t mt-4">
-          {/* Clinic List */}
-          <div className="w-full md:w-1/2 border-b md:border-b-0 md:border-r bg-muted/30">
-            <p className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Available Clinics
-            </p>
-            <ScrollArea className="h-[300px] md:h-[450px]">
-              <div className="p-2 space-y-1">
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                  </div>
-                ) : clinics.length === 0 ? (
-                  <p className="text-center py-8 text-sm text-muted-foreground">No clinics found.</p>
-                ) : (
-                  clinics.map((clinic) => (
-                    <button
-                      key={clinic.id}
-                      onClick={() => setSelectedClinicId(clinic.id)}
-                      className={cn(
-                        "w-full text-left p-3 rounded-lg border transition-all hover:bg-white dark:hover:bg-neutral-800",
-                        selectedClinicId === clinic.id 
-                          ? "border-blue-500 bg-white dark:bg-neutral-800 shadow-sm" 
-                          : "border-transparent bg-transparent"
-                      )}
-                    >
-                      <h4 className="font-semibold text-sm">{clinic.name}</h4>
-                      <p className="text-xs text-muted-foreground line-clamp-1">{clinic.address}</p>
-                    </button>
-                  ))
-                )}
+        <div className="flex-1 overflow-hidden flex flex-col border-t mt-4">
+          {/* Clinic Header / Context - Only show if we have a clinic selected or only one option */}
+          {(selectedClinicId && clinics.find(c => c.id === selectedClinicId)) && (
+            <div className="px-6 py-4 bg-muted/30 border-b flex items-center justify-between">
+              <div>
+                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Clinic</p>
+                 <h3 className="font-semibold text-base text-foreground flex items-center gap-2">
+                    <Building className="w-4 h-4 text-blue-600" />
+                    {clinics.find(c => c.id === selectedClinicId)?.name}
+                 </h3>
+                 <p className="text-xs text-muted-foreground mt-0.5">{clinics.find(c => c.id === selectedClinicId)?.address}</p>
               </div>
-            </ScrollArea>
-          </div>
+              {clinics.length > 1 && (
+                <Button variant="ghost" size="sm" onClick={() => setSelectedClinicId(null)} className="text-xs h-8">
+                  Change
+                </Button>
+              )}
+            </div>
+          )}
 
-          {/* Location List */}
-          <div className="w-full md:w-1/2 flex flex-col">
-            <p className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Select Location
-            </p>
-            <ScrollArea className="h-[300px] md:h-[450px]">
-              <div className="p-2 space-y-2">
-                {!selectedClinicId ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-                    <MapPin className="w-8 h-8 text-muted-foreground/30 mb-2" />
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Select a clinic on the left to see available locations.
-                    </p>
-                  </div>
-                ) : locationsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                  </div>
-                ) : !locations || locations.length === 0 ? (
-                  <p className="text-center py-12 text-sm text-muted-foreground">No active locations for this clinic.</p>
-                ) : (
-                  locations.map((loc) => (
-                    <button
-                      key={loc.id}
-                      onClick={() => handleSelectLocation(selectedClinicId, loc.id)}
-                      className="group w-full text-left p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 transition-all bg-white dark:bg-neutral-900 shadow-sm"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <h4 className="font-bold text-sm group-hover:text-blue-600 transition-colors">
-                            {loc.name}
-                          </h4>
-                          <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
-                            <span>{loc.address}, {loc.city}</span>
-                          </div>
-                          {loc.phone && (
-                            <p className="text-[10px] text-muted-foreground pl-4">
-                              Ph: {loc.phone}
-                            </p>
-                          )}
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
-                      </div>
-                      {loc.isActive && (
-                        <div className="mt-2 text-[10px] text-green-600 font-medium flex items-center gap-1">
-                          <div className="w-1 h-1 rounded-full bg-green-600 animate-pulse" />
-                          Accepting Appointments
-                        </div>
-                      )}
-                    </button>
-                  ))
-                )}
+          {/* Clinic List - Only show if no clinic is selected (rare case if length > 1) */}
+          {!selectedClinicId && (
+             <div className="flex-1 overflow-y-auto p-4">
+               <p className="text-sm font-medium mb-3 text-muted-foreground">Please select a clinic</p>
+               <div className="grid gap-3">
+                 {isLoading ? (
+                    <div className="flex justify-center p-4"><Loader2 className="animate-spin text-blue-600" /></div>
+                 ) : clinics.map(clinic => (
+                   <button
+                     key={clinic.id}
+                     onClick={() => setSelectedClinicId(clinic.id)}
+                     className="w-full text-left p-4 rounded-xl border hover:border-blue-500 hover:shadow-sm transition-all bg-card"
+                   >
+                     <h4 className="font-semibold">{clinic.name}</h4>
+                     <p className="text-sm text-muted-foreground">{clinic.address}</p>
+                   </button>
+                 ))}
+               </div>
+             </div>
+          )}
+
+          {/* Location List - Full Width */}
+          {selectedClinicId && (
+            <div className="flex-1 flex flex-col min-h-0 bg-background">
+              <div className="px-6 py-3 border-b bg-background z-10">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Available Locations
+                </p>
               </div>
-            </ScrollArea>
-          </div>
+              <ScrollArea className="flex-1 h-[400px]">
+                <div className="p-4 pt-2 space-y-3">
+                  {locationsLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                    </div>
+                  ) : !locations || locations.length === 0 ? (
+                    <div className="text-center py-12 space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto">
+                         <MapPin className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">No active locations for this clinic.</p>
+                    </div>
+                  ) : (
+                    locations.map((loc) => (
+                      <button
+                        key={loc.id}
+                        onClick={() => handleSelectLocation(selectedClinicId, loc.id)}
+                        className="group w-full text-left p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 transition-all bg-white dark:bg-neutral-900 shadow-sm"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <h4 className="font-bold text-base group-hover:text-blue-600 transition-colors">
+                              {loc.name}
+                            </h4>
+                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                              <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground/70" />
+                              <span>{loc.address}, {loc.city}</span>
+                            </div>
+                            {loc.phone && (
+                              <p className="text-xs text-muted-foreground pl-6">
+                                Ph: {loc.phone}
+                              </p>
+                            )}
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                        </div>
+                        {loc.isActive && (
+                          <div className="mt-3 pl-6 flex items-center gap-2">
+                             <span className="inline-flex items-center gap-1.5 py-0.5 px-2 rounded-full text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-100 dark:border-green-900/30">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                </span>
+                                Accepting Appointments
+                             </span>
+                          </div>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

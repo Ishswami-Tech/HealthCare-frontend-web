@@ -49,7 +49,8 @@ export const ROLE_DASHBOARDS = {
 };
 
 export function getDashboardByRole(role: string): string {
-  const normalizedRole = role.toUpperCase().replace(' ', '_');
+  // Replace any whitespace sequence with '_' so 'CLINIC ADMIN' → 'CLINIC_ADMIN'
+  const normalizedRole = role.toUpperCase().replace(/\s+/g, '_');
   return ROLE_DASHBOARDS[normalizedRole as keyof typeof ROLE_DASHBOARDS] || ROUTES.LOGIN;
 }
 
@@ -104,9 +105,8 @@ export function getProtectedRouteRoles(path: string): string[] {
   return [];
 }
 
-export function getAllowedRolesForPath(path: string): string[] {
-  return getProtectedRouteRoles(path);
-}
+/** @alias getProtectedRouteRoles — kept for backwards compatibility */
+export const getAllowedRolesForPath = getProtectedRouteRoles;
 
 import { getSidebarLinksByRole, SidebarLink } from './sidebarLinks';
 

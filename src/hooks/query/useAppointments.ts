@@ -24,6 +24,8 @@ import {
   testAppointmentContext,
   proposeVideoAppointment,
   confirmVideoSlot,
+  rescheduleAppointment,
+  rejectVideoProposal,
 } from '@/lib/actions/appointments.server';
 import {
   getQueue,
@@ -1141,6 +1143,63 @@ export const useCanCancelAppointment = (appointmentId: string) => {
     {
       enabled: !!appointmentId,
       staleTime: 5 * 60 * 1000, // 5 minutes
+    }
+  );
+};
+
+/**
+ * Hook for rescheduling an appointment
+ */
+export const useRescheduleAppointment = () => {
+  const { hasPermission } = useRBAC();
+  
+  return useMutationOperation(
+    async ({ id, data }: { id: string; data: { date: string; time: string; reason?: string } }) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error('Insufficient permissions to reschedule appointment');
+      }
+      
+      const result = await rescheduleAppointment(id, data);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      if (!result.appointment) {
+         throw new Error('No appointment returned');
+      }
+      return result.appointment;
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Rescheduling appointment...',
+      successMessage: 'Appointment rescheduled successfully',
+      invalidateQueries: [['appointments'], ['appointment']],
+    }
+  );
+};
+
+/**
+ * Hook for rejecting video appointment proposal
+ */
+export const useRejectVideoProposal = () => {
+  const { hasPermission } = useRBAC();
+  
+  return useMutationOperation(
+    async ({ id, reason }: { id: string; reason: string }) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error('Insufficient permissions to reject proposal');
+      }
+      
+      const result = await rejectVideoProposal(id, reason);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return { success: true };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Rejecting proposal...',
+      successMessage: 'Proposal rejected successfully',
+      invalidateQueries: [['appointments'], ['appointment']],
     }
   );
 };

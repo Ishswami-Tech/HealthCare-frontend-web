@@ -75,4 +75,16 @@ export {
 //   import { BillingRecord, Invoice } from '@/types/billing.types'
 //   import { PharmacyOrder } from '@/types/pharmacy.types'
 //   import { RBACRole, Permission } from '@/types/rbac.types'
+//   import { VideoSession, VideoRecording } from '@/types/video.types'
 // ============================================================================
+
+// ============================================================================
+// VIDEO TYPES (re-exported for convenience)
+// ============================================================================
+export type {
+  VideoSession,
+  VideoSessionParticipant,
+  ListAllVideoSessionsResponse,
+  VideoRecording,
+} from './video.types';
+

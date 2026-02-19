@@ -22,14 +22,15 @@ import { createInvoiceSchema, createPaymentSchema } from '@/lib/schema/billing.s
 
 // ============ Billing Plans ============
 
-export async function getBillingPlans(clinicId?: string): Promise<{
+// 🔒 TENANT ISOLATION: clinicId is auto-provided via X-Clinic-ID header by authenticatedApi.
+// The backend ClinicGuard uses the header, not query params, for tenant scoping.
+export async function getBillingPlans(_clinicId?: string): Promise<{
   success: boolean;
   plans?: BillingPlan[];
   error?: string;
 }> {
   try {
-    const params = clinicId ? `?clinicId=${clinicId}` : '';
-    const { data } = await authenticatedApi(`${API_ENDPOINTS.BILLING.PLANS.GET_ALL}${params}`);
+    const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.PLANS.GET_ALL);
     return { success: true, plans: Array.isArray(data) ? data : [] };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch billing plans' };

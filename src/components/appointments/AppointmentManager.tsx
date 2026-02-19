@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { useToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
@@ -44,7 +45,8 @@ import {
   useStartConsultation,
   useCanCancelAppointment,
   useDoctorQueue,
-  useUpdateAppointment,
+  useRescheduleAppointment,
+  useRejectVideoProposal,
 } from "@/hooks/query/useAppointments";
 import {
   AppointmentWithRelations,
@@ -93,6 +95,10 @@ export default function AppointmentManager() {
     time: "",
   });
 
+  // Reject proposal state
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+
   // Date filtering state
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({
     start: "",
@@ -128,8 +134,10 @@ export default function AppointmentManager() {
     useCreateAppointment();
   const { mutate: cancelAppointment, isPending: cancellingAppointment } =
     useCancelAppointment();
-  const { mutate: updateAppointment, isPending: updatingAppointment } =
-    useUpdateAppointment();
+  const { mutate: rescheduleAppointment, isPending: reschedulingAppointment } =
+    useRescheduleAppointment();
+  const { mutate: rejectVideoProposal, isPending: rejectingProposal } =
+    useRejectVideoProposal();
 
   // Doctor availability
   const { data: doctorAvailability } = useDoctorAvailability(
@@ -370,37 +378,55 @@ export default function AppointmentManager() {
   const handleRescheduleSubmit = () => {
     if (!selectedAppointment) return;
 
-    updateAppointment(
-      {
-        id: selectedAppointment.id,
-        data: {
+    rescheduleAppointment({
+       id: selectedAppointment.id,
+       data: {
           date: rescheduleData.date,
           time: rescheduleData.time,
-          // Optional: reset status to SCHEDULED if it was something else, 
-          // or let backend handle it. Usually rescheduling implies re-confirmation might be needed?
-          // For now, we'll keep it simple.
-        },
-      },
-      {
-        onSuccess: () => {
+       }
+    }, {
+       onSuccess: () => {
           toast({
-            title: "Success",
-            description: "Appointment rescheduled successfully",
+             title: "Success",
+             description: "Appointment rescheduled successfully",
           });
           setIsRescheduleDialogOpen(false);
-          // Update selected appointment in local state to reflect changes immediately if needed
-          // (The query invalidation will handle the list)
           setSelectedAppointment(prev => prev ? { ...prev, date: rescheduleData.date, time: rescheduleData.time } : null);
-        },
-        onError: (error: Error) => {
-           toast({
-            title: "Error",
-            description: sanitizeErrorMessage(error) || "Failed to reschedule appointment",
-            variant: "destructive",
+       },
+       onError: (error: Error) => {
+          toast({
+             title: "Error",
+             description: sanitizeErrorMessage(error) || "Failed to reschedule appointment",
+             variant: "destructive",
           });
-        }
-      }
-    );
+       }
+    });
+  };
+
+  const handleRejectProposal = () => {
+    if (!selectedAppointment) return;
+
+    rejectVideoProposal({
+       id: selectedAppointment.id,
+       reason: rejectReason
+    }, {
+       onSuccess: () => {
+          toast({
+             title: "Success",
+             description: "Proposal rejected successfully",
+          });
+          setIsRejectDialogOpen(false);
+          setRejectReason("");
+          setSelectedAppointment(null);
+       },
+       onError: (error: Error) => {
+          toast({
+             title: "Error",
+             description: sanitizeErrorMessage(error) || "Failed to reject proposal",
+             variant: "destructive",
+          });
+       }
+    });
   };
 
   // Show real-time connection status
@@ -608,6 +634,38 @@ export default function AppointmentManager() {
         </CardContent>
       </Card>
 
+      {/* Reject Proposal Dialog */}
+      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Proposal</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting the proposed time slots.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="reject-reason">Reason</Label>
+            <Textarea
+              id="reject-reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g., Only available in evenings"
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
+            <Button 
+               variant="destructive" 
+               onClick={handleRejectProposal}
+               disabled={!rejectReason || rejectingProposal}
+            >
+              {rejectingProposal ? "Rejecting..." : "Reject Proposal"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Doctor Availability */}
       {doctorAvailability && (
         <Card>
@@ -773,10 +831,21 @@ export default function AppointmentManager() {
                   <Button
                     variant="outline"
                     onClick={handleRescheduleClick}
-                    disabled={updatingAppointment}
+                    disabled={reschedulingAppointment}
                   >
                     Reschedule
                   </Button>
+                )}
+                
+                {(selectedAppointment?.status === "AWAITING_SLOT_CONFIRMATION" || 
+                  (selectedAppointment?.proposedSlots && (selectedAppointment as any).proposedSlots.length > 0)) && (
+                   <Button
+                      variant="destructive"
+                      onClick={() => setIsRejectDialogOpen(true)}
+                      disabled={rejectingProposal}
+                   >
+                      Reject Proposal
+                   </Button>
                 )}
                 {canCancelData && (
                   <Button
@@ -921,9 +990,9 @@ export default function AppointmentManager() {
             </Button>
             <Button 
               onClick={handleRescheduleSubmit} 
-              disabled={updatingAppointment}
+              disabled={reschedulingAppointment}
             >
-              {updatingAppointment ? "Rescheduling..." : "Confirm Reschedule"}
+              {reschedulingAppointment ? "Rescheduling..." : "Confirm Reschedule"}
             </Button>
           </DialogFooter>
         </DialogContent>

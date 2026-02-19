@@ -103,17 +103,6 @@ export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // =========================================================================
-  // STEP 0: Rate Limiting for Auth Routes
-  // =========================================================================
-  // Note: Rate limiting is handled client-side in security.ts
-  // Server-side rate limiting would require external state (Redis, etc.)
-  // This is a placeholder for future implementation
-  if (pathname.startsWith('/auth/')) {
-    // Rate limiting can be implemented with Redis or other shared state
-    // For now, basic protection is handled by security.ts on the client
-  }
-
-  // =========================================================================
   // STEP 1: Skip proxy for static files and API routes
   // =========================================================================
   if (shouldSkipProxyRoute(pathname)) {
@@ -272,50 +261,7 @@ export default async function proxy(request: NextRequest) {
     }
   }
   
-  // Additional check: If user has role but trying to access route not in their role's allowed paths
-  // This catches edge cases where route might not be in PROTECTED_ROUTES but should be role-restricted
-  // Check role-specific paths (route groups don't appear in URLs, so check actual URL paths)
-  if (userRole && (pathname.startsWith('/super-admin') || pathname.startsWith('/clinic-admin') || 
-      pathname.startsWith('/doctor') || pathname.startsWith('/receptionist') || 
-      pathname.startsWith('/pharmacist') || pathname.startsWith('/patient'))) {
-    const rolePathMap = getAllowedRolesForPath(pathname);
-    if (rolePathMap && !rolePathMap.includes(userRole)) {
-      const dashboardPath = getDashboardByRole(userRole);
-      if (dashboardPath !== ROUTES.LOGIN) {
-        const dashboardUrl = new URL(dashboardPath, request.url);
-        dashboardUrl.searchParams.set('unauthorized', 'true');
-        dashboardUrl.searchParams.set('from', pathname);
-        return NextResponse.redirect(dashboardUrl);
-      }
-    }
-  }
-  
-  // Additional check: Shared routes access control
-  // Ensure users can only access shared routes they have permission for
-  if (userRole && (
-    pathname.startsWith('/appointments') ||
-    pathname.startsWith('/queue') ||
-    pathname.startsWith('/ehr') ||
-    pathname.startsWith('/pharmacy') ||
-    pathname.startsWith('/analytics') ||
-    pathname.startsWith('/billing') ||
-    pathname.startsWith('/video-appointments')
-  )) {
-    const sharedRouteRoles = getProtectedRouteRoles(pathname);
-    if (sharedRouteRoles && !sharedRouteRoles.includes(userRole)) {
-      const dashboardPath = getDashboardByRole(userRole);
-      if (dashboardPath !== ROUTES.LOGIN) {
-        const dashboardUrl = new URL(dashboardPath, request.url);
-        dashboardUrl.searchParams.set('unauthorized', 'true');
-        dashboardUrl.searchParams.set('from', pathname);
-        return NextResponse.redirect(dashboardUrl);
-      }
-    }
-  }
 
-  // =========================================================================
-  // STEP 9: Allow the request
-  // =========================================================================
   // =========================================================================
   // STEP 9: Add Security Headers (CSP, HSTS, etc.)
   // =========================================================================

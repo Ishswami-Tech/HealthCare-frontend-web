@@ -23,6 +23,7 @@ export default function PatientAppointments() {
   const searchParams = useSearchParams();
   const queryClinicId = searchParams.get("clinicId") || undefined;
   const queryLocationId = searchParams.get("locationId") || undefined;
+  const queryClinicName = searchParams.get("clinicName") || undefined;
 
   return (
     <DashboardLayout title="Patient Appointments" allowedRole={Role.PATIENT}>
@@ -34,6 +35,7 @@ export default function PatientAppointments() {
           <BookAppointmentDialog
             {...(queryClinicId && { clinicId: queryClinicId })}
             {...(queryLocationId && { locationId: queryLocationId })}
+            {...(queryClinicName && { clinicName: queryClinicName })}
             defaultOpen={!!queryClinicId}
           />
         </div>

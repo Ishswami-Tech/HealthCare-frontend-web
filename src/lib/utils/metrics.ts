@@ -4,7 +4,7 @@
  * Follows SOLID, DRY, KISS principles
  */
 
-'use client';
+
 
 import { logger } from './logger';
 

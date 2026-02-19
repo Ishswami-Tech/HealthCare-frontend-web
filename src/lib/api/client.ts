@@ -734,15 +734,16 @@ export class ClinicApiClient extends ApiClient {
   }
 
   // ✅ Authentication Methods (Enhanced to match backend)
+  // ✅ clinicId is sent via X-Clinic-ID header automatically - never in body
   async login(credentials: { 
     email: string; 
     password: string; 
-    clinicId?: string;
     rememberMe?: boolean; 
   }) {
     return this.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
   }
 
+  // ✅ clinicId is sent via X-Clinic-ID header automatically - never in body
   async register(data: {
     email: string;
     password: string;
@@ -753,7 +754,6 @@ export class ClinicApiClient extends ApiClient {
     gender?: string;
     address?: string;
     role?: string;
-    clinicId?: string;
   }) {
     return this.post(API_ENDPOINTS.AUTH.REGISTER, data);
   }

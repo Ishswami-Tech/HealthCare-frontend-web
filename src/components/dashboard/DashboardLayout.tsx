@@ -310,7 +310,7 @@ export function DashboardLayout({
     return isComplete;
   }, [mergedProfile]);
 
-  if (!isProfileComplete) {
+  if (!isProfileComplete && !user?.profileComplete) {
     return null; // Will redirect in useEffect
   }
 

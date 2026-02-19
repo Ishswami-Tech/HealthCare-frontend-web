@@ -21,6 +21,11 @@ import {
   getVideoConsultationHistory,
   getRecording,
 } from '@/lib/actions/video.server';
+import {
+  rescheduleAppointment,
+  rejectVideoProposal,
+  updateAppointmentStatus,
+} from '@/lib/actions/appointments.server';
 
 // ✅ Video Appointment Types
 export interface VideoAppointment {
@@ -31,7 +36,7 @@ export interface VideoAppointment {
   patientId: string;
   startTime: string;
   endTime: string;
-  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled' | 'proposed';
   sessionId?: string;
   recordingUrl?: string;
   notes?: string;
@@ -419,6 +424,111 @@ export function useDeleteVideoAppointment() {
   );
 }
 
+// ✅ Reschedule Video Appointment Mutation Hook
+export function useRescheduleVideoAppointment() {
+  const { hasPermission } = useRBAC();
+  const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
+
+  return useMutationOperation<{ success: boolean; data: any }, { appointmentId: string; date: string; time: string; reason: string }>(
+    async (data: { appointmentId: string; date: string; time: string; reason: string }) => {
+      const hasAccess = hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS);
+      if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+
+      const result = await rescheduleAppointment(data.appointmentId, {
+        date: data.date,
+        time: data.time,
+        reason: data.reason
+      });
+      
+      if (!result.success) throw new Error(result.error);
+      
+      return { success: true, data: result };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Rescheduling appointment...',
+      successMessage: 'Appointment rescheduled successfully',
+      invalidateQueries: [['video-appointments'], ['video-appointment']],
+      onSuccess: (_, variables) => {
+        sendVideoAppointmentEvent('updated', {
+          appointmentId: variables.appointmentId,
+          status: 'rescheduled',
+          rescheduledTo: { date: variables.date, time: variables.time }
+        });
+      },
+    }
+  );
+}
+
+// ✅ Reject Video Proposal Mutation Hook
+export function useRejectVideoProposal() {
+  const { hasPermission } = useRBAC();
+  const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
+
+  return useMutationOperation<{ success: boolean; data: any }, { appointmentId: string; reason: string }>(
+    async (data: { appointmentId: string; reason: string }) => {
+      // Assuming same permission as update
+      const hasAccess = hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS); 
+      if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+
+      const result = await rejectVideoProposal(data.appointmentId, data.reason);
+      
+      if (!result.success) throw new Error(result.error);
+      
+      return { success: true, data: result };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.CANCEL, // Using cancel toast ID as it's a rejection
+      loadingMessage: 'Rejecting proposal...',
+      successMessage: 'Proposal rejected successfully',
+      invalidateQueries: [['video-appointments'], ['video-appointment']],
+      onSuccess: (_, variables) => {
+        sendVideoAppointmentEvent('updated', {
+          appointmentId: variables.appointmentId,
+          status: 'cancelled',
+          reason: variables.reason
+        });
+      },
+    }
+  );
+}
+
+// ✅ Cancel Video Appointment Mutation Hook
+export function useCancelVideoAppointment() {
+  const { hasPermission } = useRBAC();
+  const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
+
+  return useMutationOperation<{ success: boolean; data: any }, { appointmentId: string; reason: string }>(
+    async (data: { appointmentId: string; reason: string }) => {
+      // Assuming same permission as update or specific cancel permission
+      const hasAccess = hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS); 
+      if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+
+      const result = await updateAppointmentStatus(data.appointmentId, {
+        status: 'CANCELLED',
+        reason: data.reason,
+      });
+      
+      if (!result.success) throw new Error(result.error);
+      
+      return { success: true, data: result };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.CANCEL,
+      loadingMessage: 'Cancelling appointment...',
+      successMessage: 'Appointment cancelled successfully',
+      invalidateQueries: [['video-appointments'], ['video-appointment']],
+      onSuccess: (_, variables) => {
+        sendVideoAppointmentEvent('updated', {
+          appointmentId: variables.appointmentId,
+          status: 'cancelled',
+          reason: variables.reason
+        });
+      },
+    }
+  );
+}
+
 // ✅ Get Video Recording Query Hook
 export function useVideoRecording(appointmentId: string) {
   const { hasPermission } = useRBAC();
@@ -500,7 +610,7 @@ export function useVideoCall() {
 
       // Start video appointment with token
       const call = await videoAppointmentService.startVideoAppointment(
-        appointmentData,
+        appointmentData as any,
         {
           userId: userInfo.userId || user?.id || '',
           displayName: userInfo.displayName || user?.name || 'User',

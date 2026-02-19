@@ -21,11 +21,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { useCreateAppointment, useDoctorAvailability } from "@/hooks/query/useAppointments";
-import { useActiveLocations } from "@/hooks/query/useClinics";
+import { useActiveLocations, useClinic, useClinicContext, useMyClinic } from "@/hooks/query/useClinics";
 import { APP_CONFIG } from "@/lib/config/config";
 import { toast } from "sonner";
 import { theme } from "@/lib/utils/theme-utils";
@@ -47,7 +47,9 @@ import {
   ChevronRight,
   ChevronLeft,
   Stethoscope,
-  User
+  User,
+  Building,
+  Loader2
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -73,6 +75,8 @@ interface BookAppointmentDialogProps {
   clinicId?: string;
   /** Pre-selected location ID */
   locationId?: string;
+  /** Pre-selected clinic Name */
+  clinicName?: string;
   /** Auto-open the dialog on mount */
   defaultOpen?: boolean;
   /** Callback fired after a successful booking */
@@ -233,16 +237,19 @@ export function BookAppointmentDialog({
   trigger,
   clinicId,
   locationId,
+  clinicName,
   defaultOpen = false,
   onBooked,
 }: BookAppointmentDialogProps) {
   const { session } = useAuth();
   const user = session?.user;
-  const activeClinicId = clinicId || APP_CONFIG.CLINIC.ID;
+  const { clinicId: contextClinicId } = useClinicContext();
+  const activeClinicId = clinicId || contextClinicId || APP_CONFIG.CLINIC.ID;
 
   // ─── State ────────────────────────────────────────────────────────────────
   const [open, setOpen] = useState(defaultOpen);
-  const [currentStep, setCurrentStep] = useState(1);
+  // If location is pre-selected, start at Step 2
+  const [currentStep, setCurrentStep] = useState(locationId ? 2 : 1);
   
   // Form Data
   const [selectedLocationId, setSelectedLocationId] = useState<string>(locationId || "");
@@ -259,7 +266,14 @@ export function BookAppointmentDialog({
   const [urgency, setUrgency] = useState("Normal");
 
   // ─── Queries ──────────────────────────────────────────────────────────────
+  // ─── Queries ──────────────────────────────────────────────────────────────
   const { data: locations = [], isPending: locationsLoading } = useActiveLocations(activeClinicId);
+  const { data: clinic, isPending: clinicLoading } = useClinic(activeClinicId);
+  const { data: myClinic } = useMyClinic();
+
+  // Use myClinic data if available and matches the active ID (often more reliable for patients)
+  const displayClinic = clinic || (myClinic?.id === activeClinicId ? myClinic : null);
+
   const { data: doctorsData, isPending: doctorsLoading } = useDoctors(activeClinicId, {
     locationId: selectedLocationId
   });
@@ -281,15 +295,12 @@ export function BookAppointmentDialog({
     CONSULTATION_TYPES.find((t) => t.id === selectedServiceId), 
   [selectedServiceId]);
 
-
-
-
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
   // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
-      setCurrentStep(1);
+      setCurrentStep(locationId ? 2 : 1);
       setSelectedLocationId(locationId || "");
       setConsultationMode(null);
       setSelectedServiceId("");
@@ -301,16 +312,6 @@ export function BookAppointmentDialog({
       setUrgency("Normal");
     }
   }, [open, locationId]);
-
-  // Skip Step 1 if location is pre-selected and there's only one or it's forced
-  useEffect(() => {
-    if (open && currentStep === 1 && locationId) {
-      // If location is provided via props, we pre-select it
-      setSelectedLocationId(locationId);
-      // We don't auto-advance because user might want to check the location details
-      // But we could auto-advance if needed. For now let's keep it explicit.
-    }
-  }, [open, currentStep, locationId]);
 
   const handleNext = () => {
     if (currentStep === 1 && !selectedLocationId) {
@@ -388,54 +389,123 @@ export function BookAppointmentDialog({
   // ─── Step Renderers ───────────────────────────────────────────────────────
 
   const renderStep1_Location = () => (
-    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold mb-1">Select Clinic Location</h3>
-        <p className={`text-sm ${theme.textColors.secondary}`}>
-          Where would you like to visit?
-        </p>
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+      
+      {/* Clinic Context Header */}
+      <div className="bg-muted/30 p-5 rounded-xl border border-border/50">
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Booking Appointment For</p>
+        
+        {clinicLoading && !clinicName && !displayClinic ? (
+           <div className="space-y-2">
+              <div className="h-6 w-48 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-64 bg-muted animate-pulse rounded" />
+           </div>
+        ) : (displayClinic || clinicName) ? (
+           <div className="flex items-start gap-4">
+              <div className={`p-3 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 shrink-0`}>
+                 <Building className="w-6 h-6" />
+              </div>
+              <div>
+                 <h3 className="text-lg font-bold text-foreground">{displayClinic?.name || clinicName}</h3>
+                 <p className="text-sm text-muted-foreground">
+                    {displayClinic?.address ? `${displayClinic.address}, ${displayClinic.city || ""}` : "Ayurvedic Treatment Center"}
+                 </p>
+                 <div className="flex items-center gap-2 mt-2">
+                    <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">
+                       Verified Clinic
+                    </span>
+                 </div>
+              </div>
+           </div>
+        ) : (
+           <div className="text-center p-4 text-muted-foreground border border-dashed rounded-lg">
+              Clinic information unavailable
+           </div>
+        )}
       </div>
 
-      {locationsLoading ? (
-        <div className="p-8 text-center text-muted-foreground">Loading locations...</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {locations.map((loc) => (
-            <div
-              key={loc.id}
-              onClick={() => setSelectedLocationId(loc.id)}
-              className={`p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md ${
-                selectedLocationId === loc.id
-                  ? `${theme.borders.primary} ${theme.containers.featureBlue} ring-1 ring-blue-500`
-                  : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30`}>
-                  <MapPin className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-foreground">{loc.name}</h4>
-                  <p className="text-sm text-muted-foreground mt-1">{loc.address}, {loc.city}</p>
-                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {loc.workingHours ? "Open Now" : "9:00 AM - 6:00 PM"}
-                  </p>
-                </div>
-                {selectedLocationId === loc.id && (
-                  <CheckCircle className="w-5 h-5 text-blue-600 ml-auto" />
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      {locations.length === 0 && !locationsLoading && (
-        <div className="text-center p-8 bg-gray-50 rounded-lg dark:bg-gray-800/50">
-          <p>No active locations found for this clinic.</p>
-        </div>
-      )}
+      {/* Select Location Section */}
+      <div>
+         <div className="flex items-center justify-between mb-4 px-1">
+            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Select Location</h3>
+            <span className="text-xs font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">
+               {locationsLoading ? "..." : `${locations.length} Locations Available`}
+            </span>
+         </div>
+
+        {locationsLoading ? (
+          <div className="space-y-3">
+             <div className="h-20 rounded-xl bg-muted animate-pulse" />
+             <div className="h-20 rounded-xl bg-muted animate-pulse" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3">
+              {locations.map((loc) => (
+                  <div
+                  key={loc.id}
+                  onClick={() => setSelectedLocationId(loc.id)}
+                  className={`p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md relative overflow-hidden group ${
+                      selectedLocationId === loc.id
+                      ? `${theme.borders.primary} ${theme.containers.featureBlue} ring-2 ring-blue-500 bg-white dark:bg-gray-900`
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 bg-white dark:bg-gray-900"
+                  }`}
+                  >
+                  <div className="flex items-start gap-4 relative z-10">
+                      <div className={`mt-1 shrink-0`}>
+                         {selectedLocationId === loc.id ? (
+                             <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shadow-sm">
+                                <div className="w-2.5 h-2.5 rounded-full bg-white" />
+                             </div>
+                         ) : (
+                             <div className="w-6 h-6 rounded-full border-2 border-muted-foreground/30 group-hover:border-blue-500/50 transition-colors" />
+                         )}
+                      </div>
+                      <div className="flex-1">
+                          <div className="flex items-start justify-between">
+                             <h4 className={`font-bold text-base ${selectedLocationId === loc.id ? 'text-blue-700 dark:text-blue-400' : 'text-foreground'}`}>
+                                {loc.name}
+                             </h4>
+                             {selectedLocationId === loc.id && (
+                                <span className="text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-full">
+                                   Selected
+                                </span>
+                             )}
+                          </div>
+                          
+                          <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                              <MapPin className="w-4 h-4 shrink-0" />
+                              <span className="line-clamp-1">{loc.address}, {loc.city}</span>
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center gap-3 mt-3">
+                              <span className="text-xs font-medium text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-md flex items-center gap-1.5 border border-green-100 dark:border-green-900/30">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                  Accepting Appointments
+                              </span>
+                              <span className="text-xs text-muted-foreground flex items-center gap-1 bg-secondary/50 px-2 py-1 rounded-md">
+                                 <Clock className="w-3 h-3" />
+                                 {loc.workingHours ? "Open Now" : "09:00 AM - 06:00 PM"}
+                              </span>
+                          </div>
+                      </div>
+                  </div>
+                  {selectedLocationId === loc.id && (
+                      <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                         <MapPin className="w-24 h-24 text-blue-600" />
+                      </div>
+                  )}
+                  </div>
+              ))}
+
+              {locations.length === 0 && !locationsLoading && (
+                  <div className="text-center p-8 bg-muted/30 rounded-xl border border-dashed">
+                      <p className="text-muted-foreground font-medium">No active locations found for this clinic.</p>
+                      <p className="text-xs text-muted-foreground mt-1">Please try again later or contact support.</p>
+                  </div>
+              )}
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -450,7 +520,7 @@ export function BookAppointmentDialog({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div
-          onClick={() => { setConsultationMode("IN_PERSON"); handleNext(); }}
+          onClick={() => setConsultationMode("IN_PERSON")}
           className={`p-6 border-2 rounded-xl cursor-pointer transition-all hover:shadow-lg group ${
             consultationMode === "IN_PERSON"
               ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20"
@@ -474,7 +544,7 @@ export function BookAppointmentDialog({
         </div>
 
         <div
-          onClick={() => { setConsultationMode("VIDEO"); handleNext(); }}
+          onClick={() => setConsultationMode("VIDEO")}
           className={`p-6 border-2 rounded-xl cursor-pointer transition-all hover:shadow-lg group ${
             consultationMode === "VIDEO"
               ? "border-purple-600 bg-purple-50 dark:bg-purple-900/20"
@@ -504,13 +574,17 @@ export function BookAppointmentDialog({
     // Filter types based on mode
     const filteredTypes = CONSULTATION_TYPES.filter(t => {
       if (consultationMode === "VIDEO") return t.videoAvailable;
-      return true; // In-Person usually allows everything
+      // In-Person -> Show all treatments (since all current types are fundamentally In-Person compatible or hybrid)
+      // If there were video-only types, we'd filter them out here.
+      return true; 
     });
 
     // Group by category
     const categories = Array.from(new Set(filteredTypes.map(t => t.category)));
-    const filteredByCategory = selectedCategory === "All" 
-        ? filteredTypes 
+    
+    // Filter by selected category, but handle "All"
+    const displayServices = selectedCategory === "All"
+        ? filteredTypes
         : filteredTypes.filter(t => t.category === selectedCategory);
 
     return (
@@ -526,7 +600,7 @@ export function BookAppointmentDialog({
         <div className="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">
           <Badge 
             variant={selectedCategory === "All" ? "default" : "outline"}
-            className="cursor-pointer px-4 py-2"
+            className="cursor-pointer px-4 py-2 hover:bg-primary/90 hover:text-primary-foreground transition-colors"
             onClick={() => setSelectedCategory("All")}
           >
             All
@@ -535,7 +609,7 @@ export function BookAppointmentDialog({
              <Badge 
              key={cat}
              variant={selectedCategory === cat ? "default" : "outline"}
-             className="cursor-pointer px-4 py-2"
+             className="cursor-pointer px-4 py-2 hover:bg-primary/90 hover:text-primary-foreground transition-colors"
              onClick={() => setSelectedCategory(cat)}
            >
              {cat}
@@ -546,33 +620,36 @@ export function BookAppointmentDialog({
         {/* Grid */}
         <ScrollArea className="h-[400px] pr-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredByCategory.map((type) => (
+            {displayServices.map((type) => (
                 <div
                 key={type.id}
                 onClick={() => { setSelectedServiceId(type.id); }}
-                className={`p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md ${
+                className={`p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md group ${
                     selectedServiceId === type.id
-                    ? `${theme.borders.primary} ${theme.containers.featureBlue} ring-1 ring-blue-500`
-                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                    ? `${theme.borders.primary} ${theme.containers.featureBlue} ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20`
+                    : "border-border hover:border-primary/50 bg-card"
                 }`}
                 >
                 <div className="flex items-start gap-4">
-                    <div className={`p-3 rounded-xl ${type.color} shadow-sm`}>{type.icon}</div>
+                    <div className={`p-3 rounded-xl shadow-sm ${selectedServiceId === type.id ? 'bg-blue-100 text-blue-600' : 'bg-muted text-muted-foreground group-hover:bg-blue-50 group-hover:text-blue-500'} transition-colors`}>{type.icon}</div>
                     <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
-                            <h4 className="font-semibold">{type.name}</h4>
-                            <span className="font-bold text-sm">₹{type.price}</span>
+                            <h4 className="font-bold text-foreground">{type.name}</h4>
+                            {/* Price hidden as requested - Subscription based */}
+                            {/* <span className="font-bold text-sm">₹{type.price}</span> */}
                         </div>
-                        <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                        <p className="text-xs text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
                             {type.description}
                         </p>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                                <Clock className="w-3 h-3" /> {type.duration} min
+                        <div className="flex items-center gap-2 text-xs font-medium">
+                            <span className="flex items-center gap-1.5 bg-secondary px-2.5 py-1 rounded-md text-secondary-foreground">
+                                <Clock className="w-3.5 h-3.5" /> {type.duration} min
                             </span>
-                            {type.videoAvailable && (
-                                <span className="flex items-center gap-1 text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded">
-                                <Video className="w-3 h-3" /> Video
+                            
+                            {/* Only show Video badge if Mode is NOT In-Person (or if it's explicitly Video mode) */}
+                            {type.videoAvailable && consultationMode !== "IN_PERSON" && (
+                                <span className="flex items-center gap-1.5 text-green-700 bg-green-100 dark:bg-green-900/30 px-2.5 py-1 rounded-md border border-green-200 dark:border-green-800">
+                                <Video className="w-3.5 h-3.5" /> Video
                                 </span>
                             )}
                         </div>
@@ -581,130 +658,187 @@ export function BookAppointmentDialog({
                 </div>
             ))}
             </div>
+            {displayServices.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                    <p>No services found in this category.</p>
+                </div>
+            )}
         </ScrollArea>
       </div>
     );
   };
 
-  const renderStep4_DoctorTime = () => (
-    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 h-full">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
-        {/* Left: Doctors List */}
-        <div className="lg:col-span-4 flex flex-col h-full border-r pr-4">
-            <h3 className="font-semibold mb-4">Select Doctor</h3>
-            <ScrollArea className="h-[400px]">
-                <div className="space-y-3">
-                    {doctorsLoading ? (
-                        <p className="text-sm text-muted-foreground">Loading doctors...</p>
-                    ) : (doctorsData as any)?.doctors?.map((doctor: any) => (
-                        <div
-                            key={doctor.id}
-                            onClick={() => {
-                                setSelectedDoctorId(doctor.id);
-                                setSelectedSlot(""); // Reset slot when doctor changes
-                            }}
-                            className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                                selectedDoctorId === doctor.id
-                                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                                : "hover:bg-gray-50 dark:hover:bg-gray-800"
-                            }`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                                    <Stethoscope className="w-5 h-5 text-gray-500" />
-                                </div>
-                                <div>
-                                    <p className="font-medium text-sm">{doctor.name}</p>
-                                    <p className="text-xs text-muted-foreground">{doctor.specialization}</p>
-                                </div>
-                            </div>
+  const renderStep4_DoctorTime = () => {
+    // Safely extract doctors list
+    const doctorsList = Array.isArray(doctorsData) 
+      ? doctorsData 
+      : (doctorsData as any)?.doctors || [];
+
+    return (
+      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 h-full flex flex-col">
+        
+        {/* Top: Doctor Selection */}
+        <div>
+           <div className="flex items-center justify-between mb-3 px-1">
+              <h3 className="font-semibold text-lg">Select Doctor</h3>
+              <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-full">
+                {doctorsLoading ? "Loading..." : `${doctorsList.length} Available`}
+              </span>
+           </div>
+           
+           {doctorsLoading ? (
+              <div className="flex gap-4 overflow-hidden">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="w-64 h-24 bg-muted animate-pulse rounded-xl shrink-0" />
+                ))}
+              </div>
+           ) : doctorsList.length > 0 ? (
+              <ScrollArea className="w-full pb-4">
+                 <div className="flex gap-4 pb-2">
+                    {doctorsList.map((doctor: any) => (
+                      <div
+                        key={doctor.id}
+                        onClick={() => {
+                            setSelectedDoctorId(doctor.id);
+                            setSelectedSlot(""); 
+                        }}
+                        className={`min-w-[240px] p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md relative overflow-hidden group ${
+                            selectedDoctorId === doctor.id
+                            ? `${theme.borders.primary} ${theme.containers.featureBlue} ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20`
+                            : "border-border bg-card hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                           <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${selectedDoctorId === doctor.id ? 'bg-blue-100 text-blue-600' : 'bg-secondary text-muted-foreground'}`}>
+                              {doctor.image ? (
+                                <img src={doctor.image} alt={doctor.name} className="w-full h-full rounded-full object-cover" />
+                              ) : (
+                                <Stethoscope className="w-6 h-6" />
+                              )}
+                           </div>
+                           <div>
+                              <p className="font-bold text-base line-clamp-1">{doctor.name}</p>
+                              <p className="text-xs text-muted-foreground mb-1">{doctor.specialization}</p>
+                              <div className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-secondary w-fit">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Available
+                              </div>
+                           </div>
                         </div>
+                        {selectedDoctorId === doctor.id && (
+                           <div className="absolute top-2 right-2 text-blue-600">
+                              <CheckCircle className="w-4 h-4" />
+                           </div>
+                        )}
+                      </div>
                     ))}
-                </div>
-            </ScrollArea>
+                 </div>
+                 <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+           ) : (
+              <div className="text-center py-8 border-2 border-dashed rounded-xl bg-muted/30">
+                 <User className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                 <p className="text-sm font-medium text-muted-foreground">No doctors found for this location.</p>
+                 <p className="text-xs text-muted-foreground mt-1">Try changing the location or checking back later.</p>
+              </div>
+           )}
         </div>
 
-        {/* Right: Date & Time */}
-        <div className="lg:col-span-8 space-y-4">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                     <h3 className="font-semibold mb-4">Select Date</h3>
-                     <Calendar
+        {/* Middle: Date & Time Split */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 min-h-0">
+            {/* Calendar */}
+            <div className="flex flex-col">
+                 <h3 className="font-semibold mb-3">Select Date</h3>
+                 <div className="border rounded-xl p-4 bg-card shadow-sm flex-1 flex justify-center">
+                    <Calendar
                         mode="single"
                         selected={selectedDate}
                         onSelect={setSelectedDate}
                         disabled={(date) => date < startOfDay(new Date())}
-                        className="border rounded-md shadow-sm w-full"
+                        className="p-0"
+                        classNames={{
+                           day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                           day_today: "bg-accent text-accent-foreground",
+                        }} 
                     />
-                </div>
-                <div>
-                    <h3 className="font-semibold mb-4">Available Slots</h3>
-                    {selectedDoctorId ? (
-                        <ScrollArea className="h-[300px]">
-                            {availabilityLoading ? (
-                                <div className="flex items-center justify-center h-40">
-                                    <p className="text-muted-foreground text-sm">Loading slots...</p>
-                                </div>
-                            ) : availability?.availableSlots?.length ? (
-                                <div className="grid grid-cols-3 gap-2">
-                                    {availability.availableSlots.map((slot: string) => (
-                                        <Button
-                                            key={slot}
-                                            variant={selectedSlot === slot ? "default" : "outline"}
-                                            size="sm"
-                                            onClick={() => setSelectedSlot(slot)}
-                                            className="w-full"
-                                        >
-                                            {slot}
-                                        </Button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg">
-                                    <Clock className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                                    <p className="text-sm">No slots available for this date.</p>
-                                </div>
-                            )}
-                        </ScrollArea>
-                    ) : (
-                        <div className="text-center py-10 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
-                             <p className="text-sm">Select a doctor to view availability</p>
+                 </div>
+            </div>
+
+            {/* Slots */}
+            <div className="flex flex-col h-full min-h-[300px]">
+                <h3 className="font-semibold mb-3 flex items-center justify-between">
+                   <span>Available Slots</span>
+                   {selectedDate && <span className="text-xs font-normal text-muted-foreground">{format(selectedDate, "EEEE, MMMM d")}</span>}
+                </h3>
+                
+                <div className={`flex-1 border rounded-xl overflow-hidden bg-card shadow-sm relative ${!selectedDoctorId ? 'bg-muted/30' : ''}`}>
+                    {!selectedDoctorId ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-muted-foreground">
+                            <Stethoscope className="w-10 h-10 mb-3 opacity-20" />
+                            <p className="font-medium">Please select a doctor first</p>
+                            <p className="text-xs mt-1">We need to know who you're visiting to show their schedule.</p>
                         </div>
+                    ) : availabilityLoading ? (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        </div>
+                    ) : (
+                        <ScrollArea className="h-full max-h-[300px] w-full p-4">
+                           {availability?.availableSlots?.length ? (
+                               <div className="grid grid-cols-3 gap-3">
+                                   {availability.availableSlots.map((slot: string) => (
+                                       <Button
+                                           key={slot}
+                                           variant={selectedSlot === slot ? "default" : "outline"}
+                                           size="sm"
+                                           onClick={() => setSelectedSlot(slot)}
+                                           className={`w-full transition-all ${selectedSlot === slot ? "ring-2 ring-primary ring-offset-1" : "hover:border-primary/50"}`}
+                                       >
+                                           {slot}
+                                       </Button>
+                                   ))}
+                               </div>
+                           ) : (
+                               <div className="flex flex-col items-center justify-center h-full py-10 text-muted-foreground">
+                                   <Clock className="w-10 h-10 mb-3 text-muted-foreground/30" />
+                                   <p className="font-medium">No slots available</p>
+                                   <p className="text-xs mt-1">Please try a different date or doctor.</p>
+                               </div>
+                           )}
+                        </ScrollArea>
                     )}
-                </div>
-             </div>
-        
-            {/* Additional Inputs */}
-            <div className="pt-4 border-t">
-                <div className="grid grid-cols-2 gap-4">
-                     <div>
-                        <Label>Urgency</Label>
-                        <Select value={urgency} onValueChange={setUrgency}>
-                            <SelectTrigger className="h-9">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Low">Low</SelectItem>
-                                <SelectItem value="Normal">Normal</SelectItem>
-                                <SelectItem value="High">High</SelectItem>
-                            </SelectContent>
-                        </Select>
-                     </div>
-                     <div>
-                         <Label>Chief Complaint</Label>
-                         <Input 
-                            value={chiefComplaint} 
-                            onChange={(e) => setChiefComplaint(e.target.value)}
-                            placeholder="Brief reason for visit" 
-                            className="h-9"
-                        />
-                     </div>
                 </div>
             </div>
         </div>
+        
+        {/* Bottom: Complaint & Urgency */}
+        <div className="pt-4 border-t">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-1">
+                    <Label className="mb-2 block">Urgency Level</Label>
+                    <Select value={urgency} onValueChange={setUrgency}>
+                        <SelectTrigger>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Low">Low Priority</SelectItem>
+                            <SelectItem value="Normal">Normal Priority</SelectItem>
+                            <SelectItem value="High">High Priority</SelectItem>
+                        </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                      <Label className="mb-2 block">Chief Complaint / Reason for Visit</Label>
+                      <Input 
+                        value={chiefComplaint} 
+                        onChange={(e) => setChiefComplaint(e.target.value)}
+                        placeholder="E.g., High fever since yesterday, Persistent back pain..." 
+                      />
+                  </div>
+            </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

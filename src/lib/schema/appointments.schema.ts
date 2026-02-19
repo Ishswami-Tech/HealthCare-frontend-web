@@ -9,7 +9,7 @@ export const createAppointmentSchema = z.object({
   patientId: z.string().uuid(),
   doctorId: z.string().uuid(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  time: z.string().regex(/^\d{2}:\d{2}$/),
+  time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
   duration: z.number().min(15).max(480),
   type: z.string().min(1).max(100),
   notes: z.string().max(1000).optional(),
@@ -50,6 +50,16 @@ export const proposeVideoSlotsSchema = z.object({
     time: z.string().regex(/^\d{1,2}:\d{2}$/),
   })).min(3).max(4),
   notes: z.string().max(1000).optional(),
+});
+
+export const rescheduleAppointmentSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)'),
+  time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Invalid time format (HH:MM)'),
+  reason: z.string().optional(),
+});
+
+export const rejectVideoProposalSchema = z.object({
+  reason: z.string().min(1, 'Reason is required'),
 });
 
 export const updateAppointmentStatusSchema = z.object({

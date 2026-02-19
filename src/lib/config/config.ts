@@ -400,6 +400,7 @@ export const API_ENDPOINTS = {
     CONFIRM: (id: string) => `/appointments/${id}/confirm`,
     STATUS: (id: string) => `/appointments/${id}/status`, // Consolidated endpoint
     VIDEO_PROPOSE: '/appointments/video/propose',
+    VIDEO_REJECT_PROPOSAL: (id: string) => `/appointments/${id}/video/reject-proposal`,
     VIDEO_CONFIRM_SLOT: (id: string) => `/appointments/${id}/video/confirm-slot`,
     CHECK_IN: (id: string) => `/appointments/${id}/check-in`,
     SCAN_QR: '/appointments/check-in/scan-qr',
@@ -811,6 +812,11 @@ export const API_ENDPOINTS = {
       PAUSE: (appointmentId: string) => `/video/recording/${appointmentId}/pause`,
       RESUME: (appointmentId: string) => `/video/recording/${appointmentId}/resume`,
       SET_QUALITY: (appointmentId: string) => `/video/recording/${appointmentId}/quality`,
+    },
+    // Super Admin monitoring & control
+    ADMIN: {
+      LIST_SESSIONS: '/video/admin/sessions',
+      TERMINATE_SESSION: (sessionId: string) => `/video/admin/sessions/${sessionId}/terminate`,
     },
   },
   

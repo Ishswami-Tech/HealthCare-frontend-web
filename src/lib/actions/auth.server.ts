@@ -617,12 +617,10 @@ export async function login(data: { email: string; password?: string; otp?: stri
   }
 }
 
-export async function register(data: RegisterFormData & { clinicId?: string }): Promise<AuthResponse | { error: string }> {
+export async function register(data: RegisterFormData): Promise<AuthResponse | { error: string }> {
   try {
-    const finalClinicId = (data.clinicId || CLINIC_ID)?.trim();
-    if (!finalClinicId) {
-        return { error: 'Clinic ID is required' };
-    }
+    // ✅ clinicId validation removed - backend will use X-Clinic-ID header
+    // The header is automatically set by clinicApiClient
     
     // Calculate dateOfBirth from age if provided
     let dateOfBirth: string | undefined;
@@ -640,7 +638,7 @@ export async function register(data: RegisterFormData & { clinicId?: string }): 
       firstName: data.firstName.trim(),
       lastName: data.lastName.trim(),
       phone: (data.phone || '').trim(),
-      clinicId: finalClinicId,
+      // ✅ clinicId removed - will be sent via X-Clinic-ID header only
       ...(data.role && { role: data.role }),
       ...(data.gender && { gender: data.gender.toUpperCase() }),
       ...(dateOfBirth && { dateOfBirth }),

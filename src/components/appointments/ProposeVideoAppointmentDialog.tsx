@@ -89,7 +89,7 @@ export function ProposeVideoAppointmentDialog({
 
   const getMinDate = () => {
     const d = new Date();
-    d.setDate(d.getDate() + 1);
+    d.setDate(d.getDate() + 2); // Backend requires at least 2 days advance for video appointments
     return d.toISOString().split("T")[0];
   };
 
