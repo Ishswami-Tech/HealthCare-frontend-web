@@ -296,7 +296,7 @@ export default function ProfileCompletionForm({
         lastName: data.lastName,
         phone: formatPhoneNumber(data.phone),
         dateOfBirth: data.dateOfBirth,
-        gender: data.gender.toUpperCase(),
+        gender: data.gender ? data.gender.toUpperCase() : undefined,
         address: data.address,
       };
 
