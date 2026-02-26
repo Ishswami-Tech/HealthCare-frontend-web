@@ -728,12 +728,15 @@ export const useDoctorAvailability = (doctorId: string, date: string, locationId
     },
     {
       enabled: !!doctorId && !!date && hasPermission(Permission.VIEW_APPOINTMENTS),
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 30 * 1000, // 30 seconds — availability is time-sensitive
+      gcTime: 2 * 60 * 1000, // 2 minutes garbage collection
+      refetchOnMount: true, // Always re-fetch when dialog opens
+      refetchOnWindowFocus: false, // Don't refetch on tab switch
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
         }
-        return failureCount < 3;
+        return failureCount < 2; // Fewer retries for faster feedback
       },
     }
   );
