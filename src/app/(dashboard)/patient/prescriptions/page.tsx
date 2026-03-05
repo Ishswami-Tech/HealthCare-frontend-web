@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,22 +69,22 @@ export default function PatientPrescriptions() {
   // Show error state if data fetch failed
   if (hasError) {
     return (
-      <DashboardLayout title="Prescriptions" allowedRole={Role.PATIENT}>
+      
         <ErrorState
           title="Unable to load prescriptions"
           message="We couldn't fetch your prescriptions. Please try again."
           onRetry={() => setHasError(false)}
         />
-      </DashboardLayout>
+      
     );
   }
 
   // Show loading state while data is fetching
   if (isLoading) {
     return (
-      <DashboardLayout title="Prescriptions" allowedRole={Role.PATIENT}>
+      
         <PageLoading text="Loading your prescriptions..." />
-      </DashboardLayout>
+      
     );
   }
 
@@ -339,7 +338,7 @@ export default function PatientPrescriptions() {
 
 
   return (
-    <DashboardLayout title="Prescriptions" allowedRole={Role.PATIENT}>
+    <>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">My Prescriptions</h1>
@@ -826,7 +825,7 @@ export default function PatientPrescriptions() {
           onOpenChange={setIsRefillModalOpen}
         />
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

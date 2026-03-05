@@ -194,11 +194,15 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     // Queue
     Permission.VIEW_QUEUE,
     Permission.MANAGE_QUEUE,
+    Permission.ADD_TO_QUEUE,
+    Permission.REMOVE_FROM_QUEUE,
     Permission.CALL_NEXT_PATIENT,
     Permission.UPDATE_QUEUE_STATUS,
     
     // Medical records
     Permission.VIEW_MEDICAL_RECORDS,
+    Permission.CREATE_MEDICAL_RECORDS,
+    Permission.UPDATE_MEDICAL_RECORDS,
     Permission.VIEW_ALL_MEDICAL_RECORDS,
     
     // Notifications
@@ -217,6 +221,16 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.EXPORT_REPORTS,
     Permission.SCHEDULE_REPORTS,
     
+    // Video Appointment permissions
+    Permission.VIEW_VIDEO_APPOINTMENTS,
+    Permission.CREATE_VIDEO_APPOINTMENTS,
+    Permission.UPDATE_VIDEO_APPOINTMENTS,
+    Permission.DELETE_VIDEO_APPOINTMENTS,
+    Permission.JOIN_VIDEO_APPOINTMENTS,
+    Permission.END_VIDEO_APPOINTMENTS,
+    Permission.VIEW_VIDEO_RECORDINGS,
+    Permission.MANAGE_VIDEO_SETTINGS,
+
     // Billing
     Permission.VIEW_BILLING,
     Permission.MANAGE_BILLING,
@@ -485,6 +499,29 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.DELETE_BILLS,
     Permission.VIEW_FINANCIAL_REPORTS,
     Permission.VIEW_NOTIFICATIONS,
+    Permission.MANAGE_USER_SETTINGS,
+  ],
+
+  [Role.CLINIC_LOCATION_HEAD]: [
+    Permission.VIEW_APPOINTMENTS,
+    Permission.CREATE_APPOINTMENTS,
+    Permission.UPDATE_APPOINTMENTS,
+    Permission.VIEW_ALL_APPOINTMENTS,
+    Permission.VIEW_PATIENTS,
+    Permission.UPDATE_PATIENTS,
+    Permission.VIEW_DOCTORS,
+    Permission.VIEW_CLINICS,
+    Permission.MANAGE_CLINIC_SETTINGS,
+    Permission.VIEW_QUEUE,
+    Permission.MANAGE_QUEUE,
+    Permission.ADD_TO_QUEUE,
+    Permission.REMOVE_FROM_QUEUE,
+    Permission.CALL_NEXT_PATIENT,
+    Permission.UPDATE_QUEUE_STATUS,
+    Permission.VIEW_VIDEO_APPOINTMENTS,
+    Permission.JOIN_VIDEO_APPOINTMENTS,
+    Permission.VIEW_NOTIFICATIONS,
+    Permission.SEND_NOTIFICATIONS,
     Permission.MANAGE_USER_SETTINGS,
   ],
 

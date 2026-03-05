@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { VideoAppointmentsList } from "@/components/video/VideoAppointmentsList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -281,7 +280,7 @@ function ActiveSessionsMonitor() {
 // ─────────────────────────────────────────────────────────────
 export default function SuperAdminVideoPage() {
   return (
-    <DashboardLayout title="Video Consultations Management">
+    
       <Tabs defaultValue="live" className="space-y-4">
         <TabsList>
           <TabsTrigger value="live" className="gap-2">
@@ -311,6 +310,6 @@ export default function SuperAdminVideoPage() {
           />
         </TabsContent>
       </Tabs>
-    </DashboardLayout>
+    
   );
 }

@@ -50,8 +50,17 @@ export function ProposeVideoAppointmentDialog({
     userRole === Role.RECEPTIONIST ? (clinicId || "") : "",
     { limit: 200 }
   );
-  const doctors = Array.isArray((doctorsData as any)?.doctors) ? (doctorsData as any).doctors : (doctorsData as any)?.data ?? [];
-  const patients = Array.isArray((patientsData as any)?.patients) ? (patientsData as any).patients : (patientsData as any)?.data ?? [];
+  const doctors = Array.isArray((doctorsData as any)?.doctors) 
+    ? (doctorsData as any).doctors 
+    : (Array.isArray((doctorsData as any)?.data?.doctors)
+        ? (doctorsData as any).data.doctors
+        : (Array.isArray((doctorsData as any)?.data) ? (doctorsData as any).data : []));
+
+  const patients = Array.isArray((patientsData as any)?.patients) 
+    ? (patientsData as any).patients 
+    : (Array.isArray((patientsData as any)?.data?.patients)
+        ? (patientsData as any).data.patients
+        : (Array.isArray((patientsData as any)?.data) ? (patientsData as any).data : []));
 
   const [selectedPatientId, setSelectedPatientId] = useState("");
   const patientId = userRole === Role.RECEPTIONIST ? selectedPatientId : initialPatientId;

@@ -3,12 +3,9 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { AppointmentWithRelations } from "@/types/appointment.types";
@@ -166,18 +163,9 @@ export default function DoctorDashboard() {
     }
   };
 
-  const sidebarLinks = getSidebarLinksByRole(Role.DOCTOR);
 
   return (
-    <DashboardLayout title="Doctor Dashboard" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -517,7 +505,6 @@ export default function DoctorDashboard() {
             </CardContent>
           </Card>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

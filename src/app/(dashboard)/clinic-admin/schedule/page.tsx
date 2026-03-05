@@ -2,8 +2,6 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
+
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import {
@@ -42,8 +40,7 @@ import {
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 export default function ClinicAdminSchedule() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const { clinicId } = useClinicContext();
 
   // Fetch real doctors data
@@ -58,7 +55,7 @@ export default function ClinicAdminSchedule() {
   // Fetch schedule for selected doctor
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
   const { data: scheduleData } =
-    useDoctorSchedule(selectedDoctorId || "", undefined);
+    useDoctorSchedule(clinicId || "", selectedDoctorId || "", undefined);
 
   // Update schedule mutation
   const updateScheduleMutation = useUpdateDoctorSchedule();
@@ -256,47 +253,18 @@ export default function ClinicAdminSchedule() {
     setHolidays(holidays.filter((h: any) => h.id !== id));
   };
 
-  const sidebarLinks = getSidebarLinksByRole(Role.CLINIC_ADMIN);
-
   if (isPendingDoctors) {
     return (
-      <DashboardLayout
-        title="Schedule Management"
-        allowedRole={Role.CLINIC_ADMIN}
-      >
-        <Sidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name ||
-              `${user?.firstName} ${user?.lastName}` ||
-              "Clinic Admin",
-            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-          }}
-        >
+      
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </Sidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout
-      title="Schedule Management"
-      allowedRole={Role.CLINIC_ADMIN}
-    >
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Clinic Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Schedule Management</h1>
@@ -743,7 +711,6 @@ export default function ClinicAdminSchedule() {
             </TabsContent>
           </Tabs>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

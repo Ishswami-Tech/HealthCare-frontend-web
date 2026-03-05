@@ -30,7 +30,9 @@ export async function getDoctors(clinicId: string, filters?: {
   }
 
   const endpoint = `${API_ENDPOINTS.DOCTORS.GET_ALL}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint, {});
+  const { data } = await authenticatedApi(endpoint, {
+    ...(clinicId ? { headers: { 'X-Clinic-ID': clinicId } } : {}),
+  });
   return data;
 }
 
@@ -100,8 +102,14 @@ export async function deleteDoctor(doctorId: string) {
  * Get doctor schedule
  */
 export async function getDoctorSchedule(clinicId: string, doctorId: string, date?: string) {
+  if (!clinicId || !doctorId) {
+    console.warn('[getDoctorSchedule] Missing clinicId or doctorId, skipping request', { clinicId, doctorId });
+    return null;
+  }
   const params = date ? `?date=${date}` : '';
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.SCHEDULE.GET(clinicId, doctorId)}${params}`, {});
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.SCHEDULE.GET(clinicId, doctorId)}${params}`, {
+    headers: { 'X-Clinic-ID': clinicId },
+  });
   return data;
 }
 
@@ -121,17 +129,7 @@ export async function updateDoctorSchedule(doctorId: string, schedule: {
   return data;
 }
 
-/**
- * Get doctor availability
- */
-export async function getDoctorAvailability(doctorId: string, date: string, locationId?: string) {
-  let endpoint = `${API_ENDPOINTS.DOCTORS.AVAILABILITY.GET(doctorId)}?date=${date}`;
-  if (locationId) {
-    endpoint += `&locationId=${locationId}`;
-  }
-  const { data } = await authenticatedApi(endpoint, {});
-  return data;
-}
+
 
 /**
  * Update doctor availability
@@ -186,7 +184,9 @@ export async function getDoctorPatients(clinicId: string, doctorId: string, filt
   }
 
   const endpoint = `/clinics/${clinicId}/doctors/${doctorId}/patients${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint, {});
+  const { data } = await authenticatedApi(endpoint, {
+    headers: { 'X-Clinic-ID': clinicId },
+  });
   return data;
 }
 

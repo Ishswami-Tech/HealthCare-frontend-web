@@ -24,6 +24,8 @@ import Link from "next/link";
 import NextImage from "next/image";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useRouter, usePathname } from "next/navigation";
+import { useRBAC } from "@/hooks/utils/useRBAC";
+import { Permission } from "@/types/rbac.types";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +41,7 @@ import { useTranslation } from "@/lib/i18n/context";
 import { translateSidebarLinks } from "@/lib/utils/index";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
-
+import { useLayoutStore } from "@/stores/layout.store";
 import { motion } from "framer-motion";
 
 // ============================================================================
@@ -109,10 +111,36 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
   const pathname = usePathname();
   const [avatarError, setAvatarError] = useState(false);
 
+  const { hasPermission } = useRBAC();
+
   const translatedLinks = useMemo(
     () => translateSidebarLinks(links, t),
     [links, t]
   );
+
+  const filteredLinks = useMemo(() => {
+    return translatedLinks.filter(link => {
+      if (!link.permission) return true;
+      return hasPermission(link.permission);
+    });
+  }, [translatedLinks, hasPermission]);
+
+  const profileRouteByRole: Record<string, string> = {
+    SUPER_ADMIN: "/super-admin/settings",
+    CLINIC_ADMIN: "/clinic-admin/settings",
+    DOCTOR: "/doctor/profile",
+    ASSISTANT_DOCTOR: "/doctor/profile",
+    PATIENT: "/patient/profile",
+    RECEPTIONIST: "/receptionist/profile",
+    PHARMACIST: "/pharmacist/profile",
+    FINANCE_BILLING: "/settings",
+    CLINIC_LOCATION_HEAD: "/settings",
+  };
+
+  const normalizedRole = (user.role || "").toUpperCase().replace(/\s+/g, "_");
+  const profileRoute = profileRouteByRole[normalizedRole] || "/patient/profile";
+  const displayRole = (normalizedRole || "USER")
+    .replace(/_/g, " ");
 
   const firstLetter = user.name?.charAt(0).toUpperCase() || "U";
 
@@ -130,7 +158,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
       {/* Main Navigation */}
       <SidebarContent className={cn("flex-1 overflow-y-auto overflow-x-hidden", open ? "p-2" : "p-0 py-2")}>
         <SidebarMenu>
-          {translatedLinks.map((link, idx) => {
+          {filteredLinks.map((link, idx) => {
             const isLogout = link.href === "#logout" || link.title === t("sidebar.logout");
             const Icon = link.icon;
 
@@ -190,7 +218,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild className={cn("h-auto p-2 hover:bg-sidebar-accent transition-colors overflow-hidden", !open && "mx-auto justify-center")}>
-              <Link href={`/${user.role?.toLowerCase() || 'patient'}/profile`} className={cn("flex items-center gap-3 w-full", !open && "justify-center")}>
+              <Link href={profileRoute} className={cn("flex items-center gap-3 w-full", !open && "justify-center")}>
                 {!avatarError && user.avatarUrl ? (
                   <NextImage
                     src={user.avatarUrl}
@@ -217,7 +245,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                       {user.name}
                     </span>
                     <span className="truncate text-[10px] text-sidebar-foreground/50 uppercase tracking-wider font-bold">
-                      {user.role || t("common.user")}
+                      {displayRole || t("common.user")}
                     </span>
                   </motion.div>
                 )}
@@ -241,7 +269,12 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
   const { startLoading, stopLoading } = useGlobalLoading();
   const { t } = useTranslation();
 
-  const [open, setOpen] = useState(false);
+  const isSidebarCollapsed = useLayoutStore((state) => state.isSidebarCollapsed);
+  const setSidebarCollapsed = useLayoutStore((state) => state.setSidebarCollapsed);
+
+  // Map "collapsed" to "open" logic: open is !collapsed
+  const open = !isSidebarCollapsed;
+  const setOpen = useCallback((o: boolean) => setSidebarCollapsed(!o), [setSidebarCollapsed]);
 
   const handleLogoutClick = useCallback(() => {
     setShowLogoutDialog(true);

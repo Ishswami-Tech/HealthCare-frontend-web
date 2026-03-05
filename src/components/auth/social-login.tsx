@@ -169,6 +169,11 @@ export function SocialLogin({
             native_callback: handleGoogleResponse,
           });
 
+          const buttonWidth = Math.max(
+            220,
+            Math.min(360, (googleButtonRef.current.clientWidth || 280) - 8)
+          );
+
           // Render the Google Sign In button
           window.google.accounts.id.renderButton(googleButtonRef.current, {
             type: "standard",
@@ -177,7 +182,7 @@ export function SocialLogin({
             text: "signin_with",
             shape: "rectangular",
             logo_alignment: "left",
-            width: 250,
+            width: buttonWidth,
           });
         } catch (error) {
           const errorMessage =
@@ -234,14 +239,23 @@ export function SocialLogin({
   return (
     <div className={cn("flex flex-col gap-4 w-full", className)}>
       <div
-        ref={googleButtonRef}
         className={cn(
-          "flex items-center justify-center w-full min-h-[40px]",
-          isButtonDisabled && "opacity-50 cursor-not-allowed"
+          "group relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-2 shadow-sm transition-all duration-200",
+          "hover:border-slate-300 hover:shadow-md",
+          "dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-slate-600",
+          isButtonDisabled && "opacity-60"
         )}
-        role="button"
-        aria-label="Sign in with Google"
-      />
+      >
+        <div
+          ref={googleButtonRef}
+          className={cn(
+            "flex items-center justify-center w-full min-h-[46px] rounded-xl",
+            isButtonDisabled && "cursor-not-allowed"
+          )}
+          role="button"
+          aria-label="Sign in with Google"
+        />
+      </div>
       {showDivider && (
         <div className="relative">
           <div className="absolute inset-0 flex items-center">

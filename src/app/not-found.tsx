@@ -41,7 +41,7 @@ export default function NotFound() {
         <div className="mt-12 text-sm text-gray-500">
           <p>
             Need help? Contact our{" "}
-            <Link href="/support" className="text-blue-600 hover:underline">
+            <Link href="/contact" className="text-blue-600 hover:underline">
               support team
             </Link>
           </p>

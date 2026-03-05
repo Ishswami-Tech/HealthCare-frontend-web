@@ -10,6 +10,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
@@ -38,11 +39,10 @@ export default function LoginPage() {
   const [showOTPInput, setShowOTPInput] = useState(false);
   const [otpMethod, setOtpMethod] = useState<OtpMethod>("email");
   const [isSocialLoginLoading, setIsSocialLoginLoading] = useState(false);
-  
+
   // Shared email state to persist across views
   const [sharedIdentifier, setSharedIdentifier] = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  
+
   const otpInputRef = useRef<HTMLInputElement>(null);
   const { loginAsync, requestOTP, verifyOTP, isLoggingIn, isVerifyingOTP } = useAuth();
   
@@ -75,14 +75,12 @@ export default function LoginPage() {
     email: sharedIdentifier,
     password: "",
     rememberMe: false,
-    terms: false,
   });
 
   const otpForm = useZodForm(otpSchema, otpMutation, {
     identifier: sharedIdentifier,
     otp: "",
     rememberMe: false,
-    terms: false,
   });
 
   const handleRequestOTP = async (identifier: string) => {
@@ -99,49 +97,16 @@ export default function LoginPage() {
     setShowOTPInput(false);
   }
 
-  // Google Icon
-  const GoogleIcon = () => (
-    <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
-      <path
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-        fill="#4285F4"
-      />
-      <path
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-        fill="#34A853"
-      />
-      <path
-        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-        fill="#FBBC05"
-      />
-      <path
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-        fill="#EA4335"
-      />
-    </svg>
-  );
-
   // Render Selection View
   const renderSelectionView = () => (
     <div className="space-y-4">
-       <div className="space-y-3">
-         {/* Custom Google Button - MOVED TO TOP */}
-        <button
-          type="button"
-          className="w-full flex items-center justify-center px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-          onClick={() => {
-            if (!termsAccepted) {
-              showErrorToast("Please accept the terms and conditions to continue");
-              return;
-            }
-            document.querySelector<HTMLElement>('[aria-label="Sign in with Google"]')?.click();
-          }}
-          disabled={isFormDisabled}
-        >
-          <GoogleIcon />
-          <span className="font-medium text-sm text-gray-700 dark:text-gray-200">Sign in with Google</span>
-        </button>
-      </div>
+      <SocialLogin
+        showDivider={false}
+        onLoadingStateChange={setIsSocialLoginLoading}
+        onError={(error) => {
+          showErrorToast(error.message, { id: TOAST_IDS.AUTH.SOCIAL_LOGIN });
+        }}
+      />
 
        <div className="relative py-1">
         <div className="absolute inset-0 flex items-center">
@@ -162,8 +127,6 @@ export default function LoginPage() {
           onClick={() => {
             setView("otp");
             setOtpMethod("email");
-            // Sync local terms state to form state if possible, or just default
-            otpForm.setValue("terms", termsAccepted);
           }}
           disabled={isFormDisabled}
         >
@@ -189,7 +152,6 @@ export default function LoginPage() {
           )}
           onClick={() => {
              setView("password");
-             passwordForm.setValue("terms", termsAccepted);
           }}
           disabled={isFormDisabled}
         >
@@ -202,40 +164,6 @@ export default function LoginPage() {
           </div>
         </button>
       </div>
-
-       <div className="flex items-start space-x-2 pt-2">
-            <Checkbox
-              id="terms-selection"
-              checked={termsAccepted}
-              onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-              disabled={isFormDisabled}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <label
-                htmlFor="terms-selection"
-                className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-600 dark:text-gray-400"
-              >
-                I agree to the{" "}
-                <Link href="/terms" className="text-blue-600 hover:underline">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-blue-600 hover:underline">
-                  Privacy Policy
-                </Link>
-              </label>
-            </div>
-          </div>
-
-      {/* Hidden SocialLogin */}
-       <div className="hidden">
-           <SocialLogin
-            onLoadingStateChange={setIsSocialLoginLoading}
-            onError={(error) => {
-                 showErrorToast(error.message, { id: TOAST_IDS.AUTH.SOCIAL_LOGIN });
-            }}
-           />
-       </div>
     </div>
   );
 
@@ -286,8 +214,7 @@ export default function LoginPage() {
             render={({ field }) => (
             <FormItem>
                 <FormControl>
-                <Input
-                    type="password"
+                <PasswordInput
                     placeholder="Password"
                     {...field}
                     disabled={isFormDisabled}
@@ -332,37 +259,6 @@ export default function LoginPage() {
                 Forgot?
                 </Link>
             </div>
-            
-            <FormField
-              control={passwordForm.control}
-              name="terms"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={isFormDisabled}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none pt-0.5">
-                    <label
-                      htmlFor="terms-password"
-                      className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-600 dark:text-gray-400"
-                    >
-                       I accept the{" "}
-                      <Link href="/terms" className="text-blue-600 hover:underline">
-                        Terms
-                      </Link>{" "}
-                      and{" "}
-                      <Link href="/privacy" className="text-blue-600 hover:underline">
-                        Privacy Policy
-                      </Link>
-                    </label>
-                  </div>
-                </FormItem>
-              )}
-            />
         </div>
 
         <Button
@@ -520,37 +416,6 @@ export default function LoginPage() {
               )}
             />
 
-             <FormField
-              control={otpForm.control}
-              name="terms"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={isFormDisabled}
-                    />
-                  </FormControl>
-                   <div className="space-y-1 leading-none">
-                    <label
-                      htmlFor="terms-otp"
-                      className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-600 dark:text-gray-400"
-                    >
-                       I accept the{" "}
-                      <Link href="/terms" className="text-blue-600 hover:underline">
-                        Terms
-                      </Link>{" "}
-                      and{" "}
-                      <Link href="/privacy" className="text-blue-600 hover:underline">
-                        Privacy Policy
-                      </Link>
-                    </label>
-                  </div>
-                </FormItem>
-              )}
-            />
-
             {showOTPInput && (
               <Button
                 type="submit"
@@ -585,19 +450,19 @@ export default function LoginPage() {
 
   return (
     <Card className="w-full max-w-[380px] mx-auto shadow-lg">
-      <CardHeader className="space-y-1 px-4 sm:px-6 relative">
+      <CardHeader className={cn("space-y-1 px-4 sm:px-6 relative", view !== "selection" ? "pt-10" : "pt-2")}>
           {view !== "selection" && (
            <Button
                variant="ghost"
                size="sm"
-               className="absolute left-4 top-4 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 p-0 hover:bg-transparent"
+               className="absolute left-4 top-3 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 p-0 hover:bg-transparent"
                onClick={handleBack}
            >
                <ArrowLeft className="h-4 w-4 mr-2" />
                Back
            </Button>
         )}
-        <h2 className="text-xl font-bold text-center pt-4">
+        <h2 className={cn("text-xl font-bold text-center", view !== "selection" ? "pt-6" : "")}>
           {getHeaderTitle()}
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 text-center">

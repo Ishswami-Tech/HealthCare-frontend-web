@@ -3,14 +3,13 @@
 import { useState } from "react";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
+
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useMedicines,
@@ -31,7 +30,6 @@ import {
   Leaf,
   Sun,
   Moon,
-  LogOut,
   ShoppingCart,
   Eye,
   Edit,
@@ -127,28 +125,21 @@ export default function PharmacySystem() {
   // Show loading state
   if (medicinesLoading) {
     return (
-      <DashboardLayout
-        title="Pharmacy Management System"
-        requiredPermission={Permission.VIEW_PATIENTS}
-        showPermissionWarnings={true}
-      >
+      
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading pharmacy system...</p>
           </div>
         </div>
-      </DashboardLayout>
+      
     );
   }
 
   // Show error state
   if (medicinesError) {
     return (
-      <DashboardLayout
-        title="Pharmacy Management System"
-        requiredPermission={Permission.VIEW_PATIENTS}
-      >
+      
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <p className="text-red-600">
@@ -159,7 +150,7 @@ export default function PharmacySystem() {
             </Button>
           </div>
         </div>
-      </DashboardLayout>
+      
     );
   }
 
@@ -353,34 +344,9 @@ export default function PharmacySystem() {
     }
   };
 
-  const sidebarLinks = [...getRoutesByRole(userRole)];
-
-  // Add Pharmacy link to sidebar
-  sidebarLinks.push({
-    title: "Pharmacy System",
-    href: ROUTES.SHARED_PHARMACY,
-    icon: Pill,
-  });
-
-  sidebarLinks.push({
-    title: "Logout",
-    href: ROUTES.LOGIN,
-    icon: LogOut,
-  });
-
   return (
-    <DashboardLayout title="Pharmacy Management" allowedRole={userRole}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Healthcare Professional",
-          ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-        }}
-      >
-        <div className="p-6 space-y-6">
+    
+      <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">Pharmacy Management System</h1>
@@ -1021,7 +987,6 @@ export default function PharmacySystem() {
             </TabsContent>
           </Tabs>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

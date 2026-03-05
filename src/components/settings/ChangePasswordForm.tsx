@@ -8,9 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '@/hooks/auth/useAuth';
+import { getDashboardByRole } from '@/lib/config/routes';
+import { Role } from '@/types/auth.types';
 
 export function ChangePasswordForm() {
   const router = useRouter();
+  const { session } = useAuth();
+  const user = session?.user;
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -55,10 +61,13 @@ export function ChangePasswordForm() {
       
       // Redirect to dashboard after 2 seconds
       setTimeout(() => {
-        router.push('/dashboard');
+        const dashboardRoute = user?.role 
+          ? getDashboardByRole(user.role as Role) 
+          : '/';
+        router.push(dashboardRoute);
       }, 2000);
     } catch (err) {
-     setError(err instanceof Error ? err.message : 'Failed to change password');
+      setError(err instanceof Error ? err.message : 'Failed to change password');
     } finally {
       setLoading(false);
     }

@@ -14,6 +14,7 @@ export interface Clinic {
   app_name: string;
   logo?: string;
   website?: string;
+  operatingHours?: string;
   description?: string;
   timezone?: string;
   currency?: string;
@@ -136,14 +137,20 @@ export interface CreateClinicData {
 export interface UpdateClinicData {
   name?: string;
   address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zipCode?: string;
   phone?: string;
   email?: string;
   logo?: string;
   website?: string;
+  operatingHours?: string;
   description?: string;
   timezone?: string;
   currency?: string;
   language?: string;
+  status?: string;
   isActive?: boolean;
   settings?: Record<string, unknown>;
 }

@@ -10,9 +10,6 @@ import {
   generateWebsiteSchema,
 } from "@/lib/config/seo";
 
-import { LanguageProvider } from "@/lib/i18n/context";
-// ThemeProvider is handled by AppProvider (next-themes)
-import { AppProvider } from "@/app/providers/AppProvider";
 import Navigation from "@/components/ayurveda/Navigation";
 import Footer from "@/components/ayurveda/Footer";
 import { WhatsAppButton } from "@/components/contact/whatsapp-button";
@@ -60,24 +57,20 @@ export default function PublicLayout({
   const websiteSchema = generateWebsiteSchema();
 
   return (
-    <AppProvider>
-      <LanguageProvider initialLanguage="en">
-        <>
-          {/* SEO Schema Markup */}
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify([
-                organizationSchema,
-                localBusinessSchema,
-                websiteSchema,
-              ]),
-            }}
-          />
+    <>
+      {/* SEO Schema Markup */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify([
+            organizationSchema,
+            localBusinessSchema,
+            websiteSchema,
+          ]),
+        }}
+      />
 
-          <LayoutContent>{children}</LayoutContent>
-        </>
-      </LanguageProvider>
-    </AppProvider>
+      <LayoutContent>{children}</LayoutContent>
+    </>
   );
 }

@@ -69,18 +69,18 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       body: JSON.stringify(profileData) 
     });
     
-    // Import calculateProfileCompletion to check if profile is now complete
-    const { calculateProfileCompletion } = await import('@/lib/config/profile');
-    
-    // Merge updated data with existing profile to check completion
-    // Ensure data is an object before spreading
-    const updatedProfileData = typeof data === 'object' && data !== null
-      ? { ...profileData, ...data }
-      : profileData;
-    const isProfileComplete = calculateProfileCompletion(updatedProfileData as any);
-    
-    // Update profile_complete cookie if profile is now complete
-    if (isProfileComplete) {
+    const responseData = (typeof data === 'object' && data !== null) ? (data as Record<string, unknown>) : undefined;
+    const isProfileComplete =
+      typeof responseData?.profileComplete === 'boolean'
+        ? responseData.profileComplete
+        : typeof responseData?.isProfileComplete === 'boolean'
+          ? responseData.isProfileComplete
+          : typeof responseData?.requiresProfileCompletion === 'boolean'
+            ? !responseData.requiresProfileCompletion
+            : undefined;
+
+    // Only update cookie if backend provides authoritative completion status.
+    if (isProfileComplete === true) {
       cookieStore.set({
         name: 'profile_complete',
         value: 'true',
@@ -91,8 +91,7 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
         maxAge: 60 * 60 * 24 * 7, // 7 days
       });
       logger.info('[updateUserProfile] Profile is now complete, cookie updated');
-    } else {
-      // Set to false if still incomplete
+    } else if (isProfileComplete === false) {
       cookieStore.set({
         name: 'profile_complete',
         value: 'false',
@@ -105,7 +104,7 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
       logger.debug('[updateUserProfile] Profile still incomplete, cookie updated');
     }
     
-    return { success: true, data, profileComplete: isProfileComplete };
+    return { success: true, data, ...(isProfileComplete !== undefined ? { profileComplete: isProfileComplete } : {}) };
   } catch (error) {
     const errorMessage = sanitizeErrorMessage(error);
     logger.error('[updateUserProfile] Failed', { 

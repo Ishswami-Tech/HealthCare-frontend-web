@@ -1,8 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,8 +25,15 @@ export default function PatientAppointments() {
   const queryLocationId = searchParams.get("locationId") || undefined;
   const queryClinicName = searchParams.get("clinicName") || undefined;
 
+  // Clear query parameters from URL to keep it clean, without triggering a re-render
+  useEffect(() => {
+    if (queryClinicId || queryLocationId || queryClinicName) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [queryClinicId, queryLocationId, queryClinicName]);
+
   return (
-    <DashboardLayout title="Patient Appointments" allowedRole={Role.PATIENT}>
+    
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">My Appointments</h1>
@@ -38,6 +45,11 @@ export default function PatientAppointments() {
             {...(queryClinicName && { clinicName: queryClinicName })}
             defaultOpen={!!queryClinicId}
           />
+        </div>
+
+        {/* Real-time Queue Status */}
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+           <PatientQueueCard />
         </div>
 
         {/* Existing AppointmentManager Component */}
@@ -203,6 +215,6 @@ export default function PatientAppointments() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    
   );
 }

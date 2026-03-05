@@ -1,9 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { VideoAppointmentRoom } from "@/components/video/VideoAppointmentRoom";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
@@ -118,30 +114,10 @@ export default function DoctorAppointments() {
     });
   }, [appointments, searchTerm, statusFilter]);
 
-  const sidebarLinks = getSidebarLinksByRole(Role.DOCTOR);
-
-  if (isLoadingAppointments) {
-    return (
-      <DashboardLayout title="Doctor Appointments" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
-        <Sidebar
-          links={sidebarLinks}
-          user={{ 
-            name: user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
-            avatarUrl: (user as any)?.profilePicture || "/avatar.png" 
-          }}
-        >
-          <div className="p-6 flex items-center justify-center min-h-[400px]">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          </div>
-        </Sidebar>
-      </DashboardLayout>
-    );
-  }
-
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'in progress': return 'bg-blue-100 text-blue-800';
-      case 'checked in': return 'bg-green-100 text-green-800'; 
+      case 'checked in': return 'bg-green-100 text-green-800';
       case 'scheduled': return 'bg-gray-100 text-gray-800';
       case 'completed': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -158,7 +134,6 @@ export default function DoctorAppointments() {
       showSuccessToast("Consultation started successfully", {
         id: TOAST_IDS.GLOBAL.SUCCESS,
       });
-      // Refetch appointments to update UI
       appointmentsQuery.refetch();
     } catch (error: any) {
       showErrorToast(error?.message || "Failed to start consultation", {
@@ -180,12 +155,10 @@ export default function DoctorAppointments() {
       showSuccessToast("Consultation completed successfully", {
         id: TOAST_IDS.GLOBAL.SUCCESS,
       });
-      // Clear form fields
       setDiagnosis("");
       setPrescription("");
       setConsultationNotes("");
       setSelectedAppointment(null);
-      // Refetch appointments to update UI
       appointmentsQuery.refetch();
     } catch (error: any) {
       showErrorToast(error?.message || "Failed to complete consultation", {
@@ -195,14 +168,12 @@ export default function DoctorAppointments() {
   };
 
   return (
-    <DashboardLayout title="Doctor Appointments" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{ 
-          name: user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png" 
-        }}
-      >
+    <>
+      {isLoadingAppointments ? (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      ) : (
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">My Appointments</h1>
@@ -302,7 +273,7 @@ export default function DoctorAppointments() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+                      <div className="w-12 h-12 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
                         <span className="text-blue-800 font-semibold text-lg">
                           {appointment.patientName.charAt(0)}
                         </span>
@@ -383,7 +354,7 @@ export default function DoctorAppointments() {
                                   patientId: appointment.patientId || "",
                                   startTime: new Date().toISOString(),
                                   endTime: new Date().toISOString(),
-                                  status: "in-progress",
+                                  status: "in-progress" as any,
                                   createdAt: new Date().toISOString(),
                                   updatedAt: new Date().toISOString(),
                                 };
@@ -652,8 +623,7 @@ export default function DoctorAppointments() {
             </Dialog>
           )}
         </div>
-      </Sidebar>
-    </DashboardLayout>
+      )}
+    </>
   );
 }
-

@@ -1383,3 +1383,29 @@ input[type="tel"].PhoneInputInput:active {
   outline: 0 !important;
   cursor: text !important;
 }
+
+/* ============================================================================
+   PASSWORD INPUT OVERRIDES
+   ============================================================================ */
+
+/* Hide browser-provided password reveal and search icons in password fields */
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none !important;
+}
+
+/* Hide Chrome/Edge password eye icon */
+input[type="password"]::-webkit-credentials-auto-fill-button:hover,
+input[type="password"]::-webkit-credentials-auto-fill-button:active {
+  display: none !important;
+}
+
+/* Hide browser-provided search/magnifying glass icon in autofill */
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-strong-password-auto-fill-button {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+

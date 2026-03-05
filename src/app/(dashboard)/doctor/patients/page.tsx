@@ -2,9 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +20,6 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { usePatients } from "@/hooks/query/usePatients";
@@ -42,8 +39,7 @@ import {
 } from "lucide-react";
 
 export default function DoctorPatients() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [genderFilter, setGenderFilter] = useState("all");
@@ -88,37 +84,19 @@ export default function DoctorPatients() {
     return matchesSearch && matchesGender && matchesAge;
   });
 
-  const sidebarLinks = getSidebarLinksByRole(Role.DOCTOR);
 
   if (isPendingPatients) {
     return (
-      <DashboardLayout title="Doctor Patients" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
-        <Sidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
-            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-          }}
-        >
+      
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </Sidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout title="Doctor Patients" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">My Patients</h1>
@@ -351,8 +329,7 @@ export default function DoctorPatients() {
             </DrawerContent>
           </Drawer>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }
 

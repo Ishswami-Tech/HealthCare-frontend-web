@@ -2,8 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
+
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { usePatients, useCreatePatient } from "@/hooks/query/usePatients";
@@ -48,8 +46,7 @@ import {
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 export default function ReceptionistPatients() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -207,20 +204,8 @@ export default function ReceptionistPatients() {
 
 
 
-  const sidebarLinks = getSidebarLinksByRole(Role.RECEPTIONIST);
-
   return (
-    <DashboardLayout title="Patient Management" allowedRole={Role.RECEPTIONIST}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Receptionist",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Patient Management</h1>
@@ -840,7 +825,6 @@ export default function ReceptionistPatients() {
             </Card>
           )}
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

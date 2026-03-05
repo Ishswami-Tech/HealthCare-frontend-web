@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SocialLogin } from "@/components/auth/social-login";
 import { PasswordStrength } from "@/components/ui/password-strength";
@@ -434,8 +435,7 @@ export default function RegisterPage() {
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     placeholder="Create password"
                     {...field}
                     disabled={isFormDisabled}
@@ -454,8 +454,7 @@ export default function RegisterPage() {
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     placeholder="Confirm password"
                     {...field}
                     disabled={isFormDisabled}
@@ -532,19 +531,19 @@ export default function RegisterPage() {
 
   return (
     <Card className="w-full max-w-[380px] mx-auto shadow-lg">
-      <CardHeader className="space-y-1 px-4 sm:px-6 relative">
+      <CardHeader className={cn("space-y-1 px-4 sm:px-6 relative", view !== "selection" && !isSuccess ? "pt-10" : "pt-2")}>
         {view !== "selection" && !isSuccess && (
             <Button
                 variant="ghost"
                 size="sm"
-                className="absolute left-4 top-4 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 p-0 hover:bg-transparent"
+                className="absolute left-4 top-3 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 p-0 hover:bg-transparent"
                 onClick={handleBack}
             >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
             </Button>
         )}
-        <h2 className="text-xl font-bold text-center pt-12">
+        <h2 className={cn("text-xl font-bold text-center", view !== "selection" && !isSuccess ? "pt-6" : "")}>
           {getHeaderTitle()}
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 text-center">

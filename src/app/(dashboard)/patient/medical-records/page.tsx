@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,22 +114,22 @@ export default function PatientMedicalRecords() {
   // Show error state if data fetch failed
   if (hasError) {
     return (
-      <DashboardLayout title="Medical Records" allowedRole={Role.PATIENT}>
+      
         <ErrorState
           title="Unable to load medical records"
           message="We couldn't fetch your medical records. Please try again."
           onRetry={() => setHasError(false)}
         />
-      </DashboardLayout>
+      
     );
   }
 
   // Show loading state while data is fetching
   if (isLoading) {
     return (
-      <DashboardLayout title="Medical Records" allowedRole={Role.PATIENT}>
+      
         <PageLoading text="Loading your medical records..." />
-      </DashboardLayout>
+      
     );
   }
 
@@ -225,7 +224,7 @@ export default function PatientMedicalRecords() {
 
 
   return (
-    <DashboardLayout title="Medical Records" allowedRole={Role.PATIENT}>
+    <>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Medical Records</h1>
@@ -989,6 +988,6 @@ export default function PatientMedicalRecords() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </>
   );
 }

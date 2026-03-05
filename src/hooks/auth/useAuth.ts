@@ -103,6 +103,16 @@ function isAuthError(error: unknown): boolean {
   return false;
 }
 
+function resolveProfileComplete(user: Record<string, unknown> | null | undefined): boolean {
+  if (!user) return false;
+  if (typeof user.profileComplete === 'boolean') return user.profileComplete;
+  if (typeof user.isProfileComplete === 'boolean') return user.isProfileComplete;
+  if (typeof user.requiresProfileCompletion === 'boolean') {
+    return !user.requiresProfileCompletion;
+  }
+  return false;
+}
+
 export function useAuth() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -286,11 +296,12 @@ export function useAuth() {
       },
       onSuccess: (data) => {
         // Convert AuthResponse to Session
-        const { profileComplete, ...restUser } = data.user;
+        const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+        const { ...restUser } = data.user;
         const sessionData: Session = {
           user: {
             ...restUser,
-            profileComplete: !!profileComplete,
+            profileComplete,
           } as User,
           access_token: data.access_token,
           session_id: data.session_id,
@@ -305,7 +316,7 @@ export function useAuth() {
         const redirect = resolveRedirect({
           user: {
             role: data.user.role as Role,
-            profileComplete: !!data.user.profileComplete,
+            profileComplete,
           },
           redirectUrl: data.redirectUrl,
           ...(currentPath ? { currentPath } : {}),
@@ -357,7 +368,7 @@ export function useAuth() {
             lastName: data.user.lastName || data.user.name?.split(' ').slice(1).join(' ') || '',
             isVerified: true,
             googleId: data.user.googleId || '',
-            profileComplete: data.user.profileComplete || false
+            profileComplete: resolveProfileComplete(data.user as unknown as Record<string, unknown>)
           },
           access_token: data.token || '',
           session_id: '',
@@ -382,7 +393,7 @@ export function useAuth() {
         }
 
         // Handle redirect based on profile completion
-        const profileComplete = data.user.profileComplete || false;
+        const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
 
         if (!profileComplete) {
           router.push(ROUTES.PROFILE_COMPLETION);
@@ -535,11 +546,12 @@ export function useAuth() {
       showToast: false, // Handle manually for custom message
       onSuccess: (data) => {
         // Convert AuthResponse to Session
-        const { profileComplete, ...restUser } = data.user;
+        const profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>);
+        const { ...restUser } = data.user;
         const sessionData: Session = {
            user: {
              ...restUser,
-             profileComplete: !!profileComplete,
+             profileComplete,
            } as User,
            access_token: data.access_token || '',
            session_id: data.session_id || '',
@@ -554,7 +566,7 @@ export function useAuth() {
         const redirectContext: RedirectContext = {
           user: {
             role: data.user.role as Role,
-            profileComplete: !!data.user.profileComplete,
+            profileComplete,
           },
           isAuthenticated: true,
         };

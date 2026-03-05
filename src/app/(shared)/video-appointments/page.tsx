@@ -174,7 +174,7 @@ export default function VideoAppointmentsPage() {
       !searchTerm ||
       apt.appointmentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       apt.roomName?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = !filterStatus || apt.status === filterStatus;
+    const matchesStatus = !filterStatus || filterStatus === "all" || apt.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -454,7 +454,7 @@ export default function VideoAppointmentsPage() {
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="scheduled">Scheduled</SelectItem>
                 <SelectItem value="in-progress">In Progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>

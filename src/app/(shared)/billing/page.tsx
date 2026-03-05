@@ -2,8 +2,7 @@
 
 import { useState, lazy, Suspense } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
+
 import { ProtectedRoute } from "@/components/rbac/ProtectedRoute";
 import { Permission } from "@/types/rbac.types";
 import { Invoice } from "@/types/billing.types";
@@ -41,7 +40,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-import { getRoutesByRole } from "@/lib/config/routes";
+
 import { useAuth } from "@/hooks/auth/useAuth";
 
 // ✅ Lazy load payment components
@@ -148,20 +147,8 @@ function BillingPageContent() {
     );
   };
 
-  const sidebarLinks = [...getRoutesByRole((user?.role as Role) || Role.PATIENT)];
-
   return (
-    <DashboardLayout
-      title="Billing & Subscriptions"
-      allowedRole={[Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.PATIENT]}
-    >
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name: user?.name || `${user?.firstName} ${user?.lastName}` || "User",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           {/* Real-time WebSocket Status Indicator */}
           <div className="flex items-center justify-end mb-4">
@@ -816,8 +803,7 @@ function BillingPageContent() {
             </DialogContent>
           </Dialog>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }
 
@@ -825,7 +811,7 @@ export default function BillingPage() {
   return (
     <ProtectedRoute 
       permission={Permission.VIEW_BILLING}
-      allowedRoles={[Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.RECEPTIONIST, Role.PATIENT]}
+      allowedRoles={[Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.ASSISTANT_DOCTOR, Role.RECEPTIONIST, Role.PATIENT, Role.FINANCE_BILLING]}
     >
       <BillingPageContent />
     </ProtectedRoute>

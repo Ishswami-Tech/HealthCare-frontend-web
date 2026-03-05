@@ -14,14 +14,12 @@ import {
 } from "lucide-react";
 // 3. Internal components
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 // 4. Hooks & config
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
+
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments } from "@/hooks/query/useAppointments";
@@ -42,8 +40,7 @@ interface AppointmentListItem {
 }
 
 export default function ReceptionistCheckInPage() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
@@ -106,37 +103,19 @@ export default function ReceptionistCheckInPage() {
     }
   };
 
-  const sidebarLinks = getSidebarLinksByRole(Role.RECEPTIONIST);
-  const displayName = user?.name || `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || "Receptionist";
-  const avatarUrl = user?.profilePicture || "/avatar.png";
 
   if (isLoading) {
     return (
-      <DashboardLayout title="Patient Check-in" allowedRole={Role.RECEPTIONIST}>
-        <Sidebar
-          links={sidebarLinks}
-          user={{
-            name: displayName,
-            avatarUrl,
-          }}
-        >
+      
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </Sidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout title="Patient Check-in" allowedRole={Role.RECEPTIONIST}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name: displayName,
-          avatarUrl,
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -288,7 +267,6 @@ export default function ReceptionistCheckInPage() {
             </CardContent>
           </Card>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

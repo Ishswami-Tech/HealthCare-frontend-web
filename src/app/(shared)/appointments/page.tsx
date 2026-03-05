@@ -54,6 +54,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 
 export default function AppointmentsPage() {
   const { session } = useAuth();
@@ -577,6 +578,13 @@ export default function AppointmentsPage() {
           </Button>
         </AppointmentProtectedComponent>
       </div>
+
+      {/* Patient Live Queue Status */}
+      {userRole === Role.PATIENT && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+           <PatientQueueCard />
+        </div>
+      )}
 
       {/* Filters */}
       <Card>

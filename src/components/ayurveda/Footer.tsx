@@ -169,7 +169,7 @@ const Footer = () => {
                   key={condition}
                   className="text-muted-foreground flex items-center space-x-2"
                 >
-                  <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+                  <CheckCircle className="w-4 h-4 text-primary shrink-0" />
                   <span>{condition}</span>
                 </li>
               ))}
@@ -184,7 +184,7 @@ const Footer = () => {
 
             <div className="space-y-4">
               <div className="flex items-start space-x-3">
-                <MapPin className="w-5 h-5 text-primary flex-shrink-0 mt-1" />
+                <MapPin className="w-5 h-5 text-primary shrink-0 mt-1" />
                 <div>
                   <p className="text-muted-foreground">{t("clinic.address")}</p>
                 </div>
@@ -206,7 +206,7 @@ const Footer = () => {
               </div>
 
               <div className="flex items-start space-x-3">
-                <Clock className="w-5 h-5 text-primary flex-shrink-0 mt-1" />
+                <Clock className="w-5 h-5 text-primary shrink-0 mt-1" />
                 <div>
                   <p className="text-muted-foreground">
                     {t("clinic.mondayToFriday")}
@@ -260,7 +260,7 @@ const Footer = () => {
                 {t("footer.disclaimer")}
               </Link>
               <Link
-                href="/sitemap"
+                href="/sitemap.xml"
                 className="text-muted-foreground hover:text-primary"
               >
                 {t("footer.sitemap")}

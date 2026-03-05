@@ -2,8 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments } from "@/hooks/query/useAppointments";
@@ -40,8 +37,7 @@ import {
 } from "lucide-react";
 
 export default function ReceptionistAppointments() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -143,29 +139,14 @@ export default function ReceptionistAppointments() {
     [filteredAppointments]
   );
 
-  const sidebarLinks = getSidebarLinksByRole(Role.RECEPTIONIST);
 
   if (isLoadingAppointments) {
     return (
-      <DashboardLayout
-        title="Appointment Management"
-        allowedRole={Role.RECEPTIONIST}
-      >
-        <Sidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name ||
-              `${user?.firstName} ${user?.lastName}` ||
-              "Receptionist",
-            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-          }}
-        >
+      
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </Sidebar>
-      </DashboardLayout>
+      
     );
   }
 
@@ -233,20 +214,7 @@ export default function ReceptionistAppointments() {
 
 
   return (
-    <DashboardLayout
-      title="Appointment Management"
-      allowedRole={Role.RECEPTIONIST}
-    >
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Receptionist",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">
@@ -726,7 +694,6 @@ export default function ReceptionistAppointments() {
             </CardContent>
           </Card>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

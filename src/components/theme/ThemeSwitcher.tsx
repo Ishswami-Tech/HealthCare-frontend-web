@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/context"; // ✅ Use consolidated i18n
@@ -49,13 +49,6 @@ export function ThemeSwitcher({ className }: ThemeSwitcherProps) {
       icon: Moon,
       activeColor: "bg-gray-800 text-white",
       hoverColor: "hover:bg-gray-700 hover:text-white",
-    },
-    {
-      name: t("common.systemTheme"),
-      value: "system",
-      icon: Monitor,
-      activeColor: "bg-blue-500 text-white",
-      hoverColor: "hover:bg-blue-400 hover:text-white",
     },
   ];
 
@@ -131,13 +124,6 @@ export function ThemeSwitcherWithLabels({ className }: ThemeSwitcherProps) {
       activeColor: "bg-gray-800 text-white",
       hoverColor: "hover:bg-gray-700 hover:text-white",
     },
-    {
-      name: t("common.systemTheme"),
-      value: "system",
-      icon: Monitor,
-      activeColor: "bg-blue-500 text-white",
-      hoverColor: "hover:bg-blue-400 hover:text-white",
-    },
   ];
 
   return (
@@ -171,78 +157,39 @@ export function ThemeSwitcherWithLabels({ className }: ThemeSwitcherProps) {
   );
 }
 
-// Compact version for mobile
+// Compact version for mobile (Toggle)
 export function CompactThemeSwitcher({ className }: ThemeSwitcherProps) {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, systemTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
     return (
       <div className={cn("flex items-center", className)}>
-        <div className="flex bg-gray-200 dark:bg-gray-700 rounded-full p-1">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse"
-            />
-          ))}
-        </div>
+        <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
       </div>
     );
   }
 
-  const themes = [
-    {
-      value: "system",
-      icon: Monitor,
-      activeColor: "bg-blue-500 text-white",
-      hoverColor: "hover:bg-blue-400 hover:text-white",
-    },
-    {
-      value: "light",
-      icon: Sun,
-      activeColor: "bg-yellow-500 text-white",
-      hoverColor: "hover:bg-yellow-400 hover:text-white",
-    },
-    {
-      value: "dark",
-      icon: Moon,
-      activeColor: "bg-gray-800 text-white",
-      hoverColor: "hover:bg-gray-700 hover:text-white",
-    },
-  ];
+  const currentTheme = theme === "system" ? systemTheme : theme;
+  const isDark = currentTheme === "dark";
 
   return (
-    <div className={cn("flex items-center", className)}>
-      <div className="relative flex bg-gray-200 dark:bg-gray-700 rounded-full p-1 gap-0.5">
-        {themes.map((themeOption) => {
-          const Icon = themeOption.icon;
-          const isActive = theme === themeOption.value;
-
-          return (
-            <button
-              key={themeOption.value}
-              type="button"
-              onClick={() => setTheme(themeOption.value)}
-              className={cn(
-                "relative flex items-center justify-center w-6 h-6 rounded-full transition-all duration-300 ease-in-out",
-                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1",
-                isActive
-                  ? `${themeOption.activeColor} shadow-md scale-105`
-                  : `text-gray-500 dark:text-gray-400 ${themeOption.hoverColor}`
-              )}
-              aria-label={`Switch to ${themeOption.value} theme`}
-            >
-              <Icon className="h-3 w-3" />
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <button
+      type="button"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      className={cn(
+        "relative flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ease-in-out",
+        "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1",
+        "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300",
+        className
+      )}
+      aria-label="Toggle theme"
+    >
+      {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+    </button>
   );
 }

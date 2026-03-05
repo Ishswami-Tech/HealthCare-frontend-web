@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import type { AppointmentType, TreatmentType } from "@/types/appointment.types";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -21,35 +20,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { useCreateAppointment, useDoctorAvailability } from "@/hooks/query/useAppointments";
-import { useActiveLocations, useClinic, useClinicContext, useMyClinic } from "@/hooks/query/useClinics";
+import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
 import { APP_CONFIG } from "@/lib/config/config";
 import { toast } from "sonner";
 import { theme } from "@/lib/utils/theme-utils";
-import { format, startOfDay } from "date-fns";
+import { format } from "date-fns";
 import {
-  Activity,
-  Plus,
-  Video,
-  MapPin,
-  Clock,
-  Leaf,
-  Waves,
-  Flame,
-  Heart,
-  Brain,
-  Droplets,
-  Wind,
-  CheckCircle,
-  ChevronRight,
-  ChevronLeft,
-  Stethoscope,
-  User,
-  Building,
-  Loader2
+  Activity, Plus, Leaf, Waves, Clock,
+  Flame, Heart, Brain, Droplets, Wind, CheckCircle,
+  ChevronLeft, User, Loader2,
+  CalendarIcon, Sun, CloudSun, Moon, QrCode, Download,
+  Check, ArrowRight, Video, MapPin, Building,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -69,859 +54,796 @@ interface ConsultationTypeItem {
 }
 
 interface BookAppointmentDialogProps {
-  /** Custom trigger element — if omitted a default "Book Appointment" button is shown */
   trigger?: React.ReactNode;
-  /** Pre-selected clinic ID (e.g. from ClinicSelectDialog) */
   clinicId?: string;
-  /** Pre-selected location ID */
   locationId?: string;
-  /** Pre-selected clinic Name */
   clinicName?: string;
-  /** Auto-open the dialog on mount */
   defaultOpen?: boolean;
-  /** Callback fired after a successful booking */
   onBooked?: () => void;
 }
 
-// ─── Consultation catalogue (single source of truth) ────────────────────────
+// ─── Consultation catalogue ──────────────────────────────────────────────────
 
 const CONSULTATION_TYPES: ConsultationTypeItem[] = [
-  {
-    id: "general_consultation",
-    name: "General Consultation",
-    description: "Comprehensive health assessment and treatment planning",
-    duration: 30,
-    price: 500,
-    icon: <Activity className="w-5 h-5" />,
-    color: theme.badges.blue,
-    videoAvailable: true,
-    category: "Consultation",
-    backendType: "IN_PERSON",
-    treatmentType: "GENERAL_CONSULTATION",
-  },
-  {
-    id: "nadi_pariksha",
-    name: "Nadi Pariksha",
-    description: "Traditional pulse diagnosis to assess dosha imbalances",
-    duration: 45,
-    price: 800,
-    icon: <Heart className="w-5 h-5" />,
-    color: theme.badges.red,
-    videoAvailable: false,
-    category: "Diagnosis",
-    backendType: "IN_PERSON",
-    treatmentType: "NADI_PARIKSHA",
-  },
-  {
-    id: "dosha_analysis",
-    name: "Dosha Analysis",
-    description: "Comprehensive constitutional analysis and lifestyle recommendations",
-    duration: 60,
-    price: 1000,
-    icon: <Leaf className="w-5 h-5" />,
-    color: theme.badges.green,
-    videoAvailable: true,
-    category: "Analysis",
-    backendType: "IN_PERSON",
-    treatmentType: "DOSHA_ANALYSIS",
-  },
-  {
-    id: "ayurveda_consultation",
-    name: "Ayurveda Consultation",
-    description: "Holistic health assessment based on Doshas",
-    duration: 45,
-    price: 800,
-    icon: <Leaf className="w-5 h-5" />,
-    color: theme.badges.orange,
-    videoAvailable: true,
-    category: "Ayurveda",
-    backendType: "IN_PERSON",
-    treatmentType: "GENERAL_CONSULTATION", // Or specific Ayurveda type if available
-  },
-  {
-    id: "panchakarma",
-    name: "Panchakarma Therapy",
-    description: "Detoxification and rejuvenation treatment sessions",
-    duration: 90,
-    price: 2000,
-    icon: <Droplets className="w-5 h-5" />,
-    color: theme.badges.cyan,
-    videoAvailable: false,
-    category: "Therapy",
-    backendType: "IN_PERSON",
-    treatmentType: "PANCHAKARMA",
-  },
-  {
-    id: "shirodhara",
-    name: "Shirodhara",
-    description: "Medicated oil pouring therapy for stress and nervous disorders",
-    duration: 60,
-    price: 1500,
-    icon: <Waves className="w-5 h-5" />,
-    color: theme.badges.indigo,
-    videoAvailable: false,
-    category: "Therapy",
-    backendType: "IN_PERSON",
-    treatmentType: "SHIRODHARA",
-  },
-  {
-    id: "abhyanga",
-    name: "Abhyanga Massage",
-    description: "Full body therapeutic oil massage for rejuvenation",
-    duration: 75,
-    price: 1200,
-    icon: <Wind className="w-5 h-5" />,
-    color: theme.badges.purple,
-    videoAvailable: false,
-    category: "Therapy",
-    backendType: "IN_PERSON",
-    treatmentType: "ABHYANGA",
-  },
-  {
-    id: "viddhakarma",
-    name: "Viddhakarma",
-    description: "Minor surgical procedures using traditional Ayurvedic methods",
-    duration: 45,
-    price: 1800,
-    icon: <Activity className="w-5 h-5" />,
-    color: theme.badges.orange,
-    videoAvailable: false,
-    category: "Surgery",
-    backendType: "IN_PERSON",
-    treatmentType: "VIDDHAKARMA",
-  },
-  {
-    id: "agnikarma",
-    name: "Agnikarma",
-    description: "Therapeutic cauterization for chronic pain and joint disorders",
-    duration: 30,
-    price: 1500,
-    icon: <Flame className="w-5 h-5" />,
-    color: theme.badges.red,
-    videoAvailable: false,
-    category: "Surgery",
-    backendType: "IN_PERSON",
-    treatmentType: "AGNIKARMA",
-  },
-  {
-    id: "lifestyle_counseling",
-    name: "Lifestyle Counseling",
-    description: "Personalized diet, exercise and daily routine recommendations",
-    duration: 45,
-    price: 600,
-    icon: <Brain className="w-5 h-5" />,
-    color: theme.badges.emerald,
-    videoAvailable: true,
-    category: "Counseling",
-    backendType: "IN_PERSON",
-    treatmentType: "GENERAL_CONSULTATION",
-  },
-  {
-    id: "follow_up",
-    name: "Follow-up Consultation",
-    description: "Progress review and treatment adjustments",
-    duration: 20,
-    price: 300,
-    icon: <CheckCircle className="w-5 h-5" />,
-    color: theme.badges.gray,
-    videoAvailable: true,
-    category: "Consultation",
-    backendType: "IN_PERSON",
-    treatmentType: "FOLLOW_UP",
-  },
+  { id: "general_consultation", name: "General Consultation", description: "Comprehensive health assessment and treatment planning", duration: 30, price: 500, icon: <Activity className="w-5 h-5" />, color: theme.badges.blue, videoAvailable: true, category: "Consultation", backendType: "IN_PERSON", treatmentType: "GENERAL_CONSULTATION" },
+  { id: "nadi_pariksha", name: "Nadi Pariksha", description: "Traditional pulse diagnosis to assess dosha imbalances", duration: 45, price: 800, icon: <Heart className="w-5 h-5" />, color: theme.badges.red, videoAvailable: false, category: "Diagnosis", backendType: "IN_PERSON", treatmentType: "NADI_PARIKSHA" },
+  { id: "dosha_analysis", name: "Dosha Analysis", description: "Comprehensive constitutional analysis and lifestyle recommendations", duration: 60, price: 1000, icon: <Brain className="w-5 h-5" />, color: theme.badges.purple, videoAvailable: true, category: "Diagnosis", backendType: "IN_PERSON", treatmentType: "DOSHA_ANALYSIS" },
+  { id: "panchakarma", name: "Panchakarma Therapy", description: "Traditional detoxification and rejuvenation treatment", duration: 90, price: 2000, icon: <Leaf className="w-5 h-5" />, color: theme.badges.emerald, videoAvailable: false, category: "Treatment", backendType: "IN_PERSON", treatmentType: "PANCHAKARMA" },
+  { id: "abhyanga", name: "Abhyanga Massage", description: "Full body Ayurvedic therapeutic oil massage", duration: 60, price: 1200, icon: <Waves className="w-5 h-5" />, color: theme.badges.blue, videoAvailable: false, category: "Treatment", backendType: "IN_PERSON", treatmentType: "ABHYANGA" },
+  { id: "shirodhara", name: "Shirodhara", description: "Continuous oil flow on forehead for stress and anxiety", duration: 45, price: 1500, icon: <Droplets className="w-5 h-5" />, color: theme.badges.blue, videoAvailable: false, category: "Treatment", backendType: "IN_PERSON", treatmentType: "SHIRODHARA" },
+  { id: "swedana", name: "Swedana (Steam)", description: "Herbal steam therapy for detoxification and relaxation", duration: 30, price: 800, icon: <Wind className="w-5 h-5" />, color: theme.badges.orange, videoAvailable: false, category: "Treatment", backendType: "IN_PERSON", treatmentType: "SWEDANA" },
+  { id: "agnikarma", name: "Agnikarma", description: "Therapeutic heat procedure for musculoskeletal pain relief", duration: 45, price: 1000, icon: <Flame className="w-5 h-5" />, color: theme.badges.red, videoAvailable: false, category: "Surgery", backendType: "IN_PERSON", treatmentType: "AGNIKARMA" },
+  { id: "lifestyle_counseling", name: "Lifestyle Counseling", description: "Personalized diet, exercise and daily routine recommendations", duration: 45, price: 600, icon: <Brain className="w-5 h-5" />, color: theme.badges.emerald, videoAvailable: true, category: "Counseling", backendType: "IN_PERSON", treatmentType: "GENERAL_CONSULTATION" },
+  { id: "follow_up", name: "Follow-up Consultation", description: "Progress review and treatment adjustments", duration: 20, price: 300, icon: <CheckCircle className="w-5 h-5" />, color: theme.badges.gray, videoAvailable: true, category: "Consultation", backendType: "IN_PERSON", treatmentType: "FOLLOW_UP" },
 ];
 
+// ─── Slot grouping helper ────────────────────────────────────────────────────
+
+function groupSlotsByPeriod(slots: string[]) {
+  const morning: string[] = [];
+  const afternoon: string[] = [];
+  const evening: string[] = [];
+
+  slots.forEach((slot) => {
+    const hour = parseInt(slot.split(":")[0] ?? "0");
+    if (hour < 12) morning.push(slot);
+    else if (hour < 17) afternoon.push(slot);
+    else evening.push(slot);
+  });
+
+  return { morning, afternoon, evening };
+}
+
+// ─── Step indicators ─────────────────────────────────────────────────────────
+
+const STEPS = ["Location", "Service", "Doctor", "Date", "Slot", "Confirm"] as const;
+
 // ─── Component ──────────────────────────────────────────────────────────────
+
+/**
+ * Helper to get Today in IST (India Standard Time)
+ * Ensures frontend and backend agree on what 'Today' is, regardless of browser timezone.
+ */
+const getTodayIST = () => {
+  const now = new Date();
+  // Get date parts in IST
+  const formatter = new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const istDateString = formatter.format(now); // "YYYY-MM-DD"
+  // Create a local date object set to that day (start of day)
+  return new Date(istDateString);
+};
+
+const formatDateIST = (date: Date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 
 export function BookAppointmentDialog({
   trigger,
   clinicId,
   locationId,
-  clinicName,
   defaultOpen = false,
   onBooked,
 }: BookAppointmentDialogProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const { session } = useAuth();
-  const user = session?.user;
   const { clinicId: contextClinicId } = useClinicContext();
   const activeClinicId = clinicId || contextClinicId || APP_CONFIG.CLINIC.ID;
 
-  // ─── State ────────────────────────────────────────────────────────────────
+  // ─── Dialog / Step state ──────────────────────────────────────────────────
   const [open, setOpen] = useState(defaultOpen);
-  // If location is pre-selected, start at Step 2
-  const [currentStep, setCurrentStep] = useState(locationId ? 2 : 1);
-  
-  // Form Data
-  const [selectedLocationId, setSelectedLocationId] = useState<string>(locationId || "");
-  const [consultationMode, setConsultationMode] = useState<"VIDEO" | "IN_PERSON" | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
-  const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [selectedSlot, setSelectedSlot] = useState<string>("");
-  
-  // Additional Details
+  // If locationId provided as prop, skip step 1
+  const [step, setStep] = useState(locationId ? 2 : 1);
+  const [serviceFilter, setServiceFilter] = useState("All");
+
+  // ─── Selections ───────────────────────────────────────────────────────────
+  const [selectedLocationId, setSelectedLocationId] = useState(locationId || "");
+  const [consultationMode, setConsultationMode] = useState<"IN_PERSON" | "VIDEO">("IN_PERSON");
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [selectedDoctorId, setSelectedDoctorId] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(getTodayIST());
+  const [selectedSlot, setSelectedSlot] = useState("");
   const [chiefComplaint, setChiefComplaint] = useState("");
-  const [symptoms, setSymptoms] = useState("");
   const [urgency, setUrgency] = useState("Normal");
+  const [bookedAppointmentId, setBookedAppointmentId] = useState("");
 
-  // ─── Queries ──────────────────────────────────────────────────────────────
-  // ─── Queries ──────────────────────────────────────────────────────────────
-  const { data: locations = [], isPending: locationsLoading } = useActiveLocations(activeClinicId);
-  const { data: clinic, isPending: clinicLoading } = useClinic(activeClinicId);
-  const { data: myClinic } = useMyClinic();
-
-  // Use myClinic data if available and matches the active ID (often more reliable for patients)
-  const displayClinic = clinic || (myClinic?.id === activeClinicId ? myClinic : null);
-
+  // ─── Queries ─────────────────────────────────────────────────────────────
+  const { data: locations = [] } = useActiveLocations(activeClinicId);
   const { data: doctorsData, isPending: doctorsLoading } = useDoctors(activeClinicId, {
-    locationId: selectedLocationId
+    locationId: selectedLocationId,
   });
-  
-  // Construct date string YYYY-MM-DD for availability check
-  const dateString = useMemo(() => {
-     return selectedDate ? format(selectedDate, 'yyyy-MM-dd') : "";
-  }, [selectedDate]);
 
-  const { data: availability, isPending: availabilityLoading } = useDoctorAvailability(
-    selectedDoctorId, 
+  const dateString = useMemo(() => (selectedDate ? formatDateIST(selectedDate) : ""), [selectedDate]);
+
+  const { data: availability, isPending: availabilityLoading, error: availabilityError } = useDoctorAvailability(
+    activeClinicId,
+    selectedDoctorId,
     dateString,
     selectedLocationId
   );
-  
+
   const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment();
 
-  const selectedService = useMemo(() => 
-    CONSULTATION_TYPES.find((t) => t.id === selectedServiceId), 
-  [selectedServiceId]);
+  // ─── Derived ─────────────────────────────────────────────────────────────
+  const selectedService = useMemo(
+    () => CONSULTATION_TYPES.find((t) => t.id === selectedServiceId),
+    [selectedServiceId]
+  );
 
-  // ─── Handlers ─────────────────────────────────────────────────────────────
+  const doctorsList: any[] = useMemo(() => {
+    // The GET /doctors API returns User records with a nested `doctor` relation:
+    // { id: userId, name, doctor: { id: doctorId, specialization, ... } }
+    // We need to normalize this so `d.id` = the Doctor entity ID (not User ID)
+    const normalize = (users: any[]) =>
+      users.map((u) => ({
+        ...u,
+        // Expose the Doctor entity's id as the primary id for availability/booking
+        id: u.doctor?.id || u.id,
+        userId: u.id, // Keep user id separately
+        name: u.name || u.doctor?.user?.name || `Dr. ${u.id?.slice(0, 6)}`,
+        specialization: u.doctor?.specialization || u.specialization || '',
+        image: u.profilePicture || u.doctor?.user?.profilePicture || u.image || '',
+      }));
 
-  // Reset form when dialog closes
+    if (Array.isArray(doctorsData)) return normalize(doctorsData);
+    if (Array.isArray((doctorsData as any)?.data?.doctors)) return normalize((doctorsData as any).data.doctors);
+    if (Array.isArray((doctorsData as any)?.data)) return normalize((doctorsData as any).data);
+    const raw = (doctorsData as any)?.doctors || [];
+    return normalize(raw);
+  }, [doctorsData]);
+
+  const selectedDoctor = useMemo(
+    () => doctorsList.find((d: any) => d.id === selectedDoctorId),
+    [doctorsList, selectedDoctorId]
+  );
+
+  const slots = useMemo(() => {
+    if (Array.isArray((availability as any)?.availableSlots)) return (availability as any).availableSlots;
+    if (Array.isArray((availability as any)?.data?.availableSlots)) return (availability as any).data.availableSlots;
+    if (Array.isArray((availability as any)?.data?.data?.availableSlots)) return (availability as any).data.data.availableSlots;
+    return [];
+  }, [availability]);
+
+  const slotGroups = useMemo(() => groupSlotsByPeriod(slots as string[]), [slots]);
+
+  // ─── Reset on close ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) {
-      setCurrentStep(locationId ? 2 : 1);
+      setStep(locationId ? 2 : 1);
       setSelectedLocationId(locationId || "");
-      setConsultationMode(null);
+      setConsultationMode("IN_PERSON");
       setSelectedServiceId("");
       setSelectedDoctorId("");
-      setSelectedDate(new Date());
+      setSelectedDate(getTodayIST());
       setSelectedSlot("");
       setChiefComplaint("");
-      setSymptoms("");
       setUrgency("Normal");
+      setBookedAppointmentId("");
     }
   }, [open, locationId]);
 
-  const handleNext = () => {
-    if (currentStep === 1 && !selectedLocationId) {
-      toast.error("Please select a location");
-      return;
+  // Auto-pick first location
+  useEffect(() => {
+    if (!selectedLocationId && locations.length > 0) {
+      setSelectedLocationId((locations[0] as any)?.id || "");
     }
-    if (currentStep === 2 && !consultationMode) {
-      toast.error("Please select a consultation mode");
-      return;
-    }
-    if (currentStep === 3 && !selectedServiceId) {
-      toast.error("Please select a service");
-      return;
-    }
-    
-    setCurrentStep((prev) => Math.min(prev + 1, 4));
-  };
+  }, [locations, selectedLocationId]);
 
-  const handleBack = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 1));
-  };
-
-  const handleBookAppointment = async () => {
-    if (!user?.id) {
-      toast.error("You must be logged in to book an appointment");
-      return;
-    }
-    
-    if (!selectedDoctorId || !selectedDate || !selectedSlot) {
-      toast.error("Please select doctor, date and time");
-      return;
-    }
-
-    if (!selectedService) {
-        toast.error("Invalid service selection");
-        return;
-    }
+  // ─── Book appointment ─────────────────────────────────────────────────────
+  const handleBook = useCallback(async () => {
+    if (!selectedService || !selectedDoctorId || !selectedDate || !selectedSlot) return;
 
     try {
-      // Logic:
-      // If Video Mode -> Type is VIDEO_CALL, Location is Omitted (backend logic)
-      // If In-Person -> Type is SERVICE_backendType, Location is Required
-      
-      const payloadType = consultationMode === "VIDEO" ? "VIDEO_CALL" : selectedService.backendType;
-      // Note: Even for VIDEO_CALL, we might want to send locationId if the backend allows it for record keeping,
-      // but per requirements, In-Person definitely needs it.
-      // If mode is VIDEO, we send the locationId only if the backend doesn't reject it, 
-      // otherwise undefined. Let's send it if available, as the controller might use it for 'clinic' context.
-      // Actually, plan said "Video Mode: locationId is omitted". Let's stick to that to be safe.
-      const payloadLocationId = consultationMode === "IN_PERSON" ? selectedLocationId : undefined;
+      const appointmentDate = new Date(selectedDate);
+      const [hours, minutes] = selectedSlot.split(":").map(Number);
+      appointmentDate.setHours(hours ?? 0, minutes ?? 0, 0, 0);
 
-      await createAppointment({
-        patientId: user.id as string,
-        doctorId: selectedDoctorId,
-        type: payloadType,
-        date: format(selectedDate, 'yyyy-MM-dd'),
-        time: selectedSlot,
-        duration: selectedService.duration,
-        notes: chiefComplaint,
-        symptoms: symptoms ? [symptoms] : [],
-        priority: urgency.toUpperCase() as "LOW" | "NORMAL" | "HIGH" | "URGENT",
+      const result = await createAppointment({
         clinicId: activeClinicId,
-        locationId: payloadLocationId,
+        doctorId: selectedDoctorId,
+        locationId: selectedLocationId,
+        date: formatDateIST(appointmentDate),
+        time: selectedSlot,
+        type: (consultationMode || selectedService.backendType) as AppointmentType,
+        treatmentType: selectedService.treatmentType,
+        duration: selectedService.duration,
+        notes: chiefComplaint || selectedService.name,
+        priority: urgency.toUpperCase() as any,
+        patientId: session?.user?.id ?? "",
       });
 
-      toast.success("Appointment booked successfully!");
-      setOpen(false);
+      const apptId = (result as any)?.id || (result as any)?.data?.id || "APPT-" + Date.now();
+      setBookedAppointmentId(apptId);
+      setStep(7); // step 7 = success/QR screen
       onBooked?.();
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to book appointment";
-      toast.error(msg);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to book appointment. Please try again.");
     }
-  };
+  }, [selectedService, selectedDoctorId, selectedDate, selectedSlot, chiefComplaint, urgency, activeClinicId, selectedLocationId, createAppointment, session, onBooked]);
 
-  // ─── Step Renderers ───────────────────────────────────────────────────────
+  // ─── Navigation ──────────────────────────────────────────────────────────
+  const canNext = useMemo(() => {
+    if (step === 1) return !!selectedLocationId && !!consultationMode;
+    if (step === 2) return !!selectedServiceId;
+    if (step === 3) return !!selectedDoctorId;
+    if (step === 4) return !!selectedDate;
+    if (step === 5) return !!selectedSlot;
+    return true;
+  }, [step, selectedLocationId, selectedServiceId, selectedDoctorId, selectedDate, selectedSlot]);
 
-  const renderStep1_Location = () => (
-    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-      
-      {/* Clinic Context Header */}
-      <div className="bg-muted/30 p-5 rounded-xl border border-border/50">
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Booking Appointment For</p>
-        
-        {clinicLoading && !clinicName && !displayClinic ? (
-           <div className="space-y-2">
-              <div className="h-6 w-48 bg-muted animate-pulse rounded" />
-              <div className="h-4 w-64 bg-muted animate-pulse rounded" />
-           </div>
-        ) : (displayClinic || clinicName) ? (
-           <div className="flex items-start gap-4">
-              <div className={`p-3 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 shrink-0`}>
-                 <Building className="w-6 h-6" />
+  const TOTAL_STEPS = 6;
+  const goNext = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
+  const goBack = () => setStep((s) => Math.max(s - 1, 1));
+
+  // ─── QR data ─────────────────────────────────────────────────────────────
+  const qrData = useMemo(() => {
+    return JSON.stringify({
+      appointmentId: bookedAppointmentId,
+      patient: session?.user?.name,
+      doctor: selectedDoctor?.name,
+      date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : "",
+      slot: selectedSlot,
+    });
+  }, [bookedAppointmentId, session, selectedDoctor, selectedDate, selectedSlot]);
+
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
+
+  // ─── Render helpers ───────────────────────────────────────────────────────
+
+  const renderStepBar = () => (
+    <div className="flex items-center justify-between px-1">
+      {STEPS.map((label, i) => {
+        const s = i + 1;
+        const done = step > s;
+        const active = step === s;
+        return (
+          <div key={label} className="flex items-center gap-1">
+            <div className="flex flex-col items-center gap-0.5">
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  done
+                    ? "bg-primary text-primary-foreground"
+                    : active
+                    ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {done ? <Check className="w-3.5 h-3.5" /> : s}
               </div>
-              <div>
-                 <h3 className="text-lg font-bold text-foreground">{displayClinic?.name || clinicName}</h3>
-                 <p className="text-sm text-muted-foreground">
-                    {displayClinic?.address ? `${displayClinic.address}, ${displayClinic.city || ""}` : "Ayurvedic Treatment Center"}
-                 </p>
-                 <div className="flex items-center gap-2 mt-2">
-                    <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">
-                       Verified Clinic
-                    </span>
-                 </div>
-              </div>
-           </div>
+              <span
+                className={`text-[9px] font-semibold uppercase tracking-wider hidden sm:block ${
+                  active ? "text-primary" : done ? "text-primary/60" : "text-muted-foreground"
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={`h-0.5 w-4 sm:w-8 rounded-full mx-1 ${done ? "bg-primary" : "bg-muted"}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // ─── Step 1: Location + Mode ─────────────────────────────────────────────
+  const renderStep1 = () => (
+    <div className="flex flex-col gap-5">
+      {/* Location */}
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Visit Location</p>
+        {(locations as any[]).length === 0 ? (
+          <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
+            <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
+            Loading locations...
+          </div>
         ) : (
-           <div className="text-center p-4 text-muted-foreground border border-dashed rounded-lg">
-              Clinic information unavailable
-           </div>
+          <div className="space-y-2">
+            {(locations as any[]).map((loc) => (
+              <button
+                key={loc.id}
+                onClick={() => {
+                  setSelectedLocationId(loc.id);
+                  // Auto-proceed if consultation mode is also selected (it has a default)
+                  if (consultationMode) setTimeout(goNext, 150);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                  selectedLocationId === loc.id
+                    ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                    : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
+                }`}
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  selectedLocationId === loc.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                }`}>
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`font-semibold text-sm ${ selectedLocationId === loc.id ? "text-primary" : ""}`}>
+                    {loc.name || loc.address || "Location"}
+                  </p>
+                  {loc.address && loc.name && (
+                    <p className="text-xs text-muted-foreground truncate">{loc.address}</p>
+                  )}
+                </div>
+                {selectedLocationId === loc.id && (
+                  <Check className="w-4 h-4 text-primary shrink-0" />
+                )}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Select Location Section */}
-      <div>
-         <div className="flex items-center justify-between mb-4 px-1">
-            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Select Location</h3>
-            <span className="text-xs font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">
-               {locationsLoading ? "..." : `${locations.length} Locations Available`}
-            </span>
-         </div>
-
-        {locationsLoading ? (
-          <div className="space-y-3">
-             <div className="h-20 rounded-xl bg-muted animate-pulse" />
-             <div className="h-20 rounded-xl bg-muted animate-pulse" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3">
-              {locations.map((loc) => (
-                  <div
-                  key={loc.id}
-                  onClick={() => setSelectedLocationId(loc.id)}
-                  className={`p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md relative overflow-hidden group ${
-                      selectedLocationId === loc.id
-                      ? `${theme.borders.primary} ${theme.containers.featureBlue} ring-2 ring-blue-500 bg-white dark:bg-gray-900`
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 bg-white dark:bg-gray-900"
-                  }`}
-                  >
-                  <div className="flex items-start gap-4 relative z-10">
-                      <div className={`mt-1 shrink-0`}>
-                         {selectedLocationId === loc.id ? (
-                             <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shadow-sm">
-                                <div className="w-2.5 h-2.5 rounded-full bg-white" />
-                             </div>
-                         ) : (
-                             <div className="w-6 h-6 rounded-full border-2 border-muted-foreground/30 group-hover:border-blue-500/50 transition-colors" />
-                         )}
-                      </div>
-                      <div className="flex-1">
-                          <div className="flex items-start justify-between">
-                             <h4 className={`font-bold text-base ${selectedLocationId === loc.id ? 'text-blue-700 dark:text-blue-400' : 'text-foreground'}`}>
-                                {loc.name}
-                             </h4>
-                             {selectedLocationId === loc.id && (
-                                <span className="text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-full">
-                                   Selected
-                                </span>
-                             )}
-                          </div>
-                          
-                          <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                              <MapPin className="w-4 h-4 shrink-0" />
-                              <span className="line-clamp-1">{loc.address}, {loc.city}</span>
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center gap-3 mt-3">
-                              <span className="text-xs font-medium text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-md flex items-center gap-1.5 border border-green-100 dark:border-green-900/30">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                                  Accepting Appointments
-                              </span>
-                              <span className="text-xs text-muted-foreground flex items-center gap-1 bg-secondary/50 px-2 py-1 rounded-md">
-                                 <Clock className="w-3 h-3" />
-                                 {loc.workingHours ? "Open Now" : "09:00 AM - 06:00 PM"}
-                              </span>
-                          </div>
-                      </div>
-                  </div>
-                  {selectedLocationId === loc.id && (
-                      <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                         <MapPin className="w-24 h-24 text-blue-600" />
-                      </div>
-                  )}
-                  </div>
-              ))}
-
-              {locations.length === 0 && !locationsLoading && (
-                  <div className="text-center p-8 bg-muted/30 rounded-xl border border-dashed">
-                      <p className="text-muted-foreground font-medium">No active locations found for this clinic.</p>
-                      <p className="text-xs text-muted-foreground mt-1">Please try again later or contact support.</p>
-                  </div>
-              )}
-          </div>
-        )}
+      {/* Mode */}
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Consultation Mode</p>
+        <div className="grid grid-cols-2 gap-3">
+          {([
+            { value: "IN_PERSON", label: "In-Person", desc: "Visit the clinic", icon: <Building className="w-5 h-5" /> },
+            { value: "VIDEO", label: "Video Call", desc: "Remote consultation", icon: <Video className="w-5 h-5" /> },
+          ] as const).map(({ value, label, desc, icon }) => (
+            <button
+              key={value}
+              onClick={() => {
+                setConsultationMode(value);
+                // Auto-proceed if location is also selected
+                if (selectedLocationId) setTimeout(goNext, 150);
+              }}
+              className={`flex flex-col items-center gap-2 px-4 py-4 rounded-xl border transition-all ${
+                consultationMode === value
+                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                  : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                consultationMode === value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              }`}>
+                {icon}
+              </div>
+              <div className="text-center">
+                <p className={`text-sm font-semibold ${ consultationMode === value ? "text-primary" : ""}`}>{label}</p>
+                <p className="text-[11px] text-muted-foreground">{desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
 
-  const renderStep2_Mode = () => (
-    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold mb-1">Consultation Mode</h3>
-        <p className={`text-sm ${theme.textColors.secondary}`}>
-          How would you like to consult with the doctor?
+  // Step 2: Service (was Step 1)
+  const renderStep2_Service = () => {
+    const categories = ["All", ...Array.from(new Set(CONSULTATION_TYPES.map((t) => t.category)))];
+    const filtered = serviceFilter === "All" ? CONSULTATION_TYPES : CONSULTATION_TYPES.filter((t) => t.category === serviceFilter);
+
+    return (
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-muted-foreground">What type of consultation do you need?</p>
+        <div className="flex gap-2 overflow-x-auto pb-1 scroll-smooth">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setServiceFilter(cat)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                serviceFilter === cat
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border bg-card hover:border-primary/40"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+        <div className="space-y-2">
+          {filtered.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => {
+                setSelectedServiceId(t.id);
+                setTimeout(goNext, 100);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                selectedServiceId === t.id
+                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                  : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                selectedServiceId === t.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              }`}>
+                {t.icon}
+              </div>
+              <div className="flex-1 min-w-0 pr-4">
+                <p className={`font-semibold text-sm ${selectedServiceId === t.id ? "text-primary" : ""}`}>{t.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{t.description}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Step 2: Doctor
+  const renderStep2 = () => (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-muted-foreground">Choose your preferred doctor</p>
+      {doctorsLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
+          ))}
+        </div>
+      ) : doctorsList.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground border border-dashed rounded-xl">
+          <User className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">No doctors available</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {doctorsList.map((doctor: any) => (
+            <button
+              key={doctor.id}
+              onClick={() => {
+                setSelectedDoctorId(doctor.id);
+                setSelectedSlot("");
+                setTimeout(goNext, 100);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                selectedDoctorId === doctor.id
+                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                  : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
+              }`}
+            >
+              <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
+                selectedDoctorId === doctor.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              }`}>
+                {doctor.image
+                  ? <img src={doctor.image} alt="" className="w-full h-full rounded-full object-cover" />
+                  : (doctor.name || "D").charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`font-semibold text-sm ${selectedDoctorId === doctor.id ? "text-primary" : ""}`}>
+                  {doctor.name}
+                </p>
+                <p className="text-xs text-muted-foreground">{doctor.specialization || "General Physician"}</p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="text-xs text-green-600 font-medium">Available</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // Step 3: Date
+  const renderStep3 = () => (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-muted-foreground">Pick your preferred appointment date</p>
+      <div className="flex justify-center p-2 rounded-2xl bg-muted/20 border border-border shadow-sm">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={(d) => { 
+            setSelectedDate(d); 
+            setSelectedSlot(""); 
+            if (d) setTimeout(goNext, 150);
+          }}
+          disabled={(date) => {
+            // Enforce Indian Standard Time (IST) exactly for calculating disabled "past" days
+            const todayIST = getTodayIST();
+            return date < todayIST;
+          }}
+          className="mx-auto"
+        />
+      </div>
+      {selectedDate && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-primary/5 border border-primary/20">
+          <CalendarIcon className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-sm font-semibold">{format(selectedDate, "EEEE, d MMMM yyyy")}</span>
+        </div>
+      )}
+    </div>
+  );
+
+  // Step 4: Slot
+  const renderStep4 = () => {
+    const periods = [
+      { key: "morning" as const, label: "Morning", icon: <Sun className="w-4 h-4" />, range: "Before 12pm", slots: slotGroups.morning },
+      { key: "afternoon" as const, label: "Afternoon", icon: <CloudSun className="w-4 h-4" />, range: "12pm – 5pm", slots: slotGroups.afternoon },
+      { key: "evening" as const, label: "Evening", icon: <Moon className="w-4 h-4" />, range: "After 5pm", slots: slotGroups.evening },
+    ];
+
+    return (
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-muted-foreground">
+          Available slots for <span className="font-semibold text-foreground">{selectedDoctor?.name}</span> on{" "}
+          <span className="font-semibold text-foreground">{selectedDate ? format(selectedDate, "d MMM") : ""}</span>
+        </p>
+
+        {availabilityLoading ? (
+          <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
+            <Loader2 className="w-5 h-5 animate-spin" /> Checking availability...
+          </div>
+        ) : slots.length === 0 ? (
+          <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
+            <Clock className="w-8 h-8 mb-2 opacity-20" />
+            <p className="text-sm font-medium">No slots available</p>
+            <p className="text-xs mt-1 opacity-60">Try a different date or doctor</p>
+            {availabilityError && <p className="text-xs mt-4 p-2 bg-red-500/10 rounded-md text-red-500 border border-red-500/20 max-w-[90%] text-center">Error: {(availabilityError as any).message || "Unknown error"}</p>}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {periods.map((period) =>
+              period.slots.length === 0 ? null : (
+                <div key={period.key}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-muted-foreground">{period.icon}</span>
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{period.label}</span>
+                    <span className="text-[10px] text-muted-foreground">({period.range})</span>
+                    <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
+                      {period.slots.length} slots
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {period.slots.map((slot) => (
+                      <button
+                        key={slot}
+                        onClick={() => {
+                          setSelectedSlot(slot);
+                          setTimeout(goNext, 150);
+                        }}
+                        className={`py-2.5 px-2 rounded-xl text-xs font-semibold border transition-all text-center ${
+                          selectedSlot === slot
+                            ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/20"
+                            : "bg-card border-border hover:border-primary/50 hover:bg-primary/5"
+                        }`}
+                      >
+                        {slot}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Step 5: Confirm
+  const renderStep5 = () => (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">Review your appointment before confirming</p>
+
+      {/* Summary card */}
+      <div className="rounded-2xl border bg-muted/30 divide-y">
+        {[
+          { label: "Service", value: selectedService?.name, sub: selectedService?.category },
+          { label: "Doctor", value: selectedDoctor?.name, sub: selectedDoctor?.specialization || "General Physician" },
+          { label: "Date", value: selectedDate ? format(selectedDate, "EEEE, d MMMM yyyy") : "" },
+          { label: "Time", value: selectedSlot },
+        ].map(({ label, value, sub }) => (
+          <div key={label} className="flex items-center justify-between px-4 py-3 gap-4">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider w-16 shrink-0">{label}</span>
+            <div className="flex-1 text-right">
+              <p className="text-sm font-semibold">{value}</p>
+              {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Additional fields */}
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+            Chief Complaint
+          </label>
+          <Textarea
+            value={chiefComplaint}
+            onChange={(e) => setChiefComplaint(e.target.value)}
+            placeholder="Briefly describe your symptoms or reason for visit..."
+            className="text-sm resize-none h-20"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+            Urgency
+          </label>
+          <Select value={urgency} onValueChange={setUrgency}>
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Low">🟢 Low — Routine checkup</SelectItem>
+              <SelectItem value="Normal">🟡 Normal — Regular visit</SelectItem>
+              <SelectItem value="High">🔴 High — Urgent care needed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Step 6: Success + QR Code
+  const renderStep6 = () => (
+    <div className="flex flex-col items-center gap-5 py-2">
+      <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+        <Check className="w-7 h-7 text-green-600 dark:text-green-400" />
+      </div>
+      <div className="text-center">
+        <h3 className="text-lg font-bold">Appointment Confirmed!</h3>
+        <p className="text-sm text-muted-foreground mt-1">
+          Your appointment has been booked successfully.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div
-          onClick={() => setConsultationMode("IN_PERSON")}
-          className={`p-6 border-2 rounded-xl cursor-pointer transition-all hover:shadow-lg group ${
-            consultationMode === "IN_PERSON"
-              ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20"
-              : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
-          }`}
-        >
-          <div className="flex flex-col items-center text-center gap-4">
-            <div className="p-4 rounded-full bg-blue-100 text-blue-600 group-hover:scale-110 transition-transform">
-              <User className="w-8 h-8" />
-            </div>
-            <div>
-              <h4 className="font-bold text-lg mb-1">In-Person Visit</h4>
-              <p className="text-sm text-muted-foreground">
-                Visit the clinic for a physical examination and direct consultation.
-              </p>
-            </div>
-            <div className="mt-2 text-xs font-medium text-blue-600">
-                RECOMMENDED FOR THERAPIES
-            </div>
-          </div>
+      {/* QR Code */}
+      <div className="flex flex-col items-center gap-3 p-4 rounded-2xl border bg-card w-full max-w-xs">
+        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+          <QrCode className="w-4 h-4" /> Clinic Check-in QR
         </div>
-
-        <div
-          onClick={() => setConsultationMode("VIDEO")}
-          className={`p-6 border-2 rounded-xl cursor-pointer transition-all hover:shadow-lg group ${
-            consultationMode === "VIDEO"
-              ? "border-purple-600 bg-purple-50 dark:bg-purple-900/20"
-              : "border-gray-200 dark:border-gray-700 hover:border-purple-300"
-          }`}
+        <img
+          src={qrUrl}
+          alt="Appointment QR Code"
+          className="w-40 h-40 rounded-xl"
+        />
+        <p className="text-[10px] text-muted-foreground text-center">
+          Show this QR code at the clinic reception for instant check-in
+        </p>
+        <a
+          href={qrUrl}
+          download={`appointment-${bookedAppointmentId}.png`}
+          className="flex items-center gap-1.5 text-xs text-primary font-semibold hover:underline"
         >
-          <div className="flex flex-col items-center text-center gap-4">
-            <div className="p-4 rounded-full bg-purple-100 text-purple-600 group-hover:scale-110 transition-transform">
-              <Video className="w-8 h-8" />
-            </div>
-            <div>
-              <h4 className="font-bold text-lg mb-1">Video Consultation</h4>
-              <p className="text-sm text-muted-foreground">
-                Connect with doctors remotely from the comfort of your home.
-              </p>
-            </div>
-            <div className="mt-2 text-xs font-medium text-purple-600">
-                IDEAL FOR FOLLOW-UPS
-            </div>
-          </div>
-        </div>
+          <Download className="w-3 h-3" /> Download QR Code
+        </a>
       </div>
+
+      {/* Summary pill row */}
+      <div className="flex flex-wrap gap-2 justify-center">
+        {[
+          selectedService?.name,
+          selectedDoctor?.name,
+          selectedDate ? format(selectedDate, "d MMM") : "",
+          selectedSlot,
+        ].map((v, i) => v ? (
+          <span key={i} className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+            {v}
+          </span>
+        ) : null)}
+      </div>
+
+      <Button
+        className="w-full"
+        onClick={() => {
+          setOpen(false);
+          // Ensure users land on appointment list after successful booking.
+          if (pathname !== "/patient/appointments") {
+            router.push("/patient/appointments");
+          }
+        }}
+      >
+        View My Appointments
+      </Button>
     </div>
   );
 
-  const renderStep3_Service = () => {
-    // Filter types based on mode
-    const filteredTypes = CONSULTATION_TYPES.filter(t => {
-      if (consultationMode === "VIDEO") return t.videoAvailable;
-      // In-Person -> Show all treatments (since all current types are fundamentally In-Person compatible or hybrid)
-      // If there were video-only types, we'd filter them out here.
-      return true; 
-    });
+  // ─── Main render ──────────────────────────────────────────────────────────
 
-    // Group by category
-    const categories = Array.from(new Set(filteredTypes.map(t => t.category)));
-    
-    // Filter by selected category, but handle "All"
-    const displayServices = selectedCategory === "All"
-        ? filteredTypes
-        : filteredTypes.filter(t => t.category === selectedCategory);
+  const stepContent = [
+    renderStep1,        // 1: Location + Mode
+    renderStep2_Service, // 2: Service
+    renderStep2,        // 3: Doctor
+    renderStep3,        // 4: Date
+    renderStep4,        // 5: Slot
+    renderStep5,        // 6: Confirm
+    renderStep6,        // 7: Success + QR
+  ][step - 1];
 
-    return (
-      <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold mb-1">Select Service</h3>
-          <p className={`text-sm ${theme.textColors.secondary}`}>
-            Choose the specific treatment or consultation type.
-          </p>
-        </div>
-
-        {/* Category Filters */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">
-          <Badge 
-            variant={selectedCategory === "All" ? "default" : "outline"}
-            className="cursor-pointer px-4 py-2 hover:bg-primary/90 hover:text-primary-foreground transition-colors"
-            onClick={() => setSelectedCategory("All")}
-          >
-            All
-          </Badge>
-          {categories.map(cat => (
-             <Badge 
-             key={cat}
-             variant={selectedCategory === cat ? "default" : "outline"}
-             className="cursor-pointer px-4 py-2 hover:bg-primary/90 hover:text-primary-foreground transition-colors"
-             onClick={() => setSelectedCategory(cat)}
-           >
-             {cat}
-           </Badge>
-          ))}
-        </div>
-
-        {/* Grid */}
-        <ScrollArea className="h-[400px] pr-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {displayServices.map((type) => (
-                <div
-                key={type.id}
-                onClick={() => { setSelectedServiceId(type.id); }}
-                className={`p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md group ${
-                    selectedServiceId === type.id
-                    ? `${theme.borders.primary} ${theme.containers.featureBlue} ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20`
-                    : "border-border hover:border-primary/50 bg-card"
-                }`}
-                >
-                <div className="flex items-start gap-4">
-                    <div className={`p-3 rounded-xl shadow-sm ${selectedServiceId === type.id ? 'bg-blue-100 text-blue-600' : 'bg-muted text-muted-foreground group-hover:bg-blue-50 group-hover:text-blue-500'} transition-colors`}>{type.icon}</div>
-                    <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                            <h4 className="font-bold text-foreground">{type.name}</h4>
-                            {/* Price hidden as requested - Subscription based */}
-                            {/* <span className="font-bold text-sm">₹{type.price}</span> */}
-                        </div>
-                        <p className="text-xs text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
-                            {type.description}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs font-medium">
-                            <span className="flex items-center gap-1.5 bg-secondary px-2.5 py-1 rounded-md text-secondary-foreground">
-                                <Clock className="w-3.5 h-3.5" /> {type.duration} min
-                            </span>
-                            
-                            {/* Only show Video badge if Mode is NOT In-Person (or if it's explicitly Video mode) */}
-                            {type.videoAvailable && consultationMode !== "IN_PERSON" && (
-                                <span className="flex items-center gap-1.5 text-green-700 bg-green-100 dark:bg-green-900/30 px-2.5 py-1 rounded-md border border-green-200 dark:border-green-800">
-                                <Video className="w-3.5 h-3.5" /> Video
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                </div>
-                </div>
-            ))}
-            </div>
-            {displayServices.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                    <p>No services found in this category.</p>
-                </div>
-            )}
-        </ScrollArea>
-      </div>
-    );
-  };
-
-  const renderStep4_DoctorTime = () => {
-    // Safely extract doctors list
-    const doctorsList = Array.isArray(doctorsData) 
-      ? doctorsData 
-      : (doctorsData as any)?.doctors || [];
-
-    return (
-      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 h-full flex flex-col">
-        
-        {/* Top: Doctor Selection */}
-        <div>
-           <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="font-semibold text-lg">Select Doctor</h3>
-              <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-full">
-                {doctorsLoading ? "Loading..." : `${doctorsList.length} Available`}
-              </span>
-           </div>
-           
-           {doctorsLoading ? (
-              <div className="flex gap-4 overflow-hidden">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="w-64 h-24 bg-muted animate-pulse rounded-xl shrink-0" />
-                ))}
-              </div>
-           ) : doctorsList.length > 0 ? (
-              <ScrollArea className="w-full pb-4">
-                 <div className="flex gap-4 pb-2">
-                    {doctorsList.map((doctor: any) => (
-                      <div
-                        key={doctor.id}
-                        onClick={() => {
-                            setSelectedDoctorId(doctor.id);
-                            setSelectedSlot(""); 
-                        }}
-                        className={`min-w-[240px] p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md relative overflow-hidden group ${
-                            selectedDoctorId === doctor.id
-                            ? `${theme.borders.primary} ${theme.containers.featureBlue} ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20`
-                            : "border-border bg-card hover:border-primary/50"
-                        }`}
-                      >
-                        <div className="flex items-start gap-4">
-                           <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${selectedDoctorId === doctor.id ? 'bg-blue-100 text-blue-600' : 'bg-secondary text-muted-foreground'}`}>
-                              {doctor.image ? (
-                                <img src={doctor.image} alt={doctor.name} className="w-full h-full rounded-full object-cover" />
-                              ) : (
-                                <Stethoscope className="w-6 h-6" />
-                              )}
-                           </div>
-                           <div>
-                              <p className="font-bold text-base line-clamp-1">{doctor.name}</p>
-                              <p className="text-xs text-muted-foreground mb-1">{doctor.specialization}</p>
-                              <div className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-secondary w-fit">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Available
-                              </div>
-                           </div>
-                        </div>
-                        {selectedDoctorId === doctor.id && (
-                           <div className="absolute top-2 right-2 text-blue-600">
-                              <CheckCircle className="w-4 h-4" />
-                           </div>
-                        )}
-                      </div>
-                    ))}
-                 </div>
-                 <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-           ) : (
-              <div className="text-center py-8 border-2 border-dashed rounded-xl bg-muted/30">
-                 <User className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
-                 <p className="text-sm font-medium text-muted-foreground">No doctors found for this location.</p>
-                 <p className="text-xs text-muted-foreground mt-1">Try changing the location or checking back later.</p>
-              </div>
-           )}
-        </div>
-
-        {/* Middle: Date & Time Split */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 min-h-0">
-            {/* Calendar */}
-            <div className="flex flex-col">
-                 <h3 className="font-semibold mb-3">Select Date</h3>
-                 <div className="border rounded-xl p-4 bg-card shadow-sm flex-1 flex justify-center">
-                    <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={setSelectedDate}
-                        disabled={(date) => date < startOfDay(new Date())}
-                        className="p-0"
-                        classNames={{
-                           day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                           day_today: "bg-accent text-accent-foreground",
-                        }} 
-                    />
-                 </div>
-            </div>
-
-            {/* Slots */}
-            <div className="flex flex-col h-full min-h-[300px]">
-                <h3 className="font-semibold mb-3 flex items-center justify-between">
-                   <span>Available Slots</span>
-                   {selectedDate && <span className="text-xs font-normal text-muted-foreground">{format(selectedDate, "EEEE, MMMM d")}</span>}
-                </h3>
-                
-                <div className={`flex-1 border rounded-xl overflow-hidden bg-card shadow-sm relative ${!selectedDoctorId ? 'bg-muted/30' : ''}`}>
-                    {!selectedDoctorId ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-muted-foreground">
-                            <Stethoscope className="w-10 h-10 mb-3 opacity-20" />
-                            <p className="font-medium">Please select a doctor first</p>
-                            <p className="text-xs mt-1">We need to know who you're visiting to show their schedule.</p>
-                        </div>
-                    ) : availabilityLoading ? (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        </div>
-                    ) : (
-                        <ScrollArea className="h-full max-h-[300px] w-full p-4">
-                           {availability?.availableSlots?.length ? (
-                               <div className="grid grid-cols-3 gap-3">
-                                   {availability.availableSlots.map((slot: string) => (
-                                       <Button
-                                           key={slot}
-                                           variant={selectedSlot === slot ? "default" : "outline"}
-                                           size="sm"
-                                           onClick={() => setSelectedSlot(slot)}
-                                           className={`w-full transition-all ${selectedSlot === slot ? "ring-2 ring-primary ring-offset-1" : "hover:border-primary/50"}`}
-                                       >
-                                           {slot}
-                                       </Button>
-                                   ))}
-                               </div>
-                           ) : (
-                               <div className="flex flex-col items-center justify-center h-full py-10 text-muted-foreground">
-                                   <Clock className="w-10 h-10 mb-3 text-muted-foreground/30" />
-                                   <p className="font-medium">No slots available</p>
-                                   <p className="text-xs mt-1">Please try a different date or doctor.</p>
-                               </div>
-                           )}
-                        </ScrollArea>
-                    )}
-                </div>
-            </div>
-        </div>
-        
-        {/* Bottom: Complaint & Urgency */}
-        <div className="pt-4 border-t">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="md:col-span-1">
-                    <Label className="mb-2 block">Urgency Level</Label>
-                    <Select value={urgency} onValueChange={setUrgency}>
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Low">Low Priority</SelectItem>
-                            <SelectItem value="Normal">Normal Priority</SelectItem>
-                            <SelectItem value="High">High Priority</SelectItem>
-                        </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="md:col-span-2">
-                      <Label className="mb-2 block">Chief Complaint / Reason for Visit</Label>
-                      <Input 
-                        value={chiefComplaint} 
-                        onChange={(e) => setChiefComplaint(e.target.value)}
-                        placeholder="E.g., High fever since yesterday, Persistent back pain..." 
-                      />
-                  </div>
-            </div>
-        </div>
-      </div>
-    );
-  };
+  const stepTitle = [
+    "Location & Mode",
+    "Select Service",
+    "Select Doctor",
+    "Select Date",
+    "Select Time Slot",
+    "Confirm Appointment",
+    "Booking Confirmed! 🎉",
+  ][step - 1];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button className="flex items-center gap-2 bg-linear-to-r from-blue-600 to-purple-600 hover:scale-105 transition-transform">
+          <Button className="flex items-center gap-2 bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:scale-105 transition-all">
             <Plus className="w-4 h-4" />
             Book Appointment
           </Button>
         )}
       </DialogTrigger>
 
-      <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+      <DialogContent className="
+        w-full max-w-none sm:max-w-md
+        h-dvh sm:h-[650px]
+        flex flex-col p-0 gap-0 overflow-hidden
+        rounded-none sm:rounded-2xl
+        top-0 sm:top-1/2 left-0 sm:left-1/2
+        translate-y-0 sm:-translate-y-1/2 sm:-translate-x-1/2
+      ">
         {/* Header */}
-        <div className="p-6 border-b">
-          <DialogHeader>
-             <div className="flex items-center justify-between">
-                <DialogTitle className="text-2xl">New Appointment</DialogTitle>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className={currentStep >= 1 ? "text-primary font-medium" : ""}>Location</span>
-                    <ChevronRight className="w-4 h-4" />
-                    <span className={currentStep >= 2 ? "text-primary font-medium" : ""}>Mode</span>
-                    <ChevronRight className="w-4 h-4" />
-                    <span className={currentStep >= 3 ? "text-primary font-medium" : ""}>Service</span>
-                    <ChevronRight className="w-4 h-4" />
-                    <span className={currentStep >= 4 ? "text-primary font-medium" : ""}>Details</span>
-                </div>
-             </div>
+        <div className="px-4 sm:px-5 pt-4 pb-3 border-b shrink-0">
+          <DialogHeader className="text-left w-full min-w-0">
+            <DialogTitle className="text-base sm:text-lg font-bold truncate">{stepTitle}</DialogTitle>
           </DialogHeader>
-          
-          {/* Progress Bar */}
-          <div className="mt-4 h-2 w-full bg-secondary rounded-full overflow-hidden">
-             <div 
-                className="h-full bg-primary transition-all duration-500 ease-out"
-                style={{ width: `${(currentStep / 4) * 100}%` }}
-             />
-          </div>
+
+          {/* Step bar — hide on success screen */}
+          {step < 7 && (
+            <div className="mt-3 overflow-x-auto">
+              {renderStepBar()}
+            </div>
+          )}
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-6 overflow-y-auto bg-gray-50/50 dark:bg-black/20">
-            {currentStep === 1 && renderStep1_Location()}
-            {currentStep === 2 && renderStep2_Mode()}
-            {currentStep === 3 && renderStep3_Service()}
-            {currentStep === 4 && renderStep4_DoctorTime()}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4">
+          {stepContent?.()}
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t bg-background flex justify-between items-center">
+        {/* Footer — hide on success screen */}
+        {step < 7 && (
+          <div className="px-4 sm:px-5 py-3 border-t bg-background flex items-center gap-3 shrink-0">
             <Button
-                variant="ghost"
-                onClick={handleBack}
-                disabled={currentStep === 1}
-                className="gap-2"
+              variant="outline"
+              onClick={step > 1 ? goBack : () => setOpen(false)}
+              className="gap-1.5 shrink-0"
+              size="sm"
             >
-                <ChevronLeft className="w-4 h-4" /> Back
+              <ChevronLeft className="w-4 h-4" /> {step > 1 ? "Back" : "Cancel"}
             </Button>
+            
+            <div className="flex-1" />
 
-            <div className="flex gap-4 items-center">
-                 {currentStep === 4 && (
-                     <div className="text-right mr-4 hidden md:block">
-                        <p className="text-sm font-medium">{selectedService?.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                            {selectedDate ? format(selectedDate, "MMM d") : ""} • {selectedSlot || "No time selected"}
-                        </p>
-                     </div>
-                 )}
-                 
-                 {currentStep < 4 ? (
-                    <Button onClick={handleNext} className="gap-2 w-32">
-                        Next <ChevronRight className="w-4 h-4" />
-                    </Button>
-                 ) : (
-                    <Button 
-                        onClick={handleBookAppointment} 
-                        disabled={isBooking || !selectedSlot}
-                        className="gap-2 w-40 bg-green-600 hover:bg-green-700"
-                    >
-                        {isBooking ? "Booking..." : "Confirm Booking"}
-                    </Button>
-                 )}
-            </div>
-        </div>
+            {step < 6 ? (
+              <Button
+                onClick={goNext}
+                disabled={!canNext}
+                className="gap-1.5 min-w-[100px]"
+                size="sm"
+              >
+                Continue <ArrowRight className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleBook}
+                disabled={isBooking}
+                className="gap-1.5 min-w-[140px] bg-green-600 hover:bg-green-700"
+                size="sm"
+              >
+                {isBooking ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Booking...</>
+                ) : (
+                  <><Check className="w-4 h-4" /> Confirm & Book</>
+                )}
+              </Button>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

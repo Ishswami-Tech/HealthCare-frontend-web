@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
+
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import {
@@ -36,7 +35,6 @@ import {
   Users,
   TrendingUp,
   TrendingDown,
-  LogOut,
   Calendar,
   DollarSign,
   Star,
@@ -257,34 +255,9 @@ export default function AnalyticsDashboard() {
   };
 
 
-  const sidebarLinks = [...getRoutesByRole(userRole)];
-
-  // Add Analytics link to sidebar
-  sidebarLinks.push({
-    title: "Analytics",
-    href: ROUTES.SHARED_ANALYTICS,
-    icon: BarChart3,
-  });
-
-  sidebarLinks.push({
-    title: "Logout",
-    href: ROUTES.LOGIN,
-    icon: LogOut,
-  });
-
   return (
-    <DashboardLayout title="Analytics Dashboard" allowedRole={userRole}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Administrator",
-          ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-        }}
-      >
-        <div className="p-6 space-y-6">
+    
+      <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
@@ -1198,7 +1171,6 @@ export default function AnalyticsDashboard() {
             </>
           )}
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

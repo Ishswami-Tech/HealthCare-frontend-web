@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +43,7 @@ import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 
 export default function PatientDashboard() {
   const { session } = useAuth();
+  const router = useRouter();
   const user = session?.user;
   const { t } = useTranslation();
 
@@ -226,12 +226,12 @@ export default function PatientDashboard() {
   };
 
   return (
-    <DashboardLayout title={t("sidebar.dashboard")} allowedRole={Role.PATIENT}>
+    
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="max-w-full overflow-hidden">
               <h1
-                className={`text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent`}
+                className={`text-2xl sm:text-3xl font-bold bg-linear-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent truncate`}
               >
                 {t("dashboard.welcomeBack")},{" "}
                 {patientData.personalInfo.name.split(" ")[0]}
@@ -240,11 +240,11 @@ export default function PatientDashboard() {
                 {t("dashboard.overview")}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 className="flex items-center gap-2 hover:scale-105 transition-transform"
-                onClick={() => window.location.href = '/patient/check-in'}
+                onClick={() => router.push('/patient/check-in')}
               >
                 <div className="w-4 h-4 flex items-center justify-center border-2 border-current rounded-sm">
                    <div className="w-2 h-2 bg-current rounded-[1px]" />
@@ -254,14 +254,14 @@ export default function PatientDashboard() {
               <Button
                 variant="outline"
                 className="flex items-center gap-2 hover:scale-105 transition-transform"
-                onClick={() => window.location.href = "/video-appointments"}
+                onClick={() => router.push("/video-appointments")}
               >
                 <Video className="w-4 h-4" />
                 {t("appointments.bookNew")}
               </Button>
               <ClinicSelectDialog 
                 trigger={
-                  <Button className="flex items-center gap-2 hover:scale-105 transition-transform bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500">
+                  <Button className="flex items-center gap-2 hover:scale-105 transition-transform bg-linear-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500">
                     <Plus className="w-4 h-4" />
                     {t("dashboard.bookAppointment")}
                   </Button>
@@ -879,6 +879,6 @@ export default function PatientDashboard() {
             </CardContent>
           </Card>
         </div>
-    </DashboardLayout>
+    
   );
 }

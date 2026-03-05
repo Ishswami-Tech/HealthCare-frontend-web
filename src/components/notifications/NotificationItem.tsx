@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/auth/useAuth";
 
 interface NotificationItemProps {
   notification: Notification;
@@ -47,6 +48,10 @@ export function NotificationItem({
   className,
 }: NotificationItemProps) {
   const router = useRouter();
+  const { session } = useAuth();
+  const user = session?.user;
+  const userRole = (user?.role as string)?.toLowerCase() || 'patient';
+
   const Icon = typeIcons[notification.type] || Bell;
   const colorClass = typeColors[notification.type] || typeColors.SYSTEM;
 
@@ -60,9 +65,11 @@ export function NotificationItem({
     if (notification.data?.url) {
       router.push(notification.data.url as string);
     } else if (notification.data?.appointmentId) {
-      router.push(`/appointments/${notification.data.appointmentId}`);
+      // Redirect to role-based appointments page with ID query param
+      router.push(`/${userRole}/appointments?id=${notification.data.appointmentId}`);
     } else if (notification.data?.prescriptionId) {
-      router.push(`/prescriptions/${notification.data.prescriptionId}`);
+      // Redirect to role-based prescriptions page with ID query param
+      router.push(`/${userRole}/prescriptions?id=${notification.data.prescriptionId}`);
     }
   };
 
@@ -93,7 +100,7 @@ export function NotificationItem({
       {/* Icon */}
       <div
         className={cn(
-          "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border-2",
+          "shrink-0 w-10 h-10 rounded-full flex items-center justify-center border-2",
           colorClass
         )}
       >
@@ -119,7 +126,7 @@ export function NotificationItem({
 
           {/* Unread indicator */}
           {!notification.isRead && (
-            <div className="flex-shrink-0 w-2 h-2 rounded-full bg-primary" />
+            <div className="shrink-0 w-2 h-2 rounded-full bg-primary" />
           )}
         </div>
 

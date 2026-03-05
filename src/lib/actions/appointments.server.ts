@@ -5,7 +5,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { authenticatedApi, getServerSession, getClientInfo, revalidateCache } from './auth.server';
+import { authenticatedApi, publicApi, getServerSession, getClientInfo, revalidateCache } from './auth.server';
 import { auditLog } from '@/lib/utils/audit';
 import { validateClinicAccess } from '@/lib/config/permissions';
 import { logger } from '@/lib/utils/logger';
@@ -30,6 +30,13 @@ import {
   rescheduleAppointmentSchema,
   rejectVideoProposalSchema
 } from '@/lib/schema/appointments.schema';
+
+const IST_UTC_OFFSET = '+05:30';
+
+function toIstAppointmentIso(date: string, time: string): string {
+  // Normalize incoming date/time to IST first, then store as UTC ISO for backend consistency.
+  return new Date(`${date}T${time}:00${IST_UTC_OFFSET}`).toISOString();
+}
 
 // ===== APPOINTMENT ACTIONS =====
 
@@ -91,16 +98,18 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
     const hasAccess = await validateClinicAccess(userId, 'appointments.create');
     if (!hasAccess) return { success: false, error: 'Access denied' };
 
-    const appointmentDate = new Date(`${validatedData.date}T${validatedData.time}:00`).toISOString();
+    const appointmentDate = toIstAppointmentIso(validatedData.date, validatedData.time);
     const payload = {
       ...validatedData,
       appointmentDate,
-      clinicId: session.user.clinicId || validatedData.clinicId || APP_CONFIG.CLINIC.ID,
+      // Prefer explicit clinic selection from booking flow, then session clinic fallback.
+      clinicId: validatedData.clinicId || session.user.clinicId || APP_CONFIG.CLINIC.ID,
     };
 
     const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.CREATE, {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      ...(payload.clinicId ? { headers: { 'X-Clinic-ID': payload.clinicId } } : {}),
     });
 
     const { ipAddress, userAgent } = await getClientInfo();
@@ -182,7 +191,7 @@ export async function updateAppointment(id: string, data: UpdateAppointmentData)
 
     let appointmentDate: string | undefined;
     if (validatedData.date && validatedData.time) {
-      appointmentDate = new Date(`${validatedData.date}T${validatedData.time}:00`).toISOString();
+      appointmentDate = toIstAppointmentIso(validatedData.date, validatedData.time);
     }
 
     const payload = {
@@ -325,17 +334,53 @@ export async function completeAppointment(id: string, data: any) {
 
 /**
  * Get doctor availability
+ * Uses authenticatedApi when the user is logged in (patient booking flow),
+ * falls back to publicApi for guest access.
  */
-export async function getDoctorAvailability(doctorId: string, date: string, locationId?: string) {
+export async function getDoctorAvailability(clinicId: string, doctorId: string, date: string, locationId?: string) {
   try {
+    console.log('[getDoctorAvailability - ENTRY]', { clinicId, doctorId, date, locationId });
+    if (!doctorId) {
+      logger.warn('[getDoctorAvailability] Missing doctorId, skipping request');
+      return { success: false, error: 'Doctor ID is required' };
+    }
     const params = new URLSearchParams({ date });
     if (locationId) params.append('locationId', locationId);
-    
-    const { data } = await authenticatedApi<DoctorAvailability>(`${API_ENDPOINTS.DOCTORS.AVAILABILITY.GET(doctorId)}?${params.toString()}`, {});
+
+    // Use the appointments route path (served under /api/v1)
+    const url = `${API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId)}?${params.toString()}`;
+    console.log('[getDoctorAvailability - CALLING_API]', { url, clinicId });
+
+    const clinicHeaders = { 'X-Clinic-ID': clinicId };
+
+    // Prefer authenticatedApi — the patient IS logged in when booking.
+    // This avoids the backend's @Public() guard chain (JwtAuthGuard → ProfileCompletionGuard)
+    // rejecting requests that have no token.
+    const session = await getServerSession();
+    let data: DoctorAvailability;
+
+    if (session?.user) {
+      console.log('[getDoctorAvailability - using authenticatedApi]');
+      const result = await authenticatedApi<DoctorAvailability>(url, {
+        headers: clinicHeaders,
+        cache: 'no-store',
+      });
+      data = result.data;
+    } else {
+      console.log('[getDoctorAvailability - using publicApi (guest)]');
+      const result = await publicApi<DoctorAvailability>(url, {
+        headers: clinicHeaders,
+        cache: 'no-store',
+      });
+      data = result.data;
+    }
+
+    console.log('[getDoctorAvailability - API_SUCCESS]', data);
     return { success: true, availability: data };
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Failed to get doctor availability', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to fetch availability' };
+    const errorMessage = error?.response?.data?.message || error?.message || 'Failed to fetch availability';
+    return { success: false, error: errorMessage };
   }
 }
 

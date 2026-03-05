@@ -2,12 +2,9 @@
 
 import { useMemo } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   usePrescriptions,
@@ -30,8 +27,7 @@ import {
 } from "lucide-react";
 
 export default function PharmacistDashboard() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -168,20 +164,8 @@ export default function PharmacistDashboard() {
     }
   };
 
-  const sidebarLinks = getSidebarLinksByRole(Role.PHARMACIST);
-
   return (
-    <DashboardLayout title="Pharmacist Dashboard" allowedRole={Role.PHARMACIST}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Pharmacist",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -450,7 +434,6 @@ export default function PharmacistDashboard() {
             </CardContent>
           </Card>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

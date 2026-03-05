@@ -74,7 +74,6 @@ export function LanguageSwitcher({
     setIsOpen(false);
   };
 
-  // Compact variant (icon only with dropdown)
   if (variant === "compact") {
     return (
       <div className={cn("relative", className)}>
@@ -83,36 +82,42 @@ export function LanguageSwitcher({
             <Button
               variant="ghost"
               size="icon"
-              className="relative transition-all duration-200 hover:scale-105"
+              className={cn(
+                "relative transition-all duration-300 h-8 w-8 rounded-full hover:bg-muted/50 active:scale-95",
+                isOpen && "bg-muted/50 scale-95"
+              )}
               aria-label="Select language"
             >
-              {showFlag ? (
-                <span className="text-sm">{currentLanguage.flag}</span>
-              ) : (
-                <Globe className="h-4 w-4" />
-              )}
+              <span className="text-base leading-none select-none">
+                {currentLanguage.flag}
+              </span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-48 p-1.5 rounded-xl border-border/50 shadow-xl backdrop-blur-xl bg-background/95">
+            <div className="px-2 py-1.5 mb-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              Select Language
+            </div>
             {Object.entries(supportedLanguages).map(([code, lang]) => (
               <DropdownMenuItem
                 key={code}
                 onClick={() => handleLanguageChange(code as SupportedLanguage)}
                 className={cn(
-                  "flex items-center gap-3 cursor-pointer",
-                  language === code && "bg-accent text-accent-foreground"
+                  "flex items-center gap-3 cursor-pointer rounded-lg px-2 py-2 transition-colors",
+                  language === code 
+                    ? "bg-primary/10 text-primary font-medium" 
+                    : "hover:bg-muted focus:bg-muted text-muted-foreground hover:text-foreground"
                 )}
               >
-                {showFlag && <span className="text-lg">{lang.flag}</span>}
-                <div className="flex flex-col flex-1">
-                  <span className="text-sm font-medium">{lang.name}</span>
+                <span className="text-xl leading-none">{lang.flag}</span>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="text-sm truncate">{lang.name}</span>
                   {showNativeName && lang.nativeName !== lang.name && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] opacity-60 truncate">
                       {lang.nativeName}
                     </span>
                   )}
                 </div>
-                {language === code && <Check className="w-4 h-4 ml-auto" />}
+                {language === code && <Check className="w-3.5 h-3.5 ml-auto text-primary" />}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

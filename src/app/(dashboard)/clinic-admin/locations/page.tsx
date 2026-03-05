@@ -2,8 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
+
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useClinicContext,
@@ -53,8 +51,7 @@ import {
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 export default function ClinicLocationsPage() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -226,41 +223,18 @@ export default function ClinicLocationsPage() {
     }
   };
 
-  const sidebarLinks = getSidebarLinksByRole(Role.CLINIC_ADMIN);
-
   if (isPendingLocations) {
     return (
-      <DashboardLayout title="Clinic Locations" allowedRole={Role.CLINIC_ADMIN}>
-        <Sidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name ||
-              `${user?.firstName} ${user?.lastName}` ||
-              "Clinic Admin",
-            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-          }}
-        >
+      
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </Sidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout title="Clinic Locations" allowedRole={Role.CLINIC_ADMIN}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Clinic Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -716,7 +690,6 @@ export default function ClinicLocationsPage() {
             </DialogContent>
           </Dialog>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

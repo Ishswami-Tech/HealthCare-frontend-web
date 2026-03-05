@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { usePrescriptions } from "@/hooks/query/usePharmacy";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -36,8 +33,7 @@ import {
 } from "lucide-react";
 
 export default function PrescriptionsPage() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
@@ -351,45 +347,23 @@ export default function PrescriptionsPage() {
     </Card>
   );
 
-  const sidebarLinks = getSidebarLinksByRole(Role.PHARMACIST);
 
   // Show loading state
   if (prescriptionsPending) {
     return (
-      <DashboardLayout title="Prescriptions" allowedRole={Role.PHARMACIST}>
-        <Sidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name ||
-              `${user?.firstName} ${user?.lastName}` ||
-              "Pharmacist",
-            ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-          }}
-        >
+      
           <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">
               <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading prescriptions...</p>
             </div>
           </div>
-        </Sidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout title="Prescriptions" allowedRole={Role.PHARMACIST}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Pharmacist",
-          ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Prescriptions</h1>
@@ -534,7 +508,6 @@ export default function PrescriptionsPage() {
             </TabsContent>
           </Tabs>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

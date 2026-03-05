@@ -1,6 +1,5 @@
 "use client";
 
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { VideoAppointmentsList } from "@/components/video/VideoAppointmentsList";
 import { useAuth } from "@/hooks/auth/useAuth";
 
@@ -9,7 +8,7 @@ export default function PatientVideoPage() {
   const userId = session?.user?.id || "";
 
   return (
-    <DashboardLayout title="My Video Consultations">
+    
       <VideoAppointmentsList
         title="My Video Consultations"
         description="Join your scheduled video consultations with doctors"
@@ -20,6 +19,6 @@ export default function PatientVideoPage() {
         limit={50}
         filters={{ patientId: userId }}
       />
-    </DashboardLayout>
+    
   );
 }

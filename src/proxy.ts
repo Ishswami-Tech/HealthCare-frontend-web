@@ -23,7 +23,6 @@ import {
   shouldSkipProxy as shouldSkipProxyRoute,
   getProtectedRouteRoles,
   isProtectedRoute,
-  getAllowedRolesForPath,
 } from '@/lib/config/routes';
 import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE_NAME } from '@/lib/i18n/config';
 
@@ -42,22 +41,14 @@ function parseRole(roleStr: string | undefined): Role | undefined {
   return validRole ? roleStr as Role : undefined;
 }
 
-/**
- * Calculate profile completion from user data
- * @param userData - User data from JWT payload
- * @returns boolean indicating if profile is complete
- */
-function calculateProfileCompletionFromUserData(userData: Record<string, unknown>): boolean {
+function resolveProfileCompletionFromUserData(userData: Record<string, unknown> | null): boolean {
   if (!userData) return false;
-
-  const requiredFields = ['firstName', 'lastName', 'phone', 'dateOfBirth', 'gender', 'address'];
-  
-  const missingFields = requiredFields.filter(field => {
-    const value = userData[field];
-    return !value || (typeof value === 'string' && value.trim() === '');
-  });
-
-  return missingFields.length === 0;
+  if (typeof userData.profileComplete === 'boolean') return userData.profileComplete;
+  if (typeof userData.isProfileComplete === 'boolean') return userData.isProfileComplete;
+  if (typeof userData.requiresProfileCompletion === 'boolean') {
+    return !userData.requiresProfileCompletion;
+  }
+  return false;
 }
 
 
@@ -78,6 +69,9 @@ function extractUserDataFromToken(accessToken: string): Record<string, unknown> 
         dateOfBirth: payload.dateOfBirth || '',
         gender: payload.gender || '',
         address: payload.address || '',
+        profileComplete: payload.profileComplete,
+        isProfileComplete: payload.isProfileComplete,
+        requiresProfileCompletion: payload.requiresProfileCompletion,
         role: payload.role || undefined, // Extract role from token
       };
     }
@@ -223,7 +217,7 @@ export default async function proxy(request: NextRequest) {
   // STEP 7: Check profile completion for authenticated users
   // =========================================================================
   const profileCompleteFromCookie = profileCompleteCookie === 'true';
-  const profileCompleteFromUserData = userData ? calculateProfileCompletionFromUserData(userData) : false;
+  const profileCompleteFromUserData = resolveProfileCompletionFromUserData(userData);
   const profileComplete = profileCompleteFromCookie || profileCompleteFromUserData;
   
   const shouldRedirectToProfile = shouldRedirectToProfileCompletion(!!hasValidToken, profileComplete, pathname);

@@ -296,6 +296,11 @@ export function transformApiResponse(apiData: Record<string, unknown>): UserProf
     experience: (apiData.experience as string) || '',
     clinicName: (apiData.clinicName as string) || '',
     clinicAddress: (apiData.clinicAddress as string) || '',
-    profileComplete: (apiData.profileComplete as boolean) || false
+    profileComplete:
+      (apiData.profileComplete as boolean) ||
+      (apiData.isProfileComplete as boolean) ||
+      (typeof apiData.requiresProfileCompletion === 'boolean'
+        ? !apiData.requiresProfileCompletion
+        : false)
   };
 }

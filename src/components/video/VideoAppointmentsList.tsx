@@ -195,9 +195,9 @@ export function VideoAppointmentsList({
       apt.roomName?.toLowerCase().includes(searchLower) ||
       apt.doctorId?.toLowerCase().includes(searchLower) ||
       apt.patientId?.toLowerCase().includes(searchLower);
-    const matchesStatus = !filterStatus || apt.status === filterStatus;
+    const matchesStatus = !filterStatus || filterStatus === "all" || apt.status === filterStatus;
     const matchesClinic =
-      !filterClinicId || (apt as any).clinicId === filterClinicId;
+      !filterClinicId || filterClinicId === "all" || (apt as any).clinicId === filterClinicId;
     return matchesSearch && matchesStatus && matchesClinic;
   });
 
@@ -629,7 +629,7 @@ export function VideoAppointmentsList({
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Status</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="scheduled">Scheduled</SelectItem>
                   <SelectItem value="in-progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
@@ -642,7 +642,7 @@ export function VideoAppointmentsList({
                     <SelectValue placeholder="Filter by clinic" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Clinics</SelectItem>
+                    <SelectItem value="all">All Clinics</SelectItem>
                     {clinics.map((clinic: { id: string; name: string }) => (
                       <SelectItem key={clinic.id} value={clinic.id}>
                         {clinic.name}

@@ -3,12 +3,11 @@
 // import React from "react";
 import { Role } from "@/types/auth.types";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { getRoutesByRole } from "@/lib/config/routes";
+
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -17,7 +16,6 @@ import {
   Users,
   Clock,
   Stethoscope,
-  LogOut,
   CheckCircle,
   AlertCircle,
   FileText,
@@ -168,24 +166,10 @@ export default function EnhancedDoctorDashboard() {
     },
   ];
 
-  const sidebarLinks = [...getRoutesByRole(Role.DOCTOR)];
 
-  sidebarLinks.push({
-    title: "Logout",
-    href: "/(auth)/auth/login",
-    icon: LogOut,
-  });
 
   return (
     <DashboardLayout title="Doctor Dashboard" allowedRole={[Role.DOCTOR, Role.ASSISTANT_DOCTOR]}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
           {/* Header Section */}
           <div className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-40">
@@ -534,7 +518,6 @@ export default function EnhancedDoctorDashboard() {
             </div>
           </div>
         </div>
-      </Sidebar>
     </DashboardLayout>
   );
 }

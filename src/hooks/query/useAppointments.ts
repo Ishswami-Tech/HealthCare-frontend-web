@@ -714,20 +714,19 @@ export const useMyAppointments = (filters?: {
 /**
  * Hook for fetching doctor availability
  */
-export const useDoctorAvailability = (doctorId: string, date: string, locationId?: string) => {
-  const { hasPermission } = useRBAC();
+export const useDoctorAvailability = (clinicId: string, doctorId: string, date: string, locationId?: string) => {
   
   return useQueryData(
-    ['doctorAvailability', doctorId, date, locationId],
+    ['doctorAvailability', clinicId, doctorId, date, locationId],
     async () => {
-      const result = await getDoctorAvailability(doctorId, date, locationId) as any;
+      const result = await getDoctorAvailability(clinicId, doctorId, date, locationId) as any;
       if (!result.success) {
         throw new Error(result.error);
       }
       return result.availability;
     },
     {
-      enabled: !!doctorId && !!date && hasPermission(Permission.VIEW_APPOINTMENTS),
+      enabled: !!doctorId && !!date, // Enabled for everyone, including guests
       staleTime: 30 * 1000, // 30 seconds — availability is time-sensitive
       gcTime: 2 * 60 * 1000, // 2 minutes garbage collection
       refetchOnMount: true, // Always re-fetch when dialog opens

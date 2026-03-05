@@ -2,14 +2,11 @@
 
 import { useState } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useInventory } from "@/hooks/query/usePharmacy";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -27,8 +24,7 @@ import {
 } from "lucide-react";
 
 export default function InventoryPage() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -184,7 +180,6 @@ export default function InventoryPage() {
   const expiringItems = inventoryItems.filter((item: any) => isExpiringSoon(item.expiryDate)).length;
   const totalValue = inventoryItems.reduce((sum: number, item: any) => sum + (item.currentStock * item.costPerUnit), 0);
 
-  const sidebarLinks = getSidebarLinksByRole(Role.PHARMACIST);
 
   // Filter inventory items
   const filteredInventory = inventoryItems.filter((item: any) => {
@@ -197,40 +192,19 @@ export default function InventoryPage() {
   // Show loading state
   if (inventoryPending) {
     return (
-      <DashboardLayout
-        title="Inventory Management"
-        allowedRole={Role.PHARMACIST}
-      >
-        <Sidebar
-          links={sidebarLinks}
-          user={{
-            name: user?.name || `${user?.firstName} ${user?.lastName}` || "Pharmacist",
-            ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-          }}
-        >
+      
           <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">
               <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading inventory...</p>
             </div>
           </div>
-        </Sidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout
-      title="Inventory Management"
-      allowedRole={Role.PHARMACIST}
-    >
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name: user?.name || `${user?.firstName} ${user?.lastName}` || "Pharmacist",
-          ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -355,7 +329,6 @@ export default function InventoryPage() {
             ))}
           </div>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Role } from "@/types/auth.types";
+
 import { Permission } from "@/types/rbac.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole, ROUTES } from "@/lib/config/routes";
-import { useAuth } from "@/hooks/auth/useAuth";
+
+
 import {
   usePatientLabResults,
   useSearchPatients,
@@ -40,7 +39,6 @@ import { LoadingSpinner } from "@/components/ui/loading";
 import {
   FileText,
   Users,
-  LogOut,
   Search,
   Filter,
   User,
@@ -62,15 +60,14 @@ import {
 } from "lucide-react";
 
 export default function EHRSystem() {
-  const { session } = useAuth();
-  const user = session?.user;
+
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(
     null
   );
 
-  // Determine user role and setup appropriate sidebar
-  const userRole = (user?.role as Role) || Role.DOCTOR;
+
 
   // RBAC permissions
   const patientPermissions = usePatientPermissions();
@@ -239,44 +236,24 @@ export default function EHRSystem() {
     }
   };
 
-  const sidebarLinks = [...getRoutesByRole(userRole)];
 
-  // Add EHR link to sidebar
-  sidebarLinks.push({
-    title: "EHR System",
-    href: ROUTES.SHARED_EHR,
-    icon: Database,
-  });
-
-  sidebarLinks.push({
-    title: "Logout",
-    href: ROUTES.LOGIN,
-    icon: LogOut,
-  });
 
 
   // Show loading state
   if (patientsLoading) {
     return (
-      <DashboardLayout
-        title="Electronic Health Records"
-        requiredPermission={Permission.VIEW_MEDICAL_RECORDS}
-        showPermissionWarnings={true}
-      >
+      
         <div className="flex items-center justify-center min-h-screen">
           <LoadingSpinner size="lg" color="primary" text="Loading EHR system..." />
         </div>
-      </DashboardLayout>
+      
     );
   }
 
   // Show error state
   if (patientsError) {
     return (
-      <DashboardLayout
-        title="Electronic Health Records"
-        requiredPermission={Permission.VIEW_MEDICAL_RECORDS}
-      >
+      
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <p className="text-red-600">
@@ -287,32 +264,17 @@ export default function EHRSystem() {
             </Button>
           </div>
         </div>
-      </DashboardLayout>
+      
     );
   }
 
   return (
     <MedicalRecordsRouteProtection>
-      <DashboardLayout
-        title="Electronic Health Records"
-        requiredPermission={Permission.VIEW_MEDICAL_RECORDS}
-        showPermissionWarnings={true}
-        customUnauthorizedMessage="You need medical records access to view the EHR system."
-      >
-        <Sidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name ||
-              `${user?.firstName} ${user?.lastName}` ||
-              "Healthcare Professional",
-            ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-          }}
-        >
-          <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold">
+      
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">
                   Electronic Health Records
                 </h1>
                 <p className="text-gray-600">
@@ -982,8 +944,7 @@ export default function EHRSystem() {
               </TabsContent>
             </Tabs>
           </div>
-        </Sidebar>
-      </DashboardLayout>
+      
     </MedicalRecordsRouteProtection>
   );
 }

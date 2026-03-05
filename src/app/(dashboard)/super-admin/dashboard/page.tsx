@@ -2,11 +2,8 @@
 
 
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinics } from "@/hooks/query/useClinics";
 import { useUsers } from "@/hooks/query/useUsers";
@@ -21,8 +18,7 @@ import {
 } from "lucide-react";
 
 export default function SuperAdminDashboard() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
 
   // Fetch real data using existing hooks and server actions
   const { data: clinics } = useClinics();
@@ -75,23 +71,9 @@ export default function SuperAdminDashboard() {
     },
   ];
 
-  const sidebarLinks = getSidebarLinksByRole(Role.SUPER_ADMIN);
 
   return (
-    <DashboardLayout
-      title="Super Admin Dashboard"
-      allowedRole={Role.SUPER_ADMIN}
-    >
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Super Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
@@ -281,7 +263,6 @@ export default function SuperAdminDashboard() {
             </CardContent>
           </Card>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

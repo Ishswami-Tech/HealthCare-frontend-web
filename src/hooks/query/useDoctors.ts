@@ -10,7 +10,6 @@ import {
   deleteDoctor,
   getDoctorSchedule,
   updateDoctorSchedule,
-  getDoctorAvailability,
   updateDoctorAvailability,
   getDoctorAppointments,
   getDoctorPatients,
@@ -24,6 +23,8 @@ import {
   getDoctorEarnings,
   exportDoctorData
 } from '@/lib/actions/doctors.server';
+import { getDoctorAvailability } from '@/lib/actions/appointments.server';
+import { useCurrentClinicId } from './useClinics';
 
 // ===== DOCTORS QUERY HOOKS =====
 
@@ -59,22 +60,28 @@ export const useDoctor = (doctorId: string) => {
 /**
  * Hook to get doctor schedule
  */
-export const useDoctorSchedule = (doctorId: string, date?: string) => {
-  return useQueryData(['doctorSchedule', doctorId, date], async () => {
-    return await getDoctorSchedule(doctorId, date || '');
+export const useDoctorSchedule = (clinicId: string, doctorId: string, date?: string) => {
+  return useQueryData(['doctorSchedule', clinicId, doctorId, date], async () => {
+    return await getDoctorSchedule(clinicId, doctorId, date);
   }, {
-    enabled: !!doctorId,
+    enabled: !!clinicId && !!doctorId,
   });
 };
 
 /**
  * Hook to get doctor availability
  */
-export const useDoctorAvailability = (doctorId: string, date: string, locationId?: string) => {
+export const useDoctorAvailabilityLegacy = (doctorId: string, date: string, locationId?: string) => {
+  const clinicId = useCurrentClinicId();
+
   return useQueryData(['doctorAvailability', doctorId, date, locationId || 'all'], async () => {
-    return await getDoctorAvailability(doctorId, date, locationId);
+    if (!clinicId) {
+      throw new Error('No clinic ID available');
+    }
+    const res = await getDoctorAvailability(clinicId, doctorId, date, locationId);
+    return res.availability;
   }, {
-    enabled: !!doctorId && !!date,
+    enabled: !!clinicId && !!doctorId && !!date,
   });
 };
 

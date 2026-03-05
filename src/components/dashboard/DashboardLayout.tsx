@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, createContext, useContext } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useRBAC,
   useRoleBasedNavigation,
   useAppointmentPermissions,
-  useQueuePermissions,
 } from "@/hooks/utils/useRBAC";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
@@ -14,15 +13,24 @@ import { Loader2, Shield, AlertTriangle } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useQueryData } from "@/hooks/core/useQueryData";
 import { getUserProfile } from "@/lib/actions/users.server";
-import { checkProfileCompletion, transformApiResponse } from "@/lib/config/profile";
+import { transformApiResponse } from "@/lib/config/profile";
 import { ROUTES, getProtectedRouteRoles } from "@/lib/config/routes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { UserProfile } from "@/types/auth.types";
 
+// Layout imports
+import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
+import { Header } from "@/components/global/Header";
+import { cn } from "@/lib/utils";
+import { sidebarLinksByRole, SidebarLink } from "@/lib/config/sidebarLinks";
+import { useLayoutStore } from "@/stores/layout.store";
+const DashboardShellContext = createContext<boolean>(false);
+
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  title: string;
+  /** Optional — used for RBAC error messages and permission warnings */
+  title?: string;
   allowedRole?: Role | Role[];
   requiredPermission?: Permission;
   requiredPermissions?: Permission[];
@@ -33,7 +41,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({
   children,
-  title,
+  title = "Dashboard",
   allowedRole,
   requiredPermission,
   requiredPermissions,
@@ -41,6 +49,13 @@ export function DashboardLayout({
   showPermissionWarnings = true,
   customUnauthorizedMessage,
 }: DashboardLayoutProps) {
+  const isInsideShell = useContext(DashboardShellContext);
+
+  // ─── Global Layout Store Sync ──────────────────────────────────────────────
+  const setDashboardMounted = useLayoutStore((state) => state.setDashboardMounted);
+  const setPageTitle = useLayoutStore((state) => state.setPageTitle);
+  const setDisplayUser = useLayoutStore((state) => state.setDisplayUser);
+
   const { session, isPending } = useAuth();
   const router = useRouter();
   const { user } = session || {};
@@ -49,7 +64,6 @@ export function DashboardLayout({
   const rbac = useRBAC();
   const { getDefaultRoute } = useRoleBasedNavigation();
   const appointmentPermissions = useAppointmentPermissions();
-  const queuePermissions = useQueuePermissions();
 
   // Memoize allowed roles array
   const allowedRoles = useMemo(
@@ -61,31 +75,26 @@ export function DashboardLayout({
         : [],
     [allowedRole]
   );
+  const normalizedUserRole = useMemo(() => {
+    return String(user?.role || "").toUpperCase().replace(/\s+/g, "_") as Role;
+  }, [user?.role]);
 
   // Check permissions
   const hasPermissionAccess = useMemo(() => {
     if (!user) return false;
 
-    // Check single permission
     if (requiredPermission) {
       return rbac.hasPermission(requiredPermission);
     }
 
-    // Check multiple permissions
     if (requiredPermissions && requiredPermissions.length > 0) {
       return requireAllPermissions
         ? rbac.hasAllPermissions(requiredPermissions)
         : rbac.hasAnyPermission(requiredPermissions);
     }
 
-    return true; // No permission requirements
-  }, [
-    user,
-    rbac,
-    requiredPermission,
-    requiredPermissions,
-    requireAllPermissions,
-  ]);
+    return true;
+  }, [user, rbac, requiredPermission, requiredPermissions, requireAllPermissions]);
 
   // Get current path for route-based protection
   const pathname = usePathname();
@@ -93,39 +102,23 @@ export function DashboardLayout({
   // Check role access (Component Props)
   const hasRoleAccess = useMemo(() => {
     if (!user || allowedRoles.length === 0) return true;
-    return allowedRoles.includes(user.role as Role);
-  }, [user, allowedRoles]);
+    return allowedRoles.includes(normalizedUserRole);
+  }, [user, allowedRoles, normalizedUserRole]);
 
-  // Check role access (Route Config - Closed by Default)
+  // Check role access (Route Config)
   const hasRouteRoleAccess = useMemo(() => {
     if (!user || !pathname) return false;
-    
     const routeRoles = getProtectedRouteRoles(pathname);
-    
-    // If route has specific roles defined, strict check
     if (routeRoles && routeRoles.length > 0) {
-      return routeRoles.includes(user.role as Role);
+      return routeRoles.includes(normalizedUserRole);
     }
-    
-    // If no roles defined for this path in routes.ts, and we are in a dashboard layout:
-    // OPEN QUESTION: Do we block or allow? 
-    // "Closed by default" implies we should BLOCK if it's not explicitly in PROTECTED_ROUTES.
-    // However, for transition safety, if prop-based Access is OK, we might allow.
-    // BUT user requested "minute details" and "security gaps".
-    // Let's rely on the explicit PROTECTED_ROUTES source of truth.
-    
-    // If strictly closed-by-default:
-    // return false; 
-    
-    // However, to avoid breaking unspecified child routes we might need to be careful.
-    // But since we are inside DashboardLayout, we usually expect it to be a protected area.
-    return true; 
-  }, [user, pathname]);
+    return true;
+  }, [user, pathname, normalizedUserRole]);
 
-  // Overall access check (Props AND Route Config AND Permissions)
+  // Overall access check
   const hasAccess = hasRoleAccess && hasRouteRoleAccess && hasPermissionAccess;
 
-  // Fetch user profile for completeness check
+  // ─── Fetch User Profile (React Query) ──────────────────────────────────────
   const { data: profile, isPending: loadingProfile } = useQueryData(
     ["dashboard-profile"],
     async () => {
@@ -139,226 +132,184 @@ export function DashboardLayout({
     { enabled: !!session?.access_token }
   );
 
-  // Memoize profile cleaning function
-  const cleanProfile = useMemo(() => {
-    return (
-      profile: Partial<UserProfile>,
-      user: Partial<UserProfile>
-    ): UserProfile => {
-      const dateOfBirthRaw = profile?.dateOfBirth ?? user?.dateOfBirth;
-      const genderRaw = profile?.gender ?? user?.gender;
-      const allowedGenders = ["male", "female", "other"];
-      let gender: "male" | "female" | "other" | undefined = undefined;
-
-      if (allowedGenders.includes((genderRaw || "").toLowerCase())) {
-        gender = genderRaw as "male" | "female" | "other";
-      }
-
-      return {
-        ...profile,
-        ...user,
-        dateOfBirth: dateOfBirthRaw === null ? undefined : dateOfBirthRaw,
-        gender,
-      } as UserProfile;
-    };
-  }, []);
-
   // Memoize merged profile
   const mergedProfile = useMemo(() => {
     if (!user || !profile) return null;
-    return cleanProfile(
-      profile as Partial<UserProfile>,
-      user as Partial<UserProfile>
-    );
-  }, [user, profile, cleanProfile]);
+    const dateOfBirthRaw = profile?.dateOfBirth ?? user?.dateOfBirth;
+    const genderRaw = profile?.gender ?? user?.gender;
+    const allowedGenders = ["male", "female", "other"];
+    let gender: "male" | "female" | "other" | undefined = undefined;
 
-  // Consolidated authentication and authorization effect
+    if (allowedGenders.includes((genderRaw || "").toLowerCase())) {
+      gender = genderRaw as "male" | "female" | "other";
+    }
+
+    return {
+      ...profile,
+      ...user,
+      dateOfBirth: dateOfBirthRaw === null ? undefined : dateOfBirthRaw,
+      gender,
+    } as UserProfile;
+  }, [user, profile]);
+
+  // ─── Sync Store Data (Zustand) ─────────────────────────────────────────────
+  const userDisplayData = useMemo(() => {
+    if (!user) return null;
+    
+    // Use profile data if available, fall back to basic user data
+    const profileData = profile || {};
+    const firstName = (profileData as any).firstName || user.firstName || "User";
+    const lastName = (profileData as any).lastName || user.lastName || "";
+    
+    const displayName = lastName ? `${firstName} ${lastName}` : firstName;
+    
+    // Generate initials (more robustly)
+    const initials = `${(firstName?.[0] || "U")}${(lastName?.[0] || "")}`.toUpperCase();
+
+    const avatar = (profileData as any).profilePicture ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
+
+    return {
+      name: displayName,
+      initials,
+      role: normalizedUserRole || Role.PATIENT,
+      avatar,
+      email: user.email || "",
+    };
+  }, [user, profile, normalizedUserRole]);
+
   useEffect(() => {
-    // Skip if still loading
-    if (isPending || loadingProfile) return;
+    if (userDisplayData) {
+      setDisplayUser(userDisplayData);
+    }
+  }, [userDisplayData, setDisplayUser]);
 
-    // Redirect to login if no user
+  // Sync page title
+  useEffect(() => {
+    if (title) {
+      setPageTitle(title);
+    }
+  }, [title, setPageTitle]);
+
+  // Authorization effect
+  useEffect(() => {
+    if (isPending || loadingProfile) return;
+    
     if (!user) {
       router.replace(ROUTES.LOGIN);
       return;
     }
-
-    // Check comprehensive access (role + permissions)
+    
     if (!hasAccess) {
-      if (process.env.NODE_ENV === "development") {
-        console.error(
-          `Unauthorized access to ${title.toLowerCase()} dashboard`,
-          {
-            userRole: user.role,
-            allowedRoles,
-            hasRoleAccess,
-            hasPermissionAccess,
-            requiredPermission,
-            requiredPermissions,
-          }
-        );
-      }
-
-      // Redirect to appropriate dashboard based on user's role
-      const redirectPath = getDefaultRoute();
-      router.replace(redirectPath);
+      router.replace(getDefaultRoute());
       return;
     }
-
-    // Check profile completeness
-    if (mergedProfile) {
-      // ✅ FIX: Trust session cookie status to prevent redirection loops
-      // The API might return incomplete data (security filtering), but if the session/cookie 
-      // says it's complete, we should trust it.
-      if (user?.profileComplete) {
-        return;
-      }
-
-      const { isComplete } = checkProfileCompletion(mergedProfile as any);
-      if (!isComplete) {
-        router.replace(ROUTES.PROFILE_COMPLETION);
-        return;
-      }
+    
+    if (user?.profileComplete === false) {
+      router.replace(ROUTES.PROFILE_COMPLETION);
     }
-  }, [
-    isPending,
-    loadingProfile,
-    user,
-    mergedProfile,
-    allowedRoles,
-    title,
-    router,
-  ]);
+  }, [isPending, loadingProfile, user, mergedProfile, hasAccess, getDefaultRoute, router]);
 
-  // Non-blocking load: If we have a user, render content even if profile is loading
+  // Shell detection effect (for other store consumers)
+  useEffect(() => {
+    setDashboardMounted(true);
+    return () => setDashboardMounted(false);
+  }, [setDashboardMounted]);
+
   if (isPending || (!user && !session)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Verifying access...</p>
-        </div>
+      <div className={cn(
+        "flex items-center justify-center bg-background",
+        isInsideShell ? "h-[400px] w-full" : "min-h-screen"
+      )}>
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
-  // Show unauthorized access message
   if (!hasAccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full space-y-6 p-6">
-          <div className="text-center">
-            <Shield className="mx-auto h-12 w-12 text-red-500 mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Access Denied
-            </h2>
-            <p className="text-gray-600 mb-4">
-              {customUnauthorizedMessage ||
-                `You don't have permission to access the ${title.toLowerCase()}.`}
-            </p>
-          </div>
-
-          <Alert className="border-red-200 bg-red-50">
-            <AlertTriangle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">
-              {!hasRoleAccess && allowedRoles.length > 0 && (
-                <>
-                  Your role ({user?.role}) is not authorized for this area.
-                  Required roles: {allowedRoles.join(", ")}.
-                </>
-              )}
-              {!hasPermissionAccess && (
-                <>
-                  You don't have the required permissions to access this
-                  feature.
-                </>
-              )}
+      <div className={cn(
+        "flex items-center justify-center bg-background p-6",
+        isInsideShell ? "h-[400px] w-full" : "min-h-screen"
+      )}>
+        <div className="max-w-md w-full text-center space-y-6">
+          <Shield className="mx-auto h-12 w-12 text-red-500" />
+          <h2 className="text-2xl font-bold">Access Denied</h2>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              {customUnauthorizedMessage || `Your role (${user?.role}) is not authorized for this area.`}
             </AlertDescription>
           </Alert>
-
-          <div className="flex space-x-4">
-            <Button
-              onClick={() => router.back()}
-              variant="outline"
-              className="flex-1"
-            >
-              Go Back
-            </Button>
-            <Button
-              onClick={() => router.push(getDefaultRoute())}
-              className="flex-1"
-            >
-              Go to Dashboard
-            </Button>
+          <div className="flex gap-4">
+            <Button onClick={() => router.back()} variant="outline" className="flex-1">Back</Button>
+            <Button onClick={() => router.push(getDefaultRoute())} className="flex-1">Dashboard</Button>
           </div>
         </div>
       </div>
     );
   }
 
-  // We allow rendering even if mergedProfile is not ready yet (handled by layout skeleton)
-  if (!mergedProfile && loadingProfile) {
-    // Optional: Return a local skeleton here if needed, or null to wait slightly
-    // but preventing full blocking is key.
-    // For now, let's allow children to render if user exists.
-  }
-
-  // Check profile completeness
-  const isProfileComplete = useMemo(() => {
-    if (!mergedProfile) return true; // Assume complete while loading to avoid blocking
-    const { isComplete } = checkProfileCompletion(mergedProfile as any);
-    return isComplete;
-  }, [mergedProfile]);
-
-  if (!isProfileComplete && !user?.profileComplete) {
-    return null; // Will redirect in useEffect
-  }
-
-  // Render permission warnings if enabled
-  const renderPermissionWarnings = () => {
-    if (!showPermissionWarnings) return null;
-
-    const warnings = [];
-
-    // Check for common permission warnings
-    if (
-      !appointmentPermissions.canViewAppointments &&
-      title.toLowerCase().includes("appointment")
-    ) {
-      warnings.push(
-        "Limited appointment access - some features may not be available."
-      );
-    }
-
-    if (
-      !queuePermissions.canManageQueue &&
-      title.toLowerCase().includes("queue")
-    ) {
-      warnings.push("Read-only queue access - you cannot modify queue status.");
-    }
-
-    if (warnings.length === 0) return null;
-
+  // Profile completeness check
+  if (user?.profileComplete === false) {
     return (
-      <div className="mb-6">
-        {warnings.map((warning, index) => (
-          <Alert key={index} className="mb-2 border-yellow-200 bg-yellow-50">
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="text-yellow-800">
-              {warning}
-            </AlertDescription>
-          </Alert>
-        ))}
+      <div className={cn(
+        "flex items-center justify-center bg-background",
+        isInsideShell ? "h-[400px] w-full" : "min-h-screen"
+      )}>
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <p className="ml-2">Redirecting to profile completion...</p>
       </div>
     );
-  };
+  }
 
-  return (
-    <div className="w-full">
-      {renderPermissionWarnings()}
-      <div className="w-full">
+  // Shell Rendering info
+  const userRole = String(userDisplayData?.role || Role.PATIENT).toUpperCase().replace(/\s+/g, "_");
+  const sidebarLinks: SidebarLink[] = (sidebarLinksByRole[userRole] as SidebarLink[]) ?? [];
+
+  // Render
+  if (isInsideShell) {
+    return (
+      <div className="h-full w-full">
+        {showPermissionWarnings && title.toLowerCase().includes("appointment") && !appointmentPermissions.canViewAppointments && (
+          <Alert className="mb-4 bg-yellow-50 border-yellow-200">
+            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800">Limited appointment access.</AlertDescription>
+          </Alert>
+        )}
         {children}
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <DashboardShellContext.Provider value={true}>
+      <div className="relative min-h-screen bg-muted/40 dark:bg-muted/10">
+        <Sidebar
+          links={sidebarLinks}
+          user={{
+            name: userDisplayData?.name || "User",
+            avatarUrl: userDisplayData?.avatar || "",
+            role: String(userDisplayData?.role || ""),
+          }}
+        >
+          <div className="flex flex-col h-full bg-background overflow-hidden text-neutral-900 dark:text-neutral-50">
+            <Header className="bg-transparent border-b border-muted transition-none" />
+            <main className="flex-1 overflow-auto">
+              <div className="p-4 md:p-8">
+                {showPermissionWarnings && title.toLowerCase().includes("appointment") && !appointmentPermissions.canViewAppointments && (
+                  <Alert className="mb-4 bg-yellow-50 border-yellow-200">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    <AlertDescription className="text-yellow-800">Limited appointment access.</AlertDescription>
+                  </Alert>
+                )}
+                {children}
+              </div>
+            </main>
+          </div>
+        </Sidebar>
+      </div>
+    </DashboardShellContext.Provider>
   );
 }

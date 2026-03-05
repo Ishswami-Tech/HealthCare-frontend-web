@@ -114,6 +114,16 @@ const accessTokenOptions = SESSION_TOKEN_OPTIONS;
 const refreshTokenOptions = REFRESH_TOKEN_OPTIONS;
 const sessionOptions = COOKIE_OPTIONS;
 
+function resolveProfileComplete(userData: Record<string, unknown> | undefined): boolean {
+  if (!userData) return false;
+  if (typeof userData.profileComplete === 'boolean') return userData.profileComplete;
+  if (typeof userData.isProfileComplete === 'boolean') return userData.isProfileComplete;
+  if (typeof userData.requiresProfileCompletion === 'boolean') {
+    return !userData.requiresProfileCompletion;
+  }
+  return calculateProfileCompletion(userData as any);
+}
+
 interface GoogleLoginResponse {
   user: {
     id: string;
@@ -249,7 +259,7 @@ export async function getServerSession(): Promise<Session | null> {
           gender: userData.gender || '',
           address: userData.address || '',
           isVerified: userData.isVerified || true,
-          profileComplete: calculateProfileCompletion(userData) || (userData.profileComplete ?? profileComplete),
+          profileComplete: resolveProfileComplete(userData) || profileComplete,
           clinicId: userData.clinicId || userData.primaryClinicId
         },
         access_token: accessToken,
@@ -377,7 +387,7 @@ export async function setSession(data: {
       gender: data.user.gender || '',
       address: data.user.address || '',
       isVerified: data.user.isVerified || false,
-      profileComplete: data.user.profileComplete || false,
+      profileComplete: resolveProfileComplete(data.user as unknown as Record<string, unknown>),
       clinicId: data.user.clinicId
     },
     isAuthenticated: true
@@ -413,7 +423,7 @@ export async function setSession(data: {
   
   cookieStore.set({
     name: 'profile_complete',
-    value: String(data.user.profileComplete || false),
+    value: String(resolveProfileComplete(data.user as unknown as Record<string, unknown>)),
     ...sessionOptions,
   });
 
@@ -487,7 +497,17 @@ export async function login(data: { email: string; password?: string; otp?: stri
     const response = await clinicApiClient.login(requestBody as any);
     
     const responseData = response.data as Record<string, any>;
-    const result = responseData.data || responseData;
+    const resultData = responseData.data || responseData;
+    const result = {
+      ...resultData,
+      access_token: resultData.access_token || resultData.accessToken,
+      refresh_token: resultData.refresh_token || resultData.refreshToken,
+      session_id: resultData.session_id || resultData.sessionId,
+      user: {
+        ...resultData.user,
+        clinicId: resultData.user?.clinicId || resultData.user?.primaryClinicId,
+      },
+    };
     
     const normalizedResult = {
       ...result,
@@ -514,7 +534,7 @@ export async function login(data: { email: string; password?: string; otp?: stri
     }
 
     const cookieStore = await cookies();
-    const profileComplete = calculateProfileCompletion(normalizedResult.user);
+    const profileComplete = resolveProfileComplete(normalizedResult.user as Record<string, unknown>);
 
     if (normalizedResult.access_token) {
       cookieStore.set({
@@ -667,11 +687,28 @@ export async function registerWithClinic(data: any): Promise<AuthResponse> {
 
 export async function requestOTP(data: OtpRequestFormData): Promise<{ success: boolean; message: string }> {
   try {
-    const response = await clinicApiClient.requestOTP({ 
-        contact: data.identifier, 
-        clinicId: CLINIC_ID 
-    });
-    return response.data as { success: boolean; message: string };
+    const requestBody = {
+      identifier: data.identifier,
+      clinicId: CLINIC_ID,
+      ...(data.isRegistration !== undefined ? { isRegistration: data.isRegistration } : {}),
+    };
+    const response = await clinicApiClient.requestOTP(requestBody);
+    const responseData = response.data as Record<string, any>;
+    const resultData = responseData.data || responseData;
+    const result = {
+      ...resultData,
+      access_token: resultData.access_token || resultData.accessToken,
+      refresh_token: resultData.refresh_token || resultData.refreshToken,
+      session_id: resultData.session_id || resultData.sessionId,
+      user: {
+        ...resultData.user,
+        clinicId: resultData.user?.clinicId || resultData.user?.primaryClinicId,
+      },
+    };
+    return {
+      success: result.success ?? true,
+      message: result.message || 'OTP sent successfully',
+    };
   } catch (error) {
     logger.error('OTP request error', error instanceof Error ? error : new Error(String(error)));
     throw error instanceof Error ? error : new Error('Failed to request OTP');
@@ -710,15 +747,42 @@ export async function resendVerification(email: string): Promise<{ success: bool
 
 export async function verifyOTP(data: OtpVerifyFormData): Promise<AuthResponse> {
   try {
-    const response = await clinicApiClient.verifyOTP({
-        contact: data.identifier, 
-        otp: data.otp,
-        clinicId: CLINIC_ID
-    });
+    const requestBody = {
+      identifier: data.identifier,
+      otp: data.otp,
+      clinicId: CLINIC_ID,
+      ...(data.rememberMe !== undefined ? { rememberMe: data.rememberMe } : {}),
+      ...(data.isRegistration !== undefined ? { isRegistration: data.isRegistration } : {}),
+      ...(data.firstName ? { firstName: data.firstName } : {}),
+      ...(data.lastName ? { lastName: data.lastName } : {}),
+    };
+    const response = await clinicApiClient.verifyOTP(requestBody);
     
-    const responseData = response.data as any;
-    await setAuthCookies(responseData);
-    return responseData as AuthResponse;
+    const responseData = response.data as Record<string, any>;
+    const resultData = responseData.data || responseData;
+    const result = {
+      ...resultData,
+      access_token: resultData.access_token || resultData.accessToken,
+      refresh_token: resultData.refresh_token || resultData.refreshToken,
+      session_id: resultData.session_id || resultData.sessionId,
+      user: {
+        ...resultData.user,
+        clinicId: resultData.user?.clinicId || resultData.user?.primaryClinicId,
+      },
+    };
+    const normalizedResult = {
+      ...result,
+      access_token: result.access_token || result.accessToken,
+      refresh_token: result.refresh_token || result.refreshToken,
+      session_id: result.session_id || result.sessionId,
+      user: {
+        ...result.user,
+        clinicId: result.user?.clinicId || result.user?.primaryClinicId,
+      },
+    };
+
+    await setAuthCookies(normalizedResult);
+    return normalizedResult as AuthResponse;
   } catch (error) {
      throw error;
   }
@@ -741,21 +805,43 @@ export async function requestMagicLink(email: string): Promise<MessageResponse> 
 
 export async function verifyMagicLink(token: string): Promise<AuthResponse> {
     const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.VERIFY_MAGIC_LINK, { token });
-    const responseData = response.data as any;
-    await setAuthCookies(responseData);
-    return responseData as AuthResponse;
+    const responseData = response.data as Record<string, any>;
+    const resultData = responseData.data || responseData;
+    const normalizedResult = {
+      ...resultData,
+      access_token: resultData.access_token || resultData.accessToken,
+      refresh_token: resultData.refresh_token || resultData.refreshToken,
+      session_id: resultData.session_id || resultData.sessionId,
+      user: {
+        ...resultData.user,
+        clinicId: resultData.user?.clinicId || resultData.user?.primaryClinicId,
+      },
+    };
+    await setAuthCookies(normalizedResult);
+    return normalizedResult as AuthResponse;
 }
 
 export async function socialLogin(data: { provider: string; token: string }): Promise<AuthResponse> {
     const response = await clinicApiClient.socialLogin(data);
     const responseData = response.data as Record<string, any>;
+    const result = responseData.data || responseData;
+    const normalizedResult = {
+      ...result,
+      access_token: result.access_token || result.accessToken,
+      refresh_token: result.refresh_token || result.refreshToken,
+      session_id: result.session_id || result.sessionId,
+      user: {
+        ...result.user,
+        clinicId: result.user?.clinicId || result.user?.primaryClinicId,
+      },
+    };
     
-    if (CLINIC_ID && responseData?.user && !responseData.user.clinicId) {
-        responseData.user.clinicId = CLINIC_ID;
+    if (CLINIC_ID && normalizedResult?.user && !normalizedResult.user.clinicId) {
+        normalizedResult.user.clinicId = CLINIC_ID;
     }
     
-    await setAuthCookies(responseData);
-    return responseData as AuthResponse;
+    await setAuthCookies(normalizedResult);
+    return normalizedResult as AuthResponse;
 }
 
 export async function forgotPassword(data: ForgotPasswordFormData): Promise<MessageResponse> {
@@ -837,15 +923,20 @@ async function setAuthCookies(data: {
   access_token?: string;
   refresh_token?: string;
   session_id?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  sessionId?: string;
   user?: {
     role?: Role;
     profileComplete?: boolean;
+    clinicId?: string;
   };
 }) {
   const cookieStore = await cookies();
   
-  const accessTokenValue = data.access_token || (data as any).accessToken;
-  const refreshTokenValue = data.refresh_token || (data as any).refreshToken;
+  const accessTokenValue = data.access_token || data.accessToken;
+  const refreshTokenValue = data.refresh_token || data.refreshToken;
+  const sessionIdValue = data.session_id || data.sessionId;
 
   if (accessTokenValue) {
     cookieStore.set({
@@ -863,18 +954,34 @@ async function setAuthCookies(data: {
     });
   }
 
-  if (data.session_id) {
+  if (sessionIdValue) {
     cookieStore.set({
       name: 'session_id',
-      value: data.session_id,
+      value: sessionIdValue,
+      ...sessionOptions,
+    });
+  }
+
+  if (data.user?.role) {
+    cookieStore.set({
+      name: 'user_role',
+      value: data.user.role,
+      ...sessionOptions,
+    });
+  }
+
+  if (data.user?.clinicId) {
+    cookieStore.set({
+      name: 'clinic_id',
+      value: data.user.clinicId,
       ...sessionOptions,
     });
   }
 
   // Set profile completion status
   let profileComplete: string | undefined;
-  if (data.user?.profileComplete !== undefined) {
-    profileComplete = data.user.profileComplete.toString();
+  if (data.user && ((data.user as any).profileComplete !== undefined || (data.user as any).isProfileComplete !== undefined || (data.user as any).requiresProfileCompletion !== undefined)) {
+    profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>).toString();
   } else if (data.user && (data.user as any).id && (data.user as any).email) {
     // Only calculate if we have basically enough info
     profileComplete = calculateProfileCompletion(data.user as any).toString();
@@ -895,6 +1002,24 @@ export async function authenticatedApi<T = unknown>(
 ): Promise<{ status: number; data: T }> {
   try {
     const response = await clinicApiClient.request<T>(endpoint, options);
+    return { 
+      status: response.statusCode || 200, 
+      data: response.data as T 
+    };
+  } catch (error: unknown) {
+    if (error instanceof Error && 'statusCode' in error) {
+       throw error;
+    }
+    throw error;
+  }
+}
+
+export async function publicApi<T = unknown>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<{ status: number; data: T }> {
+  try {
+    const response = await clinicApiClient.publicRequest<T>(endpoint, options);
     return { 
       status: response.statusCode || 200, 
       data: response.data as T 
@@ -947,13 +1072,24 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
       );
     }
     
-    const response = await clinicApiClient.socialLogin({ 
-      provider: 'google', 
-      token, 
-      clinicId: CLINIC_ID 
+    const response = await clinicApiClient.socialLogin({
+      provider: 'google',
+      token,
+      clinicId: CLINIC_ID
     });
-    
-    const result = response.data as Record<string, any>;
+
+    const responseData = response.data as Record<string, any>;
+    const resultData = responseData.data || responseData;
+    const result = {
+      ...resultData,
+      access_token: resultData.access_token || resultData.accessToken,
+      refresh_token: resultData.refresh_token || resultData.refreshToken,
+      session_id: resultData.session_id || resultData.sessionId,
+      user: {
+        ...resultData.user,
+        clinicId: resultData.user?.clinicId || resultData.user?.primaryClinicId,
+      },
+    };
 
     if (!result?.access_token || !result?.session_id || !result?.user) {
       logger.error('Missing required data in Google login response', new Error('Missing required fields'));
@@ -999,7 +1135,7 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
 
     await setAuthCookies(result);
 
-    const responseData = {
+    const outputData = {
       user: {
         id: result.user.id,
         email: result.user.email,
@@ -1009,14 +1145,14 @@ export async function googleLogin(token: string): Promise<GoogleLoginResponse> {
         lastName: result.user.lastName || '',
         isNewUser: result.isNewUser,
         googleId: result.user.googleId,
-        profileComplete: calculateProfileCompletion(result.user)
+        profileComplete: resolveProfileComplete(result.user as Record<string, unknown>)
       },
       token: result.access_token,
       redirectUrl: result.redirectUrl || getDashboardByRole(result.user.role)
     };
     
-    logger.info('Google login completed successfully', { userId: responseData.user?.id });
-    return responseData;
+    logger.info('Google login completed successfully', { userId: outputData.user?.id });
+    return outputData;
 
   } catch (error: unknown) {
     logger.error('Google login error', error instanceof Error ? error : new Error(String(error)));
@@ -1030,9 +1166,20 @@ export async function facebookLogin(token: string): Promise<AuthResponse> {
     token,
     clinicId: CLINIC_ID 
   });
-  
-  await setAuthCookies(response.data as any);
-  return response.data as AuthResponse;
+  const responseData = response.data as Record<string, any>;
+  const result = responseData.data || responseData;
+  const normalizedResult = {
+    ...result,
+    access_token: result.access_token || result.accessToken,
+    refresh_token: result.refresh_token || result.refreshToken,
+    session_id: result.session_id || result.sessionId,
+    user: {
+      ...result.user,
+      clinicId: result.user?.clinicId || result.user?.primaryClinicId,
+    },
+  };
+  await setAuthCookies(normalizedResult);
+  return normalizedResult as AuthResponse;
 }
 
 export async function appleLogin(token: string): Promise<{ success: boolean; user?: User; error?: string }> {
@@ -1041,9 +1188,20 @@ export async function appleLogin(token: string): Promise<{ success: boolean; use
     token,
     clinicId: CLINIC_ID
   });
-  
-  await setAuthCookies(response.data as Record<string, any>);
-  return response.data as { success: boolean; user?: User; error?: string };
+  const responseData = response.data as Record<string, any>;
+  const result = responseData.data || responseData;
+  const normalizedResult = {
+    ...result,
+    access_token: result.access_token || result.accessToken,
+    refresh_token: result.refresh_token || result.refreshToken,
+    session_id: result.session_id || result.sessionId,
+    user: {
+      ...result.user,
+      clinicId: result.user?.clinicId || result.user?.primaryClinicId,
+    },
+  };
+  await setAuthCookies(normalizedResult);
+  return normalizedResult as { success: boolean; user?: User; error?: string };
 }
 
 
@@ -1061,4 +1219,3 @@ export async function setProfileComplete(complete: boolean) {
     maxAge: 60 * 60 * 24 * 7,
   });
 }
-

@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -251,27 +249,27 @@ export default function PatientProfile() {
   // Show error state if data fetch failed
   if (hasError) {
     return (
-      <DashboardLayout title="Patient Profile" allowedRole={Role.PATIENT}>
+      
         <ErrorState
           title="Unable to load profile"
           message="We couldn't fetch your profile data. Please try again."
           onRetry={() => setHasError(false)}
         />
-      </DashboardLayout>
+      
     );
   }
 
   // Show loading state while data is fetching
   if (isLoading) {
     return (
-      <DashboardLayout title="Patient Profile" allowedRole={Role.PATIENT}>
+      
         <PageLoading text="Loading your profile..." />
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout title="Patient Profile" allowedRole={Role.PATIENT}>
+    
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">My Profile</h1>
@@ -368,14 +366,16 @@ export default function PatientProfile() {
           </Card>
 
           <Tabs defaultValue="personal" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="personal">Personal</TabsTrigger>
-              <TabsTrigger value="ayurveda">Ayurveda Profile</TabsTrigger>
-              <TabsTrigger value="medical">Medical History</TabsTrigger>
-              <TabsTrigger value="lifestyle">Lifestyle</TabsTrigger>
-              <TabsTrigger value="documents">Documents</TabsTrigger>
-              <TabsTrigger value="preferences">Preferences</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto pb-2 scrollbar-hide">
+              <TabsList className="flex w-max sm:w-full min-w-full">
+                <TabsTrigger value="personal" className="flex-1">Personal</TabsTrigger>
+                <TabsTrigger value="ayurveda" className="flex-1">Ayurveda</TabsTrigger>
+                <TabsTrigger value="medical" className="flex-1">Medical</TabsTrigger>
+                <TabsTrigger value="lifestyle" className="flex-1">Lifestyle</TabsTrigger>
+                <TabsTrigger value="documents" className="flex-1">Documents</TabsTrigger>
+                <TabsTrigger value="preferences" className="flex-1">Preferences</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="personal">
               <Card>
@@ -1104,7 +1104,7 @@ export default function PatientProfile() {
             </TabsContent>
           </Tabs>
         </div>
-    </DashboardLayout>
+    
   );
 }
 

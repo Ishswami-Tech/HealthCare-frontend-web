@@ -11,6 +11,8 @@ const createRoleEnum = () => {
     Role.ASSISTANT_DOCTOR,
     Role.RECEPTIONIST,
     Role.PHARMACIST,
+    Role.FINANCE_BILLING,
+    Role.CLINIC_LOCATION_HEAD,
     Role.PATIENT,
   ] as [string, ...string[]]);
 };
@@ -20,9 +22,6 @@ export const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
   rememberMe: z.boolean().optional().default(false),
-  terms: z.boolean().refine((val) => val === true, {
-    message: 'You must accept the terms and conditions',
-  }),
 });
 
 export const passwordLoginSchema = z.object({
@@ -54,9 +53,6 @@ export const otpSchema = z.object({
   ),
   otp: z.string().length(6, 'OTP must be 6 digits'),
   rememberMe: z.boolean().optional().default(false),
-  terms: z.boolean().refine((val) => val === true, {
-    message: 'You must accept the terms and conditions',
-  }),
 });
 
 export const otpVerifySchema = otpSchema;

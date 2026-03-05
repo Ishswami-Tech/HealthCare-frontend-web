@@ -766,12 +766,29 @@ export class ClinicApiClient extends ApiClient {
     return this.post(API_ENDPOINTS.AUTH.LOGOUT, logoutDto);
   }
 
-  async requestOTP(requestDto: { contact: string; clinicId?: string }) {
-    return this.post(API_ENDPOINTS.AUTH.REQUEST_OTP, requestDto);
+  async requestOTP(requestDto: { identifier?: string; contact?: string; clinicId?: string; isRegistration?: boolean }) {
+    const identifier = requestDto.identifier || requestDto.contact;
+    return this.post(API_ENDPOINTS.AUTH.REQUEST_OTP, {
+      ...requestDto,
+      identifier,
+    });
   }
 
-  async verifyOTP(data: { contact: string; otp: string; rememberMe?: boolean; clinicId?: string }) {
-    return this.post(API_ENDPOINTS.AUTH.VERIFY_OTP, data);
+  async verifyOTP(data: {
+    identifier?: string;
+    contact?: string;
+    otp: string;
+    rememberMe?: boolean;
+    clinicId?: string;
+    isRegistration?: boolean;
+    firstName?: string;
+    lastName?: string;
+  }) {
+    const identifier = data.identifier || data.contact;
+    return this.post(API_ENDPOINTS.AUTH.VERIFY_OTP, {
+      ...data,
+      identifier,
+    });
   }
 
   async forgotPassword(requestDto: { email: string }) {
@@ -1020,7 +1037,8 @@ export class ClinicApiClient extends ApiClient {
   async getDoctorAvailability(doctorId: string, date: string, locationId?: string) {
     const params: Record<string, string> = { date };
     if (locationId) params.locationId = locationId;
-    return this.get(API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId), params);
+    const url = `${API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId)}?${new URLSearchParams(params)}`;
+    return this.publicRequest(url, { method: 'GET' });
   }
 
   async getUserUpcomingAppointments(userId: string) {

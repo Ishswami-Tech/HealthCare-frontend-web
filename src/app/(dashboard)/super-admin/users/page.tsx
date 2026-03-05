@@ -2,8 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUsers } from "@/hooks/query/useUsers";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -34,8 +31,7 @@ import {
 } from "lucide-react";
 
 export default function SuperAdminUsers() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -105,41 +101,19 @@ export default function SuperAdminUsers() {
     }
   };
 
-  const sidebarLinks = getSidebarLinksByRole(Role.SUPER_ADMIN);
 
   if (isLoadingUsers) {
     return (
-      <DashboardLayout title="User Management" allowedRole={Role.SUPER_ADMIN}>
-        <Sidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name ||
-              `${user?.firstName} ${user?.lastName}` ||
-              "Super Admin",
-            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-          }}
-        >
+      
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </Sidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout title="User Management" allowedRole={Role.SUPER_ADMIN}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Super Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">User Management</h1>
@@ -360,7 +334,6 @@ export default function SuperAdminUsers() {
             </Card>
           )}
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

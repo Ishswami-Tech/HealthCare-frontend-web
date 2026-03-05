@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getSidebarLinksByRole } from "@/lib/config/sidebarLinks";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   Save,
@@ -22,8 +19,7 @@ import {
 } from "lucide-react";
 
 export default function SuperAdminSettings() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
 
   // Mock settings state - in real app, fetch with server action
   const [systemSettings, setSystemSettings] = useState({
@@ -69,20 +65,9 @@ export default function SuperAdminSettings() {
     setNotificationSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  const sidebarLinks = getSidebarLinksByRole(Role.SUPER_ADMIN);
 
   return (
-    <DashboardLayout title="System Settings" allowedRole={Role.SUPER_ADMIN}>
-      <Sidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Super Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">System Settings</h1>
@@ -515,7 +500,6 @@ export default function SuperAdminSettings() {
             </TabsContent>
           </Tabs>
         </div>
-      </Sidebar>
-    </DashboardLayout>
+    
   );
 }

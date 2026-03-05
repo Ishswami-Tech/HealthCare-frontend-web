@@ -11,9 +11,11 @@ export const ROUTES = {
     SUPER_ADMIN: '/super-admin/dashboard',
     CLINIC_ADMIN: '/clinic-admin/dashboard',
     DOCTOR: '/doctor/dashboard',
+    ASSISTANT_DOCTOR: '/assistant-doctor/dashboard',
     PATIENT: '/patient/dashboard',
     RECEPTIONIST: '/receptionist/dashboard',
     PHARMACIST: '/pharmacist/dashboard',
+    CLINIC_LOCATION_HEAD: '/clinic-location-head/dashboard',
     THERAPIST: '/therapist/dashboard',
     LAB_TECHNICIAN: '/lab-technician/dashboard',
     SUPPORT_STAFF: '/support-staff/dashboard',
@@ -36,9 +38,11 @@ export const ROLE_DASHBOARDS = {
   SUPER_ADMIN: ROUTES.DASHBOARD.SUPER_ADMIN,
   CLINIC_ADMIN: ROUTES.DASHBOARD.CLINIC_ADMIN,
   DOCTOR: ROUTES.DASHBOARD.DOCTOR,
+  ASSISTANT_DOCTOR: ROUTES.DASHBOARD.ASSISTANT_DOCTOR,
   PATIENT: ROUTES.DASHBOARD.PATIENT,
   RECEPTIONIST: ROUTES.DASHBOARD.RECEPTIONIST,
   PHARMACIST: ROUTES.DASHBOARD.PHARMACIST,
+  CLINIC_LOCATION_HEAD: ROUTES.DASHBOARD.CLINIC_LOCATION_HEAD,
   THERAPIST: ROUTES.DASHBOARD.THERAPIST,
   LAB_TECHNICIAN: ROUTES.DASHBOARD.LAB_TECHNICIAN,
   SUPPORT_STAFF: ROUTES.DASHBOARD.SUPPORT_STAFF,
@@ -66,8 +70,20 @@ export function isPublicRoute(path: string): boolean {
     ROUTES.RESET_PASSWORD,
     ROUTES.VERIFY_OTP,
     '/',
+    '/about',
+    '/gallery',
+    '/team',
+    '/treatments',
+    '/contact',
+    '/privacy',
+    '/terms',
+    '/disclaimer',
   ];
-  return publicRoutes.includes(path) || path.startsWith('/api/public');
+
+  // Check if path matches a public route or any subpage of a public route
+  return publicRoutes.includes(path) ||
+         publicRoutes.some(route => path.startsWith(route + '/')) ||
+         path.startsWith('/api/public');
 }
 
 export function isAuthOnlyRoute(path: string): boolean {
@@ -90,10 +106,12 @@ export function shouldSkipProxy(path: string): boolean {
 export function getProtectedRouteRoles(path: string): string[] {
   if (path.startsWith('/super-admin')) return [Role.SUPER_ADMIN];
   if (path.startsWith('/clinic-admin')) return [Role.CLINIC_ADMIN];
-  if (path.startsWith('/doctor')) return [Role.DOCTOR];
+  if (path.startsWith('/doctor')) return [Role.DOCTOR, Role.ASSISTANT_DOCTOR];
+  if (path.startsWith('/assistant-doctor')) return [Role.ASSISTANT_DOCTOR];
   if (path.startsWith('/patient')) return [Role.PATIENT];
   if (path.startsWith('/receptionist')) return [Role.RECEPTIONIST];
   if (path.startsWith('/pharmacist')) return [Role.PHARMACIST];
+  if (path.startsWith('/clinic-location-head')) return [Role.CLINIC_LOCATION_HEAD];
   if (path.startsWith('/therapist')) return [Role.THERAPIST];
   if (path.startsWith('/lab-technician')) return [Role.LAB_TECHNICIAN];
   if (path.startsWith('/support-staff')) return [Role.SUPPORT_STAFF];
