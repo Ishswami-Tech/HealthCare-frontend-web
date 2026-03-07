@@ -636,10 +636,11 @@ export const API_ENDPOINTS = {
       RENEW: (id: string) => `/billing/subscriptions/${id}/renew`,
       USAGE_STATS: (id: string) => `/billing/subscriptions/${id}/usage-stats`,
       RESET_QUOTA: (id: string) => `/billing/subscriptions/${id}/reset-quota`,
-      CAN_BOOK: (id: string) => `/billing/subscriptions/${id}/can-book-appointment`,
-      CHECK_COVERAGE: (id: string) => `/billing/subscriptions/${id}/check-coverage`,
+      CHECK_COVERAGE: (id: string) => `/billing/subscriptions/${id}/coverage`,
       BOOK_APPOINTMENT: (subscriptionId: string, appointmentId: string) => 
         `/billing/subscriptions/${subscriptionId}/book-appointment/${appointmentId}`,
+      BOOK_INPERSON: (subscriptionId: string) =>
+        `/billing/subscriptions/${subscriptionId}/book-inperson`,
       PROCESS_PAYMENT: (id: string) => `/billing/subscriptions/${id}/process-payment`,
     },
     INVOICES: {

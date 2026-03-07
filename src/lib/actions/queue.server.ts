@@ -28,9 +28,13 @@ export async function getQueue(filters?: {
 /**
  * Get queue statistics
  */
-export async function getQueueStats() {
+export async function getQueueStats(locationId: string) {
   try {
-    const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.STATS, {});
+    if (!locationId) {
+      logger.error('getQueueStats: locationId is required', new Error('Missing locationId'));
+      return null;
+    }
+    const { data } = await authenticatedApi(`${API_ENDPOINTS.QUEUE.STATS}?locationId=${locationId}`, {});
     return data;
   } catch (error) {
     logger.error('getQueueStats failed', error instanceof Error ? error : new Error(String(error)));
@@ -58,11 +62,11 @@ export async function updateQueueStatus(patientId: string, status: string) {
 /**
  * Call next patient in queue
  */
-export async function callNextPatient(queueType: string) {
+export async function callNextPatient(doctorId: string, domain?: string) {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.CALL_NEXT, {
       method: 'POST',
-      body: JSON.stringify({ queueType })
+      body: JSON.stringify({ doctorId, domain: domain || 'clinic' })
     });
     revalidateCache('queue');
     return data;
@@ -113,11 +117,11 @@ export async function removeFromQueue(queueId: string, reason?: string) {
 /**
  * Reorder queue
  */
-export async function reorderQueue(queueType: string, patientIds: string[]) {
+export async function reorderQueue(doctorId: string, date: string, newOrder: string[], domain?: string) {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.REORDER, {
       method: 'POST',
-      body: JSON.stringify({ queueType, patientIds })
+      body: JSON.stringify({ doctorId, date, newOrder, domain: domain || 'clinic' })
     });
     revalidateCache('queue');
     return data;
@@ -175,11 +179,11 @@ export async function updateQueuePosition(queueId: string, newPosition: number) 
 /**
  * Pause queue
  */
-export async function pauseQueue(queueType: string, reason?: string) {
+export async function pauseQueue(doctorId: string, domain?: string) {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.PAUSE, {
       method: 'POST',
-      body: JSON.stringify({ queueType, reason })
+      body: JSON.stringify({ doctorId, domain: domain || 'clinic' })
     });
     revalidateCache('queue');
     return data;
@@ -192,11 +196,11 @@ export async function pauseQueue(queueType: string, reason?: string) {
 /**
  * Resume queue
  */
-export async function resumeQueue(queueType: string) {
+export async function resumeQueue(doctorId: string, domain?: string) {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.RESUME, {
       method: 'POST',
-      body: JSON.stringify({ queueType })
+      body: JSON.stringify({ doctorId, domain: domain || 'clinic' })
     });
     revalidateCache('queue');
     return data;

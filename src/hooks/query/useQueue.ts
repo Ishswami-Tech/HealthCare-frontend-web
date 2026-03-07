@@ -54,11 +54,12 @@ export const useQueue = (clinicId: string, filters?: {
 /**
  * Hook to get queue statistics
  */
-export const useQueueStats = (options?: { enabled?: boolean }) => {
-  return useQueryData(['queueStats'], async () => {
-    return await getQueueStats();
+export const useQueueStats = (locationId?: string, options?: { enabled?: boolean }) => {
+  return useQueryData(['queueStats', locationId], async () => {
+    if (!locationId) throw new Error('Location ID required for queue stats');
+    return await getQueueStats(locationId);
   }, {
-    enabled: options?.enabled !== false,
+    enabled: !!locationId && options?.enabled !== false,
     refetchInterval: 60000, // Refetch every minute
   });
 };
@@ -88,10 +89,11 @@ export const useUpdateQueueStatus = () => {
  */
 export const useCallNextPatient = () => {
   return useMutationOperation(
-    async ({ queueType }: {
-      queueType: string;
+    async ({ doctorId, domain }: {
+      doctorId: string;
+      domain?: string;
     }) => {
-      return await callNextPatient(queueType);
+      return await callNextPatient(doctorId, domain);
     },
     {
       toastId: TOAST_IDS.QUEUE.CALL_NEXT,
@@ -150,11 +152,13 @@ export const useRemoveFromQueue = () => {
  */
 export const useReorderQueue = () => {
   return useMutationOperation(
-    async ({ queueType, patientIds }: {
-      queueType: string;
-      patientIds: string[];
+    async ({ doctorId, date, newOrder, domain }: {
+      doctorId: string;
+      date: string;
+      newOrder: string[];
+      domain?: string;
     }) => {
-      return await reorderQueue(queueType, patientIds);
+      return await reorderQueue(doctorId, date, newOrder, domain);
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -350,11 +354,11 @@ export const useUpdateQueuePosition = () => {
  */
 export const usePauseQueue = () => {
   return useMutationOperation(
-    async ({ queueType, reason }: {
-      queueType: string;
-      reason?: string;
+    async ({ doctorId, domain }: {
+      doctorId: string;
+      domain?: string;
     }) => {
-      return await pauseQueue(queueType, reason);
+      return await pauseQueue(doctorId, domain);
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -370,10 +374,11 @@ export const usePauseQueue = () => {
  */
 export const useResumeQueue = () => {
   return useMutationOperation(
-    async ({ queueType }: {
-      queueType: string;
+    async ({ doctorId, domain }: {
+      doctorId: string;
+      domain?: string;
     }) => {
-      return await resumeQueue(queueType);
+      return await resumeQueue(doctorId, domain);
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,

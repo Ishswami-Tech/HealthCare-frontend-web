@@ -27,7 +27,7 @@ function StatusServiceRow({ service }: { service: ServiceStatus }) {
   const isLoading = service.status === 'loading';
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="group relative overflow-hidden rounded-xl border border-border bg-card/50 dark:bg-slate-950/40 p-4 transition-all hover:border-border hover:bg-card/80 dark:hover:bg-slate-900/60 shadow-sm"
@@ -67,7 +67,7 @@ function StatusServiceRow({ service }: { service: ServiceStatus }) {
 
         {/* Right Side: Latency & Status */}
         <div className="flex items-center gap-6">
-            
+
              {/* Latency - Small & Clean */}
              {service.responseTime && service.responseTime > 0 && (
                  <div className="text-right hidden sm:block">
@@ -106,7 +106,7 @@ function StatusPill({ status }: { status: string }) {
         {isHealthy && <CheckCircle2 className="h-3.5 w-3.5" />}
         {isWarning && <AlertTriangle className="h-3.5 w-3.5" />}
         {isError && <XCircle className="h-3.5 w-3.5" />}
-        
+
         <span className="uppercase">
           {isLoading ? "SYNCING" : isHealthy ? "OPERATIONAL" : isWarning ? "DEGRADED" : "OFFLINE"}
         </span>
@@ -139,23 +139,23 @@ const mapStatus = (status?: string, healthy?: boolean): string => {
 
 export default function StatusPage() {
   const { data: healthStatus, refetch, isFetching, lastUpdate } = useDetailedHealthStatus();
-  
+
   // Track Next.js app uptime (client-side)
   const [appUptime, setAppUptime] = useState(0);
-  
+
   useEffect(() => {
     const startTime = Date.now();
     const interval = setInterval(() => {
       setAppUptime(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, []);
-  
+
   // Debug: Log health status
   console.log('[Status Page] Health Status:', healthStatus);
   console.log('[Status Page] Last Update:', lastUpdate);
-  
+
   // We don't use useTheme here anymore to avoid hydration mismatch with duplicate headers/toggles
   // const [mounted, setMounted] = useState(false); // Removed unused
 
@@ -234,13 +234,13 @@ export default function StatusPage() {
   const healthyServices = services.filter(s => s.status === 'active').length;
   const totalServices = services.length;
   const healthPercentage = totalServices > 0 ? Math.round((healthyServices / totalServices) * 100) : 0;
-  
+
   const isHealthy = healthPercentage === 100;
   const isDegraded = healthPercentage < 100 && healthPercentage > 60;
   // const isError = healthPercentage <= 60; // Unused
-  
+
   const glowColor = isHealthy ? "rgba(16, 185, 129, 0.15)" : isDegraded ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)";
-  
+
   // Backend server uptime from health status
   const systemUptime = healthStatus?.uptime || 0;
   // Next.js app uptime (client-side tracking)
@@ -248,9 +248,9 @@ export default function StatusPage() {
 
   return (
     <div className="min-h-screen bg-background dark:bg-[#050911] text-foreground dark:text-slate-50 font-sans selection:bg-emerald-500/30 overflow-hidden relative transition-colors duration-300">
-      
+
       {/* Ambient Background Glow */}
-      <div 
+      <div
         className="fixed top-[-20%] left-[20%] w-[60%] h-[60%] rounded-full blur-[150px] opacity-40 pointer-events-none transition-colors duration-1000 dark:opacity-40 opacity-0"
         style={{ background: glowColor }}
       />
@@ -262,9 +262,9 @@ export default function StatusPage() {
                   <Activity className="h-6 w-6 text-primary" />
                   System Status
               </h1>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => refetch()}
                 disabled={isFetching}
                 className="gap-2"
@@ -273,12 +273,12 @@ export default function StatusPage() {
                  Refresh
               </Button>
           </div>
-        
+
         {/* Metrics Banner */}
         <div className="mb-12 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="col-span-1 md:col-span-2 relative overflow-hidden rounded-3xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/[0.02] p-8 backdrop-blur-md shadow-sm">
                 <div className="absolute top-0 right-0 p-32 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 blur-3xl rounded-full pointer-events-none" />
-                
+
                 <h2 className="text-sm font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest mb-1">Overall Health</h2>
                 <div className="flex flex-col sm:flex-row sm:items-baseline gap-4 mt-2">
                     <span className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground dark:from-white dark:to-slate-400">
@@ -286,7 +286,7 @@ export default function StatusPage() {
                     </span>
                     <span className={cn(
                         "text-sm sm:text-lg font-bold px-3 py-1 rounded-full border w-fit",
-                        isHealthy ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10" : 
+                        isHealthy ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10" :
                         isDegraded ? "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10" :
                         "border-red-500/30 text-red-600 dark:text-red-400 bg-red-500/10"
                     )}>

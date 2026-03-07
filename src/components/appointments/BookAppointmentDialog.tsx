@@ -24,7 +24,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { useCreateAppointment, useDoctorAvailability } from "@/hooks/query/useAppointments";
+import { useSubscriptions } from "@/hooks/query/useBilling";
 import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
+import { checkSubscriptionCoverage, createInPersonAppointmentWithSubscription } from "@/lib/actions/billing.server";
+import { PaymentButton } from "@/components/payments";
 import { APP_CONFIG } from "@/lib/config/config";
 import { toast } from "sonner";
 import { theme } from "@/lib/utils/theme-utils";
@@ -136,6 +139,7 @@ export function BookAppointmentDialog({
   const router = useRouter();
   const pathname = usePathname();
   const { session } = useAuth();
+  const userRole = (session?.user?.role || "").toUpperCase();
   const { clinicId: contextClinicId } = useClinicContext();
   const activeClinicId = clinicId || contextClinicId || APP_CONFIG.CLINIC.ID;
 
@@ -172,6 +176,7 @@ export function BookAppointmentDialog({
   );
 
   const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment();
+  const { data: subscriptionsData = [] } = useSubscriptions(session?.user?.id || "");
 
   // ─── Derived ─────────────────────────────────────────────────────────────
   const selectedService = useMemo(
@@ -206,6 +211,16 @@ export function BookAppointmentDialog({
     [doctorsList, selectedDoctorId]
   );
 
+  const activeSubscription = useMemo(
+    () =>
+      (subscriptionsData as any[]).find(
+        (s: any) =>
+          (s.status === "ACTIVE" || s.status === "TRIALING") &&
+          (!s.clinicId || s.clinicId === activeClinicId)
+      ),
+    [subscriptionsData, activeClinicId]
+  );
+
   const slots = useMemo(() => {
     if (Array.isArray((availability as any)?.availableSlots)) return (availability as any).availableSlots;
     if (Array.isArray((availability as any)?.data?.availableSlots)) return (availability as any).data.availableSlots;
@@ -213,7 +228,35 @@ export function BookAppointmentDialog({
     return [];
   }, [availability]);
 
-  const slotGroups = useMemo(() => groupSlotsByPeriod(slots as string[]), [slots]);
+  const restrictions = useMemo(() => {
+    const r =
+      (availability as any)?.restrictions ||
+      (availability as any)?.data?.restrictions ||
+      (availability as any)?.data?.data?.restrictions ||
+      {};
+    return {
+      clinicPaused: !!r.clinicPaused,
+      doctorPaused: !!r.doctorPaused,
+      emergencyOnly: !!r.emergencyOnly,
+      generalConsultationEnabled: r.generalConsultationEnabled !== false,
+      videoConsultationEnabled: r.videoConsultationEnabled !== false,
+      reason: typeof r.reason === "string" ? r.reason : "",
+    };
+  }, [availability]);
+
+  const consultationBlocked = useMemo(() => {
+    if (restrictions.clinicPaused || restrictions.doctorPaused) return true;
+    if (consultationMode === "IN_PERSON" && !restrictions.generalConsultationEnabled) return true;
+    if (consultationMode === "VIDEO" && !restrictions.videoConsultationEnabled) return true;
+    return false;
+  }, [consultationMode, restrictions]);
+
+  const effectiveSlots = useMemo(
+    () => (consultationBlocked ? [] : (slots as string[])),
+    [consultationBlocked, slots]
+  );
+
+  const slotGroups = useMemo(() => groupSlotsByPeriod(effectiveSlots as string[]), [effectiveSlots]);
 
   // ─── Reset on close ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -243,32 +286,107 @@ export function BookAppointmentDialog({
     if (!selectedService || !selectedDoctorId || !selectedDate || !selectedSlot) return;
 
     try {
+      const finalAppointmentType: AppointmentType =
+        consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
+
+      if (
+        finalAppointmentType === "IN_PERSON" &&
+        userRole === "PATIENT" &&
+        !activeSubscription
+      ) {
+        toast.error("Active monthly subscription is required for in-person appointments.");
+        router.push("/billing");
+        return;
+      }
+
+      if (finalAppointmentType === "IN_PERSON" && activeSubscription?.id) {
+        const coverageResult = await checkSubscriptionCoverage(activeSubscription.id, "IN_PERSON");
+        if (!coverageResult.success) {
+          toast.error(coverageResult.error || "Unable to validate subscription coverage.");
+          return;
+        }
+        const coverage = coverageResult.coverage;
+        const covered =
+          coverage?.covered === true ||
+          coverage?.allowed === true;
+        if (!covered) {
+          const reason =
+            coverage?.message ||
+            coverage?.reason ||
+            (coverage?.requiresPayment
+              ? `Subscription coverage unavailable. Additional payment required: INR ${coverage?.paymentAmount || 0}`
+              : "Subscription quota exhausted or inactive.");
+          toast.error(reason);
+          router.push("/billing");
+          return;
+        }
+      }
+
       const appointmentDate = new Date(selectedDate);
       const [hours, minutes] = selectedSlot.split(":").map(Number);
       appointmentDate.setHours(hours ?? 0, minutes ?? 0, 0, 0);
 
-      const result = await createAppointment({
-        clinicId: activeClinicId,
-        doctorId: selectedDoctorId,
-        locationId: selectedLocationId,
-        date: formatDateIST(appointmentDate),
-        time: selectedSlot,
-        type: (consultationMode || selectedService.backendType) as AppointmentType,
-        treatmentType: selectedService.treatmentType,
-        duration: selectedService.duration,
-        notes: chiefComplaint || selectedService.name,
-        priority: urgency.toUpperCase() as any,
-        patientId: session?.user?.id ?? "",
-      });
+      let apptId = "";
+      if (finalAppointmentType === "IN_PERSON" && userRole === "PATIENT" && activeSubscription?.id) {
+        const atomicResult = await createInPersonAppointmentWithSubscription({
+          subscriptionId: activeSubscription.id,
+          patientId: session?.user?.id ?? "",
+          doctorId: selectedDoctorId,
+          clinicId: activeClinicId,
+          locationId: selectedLocationId,
+          appointmentDate: appointmentDate.toISOString(),
+          duration: selectedService.duration,
+          treatmentType: selectedService.treatmentType,
+          priority: urgency.toUpperCase(),
+          notes: chiefComplaint || selectedService.name,
+        });
+        if (!atomicResult.success) {
+          throw new Error(atomicResult.error || "Failed to create subscription-based appointment");
+        }
+        apptId =
+          (atomicResult as any)?.appointment?.id ||
+          (atomicResult as any)?.appointment?.data?.id ||
+          "APPT-" + Date.now();
+      } else {
+        const result = await createAppointment({
+          clinicId: activeClinicId,
+          doctorId: selectedDoctorId,
+          locationId: selectedLocationId,
+          date: formatDateIST(appointmentDate),
+          time: selectedSlot,
+          type: finalAppointmentType,
+          treatmentType: selectedService.treatmentType,
+          duration: selectedService.duration,
+          notes: chiefComplaint || selectedService.name,
+          priority: urgency.toUpperCase() as any,
+          patientId: session?.user?.id ?? "",
+        });
+        apptId = (result as any)?.id || (result as any)?.data?.id || "APPT-" + Date.now();
+      }
 
-      const apptId = (result as any)?.id || (result as any)?.data?.id || "APPT-" + Date.now();
       setBookedAppointmentId(apptId);
       setStep(7); // step 7 = success/QR screen
       onBooked?.();
     } catch (err: any) {
       toast.error(err?.message || "Failed to book appointment. Please try again.");
     }
-  }, [selectedService, selectedDoctorId, selectedDate, selectedSlot, chiefComplaint, urgency, activeClinicId, selectedLocationId, createAppointment, session, onBooked]);
+  }, [
+    selectedService,
+    selectedDoctorId,
+    selectedDate,
+    selectedSlot,
+    chiefComplaint,
+    urgency,
+    activeClinicId,
+    selectedLocationId,
+    createAppointment,
+    session,
+    onBooked,
+    consultationMode,
+    userRole,
+    activeSubscription,
+    router,
+  ]);
 
   // ─── Navigation ──────────────────────────────────────────────────────────
   const canNext = useMemo(() => {
@@ -425,7 +543,13 @@ export function BookAppointmentDialog({
   // Step 2: Service (was Step 1)
   const renderStep2_Service = () => {
     const categories = ["All", ...Array.from(new Set(CONSULTATION_TYPES.map((t) => t.category)))];
-    const filtered = serviceFilter === "All" ? CONSULTATION_TYPES : CONSULTATION_TYPES.filter((t) => t.category === serviceFilter);
+    const modeFiltered = consultationMode === "VIDEO"
+      ? CONSULTATION_TYPES.filter((t) => t.videoAvailable)
+      : CONSULTATION_TYPES;
+    const filtered =
+      serviceFilter === "All"
+        ? modeFiltered
+        : modeFiltered.filter((t) => t.category === serviceFilter);
 
     return (
       <div className="flex flex-col gap-4">
@@ -579,11 +703,17 @@ export function BookAppointmentDialog({
           <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
             <Loader2 className="w-5 h-5 animate-spin" /> Checking availability...
           </div>
-        ) : slots.length === 0 ? (
+        ) : effectiveSlots.length === 0 ? (
           <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
             <Clock className="w-8 h-8 mb-2 opacity-20" />
-            <p className="text-sm font-medium">No slots available</p>
-            <p className="text-xs mt-1 opacity-60">Try a different date or doctor</p>
+            <p className="text-sm font-medium">
+              {consultationBlocked ? "Consultation currently unavailable" : "No slots available"}
+            </p>
+            <p className="text-xs mt-1 opacity-60">
+              {consultationBlocked
+                ? (restrictions.reason || "Clinic/doctor settings currently block this consultation type")
+                : "Try a different date or doctor"}
+            </p>
             {availabilityError && <p className="text-xs mt-4 p-2 bg-red-500/10 rounded-md text-red-500 border border-red-500/20 max-w-[90%] text-center">Error: {(availabilityError as any).message || "Unknown error"}</p>}
           </div>
         ) : (
@@ -694,27 +824,45 @@ export function BookAppointmentDialog({
         </p>
       </div>
 
-      {/* QR Code */}
-      <div className="flex flex-col items-center gap-3 p-4 rounded-2xl border bg-card w-full max-w-xs">
-        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-          <QrCode className="w-4 h-4" /> Clinic Check-in QR
+      {consultationMode === "VIDEO" ? (
+        <div className="flex flex-col items-center gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <Video className="w-4 h-4" /> Video Payment Required
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            Video appointments are billed per appointment. Complete payment to proceed.
+          </p>
+          <PaymentButton
+            appointmentId={bookedAppointmentId}
+            amount={selectedService?.price || 500}
+            description={selectedService?.name || "Video Consultation"}
+            className="w-full"
+          >
+            Pay INR {(selectedService?.price || 500).toLocaleString("en-IN")}
+          </PaymentButton>
         </div>
-        <img
-          src={qrUrl}
-          alt="Appointment QR Code"
-          className="w-40 h-40 rounded-xl"
-        />
-        <p className="text-[10px] text-muted-foreground text-center">
-          Show this QR code at the clinic reception for instant check-in
-        </p>
-        <a
-          href={qrUrl}
-          download={`appointment-${bookedAppointmentId}.png`}
-          className="flex items-center gap-1.5 text-xs text-primary font-semibold hover:underline"
-        >
-          <Download className="w-3 h-3" /> Download QR Code
-        </a>
-      </div>
+      ) : (
+        <div className="flex flex-col items-center gap-3 p-4 rounded-2xl border bg-card w-full max-w-xs">
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <QrCode className="w-4 h-4" /> Clinic Check-in QR
+          </div>
+          <img
+            src={qrUrl}
+            alt="Appointment QR Code"
+            className="w-40 h-40 rounded-xl"
+          />
+          <p className="text-[10px] text-muted-foreground text-center">
+            Show this QR code at the clinic reception for instant check-in
+          </p>
+          <a
+            href={qrUrl}
+            download={`appointment-${bookedAppointmentId}.png`}
+            className="flex items-center gap-1.5 text-xs text-primary font-semibold hover:underline"
+          >
+            <Download className="w-3 h-3" /> Download QR Code
+          </a>
+        </div>
+      )}
 
       {/* Summary pill row */}
       <div className="flex flex-wrap gap-2 justify-center">

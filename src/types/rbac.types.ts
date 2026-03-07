@@ -533,13 +533,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_NOTIFICATIONS,
     Permission.MANAGE_USER_SETTINGS,
   ],
-
-  [Role.HR_MANAGER]: [
-    Permission.VIEW_USERS,
-    Permission.UPDATE_USERS,
-    Permission.VIEW_NOTIFICATIONS,
-    Permission.MANAGE_USER_SETTINGS,
-  ],
 };
 
 // Permission check interface

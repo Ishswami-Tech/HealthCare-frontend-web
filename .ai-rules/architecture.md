@@ -17,6 +17,7 @@
 - Centralized configuration (`APP_CONFIG`)
 - Unified query key factory (`queryKeys`)
 - Common validation schemas
+- Shared error handling
 
 ### **KISS (Keep It Simple, Stupid)**
 - Clear, readable code over clever solutions
@@ -74,9 +75,9 @@ src/
 │   ├── providers/                # Context providers
 │   │   ├── AppProvider.tsx
 │   │   ├── QueryProvider.tsx
-│   │   └── LoadingOverlayContext.tsx
-│   ├── globals.css
-│   ├── layout.tsx                # Root layout
+│   │   ├── LoadingOverlayContext.tsx
+│   │   ├── globals.css
+│   │   ├── layout.tsx                # Root layout
 │   ├── loading.tsx
 │   ├── not-found.tsx
 │   └── error.tsx
@@ -116,20 +117,20 @@ components/
 // Query Key Structure
 const queryKeys = {
   // Clinic-scoped queries
-  patients: (clinicId: string, filters?: PatientFilters) => 
+  patients: (clinicId: string, filters?: PatientFilters) =>
     ['patients', clinicId, filters],
-  appointments: (clinicId: string, filters?: AppointmentFilters) => 
+  appointments: (clinicId: string, filters?: AppointmentFilters) =>
     ['appointments', clinicId, filters],
-  doctors: (clinicId: string, filters?: DoctorFilters) => 
+  doctors: (clinicId: string, filters?: DoctorFilters) =>
     ['doctors', clinicId, filters],
-  
+
   // User-specific queries
   myAppointments: (userId: string) => ['my-appointments', userId],
   userProfile: (userId: string) => ['user-profile', userId],
-  
+
   // Global queries
   clinics: () => ['clinics'],
-  analytics: (clinicId: string, period: string) => 
+  analytics: (clinicId: string, period: string) =>
     ['analytics', clinicId, period],
 };
 ```
@@ -264,10 +265,6 @@ const PatientManagement = dynamic(() => import('@/components/patients/PatientMan
   loading: () => <PatientManagementSkeleton />,
   ssr: false
 });
-
-const AppointmentCalendar = dynamic(() => import('@/components/appointments/AppointmentCalendar'), {
-  loading: () => <CalendarSkeleton />
-});
 ```
 
 ### **Error Handling Architecture**
@@ -327,16 +324,6 @@ lib/i18n/
 6. Compliance → HIPAA validation
 ```
 
-#### **Appointment Workflow**
-```
-1. Appointment Request → Patient/Receptionist
-2. Availability Check → Doctor Schedule
-3. Booking Confirmation → Notification System
-4. Check-in Process → Queue Management
-5. Consultation → EHR Integration
-6. Follow-up → Automated Reminders
-```
-
 #### **Queue Management**
 ```
 1. Patient Check-in → QR Code/Manual
@@ -345,6 +332,54 @@ lib/i18n/
 4. Doctor Notification → Next Patient Alert
 5. Consultation Start → Timer Tracking
 6. Completion → Next Patient Auto-call
+7. Consultation → EHR Integration
+```
+
+#### **Status Constants Pattern**
+```typescript
+// ✅ All status values MUST use constants (see coding-standards.md)
+// This ensures type safety and prevents string literal comparisons
+//
+// Queue service integration
+const QUEUE_STATUS = {
+  WAITING: 'WAITING',
+  CHECKED_IN: 'CHECKED_IN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+} as const;
+```
+
+#### **Check-in to Queue Integration**
+```typescript
+// ✅ Complete check-in workflow implementation
+//
+// 1. Frontend Reception Check-in
+//    ├─ POST /appointments/:id/check-in or /appointments/check-in/scan-qr
+//    └─ Backend: AppointmentsController → CheckInService.processCheckIn()
+//       └─ Queue: Creates queue record, updates appointment status
+//
+// 2. Patient QR Check-in
+//    ├─ POST /appointments/check-in/scan-qr
+//    └─ Backend: AppointmentsController → CheckInService.processCheckIn()
+//       └─ Queue: Same integration as receptionist
+//
+// 3. Queue Service Operations
+//    ├─ GET /queue/stats?locationId=xxx  → Returns queue statistics
+//    ├─ POST /queue/call-next        → Advances queue position
+//    ├─ POST /queue/reorder           → Reorders queue priority
+//    ├─ POST /queue/pause            → Pauses queue for doctor
+//    └─ POST /queue/resume           → Resumes paused queue
+//
+// Required data flow
+//    1. Check-in → Appointment status: SCHEDULED → CHECKED_IN
+//    2. Queue record → Created with WAITING status, position, estimatedWaitTime
+//    3. Cache invalidation → All cache tags properly cleared
+//
+// ❌ INCORRECT: Stub check-in (no queue integration)
+// async processCheckIn() {
+//   return { success: true }; // No queue record created
+// }
+//
 ```
 
 ### **Compliance Architecture**
@@ -380,7 +415,7 @@ environments/
 - **SSL Certificates**: End-to-end encryption
 - **Database Security**: Connection encryption
 
-## 📋 **Enterprise Architecture Checklist**
+### **Enterprise Architecture Checklist**
 
 ### **Before Implementing Architecture**
 - [ ] **SOLID Principles**: All modules follow Single Responsibility
@@ -393,17 +428,17 @@ environments/
 - [ ] **Performance**: Caching and code splitting strategies defined
 - [ ] **Security**: HIPAA compliance architecture reviewed
 - [ ] **Scalability**: Architecture supports 10M+ users
-
-### **Architecture Review Items**
-- [ ] **Clinic Context**: All operations properly scoped to clinic
-- [ ] **Data Isolation**: Tenant separation verified
-- [ ] **API Design**: Server actions follow patterns
-- [ ] **State Management**: Query keys factory implemented
+- [ ] **Internationalization**: Multi-language support architecture
+- [ ] **Real-time**: WebSocket integration properly designed
+- [ ] **Compliance**: Audit trails configured (if applicable)
+- [ ] **Performance**: Caching strategies optimized
+- [ ] **Security**: All security measures implemented
+- [ ] **Query Keys**: Uses `queryKeys` factory for consistent cache keys
 - [ ] **Component Structure**: Clear separation of concerns
 - [ ] **Error Boundaries**: Comprehensive error handling
 - [ ] **Performance**: Caching strategies optimized
 - [ ] **Security**: All security measures implemented
-- [ ] **Internationalization**: Multi-language support architecture
+- [ ] **Internationalization**: Multi-language support implemented
 - [ ] **Real-time**: WebSocket integration properly designed
 
 ### **SOLID Principles Checklist**
@@ -420,12 +455,17 @@ environments/
 - [ ] **Query Keys**: queryKeys factory implemented
 - [ ] **Validation**: Common schemas reused
 - [ ] **Error Handling**: Centralized error utilities
-
-### **KISS Principle Checklist**
 - [ ] **Code Clarity**: Code is readable and understandable
 - [ ] **Data Flow**: Clear, straightforward data flow
 - [ ] **API Patterns**: Direct, simple API calls
 - [ ] **Abstraction**: Minimal, necessary abstraction layers
 - [ ] **Documentation**: Architecture clearly documented
 
-This architecture ensures a robust, secure, and scalable healthcare application that meets medical industry standards while providing excellent user experience.
+### **KISS Principle Checklist**
+- [ ] **Code Simplicity**: Code is readable and understandable
+- [ ] **Data Flow**: Clear, straightforward data flow
+- [ ] **API Patterns**: Direct, simple API calls
+- [ ] **Abstraction**: Minimal, necessary abstraction layers
+- [ ] **Documentation**: Architecture clearly documented
+
+This comprehensive coding standards document ensures consistent, maintainable, and high-quality code across the healthcare frontend application.

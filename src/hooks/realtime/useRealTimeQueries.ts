@@ -190,34 +190,36 @@ export function useRealTimeAppointmentStats() {
   };
 }
 
-export function useRealTimeQueueStatus(queueName?: string) {
+export function useRealTimeQueueStatus(queueName?: string, locationId?: string) {
   const queryClient = useQueryClient();
   const { currentClinic } = useAppStore();
   const { isConnected, subscribe } = useWebSocketIntegration();
 
   const query = useQueryData(
-    ['queue-status', currentClinic?.id, queueName],
+    ['queue-status', currentClinic?.id, queueName, locationId],
     async () => {
       if (!currentClinic) throw new Error('No clinic selected');
-      
+
       const { API_ENDPOINTS } = await import('@/lib/config/config');
-      const params = new URLSearchParams({ clinicId: currentClinic.id });
+      const params = new URLSearchParams({
+        locationId: locationId || currentClinic.id,
+      });
       if (queueName) params.append('queueName', queueName);
-      
+
       // ✅ SECURITY: Use centralized API client instead of direct fetch
       const { clinicApiClient } = await import('@/lib/api/client');
       const response = await clinicApiClient.get<Record<string, unknown>>(
-        `${API_ENDPOINTS.APPOINTMENTS.QUEUE.STATS}?${params}`
+        `${API_ENDPOINTS.QUEUE.STATS}?${params}`
       );
-      
+
       if (!response.success || !response.data) {
         throw new Error('Failed to fetch queue status');
       }
-      
+
       return { success: true, data: response.data };
     },
     {
-      enabled: !!currentClinic,
+      enabled: !!currentClinic && !!locationId,
       staleTime: 30 * 1000, // 30 seconds (optimized for 10M users)
       gcTime: 5 * 60 * 1000, // 5 minutes
       refetchInterval: isConnected ? false : 60 * 1000, // 1 minute if not real-time (increased for 10M users)

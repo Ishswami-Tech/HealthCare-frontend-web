@@ -41,18 +41,19 @@ export function useOptimisticUpdateQueueStatus(clinicId?: string) {
 /**
  * Hook for calling next patient with optimistic updates
  */
-export function useOptimisticCallNextPatient(clinicId?: string, queueType: string = 'general') {
+export function useOptimisticCallNextPatient(clinicId?: string, doctorId?: string) {
   const queryClient = useQueryClient();
   
   return useOptimisticMutation<any, void>({
     queryKey: ['queue', clinicId],
     mutationFn: useCallback(async () => {
-      const result = await callNextPatient(queueType) as { success: boolean; error?: string; data?: unknown };
+      if (!doctorId) throw new Error('Doctor ID is required');
+      const result = await callNextPatient(doctorId) as { success: boolean; error?: string; data?: unknown };
       if (!result.success) {
         throw new Error(result.error || 'Failed to call next patient');
       }
       return result.data as any;
-    }, [queueType]),
+    }, [doctorId]),
     optimisticUpdate: (current) => {
       if (!current || !Array.isArray(current)) return current;
       return current.slice(1);

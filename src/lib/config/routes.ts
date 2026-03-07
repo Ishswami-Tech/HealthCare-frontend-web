@@ -7,6 +7,7 @@ export const ROUTES = {
   RESET_PASSWORD: '/auth/reset-password',
   VERIFY_OTP: '/auth/verify-otp',
   PROFILE_COMPLETION: '/profile-completion',
+  STATUS: '/status',
   DASHBOARD: {
     SUPER_ADMIN: '/super-admin/dashboard',
     CLINIC_ADMIN: '/clinic-admin/dashboard',
@@ -22,7 +23,6 @@ export const ROUTES = {
     NURSE: '/nurse/dashboard',
     FINANCE_BILLING: '/finance-billing/dashboard',
     COUNSELOR: '/counselor/dashboard',
-    HR_MANAGER: '/hr-manager/dashboard',
   },
   SHARED_ANALYTICS: '/analytics',
   SHARED_EHR: '/ehr',
@@ -49,7 +49,6 @@ export const ROLE_DASHBOARDS = {
   NURSE: ROUTES.DASHBOARD.NURSE,
   FINANCE_BILLING: ROUTES.DASHBOARD.FINANCE_BILLING,
   COUNSELOR: ROUTES.DASHBOARD.COUNSELOR,
-  HR_MANAGER: ROUTES.DASHBOARD.HR_MANAGER,
 };
 
 export function getDashboardByRole(role: string): string {
@@ -70,6 +69,7 @@ export function isPublicRoute(path: string): boolean {
     ROUTES.RESET_PASSWORD,
     ROUTES.VERIFY_OTP,
     '/',
+    '/status',
     '/about',
     '/gallery',
     '/team',
@@ -118,8 +118,7 @@ export function getProtectedRouteRoles(path: string): string[] {
   if (path.startsWith('/nurse')) return [Role.NURSE];
   if (path.startsWith('/finance-billing')) return [Role.FINANCE_BILLING];
   if (path.startsWith('/counselor')) return [Role.COUNSELOR];
-  if (path.startsWith('/hr-manager')) return [Role.HR_MANAGER];
-  
+
   return [];
 }
 

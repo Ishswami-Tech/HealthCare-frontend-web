@@ -8,9 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueuePermissions } from "@/hooks/utils/useRBAC";
 import { QueueProtectedComponent, ProtectedComponent } from "@/components/rbac";
-import { useQueue, useQueueStats } from "@/hooks/query/useQueue";
+import { useQueue } from "@/hooks/query/useQueue";
+import { useQueueStats } from "@/hooks/query/useAppointments";
 // ✅ Removed: useUpdateQueueStatus, useCallNextPatient - using optimistic hooks instead
-import { useClinicContext } from "@/hooks/query/useClinics";
+import { useClinicContext, useActiveLocations } from "@/hooks/query/useClinics";
 import { Permission } from "@/types/rbac.types";
 import { useRealTimeQueueStatus } from "@/hooks/realtime/useRealTimeQueries";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
@@ -40,8 +41,16 @@ import {
   Activity,
 } from "lucide-react";
 
+// Queue status constants - must match backend enum values
+const QUEUE_STATUS = {
+  WAITING: 'WAITING',
+  CHECKED_IN: 'CHECKED_IN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+} as const;
+
 export default function QueuePage() {
-  useAuth();
+  const { session } = useAuth();
   const [activeQueue, setActiveQueue] = useState("consultations");
 
   // Enable real-time WebSocket sync
@@ -52,6 +61,8 @@ export default function QueuePage() {
 
   // Clinic context
   const { clinicId } = useClinicContext();
+  const { data: locations = [] } = useActiveLocations(clinicId || "");
+  const locationId = locations[0]?.id || "";
 
   // Fetch queue data with proper permissions
   const {
@@ -65,7 +76,7 @@ export default function QueuePage() {
   });
 
   // Real-time queue status with WebSocket updates
-  const realTimeQueueStatus = useRealTimeQueueStatus(activeQueue);
+  const realTimeQueueStatus = useRealTimeQueueStatus(activeQueue, locationId);
 
   // Use real-time data if available
   const queueData =
@@ -73,14 +84,13 @@ export default function QueuePage() {
       ? realTimeQueueStatus.data
       : _queueData;
 
-  // Fetch queue statistics for authorized users
-  const { data: queueStats } = useQueueStats({
-    enabled: queuePermissions.canManageQueue,
-  });
+  // Fetch queue statistics for authorized users — locationId is required by backend
+  const { data: queueStats } = useQueueStats(locationId);
 
   // Mutation hooks for queue actions with React 19 useOptimistic
   const updateQueueStatusOptimistic = useOptimisticUpdateQueueStatus(clinicId);
-  const callNextPatientOptimistic = useOptimisticCallNextPatient(clinicId);
+  // Pass doctorId for call-next (use session user ID for doctor role)
+  const callNextPatientOptimistic = useOptimisticCallNextPatient(clinicId, session?.user?.id);
 
   // ✅ Use optimistic hooks (React 19) - no legacy hooks needed
 
@@ -165,13 +175,13 @@ export default function QueuePage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "waiting":
+      case QUEUE_STATUS.WAITING:
         return "bg-yellow-100 text-yellow-800";
-      case "in-progress":
+      case QUEUE_STATUS.IN_PROGRESS:
         return "bg-blue-100 text-blue-800";
-      case "checked-in":
+      case QUEUE_STATUS.CHECKED_IN:
         return "bg-green-100 text-green-800";
-      case "completed":
+      case QUEUE_STATUS.COMPLETED:
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -180,13 +190,13 @@ export default function QueuePage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "waiting":
+      case QUEUE_STATUS.WAITING:
         return <Clock className="w-4 h-4" />;
-      case "in-progress":
+      case QUEUE_STATUS.IN_PROGRESS:
         return <Play className="w-4 h-4" />;
-      case "checked-in":
+      case QUEUE_STATUS.CHECKED_IN:
         return <UserCheck className="w-4 h-4" />;
-      case "completed":
+      case QUEUE_STATUS.COMPLETED:
         return <CheckCircle className="w-4 h-4" />;
       default:
         return <AlertCircle className="w-4 h-4" />;
@@ -246,13 +256,13 @@ export default function QueuePage() {
             {showActions && (
               <div className="flex flex-col gap-1">
                 {/* Start button - for users who can update queue status */}
-                {item.status === "waiting" && (
+                {item.status === QUEUE_STATUS.WAITING && (
                   <QueueProtectedComponent action="update-status">
                     <Button
                       size="sm"
                       className="flex items-center gap-1"
                       onClick={() =>
-                        handleUpdateQueueStatus(item.id, "IN_PROGRESS")
+                        handleUpdateQueueStatus(item.id, QUEUE_STATUS.IN_PROGRESS)
                       }
                       disabled={updateQueueStatusOptimistic.isPending}
                     >
@@ -265,7 +275,7 @@ export default function QueuePage() {
                 )}
 
                 {/* In-progress actions */}
-                {item.status === "in-progress" && (
+                {item.status === QUEUE_STATUS.IN_PROGRESS && (
                   <>
                     <QueueProtectedComponent action="update-status">
                       <Button
@@ -273,7 +283,7 @@ export default function QueuePage() {
                         variant="outline"
                         className="flex items-center gap-1"
                         onClick={() =>
-                          handleUpdateQueueStatus(item.id, "WAITING")
+                          handleUpdateQueueStatus(item.id, QUEUE_STATUS.WAITING)
                         }
                         disabled={updateQueueStatusOptimistic.isPending}
                       >
@@ -287,7 +297,7 @@ export default function QueuePage() {
                         size="sm"
                         className="flex items-center gap-1"
                         onClick={() =>
-                          handleUpdateQueueStatus(item.id, "COMPLETED")
+                          handleUpdateQueueStatus(item.id, QUEUE_STATUS.COMPLETED)
                         }
                         disabled={updateQueueStatusOptimistic.isPending}
                       >
@@ -299,7 +309,7 @@ export default function QueuePage() {
                 )}
 
                 {/* Call next patient - for users who can call next patient */}
-                {item.status === "checked-in" && (
+                {item.status === QUEUE_STATUS.CHECKED_IN && (
                   <QueueProtectedComponent action="call-next">
                     <Button
                       size="sm"

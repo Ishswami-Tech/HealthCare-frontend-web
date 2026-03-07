@@ -456,7 +456,7 @@ export default function ProfileCompletionForm({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="px-5 py-3 bg-white dark:bg-white">
+        <CardContent className="px-5 py-3 bg-white dark:bg-neutral-950">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
               {/* Form Errors Summary */}
@@ -493,7 +493,7 @@ export default function ProfileCompletionForm({
 
               {/* Basic Information */}
               <div className="space-y-1.5">
-                <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-700 flex items-center gap-2 mb-1 border-b border-emerald-200 pb-1">
+                <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2 mb-1 border-b border-emerald-200 pb-1">
                   <User className="h-4 w-4" />
                   Basic Information
                 </h3>
@@ -505,7 +505,7 @@ export default function ProfileCompletionForm({
                     name="firstName"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel className="text-gray-700 dark:text-gray-700">First Name *</FormLabel>
+                        <FormLabel className="text-gray-700 dark:text-gray-300">First Name *</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter your first name"
@@ -513,7 +513,7 @@ export default function ProfileCompletionForm({
                             aria-invalid={!!form.formState.errors.firstName}
                             aria-describedby="firstName-error"
                             className={
-                              "h-9 bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300 " +
+                              "h-9 bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                               (form.formState.errors.firstName
                                 ? "border-red-500 focus:border-red-500"
                                 : "")
@@ -529,7 +529,7 @@ export default function ProfileCompletionForm({
                     name="lastName"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel className="text-gray-700 dark:text-gray-700">Last Name *</FormLabel>
+                        <FormLabel className="text-gray-700 dark:text-gray-300">Last Name *</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter your last name"
@@ -537,7 +537,7 @@ export default function ProfileCompletionForm({
                             aria-invalid={!!form.formState.errors.lastName}
                             aria-describedby="lastName-error"
                             className={
-                              "h-9 bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300 " +
+                              "h-9 bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                               (form.formState.errors.lastName
                                 ? "border-red-500 focus:border-red-500"
                                 : "")
@@ -553,7 +553,7 @@ export default function ProfileCompletionForm({
                     name="gender"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-700">
+                        <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                           <Venus className="h-4" />
                           Gender *
                         </FormLabel>
@@ -565,7 +565,7 @@ export default function ProfileCompletionForm({
                           <FormControl>
                             <SelectTrigger
                               className={
-                                "h-9 w-full bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300 " +
+                                "h-9 w-full bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                                 (form.formState.errors.gender
                                   ? "border-red-500 focus:border-red-500"
                                   : "")
@@ -595,7 +595,7 @@ export default function ProfileCompletionForm({
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-700">
+                        <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                           <Phone className="h-4 w-4" />
                           Phone Number *
                         </FormLabel>
@@ -606,7 +606,7 @@ export default function ProfileCompletionForm({
                             aria-invalid={!!form.formState.errors.phone}
                             aria-describedby="phone-error"
                             className={
-                              "h-9 bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300 " +
+                              "h-9 bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                               (form.formState.errors.phone
                                 ? "border-red-500 focus:border-red-500"
                                 : "")
@@ -631,7 +631,7 @@ export default function ProfileCompletionForm({
                       
                       return (
                         <FormItem className="flex flex-col">
-                          <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-700">
+                          <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                             <Calendar className="h-4 w-4" />
                             Date of Birth *
                           </FormLabel>
@@ -641,7 +641,7 @@ export default function ProfileCompletionForm({
                                 <Button
                                   variant="outline"
                                   className={
-                                    "h-9 w-full justify-start text-left font-normal bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300 " +
+                                    "h-9 w-full justify-start text-left font-normal bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                                     (form.formState.errors.dateOfBirth ? "border-red-500 " : "") +
                                     (!field.value ? "text-muted-foreground" : "")
                                   }
@@ -705,7 +705,7 @@ export default function ProfileCompletionForm({
                   name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-700">
+                      <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                         <MapPin className="h-4 w-4" />
                         Address *
                       </FormLabel>
@@ -716,7 +716,7 @@ export default function ProfileCompletionForm({
                           aria-invalid={!!form.formState.errors.address}
                           aria-describedby="address-error"
                           className={
-                            "bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300 min-h-[80px] resize-none " +
+                            "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 min-h-[80px] resize-none " +
                             (form.formState.errors.address
                               ? "border-red-500 focus:border-red-500"
                               : "")
@@ -731,7 +731,7 @@ export default function ProfileCompletionForm({
 
               {/* Emergency Contact */}
               <div className="space-y-1.5 pt-1">
-                <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-700 flex items-center gap-2 mb-1 border-b border-emerald-200 pb-1">
+                <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2 mb-1 border-b border-emerald-200 pb-1">
                   <Phone className="h-4 w-4" />
                   Emergency Contact
                 </h3>
@@ -741,13 +741,13 @@ export default function ProfileCompletionForm({
                     name="emergencyContactName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700 dark:text-gray-700">Contact Name</FormLabel>
+                        <FormLabel className="text-gray-700 dark:text-gray-300">Contact Name</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter contact's full name"
                             {...field}
                             className={
-                              "bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300 " +
+                              "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                               (form.formState.errors.emergencyContactName
                                 ? "border-red-500 focus:border-red-500"
                                 : "")
@@ -763,13 +763,13 @@ export default function ProfileCompletionForm({
                     name="emergencyContactPhone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700 dark:text-gray-700">Contact Phone</FormLabel>
+                        <FormLabel className="text-gray-700 dark:text-gray-300">Contact Phone</FormLabel>
                         <FormControl>
                           <PhoneInput
                             placeholder="Enter contact's phone number"
                             {...field}
                             className={
-                              "bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300 " +
+                              "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                               (form.formState.errors.emergencyContactPhone
                                 ? "border-red-500 focus:border-red-500"
                                 : "")
@@ -789,13 +789,13 @@ export default function ProfileCompletionForm({
                   name="emergencyContactRelationship"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-gray-700 dark:text-gray-700">Relationship</FormLabel>
+                      <FormLabel className="text-gray-700 dark:text-gray-300">Relationship</FormLabel>
                       <FormControl>
                         <Input
                           placeholder="e.g., Spouse, Parent, Sibling"
                           {...field}
                           className={
-                            "bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300 " +
+                            "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                             (form.formState.errors.emergencyContactRelationship
                               ? "border-red-500 focus:border-red-500"
                               : "")
@@ -811,7 +811,7 @@ export default function ProfileCompletionForm({
               {/* Role-specific fields (Optional) */}
               {isDoctor && (
                 <div className="space-y-2 pt-1">
-                  <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-700 mb-1 border-b border-emerald-200 pb-1">
+                  <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 mb-1 border-b border-emerald-200 pb-1">
                     Professional Information (Optional)
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -820,12 +820,12 @@ export default function ProfileCompletionForm({
                       name="specialization"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-gray-700 dark:text-gray-700">Specialization</FormLabel>
+                          <FormLabel className="text-gray-700 dark:text-gray-300">Specialization</FormLabel>
                           <FormControl>
                             <Input
                               placeholder="e.g., Cardiology, Pediatrics"
                               {...field}
-                              className="bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300"
+                              className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700"
                             />
                           </FormControl>
                           <FormMessage />
@@ -837,12 +837,12 @@ export default function ProfileCompletionForm({
                       name="experience"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-gray-700 dark:text-gray-700">Years of Experience</FormLabel>
+                          <FormLabel className="text-gray-700 dark:text-gray-300">Years of Experience</FormLabel>
                           <FormControl>
                             <Input
                               placeholder="e.g., 5 years"
                               {...field}
-                              className="bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300"
+                              className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700"
                             />
                           </FormControl>
                           <FormMessage />
@@ -855,7 +855,7 @@ export default function ProfileCompletionForm({
 
               {isClinicAdmin && (
                 <div className="space-y-2 pt-2">
-                  <h3 className="text-lg font-bold text-emerald-700 dark:text-emerald-700 mb-2 border-b border-emerald-200 pb-1">
+                  <h3 className="text-lg font-bold text-emerald-700 dark:text-emerald-400 mb-2 border-b border-emerald-200 pb-1">
                     Clinic Information (Optional)
                   </h3>
                   <FormField
@@ -863,12 +863,12 @@ export default function ProfileCompletionForm({
                     name="clinicName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700 dark:text-gray-700">Clinic Name</FormLabel>
+                        <FormLabel className="text-gray-700 dark:text-gray-300">Clinic Name</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter clinic name"
                             {...field}
-                            className="bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300"
+                            className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700"
                           />
                         </FormControl>
                         <FormMessage />
@@ -880,13 +880,13 @@ export default function ProfileCompletionForm({
                     name="clinicAddress"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-gray-700 dark:text-gray-700">Clinic Address</FormLabel>
+                        <FormLabel className="text-gray-700 dark:text-gray-300">Clinic Address</FormLabel>
                         <FormControl>
                           <Textarea
                             placeholder="Enter clinic address"
                             rows={3}
                             {...field}
-                            className="bg-white dark:bg-white text-gray-900 dark:text-gray-900 border-gray-300 dark:border-gray-300"
+                            className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700"
                           />
                         </FormControl>
                         <FormMessage />

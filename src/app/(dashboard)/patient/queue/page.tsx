@@ -26,7 +26,7 @@ export default function PatientQueuePage() {
   }, [appointmentsData]);
 
   // Fetch real-time queue stats
-  const { data: queueStats, isPending: isQueueStatsPending } = useRealTimeQueueStatus();
+  const { data: queueStats, isPending: isQueueStatsPending } = useRealTimeQueueStatus(undefined, activeAppointment?.locationId);
 
   const handleRefresh = () => {
     refetchAppointments();

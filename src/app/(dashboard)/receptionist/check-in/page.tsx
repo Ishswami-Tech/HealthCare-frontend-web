@@ -56,8 +56,8 @@ export default function ReceptionistCheckInPage() {
     ? appointmentsData
     : appointmentsData?.appointments || [];
 
-  const canCheckIn = (status: string) =>
-    ["SCHEDULED", "CONFIRMED", "scheduled", "confirmed"].includes(status?.toUpperCase?.() || status);
+  const canCheckIn = (status?: string) =>
+    ["SCHEDULED", "CONFIRMED"].includes((status || "").toUpperCase());
 
   const filteredAppointments = appointments.filter((apt: AppointmentListItem) => {
     const patientName =

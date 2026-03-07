@@ -2618,3 +2618,87 @@ This is a **PROFESSIONAL HEALTHCARE APPLICATION** requiring:
 **ALWAYS prioritize user experience, security, and accessibility in all frontend solutions.**
 
 This comprehensive coding standards document ensures consistent, maintainable, and high-quality code across the healthcare frontend application.
+## 🔧 **Healthcare Workflow Integration Patterns**
+
+### **Status Constants Pattern (MANDATORY)**
+```typescript
+// ✅ All status values MUST use constants, never string literals
+// This ensures type safety and consistency with backend enums
+
+// ❌ INCORRECT: Direct string comparisons
+// if (appointment.status === 'CHECKED_IN') { // ❌ Type-unsafe
+//   <Badge>{appointment.status}</Badge>
+// }
+
+// ✅ CORRECT: Status constant usage
+// Define constants matching backend enum values
+const APPOINTMENT_STATUS = {
+  CHECKED_IN: 'CHECKED_IN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  SCHEDULED: 'SCHEDULED',
+  CONFIRMED: 'CONFIRMED',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  NO_SHOW: 'NO_SHOW',
+  PENDING: 'PENDING',
+} as const;
+
+const QUEUE_STATUS = {
+  WAITING: 'WAITING',
+  CHECKED_IN: 'CHECKED_IN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+// Usage example
+export function getStatusColor(status: string) {
+  switch (status) {
+    case APPOINTMENT_STATUS.CHECKED_IN:
+      return "bg-green-100 text-green-800";
+    case APPOINTMENT_STATUS.IN_PROGRESS:
+      return "bg-blue-100 text-blue-800";
+    // ... other cases
+  }
+}
+```
+
+### **Queue API Alignment Pattern**
+```typescript
+// ✅ Queue endpoints must use correct backend routes
+// Always verify backend controller provides endpoint before using it
+
+// ❌ INCORRECT: Wrong endpoint
+// GET /appointments/queue/stats  // ❌ Backend doesn't provide this
+//
+// ✅ CORRECT: Use queue-specific endpoints
+const QUEUE_ENDPOINTS = {
+  STATS: '/queue/stats',            // GET /queue/stats (requires locationId)
+  CALL_NEXT: '/queue/call-next',     // POST /queue/call-next
+  REORDER: '/queue/reorder',          // POST /queue/reorder
+  PAUSE: '/queue/pause',            // POST /queue/pause
+  RESUME: '/queue/resume',           // POST /queue/resume
+} as const;
+
+// Usage example
+const { data: queueStats } = useQueueStats(locationId);
+// This calls GET /queue/stats?locationId=xxx
+```
+
+### **Check-in Service Integration Pattern**
+```typescript
+// ✅ Check-in process MUST update appointment status and add to queue
+// Frontend check-in must use queue service integration
+
+// ✅ CORRECT: Complete check-in flow
+// 1. Frontend calls POST /appointments/:id/check-in or /appointments/check-in/scan-qr
+// 2. Backend controller processes check-in and calls queue service
+// 3. Queue service creates/updates queue records
+// 4. Appointment status updated to CHECKED_IN with checkedInAt timestamp
+// 5. All cache invalidations properly handled
+//
+// ❌ INCORRECT: Stub check-in
+// async processCheckIn() {
+//   return { success: true }; // No real queue operation
+// }
+//
+```

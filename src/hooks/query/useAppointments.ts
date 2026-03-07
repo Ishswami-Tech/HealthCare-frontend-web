@@ -465,7 +465,7 @@ export const useCompleteAppointment = () => {
         throw new Error('Insufficient permissions to complete appointment');
       }
       
-      const result = await updateAppointmentStatus(id, { ...data, status: 'COMPLETED' }) as any;
+      const result = await updateAppointmentStatus(id, { ...data, status: 'COMPLETED' });
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -564,12 +564,12 @@ export const useCallNextPatient = () => {
   const { hasPermission } = useRBAC();
   
   return useMutationOperation(
-    async (queueType: string) => {
+    async (doctorId: string) => {
       if (!hasPermission(Permission.MANAGE_QUEUE)) {
         throw new Error('Insufficient permissions to call next patient');
       }
       
-      const result = await callNextPatient(queueType) as any;
+      const result = await callNextPatient(doctorId) as any;
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -587,20 +587,21 @@ export const useCallNextPatient = () => {
 /**
  * Hook for fetching queue statistics
  */
-export const useQueueStats = () => {
+export const useQueueStats = (locationId?: string) => {
   const { hasPermission } = useRBAC();
   
   return useQueryData(
-    ['queue-stats'],
+    ['queue-stats', locationId],
     async () => {
-      const result = await getQueueStats() as any;
+      if (!locationId) throw new Error('Location ID required for queue stats');
+      const result = await getQueueStats(locationId) as any;
       if (!result.success) {
         throw new Error(result.error);
       }
       return result.stats;
     },
     {
-      enabled: hasPermission(Permission.VIEW_QUEUE),
+      enabled: !!locationId && hasPermission(Permission.VIEW_QUEUE),
       staleTime: 30 * 1000, // 30 seconds
       refetchInterval: 60 * 1000, // 1 minute
       retry: (failureCount, error: Error) => {

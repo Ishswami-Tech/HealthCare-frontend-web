@@ -116,14 +116,15 @@ export async function getSubscriptions(userId: string): Promise<{
 
 export async function getActiveSubscription(
   userId: string,
-  _clinicId: string
+  clinicId: string
 ): Promise<{
   success: boolean;
   subscription?: Subscription;
   error?: string;
 }> {
   try {
-    const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_ACTIVE(userId));
+    const endpoint = `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_ACTIVE(userId)}?clinicId=${encodeURIComponent(clinicId)}`;
+    const { data } = await authenticatedApi(endpoint);
     return { success: true, subscription: data as Subscription };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch active subscription' };
@@ -346,6 +347,83 @@ export async function processAppointmentPayment(
     };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to process appointment payment' };
+  }
+}
+
+export async function bookAppointmentWithSubscription(
+  subscriptionId: string,
+  appointmentId: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const { data } = await authenticatedApi(
+      API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BOOK_APPOINTMENT(subscriptionId, appointmentId),
+      { method: 'POST' }
+    );
+    return { success: true, message: (data as { message?: string })?.message || 'Appointment linked to subscription' };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to link appointment to subscription' };
+  }
+}
+
+export async function checkSubscriptionCoverage(
+  subscriptionId: string,
+  appointmentType: 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT'
+): Promise<{
+  success: boolean;
+  coverage?: {
+    covered?: boolean;
+    allowed?: boolean;
+    requiresPayment?: boolean;
+    paymentAmount?: number | null;
+    message?: string;
+    reason?: string;
+  };
+  error?: string;
+}> {
+  try {
+    const endpoint =
+      `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CHECK_COVERAGE(subscriptionId)}?` +
+      `appointmentType=${encodeURIComponent(appointmentType)}&detailed=true`;
+    const { data } = await authenticatedApi(endpoint);
+    return { success: true, coverage: data as any };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to check subscription coverage',
+    };
+  }
+}
+
+export async function createInPersonAppointmentWithSubscription(data: {
+  subscriptionId: string;
+  patientId: string;
+  doctorId: string;
+  clinicId: string;
+  locationId: string;
+  appointmentDate: string;
+  duration: number;
+  treatmentType?: string;
+  priority?: string;
+  notes?: string;
+}): Promise<{ success: boolean; appointment?: any; error?: string }> {
+  try {
+    const { subscriptionId, ...payload } = data;
+    const { data: response } = await authenticatedApi(
+      API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BOOK_INPERSON(subscriptionId),
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          ...payload,
+          type: 'IN_PERSON',
+        }),
+      }
+    );
+    return { success: true, appointment: (response as any)?.appointment || response };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create in-person appointment with subscription',
+    };
   }
 }
 

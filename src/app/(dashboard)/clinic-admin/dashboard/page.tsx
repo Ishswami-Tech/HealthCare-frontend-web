@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useCurrentClinic, useClinicStats } from "@/hooks/query/useClinics";
+import { useCurrentClinic, useClinicStats, useActiveLocations } from "@/hooks/query/useClinics";
 import { useRealTimeAppointments, useRealTimeQueueStatus } from "@/hooks/realtime/useRealTimeQueries";
 import { cn } from "@/lib/utils";
 import {
@@ -27,12 +27,15 @@ export default function ClinicAdminDashboard() {
   const { data: currentClinic, isPending: isLoadingClinic } = useCurrentClinic();
   const clinicId = currentClinic?.id;
 
+  const { data: locations = [] } = useActiveLocations(clinicId || "");
+  const locationId = locations[0]?.id || "";
+
   // Real data fetching
   const { data: clinicStats, isPending: isLoadingStats, refetch: refetchStats } = useClinicStats(clinicId || "");
   const { data: appointmentsData } = useRealTimeAppointments({
     limit: 5,
   });
-  const { data: queueData, isPending: isLoadingQueue } = useRealTimeQueueStatus();
+  const { data: queueData, isPending: isLoadingQueue } = useRealTimeQueueStatus(undefined, locationId);
 
   const appointments = (appointmentsData as any)?.data || [];
   const queueItems = (queueData as any)?.items || [];

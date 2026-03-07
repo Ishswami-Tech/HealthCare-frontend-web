@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,8 +28,8 @@ import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { 
-  Calendar, 
+import {
+  Calendar,
   Play,
   CheckCircle,
   Clock,
@@ -41,14 +41,57 @@ import {
   Eye,
   Loader2
 } from "lucide-react";
+import type { AppointmentStatus } from "@/types/appointment.types";
+
+// Appointment status constants - must match backend enum values
+const APPOINTMENT_STATUS = {
+  ALL: 'ALL',
+  CHECKED_IN: 'CHECKED_IN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  SCHEDULED: 'SCHEDULED',
+  CONFIRMED: 'CONFIRMED',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  NO_SHOW: 'NO_SHOW',
+} as const;
+
+// Interface for the transformed appointment object
+interface TransformedAppointment {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  patientName: string;
+  patientAge: number | null;
+  patientGender: string;
+  time: string;
+  status: AppointmentStatus;
+  type: string;
+  duration: string;
+  appointmentDate: string;
+  patientPhone: string;
+  patientEmail: string;
+  chiefComplaint: string;
+  medicalHistory: string[] | string;
+  allergies: string[] | string;
+  currentMedications: string[] | string;
+  vitalSigns: {
+    bp?: string;
+    pulse?: string;
+    temperature?: string;
+    weight?: string;
+  } | null;
+  checkedInAt: string | null;
+  queuePosition: number | null;
+}
 
 export default function DoctorAppointments() {
   const { session } = useAuth();
   const user = session?.user;
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("checked_in");
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [statusFilter, setStatusFilter] = useState<AppointmentStatus | string>(APPOINTMENT_STATUS.ALL);
+  const [selectedAppointment, setSelectedAppointment] = useState<TransformedAppointment | null>(null);
   const [consultationNotes, setConsultationNotes] = useState("");
   const [prescription, setPrescription] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
@@ -59,7 +102,7 @@ export default function DoctorAppointments() {
   const appointmentsQuery = useAppointments({
     clinicId: clinicId || "",
     doctorId: user?.id || "",
-    status: statusFilter === "all" ? undefined : (statusFilter as any),
+    ...(statusFilter !== APPOINTMENT_STATUS.ALL && { status: statusFilter as AppointmentStatus }),
     limit: 100,
   });
 
@@ -73,20 +116,20 @@ export default function DoctorAppointments() {
   const appointments = useMemo(() => {
     if (!appointmentsData) return [];
     const apps = Array.isArray(appointmentsData) ? appointmentsData : appointmentsData.appointments || [];
-    
-    return apps.map((app: any) => ({
+
+    return apps.map((app: any): TransformedAppointment => ({
       id: app.id,
       appointmentId: app.id,
-      patientId: app.patientId || app.patient?.id || app.patient?.userId,
-      doctorId: app.doctorId || app.doctor?.id || app.doctor?.userId,
+      patientId: app.patientId || app.patient?.id || app.patient?.userId || "",
+      doctorId: app.doctorId || app.doctor?.id || app.doctor?.userId || "",
       patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
-      patientAge: app.patient?.age || app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null,
+      patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
       patientGender: app.patient?.gender || "Unknown",
       time: app.startTime ? new Date(app.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "TBD",
-      status: app.status || "Scheduled",
+      status: (app.status || "SCHEDULED") as AppointmentStatus,
       type: app.type || app.appointmentType || "Consultation",
-      duration: app.duration || "30 min",
-      appointmentDate: app.startTime ? new Date(app.startTime).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      duration: typeof app.duration === 'number' ? `${app.duration} min` : (app.duration as string || "30 min"),
+      appointmentDate: app.startTime ? new Date(app.startTime).toISOString().split("T")[0] ?? "" : new Date().toISOString().split("T")[0] ?? "",
       patientPhone: app.patient?.phone || "",
       patientEmail: app.patient?.email || "",
       chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
@@ -100,28 +143,41 @@ export default function DoctorAppointments() {
   }, [appointmentsData]);
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((app: any) => {
+    return appointments.filter((app) => {
       const matchesSearch =
         !searchTerm ||
         app.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.chiefComplaint?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const statusKey = app.status?.toLowerCase().replace(" ", "_") || "";
-      const matchesStatus = statusFilter === "all" || statusKey === statusFilter;
-      
+
+      const matchesStatus = statusFilter === APPOINTMENT_STATUS.ALL || app.status === statusFilter;
+
       return matchesSearch && matchesStatus;
     });
   }, [appointments, searchTerm, statusFilter]);
 
   const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'in progress': return 'bg-blue-100 text-blue-800';
-      case 'checked in': return 'bg-green-100 text-green-800';
-      case 'scheduled': return 'bg-gray-100 text-gray-800';
-      case 'completed': return 'bg-purple-100 text-purple-800';
+    switch (status) {
+      case APPOINTMENT_STATUS.IN_PROGRESS: return 'bg-blue-100 text-blue-800';
+      case APPOINTMENT_STATUS.CHECKED_IN: return 'bg-green-100 text-green-800';
+      case APPOINTMENT_STATUS.SCHEDULED: case APPOINTMENT_STATUS.CONFIRMED: return 'bg-gray-100 text-gray-800';
+      case APPOINTMENT_STATUS.COMPLETED: return 'bg-purple-100 text-purple-800';
+      case APPOINTMENT_STATUS.CANCELLED: case APPOINTMENT_STATUS.NO_SHOW: return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      [APPOINTMENT_STATUS.CHECKED_IN]: 'Checked In',
+      [APPOINTMENT_STATUS.IN_PROGRESS]: 'In Progress',
+      [APPOINTMENT_STATUS.SCHEDULED]: 'Scheduled',
+      [APPOINTMENT_STATUS.CONFIRMED]: 'Confirmed',
+      [APPOINTMENT_STATUS.COMPLETED]: 'Completed',
+      [APPOINTMENT_STATUS.CANCELLED]: 'Cancelled',
+      [APPOINTMENT_STATUS.NO_SHOW]: 'No Show',
+    };
+    return labels[status] || status;
   };
 
   // Mutations for appointment actions
@@ -192,7 +248,7 @@ export default function DoctorAppointments() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {appointments.filter(a => a.status === 'Checked In').length}
+                  {appointments.filter(a => a.status === APPOINTMENT_STATUS.CHECKED_IN).length}
                 </div>
               </CardContent>
             </Card>
@@ -204,7 +260,7 @@ export default function DoctorAppointments() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {appointments.filter(a => a.status === 'In Progress').length}
+                  {appointments.filter(a => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length}
                 </div>
               </CardContent>
             </Card>
@@ -216,7 +272,7 @@ export default function DoctorAppointments() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-gray-600">
-                  {appointments.filter(a => a.status === 'Scheduled').length}
+                  {appointments.filter(a => a.status === APPOINTMENT_STATUS.SCHEDULED || a.status === APPOINTMENT_STATUS.CONFIRMED).length}
                 </div>
               </CardContent>
             </Card>
@@ -255,11 +311,11 @@ export default function DoctorAppointments() {
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="checked_in">Checked In</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="ALL">All Status</SelectItem>
+                    <SelectItem value="CHECKED_IN">Checked In</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -275,7 +331,7 @@ export default function DoctorAppointments() {
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
                         <span className="text-blue-800 font-semibold text-lg">
-                          {appointment.patientName.charAt(0)}
+                          {appointment.patientName?.charAt(0) || "?"}
                         </span>
                       </div>
                       <div>
@@ -300,7 +356,7 @@ export default function DoctorAppointments() {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <Badge className={getStatusColor(appointment.status)}>
-                          {appointment.status}
+                          {getStatusLabel(appointment.status)}
                         </Badge>
                         {appointment.queuePosition && (
                           <div className="text-xs text-gray-500 mt-1">
@@ -318,7 +374,7 @@ export default function DoctorAppointments() {
                           <Eye className="w-4 h-4" />
                         </Button>
                         
-                        {appointment.status === 'Checked In' && (
+                        {appointment.status === APPOINTMENT_STATUS.CHECKED_IN && (
                           <Button 
                             size="sm" 
                             onClick={() => startConsultation(appointment.id)}
@@ -339,7 +395,7 @@ export default function DoctorAppointments() {
                           </Button>
                         )}
                         
-                        {appointment.status === 'In Progress' && (
+                        {appointment.status === APPOINTMENT_STATUS.IN_PROGRESS && (
                           <>
                             <Button
                               variant="outline"
@@ -354,7 +410,7 @@ export default function DoctorAppointments() {
                                   patientId: appointment.patientId || "",
                                   startTime: new Date().toISOString(),
                                   endTime: new Date().toISOString(),
-                                  status: "in-progress" as any,
+                                  status: "in-progress",
                                   createdAt: new Date().toISOString(),
                                   updatedAt: new Date().toISOString(),
                                 };
@@ -454,7 +510,11 @@ export default function DoctorAppointments() {
 
                         <div>
                           <h4 className="font-semibold mb-2">Medical History</h4>
-                          <p className="text-sm text-gray-700">{selectedAppointment.medicalHistory}</p>
+                          <p className="text-sm text-gray-700">
+                            {Array.isArray(selectedAppointment.medicalHistory)
+                              ? selectedAppointment.medicalHistory.join(", ") || "None"
+                              : selectedAppointment.medicalHistory || "None"}
+                          </p>
                         </div>
                       </div>
 
@@ -463,22 +523,30 @@ export default function DoctorAppointments() {
                           <div>
                             <h4 className="font-semibold mb-2">Vital Signs</h4>
                             <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div>BP: {selectedAppointment.vitalSigns.bp}</div>
-                              <div>Pulse: {selectedAppointment.vitalSigns.pulse}</div>
-                              <div>Temp: {selectedAppointment.vitalSigns.temperature}</div>
-                              <div>Weight: {selectedAppointment.vitalSigns.weight}</div>
+                              <div>BP: {selectedAppointment.vitalSigns.bp ?? "-"}</div>
+                              <div>Pulse: {selectedAppointment.vitalSigns.pulse ?? "-"}</div>
+                              <div>Temp: {selectedAppointment.vitalSigns.temperature ?? "-"}</div>
+                              <div>Weight: {selectedAppointment.vitalSigns.weight ?? "-"}</div>
                             </div>
                           </div>
                         )}
 
                         <div>
                           <h4 className="font-semibold mb-2">Allergies</h4>
-                          <p className="text-sm text-gray-700">{selectedAppointment.allergies}</p>
+                          <p className="text-sm text-gray-700">
+                            {Array.isArray(selectedAppointment.allergies)
+                              ? selectedAppointment.allergies.join(", ") || "None"
+                              : selectedAppointment.allergies || "None"}
+                          </p>
                         </div>
 
                         <div>
                           <h4 className="font-semibold mb-2">Current Medications</h4>
-                          <p className="text-sm text-gray-700">{selectedAppointment.currentMedications}</p>
+                          <p className="text-sm text-gray-700">
+                            {Array.isArray(selectedAppointment.currentMedications)
+                              ? selectedAppointment.currentMedications.join(", ") || "None"
+                              : selectedAppointment.currentMedications || "None"}
+                          </p>
                         </div>
                       </div>
                     </div>

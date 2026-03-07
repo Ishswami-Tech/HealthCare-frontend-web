@@ -4,11 +4,14 @@ import { useRealTimeQueueStatus } from "@/hooks/realtime/useRealTimeQueries";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, Clock, AlertCircle } from "lucide-react";
+import { Loader2, Users, Clock, AlertCircle, Maximize2 } from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 export function PatientQueueCard() {
+  const router = useRouter();
   // Fetch patient's appointments to find one that is active/checked-in
   const { data: appointmentsData, isPending: isAppointmentsPending } = useMyAppointments();
   
@@ -21,7 +24,7 @@ export function PatientQueueCard() {
   }, [appointmentsData]);
 
   // Fetch real-time queue stats
-  const { data: queueStats } = useRealTimeQueueStatus();
+  const { data: queueStats } = useRealTimeQueueStatus(undefined, activeAppointment?.locationId);
 
   if (isAppointmentsPending) {
     return (
@@ -61,15 +64,20 @@ export function PatientQueueCard() {
                 <Users className="w-5 h-5 text-blue-600" />
                 Live Queue Status
             </CardTitle>
-            <Badge 
-              variant={activeAppointment.status === 'IN_PROGRESS' ? 'default' : 'secondary'} 
-              className={cn(
-                "animate-pulse capitalize",
-                activeAppointment.status === 'IN_PROGRESS' ? "bg-green-600 hover:bg-green-700" : ""
-              )}
-            >
-                {activeAppointment.status === 'IN_PROGRESS' ? 'Now Serving You' : 'Waiting in Queue'}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge 
+                variant={activeAppointment.status === 'IN_PROGRESS' ? 'default' : 'secondary'} 
+                className={cn(
+                  "animate-pulse capitalize hidden sm:inline-flex",
+                  activeAppointment.status === 'IN_PROGRESS' ? "bg-green-600 hover:bg-green-700" : ""
+                )}
+              >
+                  {activeAppointment.status === 'IN_PROGRESS' ? 'Now Serving' : 'Waiting in Queue'}
+              </Badge>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground" onClick={() => router.push('/patient/queue')} title="Full Screen View">
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </div>
         </div>
       </CardHeader>
       <CardContent className="pt-6">

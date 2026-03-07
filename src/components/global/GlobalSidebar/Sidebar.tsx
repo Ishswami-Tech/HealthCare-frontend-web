@@ -40,7 +40,7 @@ import { ROUTES } from "@/lib/config/routes";
 import { useTranslation } from "@/lib/i18n/context";
 import { translateSidebarLinks } from "@/lib/utils/index";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { useLayoutStore } from "@/stores/layout.store";
 import { motion } from "framer-motion";
 
@@ -276,6 +276,31 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
   const open = !isSidebarCollapsed;
   const setOpen = useCallback((o: boolean) => setSidebarCollapsed(!o), [setSidebarCollapsed]);
 
+  // Detect if device supports touch (for mobile)
+  const isTouchDevice = typeof window !== 'undefined' &&
+    ('ontouchstart' in window) ||
+    (navigator.maxTouchPoints > 0);
+
+  // Handle sidebar toggle (for both desktop hover and mobile tap)
+  const handleSidebarMouseEnter = useCallback(() => {
+    // Only use hover on non-touch devices
+    if (!isTouchDevice) {
+      setOpen(true);
+    }
+  }, [isTouchDevice, setOpen]);
+
+  const handleSidebarMouseLeave = useCallback(() => {
+    // Only use hover on non-touch devices
+    if (!isTouchDevice) {
+      setOpen(false);
+    }
+  }, [isTouchDevice, setOpen]);
+
+  // Handle sidebar click/toggle for mobile
+  const handleSidebarToggle = useCallback(() => {
+    setOpen(!open);
+  }, [open, setOpen]);
+
   const handleLogoutClick = useCallback(() => {
     setShowLogoutDialog(true);
   }, []);
@@ -300,11 +325,27 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
     <>
       <SidebarProvider open={open} onOpenChange={setOpen}>
         <div className={cn("flex h-screen w-full bg-neutral-100 dark:bg-neutral-900 overflow-hidden")}>
+          {/* Mobile toggle button - visible only on small screens */}
+          {isTouchDevice && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden absolute top-4 left-4 z-50 bg-white dark:bg-neutral-800 shadow-md"
+              onClick={handleSidebarToggle}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
+
           <SidebarComponent
             collapsible="icon"
-            className="border-none bg-neutral-100 dark:bg-neutral-900 text-sidebar-foreground transition-all duration-300 ease-in-out"
-            onMouseEnter={() => setOpen(true)}
-            onMouseLeave={() => setOpen(false)}
+            className={cn(
+              "border-none bg-neutral-100 dark:bg-neutral-900 text-sidebar-foreground transition-all duration-300 ease-in-out",
+              isTouchDevice && "md:hover:expand-on-hover"
+            )}
+            onMouseEnter={handleSidebarMouseEnter}
+            onMouseLeave={handleSidebarMouseLeave}
+            onClick={isTouchDevice ? handleSidebarToggle : undefined}
           >
             <SidebarInner
               links={links}

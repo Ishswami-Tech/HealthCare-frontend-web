@@ -70,13 +70,17 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
     });
     
     const responseData = (typeof data === 'object' && data !== null) ? (data as Record<string, unknown>) : undefined;
+    const responsePayload =
+      responseData && typeof responseData.data === 'object' && responseData.data !== null
+        ? (responseData.data as Record<string, unknown>)
+        : responseData;
     const isProfileComplete =
-      typeof responseData?.profileComplete === 'boolean'
-        ? responseData.profileComplete
-        : typeof responseData?.isProfileComplete === 'boolean'
-          ? responseData.isProfileComplete
-          : typeof responseData?.requiresProfileCompletion === 'boolean'
-            ? !responseData.requiresProfileCompletion
+      typeof responsePayload?.profileComplete === 'boolean'
+        ? responsePayload.profileComplete
+        : typeof responsePayload?.isProfileComplete === 'boolean'
+          ? responsePayload.isProfileComplete
+          : typeof responsePayload?.requiresProfileCompletion === 'boolean'
+            ? !responsePayload.requiresProfileCompletion
             : undefined;
 
     // Only update cookie if backend provides authoritative completion status.
@@ -190,12 +194,13 @@ export async function createUser(userData: {
 export async function updateUserRole(
   userId: string,
   role: string,
-  options?: { clinicId?: string; locationId?: string }
+  options?: { clinicId?: string; locationId?: string; permissions?: string[] }
 ) {
   return executeAction('updateUserRole', async () => {
-    const body: { role: string; clinicId?: string; locationId?: string } = { role };
+    const body: { role: string; clinicId?: string; locationId?: string; permissions?: string[] } = { role };
     if (options?.clinicId) body.clinicId = options.clinicId;
     if (options?.locationId) body.locationId = options.locationId;
+    if (options?.permissions) body.permissions = options.permissions;
     const { data } = await authenticatedApi(API_ENDPOINTS.USERS.UPDATE_ROLE(userId), {
       method: 'PUT',
       body: JSON.stringify(body)

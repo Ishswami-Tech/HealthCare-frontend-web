@@ -1059,12 +1059,12 @@ export class ClinicApiClient extends ApiClient {
     return this.post(API_ENDPOINTS.APPOINTMENTS.QUEUE.ADD, data);
   }
 
-  async callNextPatient(queueType: string) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.QUEUE.CALL_NEXT(queueType));
+  async callNextPatient(doctorId: string, domain?: string) {
+    return this.post(API_ENDPOINTS.QUEUE.CALL_NEXT, { doctorId, domain: domain || 'clinic' });
   }
 
-  async getQueueStats() {
-    return this.get(API_ENDPOINTS.APPOINTMENTS.QUEUE.STATS);
+  async getQueueStats(locationId: string) {
+    return this.get(API_ENDPOINTS.QUEUE.STATS, { locationId });
   }
 
   // ✅ User Management Methods (Match Backend Users Controller)

@@ -59,11 +59,12 @@ export function PaymentButton({
   children,
 }: PaymentButtonProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const effectiveProvider: PaymentProvider = provider || "cashfree";
 
   const getPaymentIntent = async () => {
     let paymentIntentUrl: string;
     let body: Record<string, unknown> = {};
-    const providerQuery = provider ? `?provider=${provider}` : "";
+    const providerQuery = `?provider=${effectiveProvider}`;
 
     if (subscriptionId) {
       paymentIntentUrl =
@@ -80,13 +81,13 @@ export function PaymentButton({
         invoiceId,
         amount,
         currency,
-        method: provider
-          ? provider === "razorpay"
+        method: effectiveProvider
+          ? effectiveProvider === "razorpay"
             ? "RAZORPAY"
-            : provider === "cashfree"
+            : effectiveProvider === "cashfree"
               ? "CASHFREE"
               : "PHONEPE"
-          : "RAZORPAY",
+          : "CASHFREE",
       };
     } else {
       throw new Error(
@@ -119,8 +120,6 @@ export function PaymentButton({
       razorpay_signature?: string;
     }
   ) => {
-    const baseUrl = APP_CONFIG.API.BASE_URL;
-    const callbackUrl = `${baseUrl}${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}`;
     const queryParams = new URLSearchParams({
       clinicId,
       paymentId: params.paymentId || params.orderId,
@@ -140,7 +139,7 @@ export function PaymentButton({
           }
         : { orderId: params.orderId };
     const verifyResponse = await clinicApiClient.post(
-      `${callbackUrl}?${queryParams.toString()}`,
+      `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`,
       body
     );
     if (!verifyResponse.success) {
@@ -243,18 +242,23 @@ export function PaymentButton({
   };
 
   const handleCashfreePayment = async (paymentIntent: Record<string, unknown>) => {
+    const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const orderId =
       (paymentIntent?.orderId as string) ||
       (paymentIntent?.paymentId as string) ||
       (paymentIntent?.id as string);
-    const redirectUrl = (paymentIntent?.metadata as Record<string, unknown>)
-      ?.redirectUrl as string | undefined;
+    const paymentSessionId =
+      (paymentIntent?.paymentSessionId as string) ||
+      (metadata?.paymentSessionId as string);
+    const redirectUrl =
+      (paymentIntent?.redirectUrl as string) ||
+      (metadata?.redirectUrl as string);
 
     if (!orderId) {
       throw new Error("Order ID not received from server");
     }
 
-    if (redirectUrl) {
+    if (redirectUrl && !paymentSessionId) {
       window.location.href = redirectUrl;
       return;
     }
@@ -279,10 +283,11 @@ export function PaymentButton({
     });
 
     try {
-      const result = await cashfree.checkout({
-        paymentSessionId: orderId,
-        orderId,
-      });
+      if (!paymentSessionId) {
+        throw new Error("Cashfree payment session is missing");
+      }
+
+      const result = await cashfree.checkout({ paymentSessionId, orderId });
       if (result?.redirectUrl) {
         window.location.href = result.redirectUrl;
       } else {
@@ -318,7 +323,7 @@ export function PaymentButton({
       const paymentIntent = await getPaymentIntent();
       const usedProvider = (provider ||
         (paymentIntent?.provider as string) ||
-        "razorpay") as PaymentProvider;
+        "cashfree") as PaymentProvider;
 
       switch (usedProvider) {
         case "razorpay":

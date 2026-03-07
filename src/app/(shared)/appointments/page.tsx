@@ -56,6 +56,18 @@ import {
 } from "lucide-react";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 
+// Appointment status constants - must match backend enum values
+const APPOINTMENT_STATUS = {
+  CHECKED_IN: 'CHECKED_IN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  SCHEDULED: 'SCHEDULED',
+  CONFIRMED: 'CONFIRMED',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  NO_SHOW: 'NO_SHOW',
+  PENDING: 'PENDING',
+} as const;
+
 export default function AppointmentsPage() {
   const { session } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
@@ -236,14 +248,20 @@ export default function AppointmentsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "confirmed":
+      case APPOINTMENT_STATUS.CONFIRMED:
         return "bg-green-100 text-green-800";
-      case "pending":
+      case APPOINTMENT_STATUS.PENDING:
+      case APPOINTMENT_STATUS.SCHEDULED:
         return "bg-yellow-100 text-yellow-800";
-      case "completed":
+      case APPOINTMENT_STATUS.COMPLETED:
         return "bg-blue-100 text-blue-800";
-      case "cancelled":
+      case APPOINTMENT_STATUS.CANCELLED:
+      case APPOINTMENT_STATUS.NO_SHOW:
         return "bg-red-100 text-red-800";
+      case APPOINTMENT_STATUS.IN_PROGRESS:
+        return "bg-purple-100 text-purple-800";
+      case APPOINTMENT_STATUS.CHECKED_IN:
+        return "bg-indigo-100 text-indigo-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -400,7 +418,7 @@ export default function AppointmentsPage() {
                     </Button>
                   </AppointmentProtectedComponent>
 
-                  {appointment.status !== "completed" && (
+                  {appointment.status !== APPOINTMENT_STATUS.COMPLETED && (
                     <>
                       {/* Edit button - only for users with update permission */}
                       <AppointmentProtectedComponent action="update">
@@ -442,8 +460,8 @@ export default function AppointmentsPage() {
 
                   {/* Video Join Button for video appointments */}
                   {appointment.mode === "video" &&
-                    (appointment.status === "confirmed" ||
-                      appointment.status === "IN_PROGRESS") && (
+                    (appointment.status === APPOINTMENT_STATUS.CONFIRMED ||
+                      appointment.status === APPOINTMENT_STATUS.IN_PROGRESS) && (
                       <Button
                         size="sm"
                         variant="default"
@@ -459,7 +477,7 @@ export default function AppointmentsPage() {
                     )}
 
                   {/* Queue management actions for authorized users */}
-                  {appointment.status === "confirmed" &&
+                  {appointment.status === APPOINTMENT_STATUS.CONFIRMED &&
                     appointment.mode !== "video" && (
                       <AppointmentProtectedComponent action="manage">
                         <Button
@@ -468,7 +486,7 @@ export default function AppointmentsPage() {
                           className="flex items-center gap-1"
                           onClick={() =>
                             handleUpdateAppointment(appointment.id, {
-                              status: "IN_PROGRESS",
+                              status: APPOINTMENT_STATUS.IN_PROGRESS,
                             })
                           }
                         >

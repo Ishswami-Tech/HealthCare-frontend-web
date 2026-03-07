@@ -428,7 +428,7 @@ export default function PharmacySystem() {
           </div>
 
           <Tabs defaultValue="inventory" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="inventory">Medicine Inventory</TabsTrigger>
               <TabsTrigger value="orders">Orders</TabsTrigger>
               <TabsTrigger value="pharmacies">Partner Pharmacies</TabsTrigger>

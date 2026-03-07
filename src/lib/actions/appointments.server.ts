@@ -537,7 +537,20 @@ export async function scanLocationQRAndCheckIn(data: { code: string; locationId?
     return { success: true, appointment };
   } catch (error) {
     logger.error('Failed QR check-in', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'QR check-in failed' };
+    const normalizedError = error as Error & {
+      code?: string;
+      details?: { message?: string; error?: string };
+    };
+    const detailedMessage =
+      normalizedError.details?.message ||
+      normalizedError.details?.error ||
+      normalizedError.message;
+
+    return {
+      success: false,
+      error: detailedMessage || 'QR check-in failed',
+      code: normalizedError.code,
+    };
   }
 }
 

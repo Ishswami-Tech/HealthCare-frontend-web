@@ -2,13 +2,12 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Role } from "@/types/auth.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
-import { AppointmentWithRelations } from "@/types/appointment.types";
+import { AppointmentWithRelations, AppointmentStatus } from "@/types/appointment.types";
 import { useClinicContext } from "@/hooks/query/useClinics";
 // import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -24,6 +23,19 @@ import {
   FileText,
   Video,
 } from "lucide-react";
+
+// Interface for the transformed appointment object
+interface TransformedAppointment {
+  id: string;
+  patientName: string;
+  time: string;
+  status: string;
+  statusEnum: AppointmentStatus;
+  type: string;
+  duration: string;
+  notes: string;
+  isVideo: boolean;
+}
 
 export default function DoctorDashboard() {
   const router = useRouter();
@@ -44,8 +56,8 @@ export default function DoctorDashboard() {
   // Calculate real stats from fetched data
   const appointmentsArray = appointments?.appointments || [];
 
-  // Today's queue from real appointments (sorted by time)
-  const todaysQueue = useMemo(() => {
+  // Today's appointments from real data (sorted by time)
+  const todaysAppointments = useMemo(() => {
     const today = new Date().toDateString();
     return appointmentsArray
       .filter((apt: AppointmentWithRelations) => new Date(apt.date).toDateString() === today)
@@ -53,15 +65,16 @@ export default function DoctorDashboard() {
         (a: AppointmentWithRelations, b: AppointmentWithRelations) =>
           (a.time || "").localeCompare(b.time || "", undefined, { numeric: true })
       )
-      .map((apt: AppointmentWithRelations) => {
+      .map((apt: AppointmentWithRelations): TransformedAppointment => {
         const patientName =
           `${apt.patient?.firstName || ""} ${apt.patient?.lastName || ""}`.trim() ||
           "Unknown Patient";
-        const statusLabels: Record<string, string> = {
+        const statusLabels: Partial<Record<AppointmentStatus, string>> = {
           IN_PROGRESS: "In Progress",
           CHECKED_IN: "Checked In",
           SCHEDULED: "Scheduled",
           CONFIRMED: "Scheduled",
+          AWAITING_SLOT_CONFIRMATION: "Awaiting Confirmation",
           COMPLETED: "Completed",
           CANCELLED: "Cancelled",
           NO_SHOW: "No Show",
@@ -80,6 +93,25 @@ export default function DoctorDashboard() {
       });
   }, [appointmentsArray]);
 
+  const activeTreatmentQueue = useMemo(
+    () =>
+      todaysAppointments.filter(
+        (apt: TransformedAppointment) => apt.statusEnum === "CHECKED_IN" || apt.statusEnum === "IN_PROGRESS"
+      ),
+    [todaysAppointments]
+  );
+
+  const viewOnlyQueue = useMemo(
+    () =>
+      todaysAppointments.filter(
+        (apt: TransformedAppointment) =>
+          apt.statusEnum === "SCHEDULED" ||
+          apt.statusEnum === "CONFIRMED" ||
+          apt.statusEnum === "AWAITING_SLOT_CONFIRMATION"
+      ),
+    [todaysAppointments]
+  );
+
   const stats = {
     todayAppointments:
       appointmentsArray.filter((apt: AppointmentWithRelations) => {
@@ -96,23 +128,16 @@ export default function DoctorDashboard() {
           apt.status === "COMPLETED"
         );
       }).length || 0,
-    totalPatients:
-      appointmentsArray.reduce((acc: { patientId: string }[], apt: AppointmentWithRelations) => {
-        const patientIds = new Set(acc.map((p) => p.patientId));
-        if (!patientIds.has(apt.patientId)) {
-          acc.push({ patientId: apt.patientId });
-        }
-        return acc;
-      }, []).length || 0,
+    totalPatients: new Set(appointmentsArray.map((apt: AppointmentWithRelations) => apt.patientId)).size,
     avgConsultationTime: 25,
     patientSatisfaction: 4.8,
     nextAppointment:
-      todaysQueue.find(
-        (a: any) =>
+      todaysAppointments.find(
+        (a: TransformedAppointment) =>
           a.statusEnum === "SCHEDULED" ||
           a.statusEnum === "CONFIRMED" ||
           a.statusEnum === "CHECKED_IN"
-      )?.time || "—",
+      )?.time || "-",
   };
 
   const recentActivities = [
@@ -316,17 +341,17 @@ export default function DoctorDashboard() {
             </Card>
           </div>
 
-          {/* Today&apos;s Queue */}
+          {/* Active Treatment Queue */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="w-5 h-5" />
-                Today&apos;s Patient Queue
+                Active Treatment Queue
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {todaysQueue.map((appointment: any) => (
+                {activeTreatmentQueue.map((appointment: TransformedAppointment) => (
                   <div
                     key={appointment.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
@@ -340,7 +365,7 @@ export default function DoctorDashboard() {
                           {appointment.patientName}
                         </h4>
                         <p className="text-sm text-gray-600">
-                          {appointment.type} • {appointment.duration}
+                          {appointment.type} - {appointment.duration}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           {appointment.notes}
@@ -403,6 +428,45 @@ export default function DoctorDashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Scheduled Queue (View Only)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {viewOnlyQueue.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No scheduled patients pending check-in.
+                  </p>
+                ) : (
+                  viewOnlyQueue.map((appointment: TransformedAppointment) => (
+                    <div
+                      key={appointment.id}
+                      className="flex items-center justify-between p-4 border rounded-lg bg-muted/20"
+                    >
+                      <div>
+                        <h4 className="font-semibold">{appointment.patientName}</h4>
+                        <p className="text-sm text-gray-600">
+                          {appointment.type} - {appointment.duration}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">{appointment.time}</div>
+                        <Badge className={`${getStatusColor(appointment.status)} flex items-center gap-1`}>
+                          {getStatusIcon(appointment.status)}
+                          {appointment.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
