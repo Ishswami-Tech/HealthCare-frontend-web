@@ -177,8 +177,8 @@ export function useAuth() {
       refetchInterval: false, // Disabled - will be enabled after successful login
       refetchOnWindowFocus: false, // Don't refetch on window focus
       refetchOnMount: false, // ✅ CRITICAL: Don't refetch on mount - prevents blocking navigation
-      // ✅ Add caching to prevent duplicate calls - increased staleTime
-      staleTime: 10000, // Consider data fresh for 10 seconds to prevent duplicate calls
+      // ✅ Add caching to prevent duplicate calls - reduced staleTime for faster logout
+      staleTime: 500, // Consider data fresh for only 500ms to prevent stale session after logout
       gcTime: 60000, // Cache for 60 seconds to prevent unnecessary refetches
       // ✅ Make query non-blocking - don't wait for it
       enabled: true, // Keep enabled but make it non-blocking
@@ -462,7 +462,11 @@ export function useAuth() {
       successMessage: 'Logged out successfully',
       showToast: false, // Handle manually for custom messages
       onSuccess: () => {
-        // Clear all query cache, session data, and Zustand stores (prevent cross-role state leakage)
+        // ✅ CRITICAL FIX: Immediately invalidate session query to prevent dashboard render
+        queryClient.invalidateQueries({ queryKey: ['session'] });
+        queryClient.setQueryData(['session'], null);
+
+        // Clear all query cache and Zustand stores (prevent cross-role state leakage)
         queryClient.clear();
         queryClient.setQueryData(['session'], null);
         resetAllStores();
@@ -477,8 +481,9 @@ export function useAuth() {
           redirectContext.currentPath = currentPath;
         }
         const redirect = resolveRedirect(redirectContext);
-        
-        router.push(redirect.path);
+
+        // ✅ Use router.replace instead of push to prevent history issues
+        router.replace(redirect.path);
         showSuccessToast('Logged out successfully', {
           id: TOAST_IDS.AUTH.LOGOUT,
         });
@@ -487,6 +492,10 @@ export function useAuth() {
         if (process.env.NODE_ENV === 'development') {
           logger.error('Logout error', error, { component: 'useAuth' });
         }
+
+        // ✅ CRITICAL FIX: Immediately invalidate session query to prevent dashboard render
+        queryClient.invalidateQueries({ queryKey: ['session'] });
+        queryClient.setQueryData(['session'], null);
 
         // Clear client state even if server logout fails (prevent cross-role state leakage)
         queryClient.clear();
@@ -503,8 +512,9 @@ export function useAuth() {
           redirectContext.currentPath = currentPath;
         }
         const redirect = resolveRedirect(redirectContext);
-        
-        router.push(redirect.path);
+
+        // ✅ Use router.replace instead of push to prevent history issues
+        router.replace(redirect.path);
         showErrorToast('Logged out locally, but server logout failed', {
           id: TOAST_IDS.AUTH.LOGOUT,
         });

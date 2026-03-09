@@ -74,6 +74,52 @@ export interface Payment {
   paymentDate?: string;
   createdAt: string;
   updatedAt: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface LedgerSummary {
+  totalCollections: number;
+  totalDoctorPayable: number;
+  totalPlatformRevenue: number;
+  totalRefunded: number;
+  totalPayoutReleased: number;
+  pendingPayouts: number;
+  byRevenueModel: {
+    APPOINTMENT: number;
+    SUBSCRIPTION: number;
+    OTHER: number;
+  };
+  byAppointmentType: {
+    VIDEO_CALL: number;
+    IN_PERSON: number;
+    HOME_VISIT: number;
+    OTHER: number;
+  };
+}
+
+export interface LedgerPaymentRow {
+  paymentId: string;
+  appointmentId: string | null;
+  userId: string | null;
+  amount: number;
+  status: string;
+  refundAmount: number;
+  createdAt: string;
+  updatedAt: string;
+  payoutState: string;
+  payoutDoctorId: string | null;
+  payoutDoctorShareAmount: number;
+  payoutPlatformFeeAmount: number;
+  payoutReference: string | null;
+  revenueModel: string;
+  appointmentType: string | null;
+  provider: string | null;
+  ledgerEntries: Array<Record<string, unknown>>;
+}
+
+export interface ClinicLedgerResponse {
+  payments: LedgerPaymentRow[];
+  summary: LedgerSummary;
 }
 
 export interface BillingAnalytics {
@@ -105,6 +151,7 @@ export interface CreateBillingPlanData {
   billingCycle: 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
   appointmentsIncluded?: number;
   isUnlimitedAppointments?: boolean;
+  isActive?: boolean;
   appointmentTypes?: string[];
   features?: string[];
   clinicId?: string;

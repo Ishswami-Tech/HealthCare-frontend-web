@@ -94,15 +94,6 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="//accounts.google.com" />
         <link rel="dns-prefetch" href="//www.google-analytics.com" />
         
-        {/* Preload critical fonts for LCP improvement */}
-        <link
-          rel="preload"
-          href="/fonts/inter-var.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-
         <script src="https://accounts.google.com/gsi/client" async defer></script>
       </head>
       <body className={cn(inter.className, "antialiased")} suppressHydrationWarning>

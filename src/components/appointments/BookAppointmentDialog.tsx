@@ -289,13 +289,9 @@ export function BookAppointmentDialog({
       const finalAppointmentType: AppointmentType =
         consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
 
-      if (
-        finalAppointmentType === "IN_PERSON" &&
-        userRole === "PATIENT" &&
-        !activeSubscription
-      ) {
-        toast.error("Active monthly subscription is required for in-person appointments.");
-        router.push("/billing");
+      if (finalAppointmentType === "IN_PERSON" && userRole === "PATIENT" && !activeSubscription) {
+        toast.error("Active subscription required for in-person appointments. Please subscribe to continue.");
+        router.push("/billing?tab=plans&intent=subscribe");
         return;
       }
 
@@ -317,7 +313,7 @@ export function BookAppointmentDialog({
               ? `Subscription coverage unavailable. Additional payment required: INR ${coverage?.paymentAmount || 0}`
               : "Subscription quota exhausted or inactive.");
           toast.error(reason);
-          router.push("/billing");
+          router.push("/billing?tab=plans&intent=subscribe");
           return;
         }
       }
@@ -348,7 +344,7 @@ export function BookAppointmentDialog({
           (atomicResult as any)?.appointment?.data?.id ||
           "APPT-" + Date.now();
       } else {
-        const result = await createAppointment({
+        const appointment = await createAppointment({
           clinicId: activeClinicId,
           doctorId: selectedDoctorId,
           locationId: selectedLocationId,
@@ -361,7 +357,10 @@ export function BookAppointmentDialog({
           priority: urgency.toUpperCase() as any,
           patientId: session?.user?.id ?? "",
         });
-        apptId = (result as any)?.id || (result as any)?.data?.id || "APPT-" + Date.now();
+        if (!appointment?.id) {
+          throw new Error("Failed to create appointment");
+        }
+        apptId = appointment.id;
       }
 
       setBookedAppointmentId(apptId);

@@ -237,6 +237,16 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.PROCESS_PAYMENTS,
     Permission.VIEW_FINANCIAL_REPORTS,
   ],
+
+  [Role.HR_MANAGER]: [
+    Permission.VIEW_USERS,
+    Permission.CREATE_USERS,
+    Permission.UPDATE_USERS,
+    Permission.DELETE_USERS,
+    Permission.VIEW_SETTINGS,
+    Permission.UPDATE_SETTINGS,
+    Permission.VIEW_REPORTS,
+  ],
   
   [Role.DOCTOR]: [
     // Appointment permissions

@@ -1,8 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Role } from "@/types/auth.types";
-import { Invoice, Subscription, Payment, BillingPlan, BillingAnalytics } from "@/types/billing.types";
+import {
+  Invoice,
+  Subscription,
+  Payment,
+  BillingPlan,
+  BillingAnalytics,
+  ClinicLedgerResponse,
+} from "@/types/billing.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,23 +20,36 @@ import { InvoiceForm } from "./InvoiceForm";
 import { PaymentHistory } from "./PaymentHistory";
 import { PatientBillingAnalytics } from "./PatientBillingAnalytics";
 import { useAuth } from "@/hooks/auth/useAuth";
+import {
+  useCreateSubscription,
+  useCreateBillingPlan,
+  useReconcilePayment,
+  useReleaseAppointmentPayout,
+} from "@/hooks/query/useBilling";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PaymentButton } from "@/components/payments";
 
 interface RoleBasedBillingDashboardProps {
+  initialTab?: string;
+  isLoading?: boolean;
   plans: BillingPlan[];
   subscriptions: Subscription[];
   invoices: Invoice[];
   payments: Payment[];
   analytics?: BillingAnalytics;
+  ledger?: ClinicLedgerResponse;
   onRefetch?: () => void;
 }
 
 export function RoleBasedBillingDashboard({
+  initialTab,
+  isLoading = false,
   plans,
   subscriptions,
   invoices,
   payments,
   analytics,
+  ledger,
   onRefetch,
 }: RoleBasedBillingDashboardProps) {
   const { session } = useAuth();
@@ -45,6 +65,89 @@ export function RoleBasedBillingDashboard({
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
+  const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
+  const [isSubscriptionPaymentOpen, setIsSubscriptionPaymentOpen] = useState(false);
+  const [newPlanName, setNewPlanName] = useState("");
+  const [newPlanPrice, setNewPlanPrice] = useState("");
+  const [newPlanCycle, setNewPlanCycle] = useState<"MONTHLY" | "QUARTERLY" | "YEARLY">("MONTHLY");
+  const [newPlanAppointments, setNewPlanAppointments] = useState("");
+  const [newPlanUnlimited, setNewPlanUnlimited] = useState(false);
+  const [createPlanError, setCreatePlanError] = useState<string>("");
+  const [pendingSubscriptionPayment, setPendingSubscriptionPayment] = useState<{
+    subscriptionId: string;
+    planName: string;
+    amount: number;
+  } | null>(null);
+  const releasePayoutMutation = useReleaseAppointmentPayout();
+  const reconcilePaymentMutation = useReconcilePayment();
+  const createSubscriptionMutation = useCreateSubscription();
+  const createPlanMutation = useCreateBillingPlan();
+
+  const activeSubscription = subscriptions.find((s) => s.status === "ACTIVE");
+
+  const handleSubscribePlan = async (plan: BillingPlan) => {
+    if (!session?.user?.id) return;
+    const clinicId = plan.clinicId || session.user.clinicId || "";
+    if (!clinicId) return;
+
+    const created = await createSubscriptionMutation.mutateAsync({
+      userId: session.user.id,
+      clinicId,
+      planId: plan.id,
+      autoRenew: true,
+    });
+
+    if (!created?.id) return;
+
+    setPendingSubscriptionPayment({
+      subscriptionId: created.id,
+      planName: plan.name,
+      amount: plan.price,
+    });
+    setIsSubscriptionPaymentOpen(true);
+  };
+
+  const handleCreatePlan = async () => {
+    setCreatePlanError("");
+    if (!session?.user?.profileComplete) {
+      setCreatePlanError("Profile incomplete. Complete your profile before creating billing plans.");
+      return;
+    }
+
+    const clinicId = session?.user?.clinicId || plans[0]?.clinicId || "";
+    const parsedPrice = Number(newPlanPrice);
+    const parsedAppointments = Number(newPlanAppointments || "0");
+    if (!clinicId || !newPlanName.trim() || !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      setCreatePlanError("Please fill valid plan name, clinic, and price.");
+      return;
+    }
+
+    try {
+      await createPlanMutation.mutateAsync({
+        clinicId,
+        name: newPlanName.trim(),
+        price: parsedPrice,
+        currency: "INR",
+        billingCycle: newPlanCycle,
+        isActive: true,
+        isUnlimitedAppointments: newPlanUnlimited,
+        ...(newPlanUnlimited ? {} : { appointmentsIncluded: Math.max(1, parsedAppointments || 1) }),
+        description: `${newPlanName.trim()} (${newPlanCycle.toLowerCase()})`,
+      });
+
+      setIsCreatePlanOpen(false);
+      setNewPlanName("");
+      setNewPlanPrice("");
+      setNewPlanCycle("MONTHLY");
+      setNewPlanAppointments("");
+      setNewPlanUnlimited(false);
+      setCreatePlanError("");
+      onRefetch && onRefetch();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create billing plan.";
+      setCreatePlanError(message);
+    }
+  };
 
   const filteredInvoices = useMemo(() => {
     if (!searchTerm.trim()) return invoices;
@@ -77,6 +180,21 @@ export function RoleBasedBillingDashboard({
     lastPayment: payments.find((p) => p.status === "COMPLETED"),
   };
 
+  const showLedgerTab = isAdmin;
+  const tabCount = showLedgerTab ? 6 : 5;
+  const availableTabs = useMemo(
+    () => new Set(showLedgerTab ? ["overview", "plans", "subscriptions", "invoices", "payments", "ledger"] : ["overview", "plans", "subscriptions", "invoices", "payments"]),
+    [showLedgerTab]
+  );
+
+  useEffect(() => {
+    if (!initialTab) return;
+    const normalized = initialTab.toLowerCase();
+    if (availableTabs.has(normalized)) {
+      setActiveTab(normalized);
+    }
+  }, [initialTab, availableTabs]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -85,30 +203,58 @@ export function RoleBasedBillingDashboard({
             {isPatient ? "My Billing" : "Billing Dashboard"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Role-wise billing access is active for {userRole.replaceAll("_", " ")}.
+            {isPatient
+              ? "Choose a subscription plan to book in-person appointments."
+              : `Role-wise billing access is active for ${userRole.replaceAll("_", " ")}.`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search invoices/payments"
-            className="w-64"
-          />
+        {!isPatient ? (
+          <div className="flex items-center gap-2">
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search invoices/payments"
+              className="w-64"
+            />
+            <Button variant="outline" onClick={() => onRefetch && onRefetch()}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+            {canManageBilling && (
+              <Button onClick={() => setIsCreateInvoiceOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Invoice
+              </Button>
+            )}
+            {isAdmin && (
+              <Button onClick={() => setIsCreatePlanOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Plan
+              </Button>
+            )}
+          </div>
+        ) : (
           <Button variant="outline" onClick={() => onRefetch && onRefetch()}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-          {canManageBilling && (
-            <Button onClick={() => setIsCreateInvoiceOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Invoice
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       {isPatient && <PatientBillingAnalytics {...patientAnalytics} />}
+      {isPatient && (
+        <Card>
+          <CardContent className="pt-6 space-y-2">
+            {isLoading && (
+              <p className="text-xs text-muted-foreground">Refreshing billing data...</p>
+            )}
+            <p className="text-sm font-medium">How this works</p>
+            <p className="text-sm text-muted-foreground">1. Open the Plans tab and choose a plan.</p>
+            <p className="text-sm text-muted-foreground">2. Click Subscribe & Pay to complete payment.</p>
+            <p className="text-sm text-muted-foreground">3. After payment success, in-person booking is enabled.</p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -138,12 +284,13 @@ export function RoleBasedBillingDashboard({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-5 w-full">
+        <TabsList className={`grid w-full ${tabCount === 6 ? "grid-cols-6" : "grid-cols-5"}`}>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="plans">Plans</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
+          {showLedgerTab && <TabsTrigger value="ledger">Ledger</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -164,7 +311,18 @@ export function RoleBasedBillingDashboard({
 
         <TabsContent value="plans" className="space-y-4">
           {plans.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">No plans found.</CardContent></Card>
+            <Card>
+              <CardContent className="py-8 text-center space-y-3">
+                <p className="font-medium">No subscription plans available right now.</p>
+                <p className="text-sm text-muted-foreground">
+                  Please refresh or contact clinic admin to publish billing plans for this clinic.
+                </p>
+                <Button variant="outline" onClick={() => onRefetch && onRefetch()}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh Plans
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {plans.map((plan) => (
@@ -179,6 +337,23 @@ export function RoleBasedBillingDashboard({
                       <Badge className="mt-2">Unlimited Appointments</Badge>
                     ) : (
                       <Badge className="mt-2">{plan.appointmentsIncluded || 0} Appointments</Badge>
+                    )}
+                    {isPatient && (
+                      <div className="mt-4">
+                        {activeSubscription?.planId === plan.id ? (
+                          <Badge variant="secondary">Current Plan</Badge>
+                        ) : (
+                          <Button
+                            className="w-full"
+                            onClick={() => {
+                              void handleSubscribePlan(plan);
+                            }}
+                            disabled={createSubscriptionMutation.isPending}
+                          >
+                            {createSubscriptionMutation.isPending ? "Creating..." : "Subscribe & Pay"}
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -236,6 +411,97 @@ export function RoleBasedBillingDashboard({
         <TabsContent value="payments" className="space-y-4">
           <PaymentHistory payments={filteredPayments} onRefetch={onRefetch} />
         </TabsContent>
+
+        {showLedgerTab && (
+          <TabsContent value="ledger" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue Ledger</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!ledger ? (
+                  <p className="text-sm text-muted-foreground">Ledger data is not available.</p>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Collections</p>
+                        <p className="text-lg font-semibold">INR {ledger.summary.totalCollections.toLocaleString("en-IN")}</p>
+                      </div>
+                      <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Pending Payouts</p>
+                        <p className="text-lg font-semibold">INR {ledger.summary.pendingPayouts.toLocaleString("en-IN")}</p>
+                      </div>
+                      <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Platform Revenue</p>
+                        <p className="text-lg font-semibold">INR {ledger.summary.totalPlatformRevenue.toLocaleString("en-IN")}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium mb-2">Revenue Model Split</p>
+                      <p className="text-sm text-muted-foreground">
+                        Appointment: INR {ledger.summary.byRevenueModel.APPOINTMENT.toLocaleString("en-IN")} | Subscription: INR {ledger.summary.byRevenueModel.SUBSCRIPTION.toLocaleString("en-IN")} | Other: INR {ledger.summary.byRevenueModel.OTHER.toLocaleString("en-IN")}
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium mb-2">Recent Payment Ledger Entries</p>
+                      {ledger.payments.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No ledger entries found.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-72 overflow-auto">
+                          {ledger.payments.slice(0, 20).map((entry) => (
+                            <div key={entry.paymentId} className="flex items-center justify-between text-sm border rounded px-3 py-2">
+                              <div>
+                                <p className="font-medium">{entry.paymentId}</p>
+                                <p className="text-muted-foreground">
+                                  {entry.revenueModel} {entry.appointmentType ? `| ${entry.appointmentType}` : ""} {entry.provider ? `| ${entry.provider}` : ""}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold">INR {entry.amount.toLocaleString("en-IN")}</p>
+                                <p className="text-muted-foreground">{entry.payoutState}</p>
+                                {entry.appointmentId && entry.payoutState === "PAYOUT_READY" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-1"
+                                    disabled={releasePayoutMutation.isPending}
+                                    onClick={() => {
+                                      void releasePayoutMutation.mutateAsync(entry.appointmentId as string);
+                                    }}
+                                  >
+                                    Release Payout
+                                  </Button>
+                                )}
+                                {(entry.status === "PENDING" || entry.status === "FAILED") && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="mt-1"
+                                    disabled={reconcilePaymentMutation.isPending}
+                                    onClick={() => {
+                                      const provider = (entry.provider || undefined) as "cashfree" | undefined;
+                                      void reconcilePaymentMutation.mutateAsync({
+                                        paymentId: entry.paymentId,
+                                        ...(provider ? { provider } : {}),
+                                      });
+                                    }}
+                                  >
+                                    Reconcile
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       {canViewAnalytics && analytics && (
@@ -264,6 +530,111 @@ export function RoleBasedBillingDashboard({
             }}
             onCancel={() => setIsCreateInvoiceOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isCreatePlanOpen}
+        onOpenChange={(open) => {
+          setIsCreatePlanOpen(open);
+          if (!open) {
+            setCreatePlanError("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Billing Plan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {createPlanError && (
+              <p className="text-sm text-red-600">{createPlanError}</p>
+            )}
+            <Input
+              placeholder="Plan name (e.g. Monthly In-Person)"
+              value={newPlanName}
+              onChange={(e) => {
+                setNewPlanName(e.target.value);
+                if (createPlanError) setCreatePlanError("");
+              }}
+            />
+            <Input
+              placeholder="Price in INR"
+              type="number"
+              min={1}
+              value={newPlanPrice}
+              onChange={(e) => {
+                setNewPlanPrice(e.target.value);
+                if (createPlanError) setCreatePlanError("");
+              }}
+            />
+            <select
+              className="w-full h-10 rounded-md border bg-background px-3 text-sm"
+              value={newPlanCycle}
+              onChange={(e) => setNewPlanCycle(e.target.value as "MONTHLY" | "QUARTERLY" | "YEARLY")}
+            >
+              <option value="MONTHLY">Monthly</option>
+              <option value="QUARTERLY">Quarterly</option>
+              <option value="YEARLY">Yearly</option>
+            </select>
+            <div className="flex items-center gap-2">
+              <input
+                id="unlimited-appointments"
+                type="checkbox"
+                checked={newPlanUnlimited}
+                onChange={(e) => setNewPlanUnlimited(e.target.checked)}
+              />
+              <label htmlFor="unlimited-appointments" className="text-sm">
+                Unlimited appointments
+              </label>
+            </div>
+            {!newPlanUnlimited && (
+              <Input
+                placeholder="Appointments included"
+                type="number"
+                min={1}
+                value={newPlanAppointments}
+                onChange={(e) => setNewPlanAppointments(e.target.value)}
+              />
+            )}
+            <Button
+              className="w-full"
+              onClick={() => {
+                void handleCreatePlan();
+              }}
+              disabled={createPlanMutation.isPending}
+            >
+              {createPlanMutation.isPending ? "Creating..." : "Create Plan"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSubscriptionPaymentOpen} onOpenChange={setIsSubscriptionPaymentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete Subscription Payment</DialogTitle>
+          </DialogHeader>
+          {pendingSubscriptionPayment && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Plan: <span className="font-medium text-foreground">{pendingSubscriptionPayment.planName}</span>
+              </p>
+              <PaymentButton
+                subscriptionId={pendingSubscriptionPayment.subscriptionId}
+                amount={pendingSubscriptionPayment.amount}
+                description={pendingSubscriptionPayment.planName}
+                className="w-full"
+                onSuccess={() => {
+                  setIsSubscriptionPaymentOpen(false);
+                  setPendingSubscriptionPayment(null);
+                  onRefetch && onRefetch();
+                }}
+              >
+                Pay INR {pendingSubscriptionPayment.amount.toLocaleString("en-IN")}
+              </PaymentButton>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

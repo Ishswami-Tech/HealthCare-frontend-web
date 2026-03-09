@@ -7,7 +7,7 @@ import type { NursePatientRecord, PatientVitals } from '@/types/medical-records.
  * Get all nurse patients
  */
 export async function getNursePatients(
-  nurseId: string,
+  nurseId?: string,
   filters?: {
     search?: string;
     status?: string;

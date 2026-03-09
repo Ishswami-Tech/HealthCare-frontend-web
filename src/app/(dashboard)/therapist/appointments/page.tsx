@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Search,
   Calendar,
-  Filter,
   Clock,
   CheckCircle,
   MessageCircle,
@@ -16,14 +15,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useClinicContext } from "@/hooks/query/useClinics";
 import { useTherapistAppointments, useCreateTherapistAppointment, useUpdateTherapistAppointment, useDeleteTherapistAppointment } from "@/hooks/query/useTherapist";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 
 export default function TherapistAppointments() {
   useAuth();
   const { user } = useAuth();
-  const { clinicId } = useClinicContext();
 
   // Extract therapist ID from user
   const therapistId = user?.id || "";
@@ -47,6 +44,41 @@ export default function TherapistAppointments() {
 
   // Extract appointments array from response
   const appointments = appointmentsData?.appointments || [];
+  const safeSearch = searchQuery.trim().toLowerCase();
+
+  const safeDate = (value: unknown): Date | null => {
+    if (typeof value !== "string" || !value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const formatDate = (value: unknown): string => {
+    const parsed = safeDate(value);
+    return parsed ? parsed.toLocaleDateString("en-IN") : "N/A";
+  };
+
+  const isToday = (value: unknown): boolean => {
+    const parsed = safeDate(value);
+    return parsed ? parsed.toDateString() === new Date().toDateString() : false;
+  };
+
+  const getStatusValue = (value: unknown): string =>
+    typeof value === "string" && value.trim().length > 0
+      ? value.toUpperCase()
+      : "SCHEDULED";
+
+  const visibleAppointments = appointments.filter((appointment) => {
+    if (!safeSearch) return true;
+    const tokens = [
+      appointment.patientName,
+      appointment.clientId,
+      appointment.notes,
+      appointment.type,
+    ]
+      .filter((token): token is string => typeof token === "string" && token.length > 0)
+      .map((token) => token.toLowerCase());
+    return tokens.some((token) => token.includes(safeSearch));
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -154,7 +186,11 @@ export default function TherapistAppointments() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-green-600">
-                  {appointments.filter((a) => a.status === "COMPLETED").length}
+                  {
+                    appointments.filter(
+                      (a) => getStatusValue(a.status) === "COMPLETED"
+                    ).length
+                  }
                 </div>
                 <div className="text-sm text-gray-600">Completed Sessions</div>
               </div>
@@ -184,10 +220,7 @@ export default function TherapistAppointments() {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {appointments.filter((a) => {
-                    const today = new Date().toDateString();
-                    return new Date(a.date).toDateString() === today;
-                  }).length}
+                  {appointments.filter((a) => isToday(a.date)).length}
                 </div>
                 <div className="text-sm text-gray-600">Today&apos;s Sessions</div>
               </div>
@@ -209,7 +242,7 @@ export default function TherapistAppointments() {
             <div className="flex items-center justify-center min-h-[200px]">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             </div>
-          ) : appointments.length === 0 ? (
+          ) : visibleAppointments.length === 0 ? (
             <div className="text-center py-12">
               <MessageCircle className="w-16 h-16 mx-auto text-gray-300 mb-4" />
               <p className="text-gray-500">No appointments found</p>
@@ -219,8 +252,15 @@ export default function TherapistAppointments() {
             </div>
           ) : (
             <div className="space-y-4">
-              {appointments.map((appointment) => (
-                <div
+              {visibleAppointments.map((appointment) => {
+                const status = getStatusValue(appointment.status);
+                const patientName = appointment.patientName || "Unknown Patient";
+                const clientId = appointment.clientId || "N/A";
+                const appointmentType = appointment.type || "Session";
+                const duration = appointment.duration || "N/A";
+                const time = appointment.time || "N/A";
+                return (
+                  <div
                   key={appointment.id}
                   className="p-4 border rounded-lg hover:bg-gray-50"
                 >
@@ -230,21 +270,21 @@ export default function TherapistAppointments() {
                         <MessageCircle className="w-5 h-5 text-purple-600" />
                       </div>
                       <div>
-                        <h4 className="font-semibold">{appointment.patientName}</h4>
+                        <h4 className="font-semibold">{patientName}</h4>
                         <Badge variant="outline" className="text-xs">
-                          {appointment.clientId}
+                          {clientId}
                         </Badge>
                         <p className="text-sm text-gray-600">
-                          {appointment.type} - {appointment.duration}
+                          {appointmentType} - {duration}
                         </p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {new Date(appointment.date).toLocaleDateString("en-IN")}
+                            {formatDate(appointment.date)}
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {appointment.time}
+                            {time}
                           </span>
                         </div>
                       </div>
@@ -257,13 +297,13 @@ export default function TherapistAppointments() {
                   </div>
                   <div className="text-right">
                     <Badge
-                      className={`${getStatusColor(appointment.status)} flex items-center gap-1`}
+                      className={`${getStatusColor(status)} flex items-center gap-1`}
                     >
-                      {getStatusIcon(appointment.status)}
-                      {appointment.status.replace("_", " ").toLowerCase()}
+                      {getStatusIcon(status)}
+                      {status.replace("_", " ").toLowerCase()}
                     </Badge>
                     <div className="flex gap-2 mt-2">
-                      {appointment.status === "SCHEDULED" && (
+                      {status === "SCHEDULED" && (
                         <Button
                           size="sm"
                           onClick={() =>
@@ -277,7 +317,7 @@ export default function TherapistAppointments() {
                           Start
                         </Button>
                       )}
-                      {appointment.status === "IN_PROGRESS" && (
+                      {status === "IN_PROGRESS" && (
                         <Button
                           size="sm"
                           variant="default"
@@ -305,7 +345,7 @@ export default function TherapistAppointments() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </CardContent>

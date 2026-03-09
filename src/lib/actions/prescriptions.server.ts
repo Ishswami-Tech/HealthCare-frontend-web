@@ -7,7 +7,7 @@ import type { Prescription } from '@/types/medical-records.types';
  * Get all prescriptions
  */
 export async function getPrescriptions(
-  doctorId: string,
+  doctorId?: string,
   filters?: {
     status?: string;
     startDate?: string;

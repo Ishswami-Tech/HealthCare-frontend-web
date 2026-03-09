@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { load } from "@cashfreepayments/cashfree-js";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import {
@@ -11,22 +12,11 @@ import {
 } from "@/hooks/utils/use-toast";
 import { clinicApiClient } from "@/lib/api/client";
 import { API_ENDPOINTS, APP_CONFIG } from "@/lib/config/config";
-
-export type PaymentProvider = "razorpay" | "cashfree" | "phonepe";
-
-// Razorpay is declared in RazorpayPaymentButton.tsx
-declare global {
-  interface Window {
-    Cashfree?: (
-      options: { mode: string }
-    ) => {
-      checkout: (options: {
-        paymentSessionId?: string;
-        orderId?: string;
-      }) => Promise<{ redirectUrl?: string }>;
-    };
-  }
-}
+import {
+  DEFAULT_PAYMENT_PROVIDER,
+  isPaymentProviderEnabled,
+  type PaymentProvider,
+} from "@/lib/payments/providers";
 
 interface PaymentButtonProps {
   invoiceId?: string;
@@ -36,7 +26,7 @@ interface PaymentButtonProps {
   currency?: string;
   description?: string;
   clinicId?: string;
-  /** Optional: force specific provider. When omitted, backend uses primary + fallback. */
+  /** Optional: force provider (cashfree only). */
   provider?: PaymentProvider;
   onSuccess?: (paymentId: string) => void;
   onError?: (error: string) => void;
@@ -59,7 +49,15 @@ export function PaymentButton({
   children,
 }: PaymentButtonProps) {
   const [isProcessing, setIsProcessing] = useState(false);
-  const effectiveProvider: PaymentProvider = provider || "cashfree";
+  const effectiveProvider: PaymentProvider = DEFAULT_PAYMENT_PROVIDER;
+  const cashfreeMode =
+    process.env.NEXT_PUBLIC_CASHFREE_MODE === "production"
+      ? "production"
+      : process.env.NEXT_PUBLIC_CASHFREE_MODE === "sandbox"
+        ? "sandbox"
+        : process.env.NODE_ENV === "production"
+          ? "production"
+          : "sandbox";
 
   const getPaymentIntent = async () => {
     let paymentIntentUrl: string;
@@ -82,11 +80,7 @@ export function PaymentButton({
         amount,
         currency,
         method: effectiveProvider
-          ? effectiveProvider === "razorpay"
-            ? "RAZORPAY"
-            : effectiveProvider === "cashfree"
-              ? "CASHFREE"
-              : "PHONEPE"
+          ? "CASHFREE"
           : "CASHFREE",
       };
     } else {
@@ -115,9 +109,6 @@ export function PaymentButton({
     params: {
       orderId: string;
       paymentId?: string;
-      razorpay_order_id?: string;
-      razorpay_payment_id?: string;
-      razorpay_signature?: string;
     }
   ) => {
     const queryParams = new URLSearchParams({
@@ -126,18 +117,7 @@ export function PaymentButton({
       orderId: params.orderId,
       provider: usedProvider,
     });
-    const body =
-      usedProvider === "razorpay"
-        ? {
-            razorpay_order_id: params.razorpay_order_id,
-            razorpay_payment_id: params.razorpay_payment_id,
-            razorpay_signature: params.razorpay_signature,
-            orderId: params.orderId,
-            invoiceId,
-            appointmentId,
-            subscriptionId,
-          }
-        : { orderId: params.orderId };
+    const body = { orderId: params.orderId };
     const verifyResponse = await clinicApiClient.post(
       `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`,
       body
@@ -149,96 +129,6 @@ export function PaymentButton({
       );
     }
     return verifyResponse;
-  };
-
-  const handleRazorpayPayment = async (paymentIntent: Record<string, unknown>) => {
-    const loadScript = (): Promise<void> =>
-      new Promise((resolve, reject) => {
-        if (window.Razorpay) {
-          resolve();
-          return;
-        }
-        const script = document.createElement("script");
-        script.src = "https://checkout.razorpay.com/v1/checkout.js";
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error("Failed to load Razorpay script"));
-        document.body.appendChild(script);
-      });
-
-    await loadScript();
-    const orderId =
-      (paymentIntent?.orderId as string) || (paymentIntent?.id as string);
-    const razorpayKey =
-      (paymentIntent?.metadata as Record<string, unknown>)?.razorpayKey as string ||
-      process.env.NEXT_PUBLIC_RAZORPAY_KEY ||
-      APP_CONFIG.SERVICES.RAZORPAY_KEY;
-
-    if (!orderId || !razorpayKey) {
-      throw new Error("Razorpay not configured or order ID missing");
-    }
-
-    const razorpay = new window.Razorpay!({
-      key: razorpayKey,
-      amount: (paymentIntent?.amount as number) || amount * 100,
-      currency: (paymentIntent?.currency as string) || currency,
-      name: "Healthcare App",
-      description:
-        description ||
-        ((paymentIntent?.metadata as Record<string, unknown>)
-          ?.description as string) ||
-        "Payment for services",
-      order_id: orderId,
-      handler: async (resp: {
-        razorpay_order_id: string;
-        razorpay_payment_id: string;
-        razorpay_signature: string;
-      }) => {
-        try {
-          await verifyPayment("razorpay", {
-            orderId,
-            razorpay_order_id: resp.razorpay_order_id,
-            razorpay_payment_id: resp.razorpay_payment_id,
-            razorpay_signature: resp.razorpay_signature,
-          });
-          showSuccessToast("Payment successful!", {
-            id: TOAST_IDS.PAYMENT.SUCCESS,
-          });
-          onSuccess?.(resp.razorpay_payment_id);
-        } catch (err) {
-          showErrorToast(
-            (err as Error).message || "Payment verification failed",
-            { id: TOAST_IDS.PAYMENT.ERROR }
-          );
-          onError?.((err as Error).message);
-        } finally {
-          setIsProcessing(false);
-        }
-      },
-      prefill: {
-        name: ((paymentIntent?.metadata as Record<string, unknown>)
-          ?.customerName as string) || "",
-        email: ((paymentIntent?.metadata as Record<string, unknown>)
-          ?.customerEmail as string) || "",
-        contact: ((paymentIntent?.metadata as Record<string, unknown>)
-          ?.customerPhone as string) || "",
-      },
-      theme: { color: "#2563eb" },
-      modal: {
-        ondismiss: () => {
-          setIsProcessing(false);
-          showInfoToast("Payment cancelled", {
-            id: TOAST_IDS.PAYMENT.CANCELLED,
-          });
-        },
-      },
-    });
-    razorpay.on("payment.failed", (resp: { error?: { description?: string } }) => {
-      setIsProcessing(false);
-      const msg = resp.error?.description || "Payment failed";
-      showErrorToast(msg, { id: TOAST_IDS.PAYMENT.ERROR });
-      onError?.(msg);
-    });
-    razorpay.open();
   };
 
   const handleCashfreePayment = async (paymentIntent: Record<string, unknown>) => {
@@ -263,24 +153,13 @@ export function PaymentButton({
       return;
     }
 
-    const loadScript = (): Promise<void> =>
-      new Promise((resolve, reject) => {
-        if (window.Cashfree) {
-          resolve();
-          return;
-        }
-        const script = document.createElement("script");
-        script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
-        script.onload = () => resolve();
-        script.onerror = () =>
-          reject(new Error("Failed to load Cashfree script"));
-        document.body.appendChild(script);
-      });
-
-    await loadScript();
-    const cashfree = window.Cashfree!({
-      mode: process.env.NODE_ENV === "production" ? "production" : "sandbox",
+    const cashfree = await load({
+      mode: cashfreeMode,
     });
+
+    if (!cashfree) {
+      throw new Error("Cashfree SDK is not available");
+    }
 
     try {
       if (!paymentSessionId) {
@@ -297,47 +176,38 @@ export function PaymentButton({
         });
         onSuccess?.(orderId);
       }
-    } catch {
-      await verifyPayment("cashfree", { orderId, paymentId: orderId });
-      showSuccessToast("Payment successful!", {
-        id: TOAST_IDS.PAYMENT.SUCCESS,
-      });
-      onSuccess?.(orderId);
+    } catch (error) {
+      try {
+        await verifyPayment("cashfree", { orderId, paymentId: orderId });
+        showSuccessToast("Payment verified successfully!", {
+          id: TOAST_IDS.PAYMENT.SUCCESS,
+        });
+        onSuccess?.(orderId);
+      } catch {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Payment was not completed. Please try again.";
+        showErrorToast(message, { id: TOAST_IDS.PAYMENT.ERROR });
+        onError?.(message);
+      }
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handlePhonePePayment = async (paymentIntent: Record<string, unknown>) => {
-    const redirectUrl = (paymentIntent?.metadata as Record<string, unknown>)
-      ?.redirectUrl as string | undefined;
-    if (!redirectUrl) {
-      throw new Error("PhonePe redirect URL not received from server");
-    }
-    window.location.href = redirectUrl;
   };
 
   const handlePayment = async () => {
     setIsProcessing(true);
     try {
       const paymentIntent = await getPaymentIntent();
-      const usedProvider = (provider ||
-        (paymentIntent?.provider as string) ||
-        "cashfree") as PaymentProvider;
-
-      switch (usedProvider) {
-        case "razorpay":
-          await handleRazorpayPayment(paymentIntent);
-          break;
-        case "cashfree":
-          await handleCashfreePayment(paymentIntent);
-          break;
-        case "phonepe":
-          await handlePhonePePayment(paymentIntent);
-          break;
-        default:
-          throw new Error(`Unsupported payment provider: ${usedProvider}`);
+      const usedProvider = String(provider || paymentIntent?.provider || DEFAULT_PAYMENT_PROVIDER).toLowerCase();
+      if (!isPaymentProviderEnabled(usedProvider)) {
+        throw new Error(`Payment provider '${usedProvider}' is not enabled`);
       }
+      if (usedProvider !== "cashfree") {
+        throw new Error(`Provider '${usedProvider}' is enabled but SDK handler is not implemented yet`);
+      }
+      await handleCashfreePayment(paymentIntent);
     } catch (error) {
       setIsProcessing(false);
       const message =

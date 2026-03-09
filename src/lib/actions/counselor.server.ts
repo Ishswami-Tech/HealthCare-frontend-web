@@ -7,7 +7,7 @@ import type { CounselorAppointment, CounselorClient, CounselorSession } from '@/
  * Get all counselor appointments
  */
 export async function getCounselorAppointments(
-  counselorId: string,
+  counselorId?: string,
   filters?: {
     status?: string;
     startDate?: string;
@@ -45,13 +45,14 @@ export async function getCounselorAppointments(
  * Get all counselor clients
  */
 export async function getCounselorClients(
-  counselorId: string,
+  counselorId?: string,
   filters?: {
     search?: string;
     status?: string;
     condition?: string;
     limit?: number;
     offset?: number;
+    clientId?: string;
   }
 ): Promise<{ clients: CounselorClient[] }> {
   try {
@@ -63,6 +64,7 @@ export async function getCounselorClients(
     if (filters?.condition) params.append('condition', filters.condition);
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
+    if (filters?.clientId) params.append('clientId', filters.clientId);
 
     const response = await fetch(`${baseUrl}/counselor/${counselorId}/clients?${params.toString()}`, {
       method: 'GET',

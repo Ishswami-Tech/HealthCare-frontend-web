@@ -18,13 +18,22 @@ import {
  * Hook to get all therapist appointments
  */
 export const useTherapistAppointments = (therapistId?: string, filters?: {
-  status?: string;
-  startDate?: string;
-  endDate?: string;
+  status?: string | undefined;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
 }) => {
   return useQueryData(
     ['therapistAppointments', therapistId, filters],
-    async () => await getAppointments(therapistId, filters),
+    async () => {
+      const cleanedFilters = filters
+        ? {
+            ...(filters.status ? { status: filters.status } : {}),
+            ...(filters.startDate ? { startDate: filters.startDate } : {}),
+            ...(filters.endDate ? { endDate: filters.endDate } : {}),
+          }
+        : undefined;
+      return await getAppointments(therapistId || '', cleanedFilters);
+    },
     {
       enabled: !!therapistId,
     }
@@ -35,13 +44,22 @@ export const useTherapistAppointments = (therapistId?: string, filters?: {
  * Hook to get therapist appointments for a specific patient
  */
 export const useTherapistPatientAppointments = (therapistId: string, patientId: string, filters?: {
-  status?: string;
-  startDate?: string;
-  endDate?: string;
+  status?: string | undefined;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
 }) => {
   return useQueryData(
     ['therapistPatientAppointments', therapistId, patientId, filters],
-    async () => await getAppointmentsByPatientId(therapistId, patientId, filters),
+    async () => {
+      const cleanedFilters = filters
+        ? {
+            ...(filters.status ? { status: filters.status } : {}),
+            ...(filters.startDate ? { startDate: filters.startDate } : {}),
+            ...(filters.endDate ? { endDate: filters.endDate } : {}),
+          }
+        : undefined;
+      return await getAppointmentsByPatientId(therapistId, patientId, cleanedFilters);
+    },
     {
       enabled: !!therapistId && !!patientId,
     }
@@ -52,15 +70,26 @@ export const useTherapistPatientAppointments = (therapistId: string, patientId: 
  * Hook to get all clients for a therapist
  */
 export const useTherapistClients = (therapistId?: string, filters?: {
-  search?: string;
-  status?: string;
-  condition?: string;
-  limit?: number;
-  offset?: number;
+  search?: string | undefined;
+  status?: string | undefined;
+  condition?: string | undefined;
+  limit?: number | undefined;
+  offset?: number | undefined;
 }) => {
   return useQueryData(
     ['therapistClients', therapistId, filters],
-    async () => await getClients(therapistId, filters),
+    async () => {
+      const cleanedFilters = filters
+        ? {
+            ...(filters.search ? { search: filters.search } : {}),
+            ...(filters.status ? { status: filters.status } : {}),
+            ...(filters.condition ? { condition: filters.condition } : {}),
+            ...(typeof filters.limit === 'number' ? { limit: filters.limit } : {}),
+            ...(typeof filters.offset === 'number' ? { offset: filters.offset } : {}),
+          }
+        : undefined;
+      return await getClients(therapistId || '', cleanedFilters);
+    },
     {
       enabled: !!therapistId,
     }

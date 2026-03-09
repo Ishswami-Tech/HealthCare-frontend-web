@@ -99,8 +99,9 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
     if (!hasAccess) return { success: false, error: 'Access denied' };
 
     const appointmentDate = toIstAppointmentIso(validatedData.date, validatedData.time);
+    const { date: _date, time: _time, ...restPayload } = validatedData;
     const payload = {
-      ...validatedData,
+      ...restPayload,
       appointmentDate,
       // Prefer explicit clinic selection from booking flow, then session clinic fallback.
       clinicId: validatedData.clinicId || session.user.clinicId || APP_CONFIG.CLINIC.ID,

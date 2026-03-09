@@ -41,14 +41,14 @@ function parseRole(roleStr: string | undefined): Role | undefined {
   return validRole ? roleStr as Role : undefined;
 }
 
-function resolveProfileCompletionFromUserData(userData: Record<string, unknown> | null): boolean {
-  if (!userData) return false;
+function resolveProfileCompletionFromUserData(userData: Record<string, unknown> | null): boolean | undefined {
+  if (!userData) return undefined;
   if (typeof userData.profileComplete === 'boolean') return userData.profileComplete;
   if (typeof userData.isProfileComplete === 'boolean') return userData.isProfileComplete;
   if (typeof userData.requiresProfileCompletion === 'boolean') {
     return !userData.requiresProfileCompletion;
   }
-  return false;
+  return undefined;
 }
 
 
@@ -218,7 +218,11 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   const profileCompleteFromCookie = profileCompleteCookie === 'true';
   const profileCompleteFromUserData = resolveProfileCompletionFromUserData(userData);
-  const profileComplete = profileCompleteFromCookie || profileCompleteFromUserData;
+  // Token-derived flags take priority over cookie, so stale cookies cannot bypass completion checks.
+  const profileComplete =
+    typeof profileCompleteFromUserData === 'boolean'
+      ? profileCompleteFromUserData
+      : profileCompleteFromCookie;
   
   const shouldRedirectToProfile = shouldRedirectToProfileCompletion(!!hasValidToken, profileComplete, pathname);
 
@@ -233,7 +237,7 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   const allowedRoles = getProtectedRouteRoles(pathname);
 
-  if (allowedRoles && userRole) {
+  if (allowedRoles && allowedRoles.length > 0 && userRole) {
     if (!allowedRoles.includes(userRole)) {
       // Redirect to appropriate dashboard based on role
       // Uses centralized route configuration
@@ -272,6 +276,11 @@ export default async function proxy(request: NextRequest) {
     appHost ? `wss://${appHost}` : '',
     apiHost ? `https://${apiHost}` : '',
     wsHost ? `wss://${wsHost}` : '',
+    'https://api.cashfree.com',
+    'https://sandbox.cashfree.com',
+    'https://payments.cashfree.com',
+    'https://payments-test.cashfree.com',
+    'https://sdk.cashfree.com',
     'https://*.googleapis.com',
     'ws://localhost:*',
     'http://localhost:*',
@@ -280,12 +289,12 @@ export default async function proxy(request: NextRequest) {
   // Strict Content Security Policy
   const csp = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://www.facebook.com https://connect.facebook.net;
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://www.facebook.com https://connect.facebook.net https://sdk.cashfree.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    img-src 'self' blob: data: https://lh3.googleusercontent.com https://graph.facebook.com https://platform-lookaside.fbsbx.com https://storage.googleapis.com;
+    img-src 'self' blob: data: https://lh3.googleusercontent.com https://graph.facebook.com https://platform-lookaside.fbsbx.com https://storage.googleapis.com https://ui-avatars.com;
     font-src 'self' https://fonts.gstatic.com;
     connect-src ${connectSources};
-    frame-src 'self' https://accounts.google.com https://www.facebook.com;
+    frame-src 'self' https://accounts.google.com https://www.facebook.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;
     media-src 'self' blob:;
     object-src 'none';
     base-uri 'self';

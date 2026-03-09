@@ -1,5 +1,5 @@
-/**
- * 🎯 CENTRAL CONFIGURATION - SINGLE SOURCE OF TRUTH
+﻿/**
+ * ðŸŽ¯ CENTRAL CONFIGURATION - SINGLE SOURCE OF TRUTH
  * 
  * This is the ONLY configuration file used throughout the entire application.
  * Use this for: UI components, hooks, actions, API clients, WebSocket, and everything else.
@@ -50,7 +50,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_API_URL: z.string().optional(),
   NEXT_PUBLIC_API_BASE_URL: z.string().optional(),
   NEXT_PUBLIC_API_VERSION: z.string().default('v1'),
-  NEXT_PUBLIC_API_PREFIX: z.string().optional(),  // ✅ API prefix (e.g., /api/v1)
+  NEXT_PUBLIC_API_PREFIX: z.string().optional(),  // âœ… API prefix (e.g., /api/v1)
   NEXT_PUBLIC_CLINIC_API_URL: z.string().optional(),
   NEXT_PUBLIC_FASHION_API_URL: z.string().optional(),
   
@@ -76,7 +76,6 @@ const envSchema = z.object({
   
   // Third-party API Keys
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().optional(),
-  NEXT_PUBLIC_RAZORPAY_KEY: z.string().optional(),
   NEXT_PUBLIC_CASHFREE_APP_ID: z.string().optional(),
   
   // Firebase Configuration
@@ -123,7 +122,7 @@ export const env = envSchema.parse(process.env);
 // ENVIRONMENT-SPECIFIC DEFAULTS
 // ============================================================================
 
-// ⚠️ SECURITY: No hardcoded URLs - all URLs must come from environment variables
+// âš ï¸ SECURITY: No hardcoded URLs - all URLs must come from environment variables
 // This prevents exposing internal infrastructure details in the codebase
 const envDefaults = {
   development: {
@@ -131,7 +130,7 @@ const envDefaults = {
     // This prevents "Invalid URL" errors during SSR when env vars aren't loaded yet
     // In production, env vars MUST be set (no fallbacks)
     apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088',
-    // ✅ FIX: Socket.IO expects base HTTP URL, not ws:// with /socket.io
+    // âœ… FIX: Socket.IO expects base HTTP URL, not ws:// with /socket.io
     // Socket.IO automatically handles protocol upgrade and path
     websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8088',
     appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
@@ -149,7 +148,7 @@ const envDefaults = {
     logLevel: 'info' as const,
   },
   production: {
-    // ⚠️ SECURITY: All URLs MUST be provided via environment variables
+    // âš ï¸ SECURITY: All URLs MUST be provided via environment variables
     // No hardcoded URLs - prevents accidental exposure and allows flexible deployment
     apiUrl: process.env.NEXT_PUBLIC_API_URL,
     websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL,
@@ -179,7 +178,7 @@ export const APP_CONFIG = {
   // API CONFIGURATION
   // ============================================
   API: {
-    // ✅ API prefix is now configurable via environment variable
+    // âœ… API prefix is now configurable via environment variable
     PREFIX: env.NEXT_PUBLIC_API_PREFIX || '/api/v1',
     // Raw backend URL without prefix (for health checks, etc.)
     RAW_URL: env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
@@ -246,7 +245,7 @@ export const APP_CONFIG = {
   // CLINIC CONFIGURATION
   // ============================================
   CLINIC: {
-    // ✅ Trim clinic ID to prevent whitespace issues
+    // âœ… Trim clinic ID to prevent whitespace issues
     ID: env.NEXT_PUBLIC_CLINIC_ID?.trim() || 'CL0002',
     APP_NAME: env.NEXT_PUBLIC_APP_NAME || 'Healthcare',
   },
@@ -264,7 +263,6 @@ export const APP_CONFIG = {
   // ============================================
   SERVICES: {
     GOOGLE_MAPS_API_KEY: env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-    RAZORPAY_KEY: env.NEXT_PUBLIC_RAZORPAY_KEY || '',
     CASHFREE_APP_ID: env.NEXT_PUBLIC_CASHFREE_APP_ID || '',
   },
   
@@ -285,7 +283,7 @@ export const APP_CONFIG = {
   // VIDEO CONFIGURATION (OpenVidu + Jitsi)
   // ============================================
   VIDEO: {
-    // ⚠️ SECURITY: Video server URLs must come from environment variables
+    // âš ï¸ SECURITY: Video server URLs must come from environment variables
     OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || '',
     // Jitsi Configuration (Fallback Video Provider)
     JITSI: {
@@ -335,7 +333,7 @@ export const API_ENDPOINTS = {
   
   AUTH: {
     BASE: '/auth',
-    // ✅ Backend endpoints (verified)
+    // âœ… Backend endpoints (verified)
     LOGIN: '/auth/login',                    // POST /auth/login
     REGISTER: '/auth/register',              // POST /auth/register
     REFRESH: '/auth/refresh',                // POST /auth/refresh
@@ -345,7 +343,7 @@ export const API_ENDPOINTS = {
     CHANGE_PASSWORD: '/auth/change-password', // POST /auth/change-password
     REQUEST_OTP: '/auth/request-otp',        // POST /auth/request-otp
     VERIFY_OTP: '/auth/verify-otp',           // POST /auth/verify-otp
-    SESSIONS: '/auth/sessions',              // GET /auth/sessions ✅ Added
+    SESSIONS: '/auth/sessions',              // GET /auth/sessions âœ… Added
     GOOGLE_LOGIN: '/auth/google',            // POST /auth/google
     // Additional endpoints (frontend-specific or future)
     REGISTER_WITH_CLINIC: '/auth/register-with-clinic',
@@ -659,14 +657,19 @@ export const API_ENDPOINTS = {
       CREATE: '/billing/payments',
       GET_BY_ID: (id: string) => `/billing/payments/${id}`,
       GET_USER_PAYMENTS: (userId: string) => `/billing/payments/user/${userId}`,
+      GET_CLINIC_PAYMENTS: '/billing/payments/clinic',
+      GET_LEDGER: '/billing/payments/ledger',
       UPDATE: (id: string) => `/billing/payments/${id}`,
       // Backend PaymentController: POST /payments/callback
       CALLBACK: '/payments/callback',
       PAYMENT_CALLBACK: '/payments/callback',
       REFUND: (id: string) => `/billing/payments/${id}/refund`,
+      RECONCILE: (id: string) => `/billing/payments/${id}/reconcile`,
     },
     APPOINTMENT_PAYMENTS: {
       PROCESS_PAYMENT: (id: string) => `/billing/appointments/${id}/process-payment`,
+      PAYOUT_STATUS: (id: string) => `/billing/appointments/${id}/payout-status`,
+      RELEASE_PAYOUT: (id: string) => `/billing/appointments/${id}/release-payout`,
     },
     ANALYTICS: {
       REVENUE: '/billing/analytics/revenue',
@@ -1108,7 +1111,7 @@ export interface ApiClientConfig {
 // ============================================================================
 
 function validateEnvironment(): void {
-  // ⚠️ SECURITY: In production, all URLs must be set via environment variables
+  // âš ï¸ SECURITY: In production, all URLs must be set via environment variables
   // No hardcoded URLs allowed to prevent security issues
   // Note: NEXT_PUBLIC_API_VERSION has a default value ('v1') in the schema, so it's not required
   const requiredVars: string[] = ['NEXT_PUBLIC_API_URL'];
@@ -1130,7 +1133,7 @@ function validateEnvironment(): void {
   }
 
   if (missingVars.length > 0) {
-    const errorMessage = `⚠️  Missing required environment variables: ${missingVars.join(', ')}\n` +
+    const errorMessage = `âš ï¸  Missing required environment variables: ${missingVars.join(', ')}\n` +
       `Current environment: ${currentEnvironment}\n` +
       `Please check your .env file.`;
     
@@ -1143,13 +1146,13 @@ function validateEnvironment(): void {
   }
 
   // Validate API URL format
-  // ⚠️ SECURITY: Only validate if URL is provided (not empty)
+  // âš ï¸ SECURITY: Only validate if URL is provided (not empty)
   const apiUrl = env.NEXT_PUBLIC_API_URL || APP_CONFIG.API.BASE_URL;
   if (apiUrl && apiUrl.trim() !== '') {
     try {
       new URL(apiUrl);
     } catch {
-      const errorMessage = `❌ Invalid API URL format: ${apiUrl}\n` +
+      const errorMessage = `âŒ Invalid API URL format: ${apiUrl}\n` +
         `Please provide a valid URL via NEXT_PUBLIC_API_URL environment variable`;
       
       if (isProduction) {
@@ -1162,7 +1165,7 @@ function validateEnvironment(): void {
     throw new Error('NEXT_PUBLIC_API_URL must be set in production environment');
   } else if (isDevelopment && !apiUrl) {
     // In development, warn but don't fail - allow localhost defaults
-    console.warn('⚠️  NEXT_PUBLIC_API_URL not set. Using development defaults.');
+    console.warn('âš ï¸  NEXT_PUBLIC_API_URL not set. Using development defaults.');
   }
 
   // Validate WebSocket URL format in production
@@ -1173,7 +1176,7 @@ function validateEnvironment(): void {
         new URL(wsUrl);
       } catch {
         throw new Error(
-          `❌ Invalid WebSocket URL format: ${wsUrl}\n` +
+          `âŒ Invalid WebSocket URL format: ${wsUrl}\n` +
           `Please provide a valid URL via NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL environment variable`
         );
       }
@@ -1183,7 +1186,7 @@ function validateEnvironment(): void {
   }
 }
 
-// ✅ Singleton flag to prevent multiple logs - use global to persist across module reloads
+// âœ… Singleton flag to prevent multiple logs - use global to persist across module reloads
 // Initialize the flag if it doesn't exist
 if (typeof global !== 'undefined') {
   if (!(global as any).__hasLoggedEnvironment) {
@@ -1192,7 +1195,7 @@ if (typeof global !== 'undefined') {
 }
 
 function logEnvironmentInfo(): void {
-  // ✅ Only log once per process to prevent duplicate logs
+  // âœ… Only log once per process to prevent duplicate logs
   // Use global flag to persist across Next.js hot reloads and module re-executions
   if (typeof global === 'undefined') {
     return; // Can't log on client-side
@@ -1209,7 +1212,7 @@ function logEnvironmentInfo(): void {
   // Set flag BEFORE logging to prevent race conditions
   (global as any).__hasLoggedEnvironment = true;
   
-  console.warn('🌍 Environment Configuration:', {
+  console.warn('ðŸŒ Environment Configuration:', {
     environment: currentEnvironment,
     apiUrl: APP_CONFIG.API.BASE_URL,
     websocketUrl: APP_CONFIG.WEBSOCKET.URL,
@@ -1233,11 +1236,19 @@ if (typeof window === 'undefined') {
 // ============================================================================
 // WEBSOCKET EXPORTS
 // ============================================================================
-// ✅ WebSocket exports moved to @/lib/config/websocket to prevent circular dependencies
+// âœ… WebSocket exports moved to @/lib/config/websocket to prevent circular dependencies
 // Import directly: import { WebSocketManager } from '@/lib/config/websocket'
 
 // ============================================================================
 // DEFAULT EXPORT
 // ============================================================================
 
+export const HealthcareErrorsService = {
+  logError(operation: string, error: unknown) {
+    if (isProduction && !APP_CONFIG.FEATURES.DEBUG) return;
+    console.error(`[HealthcareErrorsService] ${operation}`, error);
+  },
+};
+
 export default APP_CONFIG;
+

@@ -78,6 +78,7 @@ export function isPublicRoute(path: string): boolean {
     '/privacy',
     '/terms',
     '/disclaimer',
+    '/payment/callback',
   ];
 
   // Check if path matches a public route or any subpage of a public route

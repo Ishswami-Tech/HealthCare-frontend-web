@@ -167,7 +167,7 @@ export function DashboardLayout({
     const initials = `${(firstName?.[0] || "U")}${(lastName?.[0] || "")}`.toUpperCase();
 
     const avatar = (profileData as any).profilePicture ||
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&format=png`;
 
     return {
       name: displayName,

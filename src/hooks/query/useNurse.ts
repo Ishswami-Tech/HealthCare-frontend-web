@@ -41,16 +41,28 @@ export const useNursePatient = (nurseId: string, patientId: string) => {
 /**
  * Hook to get patient vitals
  */
-export const useNursePatientVitals = (nurseId: string, patientId: string, filters?: {
-  startDate?: string;
-  endDate?: string;
-  limit?: number;
-}) => {
+export const useNursePatientVitals = (
+  nurseId?: string,
+  patientId?: string,
+  filters?: {
+    startDate?: string | undefined;
+    endDate?: string | undefined;
+    limit?: number | undefined;
+  }
+) => {
   return useQueryData(
     ['nursePatientVitals', nurseId, patientId, filters],
-    async () => await getNursePatients(nurseId, { patientId, vitalsOnly: true }),
+    async () => {
+      const result = await getNursePatients(nurseId, {
+        ...(patientId ? { patientId } : {}),
+        vitalsOnly: true,
+      });
+      const patients = Array.isArray(result?.patients) ? result.patients : [];
+      const vitals = patients.flatMap((p: any) => (Array.isArray(p?.vitals) ? p.vitals : []));
+      return { vitals };
+    },
     {
-      enabled: !!nurseId && !!patientId,
+      enabled: !!nurseId,
     }
   );
 };

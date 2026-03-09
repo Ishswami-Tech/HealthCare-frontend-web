@@ -22,6 +22,7 @@
     "get-token": "node scripts/test-websocket.js get-token"
   },
   "dependencies": {
+    "@cashfreepayments/cashfree-js": "^1.0.6",
     "@hookform/error-message": "^2.0.1",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
@@ -88,7 +89,7 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
+    "@eslint/eslintrc": "^3.3.5",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^25.0.9",
     "@types/react": "^19",
@@ -102,8 +103,5 @@
   },
   "optionalDependencies": {
     "lightningcss-win32-x64-msvc": "^1.31.1"
-  },
-  "overrides": {
-    "ajv": "^8.18.0"
   }
 }

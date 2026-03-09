@@ -318,12 +318,26 @@ export async function setSession(data: {
     const currentSessionId = cookieStore.get('session_id')?.value;
     const currentUserRole = cookieStore.get('user_role')?.value as Role;
     const currentProfileComplete = cookieStore.get('profile_complete')?.value === 'true';
+    const accessTokenValue = data.access_token || (data as Record<string, any>).accessToken;
+    const refreshTokenValue = data.refresh_token || (data as Record<string, any>).refreshToken;
+    const newSessionId = data.session_id || (data as Record<string, any>).sessionId || currentSessionId;
+
+    // Recover user claims from JWT when refresh response does not include user payload.
+    let tokenUserId = '';
+    let tokenUserEmail = '';
+    let tokenUserRole = currentUserRole;
+    if (accessTokenValue) {
+      try {
+        const payload = JSON.parse(atob(accessTokenValue.split('.')[1] || ''));
+        tokenUserId = payload.sub || payload.id || '';
+        tokenUserEmail = payload.email || '';
+        tokenUserRole = payload.role || currentUserRole;
+      } catch {
+        // keep cookie-derived fallback values
+      }
+    }
 
     if (currentSessionId && currentUserRole) {
-       const accessTokenValue = data.access_token || (data as Record<string, any>).accessToken;
-       const refreshTokenValue = data.refresh_token || (data as Record<string, any>).refreshToken;
-       const newSessionId = data.session_id || (data as Record<string, any>).sessionId || currentSessionId;
-
        if (accessTokenValue) {
           cookieStore.set({
              name: 'access_token',
@@ -351,9 +365,9 @@ export async function setSession(data: {
          access_token: accessTokenValue || '',
          session_id: newSessionId,
          user: {
-           id: '',
-           email: '',
-           role: currentUserRole,
+           id: tokenUserId,
+           email: tokenUserEmail,
+           role: tokenUserRole,
            firstName: '',
            lastName: '',
            phone: '',
@@ -534,7 +548,35 @@ export async function login(data: { email: string; password?: string; otp?: stri
     }
 
     const cookieStore = await cookies();
-    const profileComplete = resolveProfileComplete(normalizedResult.user as Record<string, unknown>);
+    let profileComplete = resolveProfileComplete(normalizedResult.user as Record<string, unknown>);
+
+    const hasExplicitProfileFlags =
+      normalizedResult.user &&
+      typeof normalizedResult.user === 'object' &&
+      ('profileComplete' in normalizedResult.user ||
+        'isProfileComplete' in normalizedResult.user ||
+        'requiresProfileCompletion' in normalizedResult.user);
+
+    // If login payload doesn't carry profile flags, fetch authoritative profile once.
+    if (!hasExplicitProfileFlags && normalizedResult.access_token) {
+      try {
+        const profileResponse = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.USERS.PROFILE}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${normalizedResult.access_token}`,
+            ...(sessionId ? { 'X-Session-ID': sessionId } : {}),
+          },
+          cache: 'no-store',
+          timeout: 3000,
+        });
+        if (profileResponse.ok) {
+          const profileData = (await profileResponse.json()) as Record<string, unknown>;
+          profileComplete = resolveProfileComplete(profileData);
+        }
+      } catch (error) {
+        logger.warn('[login] Could not fetch profile completion status from profile API', { error });
+      }
+    }
 
     if (normalizedResult.access_token) {
       cookieStore.set({
@@ -982,9 +1024,6 @@ async function setAuthCookies(data: {
   let profileComplete: string | undefined;
   if (data.user && ((data.user as any).profileComplete !== undefined || (data.user as any).isProfileComplete !== undefined || (data.user as any).requiresProfileCompletion !== undefined)) {
     profileComplete = resolveProfileComplete(data.user as unknown as Record<string, unknown>).toString();
-  } else if (data.user && (data.user as any).id && (data.user as any).email) {
-    // Only calculate if we have basically enough info
-    profileComplete = calculateProfileCompletion(data.user as any).toString();
   }
 
   if (profileComplete !== undefined) {
@@ -1006,7 +1045,25 @@ export async function authenticatedApi<T = unknown>(
       status: response.statusCode || 200, 
       data: response.data as T 
     };
-  } catch (error: unknown) {
+  } catch (error: any) {
+    // Gracefully handle "Profile Incomplete" to prevent Next.js from crashing
+    if (error?.statusCode === 403 && error?.code === 'Profile Incomplete') {
+      try {
+        const cookieStore = await cookies();
+        cookieStore.set({
+          name: 'profile_complete',
+          value: 'false',
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7,
+        });
+      } catch {
+        // no-op: preserve original 403 handling
+      }
+      return { status: 403, data: null as unknown as T };
+    }
     if (error instanceof Error && 'statusCode' in error) {
        throw error;
     }

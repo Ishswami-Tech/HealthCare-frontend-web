@@ -421,7 +421,7 @@ export const useUserAvatar = () => {
     }
 
     // Return a placeholder avatar with initials
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=random&color=fff&size=128`;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=random&color=fff&size=128&format=png`;
   };
 };
 

@@ -7,7 +7,7 @@ import type { LabResult } from '@/types/medical-records.types';
  * Get all lab results
  */
 export async function getLabResults(
-  labTechnicianId: string,
+  labTechnicianId?: string,
   filters?: {
     testType?: string;
     status?: string;

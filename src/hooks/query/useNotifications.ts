@@ -19,7 +19,7 @@
  * - Server actions for backend sync
  */
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback } from "react";
 import { useQueryData, useMutationOperation } from "@/hooks/core";
 import { useAuth } from "../auth/useAuth";
 import {
@@ -54,7 +54,6 @@ export function useNotifications() {
     markAllAsRead: markAllAsReadStore,
     removeNotification: removeNotificationStore,
   } = useNotificationStore();
-  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch notifications from backend using React Query (via core hook)
   const {
@@ -76,7 +75,7 @@ export function useNotifications() {
       // Only enable if user is authenticated AND has an access token
       // This prevents "No access token found" errors during login flow
       enabled: !!session?.user?.id && !!session?.access_token,
-      refetchOnWindowFocus: true,
+      refetchOnWindowFocus: false,
       refetchInterval: SYNC_INTERVAL,
       staleTime: 2 * 60 * 1000, // 2 minutes
     }
@@ -122,22 +121,6 @@ export function useNotifications() {
       setNotifications(transformedNotifications);
     }
   }, [data, session?.user?.id, setNotifications, notifications]);
-
-  // Periodic sync
-  useEffect(() => {
-    if (session?.user?.id) {
-      syncIntervalRef.current = setInterval(() => {
-        refetch();
-      }, SYNC_INTERVAL);
-
-      return () => {
-        if (syncIntervalRef.current) {
-          clearInterval(syncIntervalRef.current);
-        }
-      };
-    }
-    return undefined;
-  }, [session?.user?.id, refetch]);
 
   // ===== ACTIONS =====
   // Use useMutationOperation for consistent error handling

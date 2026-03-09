@@ -9,7 +9,7 @@ import type { TherapistAppointment, TherapistPatient, TherapistSession } from '@
  * Get all therapist appointments
  */
 export async function getAppointments(
-  therapistId: string,
+  therapistId?: string,
   filters?: {
     status?: string;
     startDate?: string;
@@ -90,7 +90,7 @@ export async function getAppointmentsByPatientId(
  * Get all clients for a therapist
  */
 export async function getClients(
-  therapistId: string,
+  therapistId?: string,
   filters?: {
     search?: string;
     status?: string;

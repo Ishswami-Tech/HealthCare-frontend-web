@@ -7,7 +7,7 @@ import type { SupportRequest } from '@/types/medical-records.types';
  * Get all support requests
  */
 export async function getSupportRequests(
-  staffId: string,
+  staffId?: string,
   filters?: {
     status?: string;
     priority?: string;

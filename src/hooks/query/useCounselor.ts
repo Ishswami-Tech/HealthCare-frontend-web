@@ -14,13 +14,22 @@ import type { CounselorAppointment, CounselorClient, CounselorSession } from '@/
  * Hook to get all counselor appointments
  */
 export const useCounselorAppointments = (counselorId?: string, filters?: {
-  status?: string;
-  startDate?: string;
-  endDate?: string;
+  status?: string | undefined;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
 }) => {
   return useQueryData(
     ['counselorAppointments', counselorId, filters],
-    async () => await getCounselorAppointments(counselorId, filters),
+    async () => {
+      const cleanedFilters = filters
+        ? {
+            ...(filters.status ? { status: filters.status } : {}),
+            ...(filters.startDate ? { startDate: filters.startDate } : {}),
+            ...(filters.endDate ? { endDate: filters.endDate } : {}),
+          }
+        : undefined;
+      return await getCounselorAppointments(counselorId || '', cleanedFilters);
+    },
     {
       enabled: !!counselorId,
     }
@@ -31,15 +40,28 @@ export const useCounselorAppointments = (counselorId?: string, filters?: {
  * Hook to get all counselor clients
  */
 export const useCounselorClients = (counselorId?: string, filters?: {
-  search?: string;
-  status?: string;
-  condition?: string;
-  limit?: number;
-  offset?: number;
+  search?: string | undefined;
+  status?: string | undefined;
+  condition?: string | undefined;
+  limit?: number | undefined;
+  offset?: number | undefined;
+  clientId?: string | undefined;
 }) => {
   return useQueryData(
     ['counselorClients', counselorId, filters],
-    async () => await getCounselorClients(counselorId, filters),
+    async () => {
+      const cleanedFilters = filters
+        ? {
+            ...(filters.search ? { search: filters.search } : {}),
+            ...(filters.status ? { status: filters.status } : {}),
+            ...(filters.condition ? { condition: filters.condition } : {}),
+            ...(typeof filters.limit === 'number' ? { limit: filters.limit } : {}),
+            ...(typeof filters.offset === 'number' ? { offset: filters.offset } : {}),
+            ...(filters.clientId ? { clientId: filters.clientId } : {}),
+          }
+        : undefined;
+      return await getCounselorClients(counselorId || '', cleanedFilters);
+    },
     {
       enabled: !!counselorId,
     }

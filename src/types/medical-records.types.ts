@@ -143,12 +143,13 @@ export interface LabResult {
   result: string;
   normalRange?: string;
   unit?: string;
-  status: 'NORMAL' | 'ABNORMAL' | 'CRITICAL' | 'PENDING';
+  status: 'NORMAL' | 'ABNORMAL' | 'CRITICAL' | 'PENDING' | 'completed' | 'pending' | 'in_progress' | string;
   orderedBy: string;
   performedAt: string;
   reportedAt: string;
   labName?: string;
   labTechnician?: string;
+  labTechnicianId?: string;
   notes?: string;
   attachments?: string[];
   isCritical: boolean;
@@ -166,6 +167,131 @@ export interface LabResult {
     lastName: string;
     specialization: string;
   };
+}
+
+// ===== ROLE-SPECIFIC DASHBOARD TYPES (compatibility) =====
+
+export interface CounselorSession {
+  id: string;
+  counselorId: string;
+  clientId: string;
+  sessionDate?: string;
+  notes?: string;
+  nextSessionDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CounselorAppointment {
+  id?: string;
+  counselorId: string;
+  clientId?: string;
+  patientId?: string;
+  status?: string;
+  appointmentDate?: string;
+  startDate?: string;
+  endDate?: string;
+  notes?: string;
+}
+
+export interface CounselorClient {
+  id: string;
+  counselorId?: string;
+  patientId?: string;
+  firstName?: string;
+  lastName?: string;
+  status?: string;
+  condition?: string;
+}
+
+export interface NursePatientRecord {
+  id?: string;
+  nurseId?: string;
+  patientId: string;
+  status?: string;
+  notes?: string;
+  vitals?: PatientVitals[];
+}
+
+export interface PatientVitals {
+  id?: string;
+  nurseId?: string;
+  patientId: string;
+  bloodPressure?: string;
+  heartRate?: number;
+  temperature?: number;
+  respiratoryRate?: number;
+  oxygenSaturation?: number;
+  recordedAt?: string;
+}
+
+export interface Prescription {
+  id?: string;
+  doctorId?: string;
+  patientId: string;
+  medications?: Array<{
+    name: string;
+    dosage?: string;
+    frequency?: string;
+    duration?: string;
+  }>;
+  notes?: string;
+  status?: string;
+  createdAt?: string;
+}
+
+export interface SupportRequest {
+  id?: string;
+  staffId?: string;
+  supportStaffId?: string;
+  patientId?: string;
+  type?: string;
+  priority?: string;
+  status?: string;
+  title?: string;
+  description?: string;
+  createdAt?: string;
+}
+
+export interface TherapistSession {
+  id: string;
+  therapistId: string;
+  clientId: string;
+  sessionDate?: string;
+  notes?: string;
+  nextSessionDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TherapistAppointment {
+  id: string;
+  therapistId: string;
+  clientId?: string;
+  patientId?: string;
+  patientName: string;
+  status: string;
+  type: string;
+  duration: number;
+  date: string;
+  time: string;
+  appointmentDate?: string;
+  startDate?: string;
+  endDate?: string;
+  notes?: string;
+}
+
+export interface TherapistPatient {
+  id: string;
+  therapistId?: string;
+  patientId?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  status: string;
+  condition?: string;
+  sessionsCompleted?: number;
+  lastVisit: string;
 }
 
 // ===== IMAGING RESULTS =====
@@ -413,4 +539,3 @@ export interface CreateLabResultData {
   notes?: string;
   isCritical?: boolean;
 }
-

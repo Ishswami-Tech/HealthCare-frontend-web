@@ -16,9 +16,14 @@ import {
   getInvoices,
   createInvoice,
   getPayments,
+  getClinicPayments,
+  getClinicLedger,
+  releaseAppointmentPayout,
+  reconcilePayment,
   createPayment,
   getBillingAnalytics,
 } from '@/lib/actions/billing.server';
+import type { PaymentProvider } from '@/lib/payments/providers';
 import type {
   CreateBillingPlanData,
   CreateSubscriptionData,
@@ -28,7 +33,7 @@ import type {
 
 // ============ Billing Plans Hooks ============
 
-export function useBillingPlans(clinicId?: string) {
+export function useBillingPlans(clinicId?: string, enabled: boolean = true) {
   return useQueryData(
     ['billing-plans', clinicId],
     async () => {
@@ -39,6 +44,7 @@ export function useBillingPlans(clinicId?: string) {
       return result.plans || [];
     },
     {
+      enabled,
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
@@ -270,6 +276,57 @@ export function usePayments(userId: string) {
   );
 }
 
+export function useClinicPayments(filters?: {
+  status?: string;
+  revenueModel?: 'APPOINTMENT' | 'SUBSCRIPTION' | 'OTHER';
+  appointmentType?: 'VIDEO_CALL' | 'IN_PERSON' | 'HOME_VISIT';
+  provider?: string;
+  startDate?: string;
+  endDate?: string;
+}) {
+  return useQueryData(
+    ['clinic-payments', filters],
+    async () => {
+      const result = await getClinicPayments(filters);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch clinic payments');
+      }
+      return result.payments || [];
+    },
+    {
+      staleTime: 2 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    }
+  );
+}
+
+export function useClinicLedger(filters?: {
+  status?: string;
+  revenueModel?: 'APPOINTMENT' | 'SUBSCRIPTION' | 'OTHER';
+  appointmentType?: 'VIDEO_CALL' | 'IN_PERSON' | 'HOME_VISIT';
+  provider?: string;
+  startDate?: string;
+  endDate?: string;
+}, enabled: boolean = true) {
+  return useQueryData(
+    ['clinic-ledger', filters],
+    async () => {
+      const result = await getClinicLedger(filters);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch clinic ledger');
+      }
+      return result.ledger;
+    },
+    {
+      enabled,
+      staleTime: 2 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    }
+  );
+}
+
 export function useCreatePayment() {
   return useMutationOperation(
     async (data: CreatePaymentData) => {
@@ -284,6 +341,42 @@ export function useCreatePayment() {
       loadingMessage: 'Processing payment...',
       successMessage: 'Payment processed successfully',
       invalidateQueries: [['payments'], ['invoices']],
+    }
+  );
+}
+
+export function useReleaseAppointmentPayout() {
+  return useMutationOperation(
+    async (appointmentId: string) => {
+      const result = await releaseAppointmentPayout(appointmentId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to release payout');
+      }
+      return result.data;
+    },
+    {
+      toastId: 'release-payout',
+      loadingMessage: 'Releasing payout...',
+      successMessage: 'Payout released successfully',
+      invalidateQueries: [['clinic-ledger'], ['clinic-payments'], ['payments'], ['billing-analytics']],
+    }
+  );
+}
+
+export function useReconcilePayment() {
+  return useMutationOperation(
+    async ({ paymentId, provider }: { paymentId: string; provider?: PaymentProvider }) => {
+      const result = await reconcilePayment(paymentId, provider);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to reconcile payment');
+      }
+      return result.data;
+    },
+    {
+      toastId: 'reconcile-payment',
+      loadingMessage: 'Reconciling payment...',
+      successMessage: 'Payment reconciled',
+      invalidateQueries: [['clinic-ledger'], ['clinic-payments'], ['payments'], ['billing-analytics']],
     }
   );
 }

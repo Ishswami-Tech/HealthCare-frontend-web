@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useRBAC, useRoleBasedNavigation } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
@@ -41,6 +41,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const rbac = useRBAC();
   const { getDefaultRoute } = useRoleBasedNavigation();
   const router = useRouter();
+  const pathname = usePathname();
 
   // Check permission-based access
   const hasAccess = React.useMemo(() => {
@@ -65,6 +66,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
 
     // 2. Role-based Redirect
+    if (user.profileComplete === false) {
+      const profileCompletionPath = `${ROUTES.PROFILE_COMPLETION}?redirect=${encodeURIComponent(pathname || "/")}`;
+      router.replace(profileCompletionPath);
+      return;
+    }
+
+    // 3. Role-based Redirect
     const userRole = user?.role as Role;
     if (allowedRoles && allowedRoles.length > 0) {
       if (!userRole || !allowedRoles.includes(userRole)) {
@@ -76,7 +84,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       }
     }
 
-    // 3. Permission-based Redirect
+    // 4. Permission-based Redirect
     if (!hasAccess) {
       if (redirectTo) {
         router.replace(redirectTo);
@@ -88,6 +96,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     isPending, 
     isAuthenticated, 
     user, 
+    pathname,
     allowedRoles, 
     hasAccess, 
     redirectTo, 
@@ -109,6 +118,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (!isAuthenticated || !user) return null;
 
   const userRole = user?.role as Role;
+
+  if (user.profileComplete === false) {
+    return null;
+  }
 
   // Render check: Unofficial role access
   if (allowedRoles && allowedRoles.length > 0) {

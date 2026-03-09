@@ -8,21 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import {
   Search,
   Users,
-  Filter,
   Calendar,
   Brain,
-  Clock,
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useClinicContext } from "@/hooks/query/useClinics";
 import { useTherapistClients, useUpdateTherapistClientSession } from "@/hooks/query/useTherapist";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 
 export default function TherapistPatients() {
   useAuth();
   const { user } = useAuth();
-  const { clinicId } = useClinicContext();
 
   // Extract therapist ID from user
   const therapistId = user?.id || "";
@@ -30,13 +26,11 @@ export default function TherapistPatients() {
   // State for filters and search
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [filterCondition, setFilterCondition] = useState("");
 
   // Fetch real data using hook
   const { data: clientsData, isPending: isPending } = useTherapistClients(therapistId, {
     search: searchQuery || undefined,
     status: filterStatus !== "all" ? filterStatus : undefined,
-    condition: filterCondition || undefined,
   });
 
   // Enable real-time WebSocket sync
@@ -47,6 +41,22 @@ export default function TherapistPatients() {
 
   // Extract clients array from response
   const clients = clientsData?.clients || [];
+
+  const safeDate = (value: unknown): Date | null => {
+    if (typeof value !== "string" || !value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const formatLastVisit = (value: unknown): string => {
+    const parsed = safeDate(value);
+    return parsed ? parsed.toLocaleDateString("en-IN") : "N/A";
+  };
+
+  const getStatusValue = (value: unknown): string =>
+    typeof value === "string" && value.trim().length > 0
+      ? value.toLowerCase()
+      : "inactive";
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -87,7 +97,6 @@ export default function TherapistPatients() {
                 variant={filterStatus === "all" ? "default" : "outline"}
                 onClick={() => {
                   setFilterStatus("all");
-                  setFilterCondition("");
                 }}
               >
                 All
@@ -96,7 +105,6 @@ export default function TherapistPatients() {
                 variant={filterStatus === "active" ? "default" : "outline"}
                 onClick={() => {
                   setFilterStatus("active");
-                  setFilterCondition("");
                 }}
               >
                 Active
@@ -105,7 +113,6 @@ export default function TherapistPatients() {
                 variant={filterStatus === "inactive" ? "default" : "outline"}
                 onClick={() => {
                   setFilterStatus("inactive");
-                  setFilterCondition("");
                 }}
               >
                 Inactive
@@ -138,8 +145,10 @@ export default function TherapistPatients() {
             </div>
           ) : (
             <div className="space-y-4">
-              {clients.map((client) => (
-                <div
+              {clients.map((client) => {
+                const status = getStatusValue(client.status);
+                return (
+                  <div
                   key={client.id}
                   className="p-4 border rounded-lg hover:bg-gray-50"
                 >
@@ -149,8 +158,8 @@ export default function TherapistPatients() {
                         <Users className="w-5 h-5 text-purple-600" />
                       </div>
                       <div>
-                        <h4 className="font-semibold">{client.name}</h4>
-                        <p className="text-sm text-gray-600">{client.condition}</p>
+                        <h4 className="font-semibold">{client.name || "Unknown Client"}</h4>
+                        <p className="text-sm text-gray-600">{client.condition || "N/A"}</p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
                             <Brain className="w-3 h-3" />
@@ -159,15 +168,15 @@ export default function TherapistPatients() {
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             Last:{" "}
-                            {new Date(client.lastVisit).toLocaleDateString("en-IN")}
+                            {formatLastVisit(client.lastVisit)}
                           </span>
                         </div>
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge className={getStatusColor(client.status)}>
-                      {client.status.toUpperCase()}
+                    <Badge className={getStatusColor(status)}>
+                      {status.toUpperCase()}
                     </Badge>
                     <div className="mt-2 flex gap-2">
                       <Button size="sm">
@@ -177,7 +186,7 @@ export default function TherapistPatients() {
                         View Profile
                       </Button>
                     </div>
-                    {client.status === "active" && (
+                    {status === "active" && (
                       <Button
                         size="sm"
                         onClick={() =>
@@ -197,7 +206,7 @@ export default function TherapistPatients() {
                     )}
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </CardContent>

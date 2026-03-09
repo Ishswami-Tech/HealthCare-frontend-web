@@ -9,8 +9,17 @@ import { API_ENDPOINTS } from '../config/config';
  * Get comprehensive health record for a user
  */
 export async function getComprehensiveHealthRecord(userId: string) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.COMPREHENSIVE(userId));
-  return data;
+  try {
+    const { data } = await authenticatedApi(API_ENDPOINTS.EHR.COMPREHENSIVE(userId));
+    return data;
+  } catch (error: any) {
+    // If it's the profile incomplete error, return null or an empty default state
+    if (error?.statusCode === 403 && error?.code === 'Profile Incomplete') {
+      return null;
+    }
+    // Re-throw other unexpected errors
+    throw error;
+  }
 }
 
 // ===== MEDICAL HISTORY =====

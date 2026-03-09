@@ -147,6 +147,7 @@ export const TOAST_IDS = {
   PRESCRIPTION: {
     CREATE: 'prescription-create',
     UPDATE: 'prescription-update',
+    DELETE: 'prescription-delete',
     PDF: 'prescription-pdf',
   },
   MEDICINE: {
