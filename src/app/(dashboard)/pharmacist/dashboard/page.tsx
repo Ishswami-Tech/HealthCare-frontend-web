@@ -10,6 +10,7 @@ import {
   usePrescriptions,
   useInventory,
   usePharmacyStats,
+  useMedicineDeskQueue,
 } from "@/hooks/query/usePharmacy";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -25,6 +26,7 @@ import {
   Eye,
   Check,
 } from "lucide-react";
+import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
 
 export default function PharmacistDashboard() {
   useAuth();
@@ -49,6 +51,7 @@ export default function PharmacistDashboard() {
   );
 
   const { data: pharmacyStats } = usePharmacyStats(clinicId || "");
+  const { data: medicineDeskQueue = [] } = useMedicineDeskQueue(clinicId || "", !!clinicId);
 
   // Calculate real stats from fetched data
   const stats = {
@@ -56,9 +59,19 @@ export default function PharmacistDashboard() {
       (prescriptions as any[]).filter(
         (p: any) => p.status === "PENDING" || p.status === "pending",
       )?.length || 0,
-    preparedPrescriptions:
+    awaitingPayment:
+      (prescriptions as any[]).filter((p: any) => {
+        const status = String(p.status || "").toUpperCase();
+        const paymentStatus = String(p.paymentStatus || "PENDING").toUpperCase();
+        return status === "PENDING" && paymentStatus !== "PAID";
+      })?.length || 0,
+    dispensedPrescriptions:
       (prescriptions as any[]).filter(
-        (p: any) => p.status === "PREPARED" || p.status === "prepared",
+        (p: any) =>
+          p.status === "FILLED" ||
+          p.status === "filled" ||
+          p.status === "DISPENSED" ||
+          p.status === "dispensed",
       )?.length || 0,
     lowStockItems:
       (inventory as any[]).filter((i: any) => i.currentStock < i.minStock)
@@ -84,23 +97,31 @@ export default function PharmacistDashboard() {
   };
 
   // Use real prescriptions data
-  const pendingPrescriptions = (prescriptions as any[])
-    .filter(
-      (p: any) => (p.status === "PENDING" || p.status === "pending") && p.id,
-    )
+  const pendingPrescriptions = (Array.isArray(medicineDeskQueue) ? medicineDeskQueue : [])
+    .filter((p: any) => p?.id)
     .slice(0, 10)
-    .map((p: any) => ({
-      id: p.id,
-      patientName: p.patient?.name || p.patientName || "Unknown Patient",
-      doctorName: p.doctor?.name || p.doctorName || "Unknown Doctor",
-      prescribedAt: p.prescribedAt || p.createdAt || new Date().toISOString(),
-      medicines:
-        p.medicines?.map((m: any) => m.name || m.medicineName) ||
-        p.medicines ||
-        [],
-      status: p.status?.toLowerCase() || "pending",
-      priority: p.priority?.toLowerCase() || "normal",
-    }));
+    .map((p: any) => {
+      const entry = normalizeQueueEntry(p);
+      return {
+        id: entry.entryId,
+        patientName: entry.patientName || "Unknown Patient",
+        doctorName: entry.doctorName || "Unknown Doctor",
+        prescribedAt: p.prescribedAt || p.createdAt || new Date().toISOString(),
+        medicines:
+          p.medicineNames ||
+          p.medicines?.map((m: any) => m.name || m.medicineName) ||
+          p.medicines ||
+          [],
+        status:
+          Boolean(entry.readyForHandover) ||
+          String(entry.paymentStatus || "PENDING").toUpperCase() === "PAID"
+            ? "ready_to_dispense"
+            : "awaiting_payment",
+        priority: p.priority?.toLowerCase() || "normal",
+        pendingAmount: Number(p.pendingAmount || 0),
+        queuePosition: entry.position > 0 ? entry.position : null,
+      };
+    });
 
   // Use real inventory data
   const lowStockItems = (inventory as any[])
@@ -116,7 +137,13 @@ export default function PharmacistDashboard() {
   // Recent handovers from completed prescriptions
   const recentHandovers = useMemo(() => {
     return (prescriptions as any[])
-      .filter((p: any) => p.status === "COMPLETED" || p.status === "completed")
+      .filter(
+        (p: any) =>
+          p.status === "FILLED" ||
+          p.status === "filled" ||
+          p.status === "DISPENSED" ||
+          p.status === "dispensed"
+      )
       .slice(0, 5)
       .map((p: any) => ({
         id: p.id,
@@ -153,11 +180,11 @@ export default function PharmacistDashboard() {
       case "filled":
       case "dispensed":
       case "completed":
-      case "prepared":
+      case "ready_to_dispense":
         return "bg-green-100 text-green-800";
       case "cancelled":
         return "bg-red-100 text-red-800";
-      case "preparing":
+      case "awaiting_payment":
         return "bg-blue-100 text-blue-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -199,7 +226,7 @@ export default function PharmacistDashboard() {
           )}
 
           {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -212,7 +239,7 @@ export default function PharmacistDashboard() {
                   {stats.pendingPrescriptions}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Awaiting preparation
+                  Pending prescriptions
                 </p>
               </CardContent>
             </Card>
@@ -220,16 +247,33 @@ export default function PharmacistDashboard() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Prepared Today
+                  Awaiting Payment
+                </CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {stats.awaitingPayment}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Cannot dispense until paid
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Dispensed Today
                 </CardTitle>
                 <CheckCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {stats.preparedPrescriptions}
+                  {stats.dispensedPrescriptions}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Ready for handover
+                  Completed handovers
                 </p>
               </CardContent>
             </Card>
@@ -261,7 +305,7 @@ export default function PharmacistDashboard() {
                   {stats.monthlyDispensed}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  +12% from last month
+                  Dispensed this month
                 </p>
               </CardContent>
             </Card>
@@ -301,22 +345,34 @@ export default function PharmacistDashboard() {
                           {prescription.medicines.length} medicines •{" "}
                           {prescription.prescribedAt}
                         </p>
+                        {prescription.queuePosition ? (
+                          <p className="text-xs text-blue-700 dark:text-blue-300">
+                            {getQueuePositionLabel({ position: prescription.queuePosition ?? 0 })}
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className={getStatusColor(prescription.status)}>
-                          {prescription.status}
+                          {prescription.status === "awaiting_payment"
+                            ? "Awaiting Payment"
+                            : "Ready to Dispense"}
                         </Badge>
                         <div className="flex gap-1">
                           <Button size="sm" variant="outline">
                             <Eye className="w-3 h-3" />
                           </Button>
-                          {prescription.status === "pending" && (
+                          {prescription.status === "ready_to_dispense" && (
                             <Button size="sm">
                               <Check className="w-3 h-3" />
                             </Button>
                           )}
                         </div>
                       </div>
+                      {prescription.status === "awaiting_payment" && (
+                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                          Pending amount: INR {prescription.pendingAmount.toFixed(2)}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

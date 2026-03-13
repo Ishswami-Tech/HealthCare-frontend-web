@@ -1,583 +1,456 @@
 "use client";
 
+import Link from "next/link";
+import { useMemo } from "react";
+import { Calendar, CheckCircle, Clock, ListTodo, QrCode, Users } from "lucide-react";
 
-import { Role } from "@/types/auth.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useMyAppointments } from "@/hooks/query/useAppointments";
-import { AppointmentWithRelations } from "@/types/appointment.types";
-import {
-  Activity,
-  Calendar,
-  Users,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Plus,
-  Phone,
-  MessageSquare,
-  QrCode,
-  Eye,
-  Edit,
-  Stethoscope,
-} from "lucide-react";
+import { useAppointments } from "@/hooks/query/useAppointments";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
+
+type ReceptionAppointment = {
+  id: string;
+  patientName: string;
+  doctorName: string;
+  doctorRole?: string;
+  isDelegated: boolean;
+  status: string;
+  timeLabel: string;
+  queuePosition: number | null;
+  waitLabel: string;
+  queueCategory?: string;
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  SCHEDULED: "bg-slate-100 text-slate-800 dark:bg-slate-900/40 dark:text-slate-200",
+  CONFIRMED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+  IN_PROGRESS: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+  COMPLETED: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
+  NO_SHOW: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+  CANCELLED: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
+};
 
 export default function ReceptionistDashboard() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
+  const { clinicId } = useClinicContext();
+  useWebSocketQuerySync();
 
-  // Fetch real data using existing hooks and server actions
-  const { data: appointments } = useMyAppointments();
+  const today = new Date().toISOString().split("T")[0] || "";
+  const { data: appointmentsData, isPending } = useAppointments({
+    ...(clinicId ? { clinicId } : {}),
+    date: today,
+    limit: 200,
+  });
+  const { data: medicineDeskQueue = [] } = useMedicineDeskQueue(clinicId || "", !!clinicId);
 
-  // Calculate real stats from fetched data
-  const appointmentsArray = appointments?.appointments || [];
-  const stats = {
-    todayAppointments:
-      appointmentsArray.filter((apt: AppointmentWithRelations) => {
-        const today = new Date().toDateString();
-        return new Date(apt.date).toDateString() === today;
-      }).length || 0,
-    checkedInPatients:
-      appointmentsArray.filter((apt: AppointmentWithRelations) => apt.status === "CHECKED_IN").length || 0,
-    waitingPatients:
-      appointmentsArray.filter((apt: AppointmentWithRelations) => apt.status === "SCHEDULED").length || 0,
-    completedToday:
-      appointmentsArray.filter((apt: AppointmentWithRelations) => {
-        const today = new Date().toDateString();
-        return (
-          new Date(apt.date).toDateString() === today &&
-          apt.status === "COMPLETED"
-        );
-      }).length || 15,
-    walkInsToday: 4,
-    averageWaitTime: 18,
-  };
+  const appointments = useMemo(() => {
+    const raw = Array.isArray(appointmentsData)
+      ? appointmentsData
+      : appointmentsData?.appointments || [];
+    return raw.map(appointment => {
+      const canonical = normalizeQueueEntry(appointment);
+      const startAt = appointment.startTime || appointment.appointmentDate || (appointment.date && appointment.time ? `${appointment.date}T${appointment.time}` : null);
+      const parsed = startAt ? new Date(startAt) : null;
 
-  const todaysQueue = [
-    {
-      id: "1",
-      patientName: "Rajesh Kumar",
-      doctor: "Dr. Priya Sharma",
-      time: "10:00 AM",
-      status: "In Progress",
-      type: "Consultation",
-      queueType: "General",
-      waitTime: "5 min",
-      checkedInAt: "09:55 AM",
-    },
-    {
-      id: "2",
-      patientName: "Meera Patel",
-      doctor: "Dr. Amit Singh",
-      time: "10:30 AM",
-      status: "Waiting",
-      type: "Panchakarma",
-      queueType: "Therapy",
-      waitTime: "15 min",
-      checkedInAt: "10:15 AM",
-    },
-    {
-      id: "3",
-      patientName: "Suresh Gupta",
-      doctor: "Dr. Priya Sharma",
-      time: "11:00 AM",
-      status: "Checked In",
-      type: "Nadi Pariksha",
-      queueType: "Diagnosis",
-      waitTime: "8 min",
-      checkedInAt: "10:52 AM",
-    },
-    {
-      id: "4",
-      patientName: "Anita Desai",
-      doctor: "Dr. Ravi Kumar",
-      time: "11:30 AM",
-      status: "Scheduled",
-      type: "Shirodhara",
-      queueType: "Therapy",
-      waitTime: "-",
-      checkedInAt: null,
-    },
-    {
-      id: "5",
-      patientName: "Vikram Singh",
-      doctor: "Dr. Amit Singh",
-      time: "12:00 PM",
-      status: "Walk-in",
-      type: "Consultation",
-      queueType: "General",
-      waitTime: "25 min",
-      checkedInAt: "11:35 AM",
-    },
-  ];
+      return {
+        id: canonical.entryId || canonical.appointmentId || appointment.id,
+        patientName: canonical.patientName || "Unknown Patient",
+        doctorName: canonical.doctorName || "Unassigned Doctor",
+        doctorRole: String(appointment.doctor?.role || appointment.doctor?.user?.role || "").toUpperCase(),
+        isDelegated:
+          Boolean(canonical.primaryDoctorId || appointment.primaryDoctorId || appointment.metadata?.primaryDoctorId) &&
+          String(canonical.primaryDoctorId || appointment.primaryDoctorId || appointment.metadata?.primaryDoctorId || "") !==
+            String(canonical.assignedDoctorId || appointment.assignedDoctorId || appointment.metadata?.assignedDoctorId || appointment.doctorId || ""),
+        status: canonical.status,
+        timeLabel:
+          parsed && !Number.isNaN(parsed.getTime())
+            ? parsed.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
+            : appointment.time || "TBD",
+        queuePosition: canonical.position > 0 ? canonical.position : null,
+        waitLabel:
+          typeof canonical.estimatedWaitTime === "number"
+            ? `${canonical.estimatedWaitTime} min`
+            : typeof appointment.waitTime === "number"
+              ? `${appointment.waitTime} min`
+              : typeof appointment.waitTime === "string"
+                ? appointment.waitTime
+                : "Pending",
+        queueCategory: canonical.queueCategory,
+      };
+    });
+  }, [appointmentsData]);
 
-  const upcomingAppointments = [
-    {
-      patient: "Kavita Sharma",
-      doctor: "Dr. Priya",
-      time: "2:00 PM",
-      type: "Follow-up",
-    },
-    {
-      patient: "Ramesh Joshi",
-      doctor: "Dr. Amit",
-      time: "2:30 PM",
-      type: "Agnikarma",
-    },
-    {
-      patient: "Deepa Singh",
-      doctor: "Dr. Ravi",
-      time: "3:00 PM",
-      type: "Consultation",
-    },
-  ];
+  const stats = useMemo(() => {
+    const total = appointments.length;
+    const scheduled = appointments.filter((item) => item.status === "SCHEDULED").length;
+    const confirmed = appointments.filter((item) => item.status === "CONFIRMED").length;
+    const inProgress = appointments.filter((item) => item.status === "IN_PROGRESS").length;
+    const completed = appointments.filter((item) => item.status === "COMPLETED").length;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "In Progress":
-        return "bg-blue-100 text-blue-800";
-      case "Waiting":
-        return "bg-yellow-100 text-yellow-800";
-      case "Checked In":
-        return "bg-green-100 text-green-800";
-      case "Scheduled":
-        return "bg-gray-100 text-gray-800";
-      case "Walk-in":
-        return "bg-purple-100 text-purple-800";
-      case "Completed":
-        return "bg-emerald-100 text-emerald-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+    return { total, scheduled, confirmed, inProgress, completed };
+  }, [appointments]);
+
+  const doctorBacklog = useMemo(() => {
+    const grouped = new Map<
+      string,
+      {
+        doctorName: string;
+        scheduled: number;
+        confirmed: number;
+        inProgress: number;
+        total: number;
+        nextPatient: string | null;
+      }
+    >();
+
+    for (const appointment of appointments) {
+      const current = grouped.get(appointment.doctorName) || {
+        doctorName: appointment.doctorName,
+        scheduled: 0,
+        confirmed: 0,
+        inProgress: 0,
+        total: 0,
+        nextPatient: null,
+      };
+
+      current.total += 1;
+      if (appointment.status === "SCHEDULED") current.scheduled += 1;
+      if (appointment.status === "CONFIRMED") {
+        current.confirmed += 1;
+        if (!current.nextPatient || appointment.queuePosition === 1) {
+          current.nextPatient = appointment.patientName;
+        }
+      }
+      if (appointment.status === "IN_PROGRESS") current.inProgress += 1;
+      grouped.set(appointment.doctorName, current);
     }
-  };
 
-  const getQueueTypeColor = (type: string) => {
-    switch (type) {
-      case "General":
-        return "bg-blue-50 text-blue-700";
-      case "Therapy":
-        return "bg-green-50 text-green-700";
-      case "Diagnosis":
-        return "bg-purple-50 text-purple-700";
-      default:
-        return "bg-gray-50 text-gray-700";
-    }
-  };
+    return Array.from(grouped.values()).sort((a, b) => b.confirmed - a.confirmed || b.scheduled - a.scheduled);
+  }, [appointments]);
 
+  const activeQueue = useMemo(
+    () =>
+      appointments
+        .filter((item) => item.status === "CONFIRMED" || item.status === "IN_PROGRESS")
+        .sort((a, b) => (a.queuePosition ?? 999) - (b.queuePosition ?? 999)),
+    [appointments]
+  );
+
+  const upcoming = useMemo(
+    () =>
+      appointments
+        .filter((item) => item.status === "SCHEDULED")
+        .slice(0, 8),
+    [appointments]
+  );
+
+  const medicineDesk = useMemo(
+    () =>
+      (Array.isArray(medicineDeskQueue) ? medicineDeskQueue : [])
+        .filter((entry: any) => entry?.id)
+        .map((raw: any) => {
+          const entry = normalizeQueueEntry(raw);
+          return {
+            id: entry.entryId,
+            patientName: entry.patientName || "Unknown Patient",
+            queuePosition: entry.position > 0 ? entry.position : null,
+            paymentStatus: String(entry.paymentStatus || "PENDING").toUpperCase(),
+            pendingAmount: Number(raw?.pendingAmount || 0),
+            readyForHandover: Boolean(entry.readyForHandover),
+          };
+        })
+        .slice(0, 6),
+    [medicineDeskQueue]
+  );
 
   return (
-    
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Reception Dashboard</h1>
-              <p className="text-gray-600">
-                Today is{" "}
-                {new Date().toLocaleDateString("en-IN", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex items-center gap-2">
-                <QrCode className="w-4 h-4" />
-                QR Check-in
-              </Button>
-              <Button className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Reception Dashboard</h1>
+          <p className="text-muted-foreground">
+            Live appointment backlog, queue intake, and today&apos;s clinic flow
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button asChild variant="outline">
+            <Link href="/receptionist/check-in">
+              <QrCode className="w-4 h-4 mr-2" />
+              Confirm Arrival
+            </Link>
+          </Button>
+          <BookAppointmentDialog
+            {...(clinicId ? { clinicId } : {})}
+            onBooked={() => {
+              void 0;
+            }}
+            trigger={
+              <Button>
+                <Calendar className="w-4 h-4 mr-2" />
                 New Appointment
               </Button>
-            </div>
-          </div>
-
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Today's Total
-                </CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {stats.todayAppointments}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Checked In
-                </CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {stats.checkedInPatients}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Waiting</CardTitle>
-                <Clock className="h-4 w-4 text-yellow-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">
-                  {stats.waitingPatients}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completed</CardTitle>
-                <CheckCircle className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {stats.completedToday}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Walk-ins</CardTitle>
-                <Users className="h-4 w-4 text-purple-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-600">
-                  {stats.walkInsToday}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Avg. Wait</CardTitle>
-                <Clock className="h-4 w-4 text-orange-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">
-                  {stats.averageWaitTime}m
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Current Queue Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="w-5 h-5" />
-                Current Patient Queue
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {todaysQueue.map((appointment) => (
-                  <div
-                    key={appointment.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Stethoscope className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold">
-                          {appointment.patientName}
-                        </h4>
-                        <div className="flex items-center gap-3 text-sm text-gray-600">
-                          <span>{appointment.doctor}</span>
-                          <span>•</span>
-                          <span>{appointment.type}</span>
-                          <span>•</span>
-                          <Badge
-                            className={getQueueTypeColor(appointment.queueType)}
-                            variant="outline"
-                          >
-                            {appointment.queueType}
-                          </Badge>
-                        </div>
-                        {appointment.checkedInAt && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Checked in at {appointment.checkedInAt}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <div className="font-medium text-sm">
-                          {appointment.time}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Wait: {appointment.waitTime}
-                        </div>
-                      </div>
-                      <Badge className={getStatusColor(appointment.status)}>
-                        {appointment.status}
-                      </Badge>
-                      <div className="flex gap-1">
-                        {appointment.status === "Scheduled" && (
-                          <Button size="sm" className="text-xs">
-                            Check In
-                          </Button>
-                        )}
-                        {appointment.status === "Walk-in" && (
-                          <Button size="sm" className="text-xs">
-                            Check In
-                          </Button>
-                        )}
-                        <Button variant="outline" size="sm" className="text-xs">
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button variant="outline" size="sm" className="text-xs">
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Upcoming Appointments */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Upcoming Today
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {upcomingAppointments.map((appointment, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 border rounded-lg"
-                    >
-                      <div>
-                        <h4 className="font-medium">{appointment.patient}</h4>
-                        <p className="text-sm text-gray-600">
-                          {appointment.doctor} • {appointment.type}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium text-sm">
-                          {appointment.time}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs mt-1"
-                        >
-                          Notify
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                    <Plus className="w-6 h-6 text-blue-600 mb-2" />
-                    <h3 className="font-medium">New Appointment</h3>
-                    <p className="text-xs text-gray-600">
-                      Schedule new patient visit
-                    </p>
-                  </div>
-                  <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                    <QrCode className="w-6 h-6 text-green-600 mb-2" />
-                    <h3 className="font-medium">QR Check-in</h3>
-                    <p className="text-xs text-gray-600">
-                      Quick patient check-in
-                    </p>
-                  </div>
-                  <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                    <Phone className="w-6 h-6 text-purple-600 mb-2" />
-                    <h3 className="font-medium">Call Patient</h3>
-                    <p className="text-xs text-gray-600">
-                      Contact waiting patients
-                    </p>
-                  </div>
-                  <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                    <MessageSquare className="w-6 h-6 text-orange-600 mb-2" />
-                    <h3 className="font-medium">Send SMS</h3>
-                    <p className="text-xs text-gray-600">
-                      Appointment reminders
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Queue Management by Type */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg text-blue-700">
-                  General Consultations
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {todaysQueue
-                    .filter((apt) => apt.queueType === "General")
-                    .map((appointment) => (
-                      <div
-                        key={appointment.id}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <span>{appointment.patientName}</span>
-                        <Badge
-                          className={getStatusColor(appointment.status)}
-                          variant="outline"
-                        >
-                          {appointment.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  <div className="pt-2 text-xs text-gray-500">
-                    Total:{" "}
-                    {
-                      todaysQueue.filter((apt) => apt.queueType === "General")
-                        .length
-                    }
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg text-green-700">
-                  Therapy Sessions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {todaysQueue
-                    .filter((apt) => apt.queueType === "Therapy")
-                    .map((appointment) => (
-                      <div
-                        key={appointment.id}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <span>{appointment.patientName}</span>
-                        <Badge
-                          className={getStatusColor(appointment.status)}
-                          variant="outline"
-                        >
-                          {appointment.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  <div className="pt-2 text-xs text-gray-500">
-                    Total:{" "}
-                    {
-                      todaysQueue.filter((apt) => apt.queueType === "Therapy")
-                        .length
-                    }
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg text-purple-700">
-                  Diagnostic Services
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {todaysQueue
-                    .filter((apt) => apt.queueType === "Diagnosis")
-                    .map((appointment) => (
-                      <div
-                        key={appointment.id}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <span>{appointment.patientName}</span>
-                        <Badge
-                          className={getStatusColor(appointment.status)}
-                          variant="outline"
-                        >
-                          {appointment.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  <div className="pt-2 text-xs text-gray-500">
-                    Total:{" "}
-                    {
-                      todaysQueue.filter((apt) => apt.queueType === "Diagnosis")
-                        .length
-                    }
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Alerts */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-orange-600" />
-                Important Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-yellow-600" />
-                  <div>
-                    <p className="text-sm font-medium text-yellow-800">
-                      Long Wait Time Alert
-                    </p>
-                    <p className="text-xs text-yellow-700">
-                      Meera Patel has been waiting for 15+ minutes
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-blue-600" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-800">
-                      Appointment Reminder
-                    </p>
-                    <p className="text-xs text-blue-700">
-                      3 patients have appointments in the next 30 minutes
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            }
+          />
         </div>
-    
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">Today</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">Scheduled</div>
+            <div className="text-2xl font-bold text-slate-700 dark:text-slate-200">{stats.scheduled}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">Queued</div>
+            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{stats.confirmed}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">In Progress</div>
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.inProgress}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">Completed</div>
+            <div className="text-2xl font-bold text-violet-700 dark:text-violet-300">{stats.completed}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-muted-foreground">Medicine Desk</div>
+            <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+              {medicineDesk.length}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Doctor Backlog
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {doctorBacklog.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {isPending ? "Loading clinic backlog..." : "No doctor backlog for today."}
+              </p>
+            ) : (
+              doctorBacklog.map((doctor) => (
+                <div
+                  key={doctor.doctorName}
+                  className="rounded-xl border bg-card p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+                >
+                  <div>
+                    <p className="font-semibold">{doctor.doctorName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {doctor.nextPatient ? `Next queued patient: ${doctor.nextPatient}` : "No patient waiting yet"}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary">Scheduled {doctor.scheduled}</Badge>
+                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                      Queued {doctor.confirmed}
+                    </Badge>
+                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                      In Progress {doctor.inProgress}
+                    </Badge>
+                    <Badge variant="outline">Total {doctor.total}</Badge>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Active Queue
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {activeQueue.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No confirmed patients in the live queue.</p>
+            ) : (
+              activeQueue.slice(0, 8).map((appointment) => (
+                <div key={appointment.id} className="rounded-xl border p-3 bg-card">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{appointment.patientName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {appointment.doctorName}
+                        {appointment.doctorRole === "ASSISTANT_DOCTOR" ? " (Assistant Doctor)" : ""}
+                      </p>
+                    </div>
+                    <Badge className={STATUS_STYLES[appointment.status] || STATUS_STYLES.SCHEDULED}>
+                      {appointment.status.replaceAll("_", " ")}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                    <span>Time {appointment.timeLabel}</span>
+                    <span>{getQueuePositionLabel({ position: appointment.queuePosition ?? 0 })}</span>
+                    <span>Wait {appointment.waitLabel}</span>
+                    {appointment.isDelegated ? <span>Delegated from primary doctor</span> : null}
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ListTodo className="w-5 h-5" />
+              Upcoming Scheduled Patients
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {upcoming.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No more scheduled patients for today.</p>
+          ) : (
+            upcoming.map((appointment) => (
+              <div
+                key={appointment.id}
+                className="rounded-xl border p-4 bg-card flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+              >
+                <div>
+                  <p className="font-semibold">{appointment.patientName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {appointment.doctorName}
+                    {appointment.doctorRole === "ASSISTANT_DOCTOR" ? " (Assistant Doctor)" : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <span>{appointment.timeLabel}</span>
+                  <Badge className={STATUS_STYLES[appointment.status] || STATUS_STYLES.SCHEDULED}>
+                    {appointment.status.replaceAll("_", " ")}
+                  </Badge>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <h3 className="font-semibold">Reception Intake</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Manually confirm a patient as arrived so they join the doctor queue.
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/receptionist/check-in">Open Check-In Desk</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className="w-4 h-4 text-blue-600" />
+              <h3 className="font-semibold">Schedule Patients</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Create appointments for walk-ins or assisted front-desk booking.
+            </p>
+            <BookAppointmentDialog
+              {...(clinicId ? { clinicId } : {})}
+              trigger={<Button variant="outline" className="w-full">Create Appointment</Button>}
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="w-4 h-4 text-violet-600" />
+              <h3 className="font-semibold">Queue View</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Review scheduled backlog, queued patients, and live consultation state.
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/receptionist/appointments">Open Queue Workspace</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Medicine Desk Queue
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {medicineDesk.length > 0 ? (
+            <div className="space-y-3">
+              {medicineDesk.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <div className="font-semibold">{entry.patientName}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {entry.queuePosition ? getQueuePositionLabel({ position: entry.queuePosition }) : "Medicine handover pending"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      className={
+                        entry.readyForHandover || entry.paymentStatus === "PAID"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                      }
+                    >
+                      {entry.readyForHandover || entry.paymentStatus === "PAID"
+                        ? "Ready For Handover"
+                        : "Awaiting Payment"}
+                    </Badge>
+                    {entry.pendingAmount > 0 ? (
+                      <span className="text-sm font-medium text-muted-foreground">
+                        INR {entry.pendingAmount.toFixed(2)}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No active medicine desk handovers right now.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

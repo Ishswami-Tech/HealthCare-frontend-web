@@ -4,7 +4,7 @@ import { Payment } from "@/types/billing.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 
 interface PaymentHistoryProps {
   payments: Payment[];
@@ -19,7 +19,7 @@ function statusVariant(status: Payment["status"]): "default" | "secondary" | "de
 }
 
 export function PaymentHistory({ payments, onRefetch }: PaymentHistoryProps) {
-  const total = payments.reduce((sum, p) => sum + p.amount, 0);
+  const total = payments.reduce((sum, p) => sum + (p.amount ?? 0), 0);
 
   return (
     <div className="space-y-4">
@@ -77,34 +77,10 @@ export function PaymentHistory({ payments, onRefetch }: PaymentHistoryProps) {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold">INR {payment.amount.toLocaleString("en-IN")}</p>
+                       <p className="font-bold">INR {(payment.amount ?? 0).toLocaleString("en-IN")}</p>
                       <div className="flex items-center gap-2 justify-end mt-1">
                         <Badge variant={statusVariant(payment.status)}>{payment.status}</Badge>
                         <Badge variant="outline">{payment.method}</Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Download receipt"
-                          onClick={() => {
-                            const receipt = [
-                              "PAYMENT RECEIPT",
-                              `Payment ID: ${payment.id}`,
-                              `Amount: INR ${payment.amount}`,
-                              `Method: ${payment.method}`,
-                              `Status: ${payment.status}`,
-                              `Transaction ID: ${payment.transactionId || "N/A"}`,
-                            ].join("\n");
-                            const blob = new Blob([receipt], { type: "text/plain" });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `payment-${payment.id}.txt`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                          }}
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
                       </div>
                     </div>
                   </div>

@@ -83,7 +83,7 @@ export default function TherapistDashboard() {
     switch (status) {
       case "IN_PROGRESS":
         return "bg-blue-100 text-blue-800";
-      case "CHECKED_IN":
+      case "CONFIRMED":
         return "bg-green-100 text-green-800";
       case "SCHEDULED":
         return "bg-gray-100 text-gray-800";
@@ -98,7 +98,7 @@ export default function TherapistDashboard() {
     switch (status) {
       case "IN_PROGRESS":
         return <Play className="w-4 h-4" />;
-      case "CHECKED_IN":
+      case "CONFIRMED":
         return <CheckCircle className="w-4 h-4" />;
       case "SCHEDULED":
         return <Clock className="w-4 h-4" />;

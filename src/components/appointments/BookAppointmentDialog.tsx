@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { AppointmentType, TreatmentType } from "@/types/appointment.types";
+import type {
+  AppointmentServiceDefinition,
+  AppointmentType,
+  TreatmentType,
+} from "@/types/appointment.types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -23,7 +27,11 @@ import { Calendar } from "@/components/ui/calendar";
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useDoctors } from "@/hooks/query/useDoctors";
-import { useCreateAppointment, useDoctorAvailability } from "@/hooks/query/useAppointments";
+import {
+  useAppointmentServices,
+  useCreateAppointment,
+  useDoctorAvailability,
+} from "@/hooks/query/useAppointments";
 import { useSubscriptions } from "@/hooks/query/useBilling";
 import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
 import { checkSubscriptionCoverage, createInPersonAppointmentWithSubscription } from "@/lib/actions/billing.server";
@@ -42,18 +50,9 @@ import {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface ConsultationTypeItem {
-  id: string;
-  name: string;
-  description: string;
-  duration: number;
-  price: number;
+interface ConsultationVisual {
   icon: React.ReactNode;
   color: string;
-  videoAvailable: boolean;
-  category: string;
-  backendType: AppointmentType;
-  treatmentType: TreatmentType;
 }
 
 interface BookAppointmentDialogProps {
@@ -67,18 +66,32 @@ interface BookAppointmentDialogProps {
 
 // ─── Consultation catalogue ──────────────────────────────────────────────────
 
-const CONSULTATION_TYPES: ConsultationTypeItem[] = [
-  { id: "general_consultation", name: "General Consultation", description: "Comprehensive health assessment and treatment planning", duration: 30, price: 500, icon: <Activity className="w-5 h-5" />, color: theme.badges.blue, videoAvailable: true, category: "Consultation", backendType: "IN_PERSON", treatmentType: "GENERAL_CONSULTATION" },
-  { id: "nadi_pariksha", name: "Nadi Pariksha", description: "Traditional pulse diagnosis to assess dosha imbalances", duration: 45, price: 800, icon: <Heart className="w-5 h-5" />, color: theme.badges.red, videoAvailable: false, category: "Diagnosis", backendType: "IN_PERSON", treatmentType: "NADI_PARIKSHA" },
-  { id: "dosha_analysis", name: "Dosha Analysis", description: "Comprehensive constitutional analysis and lifestyle recommendations", duration: 60, price: 1000, icon: <Brain className="w-5 h-5" />, color: theme.badges.purple, videoAvailable: true, category: "Diagnosis", backendType: "IN_PERSON", treatmentType: "DOSHA_ANALYSIS" },
-  { id: "panchakarma", name: "Panchakarma Therapy", description: "Traditional detoxification and rejuvenation treatment", duration: 90, price: 2000, icon: <Leaf className="w-5 h-5" />, color: theme.badges.emerald, videoAvailable: false, category: "Treatment", backendType: "IN_PERSON", treatmentType: "PANCHAKARMA" },
-  { id: "abhyanga", name: "Abhyanga Massage", description: "Full body Ayurvedic therapeutic oil massage", duration: 60, price: 1200, icon: <Waves className="w-5 h-5" />, color: theme.badges.blue, videoAvailable: false, category: "Treatment", backendType: "IN_PERSON", treatmentType: "ABHYANGA" },
-  { id: "shirodhara", name: "Shirodhara", description: "Continuous oil flow on forehead for stress and anxiety", duration: 45, price: 1500, icon: <Droplets className="w-5 h-5" />, color: theme.badges.blue, videoAvailable: false, category: "Treatment", backendType: "IN_PERSON", treatmentType: "SHIRODHARA" },
-  { id: "swedana", name: "Swedana (Steam)", description: "Herbal steam therapy for detoxification and relaxation", duration: 30, price: 800, icon: <Wind className="w-5 h-5" />, color: theme.badges.orange, videoAvailable: false, category: "Treatment", backendType: "IN_PERSON", treatmentType: "SWEDANA" },
-  { id: "agnikarma", name: "Agnikarma", description: "Therapeutic heat procedure for musculoskeletal pain relief", duration: 45, price: 1000, icon: <Flame className="w-5 h-5" />, color: theme.badges.red, videoAvailable: false, category: "Surgery", backendType: "IN_PERSON", treatmentType: "AGNIKARMA" },
-  { id: "lifestyle_counseling", name: "Lifestyle Counseling", description: "Personalized diet, exercise and daily routine recommendations", duration: 45, price: 600, icon: <Brain className="w-5 h-5" />, color: theme.badges.emerald, videoAvailable: true, category: "Counseling", backendType: "IN_PERSON", treatmentType: "GENERAL_CONSULTATION" },
-  { id: "follow_up", name: "Follow-up Consultation", description: "Progress review and treatment adjustments", duration: 20, price: 300, icon: <CheckCircle className="w-5 h-5" />, color: theme.badges.gray, videoAvailable: true, category: "Consultation", backendType: "IN_PERSON", treatmentType: "FOLLOW_UP" },
-];
+function getConsultationVisual(treatmentType: TreatmentType): ConsultationVisual {
+  const iconClass = "w-5 h-5";
+  const visuals: Record<TreatmentType, ConsultationVisual> = {
+    GENERAL_CONSULTATION: { icon: <Activity className={iconClass} />, color: theme.badges.blue },
+    FOLLOW_UP: { icon: <CheckCircle className={iconClass} />, color: theme.badges.gray },
+    THERAPY: { icon: <Leaf className={iconClass} />, color: theme.badges.emerald },
+    SURGERY: { icon: <Flame className={iconClass} />, color: theme.badges.red },
+    LAB_TEST: { icon: <Droplets className={iconClass} />, color: theme.badges.blue },
+    IMAGING: { icon: <Brain className={iconClass} />, color: theme.badges.purple },
+    VACCINATION: { icon: <CheckCircle className={iconClass} />, color: theme.badges.emerald },
+    VIDDHAKARMA: { icon: <Flame className={iconClass} />, color: theme.badges.red },
+    AGNIKARMA: { icon: <Flame className={iconClass} />, color: theme.badges.red },
+    PANCHAKARMA: { icon: <Leaf className={iconClass} />, color: theme.badges.emerald },
+    NADI_PARIKSHA: { icon: <Heart className={iconClass} />, color: theme.badges.red },
+    DOSHA_ANALYSIS: { icon: <Brain className={iconClass} />, color: theme.badges.purple },
+    SHIRODHARA: { icon: <Droplets className={iconClass} />, color: theme.badges.blue },
+    VIRECHANA: { icon: <Leaf className={iconClass} />, color: theme.badges.emerald },
+    ABHYANGA: { icon: <Waves className={iconClass} />, color: theme.badges.blue },
+    SWEDANA: { icon: <Wind className={iconClass} />, color: theme.badges.orange },
+    BASTI: { icon: <Droplets className={iconClass} />, color: theme.badges.blue },
+    NASYA: { icon: <Wind className={iconClass} />, color: theme.badges.orange },
+    RAKTAMOKSHANA: { icon: <Flame className={iconClass} />, color: theme.badges.red },
+  };
+
+  return visuals[treatmentType];
+}
 
 // ─── Slot grouping helper ────────────────────────────────────────────────────
 
@@ -140,6 +153,8 @@ export function BookAppointmentDialog({
   const pathname = usePathname();
   const { session } = useAuth();
   const userRole = (session?.user?.role || "").toUpperCase();
+  const postBookingRoute = userRole === "RECEPTIONIST" ? "/receptionist/appointments" : "/patient/appointments";
+  const postBookingLabel = userRole === "RECEPTIONIST" ? "View Reception Desk" : "View My Appointments";
   const { clinicId: contextClinicId } = useClinicContext();
   const activeClinicId = clinicId || contextClinicId || APP_CONFIG.CLINIC.ID;
 
@@ -162,6 +177,7 @@ export function BookAppointmentDialog({
 
   // ─── Queries ─────────────────────────────────────────────────────────────
   const { data: locations = [] } = useActiveLocations(activeClinicId);
+  const { data: appointmentServices = [], isPending: servicesLoading } = useAppointmentServices();
   const { data: doctorsData, isPending: doctorsLoading } = useDoctors(activeClinicId, {
     locationId: selectedLocationId,
   });
@@ -179,9 +195,20 @@ export function BookAppointmentDialog({
   const { data: subscriptionsData = [] } = useSubscriptions(session?.user?.id || "");
 
   // ─── Derived ─────────────────────────────────────────────────────────────
+  const modeAppointmentType: AppointmentType =
+    consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
+
+  const visibleServices = useMemo(() => {
+    return (appointmentServices as AppointmentServiceDefinition[]).filter(
+      (service) =>
+        service.active &&
+        service.appointmentModes.includes(modeAppointmentType)
+    );
+  }, [appointmentServices, modeAppointmentType]);
+
   const selectedService = useMemo(
-    () => CONSULTATION_TYPES.find((t) => t.id === selectedServiceId),
-    [selectedServiceId]
+    () => visibleServices.find((service) => service.treatmentType === selectedServiceId),
+    [selectedServiceId, visibleServices]
   );
 
   const doctorsList: any[] = useMemo(() => {
@@ -281,6 +308,15 @@ export function BookAppointmentDialog({
     }
   }, [locations, selectedLocationId]);
 
+  useEffect(() => {
+    if (
+      selectedServiceId &&
+      !visibleServices.some(service => service.treatmentType === selectedServiceId)
+    ) {
+      setSelectedServiceId("");
+    }
+  }, [selectedServiceId, visibleServices]);
+
   // ─── Book appointment ─────────────────────────────────────────────────────
   const handleBook = useCallback(async () => {
     if (!selectedService || !selectedDoctorId || !selectedDate || !selectedSlot) return;
@@ -331,10 +367,10 @@ export function BookAppointmentDialog({
           clinicId: activeClinicId,
           locationId: selectedLocationId,
           appointmentDate: appointmentDate.toISOString(),
-          duration: selectedService.duration,
+          duration: selectedService.defaultDurationMinutes,
           treatmentType: selectedService.treatmentType,
           priority: urgency.toUpperCase(),
-          notes: chiefComplaint || selectedService.name,
+          notes: chiefComplaint || selectedService.label,
         });
         if (!atomicResult.success) {
           throw new Error(atomicResult.error || "Failed to create subscription-based appointment");
@@ -352,8 +388,8 @@ export function BookAppointmentDialog({
           time: selectedSlot,
           type: finalAppointmentType,
           treatmentType: selectedService.treatmentType,
-          duration: selectedService.duration,
-          notes: chiefComplaint || selectedService.name,
+          duration: selectedService.defaultDurationMinutes,
+          notes: chiefComplaint || selectedService.label,
           priority: urgency.toUpperCase() as any,
           patientId: session?.user?.id ?? "",
         });
@@ -364,8 +400,15 @@ export function BookAppointmentDialog({
       }
 
       setBookedAppointmentId(apptId);
-      setStep(7); // step 7 = success/QR screen
       onBooked?.();
+
+      if (userRole === "PATIENT" && finalAppointmentType === "IN_PERSON") {
+        toast.success("Appointment booked. Continue to clinic check-in.");
+        router.push("/patient/check-in");
+        return;
+      }
+
+      setStep(7); // step 7 = success/QR screen
     } catch (err: any) {
       toast.error(err?.message || "Failed to book appointment. Please try again.");
     }
@@ -402,17 +445,17 @@ export function BookAppointmentDialog({
   const goBack = () => setStep((s) => Math.max(s - 1, 1));
 
   // ─── QR data ─────────────────────────────────────────────────────────────
-  const qrData = useMemo(() => {
-    return JSON.stringify({
-      appointmentId: bookedAppointmentId,
-      patient: session?.user?.name,
-      doctor: selectedDoctor?.name,
-      date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : "",
-      slot: selectedSlot,
-    });
-  }, [bookedAppointmentId, session, selectedDoctor, selectedDate, selectedSlot]);
+  // const qrData = useMemo(() => {
+    // return JSON.stringify({
+      // appointmentId: bookedAppointmentId,
+      // patient: session?.user?.name,
+      // doctor: selectedDoctor?.name,
+      // date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : "",
+      // slot: selectedSlot,
+    // });
+  // }, [bookedAppointmentId, session, selectedDoctor, selectedDate, selectedSlot]);
 
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
+  // const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
 
   // ─── Render helpers ───────────────────────────────────────────────────────
 
@@ -541,18 +584,22 @@ export function BookAppointmentDialog({
 
   // Step 2: Service (was Step 1)
   const renderStep2_Service = () => {
-    const categories = ["All", ...Array.from(new Set(CONSULTATION_TYPES.map((t) => t.category)))];
-    const modeFiltered = consultationMode === "VIDEO"
-      ? CONSULTATION_TYPES.filter((t) => t.videoAvailable)
-      : CONSULTATION_TYPES;
+    const categories = ["All", ...Array.from(new Set(visibleServices.map((t) => t.category)))];
     const filtered =
       serviceFilter === "All"
-        ? modeFiltered
-        : modeFiltered.filter((t) => t.category === serviceFilter);
+        ? visibleServices
+        : visibleServices.filter((t) => t.category === serviceFilter);
 
     return (
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">What type of consultation do you need?</p>
+        {servicesLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-16 rounded-xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        ) : null}
         <div className="flex gap-2 overflow-x-auto pb-1 scroll-smooth">
           {categories.map((cat) => (
             <button
@@ -569,26 +616,37 @@ export function BookAppointmentDialog({
           ))}
         </div>
         <div className="space-y-2">
+          {!servicesLoading && filtered.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground border border-dashed rounded-xl">
+              <Activity className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No services available for this mode</p>
+            </div>
+          ) : null}
           {filtered.map((t) => (
             <button
-              key={t.id}
+              key={t.treatmentType}
               onClick={() => {
-                setSelectedServiceId(t.id);
+                setSelectedServiceId(t.treatmentType);
                 setTimeout(goNext, 100);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
-                selectedServiceId === t.id
+                selectedServiceId === t.treatmentType
                   ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                   : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
               }`}
             >
+              {(() => {
+                const visual = getConsultationVisual(t.treatmentType);
+                return (
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                selectedServiceId === t.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                selectedServiceId === t.treatmentType ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}>
-                {t.icon}
+                    {visual.icon}
               </div>
+                );
+              })()}
               <div className="flex-1 min-w-0 pr-4">
-                <p className={`font-semibold text-sm ${selectedServiceId === t.id ? "text-primary" : ""}`}>{t.name}</p>
+                <p className={`font-semibold text-sm ${selectedServiceId === t.treatmentType ? "text-primary" : ""}`}>{t.label}</p>
                 <p className="text-xs text-muted-foreground truncate">{t.description}</p>
               </div>
             </button>
@@ -763,7 +821,7 @@ export function BookAppointmentDialog({
       {/* Summary card */}
       <div className="rounded-2xl border bg-muted/30 divide-y">
         {[
-          { label: "Service", value: selectedService?.name, sub: selectedService?.category },
+          { label: "Service", value: selectedService?.label, sub: selectedService?.category },
           { label: "Doctor", value: selectedDoctor?.name, sub: selectedDoctor?.specialization || "General Physician" },
           { label: "Date", value: selectedDate ? format(selectedDate, "EEEE, d MMMM yyyy") : "" },
           { label: "Time", value: selectedSlot },
@@ -833,40 +891,29 @@ export function BookAppointmentDialog({
           </p>
           <PaymentButton
             appointmentId={bookedAppointmentId}
-            amount={selectedService?.price || 500}
-            description={selectedService?.name || "Video Consultation"}
+            amount={selectedService?.videoConsultationFee || 500}
+            description={selectedService?.label || "Video Consultation"}
             className="w-full"
           >
-            Pay INR {(selectedService?.price || 500).toLocaleString("en-IN")}
+            Pay INR {(selectedService?.videoConsultationFee || 500).toLocaleString("en-IN")}
           </PaymentButton>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-3 p-4 rounded-2xl border bg-card w-full max-w-xs">
-          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <QrCode className="w-4 h-4" /> Clinic Check-in QR
+        <div className="flex flex-col items-center gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm text-center">
+          <div className="flex justify-center w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 items-center mb-1">
+            <QrCode className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
-          <img
-            src={qrUrl}
-            alt="Appointment QR Code"
-            className="w-40 h-40 rounded-xl"
-          />
-          <p className="text-[10px] text-muted-foreground text-center">
-            Show this QR code at the clinic reception for instant check-in
+          <h4 className="font-semibold text-sm">Fast Self Check-in Available</h4>
+          <p className="text-xs text-muted-foreground">
+            When you arrive at the clinic, simply scan the Reception QR code using your phone to instantly check-in to this appointment.
           </p>
-          <a
-            href={qrUrl}
-            download={`appointment-${bookedAppointmentId}.png`}
-            className="flex items-center gap-1.5 text-xs text-primary font-semibold hover:underline"
-          >
-            <Download className="w-3 h-3" /> Download QR Code
-          </a>
         </div>
       )}
 
       {/* Summary pill row */}
       <div className="flex flex-wrap gap-2 justify-center">
         {[
-          selectedService?.name,
+          selectedService?.label,
           selectedDoctor?.name,
           selectedDate ? format(selectedDate, "d MMM") : "",
           selectedSlot,
@@ -882,12 +929,12 @@ export function BookAppointmentDialog({
         onClick={() => {
           setOpen(false);
           // Ensure users land on appointment list after successful booking.
-          if (pathname !== "/patient/appointments") {
-            router.push("/patient/appointments");
+          if (pathname !== postBookingRoute) {
+            router.push(postBookingRoute);
           }
         }}
       >
-        View My Appointments
+        {postBookingLabel}
       </Button>
     </div>
   );

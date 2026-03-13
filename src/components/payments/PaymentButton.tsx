@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { load } from "@cashfreepayments/cashfree-js";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import {
   showSuccessToast,
   showErrorToast,
-  showInfoToast,
   TOAST_IDS,
 } from "@/hooks/utils/use-toast";
 import { clinicApiClient } from "@/lib/api/client";
@@ -17,17 +16,20 @@ import {
   isPaymentProviderEnabled,
   type PaymentProvider,
 } from "@/lib/payments/providers";
+import { getClinicId } from "@/lib/utils/token-manager";
 
 interface PaymentButtonProps {
   invoiceId?: string;
   appointmentId?: string;
   subscriptionId?: string;
+  prescriptionId?: string;
   amount: number;
   currency?: string;
   description?: string;
   clinicId?: string;
   /** Optional: force provider (cashfree only). */
   provider?: PaymentProvider;
+  autoStart?: boolean;
   onSuccess?: (paymentId: string) => void;
   onError?: (error: string) => void;
   className?: string;
@@ -38,17 +40,20 @@ export function PaymentButton({
   invoiceId,
   appointmentId,
   subscriptionId,
+  prescriptionId,
   amount,
   currency = "INR",
   description,
-  clinicId = APP_CONFIG.CLINIC.ID,
+  clinicId,
   provider,
+  autoStart = false,
   onSuccess,
   onError,
   className,
   children,
 }: PaymentButtonProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const hasAutoStartedRef = useRef(false);
   const effectiveProvider: PaymentProvider = DEFAULT_PAYMENT_PROVIDER;
   const cashfreeMode =
     process.env.NEXT_PUBLIC_CASHFREE_MODE === "production"
@@ -74,18 +79,14 @@ export function PaymentButton({
         providerQuery;
       body = { amount, appointmentType: "VIDEO_CALL" };
     } else if (invoiceId) {
-      paymentIntentUrl = API_ENDPOINTS.BILLING.PAYMENTS.CREATE;
-      body = {
-        invoiceId,
-        amount,
-        currency,
-        method: effectiveProvider
-          ? "CASHFREE"
-          : "CASHFREE",
-      };
+      paymentIntentUrl =
+        API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(invoiceId) + providerQuery;
+    } else if (prescriptionId) {
+      paymentIntentUrl =
+        API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.PROCESS_PAYMENT(prescriptionId) + providerQuery;
     } else {
       throw new Error(
-        "Either invoiceId, appointmentId, or subscriptionId is required"
+        "Either invoiceId, appointmentId, subscriptionId, or prescriptionId is required"
       );
     }
 
@@ -109,10 +110,11 @@ export function PaymentButton({
     params: {
       orderId: string;
       paymentId?: string;
+      clinicId: string;
     }
   ) => {
     const queryParams = new URLSearchParams({
-      clinicId,
+      clinicId: params.clinicId,
       paymentId: params.paymentId || params.orderId,
       orderId: params.orderId,
       provider: usedProvider,
@@ -143,9 +145,19 @@ export function PaymentButton({
     const redirectUrl =
       (paymentIntent?.redirectUrl as string) ||
       (metadata?.redirectUrl as string);
+    const resolvedClinicId =
+      clinicId ||
+      (paymentIntent?.clinicId as string) ||
+      (metadata?.clinicId as string) ||
+      (await getClinicId()) ||
+      APP_CONFIG.CLINIC.ID;
 
     if (!orderId) {
       throw new Error("Order ID not received from server");
+    }
+
+    if (!resolvedClinicId) {
+      throw new Error("Clinic context is required for payment verification");
     }
 
     if (redirectUrl && !paymentSessionId) {
@@ -170,7 +182,11 @@ export function PaymentButton({
       if (result?.redirectUrl) {
         window.location.href = result.redirectUrl;
       } else {
-        await verifyPayment("cashfree", { orderId, paymentId: orderId });
+        await verifyPayment("cashfree", {
+          orderId,
+          paymentId: orderId,
+          clinicId: resolvedClinicId,
+        });
         showSuccessToast("Payment successful!", {
           id: TOAST_IDS.PAYMENT.SUCCESS,
         });
@@ -178,7 +194,11 @@ export function PaymentButton({
       }
     } catch (error) {
       try {
-        await verifyPayment("cashfree", { orderId, paymentId: orderId });
+        await verifyPayment("cashfree", {
+          orderId,
+          paymentId: orderId,
+          clinicId: resolvedClinicId,
+        });
         showSuccessToast("Payment verified successfully!", {
           id: TOAST_IDS.PAYMENT.SUCCESS,
         });
@@ -216,6 +236,15 @@ export function PaymentButton({
       onError?.(message);
     }
   };
+
+  useEffect(() => {
+    if (!autoStart || hasAutoStartedRef.current || isProcessing) {
+      return;
+    }
+
+    hasAutoStartedRef.current = true;
+    void handlePayment();
+  }, [autoStart, isProcessing]);
 
   return (
     <Button

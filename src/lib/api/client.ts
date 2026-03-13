@@ -948,7 +948,7 @@ export class ClinicApiClient extends ApiClient {
     duration?: number | undefined;
     type?: string | undefined;
     notes?: string | undefined;
-    status?: 'SCHEDULED' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | undefined;
+    status?: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | undefined;
     symptoms?: string[] | undefined;
     diagnosis?: string | undefined;
     prescription?: string | undefined;
@@ -966,7 +966,7 @@ export class ClinicApiClient extends ApiClient {
    * Replaces checkIn, start, complete, cancel, etc.
    */
   async updateAppointmentStatus(id: string, data: {
-    status: 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'CONFIRMED' | 'NO_SHOW' | 'SCHEDULED' | 'PENDING';
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'CONFIRMED' | 'NO_SHOW' | 'SCHEDULED' | 'PENDING';
     reason?: string;
     notes?: string;
     // Check-in specific

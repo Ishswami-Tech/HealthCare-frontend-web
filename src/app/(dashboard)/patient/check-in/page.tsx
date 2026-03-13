@@ -132,7 +132,7 @@ export default function PatientCheckInPage() {
           </div>
 
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Checked In!</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Check-in Confirmed!</h1>
             <p className="text-muted-foreground text-sm font-medium">
               You&apos;re all set for your visit.
             </p>
@@ -276,7 +276,7 @@ export default function PatientCheckInPage() {
               <div className="w-full max-w-sm">
                 <QRScanner
                   onScanSuccess={handleScanSuccess}
-                  onScanFailure={(err) => console.log("Scan error:", err)}
+                  onScanFailure={() => void 0}
                   autoStart={true}
                 />
               </div>
@@ -327,17 +327,17 @@ export default function PatientCheckInPage() {
                 </div>
                 <DrawerTitle className="text-2xl font-bold">Manual Code</DrawerTitle>
                 <DrawerDescription className="text-muted-foreground font-medium">
-                  Enter the clinic code located near the QR poster to check in manually.
+                  Enter the code encoded in the clinic QR poster to check in manually.
                 </DrawerDescription>
               </DrawerHeader>
               <div className="p-4 pb-0">
                 <form id="manual-checkin-form" onSubmit={handleManualCheckIn} className="space-y-6">
                   <Input
-                    placeholder="e.g. CLI-5829"
+                    placeholder="Paste code from the clinic QR poster"
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-                    className="h-14 rounded-xl text-center text-lg font-bold tracking-widest bg-muted/50 uppercase"
-                    maxLength={10}
+                    className="h-14 rounded-xl bg-muted/50 px-3 text-center text-sm font-bold uppercase tracking-wide sm:text-lg sm:tracking-widest"
+                    maxLength={160}
                     autoComplete="off"
                   />
                 </form>

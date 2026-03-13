@@ -1,7 +1,6 @@
 "use client";
 
 
-import { Role } from "@/types/auth.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -49,27 +48,12 @@ export default function SuperAdminDashboard() {
           user.role === "DOCTOR" ||
           user.roles?.some((r: any) => r.name === "DOCTOR")
       ).length || 0,
-    systemHealth: "Excellent", // TODO: Add system health monitoring
-    avgSatisfaction: (revenueData as any)?.avgSatisfaction || 4.6, // TODO: Add satisfaction metrics
+    systemHealth: clinicsArray.length > 0 ? "LIVE" : "LIMITED",
+    avgSatisfaction:
+      typeof (revenueData as any)?.avgSatisfaction === "number"
+        ? (revenueData as any).avgSatisfaction
+        : null,
   };
-
-  const recentActivities = [
-    {
-      type: "clinic",
-      message: "New clinic registered: Ayurveda Center Mumbai",
-      time: "2 hours ago",
-    },
-    {
-      type: "user",
-      message: "5 new doctors onboarded this week",
-      time: "1 day ago",
-    },
-    {
-      type: "system",
-      message: "System maintenance completed successfully",
-      time: "2 days ago",
-    },
-  ];
 
 
   return (
@@ -77,7 +61,7 @@ export default function SuperAdminDashboard() {
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
-            <Badge variant="outline" className="bg-green-50 text-green-700">
+            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
               System Status: {stats.systemHealth}
             </Badge>
           </div>
@@ -93,9 +77,7 @@ export default function SuperAdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.totalClinics}</div>
-                <p className="text-xs text-muted-foreground">
-                  +2 from last month
-                </p>
+                <p className="text-xs text-muted-foreground">Live clinic count</p>
               </CardContent>
             </Card>
 
@@ -108,9 +90,7 @@ export default function SuperAdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                <p className="text-xs text-muted-foreground">
-                  +25 from last month
-                </p>
+                <p className="text-xs text-muted-foreground">Live user count</p>
               </CardContent>
             </Card>
 
@@ -125,9 +105,7 @@ export default function SuperAdminDashboard() {
                 <div className="text-2xl font-bold">
                   {stats.totalAppointments}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  +180 from last month
-                </p>
+                <p className="text-xs text-muted-foreground">Live appointment volume</p>
               </CardContent>
             </Card>
 
@@ -142,9 +120,7 @@ export default function SuperAdminDashboard() {
                 <div className="text-2xl font-bold">
                   ₹{stats.monthlyRevenue.toLocaleString()}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  +12% from last month
-                </p>
+                <p className="text-xs text-muted-foreground">Current analytics total</p>
               </CardContent>
             </Card>
           </div>
@@ -185,10 +161,12 @@ export default function SuperAdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-purple-600">
-                  {stats.avgSatisfaction}/5.0
+                  {stats.avgSatisfaction !== null ? `${stats.avgSatisfaction}/5.0` : "N/A"}
                 </div>
                 <p className="text-sm text-gray-600">
-                  Average patient satisfaction
+                  {stats.avgSatisfaction !== null
+                    ? "Average patient satisfaction"
+                    : "Satisfaction data is not yet wired system-wide"}
                 </p>
               </CardContent>
             </Card>
@@ -200,26 +178,8 @@ export default function SuperAdminDashboard() {
               <CardTitle>Recent System Activities</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentActivities.map((activity, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className="shrink-0">
-                      {activity.type === "clinic" && (
-                        <Building2 className="w-4 h-4 text-blue-600" />
-                      )}
-                      {activity.type === "user" && (
-                        <Users className="w-4 h-4 text-green-600" />
-                      )}
-                      {activity.type === "system" && (
-                        <Settings className="w-4 h-4 text-purple-600" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{activity.message}</p>
-                      <p className="text-xs text-gray-600">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                System activity feed is not yet connected to a backend audit stream on this dashboard.
               </div>
             </CardContent>
           </Card>

@@ -58,7 +58,6 @@ import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 
 // Appointment status constants - must match backend enum values
 const APPOINTMENT_STATUS = {
-  CHECKED_IN: 'CHECKED_IN',
   IN_PROGRESS: 'IN_PROGRESS',
   SCHEDULED: 'SCHEDULED',
   CONFIRMED: 'CONFIRMED',
@@ -260,8 +259,6 @@ export default function AppointmentsPage() {
         return "bg-red-100 text-red-800";
       case APPOINTMENT_STATUS.IN_PROGRESS:
         return "bg-purple-100 text-purple-800";
-      case APPOINTMENT_STATUS.CHECKED_IN:
-        return "bg-indigo-100 text-indigo-800";
       default:
         return "bg-gray-100 text-gray-800";
     }

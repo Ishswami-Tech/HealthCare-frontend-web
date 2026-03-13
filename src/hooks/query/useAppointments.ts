@@ -14,6 +14,7 @@ import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import {
   createAppointment,
   getAppointments,
+  getAppointmentServiceCatalog,
   getAppointmentById,
   updateAppointment,
   updateAppointmentStatus, // Consolidated status update
@@ -37,7 +38,8 @@ import type {
   CreateAppointmentData, 
   UpdateAppointmentData,
   AppointmentFilters,
-  Appointment
+  Appointment,
+  AppointmentServiceDefinition,
 } from '@/types/appointment.types';
 
 // ✅ Appointment Management Hooks
@@ -87,6 +89,27 @@ export const useAppointments = (clinicIdOrFilters?: string | AppointmentFilters)
         }
         return failureCount < 2; // Reduce retry attempts
       },
+    }
+  );
+};
+
+export const useAppointmentServices = () => {
+  return useQueryData(
+    ['appointment-services'],
+    async () => {
+      const result = await getAppointmentServiceCatalog();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch appointment services');
+      }
+      return (result.services || []).filter(
+        (service): service is AppointmentServiceDefinition => !!service?.active
+      );
+    },
+    {
+      staleTime: 30 * 60 * 1000,
+      gcTime: 60 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 2,
     }
   );
 };
@@ -393,7 +416,7 @@ export const useCheckInAppointment = () => {
         throw new Error('Insufficient permissions to check in appointment');
       }
       
-      const result = await updateAppointmentStatus(appointmentId, { status: 'CHECKED_IN' });
+      const result = await updateAppointmentStatus(appointmentId, { status: 'CONFIRMED' });
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -402,7 +425,7 @@ export const useCheckInAppointment = () => {
     {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Checking in patient...',
-      successMessage: 'Patient checked in successfully',
+      successMessage: 'Patient check-in confirmed successfully',
       invalidateQueries: [['appointments'], ['appointment']],
     }
   );
@@ -857,7 +880,7 @@ export const useBulkAppointmentOperations = () => {
   // Memoize bulk update function - uses server action for batch processing with failedIds
   const bulkUpdateFn = useCallback(async (data: { 
     appointmentIds: string[]; 
-    status: 'SCHEDULED' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' 
+    status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' 
   }) => {
     if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
       throw new Error('Insufficient permissions for bulk operations');
@@ -1003,7 +1026,7 @@ export const useProcessCheckIn = () => {
       }
       
       // patientId is not used in the new status update flow
-      const result = await updateAppointmentStatus(appointmentId, { status: 'CHECKED_IN' });
+      const result = await updateAppointmentStatus(appointmentId, { status: 'CONFIRMED' });
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -1011,8 +1034,8 @@ export const useProcessCheckIn = () => {
     },
     {
       toastId: TOAST_IDS.APPOINTMENT.CHECK_IN,
-      loadingMessage: 'Processing check-in...',
-      successMessage: 'Patient checked in successfully',
+      loadingMessage: 'Confirming patient arrival...',
+      successMessage: 'Patient confirmed and added to queue successfully',
       invalidateQueries: [['appointments'], ['appointment'], ['queue']],
     }
   );

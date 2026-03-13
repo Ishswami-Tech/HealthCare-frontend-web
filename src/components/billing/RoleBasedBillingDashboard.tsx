@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Plus, CreditCard, FileText, Wallet, BarChart3 } from "lucide-react";
+import { RefreshCw, Plus, CreditCard, FileText, Wallet, BarChart3, Info } from "lucide-react";
 import { InvoiceForm } from "./InvoiceForm";
 import { PaymentHistory } from "./PaymentHistory";
 import { PatientBillingAnalytics } from "./PatientBillingAnalytics";
@@ -66,6 +66,7 @@ export function RoleBasedBillingDashboard({
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
+  const [planToConfirm, setPlanToConfirm] = useState<BillingPlan | null>(null);
   const [isSubscriptionPaymentOpen, setIsSubscriptionPaymentOpen] = useState(false);
   const [newPlanName, setNewPlanName] = useState("");
   const [newPlanPrice, setNewPlanPrice] = useState("");
@@ -78,33 +79,51 @@ export function RoleBasedBillingDashboard({
     planName: string;
     amount: number;
   } | null>(null);
+  const [subscribeError, setSubscribeError] = useState<string>("");
   const releasePayoutMutation = useReleaseAppointmentPayout();
   const reconcilePaymentMutation = useReconcilePayment();
   const createSubscriptionMutation = useCreateSubscription();
   const createPlanMutation = useCreateBillingPlan();
 
-  const activeSubscription = subscriptions.find((s) => s.status === "ACTIVE");
+  const activeSubscription = subscriptions.find(
+    (s) => s.status === "ACTIVE" || s.status === "TRIALING"
+  );
 
-  const handleSubscribePlan = async (plan: BillingPlan) => {
-    if (!session?.user?.id) return;
-    const clinicId = plan.clinicId || session.user.clinicId || "";
-    if (!clinicId) return;
+  const handleSubscribePlan = async () => {
+    setSubscribeError("");
+    if (!session?.user?.id || !planToConfirm) return;
+    const clinicId = planToConfirm.clinicId || session.user.clinicId || "";
+    if (!clinicId) {
+      setSubscribeError("Clinic context is missing for subscription checkout.");
+      return;
+    }
 
-    const created = await createSubscriptionMutation.mutateAsync({
-      userId: session.user.id,
-      clinicId,
-      planId: plan.id,
-      autoRenew: true,
-    });
+    try {
+      const created = await createSubscriptionMutation.mutateAsync({
+        userId: session.user.id,
+        clinicId,
+        planId: planToConfirm.id,
+      });
 
-    if (!created?.id) return;
+      if (!created?.id) {
+        setSubscribeError("Subscription was created with an invalid response.");
+        return;
+      }
 
-    setPendingSubscriptionPayment({
-      subscriptionId: created.id,
-      planName: plan.name,
-      amount: plan.price,
-    });
-    setIsSubscriptionPaymentOpen(true);
+      setPendingSubscriptionPayment({
+        subscriptionId: created.id,
+        planName: planToConfirm.name,
+        amount: planToConfirm.price ?? 0,
+      });
+      setPlanToConfirm(null);
+      setIsSubscriptionPaymentOpen(true);
+    } catch (error) {
+      setSubscribeError(
+        error instanceof Error
+          ? error.message
+          : "Failed to create subscription."
+      );
+    }
   };
 
   const handleCreatePlan = async () => {
@@ -163,37 +182,52 @@ export function RoleBasedBillingDashboard({
     );
   }, [payments, searchTerm]);
 
-  const pendingInvoicesCount = invoices.filter((i) => i.status === "PENDING" || i.status === "OVERDUE").length;
+  const pendingInvoicesCount = invoices.filter(
+    (i) => i.status === "DRAFT" || i.status === "OPEN" || i.status === "OVERDUE"
+  ).length;
   const paidAmount = payments
     .filter((p) => p.status === "COMPLETED")
     .reduce((sum, p) => sum + p.amount, 0);
   const pendingAmount = invoices
-    .filter((i) => i.status === "PENDING" || i.status === "OVERDUE")
+    .filter((i) => i.status === "DRAFT" || i.status === "OPEN" || i.status === "OVERDUE")
     .reduce((sum, i) => sum + i.amount, 0);
 
+  const lastCompletedPayment = payments.find((p) => p.status === "COMPLETED");
   const patientAnalytics = {
     totalPayments: payments.length,
     totalPaid: paidAmount,
     totalPending: pendingAmount,
     activeSubscriptions: subscriptions.filter((s) => s.status === "ACTIVE").length,
     currentBalance: pendingAmount - paidAmount,
-    lastPayment: payments.find((p) => p.status === "COMPLETED"),
-  };
+    ...(lastCompletedPayment ? { lastPayment: lastCompletedPayment } : {}),
+  } as const;
 
   const showLedgerTab = isAdmin;
-  const tabCount = showLedgerTab ? 6 : 5;
-  const availableTabs = useMemo(
-    () => new Set(showLedgerTab ? ["overview", "plans", "subscriptions", "invoices", "payments", "ledger"] : ["overview", "plans", "subscriptions", "invoices", "payments"]),
-    [showLedgerTab]
-  );
+  const showOverviewTab = !isPatient;
+  const tabCount = isPatient ? 4 : (showLedgerTab ? 6 : 5);
+  
+  const availableTabs = useMemo(() => {
+    if (isPatient) return new Set(["plans", "subscriptions", "invoices", "payments"]);
+    return new Set(showLedgerTab 
+      ? ["overview", "plans", "subscriptions", "invoices", "payments", "ledger"] 
+      : ["overview", "plans", "subscriptions", "invoices", "payments"]);
+  }, [isPatient, showLedgerTab]);
 
   useEffect(() => {
-    if (!initialTab) return;
-    const normalized = initialTab.toLowerCase();
-    if (availableTabs.has(normalized)) {
-      setActiveTab(normalized);
+    if (initialTab) {
+      const normalized = initialTab.toLowerCase();
+      if (availableTabs.has(normalized)) {
+        setActiveTab(normalized);
+        return;
+      }
     }
-  }, [initialTab, availableTabs]);
+    // Default tabs if none specified or invalid
+    if (isPatient) {
+      setActiveTab(activeSubscription ? "invoices" : "plans");
+    } else {
+      setActiveTab("overview");
+    }
+  }, [initialTab, availableTabs, isPatient, activeSubscription]);
 
   return (
     <div className="space-y-6">
@@ -202,11 +236,21 @@ export function RoleBasedBillingDashboard({
           <h1 className="text-2xl font-bold">
             {isPatient ? "My Billing" : "Billing Dashboard"}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {isPatient
-              ? "Choose a subscription plan to book in-person appointments."
-              : `Role-wise billing access is active for ${userRole.replaceAll("_", " ")}.`}
-          </p>
+          <div className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+            {!isPatient ? (
+              `Role-wise billing access is active for ${userRole.replaceAll("_", " ")}.`
+            ) : !activeSubscription ? (
+              <>
+                <Info className="w-4 h-4 text-blue-500" />
+                <span>
+                  Choose a subscription plan below and complete payment to book in-person appointments. 
+                  {isLoading && <span className="ml-1 italic text-muted-foreground">(Refreshing...)</span>}
+                </span>
+              </>
+            ) : (
+              "Manage your billing, subscriptions, and payment history."
+            )}
+          </div>
         </div>
         {!isPatient ? (
           <div className="flex items-center gap-2">
@@ -242,50 +286,39 @@ export function RoleBasedBillingDashboard({
       </div>
 
       {isPatient && <PatientBillingAnalytics {...patientAnalytics} />}
-      {isPatient && (
-        <Card>
-          <CardContent className="pt-6 space-y-2">
-            {isLoading && (
-              <p className="text-xs text-muted-foreground">Refreshing billing data...</p>
-            )}
-            <p className="text-sm font-medium">How this works</p>
-            <p className="text-sm text-muted-foreground">1. Open the Plans tab and choose a plan.</p>
-            <p className="text-sm text-muted-foreground">2. Click Subscribe & Pay to complete payment.</p>
-            <p className="text-sm text-muted-foreground">3. After payment success, in-person booking is enabled.</p>
-          </CardContent>
-        </Card>
+
+      {!isPatient && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground">Invoices</div>
+              <div className="text-2xl font-bold">{invoices.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground">Pending Invoices</div>
+              <div className="text-2xl font-bold">{pendingInvoicesCount}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground">Payments</div>
+              <div className="text-2xl font-bold">{payments.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground">Subscriptions</div>
+              <div className="text-2xl font-bold">{subscriptions.length}</div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground">Invoices</div>
-            <div className="text-2xl font-bold">{invoices.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground">Pending Invoices</div>
-            <div className="text-2xl font-bold">{pendingInvoicesCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground">Payments</div>
-            <div className="text-2xl font-bold">{payments.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground">Subscriptions</div>
-            <div className="text-2xl font-bold">{subscriptions.length}</div>
-          </CardContent>
-        </Card>
-      </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={`grid w-full ${tabCount === 6 ? "grid-cols-6" : "grid-cols-5"}`}>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsList className="flex flex-wrap h-auto justify-start sm:grid w-full sm:grid-flow-col auto-cols-auto gap-1 sm:gap-2 bg-muted p-1 rounded-md">
+          {!isPatient && <TabsTrigger value="overview">Overview</TabsTrigger>}
           <TabsTrigger value="plans">Plans</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
@@ -293,21 +326,23 @@ export function RoleBasedBillingDashboard({
           {showLedgerTab && <TabsTrigger value="ledger">Ledger</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Overview
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <p className="text-sm">Total Paid: INR {paidAmount.toLocaleString("en-IN")}</p>
-              <p className="text-sm">Total Pending: INR {pendingAmount.toLocaleString("en-IN")}</p>
-              <p className="text-sm">Active Subscriptions: {patientAnalytics.activeSubscriptions}</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {!isPatient && (
+          <TabsContent value="overview" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Overview
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-sm">Total Paid: INR {(paidAmount ?? 0).toLocaleString("en-IN")}</p>
+                <p className="text-sm">Total Pending: INR {(pendingAmount ?? 0).toLocaleString("en-IN")}</p>
+                <p className="text-sm">Active Subscriptions: {patientAnalytics.activeSubscriptions}</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         <TabsContent value="plans" className="space-y-4">
           {plans.length === 0 ? (
@@ -324,14 +359,20 @@ export function RoleBasedBillingDashboard({
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-4">
+              {subscribeError ? (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {subscribeError}
+                </div>
+              ) : null}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {plans.map((plan) => (
                 <Card key={plan.id}>
                   <CardHeader>
                     <CardTitle>{plan.name}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-xl font-bold">INR {plan.price.toLocaleString("en-IN")}</p>
+                    <p className="text-xl font-bold">INR {(plan.price ?? 0).toLocaleString("en-IN")}</p>
                     <p className="text-sm text-muted-foreground">{plan.billingCycle}</p>
                     {plan.isUnlimitedAppointments ? (
                       <Badge className="mt-2">Unlimited Appointments</Badge>
@@ -345,12 +386,9 @@ export function RoleBasedBillingDashboard({
                         ) : (
                           <Button
                             className="w-full"
-                            onClick={() => {
-                              void handleSubscribePlan(plan);
-                            }}
-                            disabled={createSubscriptionMutation.isPending}
+                            onClick={() => setPlanToConfirm(plan)}
                           >
-                            {createSubscriptionMutation.isPending ? "Creating..." : "Subscribe & Pay"}
+                            Subscribe & Pay
                           </Button>
                         )}
                       </div>
@@ -358,6 +396,7 @@ export function RoleBasedBillingDashboard({
                   </CardContent>
                 </Card>
               ))}
+              </div>
             </div>
           )}
         </TabsContent>
@@ -368,7 +407,7 @@ export function RoleBasedBillingDashboard({
           ) : (
             subscriptions.map((sub) => (
               <Card key={sub.id}>
-                <CardContent className="py-4 flex items-center justify-between">
+                <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold">{sub.plan?.name || "Subscription"}</p>
                     <p className="text-sm text-muted-foreground">
@@ -388,7 +427,7 @@ export function RoleBasedBillingDashboard({
           ) : (
             filteredInvoices.map((invoice) => (
               <Card key={invoice.id}>
-                <CardContent className="py-4 flex items-center justify-between">
+                <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <FileText className="w-4 h-4" />
                     <div>
@@ -398,9 +437,9 @@ export function RoleBasedBillingDashboard({
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold">INR {invoice.amount.toLocaleString("en-IN")}</p>
-                    <Badge>{invoice.status}</Badge>
+                  <div className="flex flex-col sm:items-end gap-1 mt-3 sm:mt-0">
+                    <p className="font-bold">INR {(invoice.amount ?? 0).toLocaleString("en-IN")}</p>
+                    <Badge className="w-fit">{invoice.status}</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -426,21 +465,21 @@ export function RoleBasedBillingDashboard({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="rounded-md border p-3">
                         <p className="text-xs text-muted-foreground">Collections</p>
-                        <p className="text-lg font-semibold">INR {ledger.summary.totalCollections.toLocaleString("en-IN")}</p>
+                        <p className="text-lg font-semibold">INR {(ledger.summary.totalCollections ?? 0).toLocaleString("en-IN")}</p>
                       </div>
                       <div className="rounded-md border p-3">
                         <p className="text-xs text-muted-foreground">Pending Payouts</p>
-                        <p className="text-lg font-semibold">INR {ledger.summary.pendingPayouts.toLocaleString("en-IN")}</p>
+                        <p className="text-lg font-semibold">INR {(ledger.summary.pendingPayouts ?? 0).toLocaleString("en-IN")}</p>
                       </div>
                       <div className="rounded-md border p-3">
                         <p className="text-xs text-muted-foreground">Platform Revenue</p>
-                        <p className="text-lg font-semibold">INR {ledger.summary.totalPlatformRevenue.toLocaleString("en-IN")}</p>
+                        <p className="text-lg font-semibold">INR {(ledger.summary.totalPlatformRevenue ?? 0).toLocaleString("en-IN")}</p>
                       </div>
                     </div>
                     <div className="rounded-md border p-3">
                       <p className="text-sm font-medium mb-2">Revenue Model Split</p>
                       <p className="text-sm text-muted-foreground">
-                        Appointment: INR {ledger.summary.byRevenueModel.APPOINTMENT.toLocaleString("en-IN")} | Subscription: INR {ledger.summary.byRevenueModel.SUBSCRIPTION.toLocaleString("en-IN")} | Other: INR {ledger.summary.byRevenueModel.OTHER.toLocaleString("en-IN")}
+                        Appointment: INR {(ledger.summary.byRevenueModel?.APPOINTMENT ?? 0).toLocaleString("en-IN")} | Subscription: INR {(ledger.summary.byRevenueModel?.SUBSCRIPTION ?? 0).toLocaleString("en-IN")} | Other: INR {(ledger.summary.byRevenueModel?.OTHER ?? 0).toLocaleString("en-IN")}
                       </p>
                     </div>
                     <div className="rounded-md border p-3">
@@ -458,7 +497,7 @@ export function RoleBasedBillingDashboard({
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className="font-semibold">INR {entry.amount.toLocaleString("en-IN")}</p>
+                                <p className="font-semibold">INR {(entry.amount ?? 0).toLocaleString("en-IN")}</p>
                                 <p className="text-muted-foreground">{entry.payoutState}</p>
                                 {entry.appointmentId && entry.payoutState === "PAYOUT_READY" && (
                                   <Button
@@ -510,8 +549,8 @@ export function RoleBasedBillingDashboard({
             <CardTitle>Financial Analytics</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div><p className="text-sm text-muted-foreground">Total Revenue</p><p className="font-bold">INR {analytics.totalRevenue.toLocaleString("en-IN")}</p></div>
-            <div><p className="text-sm text-muted-foreground">Monthly Revenue</p><p className="font-bold">INR {analytics.monthlyRevenue.toLocaleString("en-IN")}</p></div>
+            <div><p className="text-sm text-muted-foreground">Total Revenue</p><p className="font-bold">INR {(analytics.totalRevenue ?? 0).toLocaleString("en-IN")}</p></div>
+            <div><p className="text-sm text-muted-foreground">Monthly Revenue</p><p className="font-bold">INR {(analytics.monthlyRevenue ?? 0).toLocaleString("en-IN")}</p></div>
             <div><p className="text-sm text-muted-foreground">Active Subscriptions</p><p className="font-bold">{analytics.activeSubscriptions}</p></div>
             <div><p className="text-sm text-muted-foreground">Pending Invoices</p><p className="font-bold">{analytics.pendingInvoices}</p></div>
           </CardContent>
@@ -548,7 +587,7 @@ export function RoleBasedBillingDashboard({
           </DialogHeader>
           <div className="space-y-3">
             {createPlanError && (
-              <p className="text-sm text-red-600">{createPlanError}</p>
+              <p className="text-sm text-destructive">{createPlanError}</p>
             )}
             <Input
               placeholder="Plan name (e.g. Monthly In-Person)"
@@ -610,6 +649,40 @@ export function RoleBasedBillingDashboard({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!planToConfirm} onOpenChange={(open) => !open && setPlanToConfirm(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Subscription</DialogTitle>
+          </DialogHeader>
+          {planToConfirm && (
+            <div className="space-y-4 py-4">
+              <div className="bg-muted p-4 rounded-lg space-y-2">
+                <div className="flex justify-between items-center wrap-break-word">
+                  <span className="font-semibold text-lg">{planToConfirm.name}</span>
+                  <span className="font-bold text-lg whitespace-nowrap ml-2">INR {(planToConfirm.price ?? 0).toLocaleString("en-IN")}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">{planToConfirm.description}</p>
+              </div>
+              {subscribeError && (
+                <div className="text-sm mt-2 p-2 bg-destructive/15 text-destructive border border-destructive/30 rounded-md">{subscribeError}</div>
+              )}
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={() => setPlanToConfirm(null)}>
+                  Cancel
+                </Button>
+                <Button 
+                  className="w-full sm:w-auto"
+                  onClick={() => void handleSubscribePlan()} 
+                  disabled={createSubscriptionMutation.isPending}
+                >
+                  {createSubscriptionMutation.isPending ? "Hold on..." : "Confirm & Pay"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isSubscriptionPaymentOpen} onOpenChange={setIsSubscriptionPaymentOpen}>
         <DialogContent>
           <DialogHeader>
@@ -624,6 +697,7 @@ export function RoleBasedBillingDashboard({
                 subscriptionId={pendingSubscriptionPayment.subscriptionId}
                 amount={pendingSubscriptionPayment.amount}
                 description={pendingSubscriptionPayment.planName}
+                autoStart
                 className="w-full"
                 onSuccess={() => {
                   setIsSubscriptionPaymentOpen(false);
@@ -631,7 +705,7 @@ export function RoleBasedBillingDashboard({
                   onRefetch && onRefetch();
                 }}
               >
-                Pay INR {pendingSubscriptionPayment.amount.toLocaleString("en-IN")}
+                Pay INR {(pendingSubscriptionPayment.amount ?? 0).toLocaleString("en-IN")}
               </PaymentButton>
             </div>
           )}

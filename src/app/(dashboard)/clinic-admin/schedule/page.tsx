@@ -168,6 +168,37 @@ export default function ClinicAdminSchedule() {
     title: "",
     type: "Public Holiday",
   });
+  const scheduleConflicts = useMemo(() => {
+    return localSchedules.flatMap((doctor: any) =>
+      (doctor.schedules || []).flatMap((schedule: any) => {
+        if (!schedule.available) return [];
+
+        if (!schedule.startTime || !schedule.endTime) {
+          return [
+            {
+              id: `${doctor.id}-${schedule.day}-missing-hours`,
+              severity: "high" as const,
+              title: "Missing Schedule Hours",
+              message: `${doctor.doctorName} is marked available on ${schedule.day} but start or end time is missing.`,
+            },
+          ];
+        }
+
+        if (schedule.startTime >= schedule.endTime) {
+          return [
+            {
+              id: `${doctor.id}-${schedule.day}-invalid-range`,
+              severity: "high" as const,
+              title: "Invalid Time Range",
+              message: `${doctor.doctorName} has an invalid time range on ${schedule.day}. End time must be after start time.`,
+            },
+          ];
+        }
+
+        return [];
+      })
+    );
+  }, [localSchedules]);
 
   const updateSchedule = (dayIndex: number, field: string, value: any) => {
     if (!selectedDoctor) return;
@@ -648,62 +679,65 @@ export default function ClinicAdminSchedule() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {/* Mock conflicts */}
-                      <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                        <div className="flex-1">
-                          <h3 className="font-medium text-yellow-800">
-                            Overlapping Appointments
+                      {scheduleConflicts.length > 0 ? (
+                        scheduleConflicts.map((conflict: {
+                          id: string;
+                          severity: "high";
+                          title: string;
+                          message: string;
+                        }) => {
+                          const isHighSeverity = conflict.severity === "high";
+                          return (
+                            <div
+                              key={conflict.id}
+                              className={`flex items-start gap-3 p-4 rounded-lg border ${
+                                isHighSeverity
+                                  ? "bg-red-50 border-red-200"
+                                  : "bg-yellow-50 border-yellow-200"
+                              }`}
+                            >
+                              <AlertCircle
+                                className={`w-5 h-5 mt-0.5 ${
+                                  isHighSeverity ? "text-red-600" : "text-yellow-600"
+                                }`}
+                              />
+                              <div className="flex-1">
+                                <h3
+                                  className={`font-medium ${
+                                    isHighSeverity ? "text-red-800" : "text-yellow-800"
+                                  }`}
+                                >
+                                  {conflict.title}
+                                </h3>
+                                <p
+                                  className={`text-sm ${
+                                    isHighSeverity ? "text-red-700" : "text-yellow-700"
+                                  }`}
+                                >
+                                  {conflict.message}
+                                </p>
+                                <p
+                                  className={`text-xs mt-1 ${
+                                    isHighSeverity ? "text-red-600" : "text-yellow-600"
+                                  }`}
+                                >
+                                  Update the doctor schedule and save to resolve.
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-8">
+                          <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold text-green-800">
+                            All Clear!
                           </h3>
-                          <p className="text-sm text-yellow-700">
-                            Dr. Rajesh Kumar has overlapping appointments on
-                            Monday at 2:00 PM
-                          </p>
-                          <p className="text-xs text-yellow-600 mt-1">
-                            Detected 2 hours ago
+                          <p className="text-green-700">
+                            No schedule configuration conflicts detected.
                           </p>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-yellow-700 border-yellow-300"
-                        >
-                          Resolve
-                        </Button>
-                      </div>
-
-                      <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
-                        <div className="flex-1">
-                          <h3 className="font-medium text-red-800">
-                            Doctor Unavailable
-                          </h3>
-                          <p className="text-sm text-red-700">
-                            Dr. Priya Sharma scheduled during declared holiday
-                            (Holi)
-                          </p>
-                          <p className="text-xs text-red-600 mt-1">
-                            Detected 1 day ago
-                          </p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-700 border-red-300"
-                        >
-                          Resolve
-                        </Button>
-                      </div>
-
-                      <div className="text-center py-8">
-                        <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-green-800">
-                          All Clear!
-                        </h3>
-                        <p className="text-green-700">
-                          No additional conflicts detected
-                        </p>
-                      </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

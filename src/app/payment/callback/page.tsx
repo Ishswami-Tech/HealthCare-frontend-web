@@ -27,7 +27,7 @@ export default function PaymentCallbackPage() {
       orderId;
     const rawProvider = (searchParams.get("provider") || "cashfree").toLowerCase();
     const provider = ALLOWED_PROVIDERS.has(rawProvider) ? rawProvider : "cashfree";
-    const clinicId = searchParams.get("clinicId") || APP_CONFIG.CLINIC.ID || "";
+    const clinicId = searchParams.get("clinicId") || "";
     return { orderId, paymentId, provider, clinicId };
   }, [searchParams]);
 

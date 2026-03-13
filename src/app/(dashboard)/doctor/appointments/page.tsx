@@ -46,7 +46,6 @@ import type { AppointmentStatus } from "@/types/appointment.types";
 // Appointment status constants - must match backend enum values
 const APPOINTMENT_STATUS = {
   ALL: 'ALL',
-  CHECKED_IN: 'CHECKED_IN',
   IN_PROGRESS: 'IN_PROGRESS',
   SCHEDULED: 'SCHEDULED',
   CONFIRMED: 'CONFIRMED',
@@ -159,8 +158,8 @@ export default function DoctorAppointments() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case APPOINTMENT_STATUS.IN_PROGRESS: return 'bg-blue-100 text-blue-800';
-      case APPOINTMENT_STATUS.CHECKED_IN: return 'bg-green-100 text-green-800';
-      case APPOINTMENT_STATUS.SCHEDULED: case APPOINTMENT_STATUS.CONFIRMED: return 'bg-gray-100 text-gray-800';
+      case APPOINTMENT_STATUS.CONFIRMED: return 'bg-green-100 text-green-800';
+      case APPOINTMENT_STATUS.SCHEDULED: return 'bg-gray-100 text-gray-800';
       case APPOINTMENT_STATUS.COMPLETED: return 'bg-purple-100 text-purple-800';
       case APPOINTMENT_STATUS.CANCELLED: case APPOINTMENT_STATUS.NO_SHOW: return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -169,7 +168,6 @@ export default function DoctorAppointments() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      [APPOINTMENT_STATUS.CHECKED_IN]: 'Checked In',
       [APPOINTMENT_STATUS.IN_PROGRESS]: 'In Progress',
       [APPOINTMENT_STATUS.SCHEDULED]: 'Scheduled',
       [APPOINTMENT_STATUS.CONFIRMED]: 'Confirmed',
@@ -243,12 +241,12 @@ export default function DoctorAppointments() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Checked In</CardTitle>
+                <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
                 <CheckCircle className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {appointments.filter(a => a.status === APPOINTMENT_STATUS.CHECKED_IN).length}
+                  {appointments.filter(a => a.status === APPOINTMENT_STATUS.CONFIRMED).length}
                 </div>
               </CardContent>
             </Card>
@@ -312,7 +310,7 @@ export default function DoctorAppointments() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All Status</SelectItem>
-                    <SelectItem value="CHECKED_IN">Checked In</SelectItem>
+                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                     <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                     <SelectItem value="SCHEDULED">Scheduled</SelectItem>
                     <SelectItem value="COMPLETED">Completed</SelectItem>
@@ -374,7 +372,7 @@ export default function DoctorAppointments() {
                           <Eye className="w-4 h-4" />
                         </Button>
                         
-                        {appointment.status === APPOINTMENT_STATUS.CHECKED_IN && (
+                        {appointment.status === APPOINTMENT_STATUS.CONFIRMED && (
                           <Button 
                             size="sm" 
                             onClick={() => startConsultation(appointment.id)}

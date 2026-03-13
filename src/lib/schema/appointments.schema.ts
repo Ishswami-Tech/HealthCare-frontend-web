@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const scanQRSchema = z.object({
   code: z.string().min(1, 'QR code is required'),
   locationId: z.string().uuid().optional(),
+  appointmentId: z.string().uuid().optional(),
 });
 
 export const createAppointmentSchema = z.object({
@@ -25,7 +26,7 @@ export const updateAppointmentSchema = z.object({
   duration: z.number().min(15).max(480).optional(),
   type: z.string().min(1).max(100).optional(),
   notes: z.string().max(1000).optional(),
-  status: z.enum(['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
+  status: z.enum(['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
   symptoms: z.array(z.string()).optional(),
   diagnosis: z.string().max(1000).optional(),
   prescription: z.string().max(1000).optional(),
@@ -63,7 +64,7 @@ export const rejectVideoProposalSchema = z.object({
 });
 
 export const updateAppointmentStatusSchema = z.object({
-  status: z.enum(['PENDING', 'SCHEDULED', 'CONFIRMED', 'CANCELLED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'RESCHEDULED', 'AWAITING_SLOT_CONFIRMATION']),
+  status: z.enum(['PENDING', 'SCHEDULED', 'CONFIRMED', 'CANCELLED', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'RESCHEDULED', 'AWAITING_SLOT_CONFIRMATION']),
   reason: z.string().optional(),
   notes: z.string().optional(),
   // Check-in

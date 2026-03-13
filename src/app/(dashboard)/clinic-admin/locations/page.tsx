@@ -50,6 +50,75 @@ import {
 } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
+const DAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+
+type DayKey = (typeof DAYS)[number];
+type WorkingHours = Record<DayKey, { start: string; end: string } | null>;
+type LocationFormState = {
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  zipCode: string;
+  phone: string;
+  email: string;
+  timezone: string;
+  isActive: boolean;
+  workingHours: WorkingHours;
+};
+
+const DEFAULT_WORKING_HOURS: WorkingHours = {
+  monday: { start: "09:00", end: "18:00" },
+  tuesday: { start: "09:00", end: "18:00" },
+  wednesday: { start: "09:00", end: "18:00" },
+  thursday: { start: "09:00", end: "18:00" },
+  friday: { start: "09:00", end: "18:00" },
+  saturday: { start: "09:00", end: "15:00" },
+  sunday: null,
+};
+
+function normalizeWorkingHours(value: unknown): WorkingHours {
+  const source =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Partial<WorkingHours>)
+      : {};
+
+  return DAYS.reduce((acc, day) => {
+    const current = source[day];
+    if (
+      current &&
+      typeof current === "object" &&
+      typeof current.start === "string" &&
+      typeof current.end === "string"
+    ) {
+      acc[day] = { start: current.start, end: current.end };
+    } else if (current === null) {
+      acc[day] = null;
+    } else {
+      acc[day] = DEFAULT_WORKING_HOURS[day];
+    }
+    return acc;
+  }, {} as WorkingHours);
+}
+
+function summarizeWorkingHours(value: unknown) {
+  const hours = normalizeWorkingHours(value);
+  return DAYS.map((day) => {
+    const slot = hours[day];
+    const label = day.charAt(0).toUpperCase() + day.slice(1, 3);
+    return slot ? `${label} ${slot.start}-${slot.end}` : `${label} Closed`;
+  }).join(" • ");
+}
+
 export default function ClinicLocationsPage() {
   useAuth();
   const { clinicId } = useClinicContext();
@@ -93,7 +162,7 @@ export default function ClinicLocationsPage() {
     );
   }, [locations, searchTerm]);
 
-  const [newLocation, setNewLocation] = useState({
+  const [newLocation, setNewLocation] = useState<LocationFormState>({
     name: "",
     address: "",
     city: "",
@@ -114,6 +183,65 @@ export default function ClinicLocationsPage() {
       sunday: null,
     },
   });
+
+  const updateWorkingHours = (
+    target: "new" | "edit",
+    day: DayKey,
+    field: "start" | "end",
+    value: string
+  ) => {
+    if (target === "new") {
+      const current = normalizeWorkingHours(newLocation.workingHours);
+      setNewLocation({
+        ...newLocation,
+        workingHours: {
+          ...current,
+          [day]: {
+            start: field === "start" ? value : current[day]?.start || "09:00",
+            end: field === "end" ? value : current[day]?.end || "18:00",
+          },
+        },
+      });
+      return;
+    }
+
+    if (!selectedLocation) return;
+    const current = normalizeWorkingHours(selectedLocation.workingHours);
+    setSelectedLocation({
+      ...selectedLocation,
+      workingHours: {
+        ...current,
+        [day]: {
+          start: field === "start" ? value : current[day]?.start || "09:00",
+          end: field === "end" ? value : current[day]?.end || "18:00",
+        },
+      },
+    });
+  };
+
+  const toggleWorkingDay = (target: "new" | "edit", day: DayKey, enabled: boolean) => {
+    if (target === "new") {
+      const current = normalizeWorkingHours(newLocation.workingHours);
+      setNewLocation({
+        ...newLocation,
+        workingHours: {
+          ...current,
+          [day]: enabled ? current[day] || { start: "09:00", end: "18:00" } : null,
+        },
+      });
+      return;
+    }
+
+    if (!selectedLocation) return;
+    const current = normalizeWorkingHours(selectedLocation.workingHours);
+    setSelectedLocation({
+      ...selectedLocation,
+      workingHours: {
+        ...current,
+        [day]: enabled ? current[day] || { start: "09:00", end: "18:00" } : null,
+      },
+    });
+  };
 
   const handleCreateLocation = async () => {
     if (!clinicId) {
@@ -400,6 +528,40 @@ export default function ClinicLocationsPage() {
                         }
                       />
                     </div>
+                    <div className="space-y-3">
+                      <Label>Working Hours</Label>
+                      <div className="grid gap-3">
+                        {DAYS.map((day) => {
+                          const slot = normalizeWorkingHours(newLocation.workingHours)[day];
+                          return (
+                            <div key={day} className="grid grid-cols-1 md:grid-cols-[120px_80px_1fr_1fr] gap-3 items-center">
+                              <div className="font-medium capitalize">{day}</div>
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={!!slot}
+                                  onCheckedChange={(checked) => toggleWorkingDay("new", day, checked)}
+                                />
+                                <span className="text-xs text-gray-500">
+                                  {slot ? "Open" : "Closed"}
+                                </span>
+                              </div>
+                              <Input
+                                type="time"
+                                value={slot?.start || ""}
+                                disabled={!slot}
+                                onChange={(e) => updateWorkingHours("new", day, "start", e.target.value)}
+                              />
+                              <Input
+                                type="time"
+                                value={slot?.end || ""}
+                                disabled={!slot}
+                                onChange={(e) => updateWorkingHours("new", day, "end", e.target.value)}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button
@@ -498,6 +660,15 @@ export default function ClinicLocationsPage() {
                       <MapPin className="w-4 h-4 text-gray-400" />
                       <span className="text-sm">{location.country}</span>
                     </div>
+                  </div>
+                  <div className="mt-4 rounded-lg border bg-gray-50 px-4 py-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <Clock className="w-4 h-4" />
+                      Working Hours
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600">
+                      {summarizeWorkingHours(location.workingHours)}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -663,6 +834,40 @@ export default function ClinicLocationsPage() {
                         })
                       }
                     />
+                  </div>
+                  <div className="space-y-3">
+                    <Label>Working Hours</Label>
+                    <div className="grid gap-3">
+                      {DAYS.map((day) => {
+                        const slot = normalizeWorkingHours(selectedLocation.workingHours)[day];
+                        return (
+                          <div key={day} className="grid grid-cols-1 md:grid-cols-[120px_80px_1fr_1fr] gap-3 items-center">
+                            <div className="font-medium capitalize">{day}</div>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={!!slot}
+                                onCheckedChange={(checked) => toggleWorkingDay("edit", day, checked)}
+                              />
+                              <span className="text-xs text-gray-500">
+                                {slot ? "Open" : "Closed"}
+                              </span>
+                            </div>
+                            <Input
+                              type="time"
+                              value={slot?.start || ""}
+                              disabled={!slot}
+                              onChange={(e) => updateWorkingHours("edit", day, "start", e.target.value)}
+                            />
+                            <Input
+                              type="time"
+                              value={slot?.end || ""}
+                              disabled={!slot}
+                              onChange={(e) => updateWorkingHours("edit", day, "end", e.target.value)}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}

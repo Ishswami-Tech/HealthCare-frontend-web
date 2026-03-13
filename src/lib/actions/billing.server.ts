@@ -14,7 +14,6 @@ import type {
   BillingAnalytics,
   SubscriptionUsageStats,
   ClinicLedgerResponse,
-  LedgerPaymentRow,
   CreateBillingPlanData,
   CreateSubscriptionData,
   CreateInvoiceData,
@@ -24,6 +23,9 @@ import { createInvoiceSchema, createPaymentSchema } from '@/lib/schema/billing.s
 import type { PaymentProvider } from '@/lib/payments/providers';
 
 type RawBillingPlan = Record<string, unknown>;
+type RawSubscription = Record<string, unknown>;
+type RawInvoice = Record<string, unknown>;
+type RawPayment = Record<string, unknown>;
 
 function normalizeBillingPlan(raw: RawBillingPlan): BillingPlan {
   const billingCycleRaw = raw.interval ?? raw.billingCycle;
@@ -61,6 +63,105 @@ function normalizeBillingPlan(raw: RawBillingPlan): BillingPlan {
     ...(raw.clinicId ? { clinicId: String(raw.clinicId) } : {}),
     createdAt: String(raw.createdAt ?? new Date().toISOString()),
     updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+  };
+}
+
+function normalizeSubscription(raw: RawSubscription): Subscription {
+  const planRaw =
+    raw.plan && typeof raw.plan === 'object'
+      ? normalizeBillingPlan(raw.plan as RawBillingPlan)
+      : undefined;
+
+  return {
+    id: String(raw.id ?? ''),
+    userId: String(raw.userId ?? ''),
+    clinicId: String(raw.clinicId ?? ''),
+    planId: String(raw.planId ?? ''),
+    ...(planRaw ? { plan: planRaw } : {}),
+    status: String(raw.status ?? 'INCOMPLETE') as Subscription['status'],
+    startDate: String(raw.startDate ?? new Date().toISOString()),
+    ...(raw.endDate ? { endDate: String(raw.endDate) } : {}),
+    ...(raw.currentPeriodEnd ? { nextBillingDate: String(raw.currentPeriodEnd) } : {}),
+    autoRenew: raw.cancelAtPeriodEnd !== true,
+    appointmentsUsed: Number(raw.appointmentsUsed ?? 0),
+    ...(raw.appointmentsRemaining !== undefined && raw.appointmentsRemaining !== null
+      ? { appointmentsLimit: Number(raw.appointmentsUsed ?? 0) + Number(raw.appointmentsRemaining) }
+      : {}),
+    createdAt: String(raw.createdAt ?? new Date().toISOString()),
+    updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+  };
+}
+
+function normalizeInvoiceItems(raw: unknown): Invoice['items'] {
+  const extractItems = (value: unknown): unknown[] => {
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    if (!value || typeof value !== 'object') {
+      return [];
+    }
+
+    const record = value as Record<string, unknown>;
+
+    if (Array.isArray(record.items)) {
+      return record.items;
+    }
+
+    return Object.values(record).filter(item => !!item && typeof item === 'object');
+  };
+
+  return extractItems(raw)
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    .map((item, index) => ({
+      id: String(item.id ?? `item-${index + 1}`),
+      description: String(item.description ?? 'Line item'),
+      quantity: Number(item.quantity ?? 1),
+      unitPrice: Number(item.unitPrice ?? item.amount ?? 0),
+      total: Number(item.total ?? item.amount ?? item.unitPrice ?? 0),
+    }));
+}
+
+function normalizeInvoice(raw: RawInvoice): Invoice {
+  const items = normalizeInvoiceItems(raw.lineItems);
+  const amount = raw.totalAmount !== undefined ? Number(raw.totalAmount) : Number(raw.amount ?? 0);
+
+  return {
+    id: String(raw.id ?? ''),
+    userId: String(raw.userId ?? ''),
+    clinicId: String(raw.clinicId ?? ''),
+    ...(raw.subscriptionId ? { subscriptionId: String(raw.subscriptionId) } : {}),
+    invoiceNumber: String(raw.invoiceNumber ?? ''),
+    amount,
+    currency: String(raw.currency ?? 'INR'),
+    status: String(raw.status ?? 'DRAFT') as Invoice['status'],
+    dueDate: String(raw.dueDate ?? new Date().toISOString()),
+    ...(raw.paidAt ? { paidDate: String(raw.paidAt) } : {}),
+    items,
+    ...(raw.pdfUrl ? { pdfUrl: String(raw.pdfUrl) } : {}),
+    createdAt: String(raw.createdAt ?? new Date().toISOString()),
+    updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+  };
+}
+
+function normalizePayment(raw: RawPayment): Payment {
+  return {
+    id: String(raw.id ?? ''),
+    userId: String(raw.userId ?? ''),
+    clinicId: String(raw.clinicId ?? ''),
+    ...(raw.invoiceId ? { invoiceId: String(raw.invoiceId) } : {}),
+    ...(raw.subscriptionId ? { subscriptionId: String(raw.subscriptionId) } : {}),
+    amount: Number(raw.amount ?? 0),
+    currency: String(raw.currency ?? 'INR'),
+    method: String(raw.method ?? 'UPI') as Payment['method'],
+    status: String(raw.status ?? 'PENDING') as Payment['status'],
+    ...(raw.transactionId ? { transactionId: String(raw.transactionId) } : {}),
+    ...(raw.paidAt ? { paymentDate: String(raw.paidAt) } : {}),
+    createdAt: String(raw.createdAt ?? new Date().toISOString()),
+    updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+    ...(raw.metadata && typeof raw.metadata === 'object'
+      ? { metadata: raw.metadata as Record<string, unknown> }
+      : {}),
   };
 }
 
@@ -263,9 +364,36 @@ export async function getSubscriptions(userId: string): Promise<{
     const { data } = await authenticatedApi(
       API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_USER_SUBSCRIPTIONS(normalizedUserId)
     );
-    return { success: true, subscriptions: Array.isArray(data) ? data : [] };
+    return {
+      success: true,
+      subscriptions: Array.isArray(data)
+        ? data
+            .filter((subscription): subscription is RawSubscription => !!subscription && typeof subscription === 'object')
+            .map(subscription => normalizeSubscription(subscription))
+        : [],
+    };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch subscriptions' };
+  }
+}
+
+export async function getClinicSubscriptions(): Promise<{
+  success: boolean;
+  subscriptions?: Subscription[];
+  error?: string;
+}> {
+  try {
+    const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_CLINIC_SUBSCRIPTIONS);
+    return {
+      success: true,
+      subscriptions: Array.isArray(data)
+        ? data
+            .filter((subscription): subscription is RawSubscription => !!subscription && typeof subscription === 'object')
+            .map(subscription => normalizeSubscription(subscription))
+        : [],
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch clinic subscriptions' };
   }
 }
 
@@ -280,7 +408,10 @@ export async function getActiveSubscription(
   try {
     const endpoint = `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_ACTIVE(userId)}?clinicId=${encodeURIComponent(clinicId)}`;
     const { data } = await authenticatedApi(endpoint);
-    return { success: true, subscription: data as Subscription };
+    if (!data || typeof data !== 'object') {
+      return { success: false, error: 'Invalid active subscription response' };
+    }
+    return { success: true, subscription: normalizeSubscription(data as RawSubscription) };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch active subscription' };
   }
@@ -292,11 +423,34 @@ export async function createSubscription(data: CreateSubscriptionData): Promise<
   error?: string;
 }> {
   try {
-    const { data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CREATE, {
+    const payload = {
+      userId: data.userId,
+      clinicId: data.clinicId,
+      planId: data.planId,
+      ...(data.startDate ? { startDate: data.startDate } : {}),
+      ...(data.endDate ? { endDate: data.endDate } : {}),
+      ...(data.trialStart ? { trialStart: data.trialStart } : {}),
+      ...(data.trialEnd ? { trialEnd: data.trialEnd } : {}),
+      ...(data.metadata ? { metadata: data.metadata } : {}),
+    };
+
+    const { status, data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.SUBSCRIPTIONS.CREATE, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
-    return { success: true, subscription: response as Subscription };
+    if (status >= 400) {
+      return {
+        success: false,
+        error:
+          status === 403
+            ? 'Profile incomplete. Please complete profile first.'
+            : 'Failed to create subscription',
+      };
+    }
+    if (!response || typeof response !== 'object') {
+      return { success: false, error: 'Invalid subscription response' };
+    }
+    return { success: true, subscription: normalizeSubscription(response as RawSubscription) };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to create subscription' };
   }
@@ -315,7 +469,10 @@ export async function cancelSubscription(
       method: 'POST',
       body: JSON.stringify({ immediate }),
     });
-    return { success: true, subscription: response as Subscription };
+    if (!response || typeof response !== 'object') {
+      return { success: false, error: 'Invalid subscription response' };
+    }
+    return { success: true, subscription: normalizeSubscription(response as RawSubscription) };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to cancel subscription' };
   }
@@ -351,9 +508,36 @@ export async function getInvoices(userId: string): Promise<{
     const { data } = await authenticatedApi(
       API_ENDPOINTS.BILLING.INVOICES.GET_USER_INVOICES(normalizedUserId)
     );
-    return { success: true, invoices: Array.isArray(data) ? data : [] };
+    return {
+      success: true,
+      invoices: Array.isArray(data)
+        ? data
+            .filter((invoice): invoice is RawInvoice => !!invoice && typeof invoice === 'object')
+            .map(invoice => normalizeInvoice(invoice))
+        : [],
+    };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch invoices' };
+  }
+}
+
+export async function getClinicInvoices(): Promise<{
+  success: boolean;
+  invoices?: Invoice[];
+  error?: string;
+}> {
+  try {
+    const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.GET_CLINIC_INVOICES);
+    return {
+      success: true,
+      invoices: Array.isArray(data)
+        ? data
+            .filter((invoice): invoice is RawInvoice => !!invoice && typeof invoice === 'object')
+            .map(invoice => normalizeInvoice(invoice))
+        : [],
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch clinic invoices' };
   }
 }
 
@@ -368,7 +552,10 @@ export async function createInvoice(data: CreateInvoiceData): Promise<{
       method: 'POST',
       body: JSON.stringify(validated),
     });
-    return { success: true, invoice: response as Invoice };
+    if (!response || typeof response !== 'object') {
+      return { success: false, error: 'Invalid invoice response' };
+    }
+    return { success: true, invoice: normalizeInvoice(response as RawInvoice) };
   } catch (error) {
     if (error instanceof z.ZodError) {
       return { success: false, error: `Validation error: ${error.issues[0]?.message}` };
@@ -386,7 +573,10 @@ export async function markInvoiceAsPaid(id: string): Promise<{
     const { data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.MARK_PAID(id), {
       method: 'POST',
     });
-    return { success: true, invoice: response as Invoice };
+    if (!response || typeof response !== 'object') {
+      return { success: false, error: 'Invalid invoice response' };
+    }
+    return { success: true, invoice: normalizeInvoice(response as RawInvoice) };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to mark invoice as paid' };
   }
@@ -436,7 +626,14 @@ export async function getPayments(userId: string): Promise<{
     const { data } = await authenticatedApi(
       API_ENDPOINTS.BILLING.PAYMENTS.GET_USER_PAYMENTS(normalizedUserId)
     );
-    return { success: true, payments: Array.isArray(data) ? data : [] };
+    return {
+      success: true,
+      payments: Array.isArray(data)
+        ? data
+            .filter((payment): payment is RawPayment => !!payment && typeof payment === 'object')
+            .map(payment => normalizePayment(payment))
+        : [],
+    };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch payments' };
   }
@@ -451,7 +648,7 @@ export async function getClinicPayments(filters?: {
   endDate?: string;
 }): Promise<{
   success: boolean;
-  payments?: LedgerPaymentRow[];
+  payments?: Payment[];
   error?: string;
 }> {
   try {
@@ -465,7 +662,14 @@ export async function getClinicPayments(filters?: {
     const query = params.toString();
     const endpoint = `${API_ENDPOINTS.BILLING.PAYMENTS.GET_CLINIC_PAYMENTS}${query ? `?${query}` : ''}`;
     const { data } = await authenticatedApi(endpoint);
-    return { success: true, payments: Array.isArray(data) ? (data as LedgerPaymentRow[]) : [] };
+    return {
+      success: true,
+      payments: Array.isArray(data)
+        ? data
+            .filter((payment): payment is RawPayment => !!payment && typeof payment === 'object')
+            .map(payment => normalizePayment(payment))
+        : [],
+    };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch clinic payments' };
   }
@@ -511,7 +715,10 @@ export async function createPayment(data: CreatePaymentData): Promise<{
       method: 'POST',
       body: JSON.stringify(validated),
     });
-    return { success: true, payment: response as Payment };
+    if (!response || typeof response !== 'object') {
+      return { success: false, error: 'Invalid payment response' };
+    }
+    return { success: true, payment: normalizePayment(response as RawPayment) };
   } catch (error) {
     if (error instanceof z.ZodError) {
       return { success: false, error: `Validation error: ${error.issues[0]?.message}` };

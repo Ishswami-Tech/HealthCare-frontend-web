@@ -60,7 +60,7 @@ export interface Prescription {
   doctorId: string;
   clinicId: string;
   prescriptionNumber: string;
-  status: 'PENDING' | 'DISPENSED' | 'PARTIALLY_DISPENSED' | 'CANCELLED' | 'EXPIRED';
+  status: 'PENDING' | 'FILLED' | 'DISPENSED' | 'CANCELLED';
   medications: PrescriptionMedication[];
   diagnosis?: string;
   notes?: string;
@@ -69,7 +69,28 @@ export interface Prescription {
   dispensedBy?: string;
   totalAmount?: number;
   paidAmount?: number;
-  paymentStatus: 'PENDING' | 'PAID' | 'PARTIAL' | 'REFUNDED';
+  paymentStatus: 'PENDING' | 'PAID' | 'PARTIAL';
+  pendingAmount?: number;
+  canDispense?: boolean;
+  queueCategory?: 'MEDICINE_DESK';
+  queueStatus?: 'PENDING' | 'DISPENSED' | 'CANCELLED';
+  queuePosition?: number | null;
+  totalInQueue?: number;
+  activeQueueEntry?: boolean;
+  waitingForPayment?: boolean;
+  readyForHandover?: boolean;
+  patientName?: string;
+  doctorName?: string;
+  patientUserId?: string | null;
+  patientPhone?: string | null;
+  patientEmail?: string | null;
+  locationId?: string | null;
+  locationName?: string | null;
+  primaryDoctorId?: string | null;
+  assignedDoctorId?: string | null;
+  prescribedAt?: string | null;
+  medicineNames?: string[];
+  itemsCount?: number;
   createdAt: string;
   updatedAt: string;
   
@@ -91,6 +112,38 @@ export interface Prescription {
     name: string;
   };
   sales?: Sale[];
+}
+
+export interface MedicineDeskQueueEntry {
+  id: string;
+  clinicId: string;
+  patientId: string;
+  doctorId: string;
+  patientName: string;
+  doctorName: string;
+  doctorRole?: string;
+  paymentStatus: 'PENDING' | 'PAID' | 'PARTIAL';
+  pendingAmount: number;
+  paidAmount?: number;
+  totalAmount?: number;
+  canDispense: boolean;
+  queueCategory: 'MEDICINE_DESK';
+  queueStatus: 'PENDING' | 'DISPENSED' | 'CANCELLED';
+  queuePosition: number | null;
+  totalInQueue?: number;
+  activeQueueEntry: boolean;
+  waitingForPayment?: boolean;
+  readyForHandover?: boolean;
+  patientUserId?: string | null;
+  patientPhone?: string | null;
+  patientEmail?: string | null;
+  locationId?: string | null;
+  locationName?: string | null;
+  primaryDoctorId?: string | null;
+  assignedDoctorId?: string | null;
+  prescribedAt?: string | null;
+  medicineNames?: string[];
+  itemsCount?: number;
 }
 
 export interface PrescriptionMedication {
@@ -315,7 +368,7 @@ export interface PrescriptionFilters {
   search?: string;
   patientId?: string;
   doctorId?: string;
-  status?: 'PENDING' | 'DISPENSED' | 'PARTIALLY_DISPENSED' | 'CANCELLED' | 'EXPIRED';
+  status?: 'PENDING' | 'FILLED' | 'DISPENSED' | 'CANCELLED';
   startDate?: string;
   endDate?: string;
   paymentStatus?: 'PENDING' | 'PAID' | 'PARTIAL' | 'REFUNDED';
@@ -419,4 +472,3 @@ export interface DispensePrescriptionData {
   paidAmount: number;
   notes?: string;
 }
-

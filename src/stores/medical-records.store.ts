@@ -221,8 +221,8 @@ export const useMedicalRecordsStore = create<MedicalRecordsState>()(
       
       getActivePrescriptions: () => {
         // ✅ Use proper status from Prescription type (PENDING, DISPENSED, etc.)
-        return get().prescriptions.filter(prescription => 
-          prescription.status === 'PENDING' || prescription.status === 'PARTIALLY_DISPENSED'
+        return get().prescriptions.filter(
+          prescription => prescription.status === 'PENDING'
         );
       },
       

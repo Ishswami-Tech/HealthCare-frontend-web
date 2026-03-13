@@ -1,12 +1,15 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCurrentClinic, useClinicStats, useActiveLocations } from "@/hooks/query/useClinics";
+import { useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
 import { useRealTimeAppointments, useRealTimeQueueStatus } from "@/hooks/realtime/useRealTimeQueries";
 import { cn } from "@/lib/utils";
+import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
 import {
   Settings,
   Clock,
@@ -33,12 +36,23 @@ export default function ClinicAdminDashboard() {
   // Real data fetching
   const { data: clinicStats, isPending: isLoadingStats, refetch: refetchStats } = useClinicStats(clinicId || "");
   const { data: appointmentsData } = useRealTimeAppointments({
-    limit: 5,
+    limit: 100,
   });
-  const { data: queueData, isPending: isLoadingQueue } = useRealTimeQueueStatus(undefined, locationId);
+  const { isPending: isLoadingQueue } = useRealTimeQueueStatus(undefined, locationId);
+  const { data: medicineDeskQueue = [] } = useMedicineDeskQueue(clinicId || "", !!clinicId);
 
   const appointments = (appointmentsData as any)?.data || [];
-  const queueItems = (queueData as any)?.items || [];
+  const queueItems = useMemo(
+    () =>
+      appointments
+        .filter((item: any) => ["CONFIRMED", "IN_PROGRESS"].includes(String(item.status || "").toUpperCase()))
+        .sort((a: any, b: any) => {
+          const aToken = typeof a.queuePosition === "number" ? a.queuePosition : 9999;
+          const bToken = typeof b.queuePosition === "number" ? b.queuePosition : 9999;
+          return aToken - bToken;
+        }),
+    [appointments]
+  );
 
   const stats = useMemo(() => {
     if (!clinicStats) return null;
@@ -62,6 +76,50 @@ export default function ClinicAdminDashboard() {
       date: new Date(apt.createdAt).toLocaleDateString(),
     }));
   }, [appointments]);
+
+  const medicineDeskItems = useMemo(
+    () =>
+      (Array.isArray(medicineDeskQueue) ? medicineDeskQueue : [])
+        .filter((item: any) => item?.id)
+        .map((item: any) => {
+          const entry = normalizeQueueEntry(item);
+          return {
+            id: entry.entryId,
+            patientName: entry.patientName || "Unknown Patient",
+            paymentStatus: String(entry.paymentStatus || "PENDING").toUpperCase(),
+            queuePosition: entry.position > 0 ? entry.position : null,
+            pendingAmount: Number(item.pendingAmount || 0),
+            readyForHandover: Boolean(entry.readyForHandover),
+          };
+        })
+        .slice(0, 8),
+    [medicineDeskQueue]
+  );
+
+  const liveAlerts = useMemo(() => {
+    const alerts: Array<{ title: string; description: string; tone: "amber" | "blue" }> = [];
+
+    if ((stats?.waitTime || 0) > 30) {
+      alerts.push({
+        title: "Wait Time Threshold Exceeded",
+        description: `Average clinic wait time is ${stats?.waitTime || 0} minutes`,
+        tone: "amber",
+      });
+    }
+
+    const unpaidMedicineCount = medicineDeskItems.filter(
+      (item) => !item.readyForHandover && item.paymentStatus !== "PAID"
+    ).length;
+    if (unpaidMedicineCount > 0) {
+      alerts.push({
+        title: "Medicine Desk Payments Pending",
+        description: `${unpaidMedicineCount} prescription handover${unpaidMedicineCount === 1 ? "" : "s"} awaiting payment`,
+        tone: "blue",
+      });
+    }
+
+    return alerts;
+  }, [medicineDeskItems, stats?.waitTime]);
 
   if (isLoadingClinic || isLoadingStats) {
     return (
@@ -104,15 +162,17 @@ export default function ClinicAdminDashboard() {
             <RefreshCcw className="w-4 h-4" />
             Sync Data
           </Button>
-          <Button className="h-10 px-6 font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-2 rounded-xl">
-            <Plus className="w-4 h-4" />
-            New Appointment
+          <Button asChild className="h-10 px-6 font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-2 rounded-xl">
+            <Link href="/clinic-admin/schedule">
+              <Plus className="w-4 h-4" />
+              Manage Schedule
+            </Link>
           </Button>
         </div>
       </div>
 
       {/* Impact Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {[
           { 
             label: "Appointments Today", 
@@ -121,7 +181,7 @@ export default function ClinicAdminDashboard() {
             icon: CalendarDays, 
             color: "text-blue-600", 
             bg: "bg-blue-500/10",
-            trend: "+12%",
+            trend: `${stats?.totalAppointments || 0} month`,
             isUp: true
           },
           { 
@@ -131,7 +191,7 @@ export default function ClinicAdminDashboard() {
             icon: IndianRupee, 
             color: "text-purple-600", 
             bg: "bg-purple-500/10",
-            trend: "+8.4%",
+            trend: "Live billing",
             isUp: true
           },
           { 
@@ -141,7 +201,7 @@ export default function ClinicAdminDashboard() {
             icon: UserPlus, 
             color: "text-emerald-600", 
             bg: "bg-emerald-500/10",
-            trend: "+21",
+            trend: "Verified",
             isUp: true
           },
           { 
@@ -151,8 +211,18 @@ export default function ClinicAdminDashboard() {
             icon: Clock, 
             color: "text-orange-600", 
             bg: "bg-orange-500/10",
-            trend: "-2m",
-            isUp: false
+            trend: `${queueItems.length} live`,
+            isUp: (stats?.waitTime || 0) <= 30
+          },
+          {
+            label: "Medicine Desk",
+            value: medicineDeskItems.length,
+            sub: "Active handovers",
+            icon: Activity,
+            color: "text-amber-600",
+            bg: "bg-amber-500/10",
+            trend: `${medicineDeskItems.filter((item) => item.paymentStatus !== "PAID").length} unpaid`,
+            isUp: medicineDeskItems.filter((item) => item.paymentStatus === "PAID").length > 0
           }
         ].map((item, i) => (
           <Card key={i} className="group border-none shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
@@ -208,27 +278,52 @@ export default function ClinicAdminDashboard() {
                   <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors group">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary/10 to-blue-500/10 flex items-center justify-center font-black text-primary text-sm shadow-sm group-hover:scale-110 transition-transform">
-                        {item.tokenNumber || idx + 1}
+                        {item.tokenNumber || item.queuePosition || idx + 1}
                       </div>
-                      <div>
-                        <h4 className="font-bold text-sm">{item.patientName || "Walk-in Patient"}</h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-bold uppercase text-muted-foreground">{item.doctorName || "General Staff"}</span>
-                          <span className="w-1 h-1 bg-neutral-300 rounded-full" />
-                          <span className="text-[10px] font-bold uppercase text-primary/80">{item.serviceType || "Consultation"}</span>
+                        <div>
+                          <h4 className="font-bold text-sm">{item.patientName || "Walk-in Patient"}</h4>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                              {item.doctorName || "Unassigned Doctor"}
+                              {String(item.doctorRole || "").toUpperCase() === "ASSISTANT_DOCTOR"
+                                ? " (ASSISTANT)"
+                                : ""}
+                            </span>
+                            <span className="w-1 h-1 bg-neutral-300 rounded-full" />
+                            <span className="text-[10px] font-bold uppercase text-primary/80">
+                              {item.serviceType || item.type || item.treatmentType || "Consultation"}
+                            </span>
+                            {item.primaryDoctorId &&
+                            String(item.primaryDoctorId) !==
+                              String(item.assignedDoctorId || item.doctorId || "") ? (
+                              <>
+                                <span className="w-1 h-1 bg-neutral-300 rounded-full" />
+                                <span className="text-[10px] font-bold uppercase text-amber-600">
+                                  Delegated
+                                </span>
+                              </>
+                            ) : null}
+                          </div>
                         </div>
-                      </div>
                     </div>
                     <div className="flex items-center gap-6">
                       <div className="text-right hidden sm:block">
-                        <p className="text-xs font-bold">{item.checkInTime || "Now"}</p>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">{item.waitTime || "0"}m wait</p>
+                        <p className="text-xs font-bold">
+                          {item.checkInTime || item.checkedInAt || item.time || "Now"}
+                        </p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase">
+                          {typeof item.waitTime === "number" ? `${item.waitTime}m wait` : item.waitTime || "Live queue"}
+                        </p>
                       </div>
                       <Badge className={cn(
                         "rounded-lg border-none px-3 py-1 text-[10px] font-black uppercase tracking-widest",
-                        item.status === "SERVING" ? "bg-blue-500 text-white" : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+                        item.status === "IN_PROGRESS"
+                          ? "bg-blue-500 text-white"
+                          : item.status === "CONFIRMED"
+                            ? "bg-emerald-500 text-white"
+                            : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
                       )}>
-                        {item.status || "WAITING"}
+                        {item.status === "CONFIRMED" ? "QUEUED" : item.status || "WAITING"}
                       </Badge>
                     </div>
                   </div>
@@ -246,8 +341,8 @@ export default function ClinicAdminDashboard() {
               </div>
             )}
             <div className="p-4 bg-neutral-50/80 dark:bg-neutral-900/80 border-t flex justify-center">
-              <Button variant="link" className="text-xs font-black uppercase text-primary hover:no-underline">
-                View Full Queue Dashboard
+              <Button asChild variant="link" className="text-xs font-black uppercase text-primary hover:no-underline">
+                <Link href="/clinic-admin/schedule">View Staff Schedule</Link>
               </Button>
             </div>
           </CardContent>
@@ -276,12 +371,12 @@ export default function ClinicAdminDashboard() {
               </div>
               <div className="flex gap-4">
                 <div className="flex-1 p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
-                  <p className="text-[10px] font-black uppercase text-white/60 mb-1">Satisfied</p>
-                  <p className="text-xl font-black">94%</p>
+                  <p className="text-[10px] font-black uppercase text-white/60 mb-1">Queued</p>
+                  <p className="text-xl font-black">{queueItems.length}</p>
                 </div>
                 <div className="flex-1 p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
-                  <p className="text-[10px] font-black uppercase text-white/60 mb-1">On Time</p>
-                  <p className="text-xl font-black">82%</p>
+                  <p className="text-[10px] font-black uppercase text-white/60 mb-1">Medicine Desk</p>
+                  <p className="text-xl font-black">{medicineDeskItems.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -317,30 +412,118 @@ export default function ClinicAdminDashboard() {
         </div>
       </div>
 
+      <Card className="border-none shadow-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
+        <CardHeader className="p-6 border-b bg-neutral-50/50 dark:bg-neutral-900/50">
+          <CardTitle className="text-xl font-black flex items-center gap-2">
+            <Activity className="w-5 h-5 text-amber-600" />
+            Medicine Desk Queue
+          </CardTitle>
+          <CardDescription className="text-xs font-medium">
+            Payment-gated prescription handovers across the clinic
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {medicineDeskItems.length > 0 ? (
+            <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+              {medicineDeskItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <div className="font-semibold">{item.patientName}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {item.queuePosition ? getQueuePositionLabel({ position: item.queuePosition }) : "Awaiting medicine handover"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge
+                      className={
+                        item.paymentStatus === "PAID"
+                          ? "bg-emerald-500 text-white"
+                          : "bg-amber-500 text-white"
+                      }
+                    >
+                      {item.paymentStatus === "PAID" ? "Paid" : "Awaiting Payment"}
+                    </Badge>
+                    {item.pendingAmount > 0 ? (
+                      <span className="text-sm font-medium text-muted-foreground">
+                        INR {item.pendingAmount.toFixed(2)}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-6 text-sm text-muted-foreground">
+              No active medicine desk queue right now.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Quick Action Alerts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-8 text-foreground">
-        <Card className="border-none bg-orange-50/50 dark:bg-orange-500/10 ring-1 ring-orange-100 dark:ring-orange-500/20 group hover:bg-orange-50 dark:hover:bg-orange-500/20 transition-colors">
-          <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="p-3 bg-white dark:bg-neutral-800 rounded-2xl shadow-sm group-hover:scale-110 transition-transform shrink-0">
-              <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-            </div>
-            <div>
-              <h4 className="text-sm font-black text-orange-900 dark:text-orange-100">Wait Time Threshold Exceeded</h4>
-              <p className="text-xs font-semibold text-orange-700/70 dark:text-orange-300/70 uppercase tracking-tight">3 patients waiting over 45 minutes in Cardiology</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-none bg-blue-50/50 dark:bg-blue-500/10 ring-1 ring-blue-100 dark:ring-blue-500/20 group hover:bg-blue-50 dark:hover:bg-blue-500/20 transition-colors">
-          <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="p-3 bg-white dark:bg-neutral-800 rounded-2xl shadow-sm group-hover:scale-110 transition-transform shrink-0">
-              <Settings className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h4 className="text-sm font-black text-blue-900 dark:text-blue-100">Monthly Reports Ready</h4>
-              <p className="text-xs font-semibold text-blue-700/70 dark:text-blue-300/70 uppercase tracking-tight">Performance and billing audits finalized for review</p>
-            </div>
-          </CardContent>
-        </Card>
+        {liveAlerts.length > 0 ? liveAlerts.map((alert) => (
+          <Card
+            key={alert.title}
+            className={cn(
+              "border-none ring-1 transition-colors",
+              alert.tone === "amber"
+                ? "bg-orange-50/50 dark:bg-orange-500/10 ring-orange-100 dark:ring-orange-500/20"
+                : "bg-blue-50/50 dark:bg-blue-500/10 ring-blue-100 dark:ring-blue-500/20"
+            )}
+          >
+            <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="p-3 bg-white dark:bg-neutral-800 rounded-2xl shadow-sm shrink-0">
+                {alert.tone === "amber" ? (
+                  <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                ) : (
+                  <Settings className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                )}
+              </div>
+              <div>
+                <h4
+                  className={cn(
+                    "text-sm font-black",
+                    alert.tone === "amber"
+                      ? "text-orange-900 dark:text-orange-100"
+                      : "text-blue-900 dark:text-blue-100"
+                  )}
+                >
+                  {alert.title}
+                </h4>
+                <p
+                  className={cn(
+                    "text-xs font-semibold uppercase tracking-tight",
+                    alert.tone === "amber"
+                      ? "text-orange-700/70 dark:text-orange-300/70"
+                      : "text-blue-700/70 dark:text-blue-300/70"
+                  )}
+                >
+                  {alert.description}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )) : (
+          <Card className="md:col-span-2 border-none bg-emerald-50/60 dark:bg-emerald-500/10 ring-1 ring-emerald-100 dark:ring-emerald-500/20">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="p-3 bg-white dark:bg-neutral-800 rounded-2xl shadow-sm shrink-0">
+                <Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-emerald-900 dark:text-emerald-100">
+                  Operations Stable
+                </h4>
+                <p className="text-xs font-semibold uppercase tracking-tight text-emerald-700/70 dark:text-emerald-300/70">
+                  No high-priority queue or medicine desk alerts right now
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -22,16 +22,16 @@ export function calculateAppointmentDuration(startTime: string, endTime: string)
 }
 
 export function getAppointmentStatusDisplayName(status: string): string {
+  const normalizedStatus = status.toUpperCase();
   const statusNames: Record<string, string> = {
     SCHEDULED: 'Scheduled',
     CONFIRMED: 'Confirmed',
-    CHECKED_IN: 'Checked In',
     IN_PROGRESS: 'In Progress',
     COMPLETED: 'Completed',
     CANCELLED: 'Cancelled',
     NO_SHOW: 'No Show',
   };
-  return statusNames[status] || status;
+  return statusNames[normalizedStatus] || normalizedStatus;
 }
 
 // Theme-aware status colors
@@ -41,7 +41,6 @@ export function getAppointmentStatusColor(status: string): string {
   const statusColors: Record<string, string> = {
     SCHEDULED: 'bg-primary/10 text-primary border-primary/20',
     CONFIRMED: 'bg-primary/10 text-primary border-primary/20',
-    CHECKED_IN: 'bg-primary/10 text-primary border-primary/20',
     IN_PROGRESS: 'bg-primary/10 text-primary border-primary/20',
     COMPLETED: 'bg-green-500/10 text-green-700 border-green-500/20', // Distinct green for completed
     CANCELLED: 'bg-destructive/10 text-destructive border-destructive/20',
@@ -49,7 +48,8 @@ export function getAppointmentStatusColor(status: string): string {
   };
   
   // Handle lowercase variants just in case
-  const normalizedStatus = status.toUpperCase();
+  const normalizedStatus =
+    status.toUpperCase();
   return statusColors[normalizedStatus] || 'bg-muted text-muted-foreground border-border';
 }
 

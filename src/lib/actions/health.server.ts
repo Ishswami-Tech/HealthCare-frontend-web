@@ -27,12 +27,21 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
       timeout: 5000,
       cache: 'no-store'
     });
-
-    const data = await response.json();
-    
     if (response.status >= 400) {
       return createUnavailableStatus();
     }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.toLowerCase().includes('application/json')) {
+      logger.error('Health check returned non-JSON response', {
+        url: HEALTH_URL,
+        status: response.status,
+        contentType,
+      });
+      return createUnavailableStatus();
+    }
+
+    const data = await response.json();
     
     const backendData = data as Record<string, any>;
     return {

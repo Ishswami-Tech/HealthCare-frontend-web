@@ -44,7 +44,7 @@ import {
 // Queue status constants - must match backend enum values
 const QUEUE_STATUS = {
   WAITING: 'WAITING',
-  CHECKED_IN: 'CHECKED_IN',
+  CONFIRMED: 'CONFIRMED',
   IN_PROGRESS: 'IN_PROGRESS',
   COMPLETED: 'COMPLETED',
 } as const;
@@ -179,7 +179,7 @@ export default function QueuePage() {
         return "bg-yellow-100 text-yellow-800";
       case QUEUE_STATUS.IN_PROGRESS:
         return "bg-blue-100 text-blue-800";
-      case QUEUE_STATUS.CHECKED_IN:
+      case QUEUE_STATUS.CONFIRMED:
         return "bg-green-100 text-green-800";
       case QUEUE_STATUS.COMPLETED:
         return "bg-gray-100 text-gray-800";
@@ -194,7 +194,7 @@ export default function QueuePage() {
         return <Clock className="w-4 h-4" />;
       case QUEUE_STATUS.IN_PROGRESS:
         return <Play className="w-4 h-4" />;
-      case QUEUE_STATUS.CHECKED_IN:
+      case QUEUE_STATUS.CONFIRMED:
         return <UserCheck className="w-4 h-4" />;
       case QUEUE_STATUS.COMPLETED:
         return <CheckCircle className="w-4 h-4" />;
@@ -225,7 +225,7 @@ export default function QueuePage() {
                   Appointment: {item.appointmentTime}
                 </span>
                 <span className="text-xs text-gray-500">
-                  Checked in: {item.checkedInAt}
+                  Confirmed: {item.checkedInAt || item.confirmedAt || item.updatedAt}
                 </span>
               </div>
             </div>
@@ -309,7 +309,7 @@ export default function QueuePage() {
                 )}
 
                 {/* Call next patient - for users who can call next patient */}
-                {item.status === QUEUE_STATUS.CHECKED_IN && (
+                {item.status === QUEUE_STATUS.CONFIRMED && (
                   <QueueProtectedComponent action="call-next">
                     <Button
                       size="sm"

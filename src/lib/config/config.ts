@@ -389,10 +389,14 @@ export const API_ENDPOINTS = {
     BASE: '/appointments',
     CREATE: '/appointments',
     GET_ALL: '/appointments',
+    SERVICES: '/appointments/services/catalog',
     MY_APPOINTMENTS: '/appointments/my-appointments', // Patient-specific endpoint
     GET_BY_TENANT: (tenantId: string) => `/appointments/tenant/${tenantId}`,
     GET_BY_ID: (id: string) => `/appointments/${id}`,
     UPDATE: (id: string) => `/appointments/${id}`,
+    REASSIGN_DOCTOR: (id: string) => `/appointments/${id}/reassign-doctor`,
+    REASSIGNMENT_CANDIDATES: (id: string) => `/appointments/${id}/reassignment-candidates`,
+    ASSISTANT_COVERAGE: '/appointments/assistant-coverage',
     DELETE: (id: string) => `/appointments/${id}`,
     CANCEL: (id: string) => `/appointments/${id}/cancel`,
     CONFIRM: (id: string) => `/appointments/${id}/confirm`,
@@ -478,10 +482,15 @@ export const API_ENDPOINTS = {
     PRESCRIPTIONS: {
       GET: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
       LIST: '/pharmacy/prescriptions',
+      QUEUE: '/pharmacy/prescriptions/queue',
       GET_BY_PATIENT: (userId: string) => `/pharmacy/prescriptions/patient/${userId}`,
       CREATE: '/pharmacy/prescriptions',
       UPDATE_STATUS: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/status`,
       DISPENSE: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/dispense`,
+      PAYMENT_SUMMARY: (prescriptionId: string) =>
+        `/pharmacy/prescriptions/${prescriptionId}/payment-summary`,
+      PROCESS_PAYMENT: (prescriptionId: string) =>
+        `/pharmacy/prescriptions/${prescriptionId}/process-payment`,
     },
     INVENTORY: {
       UPDATE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/pharmacy/inventory/${medicineId}`,
@@ -628,6 +637,7 @@ export const API_ENDPOINTS = {
       CREATE: '/billing/subscriptions',
       GET_BY_ID: (id: string) => `/billing/subscriptions/${id}`,
       GET_USER_SUBSCRIPTIONS: (userId: string) => `/billing/subscriptions/user/${userId}`,
+      GET_CLINIC_SUBSCRIPTIONS: '/billing/subscriptions/clinic',
       GET_ACTIVE: (userId: string) => `/billing/subscriptions/user/${userId}/active`,
       UPDATE: (id: string) => `/billing/subscriptions/${id}`,
       CANCEL: (id: string) => `/billing/subscriptions/${id}/cancel`,
@@ -646,7 +656,9 @@ export const API_ENDPOINTS = {
       CREATE: '/billing/invoices',
       GET_BY_ID: (id: string) => `/billing/invoices/${id}`,
       GET_USER_INVOICES: (userId: string) => `/billing/invoices/user/${userId}`,
+      GET_CLINIC_INVOICES: '/billing/invoices/clinic',
       UPDATE: (id: string) => `/billing/invoices/${id}`,
+      PROCESS_PAYMENT: (id: string) => `/billing/invoices/${id}/process-payment`,
       MARK_PAID: (id: string) => `/billing/invoices/${id}/mark-paid`,
       GENERATE_PDF: (id: string) => `/billing/invoices/${id}/generate-pdf`,
       SEND_WHATSAPP: (id: string) => `/billing/invoices/${id}/send-whatsapp`,

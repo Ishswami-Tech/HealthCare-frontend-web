@@ -12,7 +12,6 @@ export type AppointmentStatus =
   | 'SCHEDULED'
   | 'CONFIRMED' 
   | 'AWAITING_SLOT_CONFIRMATION'
-  | 'CHECKED_IN'
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CANCELLED'
@@ -50,6 +49,54 @@ export type TreatmentType =
   | 'BASTI'
   | 'NASYA'
   | 'RAKTAMOKSHANA';
+
+export type AppointmentServiceCategory =
+  | 'CONSULTATION'
+  | 'DIAGNOSIS'
+  | 'TREATMENT'
+  | 'SURGERY'
+  | 'COUNSELING'
+  | 'THERAPY';
+
+export type AppointmentQueueCategory =
+  | 'DOCTOR_CONSULTATION'
+  | 'THERAPY_PROCEDURE'
+  | 'MEDICINE_DESK';
+
+export type AppointmentBillingMode =
+  | 'SUBSCRIPTION_INCLUDED'
+  | 'PER_APPOINTMENT_PAYMENT';
+
+export interface AppointmentServiceDefinition {
+  treatmentType: TreatmentType;
+  label: string;
+  description: string;
+  category: AppointmentServiceCategory;
+  defaultDurationMinutes: number;
+  appointmentModes: AppointmentType[];
+  queueCategory: AppointmentQueueCategory;
+  serviceBucket: string;
+  billingMode: AppointmentBillingMode;
+  assistantDoctorEligible: boolean;
+  active: boolean;
+  videoConsultationFee?: number;
+}
+
+export interface AppointmentReassignmentCandidate {
+  id: string;
+  name: string;
+  role: string;
+  eligible: boolean;
+  reason?: string;
+  isCurrent: boolean;
+  isPrimary: boolean;
+}
+
+export interface AssistantDoctorCoverageAssignment {
+  assistantDoctorId: string;
+  primaryDoctorIds: string[];
+  isActive: boolean;
+}
 
 export interface CreateAppointmentData {
   patientId: string;
@@ -197,6 +244,9 @@ export interface Appointment {
   id: string;
   patientId: string;
   doctorId: string;
+  primaryDoctorId?: string;
+  assignedDoctorId?: string;
+  doctorRole?: string;
   userId?: string;
   date: string;
   time: string;

@@ -290,6 +290,9 @@ export default function ProfileCompletionForm({
   const onSubmit = async (data: ProfileCompletionFormData) => {
     setIsSubmitting(true);
     try {
+      // Note: Clinic validation removed - clinic is already configured in backend
+      // CLINIC_ADMIN profile completion only requires personal info (name, phone, DOB, etc.)
+
       // Start with a base object containing only common fields.
       const baseProfileData: Record<string, unknown> = {
         firstName: data.firstName,
@@ -317,15 +320,10 @@ export default function ProfileCompletionForm({
       let roleSpecificData = {};
       const userRole = session?.user?.role;
 
-        if (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) {
-          roleSpecificData = {
-            specialization: data.specialization,
-            experience: data.experience ? parseInt(data.experience, 10) : undefined,
-          };
-        } else if (userRole === Role.CLINIC_ADMIN) {
+      if (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) {
         roleSpecificData = {
-          clinicName: data.clinicName,
-          clinicAddress: data.clinicAddress,
+          specialization: data.specialization,
+          experience: data.experience ? parseInt(data.experience, 10) : undefined,
         };
       }
 
@@ -412,33 +410,32 @@ export default function ProfileCompletionForm({
 
   const userRole = session?.user?.role as Role;
   const isDoctor = userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
-  const isClinicAdmin = userRole === Role.CLINIC_ADMIN;
 
   // Show loading state while fetching profile data
   if (loadingProfile || !isInitialized) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-neutral-950 dark:via-slate-900 dark:to-neutral-950 flex items-center justify-center p-4">
         <div className="flex flex-col items-center">
-          <Loader2 className="h-12 w-12 animate-spin text-emerald-600 mb-4" />
-          <p className="text-gray-600">Loading your profile data...</p>
+          <Loader2 className="h-12 w-12 animate-spin text-emerald-600 dark:text-emerald-400 mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Loading your profile data...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-xl bg-white rounded-xl shadow-xl border-0 overflow-hidden">
-        <CardHeader className="text-center border-b pb-2 bg-gradient-to-r from-emerald-600 to-teal-600">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-neutral-950 dark:via-slate-900 dark:to-neutral-950 flex items-center justify-center p-4">
+      <Card className="w-full max-w-xl bg-white dark:bg-neutral-900 rounded-xl shadow-xl dark:shadow-none border border-gray-200 dark:border-neutral-800 overflow-hidden">
+        <CardHeader className="text-center border-b border-gray-200 dark:border-neutral-800 pb-2 bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-700 dark:to-teal-700">
           <CardTitle className="text-lg font-bold text-white">
             Complete Your Profile
           </CardTitle>
-          <p className="text-xs text-emerald-100 mt-0.5">
+          <p className="text-xs text-emerald-100 dark:text-emerald-200 mt-0.5">
             Please provide the required information to complete your profile setup
           </p>
-          
+
           {/* One-time process banner */}
-          <div className="mt-2 p-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-md text-left">
+          <div className="mt-2 p-2 bg-white/20 backdrop-blur-sm border border-white/30 dark:border-white/20 rounded-md text-left">
             <div className="flex items-start gap-2">
               <div className="flex-shrink-0 mt-0.5">
                 <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -449,7 +446,7 @@ export default function ProfileCompletionForm({
                 <h4 className="text-xs font-semibold text-white mb-0.5">
                   One-Time Setup
                 </h4>
-                <p className="text-xs text-emerald-100">
+                <p className="text-xs text-emerald-100 dark:text-emerald-200">
                   This information will be securely stored and you can update it anytime from your profile settings.
                 </p>
               </div>
@@ -461,7 +458,7 @@ export default function ProfileCompletionForm({
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
               {/* Form Errors Summary */}
               {Object.keys(form.formState.errors).length > 0 && (
-                <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-4">
+                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 text-red-800 dark:text-red-300 rounded-md p-4 mb-4">
                   <div className="flex items-center mb-2">
                     <svg
                       className="h-5 w-5 mr-2"
@@ -493,7 +490,7 @@ export default function ProfileCompletionForm({
 
               {/* Basic Information */}
               <div className="space-y-1.5">
-                <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2 mb-1 border-b border-emerald-200 pb-1">
+                <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2 mb-1 border-b border-emerald-200 dark:border-emerald-800/30 pb-1">
                   <User className="h-4 w-4" />
                   Basic Information
                 </h3>
@@ -505,7 +502,9 @@ export default function ProfileCompletionForm({
                     name="firstName"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel className="text-gray-700 dark:text-gray-300">First Name *</FormLabel>
+                        <FormLabel className="text-gray-700 dark:text-gray-300">
+                          First Name <span className="text-red-500 dark:text-red-400">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter your first name"
@@ -515,8 +514,8 @@ export default function ProfileCompletionForm({
                             className={
                               "h-9 bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                               (form.formState.errors.firstName
-                                ? "border-red-500 focus:border-red-500"
-                                : "")
+                                ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
+                                : "focus:border-emerald-500 dark:focus:border-emerald-500")
                             }
                           />
                         </FormControl>
@@ -529,7 +528,9 @@ export default function ProfileCompletionForm({
                     name="lastName"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel className="text-gray-700 dark:text-gray-300">Last Name *</FormLabel>
+                        <FormLabel className="text-gray-700 dark:text-gray-300">
+                          Last Name <span className="text-red-500 dark:text-red-400">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter your last name"
@@ -539,8 +540,8 @@ export default function ProfileCompletionForm({
                             className={
                               "h-9 bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                               (form.formState.errors.lastName
-                                ? "border-red-500 focus:border-red-500"
-                                : "")
+                                ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
+                                : "focus:border-emerald-500 dark:focus:border-emerald-500")
                             }
                           />
                         </FormControl>
@@ -555,7 +556,7 @@ export default function ProfileCompletionForm({
                       <FormItem>
                         <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                           <Venus className="h-4" />
-                          Gender *
+                          Gender <span className="text-red-500 dark:text-red-400">*</span>
                         </FormLabel>
                         <Select
                           value={field.value || "male"}
@@ -567,8 +568,8 @@ export default function ProfileCompletionForm({
                               className={
                                 "h-9 w-full bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                                 (form.formState.errors.gender
-                                  ? "border-red-500 focus:border-red-500"
-                                  : "")
+                                  ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
+                                  : "focus:border-emerald-500 dark:focus:border-emerald-500")
                               }
                               aria-invalid={!!form.formState.errors.gender}
                               aria-describedby="gender-error"
@@ -597,7 +598,7 @@ export default function ProfileCompletionForm({
                       <FormItem>
                         <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                           <Phone className="h-4 w-4" />
-                          Phone Number *
+                          Phone Number <span className="text-red-500 dark:text-red-400">*</span>
                         </FormLabel>
                         <FormControl>
                           <PhoneInput
@@ -608,8 +609,8 @@ export default function ProfileCompletionForm({
                             className={
                               "h-9 bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                               (form.formState.errors.phone
-                                ? "border-red-500 focus:border-red-500"
-                                : "")
+                                ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
+                                : "focus:border-emerald-500 dark:focus:border-emerald-500")
                             }
                             defaultCountry="IN"
                             country="IN"
@@ -628,12 +629,12 @@ export default function ProfileCompletionForm({
                       const today = new Date();
                       const maxDate = new Date(today.getFullYear() - 12, today.getMonth(), today.getDate());
                       const minDate = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
-                      
+
                       return (
                         <FormItem className="flex flex-col">
                           <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                             <Calendar className="h-4 w-4" />
-                            Date of Birth *
+                            Date of Birth <span className="text-red-500 dark:text-red-400">*</span>
                           </FormLabel>
                           <Popover>
                             <PopoverTrigger asChild>
@@ -642,8 +643,11 @@ export default function ProfileCompletionForm({
                                   variant="outline"
                                   className={
                                     "h-9 w-full justify-start text-left font-normal bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
-                                    (form.formState.errors.dateOfBirth ? "border-red-500 " : "") +
-                                    (!field.value ? "text-muted-foreground" : "")
+                                    (form.formState.errors.dateOfBirth
+                                      ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
+                                      : "focus:border-emerald-500 dark:focus:border-emerald-500"
+                                    ) +
+                                    (!field.value ? " text-muted-foreground dark:text-gray-500" : "")
                                   }
                                 >
                                   <CalendarIcon className="mr-2 h-4 w-4" />
@@ -651,7 +655,7 @@ export default function ProfileCompletionForm({
                                 </Button>
                               </FormControl>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
+                            <PopoverContent className="w-auto p-0 bg-white dark:bg-neutral-900 border-gray-200 dark:border-neutral-700" align="start">
                               <CalendarComponent
                                 mode="single"
                                 selected={field.value ? new Date(field.value) : undefined}
@@ -707,7 +711,7 @@ export default function ProfileCompletionForm({
                     <FormItem>
                       <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                         <MapPin className="h-4 w-4" />
-                        Address *
+                        Address <span className="text-red-500 dark:text-red-400">*</span>
                       </FormLabel>
                       <FormControl>
                         <Textarea
@@ -718,8 +722,8 @@ export default function ProfileCompletionForm({
                           className={
                             "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 min-h-[80px] resize-none " +
                             (form.formState.errors.address
-                              ? "border-red-500 focus:border-red-500"
-                              : "")
+                              ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
+                              : "focus:border-emerald-500 dark:focus:border-emerald-500")
                           }
                         />
                       </FormControl>
@@ -731,7 +735,7 @@ export default function ProfileCompletionForm({
 
               {/* Emergency Contact */}
               <div className="space-y-1.5 pt-1">
-                <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2 mb-1 border-b border-emerald-200 pb-1">
+                <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2 mb-1 border-b border-emerald-200 dark:border-emerald-800/30 pb-1">
                   <Phone className="h-4 w-4" />
                   Emergency Contact
                 </h3>
@@ -749,8 +753,8 @@ export default function ProfileCompletionForm({
                             className={
                               "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                               (form.formState.errors.emergencyContactName
-                                ? "border-red-500 focus:border-red-500"
-                                : "")
+                                ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
+                                : "focus:border-emerald-500 dark:focus:border-emerald-500")
                             }
                           />
                         </FormControl>
@@ -771,8 +775,8 @@ export default function ProfileCompletionForm({
                             className={
                               "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                               (form.formState.errors.emergencyContactPhone
-                                ? "border-red-500 focus:border-red-500"
-                                : "")
+                                ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
+                                : "focus:border-emerald-500 dark:focus:border-emerald-500")
                             }
                             defaultCountry="IN"
                             international
@@ -797,8 +801,8 @@ export default function ProfileCompletionForm({
                           className={
                             "bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 " +
                             (form.formState.errors.emergencyContactRelationship
-                              ? "border-red-500 focus:border-red-500"
-                              : "")
+                              ? "border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500"
+                              : "focus:border-emerald-500 dark:focus:border-emerald-500")
                           }
                         />
                       </FormControl>
@@ -811,7 +815,7 @@ export default function ProfileCompletionForm({
               {/* Role-specific fields (Optional) */}
               {isDoctor && (
                 <div className="space-y-2 pt-1">
-                  <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 mb-1 border-b border-emerald-200 pb-1">
+                  <h3 className="text-base font-semibold text-emerald-700 dark:text-emerald-400 mb-1 border-b border-emerald-200 dark:border-emerald-800/30 pb-1">
                     Professional Information (Optional)
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -825,7 +829,7 @@ export default function ProfileCompletionForm({
                             <Input
                               placeholder="e.g., Cardiology, Pediatrics"
                               {...field}
-                              className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700"
+                              className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 focus:border-emerald-500 dark:focus:border-emerald-500"
                             />
                           </FormControl>
                           <FormMessage />
@@ -842,7 +846,7 @@ export default function ProfileCompletionForm({
                             <Input
                               placeholder="e.g., 5 years"
                               {...field}
-                              className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700"
+                              className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 focus:border-emerald-500 dark:focus:border-emerald-500"
                             />
                           </FormControl>
                           <FormMessage />
@@ -853,54 +857,16 @@ export default function ProfileCompletionForm({
                 </div>
               )}
 
-              {isClinicAdmin && (
-                <div className="space-y-2 pt-2">
-                  <h3 className="text-lg font-bold text-emerald-700 dark:text-emerald-400 mb-2 border-b border-emerald-200 pb-1">
-                    Clinic Information (Optional)
-                  </h3>
-                  <FormField
-                    control={form.control}
-                    name="clinicName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-gray-700 dark:text-gray-300">Clinic Name</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Enter clinic name"
-                            {...field}
-                            className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="clinicAddress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-gray-700 dark:text-gray-300">Clinic Address</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Enter clinic address"
-                            rows={3}
-                            {...field}
-                            className="bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
+              {/* Note: Clinic information is NOT shown here for CLINIC_ADMIN
+                  The clinic is already configured in the backend and associated with the user via clinicId.
+                  Clinic details (name, address) should be managed separately in clinic settings.
+              */}
 
               {/* Submit Button */}
               <div className="flex flex-col md:flex-row gap-3 pt-6 justify-end">
                 {form.formState.isSubmitted &&
                   Object.keys(form.formState.errors).length > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-md p-3 w-full md:w-auto">
+                    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-amber-800 dark:text-amber-300 rounded-md p-3 w-full md:w-auto">
                       <p className="flex items-center">
                         <svg
                           className="h-5 w-5 mr-2"
@@ -920,7 +886,7 @@ export default function ProfileCompletionForm({
                 <Button
                   type="submit"
                   disabled={isSubmitting || updatingProfile}
-                  className="w-full md:w-auto self-end bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-8 py-2 rounded-lg shadow-lg transition-all duration-200"
+                  className="w-full md:w-auto self-end bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-700 dark:to-teal-700 hover:from-emerald-700 hover:to-teal-700 dark:hover:from-emerald-800 dark:hover:to-teal-800 text-white font-semibold px-8 py-2 rounded-lg shadow-lg dark:shadow-none transition-all duration-200"
                   onClick={() => {
                     if (Object.keys(form.formState.errors).length > 0) {
                       // Scroll to the first error

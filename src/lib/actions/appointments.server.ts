@@ -15,7 +15,10 @@ import type {
   CreateAppointmentData, 
   UpdateAppointmentData, 
   AppointmentFilters,
-  DoctorAvailability 
+  DoctorAvailability,
+  AppointmentServiceDefinition,
+  AppointmentReassignmentCandidate,
+  AssistantDoctorCoverageAssignment,
 } from '@/types/appointment.types';
 
 // ===== SCHEMAS =====
@@ -36,6 +39,60 @@ const IST_UTC_OFFSET = '+05:30';
 function toIstAppointmentIso(date: string, time: string): string {
   // Normalize incoming date/time to IST first, then store as UTC ISO for backend consistency.
   return new Date(`${date}T${time}:00${IST_UTC_OFFSET}`).toISOString();
+}
+
+function normalizeAppointment(raw: Appointment | (Appointment & { appointmentDate?: string })) {
+  const metadata =
+    raw.metadata && typeof raw.metadata === 'object' && !Array.isArray(raw.metadata)
+      ? (raw.metadata as Record<string, unknown>)
+      : {};
+  const appointmentDate =
+    typeof (raw as { appointmentDate?: string }).appointmentDate === 'string'
+      ? (raw as { appointmentDate?: string }).appointmentDate
+      : undefined;
+
+  const normalizedRaw = {
+    ...raw,
+    primaryDoctorId:
+      typeof raw.primaryDoctorId === 'string'
+        ? raw.primaryDoctorId
+        : typeof metadata.primaryDoctorId === 'string'
+          ? metadata.primaryDoctorId
+          : raw.doctorId,
+    assignedDoctorId:
+      typeof raw.assignedDoctorId === 'string'
+        ? raw.assignedDoctorId
+        : typeof metadata.assignedDoctorId === 'string'
+          ? metadata.assignedDoctorId
+          : raw.doctorId,
+    doctorRole:
+      typeof raw.doctorRole === 'string'
+        ? raw.doctorRole
+        : typeof (raw as { doctor?: { role?: string; user?: { role?: string } } }).doctor?.role === 'string'
+          ? (raw as { doctor?: { role?: string; user?: { role?: string } } }).doctor?.role
+          : typeof (raw as { doctor?: { role?: string; user?: { role?: string } } }).doctor?.user?.role ===
+              'string'
+            ? (raw as { doctor?: { role?: string; user?: { role?: string } } }).doctor?.user?.role
+            : undefined,
+  };
+
+  if (!appointmentDate) {
+    return normalizedRaw;
+  }
+
+  const parsedDate = new Date(appointmentDate);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return normalizedRaw;
+  }
+
+  const hours = String(parsedDate.getHours()).padStart(2, '0');
+  const minutes = String(parsedDate.getMinutes()).padStart(2, '0');
+
+  return {
+    ...normalizedRaw,
+    date: parsedDate.toISOString().split('T')[0] || '',
+    time: `${hours}:${minutes}`,
+  };
 }
 
 // ===== APPOINTMENT ACTIONS =====
@@ -136,6 +193,123 @@ export async function createAppointment(data: CreateAppointmentData): Promise<{
   }
 }
 
+export async function getAppointmentServiceCatalog(): Promise<{
+  success: boolean;
+  services?: AppointmentServiceDefinition[];
+  error?: string;
+}> {
+  try {
+    const { data } = await authenticatedApi<{
+      services?: AppointmentServiceDefinition[];
+      data?: { services?: AppointmentServiceDefinition[] };
+    }>(API_ENDPOINTS.APPOINTMENTS.SERVICES, {
+      cache: 'force-cache',
+    });
+
+    const services = Array.isArray(data?.services)
+      ? data.services
+      : Array.isArray(data?.data?.services)
+        ? data.data.services
+        : [];
+
+    return { success: true, services };
+  } catch (error) {
+    logger.error(
+      'Failed to get appointment service catalog',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return { success: false, error: 'Failed to fetch appointment services' };
+  }
+}
+
+export async function getAppointmentReassignmentCandidates(
+  id: string
+): Promise<{
+  success: boolean;
+  candidates?: AppointmentReassignmentCandidate[];
+  error?: string;
+}> {
+  try {
+    const { data } = await authenticatedApi<{
+      candidates?: AppointmentReassignmentCandidate[];
+      data?: { candidates?: AppointmentReassignmentCandidate[] };
+    }>(API_ENDPOINTS.APPOINTMENTS.REASSIGNMENT_CANDIDATES(id), {});
+
+    const candidates = Array.isArray(data?.candidates)
+      ? data.candidates
+      : Array.isArray(data?.data?.candidates)
+        ? data.data.candidates
+        : [];
+
+    return { success: true, candidates };
+  } catch (error) {
+    logger.error(
+      'Failed to get appointment reassignment candidates',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return { success: false, error: 'Failed to fetch reassignment candidates' };
+  }
+}
+
+export async function getAssistantDoctorCoverage(): Promise<{
+  success: boolean;
+  entries?: AssistantDoctorCoverageAssignment[];
+  error?: string;
+}> {
+  try {
+    const { data } = await authenticatedApi<{
+      entries?: AssistantDoctorCoverageAssignment[];
+      data?: { entries?: AssistantDoctorCoverageAssignment[] };
+    }>(API_ENDPOINTS.APPOINTMENTS.ASSISTANT_COVERAGE, {});
+
+    const entries = Array.isArray(data?.entries)
+      ? data.entries
+      : Array.isArray(data?.data?.entries)
+        ? data.data.entries
+        : [];
+
+    return { success: true, entries };
+  } catch (error) {
+    logger.error(
+      'Failed to get assistant doctor coverage',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return { success: false, error: 'Failed to fetch assistant doctor coverage' };
+  }
+}
+
+export async function updateAssistantDoctorCoverage(
+  entries: AssistantDoctorCoverageAssignment[]
+): Promise<{
+  success: boolean;
+  entries?: AssistantDoctorCoverageAssignment[];
+  error?: string;
+}> {
+  try {
+    const { data } = await authenticatedApi<{
+      entries?: AssistantDoctorCoverageAssignment[];
+      data?: { entries?: AssistantDoctorCoverageAssignment[] };
+    }>(API_ENDPOINTS.APPOINTMENTS.ASSISTANT_COVERAGE, {
+      method: 'PUT',
+      body: JSON.stringify({ entries }),
+    });
+
+    const updatedEntries = Array.isArray(data?.entries)
+      ? data.entries
+      : Array.isArray(data?.data?.entries)
+        ? data.data.entries
+        : [];
+
+    return { success: true, entries: updatedEntries };
+  } catch (error) {
+    logger.error(
+      'Failed to update assistant doctor coverage',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return { success: false, error: 'Failed to save assistant doctor coverage' };
+  }
+}
+
 /**
  * Get appointments with filtering
  */
@@ -144,8 +318,28 @@ export async function getAppointments(filters?: AppointmentFilters) {
     const queryParams = filters ? new URLSearchParams(filters as any).toString() : '';
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.GET_ALL;
     
-    const { data } = await authenticatedApi<{ data: Appointment[]; meta: any }>(endpoint, {});
-    return { success: true, appointments: data.data, meta: data.meta };
+    const { data } = await authenticatedApi<{
+      data?: Appointment[] | { appointments?: Appointment[]; pagination?: any };
+      appointments?: Appointment[];
+      pagination?: any;
+      meta?: any;
+    }>(endpoint, {});
+    const payload =
+      Array.isArray(data)
+        ? data
+        : Array.isArray(data.appointments)
+          ? data.appointments
+          : data.data ?? data;
+    const appointments = (Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.appointments)
+        ? payload.appointments
+        : []).map(appointment => normalizeAppointment(appointment));
+    const meta =
+      (!Array.isArray(payload) && payload?.pagination) ||
+      data.pagination ||
+      data.meta;
+    return { success: true, appointments, meta };
   } catch (error) {
     logger.error('Failed to get appointments', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Failed to fetch appointments' };
@@ -160,8 +354,28 @@ export async function getMyAppointments(filters?: any) {
     const queryParams = filters ? new URLSearchParams(filters).toString() : '';
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS;
     
-    const { data } = await authenticatedApi<{ data: Appointment[]; meta: any }>(endpoint, {});
-    return { success: true, appointments: data.data, meta: data.meta };
+    const { data } = await authenticatedApi<{
+      data?: Appointment[] | { appointments?: Appointment[]; pagination?: any };
+      appointments?: Appointment[];
+      pagination?: any;
+      meta?: any;
+    }>(endpoint, {});
+    const payload =
+      Array.isArray(data)
+        ? data
+        : Array.isArray(data.appointments)
+          ? data.appointments
+          : data.data ?? data;
+    const appointments = (Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.appointments)
+        ? payload.appointments
+        : []).map(appointment => normalizeAppointment(appointment));
+    const meta =
+      (!Array.isArray(payload) && payload?.pagination) ||
+      data.pagination ||
+      data.meta;
+    return { success: true, appointments, meta };
   } catch (error) {
     logger.error('Failed to get my appointments', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Failed to fetch appointments' };
@@ -174,7 +388,7 @@ export async function getMyAppointments(filters?: any) {
 export async function getAppointmentById(id: string) {
   try {
     const { data } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.GET_BY_ID(id), {});
-    return { success: true, appointment: data };
+    return { success: true, appointment: normalizeAppointment(data as Appointment) };
   } catch (error) {
     logger.error('Failed to get appointment by ID', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Appointment not found' };
@@ -287,7 +501,10 @@ export async function confirmAppointment(id: string) {
  */
 export async function checkInAppointment(id: string) {
   try {
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id), { method: 'POST' });
+    const result = await updateAppointmentStatus(id, { status: 'CONFIRMED' });
+    if (!result.success) {
+      return result;
+    }
     revalidateCache('appointments');
     revalidateCache('queue');
     return { success: true };
@@ -522,20 +739,57 @@ export async function rejectVideoProposal(id: string, reason: string) {
 /**
  * Scan location QR and check in
  */
-export async function scanLocationQRAndCheckIn(data: { code: string; locationId?: string }) {
+export async function scanLocationQRAndCheckIn(data: {
+  code: string;
+  locationId?: string;
+  appointmentId?: string;
+}) {
   try {
     const validatedData = scanQRSchema.parse(data);
     const payload = {
       qrCode: validatedData.code,
-      ...(validatedData.locationId ? { locationId: validatedData.locationId } : {})
+      ...(validatedData.locationId ? { locationId: validatedData.locationId } : {}),
+      ...(validatedData.appointmentId ? { appointmentId: validatedData.appointmentId } : {}),
     };
-    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.SCAN_QR, {
+    const { data: response } = await authenticatedApi<any>(API_ENDPOINTS.APPOINTMENTS.SCAN_QR, {
       method: 'POST',
       body: JSON.stringify(payload)
     });
+
+    const responseData = response?.data ?? response;
+
+    if (response?.success === false && responseData?.requiresSelection) {
+      return {
+        success: false,
+        requiresSelection: true,
+        appointments: responseData.eligibleAppointments ?? [],
+        message: responseData.message ?? 'Multiple appointments found',
+      };
+    }
+
+    if (response?.success === false) {
+      return {
+        success: false,
+        error: response?.message || responseData?.message || 'QR check-in failed',
+      };
+    }
+
     revalidateCache('appointments');
     revalidateCache('queue');
-    return { success: true, appointment };
+    return {
+      success: true,
+      appointment: {
+        appointmentId: responseData?.appointmentId,
+        locationId: responseData?.locationId,
+        locationName: responseData?.locationName,
+        checkedInAt: responseData?.checkedInAt,
+        queuePosition: responseData?.queuePosition,
+        totalInQueue: responseData?.totalInQueue,
+        estimatedWaitTime: responseData?.estimatedWaitTime,
+        doctorId: responseData?.doctorId,
+        doctorName: responseData?.doctorName,
+      },
+    };
   } catch (error) {
     logger.error('Failed QR check-in', error instanceof Error ? error : new Error(String(error)));
     const normalizedError = error as Error & {
@@ -551,6 +805,62 @@ export async function scanLocationQRAndCheckIn(data: { code: string; locationId?
       success: false,
       error: detailedMessage || 'QR check-in failed',
       code: normalizedError.code,
+    };
+  }
+}
+
+export async function reassignAppointmentDoctor(
+  id: string,
+  data: {
+    doctorId: string;
+    reason?: string;
+  }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const { data: appointment } = await authenticatedApi<Appointment>(
+      API_ENDPOINTS.APPOINTMENTS.REASSIGN_DOCTOR(id),
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+
+    const { ipAddress, userAgent } = await getClientInfo();
+    await auditLog({
+      userId: session.user.id,
+      action: 'APPOINTMENT_DOCTOR_REASSIGNED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'MEDIUM',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: {
+        doctorId: data.doctorId,
+        reason: data.reason,
+      },
+    });
+
+    revalidatePath('/receptionist/appointments');
+    revalidatePath('/doctor/appointments');
+    revalidatePath('/assistant-doctor/dashboard');
+    revalidatePath('/assistant-doctor/appointments');
+    revalidateCache('appointments');
+    revalidateCache('queue');
+
+    return { success: true, appointment: normalizeAppointment(appointment) };
+  } catch (error) {
+    logger.error(
+      'Failed to reassign appointment doctor',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to reassign appointment doctor',
     };
   }
 }

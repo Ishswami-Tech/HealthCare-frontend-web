@@ -1409,3 +1409,67 @@ input::-webkit-strong-password-auto-fill-button {
   pointer-events: none !important;
 }
 
+/* ============================================================================
+   HTML5-QR CODE SCANNER STYLES
+   ============================================================================ */
+
+/* Ensure the html5-qrcode video element displays properly within the container */
+#qr-video-region video,
+#qr-video-region > video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 0 !important;
+}
+
+/* Handle the html5-qrcode library's default video element styling */
+html5-qrcode video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+/* Hide ALL html5-qrcode standard overlays (shadows, lines, brackets) */
+#qr-video-region canvas,
+#qr-shaded-region,
+.qr-canvas,
+.qr-shaded-region {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+#qr-video-region canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 0 !important;
+}
+
+/* Ensure the QR scanner container has proper dimensions */
+[id^="qr-video-region"],
+[id*="qr-video-region"] {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Override any default html5-qrcode styles that might interfere */
+html5-qrcode {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+}
+
+/* Ensure the scanner region fills its container */
+#qr-video-region > * {
+  width: 100% !important;
+  height: 100% !important;
+  position: absolute !important;
+  inset: 0 !important;
+}
+

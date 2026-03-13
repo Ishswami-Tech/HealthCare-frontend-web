@@ -24,7 +24,14 @@ export interface Subscription {
   clinicId: string;
   planId: string;
   plan?: BillingPlan;
-  status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PENDING';
+  status:
+    | 'ACTIVE'
+    | 'PAST_DUE'
+    | 'CANCELLED'
+    | 'INCOMPLETE'
+    | 'INCOMPLETE_EXPIRED'
+    | 'TRIALING'
+    | 'PAUSED';
   startDate: string;
   endDate?: string;
   nextBillingDate?: string;
@@ -43,7 +50,7 @@ export interface Invoice {
   invoiceNumber: string;
   amount: number;
   currency: string;
-  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+  status: 'DRAFT' | 'OPEN' | 'PAID' | 'VOID' | 'UNCOLLECTIBLE' | 'OVERDUE';
   dueDate: string;
   paidDate?: string;
   items: InvoiceItem[];
@@ -68,7 +75,7 @@ export interface Payment {
   subscriptionId?: string;
   amount: number;
   currency: string;
-  method: 'CASH' | 'CARD' | 'UPI' | 'NET_BANKING' | 'WALLET' | 'CHEQUE';
+  method: 'CASH' | 'CARD' | 'UPI' | 'NET_BANKING' | 'WALLET' | 'INSURANCE';
   status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
   transactionId?: string;
   paymentDate?: string;
@@ -162,6 +169,11 @@ export interface CreateSubscriptionData {
   clinicId: string;
   planId: string;
   autoRenew?: boolean;
+  startDate?: string;
+  endDate?: string;
+  trialStart?: string;
+  trialEnd?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreateInvoiceData {
@@ -171,7 +183,8 @@ export interface CreateInvoiceData {
   amount: number;
   currency?: string;
   dueDate: string;
-  items: InvoiceItem[];
+  lineItems?: Record<string, unknown>;
+  items?: InvoiceItem[];
 }
 
 export interface CreatePaymentData {

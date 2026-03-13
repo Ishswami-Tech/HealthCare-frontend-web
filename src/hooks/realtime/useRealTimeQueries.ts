@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
 import { useWebSocketIntegration } from './useWebSocketIntegration';
+import { useWebSocketContext, useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useAppStore, useAppointmentsStore } from '@/stores';
 // ✅ Consolidated: Import types from @/types (single source of truth)
 import type { Appointment, AppointmentFilters } from '@/types/appointment.types';
@@ -193,7 +194,8 @@ export function useRealTimeAppointmentStats() {
 export function useRealTimeQueueStatus(queueName?: string, locationId?: string) {
   const queryClient = useQueryClient();
   const { currentClinic } = useAppStore();
-  const { isConnected, subscribe } = useWebSocketIntegration();
+  const { isConnected } = useWebSocketStatus();
+  const { subscribe } = useWebSocketContext();
 
   const query = useQueryData(
     ['queue-status', currentClinic?.id, queueName, locationId],
@@ -222,7 +224,10 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
       enabled: !!currentClinic && !!locationId,
       staleTime: 30 * 1000, // 30 seconds (optimized for 10M users)
       gcTime: 5 * 60 * 1000, // 5 minutes
-      refetchInterval: isConnected ? false : 60 * 1000, // 1 minute if not real-time (increased for 10M users)
+      // Keep queue status fresh even when the websocket is connected because
+      // the backend socket layer does not emit the same location-level stats
+      // shape that this hook reads from the API.
+      refetchInterval: 15 * 1000,
       refetchOnWindowFocus: false,
     }
   );
@@ -234,20 +239,24 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
       const data = rawData as {
         clinicId: string;
         queueName?: string;
+        locationId?: string;
         status: Record<string, unknown>;
       };
       if (data.clinicId === currentClinic.id) {
-        if (queueName && data.queueName === queueName) {
-          queryClient.setQueryData(['queue-status', currentClinic.id, queueName], {
-            success: true,
-            data: data.status,
-          });
-        } else if (!queueName) {
-          queryClient.setQueryData(['queue-status', currentClinic.id, undefined], {
-            success: true,
-            data: data.status,
-          });
+        const eventLocationId = data.locationId || locationId;
+
+        if (locationId && eventLocationId && eventLocationId !== locationId) {
+          return;
         }
+
+        if (queueName && data.queueName && data.queueName !== queueName) {
+          return;
+        }
+
+        queryClient.setQueryData(['queue-status', currentClinic.id, queueName, locationId], {
+          success: true,
+          data: data.status,
+        });
       }
     });
 

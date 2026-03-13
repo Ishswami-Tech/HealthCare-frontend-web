@@ -12,10 +12,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, Plus, Trash2 } from "lucide-react";
 import type { Clinic, UpdateClinicData } from "@/types/clinic.types";
+import {
+  getAssistantDoctorCoverage,
+  updateAssistantDoctorCoverage,
+} from "@/lib/actions/appointments.server";
 
 type DayKey = "monday"|"tuesday"|"wednesday"|"thursday"|"friday"|"saturday"|"sunday";
 type Session = { start: string; end: string };
 type DoctorCtrl = { isPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; emergencyOnly: boolean };
+type AssistantCoverage = { primaryDoctorIds: string[]; isActive: boolean };
 type ClinicForm = { name: string; address: string; city: string; state: string; country: string; zipCode: string; phone: string; email: string; website: string; description: string; timezone: string; currency: string; language: string; operatingHours: string };
 type SettingsForm = { appointmentDuration: number; maxAdvanceBooking: number; minAdvanceBooking: number; cancellationWindow: number; noShowWindowMinutes: number; noShowFee: number; cancellationFee: number; allowRescheduling: boolean; allowCancellation: boolean; autoConfirmation: boolean; walkInAllowed: boolean; emailNotifications: boolean; smsNotifications: boolean; pushNotifications: boolean; appointmentReminders: boolean; cancellationAlerts: boolean; paymentMethodsText: string; autoBilling: boolean; clinicPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; emergencyOnly: boolean };
 
@@ -27,6 +32,12 @@ const toNumber = (v: unknown, fb: number) => Number.isFinite(Number(v)) ? Number
 const normalizeTime = (v: unknown, fb: string) => typeof v === "string" && /^([01]\d|2[0-3]):([0-5]\d)$/.test(v.trim()) ? v.trim() : fb;
 const parseSessions = (v: unknown): Session[] => Array.isArray(v) ? v.map(x => isRecord(x) ? ({ start: normalizeTime(x.start,"11:00"), end: normalizeTime(x.end,"14:00") }) : null).filter((x): x is Session => !!x) : isRecord(v) ? [{ start: normalizeTime(v.start,"11:00"), end: normalizeTime(v.end,"14:00") }] : [];
 
+function omitAssistantCoverage(value: unknown): Record<string, unknown> {
+  const record = isRecord(value) ? value : {};
+  const { assistantDoctorCoverage: _assistantDoctorCoverage, ...rest } = record;
+  return rest;
+}
+
 export default function ClinicAdminSettingsPage() {
   useAuth();
   const { data: clinicData, isPending } = useCurrentClinic();
@@ -36,19 +47,26 @@ export default function ClinicAdminSettingsPage() {
   const doctors = useMemo(() => {
     const raw = doctorsData as unknown;
     const arr = Array.isArray(raw) ? raw : isRecord(raw) && Array.isArray(raw.data) ? raw.data : isRecord(raw) && isRecord(raw.data) && Array.isArray(raw.data.doctors) ? raw.data.doctors : [];
-    return arr.map((d: any) => ({ id: d?.doctor?.id || d?.id || "", name: d?.name || "Doctor" })).filter((x: any) => !!x.id);
+    return arr.map((d: any) => ({
+      id: d?.doctor?.id || d?.id || "",
+      name: d?.name || d?.doctor?.user?.name || "Doctor",
+      role: String(d?.role || d?.doctor?.user?.role || "").toUpperCase(),
+    })).filter((x: any) => !!x.id);
   }, [doctorsData]);
+  const primaryDoctors = useMemo(() => doctors.filter((doctor: any) => doctor.role === "DOCTOR"), [doctors]);
+  const assistantDoctors = useMemo(() => doctors.filter((doctor: any) => doctor.role === "ASSISTANT_DOCTOR"), [doctors]);
 
   const [ready, setReady] = useState(false);
   const [clinicForm, setClinicForm] = useState<ClinicForm>({ name:"",address:"",city:"",state:"",country:"India",zipCode:"",phone:"",email:"",website:"",description:"",timezone:"Asia/Kolkata",currency:"INR",language:"en",operatingHours:"Mon-Sun multi-session OPD" });
   const [settings, setSettings] = useState<SettingsForm>({ appointmentDuration:30,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false });
   const [sessions, setSessions] = useState<Record<DayKey, Session[]>>(defaultSessions());
   const [doctorCtrl, setDoctorCtrl] = useState<Record<string, DoctorCtrl>>({});
+  const [assistantCoverage, setAssistantCoverage] = useState<Record<string, AssistantCoverage>>({});
 
   useEffect(() => {
     if (!clinic || ready) return;
     const base = isRecord(clinic.settings) ? clinic.settings : {};
-    const appt = isRecord(base.appointmentSettings) ? base.appointmentSettings : {};
+    const appt = omitAssistantCoverage(base.appointmentSettings);
     const notif = isRecord(base.notifications) ? base.notifications : {};
     const notifSet = isRecord(base.notificationSettings) ? base.notificationSettings : {};
     const pay = isRecord(base.paymentSettings) ? base.paymentSettings : {};
@@ -64,12 +82,49 @@ export default function ClinicAdminSettingsPage() {
     setSessions(parsed); setDoctorCtrl(mapped); setReady(true);
   }, [clinic, ready]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAssistantCoverage = async () => {
+      const result = await getAssistantDoctorCoverage();
+      if (!result.success || !result.entries || cancelled) return;
+
+      const coverageMap: Record<string, AssistantCoverage> = {};
+      for (const entry of result.entries) {
+        coverageMap[entry.assistantDoctorId] = {
+          primaryDoctorIds: entry.primaryDoctorIds,
+          isActive: entry.isActive,
+        };
+      }
+
+      setAssistantCoverage(coverageMap);
+    };
+
+    void loadAssistantCoverage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => { if (doctors.length===0) return; setDoctorCtrl(prev => { const n={...prev}; doctors.forEach((d:any)=>{ if(!n[d.id]) n[d.id]={ isPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false }; }); return n; }); }, [doctors]);
+  useEffect(() => {
+    if (assistantDoctors.length===0) return;
+    setAssistantCoverage(prev => {
+      const next = { ...prev };
+      assistantDoctors.forEach((doctor: any) => {
+        if (!next[doctor.id]) {
+          next[doctor.id] = { primaryDoctorIds: [], isActive: false };
+        }
+      });
+      return next;
+    });
+  }, [assistantDoctors]);
 
   const save = async () => {
     if (!clinic?.id) return;
     const base = isRecord(clinic.settings) ? clinic.settings : {};
-    const appt = isRecord(base.appointmentSettings) ? base.appointmentSettings : {};
+    const appt = omitAssistantCoverage(base.appointmentSettings);
     const notif = isRecord(base.notifications) ? base.notifications : {};
     const notifSet = isRecord(base.notificationSettings) ? base.notificationSettings : {};
     const pay = isRecord(base.paymentSettings) ? base.paymentSettings : {};
@@ -87,6 +142,12 @@ export default function ClinicAdminSettingsPage() {
       },
     };
     await updateClinic.mutateAsync({ id: clinic.id, data: payload });
+    const coverageEntries = Object.entries(assistantCoverage).map(([assistantDoctorId, value]) => ({
+      assistantDoctorId,
+      primaryDoctorIds: value.primaryDoctorIds,
+      isActive: value.isActive,
+    }));
+    await updateAssistantDoctorCoverage(coverageEntries);
   };
 
   const setSF = (k: keyof SettingsForm, v: string|number|boolean) => setSettings(p => ({ ...p, [k]: v as never }));
@@ -98,6 +159,28 @@ export default function ClinicAdminSettingsPage() {
     const current: DoctorCtrl = p[id] || { isPaused:false, pauseReason:"", generalConsultationEnabled:true, videoConsultationEnabled:true, emergencyOnly:false };
     return { ...p, [id]: { ...current, [k]: v as never } };
   });
+  const toggleAssistantPrimaryDoctor = (assistantDoctorId: string, primaryDoctorId: string) =>
+    setAssistantCoverage((current) => {
+      const existing = current[assistantDoctorId] || { primaryDoctorIds: [], isActive: false };
+      const hasDoctor = existing.primaryDoctorIds.includes(primaryDoctorId);
+      return {
+        ...current,
+        [assistantDoctorId]: {
+          ...existing,
+          primaryDoctorIds: hasDoctor
+            ? existing.primaryDoctorIds.filter((id) => id !== primaryDoctorId)
+            : [...existing.primaryDoctorIds, primaryDoctorId],
+        },
+      };
+    });
+  const setAssistantCoverageActive = (assistantDoctorId: string, isActive: boolean) =>
+    setAssistantCoverage((current) => ({
+      ...current,
+      [assistantDoctorId]: {
+        ...(current[assistantDoctorId] || { primaryDoctorIds: [] }),
+        isActive,
+      },
+    }));
 
   if (isPending || !ready) return <div className="p-6 flex items-center justify-center min-h-[420px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!clinic?.id) return <div className="p-6"><Card><CardHeader><CardTitle>Clinic Settings</CardTitle><CardDescription>Clinic context is not available.</CardDescription></CardHeader></Card></div>;
@@ -131,6 +214,10 @@ export default function ClinicAdminSettingsPage() {
 
       <Card><CardHeader><CardTitle>Doctor-Wise Controls</CardTitle></CardHeader><CardContent className="space-y-3">
         {doctors.length===0 ? <p className="text-sm text-muted-foreground">No doctors found.</p> : doctors.map((d:any)=>{ const c=doctorCtrl[d.id]; if(!c) return null; return <div key={d.id} className="border rounded-md p-3 space-y-2"><p className="font-medium">{d.name}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Pause Doctor</Label><Switch checked={c.isPaused} onCheckedChange={v=>updDoc(d.id,"isPaused",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">General Enabled</Label><Switch checked={c.generalConsultationEnabled} onCheckedChange={v=>updDoc(d.id,"generalConsultationEnabled",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Video Enabled</Label><Switch checked={c.videoConsultationEnabled} onCheckedChange={v=>updDoc(d.id,"videoConsultationEnabled",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Emergency Only</Label><Switch checked={c.emergencyOnly} onCheckedChange={v=>updDoc(d.id,"emergencyOnly",v)} /></div></div><div><Label className="text-xs">Reason</Label><Input value={c.pauseReason} onChange={e=>updDoc(d.id,"pauseReason",e.target.value)} /></div></div>; })}
+      </CardContent></Card>
+
+      <Card><CardHeader><CardTitle>Assistant Doctor Coverage</CardTitle><CardDescription>Choose which primary doctors each assistant doctor can cover at this clinic. Reassignment will use this configuration.</CardDescription></CardHeader><CardContent className="space-y-3">
+        {assistantDoctors.length===0 ? <p className="text-sm text-muted-foreground">No assistant doctors found.</p> : assistantDoctors.map((assistant: any) => { const coverage = assistantCoverage[assistant.id] || { primaryDoctorIds: [], isActive: false }; return <div key={assistant.id} className="border rounded-md p-3 space-y-3"><div className="flex items-center justify-between gap-3"><div><p className="font-medium">{assistant.name}</p><p className="text-xs text-muted-foreground">Assistant coverage for main doctor bookings</p></div><div className="flex items-center gap-2"><Label className="text-sm">Active</Label><Switch checked={coverage.isActive} onCheckedChange={(value)=>setAssistantCoverageActive(assistant.id, value)} /></div></div><div className="flex flex-wrap gap-2">{primaryDoctors.length===0 ? <p className="text-sm text-muted-foreground">No primary doctors found.</p> : primaryDoctors.map((doctor: any) => { const selected = coverage.primaryDoctorIds.includes(doctor.id); return <Button key={doctor.id} type="button" variant={selected ? "default" : "outline"} size="sm" onClick={()=>toggleAssistantPrimaryDoctor(assistant.id, doctor.id)}>{doctor.name}</Button>; })}</div></div>; })}
       </CardContent></Card>
     </div>
   );

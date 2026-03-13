@@ -716,8 +716,7 @@ export const useActiveLocations = (clinicId: string) => {
       if (!result) {
         throw new Error('Failed to fetch active locations');
       }
-      // TODO: Filter by active status if the API returns inactive ones too
-      return result;
+      return result.filter((location) => location?.isActive !== false);
     },
     {
       enabled: !!clinicId,

@@ -47,7 +47,7 @@ export default function EnhancedDoctorDashboard() {
         return new Date(apt.date).toDateString() === today;
       })?.length || 8,
     checkedInPatients:
-      appointments?.appointments?.filter((apt: any) => apt.status === "CHECKED_IN")?.length || 3,
+      appointments?.appointments?.filter((apt: any) => apt.status === "CONFIRMED")?.length || 3,
     completedToday:
       appointments?.appointments?.filter((apt: any) => {
         const today = new Date().toDateString();

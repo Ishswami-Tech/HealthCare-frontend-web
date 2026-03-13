@@ -20,7 +20,7 @@ export interface QueueItem {
   notes?: string;
   createdAt: string;
   updatedAt: string;
-  
+
   // Relations
   patient?: {
     id: string;
@@ -161,14 +161,14 @@ export interface QueueNotification {
   id: string;
   queueItemId: string;
   patientId: string;
-  type: 'POSITION_UPDATE' | 'CALLED' | 'READY' | 'DELAYED' | 'CANCELLED';
+  type: 'POSITION_UPDATE' | 'CANCELLED' | 'READY' | 'DELAYED' | 'CANCELLED';
   message: string;
   channels: ('SMS' | 'EMAIL' | 'PUSH' | 'DISPLAY')[];
   sentAt?: string;
   deliveredAt?: string;
   status: 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED';
   createdAt: string;
-  
+
   // Relations
   queueItem?: QueueItem;
   patient?: {
@@ -219,7 +219,7 @@ export interface QueueAnalytics {
   queueEfficiency: number; // percentage
   noShowRate: number; // percentage
   cancellationRate: number; // percentage
-  
+
   // By queue type
   byQueueType: {
     queueType: string;
@@ -227,7 +227,7 @@ export interface QueueAnalytics {
     averageWaitTime: number;
     averageServiceTime: number;
   }[];
-  
+
   // By doctor
   byDoctor: {
     doctorId: string;
@@ -249,7 +249,7 @@ export interface QueueReport {
   data: QueueAnalytics[];
   generatedAt: string;
   generatedBy: string;
-  
+
   // Relations
   clinic?: {
     id: string;
@@ -293,3 +293,77 @@ export interface QueueSettings {
   updatedBy: string;
 }
 
+// ===== CANONICAL QUEUE TYPES =====
+// Unified queue contract for all queue lanes (doctor, medicine desk, therapy)
+
+/**
+ * Canonical queue entry - unified contract for all queue lanes
+ */
+export interface CanonicalQueueEntry {
+  entryId: string;
+  queueCategory: QueueCategory;
+  queueOwnerId: string;
+  clinicId: string;
+  locationId?: string;
+  appointmentId: string;
+  patientId: string;
+  patientName?: string;
+  doctorName?: string;
+  primaryDoctorId?: string;
+  assignedDoctorId?: string;
+  position: number;
+  totalInQueue: number;
+  status: string;
+  serviceBucket?: string;
+  treatmentType?: string;
+  estimatedWaitTime?: number;
+  paymentStatus?: string;
+  waitingForPayment?: boolean;
+  readyForHandover?: boolean;
+}
+
+/**
+ * Queue category enum
+ */
+export enum QueueCategory {
+  DOCTOR_CONSULTATION = 'DOCTOR_CONSULTATION',
+  MEDICINE_DESK = 'MEDICINE_DESK',
+  THERAPY_PROCEDURE = 'THERAPY_PROCEDURE',
+}
+
+/**
+ * Canonical queue statistics
+ */
+export interface CanonicalQueueStats {
+  total: number;
+  waiting: number;
+  inProgress: number;
+  completed: number;
+  ready: number;
+  waitingForPayment: number;
+}
+
+/**
+ * Doctor backlog entry for dashboard display
+ */
+export interface DoctorBacklogEntry {
+  doctorId: string;
+  doctorName: string;
+  scheduled: number;
+  confirmed: number;
+  inProgress: number;
+  total: number;
+  nextPatient?: string;
+}
+
+/**
+ * Medicine desk queue entry
+ */
+export interface MedicineDeskQueueEntry {
+  id: string;
+  patientName: string;
+  queuePosition: number | null;
+  paymentStatus: 'PENDING' | 'PAID' | 'DISPENSED';
+  pendingAmount: number;
+  readyForHandover: boolean;
+}

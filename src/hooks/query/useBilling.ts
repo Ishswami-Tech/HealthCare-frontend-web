@@ -2,6 +2,7 @@
 // Integrated with real API - using Docker backend
 
 import { useQueryData, useMutationOperation } from '../core';
+import { useCurrentClinicId } from './useClinics';
 import {
   getBillingPlans,
   getBillingPlan,
@@ -9,11 +10,13 @@ import {
   updateBillingPlan,
   deleteBillingPlan,
   getSubscriptions,
+  getClinicSubscriptions,
   getActiveSubscription,
   createSubscription,
   cancelSubscription,
   getSubscriptionUsageStats,
   getInvoices,
+  getClinicInvoices,
   createInvoice,
   getPayments,
   getClinicPayments,
@@ -142,6 +145,27 @@ export function useSubscriptions(userId: string) {
   );
 }
 
+export function useClinicSubscriptions(enabled: boolean = true) {
+  const clinicId = useCurrentClinicId();
+
+  return useQueryData(
+    ['clinic-subscriptions', clinicId],
+    async () => {
+      const result = await getClinicSubscriptions();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch clinic subscriptions');
+      }
+      return result.subscriptions || [];
+    },
+    {
+      enabled: enabled && !!clinicId,
+      staleTime: 10 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    }
+  );
+}
+
 export function useActiveSubscription(userId: string, clinicId: string) {
   return useQueryData(
     ['active-subscription', userId, clinicId],
@@ -237,6 +261,27 @@ export function useInvoices(userId: string) {
   );
 }
 
+export function useClinicInvoices(enabled: boolean = true) {
+  const clinicId = useCurrentClinicId();
+
+  return useQueryData(
+    ['clinic-invoices', clinicId],
+    async () => {
+      const result = await getClinicInvoices();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch clinic invoices');
+      }
+      return result.invoices || [];
+    },
+    {
+      enabled: enabled && !!clinicId,
+      staleTime: 10 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    }
+  );
+}
+
 export function useCreateInvoice() {
   return useMutationOperation(
     async (data: CreateInvoiceData) => {
@@ -283,9 +328,11 @@ export function useClinicPayments(filters?: {
   provider?: string;
   startDate?: string;
   endDate?: string;
-}) {
+}, enabled: boolean = true) {
+  const clinicId = useCurrentClinicId();
+
   return useQueryData(
-    ['clinic-payments', filters],
+    ['clinic-payments', clinicId, filters],
     async () => {
       const result = await getClinicPayments(filters);
       if (!result.success) {
@@ -294,6 +341,7 @@ export function useClinicPayments(filters?: {
       return result.payments || [];
     },
     {
+      enabled: enabled && !!clinicId,
       staleTime: 2 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,

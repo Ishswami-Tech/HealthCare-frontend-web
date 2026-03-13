@@ -14,22 +14,33 @@ import { motion, AnimatePresence } from "framer-motion";
 export default function PatientQueuePage() {
   const router = useRouter();
 
-  // Fetch patient's appointments to find active/checked-in ones
+  // Fetch patient's appointments to find active/in-queue ones
   const { data: appointmentsData, isPending: isAppointmentsPending, refetch: refetchAppointments } = useMyAppointments();
   
-  // Find the active appointment (Checked In or In Progress)
+  // Find the active appointment (confirmed after clinic check-in or already in progress)
   const activeAppointment = useMemo(() => {
-    if (!appointmentsData?.appointments) return null;
-    return appointmentsData.appointments.find(
-      (apt: any) => apt.status === 'CHECKED_IN' || apt.status === 'IN_PROGRESS'
+    const appointments = Array.isArray(appointmentsData)
+      ? appointmentsData
+      : appointmentsData?.appointments ||
+        appointmentsData?.data?.appointments ||
+        appointmentsData?.data ||
+        [];
+    if (!Array.isArray(appointments)) return null;
+    return appointments.find(
+      (apt: any) => apt.status === 'CONFIRMED' || apt.status === 'IN_PROGRESS'
     );
   }, [appointmentsData]);
 
   // Fetch real-time queue stats
-  const { data: queueStats, isPending: isQueueStatsPending } = useRealTimeQueueStatus(undefined, activeAppointment?.locationId);
+  const {
+    data: queueStats,
+    isPending: isQueueStatsPending,
+    refetch: refetchQueueStats,
+  } = useRealTimeQueueStatus(undefined, activeAppointment?.locationId);
 
   const handleRefresh = () => {
-    refetchAppointments();
+    void refetchAppointments();
+    void refetchQueueStats?.();
   };
 
   const isLoading = isAppointmentsPending || isQueueStatsPending;
@@ -55,7 +66,7 @@ export default function PatientQueuePage() {
           <div className="space-y-2">
             <h2 className="text-2xl font-bold tracking-tight">No Active Queue</h2>
             <p className="text-muted-foreground text-[15px] leading-relaxed">
-              You haven't checked in for any appointments today. Scan the clinic QR code at the reception to jump into the live queue.
+              You don't have any confirmed queue appointments today. Scan the clinic QR code at the reception to join the live queue.
             </p>
           </div>
           <div className="flex flex-col w-full gap-3 pt-4">
@@ -81,15 +92,19 @@ export default function PatientQueuePage() {
   // ─── Active Queue State ───────────────────────────────────────────────────
   const stats = (queueStats as any)?.data || {};
   const currentToken = stats.currentToken || 0;
-  const userToken = activeAppointment.tokenNumber || activeAppointment.metadata?.tokenNumber || 0;
+  const userToken =
+    activeAppointment.tokenNumber ||
+    activeAppointment.queuePosition ||
+    activeAppointment.metadata?.tokenNumber ||
+    0;
   const isInProgress = activeAppointment.status === 'IN_PROGRESS';
   
   // Logic
   let peopleAhead = 0;
-  if (activeAppointment.status === 'CHECKED_IN' && userToken > currentToken) {
+  if (activeAppointment.status === 'CONFIRMED' && userToken > currentToken) {
     peopleAhead = userToken - currentToken;
   }
-  const estimatedWait = stats.estimatedWaitTime || 15;
+  const estimatedWait = typeof stats.estimatedWaitTime === 'number' ? stats.estimatedWaitTime : 15;
   const isUpNext = peopleAhead === 1;
 
   return (
@@ -191,7 +206,7 @@ export default function PatientQueuePage() {
                      <span className="text-xs font-bold uppercase text-muted-foreground mb-2">Est. Wait</span>
                      <div className="flex items-baseline gap-1">
                         <span className="text-3xl font-black text-foreground">
-                           {isInProgress ? '0' : (peopleAhead * 10 || estimatedWait)}
+                           {isInProgress ? '0' : estimatedWait}
                         </span>
                         <span className="text-xs font-bold tracking-widest text-muted-foreground">MIN</span>
                      </div>

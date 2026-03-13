@@ -1,8 +1,9 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, Calendar, CreditCard, Wallet, Receipt, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Receipt, AlertTriangle, CreditCard, Clock } from "lucide-react";
+import type { Payment } from "@/types/billing.types";
 
 interface PatientBillingAnalyticsProps {
   totalPayments: number;
@@ -10,151 +11,127 @@ interface PatientBillingAnalyticsProps {
   totalPending: number;
   activeSubscriptions: number;
   currentBalance: number;
-  lastPayment?: any;
+  lastPayment?: Payment;
 }
 
+const METHOD_LABELS: Record<string, string> = {
+  CASH: "Cash",
+  CARD: "Card",
+  UPI: "UPI",
+  NET_BANKING: "Net Banking",
+  WALLET: "Wallet",
+  CHEQUE: "Cheque",
+};
+
 export function PatientBillingAnalytics({
-  totalPayments,
   totalPaid,
   totalPending,
   activeSubscriptions,
-  currentBalance,
   lastPayment,
 }: PatientBillingAnalyticsProps) {
+  const lastPaymentDate = lastPayment?.paymentDate || lastPayment?.createdAt;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {/* Total Payments */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Payments</p>
-              <p className="text-2xl font-bold">{totalPayments}</p>
-            </div>
-            <CreditCard className="h-8 w-8 text-blue-600" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Subscription Status */}
+      <Card className="border-l-4 border-l-blue-500">
+        <CardContent className="pt-5 pb-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            Subscription
+          </p>
+          <div className="flex items-center gap-2">
+            {activeSubscriptions > 0 ? (
+              <>
+                <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                <span className="font-semibold text-green-700 dark:text-green-400">
+                  Active
+                </span>
+              </>
+            ) : (
+              <>
+                <XCircle className="h-5 w-5 text-muted-foreground shrink-0" />
+                <span className="font-semibold text-muted-foreground">No plan</span>
+              </>
+            )}
           </div>
+          {activeSubscriptions === 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Subscribe to book in-person appointments
+            </p>
+          )}
         </CardContent>
       </Card>
 
-      {/* Total Paid */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Amount Paid</p>
-              <p className="text-2xl font-bold text-green-600">
-                ₹{totalPaid.toLocaleString()}
-              </p>
-            </div>
-            <DollarSign className="h-8 w-8 text-green-600" />
+      {/* Amount Paid */}
+      <Card className="border-l-4 border-l-green-500">
+        <CardContent className="pt-5 pb-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            Total Paid
+          </p>
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-green-500 shrink-0" />
+            <span className="text-xl font-bold">
+              ₹{(totalPaid ?? 0).toLocaleString("en-IN")}
+            </span>
           </div>
         </CardContent>
       </Card>
 
       {/* Pending Amount */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Pending Amount</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                ₹{totalPending.toLocaleString()}
-              </p>
-            </div>
-            <AlertCircle className="h-8 w-8 text-yellow-600" />
+      <Card className={`border-l-4 ${totalPending > 0 ? "border-l-yellow-500" : "border-l-muted"}`}>
+        <CardContent className="pt-5 pb-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            Pending Dues
+          </p>
+          <div className="flex items-center gap-2">
+            {totalPending > 0 ? (
+              <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0" />
+            ) : (
+              <CheckCircle2 className="h-5 w-5 text-muted-foreground shrink-0" />
+            )}
+            <span className={`text-xl font-bold ${totalPending > 0 ? "text-yellow-600 dark:text-yellow-400" : ""}`}>
+              ₹{(totalPending ?? 0).toLocaleString("en-IN")}
+            </span>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Active Subscriptions */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Active Subscriptions</p>
-              <p className="text-2xl font-bold">{activeSubscriptions}</p>
-            </div>
-            <Wallet className="h-8 w-8 text-purple-600" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Current Balance */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Current Balance</p>
-              <p className={`text-2xl font-bold ${currentBalance > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {currentBalance > 0 ? '+' : ''}₹{Math.abs(currentBalance).toLocaleString()}
-              </p>
-            </div>
-            <Wallet className="h-8 w-8 text-blue-600" />
-          </div>
+          {totalPending > 0 && (
+            <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">Payment due</p>
+          )}
         </CardContent>
       </Card>
 
       {/* Last Payment */}
-      <Card className="md:col-span-2">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
+      <Card className="border-l-4 border-l-slate-400">
+        <CardContent className="pt-5 pb-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            Last Payment
+          </p>
+          {lastPayment ? (
             <div>
-              <p className="text-sm text-muted-foreground">Last Payment</p>
-              {lastPayment ? (
-                <div>
-                  <p className="text-lg font-semibold">
-                    ₹{lastPayment.amount.toLocaleString()}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="outline">
-                      {lastPayment.method}
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {new Date(lastPayment.date).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-lg text-muted-foreground">No recent payments</p>
-              )}
-            </div>
-            <Receipt className="h-8 w-8 text-gray-600" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Payment Trend */}
-      <Card className="md:col-span-2 lg:col-span-3">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground mb-2">Payment Trend</p>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 flex-1 bg-blue-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                      style={{ width: '75%' }}
-                    />
-                  </div>
-                  <span className="text-sm font-medium">This Month</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 flex-1 bg-green-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-green-600 rounded-full transition-all duration-500"
-                      style={{ width: '85%' }}
-                    />
-                  </div>
-                  <span className="text-sm font-medium">Last Month</span>
-                </div>
+              <div className="flex items-center gap-1.5">
+                <Receipt className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-xl font-bold">
+                  ₹{(lastPayment.amount ?? 0).toLocaleString("en-IN")}
+                </span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Your payment activity has increased by 15% compared to last month
-              </p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <Badge variant="outline" className="text-xs py-0 h-5">
+                  {METHOD_LABELS[lastPayment.method] ?? lastPayment.method}
+                </Badge>
+                {lastPaymentDate && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {new Date(lastPaymentDate).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                )}
+              </div>
             </div>
-            <TrendingUp className="h-8 w-8 text-green-600" />
-          </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No payments yet</p>
+          )}
         </CardContent>
       </Card>
     </div>

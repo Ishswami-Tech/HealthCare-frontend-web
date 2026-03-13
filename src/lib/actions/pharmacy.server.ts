@@ -145,6 +145,13 @@ export async function getPrescriptions(clinicId: string, filters?: {
   return data;
 }
 
+export async function getMedicineDeskQueue(clinicId: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.QUEUE, {
+    headers: clinicId ? { 'X-Clinic-ID': clinicId } : {},
+  });
+  return data;
+}
+
 /**
  * Get prescription by ID
  */
@@ -197,6 +204,13 @@ export async function updatePrescriptionStatus(prescriptionId: string, status: s
     method: 'PATCH',
     body: JSON.stringify({ status, notes }),
   });
+  return data;
+}
+
+export async function getPrescriptionPaymentSummary(prescriptionId: string) {
+  const { data } = await authenticatedApi(
+    API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.PAYMENT_SUMMARY(prescriptionId)
+  );
   return data;
 }
 

@@ -465,7 +465,7 @@ export const useAppointmentsStore = create<AppointmentsState>()(
         checkInPatient: (id) =>
           set((state) => {
             if (state.appointments[id]) {
-              state.appointments[id].status = 'CHECKED_IN';
+              state.appointments[id].status = 'CONFIRMED';
               state.appointments[id].updatedAt = new Date().toISOString();
             }
           }),

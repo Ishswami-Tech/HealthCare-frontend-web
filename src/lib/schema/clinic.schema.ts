@@ -38,4 +38,5 @@ export const updateClinicSchema = z.object({
   currency: z.string().optional(),
   language: z.string().optional(),
   isActive: z.boolean().optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
 });

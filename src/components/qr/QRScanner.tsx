@@ -53,13 +53,13 @@ export function QRScanner({
 
       const scanConfig = {
         fps: 25,
-        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const size = Math.floor(minEdge * 0.75);
-          return { width: size, height:size };
-        },
         aspectRatio: 1.0,
         disableFlip: false,
+        videoConstraints: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       };
 
       await scannerRef.current.start(
@@ -155,13 +155,18 @@ export function QRScanner({
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-      <div 
+      <div
         className="relative aspect-4/5 w-full max-w-[340px] md:max-w-[400px] rounded-4xl shadow-sm border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 overflow-hidden isolate"
       >
         {/* Actual Video Area */}
-        <div 
-          id={regionId} 
-          className="absolute inset-0 z-0 [&>video]:object-cover [&>video]:w-full [&>video]:h-full bg-black" 
+        <div
+          id={regionId}
+          className="absolute inset-0 z-0 bg-black"
+          style={{
+            height: '100%',
+            width: '100%',
+            overflow: 'hidden'
+          }}
         />
 
         <AnimatePresence mode="wait">
@@ -211,20 +216,20 @@ export function QRScanner({
               className="absolute inset-0 pointer-events-none z-10"
             >
               {/* Dimmed Area */}
-              <div className="absolute inset-0 bg-black/30" style={{ 
+              <div className="absolute inset-0 bg-black/40" style={{ 
                 clipPath: 'polygon(0% 0%, 0% 100%, 15% 100%, 15% 15%, 85% 15%, 85% 85%, 15% 85%, 15% 100%, 100% 100%, 100% 0%)' 
               }} />
               
               {/* Sleek Corners */}
-              <div className="absolute top-[18%] left-[18%] w-8 h-8 border-t-2 border-l-2 border-primary rounded-tl-lg" />
-              <div className="absolute top-[18%] right-[18%] w-8 h-8 border-t-2 border-r-2 border-primary rounded-tr-lg" />
-              <div className="absolute bottom-[18%] left-[18%] w-8 h-8 border-b-2 border-l-2 border-primary rounded-bl-lg" />
-              <div className="absolute bottom-[18%] right-[18%] w-8 h-8 border-b-2 border-r-2 border-primary rounded-br-lg" />
+              <div className="absolute top-[15%] left-[15%] w-8 h-8 border-t-[3px] border-l-[3px] border-primary rounded-tl-lg" />
+              <div className="absolute top-[15%] right-[15%] w-8 h-8 border-t-[3px] border-r-[3px] border-primary rounded-tr-lg" />
+              <div className="absolute bottom-[15%] left-[15%] w-8 h-8 border-b-[3px] border-l-[3px] border-primary rounded-bl-lg" />
+              <div className="absolute bottom-[15%] right-[15%] w-8 h-8 border-b-[3px] border-r-[3px] border-primary rounded-br-lg" />
 
               {/* Minimal Laser */}
               <motion.div 
-                initial={{ top: '18%' }}
-                animate={{ top: '82%' }}
+                initial={{ top: '15%' }}
+                animate={{ top: '85%' }}
                 transition={{ duration: 2, repeat: Infinity, repeatType: "reverse", ease: "linear" }}
                 className="absolute left-[20%] right-[20%] h-px bg-primary/50 z-20"
               />

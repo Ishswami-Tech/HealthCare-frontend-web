@@ -16,7 +16,14 @@ export async function getQueue(filters?: {
   clinicId?: string;
 }) {
   try {
-    const endpoint = `${API_ENDPOINTS.QUEUE.GET}?type=${filters?.type || 'GENERAL'}`;
+    const query = new URLSearchParams();
+    if (filters?.type) query.set('type', filters.type);
+    if (filters?.status) query.set('status', filters.status);
+    if (filters?.doctorId) query.set('doctorId', filters.doctorId);
+    if (filters?.clinicId) query.set('clinicId', filters.clinicId);
+    const endpoint = query.toString()
+      ? `${API_ENDPOINTS.QUEUE.GET}?${query.toString()}`
+      : API_ENDPOINTS.QUEUE.GET;
     const { data } = await authenticatedApi(endpoint, {});
     return data;
   } catch (error) {
@@ -52,6 +59,7 @@ export async function updateQueueStatus(patientId: string, status: string) {
       body: JSON.stringify({ status })
     });
     revalidateCache('queue');
+    revalidateCache('appointments');
     return data;
   } catch (error) {
     logger.error('updateQueueStatus failed', error instanceof Error ? error : new Error(String(error)));
@@ -69,6 +77,7 @@ export async function callNextPatient(doctorId: string, domain?: string) {
       body: JSON.stringify({ doctorId, domain: domain || 'clinic' })
     });
     revalidateCache('queue');
+    revalidateCache('appointments');
     return data;
   } catch (error) {
     logger.error('callNextPatient failed', error instanceof Error ? error : new Error(String(error)));
@@ -90,6 +99,7 @@ export async function addToQueue(queueData: {
       body: JSON.stringify(queueData)
     });
     revalidateCache('queue');
+    revalidateCache('appointments');
     return data;
   } catch (error) {
     logger.error('addToQueue failed', error instanceof Error ? error : new Error(String(error)));
@@ -107,6 +117,7 @@ export async function removeFromQueue(queueId: string, reason?: string) {
       body: reason ? JSON.stringify({ reason }) : null
     });
     revalidateCache('queue');
+    revalidateCache('appointments');
     return data;
   } catch (error) {
     logger.error('removeFromQueue failed', error instanceof Error ? error : new Error(String(error)));
@@ -124,6 +135,7 @@ export async function reorderQueue(doctorId: string, date: string, newOrder: str
       body: JSON.stringify({ doctorId, date, newOrder, domain: domain || 'clinic' })
     });
     revalidateCache('queue');
+    revalidateCache('appointments');
     return data;
   } catch (error) {
     logger.error('reorderQueue failed', error instanceof Error ? error : new Error(String(error)));
@@ -186,6 +198,7 @@ export async function pauseQueue(doctorId: string, domain?: string) {
       body: JSON.stringify({ doctorId, domain: domain || 'clinic' })
     });
     revalidateCache('queue');
+    revalidateCache('appointments');
     return data;
   } catch (error) {
     logger.error('pauseQueue failed', error instanceof Error ? error : new Error(String(error)));
@@ -203,6 +216,7 @@ export async function resumeQueue(doctorId: string, domain?: string) {
       body: JSON.stringify({ doctorId, domain: domain || 'clinic' })
     });
     revalidateCache('queue');
+    revalidateCache('appointments');
     return data;
   } catch (error) {
     logger.error('resumeQueue failed', error instanceof Error ? error : new Error(String(error)));

@@ -67,7 +67,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Live Queue", href: "/patient/queue", icon: ClipboardList, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Prescriptions", href: "/patient/prescriptions", icon: Pill, permission: Permission.VIEW_PHARMACY },
     { title: "Billing & Payments", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
-    { title: "My Receipts", href: "/billing", icon: Receipt, permission: Permission.VIEW_BILLING },
+
     { title: "Video Consultation", href: "/patient/video", icon: Video, permission: Permission.VIEW_VIDEO_APPOINTMENTS },
     { title: "Medical Records", href: "/patient/medical-records", icon: FileText, permission: Permission.VIEW_MEDICAL_RECORDS },
     { title: "Self Check-In", href: "/patient/check-in", icon: QrCode, permission: Permission.CREATE_APPOINTMENTS },

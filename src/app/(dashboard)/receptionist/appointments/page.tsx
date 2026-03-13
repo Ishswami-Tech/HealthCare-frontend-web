@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Role } from "@/types/auth.types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { Bell, Calendar, Loader2, QrCode, Search, Stethoscope, UserCheck } from "lucide-react";
+
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -13,687 +16,642 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useDoctors } from "@/hooks/query/useDoctors";
+import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { useAppointmentServices, useAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { useAppointments } from "@/hooks/query/useAppointments";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
-  Search,
-  Plus,
-  QrCode,
-  Phone,
-  MessageSquare,
-  CheckCircle,
-  Play,
-  RotateCcw,
-  AlertTriangle,
-  Bell,
-  Eye,
-  Edit,
-  UserPlus,
-  Stethoscope,
-  Loader2,
-} from "lucide-react";
+  checkInAppointment,
+  getAppointmentReassignmentCandidates,
+  reassignAppointmentDoctor,
+  updateAppointmentStatus,
+} from "@/lib/actions/appointments.server";
+import { callNextPatient } from "@/lib/actions/queue.server";
+import { getQueuePositionLabel, resolveQueueDisplayLabel } from "@/lib/queue/queue-adapter";
 
-export default function ReceptionistAppointments() {
+type ViewAppointment = {
+  id: string;
+  patientName: string;
+  patientPhone: string;
+  doctorId: string;
+  primaryDoctorId?: string;
+  assignedDoctorId?: string;
+  doctorName: string;
+  doctorRole?: string;
+  timeLabel: string;
+  status: string;
+  queuePosition: number | null;
+  queueType: string;
+  notes: string;
+  waitLabel: string;
+  isWalkIn: boolean;
+  isDelegated: boolean;
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  SCHEDULED: "bg-slate-100 text-slate-800 dark:bg-slate-900/40 dark:text-slate-200",
+  CONFIRMED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+  IN_PROGRESS: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+  COMPLETED: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
+  NO_SHOW: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+  CANCELLED: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
+};
+
+function normalizeAppointment(
+  app: any,
+  serviceCatalogMap: Map<string, { label: string; serviceBucket: string; queueCategory: string }>
+): ViewAppointment {
+  const startAt = app.startTime || app.appointmentDate || (app.date && app.time ? `${app.date}T${app.time}` : null);
+  const parsed = startAt ? new Date(startAt) : null;
+
+  return {
+    id: app.id,
+    patientName:
+      app.patient?.name ||
+      `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() ||
+      "Unknown Patient",
+    patientPhone: app.patient?.phone || "",
+    doctorId: app.doctor?.id || app.doctorId || "",
+    primaryDoctorId: app.primaryDoctorId || app.metadata?.primaryDoctorId || app.doctorId || "",
+    assignedDoctorId: app.assignedDoctorId || app.metadata?.assignedDoctorId || app.doctorId || "",
+    doctorName:
+      app.doctor?.name ||
+      `${app.doctor?.firstName || ""} ${app.doctor?.lastName || ""}`.trim() ||
+      "Unassigned Doctor",
+    doctorRole: String(app.doctor?.role || app.doctor?.user?.role || "").toUpperCase(),
+    timeLabel:
+      parsed && !Number.isNaN(parsed.getTime())
+        ? parsed.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
+        : app.time || "TBD",
+    status: String(app.status || "SCHEDULED").toUpperCase(),
+    queuePosition: typeof app.queuePosition === "number" ? app.queuePosition : null,
+    queueType: resolveQueueDisplayLabel(app, serviceCatalogMap),
+    notes: app.notes || app.reason || "",
+    waitLabel:
+      typeof app.estimatedWaitTime === "number"
+        ? `${app.estimatedWaitTime} min`
+        : typeof app.waitTime === "number"
+          ? `${app.waitTime} min`
+          : typeof app.waitTime === "string"
+            ? app.waitTime
+            : "Pending",
+    isWalkIn: Boolean(app.isWalkIn),
+    isDelegated:
+      Boolean(app.primaryDoctorId || app.metadata?.primaryDoctorId) &&
+      String(app.primaryDoctorId || app.metadata?.primaryDoctorId || "") !==
+        String(app.assignedDoctorId || app.metadata?.assignedDoctorId || app.doctorId || ""),
+  };
+}
+
+export default function ReceptionistAppointmentsPage() {
   useAuth();
   const { clinicId } = useClinicContext();
+  useWebSocketQuerySync();
+  const { data: serviceCatalog = [] } = useAppointmentServices();
+
+  const today = new Date().toISOString().split("T")[0] || "";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [queueFilter, setQueueFilter] = useState("all");
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0] || ""
-  );
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [activeActionId, setActiveActionId] = useState<string | null>(null);
+  const [activeDoctorId, setActiveDoctorId] = useState<string | null>(null);
+  const [selectedReassignments, setSelectedReassignments] = useState<Record<string, string>>({});
+  const [reassignmentCandidates, setReassignmentCandidates] = useState<
+    Record<
+      string,
+      Array<{
+        id: string;
+        name: string;
+        role: string;
+        eligible: boolean;
+        reason?: string;
+        isCurrent: boolean;
+        isPrimary: boolean;
+      }>
+    >
+  >({});
 
-  // Fetch real appointment data
-  const { data: appointmentsData, isPending: isLoadingAppointments } =
-    useAppointments({
-      ...(clinicId ? { clinicId } : {}),
-      ...(statusFilter !== "all" ? { status: statusFilter as any } : {}),
-      ...(selectedDate ? { date: selectedDate } : {}),
-      limit: 100,
-    });
+  const {
+    data: appointmentsData,
+    isPending,
+    refetch,
+  } = useAppointments({
+    ...(clinicId ? { clinicId } : {}),
+    ...(selectedDate ? { date: selectedDate } : {}),
+    limit: 200,
+  });
+  const { data: doctorsData } = useDoctors(clinicId || "", { limit: 200 });
 
-  // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync();
+  const assignableDoctors = useMemo(() => {
+    const normalize = (users: any[]) =>
+      users
+        .map((user) => {
+          const role = String(user.role || user.doctor?.user?.role || "").toUpperCase();
+          return {
+            id: user.doctor?.id || user.id,
+            name:
+              user.name ||
+              user.doctor?.user?.name ||
+              `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+              "Unknown Doctor",
+            role,
+          };
+        })
+        .filter((doctor) => doctor.id && (doctor.role === "DOCTOR" || doctor.role === "ASSISTANT_DOCTOR"));
 
-  // Transform appointments data
+    if (Array.isArray(doctorsData)) return normalize(doctorsData);
+    if (Array.isArray((doctorsData as any)?.data?.doctors)) return normalize((doctorsData as any).data.doctors);
+    if (Array.isArray((doctorsData as any)?.data)) return normalize((doctorsData as any).data);
+    return normalize((doctorsData as any)?.doctors || []);
+  }, [doctorsData]);
+
   const appointments = useMemo(() => {
-    if (!appointmentsData) return [];
-    const apps = Array.isArray(appointmentsData)
+    const raw = Array.isArray(appointmentsData)
       ? appointmentsData
-      : appointmentsData.appointments || [];
+      : appointmentsData?.appointments || [];
+    const serviceMap = new Map(
+      serviceCatalog.map((service) => [
+        String(service.treatmentType).toUpperCase(),
+        {
+          label: service.label,
+          serviceBucket: service.serviceBucket,
+          queueCategory: service.queueCategory,
+        },
+      ])
+    );
 
-    return apps.map((app: any) => ({
-      id: app.id,
-      patientName:
-        app.patient?.name ||
-        `${app.patient?.firstName || ""} ${
-          app.patient?.lastName || ""
-        }`.trim() ||
-        "Unknown Patient",
-      patientPhone: app.patient?.phone || "",
-      doctor:
-        app.doctor?.name ||
-        `${app.doctor?.firstName || ""} ${app.doctor?.lastName || ""}`.trim() ||
-        "Unknown Doctor",
-      time: app.startTime
-        ? new Date(app.startTime).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "TBD",
-      status: app.status || "Scheduled",
-      type: app.type || app.appointmentType || "Consultation",
-      queueType: app.queueType || "General",
-      duration: app.duration || "30 min",
-      checkedInAt: app.checkedInAt
-        ? new Date(app.checkedInAt).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : null,
-      waitTime: app.waitTime || "-",
-      queuePosition: app.queuePosition || null,
-      isWalkIn: app.isWalkIn || false,
-      priority: app.priority?.toLowerCase() || "normal",
-      notes: app.notes || app.reason || "",
-    }));
-  }, [appointmentsData]);
+    return raw.map((appointment) => normalizeAppointment(appointment, serviceMap));
+  }, [appointmentsData, serviceCatalog]);
+
+  const availableQueueTypes = useMemo(() => {
+    return Array.from(
+      new Set(appointments.map((appointment) => appointment.queueType).filter(Boolean))
+    ).sort((left, right) => left.localeCompare(right));
+  }, [appointments]);
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((app: any) => {
+    return appointments.filter((appointment) => {
       const matchesSearch =
         !searchTerm ||
-        app.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        app.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        app.doctor?.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const statusKey = app.status?.toLowerCase().replace(" ", "_") || "";
-      const matchesStatus =
-        statusFilter === "all" || statusKey === statusFilter;
-      const matchesQueue =
-        queueFilter === "all" || app.queueType === queueFilter;
-
+        appointment.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        appointment.doctorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        appointment.patientPhone.includes(searchTerm);
+      const matchesStatus = statusFilter === "all" || appointment.status === statusFilter;
+      const matchesQueue = queueFilter === "all" || appointment.queueType === queueFilter;
       return matchesSearch && matchesStatus && matchesQueue;
     });
-  }, [appointments, searchTerm, statusFilter, queueFilter]);
+  }, [appointments, queueFilter, searchTerm, statusFilter]);
 
-  // Group appointments by queue type
-  const queueGroups = useMemo(
-    () => ({
-      General: filteredAppointments.filter(
-        (apt: any) => apt.queueType === "General"
-      ),
-      Panchakarma: filteredAppointments.filter(
-        (apt: any) => apt.queueType === "Panchakarma"
-      ),
-      Viddhakarma: filteredAppointments.filter(
-        (apt: any) => apt.queueType === "Viddhakarma"
-      ),
-      Agnikarma: filteredAppointments.filter(
-        (apt: any) => apt.queueType === "Agnikarma"
-      ),
-    }),
-    [filteredAppointments]
-  );
+  const stats = useMemo(() => {
+    const total = appointments.length;
+    const scheduled = appointments.filter((item) => item.status === "SCHEDULED").length;
+    const confirmed = appointments.filter((item) => item.status === "CONFIRMED").length;
+    const inProgress = appointments.filter((item) => item.status === "IN_PROGRESS").length;
+    const completed = appointments.filter((item) => item.status === "COMPLETED").length;
+    return { total, scheduled, confirmed, inProgress, completed };
+  }, [appointments]);
 
+  const doctorBacklog = useMemo(() => {
+    const grouped = new Map<
+      string,
+      {
+        doctorId: string;
+        doctorName: string;
+        scheduled: number;
+        confirmed: number;
+        inProgress: number;
+        nextPatient: string | null;
+      }
+    >();
 
-  if (isLoadingAppointments) {
-    return (
-      
-          <div className="p-6 flex items-center justify-center min-h-[400px]">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          </div>
-      
-    );
+    for (const appointment of filteredAppointments) {
+      const current = grouped.get(appointment.doctorName) || {
+        doctorId: appointment.doctorId,
+        doctorName: appointment.doctorName,
+        scheduled: 0,
+        confirmed: 0,
+        inProgress: 0,
+        nextPatient: null,
+      };
+
+      if (appointment.status === "SCHEDULED") current.scheduled += 1;
+      if (appointment.status === "CONFIRMED") {
+        current.confirmed += 1;
+        if (!current.nextPatient || appointment.queuePosition === 1) {
+          current.nextPatient = appointment.patientName;
+        }
+      }
+      if (appointment.status === "IN_PROGRESS") current.inProgress += 1;
+      grouped.set(appointment.doctorName, current);
+    }
+
+    return Array.from(grouped.values()).sort((a, b) => b.confirmed - a.confirmed || b.scheduled - a.scheduled);
+  }, [filteredAppointments]);
+
+  useEffect(() => {
+    const pendingAppointmentIds = filteredAppointments
+      .filter(
+        (appointment) =>
+          (appointment.status === "SCHEDULED" || appointment.status === "CONFIRMED") &&
+          !reassignmentCandidates[appointment.id]
+      )
+      .map((appointment) => appointment.id);
+
+    if (pendingAppointmentIds.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const responses = await Promise.all(
+        pendingAppointmentIds.map(async (appointmentId) => {
+          const result = await getAppointmentReassignmentCandidates(appointmentId);
+          return {
+            appointmentId,
+            candidates: result.success ? result.candidates || [] : [],
+          };
+        })
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      setReassignmentCandidates((current) => {
+        const next = { ...current };
+        for (const response of responses) {
+          next[response.appointmentId] = response.candidates;
+        }
+        return next;
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filteredAppointments, reassignmentCandidates]);
+
+  async function handleConfirmArrival(appointmentId: string) {
+    setActiveActionId(appointmentId);
+    const result = await checkInAppointment(appointmentId);
+    if (result.success) {
+      showSuccessToast("Patient confirmed and added to queue", { id: TOAST_IDS.APPOINTMENT.CHECK_IN });
+      await refetch?.();
+    } else {
+      showErrorToast(result.error || "Failed to confirm patient arrival", { id: TOAST_IDS.APPOINTMENT.CHECK_IN });
+    }
+    setActiveActionId(null);
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case "in progress":
-        return "bg-blue-100 text-blue-800";
-      case "waiting":
-        return "bg-yellow-100 text-yellow-800";
-      case "checked in":
-        return "bg-green-100 text-green-800";
-      case "scheduled":
-        return "bg-gray-100 text-gray-800";
-      case "walk-in":
-        return "bg-purple-100 text-purple-800";
-      case "completed":
-        return "bg-emerald-100 text-emerald-800";
-      case "no show":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+  async function handleMarkNoShow(appointmentId: string) {
+    setActiveActionId(appointmentId);
+    const result = await updateAppointmentStatus(appointmentId, { status: "NO_SHOW" });
+    if (result.success) {
+      showSuccessToast("Appointment marked as no-show", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+      await refetch?.();
+    } else {
+      showErrorToast(result.error || "Failed to mark no-show", { id: TOAST_IDS.APPOINTMENT.UPDATE });
     }
-  };
+    setActiveActionId(null);
+  }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority?.toLowerCase()) {
-      case "high":
-        return "bg-red-100 text-red-800";
-      case "normal":
-        return "bg-blue-100 text-blue-800";
-      case "low":
-        return "bg-gray-100 text-gray-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+  async function handleNotifyNext(doctorId: string) {
+    if (!doctorId) {
+      showErrorToast("Doctor is required to call the next patient");
+      return;
     }
-  };
 
-  const getQueueTypeColor = (type: string) => {
-    switch (type) {
-      case "General":
-        return "bg-blue-50 text-blue-700 border-blue-200";
-      case "Panchakarma":
-        return "bg-green-50 text-green-700 border-green-200";
-      case "Viddhakarma":
-        return "bg-purple-50 text-purple-700 border-purple-200";
-      case "Agnikarma":
-        return "bg-orange-50 text-orange-700 border-orange-200";
-      default:
-        return "bg-gray-50 text-gray-700 border-gray-200";
+    setActiveDoctorId(doctorId);
+    const result = (await callNextPatient(doctorId, "clinic")) as
+      | { success?: boolean; message?: string }
+      | null;
+    if (result?.success) {
+      showSuccessToast("Next patient moved into consultation", { id: TOAST_IDS.QUEUE.CALL_NEXT });
+      await refetch?.();
+    } else {
+      showErrorToast(result?.message || "No waiting patient available for this doctor", {
+        id: TOAST_IDS.QUEUE.CALL_NEXT,
+      });
     }
-  };
+    setActiveDoctorId(null);
+  }
 
-  const handleCheckIn = (appointmentId: string) => {
-    console.log("Checking in patient:", appointmentId);
-  };
+  async function handleReassignDoctor(appointmentId: string) {
+    const selectedDoctorId = selectedReassignments[appointmentId];
+    if (!selectedDoctorId) {
+      showErrorToast("Select a doctor or assistant doctor first");
+      return;
+    }
 
-  const handleNotifyNext = (queueType: string) => {
-    console.log("Notifying next patient in queue:", queueType);
-  };
+    setActiveActionId(appointmentId);
+    const result = await reassignAppointmentDoctor(appointmentId, {
+      doctorId: selectedDoctorId,
+      reason: "Reception desk reassignment",
+    });
 
-  const handleMarkNoShow = (appointmentId: string) => {
-    console.log("Marking as no-show:", appointmentId);
-  };
+    if (result.success) {
+      showSuccessToast("Appointment reassigned successfully", {
+        id: TOAST_IDS.APPOINTMENT.UPDATE,
+      });
+      const refreshedCandidates = await getAppointmentReassignmentCandidates(appointmentId);
+      if (refreshedCandidates.success && refreshedCandidates.candidates) {
+        setReassignmentCandidates((current) => ({
+          ...current,
+          [appointmentId]: refreshedCandidates.candidates || [],
+        }));
+      }
+      setSelectedReassignments((current) => {
+        const next = { ...current };
+        delete next[appointmentId];
+        return next;
+      });
+      await refetch?.();
+    } else {
+      showErrorToast(result.error || "Failed to reassign appointment", {
+        id: TOAST_IDS.APPOINTMENT.UPDATE,
+      });
+    }
 
-
+    setActiveActionId(null);
+  }
 
   return (
-    
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">
-              Appointment & Queue Management
-            </h1>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex items-center gap-2">
-                <QrCode className="w-4 h-4" />
-                QR Check-in
-              </Button>
-              <Button className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Reception Queue Workspace</h1>
+          <p className="text-muted-foreground">
+            Schedule appointments, confirm arrivals, and manage the doctor backlog with live data
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button asChild variant="outline">
+            <Link href="/receptionist/check-in">
+              <QrCode className="w-4 h-4 mr-2" />
+              QR / Manual Check-In
+            </Link>
+          </Button>
+          <BookAppointmentDialog
+            {...(clinicId ? { clinicId } : {})}
+            trigger={
+              <Button>
+                <Calendar className="w-4 h-4 mr-2" />
                 New Appointment
               </Button>
+            }
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Total</div><div className="text-2xl font-bold">{stats.total}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Scheduled</div><div className="text-2xl font-bold">{stats.scheduled}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Queued</div><div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{stats.confirmed}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">In Progress</div><div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.inProgress}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Completed</div><div className="text-2xl font-bold text-violet-700 dark:text-violet-300">{stats.completed}</div></CardContent></Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Search and Filter</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="relative md:col-span-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Search patient, doctor, or phone"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+            </div>
+            <Input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                  <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="NO_SHOW">No Show</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={queueFilter} onValueChange={setQueueFilter}>
+                <SelectTrigger><SelectValue placeholder="Queue" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Queues</SelectItem>
+                  {availableQueueTypes.map((queueType) => (
+                    <SelectItem key={queueType} value={queueType}>
+                      {queueType}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {appointments.length}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Stethoscope className="w-5 h-5" />
+            Doctor Queue Backlog
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {doctorBacklog.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {isPending ? "Loading doctor backlog..." : "No appointments match the selected filters."}
+            </p>
+          ) : (
+            doctorBacklog.map((doctor) => (
+              <div key={doctor.doctorName} className="rounded-xl border bg-card p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="font-semibold">{doctor.doctorName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {doctor.nextPatient ? `Next queued patient: ${doctor.nextPatient}` : "No confirmed patient waiting"}
+                  </p>
                 </div>
-                <div className="text-sm text-gray-600">Total Today</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  {appointments.filter((a) => a.status === "Checked In").length}
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary">Scheduled {doctor.scheduled}</Badge>
+                  <Badge className={STATUS_STYLES.CONFIRMED}>Queued {doctor.confirmed}</Badge>
+                  <Badge className={STATUS_STYLES.IN_PROGRESS}>In Progress {doctor.inProgress}</Badge>
                 </div>
-                <div className="text-sm text-gray-600">Checked In</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-yellow-600">
-                  {appointments.filter((a) => a.status === "Waiting").length}
-                </div>
-                <div className="text-sm text-gray-600">Waiting</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {
-                    appointments.filter((a) => a.status === "In Progress")
-                      .length
-                  }
-                </div>
-                <div className="text-sm text-gray-600">In Progress</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-purple-600">
-                  {appointments.filter((a) => a.isWalkIn).length}
-                </div>
-                <div className="text-sm text-gray-600">Walk-ins</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-orange-600">18m</div>
-                <div className="text-sm text-gray-600">Avg Wait</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Search and Filters */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Search & Filter Appointments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <Input
-                    placeholder="Search by patient name, doctor, or treatment type..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select
-                  value={selectedDate || ""}
-                  onValueChange={(value) => setSelectedDate(value)}
+                <Button
+                  variant="outline"
+                  disabled={!doctor.doctorId || activeDoctorId === doctor.doctorId}
+                  onClick={() => void handleNotifyNext(doctor.doctorId)}
                 >
-                  <SelectTrigger className="w-full md:w-48">
-                    <SelectValue placeholder="Select date" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem
-                      value={new Date().toISOString().split("T")[0] || ""}
-                    >
-                      Today
-                    </SelectItem>
-                    <SelectItem
-                      value={
-                        new Date(Date.now() + 86400000)
-                          .toISOString()
-                          .split("T")[0] || ""
-                      }
-                    >
-                      Tomorrow
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full md:w-48">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="checked_in">Checked In</SelectItem>
-                    <SelectItem value="waiting">Waiting</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="walk-in">Walk-in</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={queueFilter} onValueChange={setQueueFilter}>
-                  <SelectTrigger className="w-full md:w-48">
-                    <SelectValue placeholder="Filter by queue" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Queues</SelectItem>
-                    <SelectItem value="General">General</SelectItem>
-                    <SelectItem value="Panchakarma">Panchakarma</SelectItem>
-                    <SelectItem value="Viddhakarma">Viddhakarma</SelectItem>
-                    <SelectItem value="Agnikarma">Agnikarma</SelectItem>
-                  </SelectContent>
-                </Select>
+                  {activeDoctorId === doctor.doctorId ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Bell className="w-4 h-4 mr-2" />
+                  )}
+                  Notify Next
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
-          <Tabs defaultValue="all-appointments" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="all-appointments">
-                All Appointments
-              </TabsTrigger>
-              <TabsTrigger value="general-queue">General Queue</TabsTrigger>
-              <TabsTrigger value="panchakarma-queue">Panchakarma</TabsTrigger>
-              <TabsTrigger value="viddhakarma-queue">Viddhakarma</TabsTrigger>
-              <TabsTrigger value="agnikarma-queue">Agnikarma</TabsTrigger>
-            </TabsList>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserCheck className="w-5 h-5" />
+            Appointment List
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isPending ? (
+            <div className="flex items-center justify-center py-10 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              Loading appointments...
+            </div>
+          ) : filteredAppointments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No appointments match the current search and filter values.</p>
+          ) : (
+            filteredAppointments.map((appointment) => {
+              const canConfirmArrival = appointment.status === "SCHEDULED";
+              const canMarkNoShow = appointment.status === "SCHEDULED" || appointment.status === "CONFIRMED";
 
-            <TabsContent value="all-appointments">
-              <div className="space-y-4">
-                {filteredAppointments.map((appointment) => (
-                  <Card
-                    key={appointment.id}
-                    className="hover:shadow-md transition-shadow"
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-800 font-semibold text-lg">
-                              {appointment.patientName.charAt(0)}
-                            </span>
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold flex items-center gap-2">
-                              {appointment.patientName}
-                              {appointment.isWalkIn && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs bg-purple-50 text-purple-700"
-                                >
-                                  Walk-in
-                                </Badge>
-                              )}
-                            </h3>
-                            <div className="flex items-center gap-4 text-sm text-gray-600">
-                              <span className="flex items-center gap-1">
-                                <Phone className="w-3 h-3" />
-                                {appointment.patientPhone}
-                              </span>
-                              <span>{appointment.doctor}</span>
-                              <span>{appointment.type}</span>
-                              <span>{appointment.duration}</span>
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge
-                                className={getQueueTypeColor(
-                                  appointment.queueType
-                                )}
-                              >
-                                {appointment.queueType}
-                              </Badge>
-                              <Badge
-                                className={getPriorityColor(
-                                  appointment.priority
-                                )}
-                              >
-                                {appointment.priority}
-                              </Badge>
-                              {appointment.queuePosition && (
-                                <Badge variant="outline">
-                                  Queue #{appointment.queuePosition}
-                                </Badge>
-                              )}
-                            </div>
-                            {appointment.notes && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                {appointment.notes}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <div className="font-medium">
-                              {appointment.time}
-                              {appointment.checkedInAt && (
-                                <div className="text-xs text-gray-500">
-                                  In: {appointment.checkedInAt}
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-sm">
-                              Wait: {appointment.waitTime}
-                            </div>
-                            <Badge
-                              className={getStatusColor(appointment.status)}
-                            >
-                              {appointment.status}
-                            </Badge>
-                          </div>
-
-                          <div className="flex flex-col gap-2">
-                            <div className="flex gap-1">
-                              {appointment.status === "Scheduled" && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleCheckIn(appointment.id)}
-                                  className="text-xs"
-                                >
-                                  <CheckCircle className="w-3 h-3 mr-1" />
-                                  Check In
-                                </Button>
-                              )}
-                              {appointment.status === "Walk-in" && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleCheckIn(appointment.id)}
-                                  className="text-xs"
-                                >
-                                  <CheckCircle className="w-3 h-3 mr-1" />
-                                  Check In
-                                </Button>
-                              )}
-                              {(appointment.status === "Checked In" ||
-                                appointment.status === "Waiting") && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs"
-                                >
-                                  <Bell className="w-3 h-3 mr-1" />
-                                  Notify
-                                </Button>
-                              )}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                              >
-                                <Eye className="w-3 h-3" />
-                              </Button>
-                            </div>
-
-                            <div className="flex gap-1">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                              >
-                                <Edit className="w-3 h-3 mr-1" />
-                                Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                              >
-                                <Phone className="w-3 h-3 mr-1" />
-                                Call
-                              </Button>
-                              {appointment.status !== "Completed" &&
-                                appointment.status !== "No Show" && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleMarkNoShow(appointment.id)
-                                    }
-                                    className="text-xs text-red-600"
-                                  >
-                                    <AlertTriangle className="w-3 h-3 mr-1" />
-                                    No Show
-                                  </Button>
-                                )}
-                            </div>
-                          </div>
-                        </div>
+              return (
+                <div key={appointment.id} className="rounded-xl border bg-card p-4 space-y-3">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold">{appointment.patientName}</p>
+                        {appointment.isWalkIn ? <Badge variant="outline">Walk-in</Badge> : null}
+                        <Badge className={STATUS_STYLES[appointment.status] || STATUS_STYLES.SCHEDULED}>
+                          {appointment.status.replaceAll("_", " ")}
+                        </Badge>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
+                      <p className="text-sm text-muted-foreground">{appointment.doctorName}</p>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        <span>{appointment.patientPhone || "No phone"}</span>
+                        <span>{appointment.timeLabel}</span>
+                        <span>{appointment.queueType}</span>
+                        <span>{getQueuePositionLabel({ position: appointment.queuePosition ?? 0 })}</span>
+                        <span>Wait {appointment.waitLabel}</span>
+                        <span>
+                          Serving doctor: {appointment.doctorName}
+                          {appointment.doctorRole === "ASSISTANT_DOCTOR" ? " (Assistant Doctor)" : ""}
+                        </span>
+                        {appointment.isDelegated ? (
+                          <span>Delegated from primary doctor</span>
+                        ) : null}
+                      </div>
+                      {appointment.notes ? <p className="text-sm text-muted-foreground">{appointment.notes}</p> : null}
+                    </div>
 
-            {/* Individual Queue Tabs */}
-            {Object.entries(queueGroups).map(
-              ([queueName, queueAppointments]) => (
-                <TabsContent
-                  key={queueName}
-                  value={`${queueName.toLowerCase()}-queue`}
-                >
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                          <Stethoscope className="w-5 h-5" />
-                          {queueName} Queue ({queueAppointments.length})
-                        </CardTitle>
-                        <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 lg:items-end">
+                      {(appointment.status === "SCHEDULED" || appointment.status === "CONFIRMED") ? (
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          {(() => {
+                            const candidates =
+                              reassignmentCandidates[appointment.id] ||
+                              assignableDoctors.map((doctor) => ({
+                                ...doctor,
+                                eligible: true,
+                                isCurrent: doctor.id === appointment.doctorId,
+                                isPrimary: doctor.id === appointment.doctorId,
+                              }));
+
+                            const selectedCandidate = candidates.find(
+                              (candidate) =>
+                                candidate.id ===
+                                (selectedReassignments[appointment.id] || appointment.doctorId)
+                            );
+
+                            return (
+                              <>
+                          <Select
+                            value={selectedReassignments[appointment.id] || appointment.doctorId}
+                            onValueChange={(value) =>
+                              setSelectedReassignments((current) => ({
+                                ...current,
+                                [appointment.id]: value,
+                              }))
+                            }
+                          >
+                            <SelectTrigger className="min-w-[220px]">
+                              <SelectValue placeholder="Assign doctor" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {candidates.map((doctor) => (
+                                <SelectItem
+                                  key={doctor.id}
+                                  value={doctor.id}
+                                  disabled={!doctor.eligible && !doctor.isCurrent}
+                                >
+                                  {doctor.name}
+                                  {doctor.role === "ASSISTANT_DOCTOR" ? " (Assistant)" : ""}
+                                  {!doctor.eligible && !doctor.isCurrent ? " - Unavailable" : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {selectedCandidate && !selectedCandidate.eligible && !selectedCandidate.isCurrent ? (
+                            <p className="text-xs text-amber-600 dark:text-amber-300">
+                              {selectedCandidate.reason || "This servicing doctor is not eligible"}
+                            </p>
+                          ) : null}
                           <Button
                             variant="outline"
-                            size="sm"
-                            onClick={() => handleNotifyNext(queueName)}
+                            onClick={() => void handleReassignDoctor(appointment.id)}
+                            disabled={
+                              activeActionId === appointment.id ||
+                              !selectedReassignments[appointment.id] ||
+                              selectedReassignments[appointment.id] === appointment.doctorId
+                            }
                           >
-                            <Bell className="w-4 h-4 mr-1" />
-                            Notify Next
+                            Reassign Doctor
                           </Button>
-                          <Button variant="outline" size="sm">
-                            <RotateCcw className="w-4 h-4 mr-1" />
-                            Refresh Queue
-                          </Button>
+                              </>
+                            );
+                          })()}
                         </div>
+                      ) : null}
+                      <div className="flex flex-wrap gap-2">
+                      {canConfirmArrival ? (
+                        <Button
+                          onClick={() => void handleConfirmArrival(appointment.id)}
+                          disabled={activeActionId === appointment.id}
+                        >
+                          {activeActionId === appointment.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          ) : (
+                            <UserCheck className="w-4 h-4 mr-2" />
+                          )}
+                          Confirm Arrival
+                        </Button>
+                      ) : null}
+                      {canMarkNoShow ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => void handleMarkNoShow(appointment.id)}
+                          disabled={activeActionId === appointment.id}
+                        >
+                          Mark No Show
+                        </Button>
+                      ) : null}
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {queueAppointments.length === 0 ? (
-                          <div className="text-center py-8 text-gray-500">
-                            <Stethoscope className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                            <p>No patients in {queueName} queue</p>
-                          </div>
-                        ) : (
-                          queueAppointments.map((appointment, index) => (
-                            <div
-                              key={appointment.id}
-                              className="flex items-center justify-between p-4 border rounded-lg"
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-800">
-                                  {appointment.queuePosition || index + 1}
-                                </div>
-                                <div>
-                                  <h4 className="font-semibold">
-                                    {appointment.patientName}
-                                  </h4>
-                                  <div className="text-sm text-gray-600">
-                                    {appointment.doctor} • {appointment.type}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    Wait: {appointment.waitTime} •{" "}
-                                    {appointment.time}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <Badge
-                                  className={getStatusColor(appointment.status)}
-                                >
-                                  {appointment.status}
-                                </Badge>
-                                <div className="flex gap-1">
-                                  {appointment.status === "Waiting" &&
-                                    index === 0 && (
-                                      <Button size="sm" className="text-xs">
-                                        <Play className="w-3 h-3 mr-1" />
-                                        Next
-                                      </Button>
-                                    )}
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-xs"
-                                  >
-                                    <MessageSquare className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              )
-            )}
-          </Tabs>
-
-          {/* Quick Actions for Walk-in */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserPlus className="w-5 h-5" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Button
-                  className="flex items-center gap-2 h-16"
-                  variant="outline"
-                >
-                  <Plus className="w-5 h-5" />
-                  <div className="text-left">
-                    <div className="font-medium">Add Walk-in</div>
-                    <div className="text-xs text-gray-600">
-                      Quick patient registration
                     </div>
                   </div>
-                </Button>
-
-                <Button
-                  className="flex items-center gap-2 h-16"
-                  variant="outline"
-                >
-                  <QrCode className="w-5 h-5" />
-                  <div className="text-left">
-                    <div className="font-medium">QR Check-in</div>
-                    <div className="text-xs text-gray-600">
-                      Scan patient QR code
-                    </div>
-                  </div>
-                </Button>
-
-                <Button
-                  className="flex items-center gap-2 h-16"
-                  variant="outline"
-                >
-                  <Bell className="w-5 h-5" />
-                  <div className="text-left">
-                    <div className="font-medium">Send Reminders</div>
-                    <div className="text-xs text-gray-600">
-                      Notify upcoming patients
-                    </div>
-                  </div>
-                </Button>
-
-                <Button
-                  className="flex items-center gap-2 h-16"
-                  variant="outline"
-                >
-                  <RotateCcw className="w-5 h-5" />
-                  <div className="text-left">
-                    <div className="font-medium">Refresh All</div>
-                    <div className="text-xs text-gray-600">
-                      Update queue status
-                    </div>
-                  </div>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-    
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

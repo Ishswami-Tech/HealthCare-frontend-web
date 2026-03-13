@@ -43,19 +43,22 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
       clinicId,
       amount,
       dueDate,
-      items: [
-        {
-          id: invoice?.items?.[0]?.id || `item-${Date.now()}`,
-          description: description || "Consultation Charges",
-          quantity,
-          unitPrice,
-          total: lineTotal || amount,
-        },
-      ],
+      description: description || "Consultation Charges",
+      lineItems: {
+        items: [
+          {
+            id: invoice?.items?.[0]?.id || `item-${Date.now()}`,
+            description: description || "Consultation Charges",
+            quantity,
+            unitPrice,
+            amount: lineTotal || amount,
+          },
+        ],
+      },
     };
 
-    const created = await createInvoice.mutateAsync(payload as any);
-    if (created && onSuccess) onSuccess(created as Invoice);
+    const created = await createInvoice.mutateAsync(payload);
+    if (created && onSuccess) onSuccess(created);
   };
 
   return (

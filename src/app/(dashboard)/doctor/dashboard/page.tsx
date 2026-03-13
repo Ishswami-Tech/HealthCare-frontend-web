@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useMyAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
+import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { AppointmentWithRelations, AppointmentStatus } from "@/types/appointment.types";
 import { useClinicContext } from "@/hooks/query/useClinics";
 // import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
@@ -46,15 +46,21 @@ export default function DoctorDashboard() {
   useWebSocketQuerySync();
 
   // Clinic context
-  useClinicContext();
+  const { clinicId } = useClinicContext();
 
   // Fetch real data using existing hooks and server actions
-  const { data: appointments } = useMyAppointments();
+  const { data: appointments } = useAppointments({
+    ...(clinicId ? { clinicId } : {}),
+    ...(user?.id ? { doctorId: user.id } : {}),
+    limit: 100,
+  });
   const startAppointmentMutation = useStartAppointment();
   const completeAppointmentMutation = useCompleteAppointment();
 
   // Calculate real stats from fetched data
-  const appointmentsArray = appointments?.appointments || [];
+  const appointmentsArray = Array.isArray(appointments)
+    ? appointments
+    : appointments?.appointments || [];
 
   // Today's appointments from real data (sorted by time)
   const todaysAppointments = useMemo(() => {
@@ -71,9 +77,8 @@ export default function DoctorDashboard() {
           "Unknown Patient";
         const statusLabels: Partial<Record<AppointmentStatus, string>> = {
           IN_PROGRESS: "In Progress",
-          CHECKED_IN: "Checked In",
           SCHEDULED: "Scheduled",
-          CONFIRMED: "Scheduled",
+          CONFIRMED: "Confirmed",
           AWAITING_SLOT_CONFIRMATION: "Awaiting Confirmation",
           COMPLETED: "Completed",
           CANCELLED: "Cancelled",
@@ -96,7 +101,7 @@ export default function DoctorDashboard() {
   const activeTreatmentQueue = useMemo(
     () =>
       todaysAppointments.filter(
-        (apt: TransformedAppointment) => apt.statusEnum === "CHECKED_IN" || apt.statusEnum === "IN_PROGRESS"
+        (apt: TransformedAppointment) => apt.statusEnum === "CONFIRMED" || apt.statusEnum === "IN_PROGRESS"
       ),
     [todaysAppointments]
   );
@@ -106,7 +111,6 @@ export default function DoctorDashboard() {
       todaysAppointments.filter(
         (apt: TransformedAppointment) =>
           apt.statusEnum === "SCHEDULED" ||
-          apt.statusEnum === "CONFIRMED" ||
           apt.statusEnum === "AWAITING_SLOT_CONFIRMATION"
       ),
     [todaysAppointments]
@@ -119,16 +123,16 @@ export default function DoctorDashboard() {
         return new Date(apt.date).toDateString() === today;
       }).length || 0,
     checkedInPatients:
-      appointmentsArray.filter((apt: AppointmentWithRelations) => apt.status === "CHECKED_IN").length || 0,
+      appointmentsArray.filter((apt) => apt.status === "CONFIRMED").length || 0,
     completedToday:
-      appointmentsArray.filter((apt: AppointmentWithRelations) => {
+      appointmentsArray.filter((apt) => {
         const today = new Date().toDateString();
         return (
           new Date(apt.date).toDateString() === today &&
           apt.status === "COMPLETED"
         );
       }).length || 0,
-    totalPatients: new Set(appointmentsArray.map((apt: AppointmentWithRelations) => apt.patientId)).size,
+    totalPatients: new Set(appointmentsArray.map((apt) => apt.patientId)).size,
     avgConsultationTime: 25,
     patientSatisfaction: 4.8,
     nextAppointment:
@@ -136,7 +140,7 @@ export default function DoctorDashboard() {
         (a: TransformedAppointment) =>
           a.statusEnum === "SCHEDULED" ||
           a.statusEnum === "CONFIRMED" ||
-          a.statusEnum === "CHECKED_IN"
+          a.statusEnum === "IN_PROGRESS"
       )?.time || "-",
   };
 
@@ -162,7 +166,7 @@ export default function DoctorDashboard() {
     switch (status) {
       case "In Progress":
         return "bg-blue-100 text-blue-800";
-      case "Checked In":
+      case "Confirmed":
         return "bg-green-100 text-green-800";
       case "Scheduled":
         return "bg-gray-100 text-gray-800";
@@ -177,7 +181,7 @@ export default function DoctorDashboard() {
     switch (status) {
       case "In Progress":
         return <Play className="w-4 h-4" />;
-      case "Checked In":
+      case "Confirmed":
         return <CheckCircle className="w-4 h-4" />;
       case "Scheduled":
         return <Clock className="w-4 h-4" />;
@@ -229,7 +233,7 @@ export default function DoctorDashboard() {
                   {stats.todayAppointments}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {stats.checkedInPatients} checked in
+                  {stats.checkedInPatients} confirmed and waiting
                 </p>
               </CardContent>
             </Card>
@@ -384,7 +388,7 @@ export default function DoctorDashboard() {
                           {appointment.status}
                         </Badge>
                       </div>
-                      {appointment.status === "Checked In" && (
+                      {appointment.status === "Confirmed" && (
                         <Button
                           size="sm"
                           className="flex items-center gap-1"

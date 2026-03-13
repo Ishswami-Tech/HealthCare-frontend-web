@@ -7,6 +7,7 @@ import {
   updateMedicine,
   deleteMedicine,
   getPrescriptions,
+  getMedicineDeskQueue,
   getPrescriptionById,
   createPrescription,
   updatePrescriptionStatus,
@@ -108,6 +109,14 @@ export const usePrescriptions = (clinicId: string, filters?: {
     return await getPrescriptions(clinicId, filters);
   }, {
     enabled: !!clinicId && (filters?.enabled !== false),
+  });
+};
+
+export const useMedicineDeskQueue = (clinicId: string, enabled: boolean = true) => {
+  return useQueryData(['medicineDeskQueue', clinicId], async () => {
+    return await getMedicineDeskQueue(clinicId);
+  }, {
+    enabled: !!clinicId && enabled,
   });
 };
 
@@ -333,7 +342,7 @@ export const useUpdatePrescriptionStatus = () => {
       toastId: TOAST_IDS.PHARMACY.PRESCRIPTION_UPDATE,
       loadingMessage: 'Updating prescription status...',
       successMessage: 'Prescription status updated successfully',
-      invalidateQueries: [['prescriptions']],
+      invalidateQueries: [['prescriptions'], ['medicineDeskQueue'], ['pharmacyStats']],
     }
   );
 };
@@ -353,7 +362,7 @@ export const useDispensePrescription = () => {
       toastId: TOAST_IDS.PHARMACY.PRESCRIPTION_UPDATE,
       loadingMessage: 'Dispensing prescription...',
       successMessage: 'Prescription dispensed successfully',
-      invalidateQueries: [['prescriptions']],
+      invalidateQueries: [['prescriptions'], ['medicineDeskQueue'], ['pharmacyStats']],
     }
   );
 };

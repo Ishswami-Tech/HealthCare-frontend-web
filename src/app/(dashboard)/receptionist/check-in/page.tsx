@@ -56,8 +56,8 @@ export default function ReceptionistCheckInPage() {
     ? appointmentsData
     : appointmentsData?.appointments || [];
 
-  const canCheckIn = (status?: string) =>
-    ["SCHEDULED", "CONFIRMED"].includes((status || "").toUpperCase());
+  const canConfirmArrival = (status?: string) =>
+    ["SCHEDULED"].includes((status || "").toUpperCase());
 
   const filteredAppointments = appointments.filter((apt: AppointmentListItem) => {
     const patientName =
@@ -81,7 +81,7 @@ export default function ReceptionistCheckInPage() {
     try {
       const result = await checkInAppointment(appointmentId);
       if (result.success) {
-        showSuccessToast("Patient checked in successfully", {
+        showSuccessToast("Patient confirmed and added to queue", {
           id: TOAST_IDS.APPOINTMENT.CHECK_IN,
         });
         refetch?.();
@@ -91,7 +91,7 @@ export default function ReceptionistCheckInPage() {
         });
       }
     } catch (error) {
-      logger.error("Check-in failed", error instanceof Error ? error : undefined, {
+      logger.error("Arrival confirmation failed", error instanceof Error ? error : undefined, {
         component: "ReceptionistCheckInPage",
         appointmentId,
       });
@@ -120,7 +120,7 @@ export default function ReceptionistCheckInPage() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <UserCheck className="w-7 h-7" />
-              Patient Check-in
+              Patient Arrival Confirmation
             </h1>
             <div className="text-sm text-muted-foreground flex items-center gap-2">
               <Calendar className="w-4 h-4" />
@@ -137,7 +137,7 @@ export default function ReceptionistCheckInPage() {
             <CardHeader>
               <CardTitle className="text-lg">Today&apos;s Appointments</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Check in patients as they arrive at the reception
+                Confirm patients as they arrive at reception and place them in the doctor queue
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -189,10 +189,11 @@ export default function ReceptionistCheckInPage() {
                                 })
                               : "—";
                           const status = apt.status || "Scheduled";
-                          const isCheckedIn = ["CHECKED_IN", "checked_in", "IN_PROGRESS"].includes(
-                            status?.toUpperCase?.() || status
+                          const normalizedStatus = String(status || "").toUpperCase();
+                          const isConfirmedArrival = ["CONFIRMED", "IN_PROGRESS", "COMPLETED"].includes(
+                            normalizedStatus
                           );
-                          const canCheckInThis = canCheckIn(status);
+                          const canCheckInThis = canConfirmArrival(status);
 
                           return (
                             <tr
@@ -221,9 +222,9 @@ export default function ReceptionistCheckInPage() {
                               </td>
                               <td className="p-3">
                                 <Badge
-                                  variant={isCheckedIn ? "default" : "secondary"}
+                                  variant={isConfirmedArrival ? "default" : "secondary"}
                                   className={
-                                    isCheckedIn
+                                    isConfirmedArrival
                                       ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                                       : ""
                                   }
@@ -243,14 +244,14 @@ export default function ReceptionistCheckInPage() {
                                     ) : (
                                       <>
                                         <CheckCircle2 className="w-4 h-4 mr-1" />
-                                        Check In
+                                        Confirm Arrival
                                       </>
                                     )}
                                   </Button>
-                                ) : isCheckedIn ? (
+                                ) : isConfirmedArrival ? (
                                   <span className="text-sm text-green-600 flex items-center justify-end gap-1">
                                     <CheckCircle2 className="w-4 h-4" />
-                                    Checked In
+                                    Confirmed
                                   </span>
                                 ) : (
                                   <span className="text-sm text-muted-foreground">—</span>

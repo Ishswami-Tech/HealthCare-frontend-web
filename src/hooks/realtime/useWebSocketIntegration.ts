@@ -111,6 +111,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         
         // Invalidate related queries
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['myAppointments'] });
         queryClient.invalidateQueries({ queryKey: ['appointment-stats'] });
       });
 
@@ -126,6 +127,10 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
             queryKey: ['appointments'],
             exact: false 
           });
+          queryClient.invalidateQueries({
+            queryKey: ['myAppointments'],
+            exact: false
+          });
         }, 100);
       });
 
@@ -133,6 +138,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         const data = rawData as { id: string };
         console.log('🗑️ Appointment deleted:', data);
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['myAppointments'] });
       });
 
       const unsubscribeAppointmentStatusChanged = subscribe('appointment:status_changed', (rawData: unknown) => {
@@ -150,6 +156,10 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           }
           return oldData;
         });
+        queryClient.invalidateQueries({
+          queryKey: ['myAppointments'],
+          exact: false
+        });
       });
 
       unsubscribeCallbacks.push(
@@ -162,30 +172,75 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
     // Subscribe to queue updates
     if (subscribeToQueues && clinicId) {
+      const invalidateQueueQueries = () => {
+        queryClient.invalidateQueries({ queryKey: ['queue-status'] });
+        queryClient.invalidateQueries({ queryKey: ['queue-metrics'] });
+        queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
+        queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+      };
+
+      const invalidateMedicineDeskQueries = () => {
+        queryClient.invalidateQueries({ queryKey: ['prescriptions'], exact: false });
+        queryClient.invalidateQueries({ queryKey: ['medicineDeskQueue'], exact: false });
+        queryClient.invalidateQueries({ queryKey: ['pharmacyStats'], exact: false });
+      };
+
       const unsubscribeQueueUpdate = subscribe('queue:update', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
         console.log('📊 Queue updated:', data);
-        // Invalidate queue-related queries
-        queryClient.invalidateQueries({ queryKey: ['queue-status'] });
-        queryClient.invalidateQueries({ queryKey: ['queue-metrics'] });
+        invalidateQueueQueries();
       });
 
       const unsubscribeQueuePatientAdded = subscribe('queue:patient_added', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
         console.log('👤 Patient added to queue:', data);
-        queryClient.invalidateQueries({ queryKey: ['queue-status'] });
+        invalidateQueueQueries();
       });
 
       const unsubscribeQueuePatientRemoved = subscribe('queue:patient_removed', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
         console.log('👤 Patient removed from queue:', data);
-        queryClient.invalidateQueries({ queryKey: ['queue-status'] });
+        invalidateQueueQueries();
       });
+
+      const unsubscribeEnterpriseQueueUpdated = subscribe('appointment.queue.updated', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        console.log('📊 Enterprise queue updated:', data);
+        invalidateQueueQueries();
+      });
+
+      const unsubscribeEnterpriseQueuePosition = subscribe(
+        'appointment.queue.position.updated',
+        (rawData: unknown) => {
+          const data = rawData as Record<string, unknown>;
+          console.log('📍 Queue position updated:', data);
+          invalidateQueueQueries();
+        }
+      );
+
+      const unsubscribeQueueMetrics = subscribe('queue_metrics_update', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        console.log('📈 Queue metrics updated:', data);
+        invalidateQueueQueries();
+      });
+
+      const unsubscribeMedicineDeskUpdated = subscribe(
+        'pharmacy.medicine_desk.updated',
+        (rawData: unknown) => {
+          const data = rawData as Record<string, unknown>;
+          console.log('💊 Medicine desk queue updated:', data);
+          invalidateMedicineDeskQueries();
+        }
+      );
 
       unsubscribeCallbacks.push(
         unsubscribeQueueUpdate,
         unsubscribeQueuePatientAdded,
-        unsubscribeQueuePatientRemoved
+        unsubscribeQueuePatientRemoved,
+        unsubscribeEnterpriseQueueUpdated,
+        unsubscribeEnterpriseQueuePosition,
+        unsubscribeQueueMetrics,
+        unsubscribeMedicineDeskUpdated
       );
     }
 
