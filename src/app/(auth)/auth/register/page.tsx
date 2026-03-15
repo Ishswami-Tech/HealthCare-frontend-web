@@ -152,18 +152,21 @@ export default function RegisterPage() {
 
   // Render Functions
   const renderSuccess = () => (
-    <div className="flex flex-col items-center justify-center space-y-4 py-8 animate-in fade-in zoom-in duration-300">
-      <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-        <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
+    <div className="flex flex-col items-center justify-center py-12 gap-5 animate-in fade-in zoom-in duration-300">
+      <div className="relative flex items-center justify-center">
+        <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+          <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+        </div>
+        <Loader2 className="absolute h-20 w-20 animate-spin text-green-500/40" />
       </div>
-      <div className="text-center space-y-2">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Welcome Aboard!</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
-          You can now log in to your account. Redirecting you in{" "}
-          <span className="font-bold text-blue-600 dark:text-blue-400">{countdown}</span> seconds...
+      <div className="text-center space-y-1">
+        <p className="font-semibold text-gray-900 dark:text-gray-100">Account created successfully!</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Redirecting to login in{" "}
+          <span className="font-bold text-blue-600 dark:text-blue-400">{countdown}s</span>…
         </p>
       </div>
-      <Button onClick={() => router.push(ROUTES.LOGIN)} className="mt-4" variant="outline">
+      <Button onClick={() => router.push(ROUTES.LOGIN)} size="sm" variant="outline">
         Go to Login Now
       </Button>
     </div>

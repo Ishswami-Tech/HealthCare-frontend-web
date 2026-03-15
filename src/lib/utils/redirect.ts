@@ -162,11 +162,14 @@ export function getProfileCompletionRedirect(
   userRole: Role,
   originalPath?: string
 ): RedirectResult {
-  const redirectPath = getProfileCompletionRedirectUrl(userRole, originalPath);
+  const profileUrl = new URL(ROUTES.PROFILE_COMPLETION, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+  if (originalPath && !isAuthPath(originalPath)) {
+    profileUrl.searchParams.set('redirect', originalPath);
+  }
   
   return {
-    path: redirectPath,
-    reason: originalPath ? 'profile_complete_original_path' : 'profile_complete_dashboard',
+    path: profileUrl.pathname + profileUrl.search,
+    reason: 'profile_incomplete_redirect',
   };
 }
 

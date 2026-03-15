@@ -193,41 +193,42 @@ export function RoleBasedBillingDashboard({
     .reduce((sum, i) => sum + i.amount, 0);
 
   const lastCompletedPayment = payments.find((p) => p.status === "COMPLETED");
+  const activeSubscriptionsCount = subscriptions.filter((s) => s.status === "ACTIVE").length;
   const patientAnalytics = {
     totalPayments: payments.length,
     totalPaid: paidAmount,
     totalPending: pendingAmount,
-    activeSubscriptions: subscriptions.filter((s) => s.status === "ACTIVE").length,
-    currentBalance: pendingAmount - paidAmount,
+    activeSubscriptions: activeSubscriptionsCount,
     ...(lastCompletedPayment ? { lastPayment: lastCompletedPayment } : {}),
-  } as const;
+  };
 
   const showLedgerTab = isAdmin;
-  const showOverviewTab = !isPatient;
-  const tabCount = isPatient ? 4 : (showLedgerTab ? 6 : 5);
-  
-  const availableTabs = useMemo(() => {
-    if (isPatient) return new Set(["plans", "subscriptions", "invoices", "payments"]);
-    return new Set(showLedgerTab 
-      ? ["overview", "plans", "subscriptions", "invoices", "payments", "ledger"] 
-      : ["overview", "plans", "subscriptions", "invoices", "payments"]);
-  }, [isPatient, showLedgerTab]);
+  // Patients see: plans, subscriptions, payments (invoices only if they have any)
+  const patientHasInvoices = isPatient && invoices.length > 0;
+  const patientTabs = useMemo(
+    () => ["plans", "subscriptions", "payments", ...(patientHasInvoices ? ["invoices"] : [])],
+    [patientHasInvoices]
+  );
+  const adminTabs = useMemo(
+    () => (showLedgerTab ? ["overview", "plans", "subscriptions", "invoices", "payments", "ledger"] : ["overview", "plans", "subscriptions", "invoices", "payments"]),
+    [showLedgerTab]
+  );
+  const availableTabs = useMemo(
+    () => new Set(isPatient ? patientTabs : adminTabs),
+    [isPatient, patientTabs, adminTabs]
+  );
+  const tabCount = isPatient ? patientTabs.length : (showLedgerTab ? 6 : 5);
 
   useEffect(() => {
-    if (initialTab) {
-      const normalized = initialTab.toLowerCase();
-      if (availableTabs.has(normalized)) {
-        setActiveTab(normalized);
-        return;
-      }
+    // Default to "plans" for patients, "overview" for staff
+    const fallback = isPatient ? "plans" : "overview";
+    if (!initialTab) {
+      setActiveTab(fallback);
+      return;
     }
-    // Default tabs if none specified or invalid
-    if (isPatient) {
-      setActiveTab(activeSubscription ? "invoices" : "plans");
-    } else {
-      setActiveTab("overview");
-    }
-  }, [initialTab, availableTabs, isPatient, activeSubscription]);
+    const normalized = initialTab.toLowerCase();
+    setActiveTab(availableTabs.has(normalized) ? normalized : fallback);
+  }, [initialTab, availableTabs, isPatient]);
 
   return (
     <div className="space-y-6">
@@ -287,6 +288,30 @@ export function RoleBasedBillingDashboard({
 
       {isPatient && <PatientBillingAnalytics {...patientAnalytics} />}
 
+      {/* CTA banner for patients with no active subscription */}
+      {isPatient && activeSubscriptionsCount === 0 && (
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className="font-semibold text-blue-900 dark:text-blue-100">No active plan</p>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-0.5">
+                  Subscribe to a plan to unlock in-person appointment booking.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setActiveTab("plans")}
+                className="shrink-0"
+              >
+                View Plans →
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Mini stat grid — only for staff/admin, not patients */}
       {!isPatient && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
@@ -317,11 +342,11 @@ export function RoleBasedBillingDashboard({
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex flex-wrap h-auto justify-start sm:grid w-full sm:grid-flow-col auto-cols-auto gap-1 sm:gap-2 bg-muted p-1 rounded-md">
+        <TabsList className={`grid w-full grid-cols-${tabCount}`}>
           {!isPatient && <TabsTrigger value="overview">Overview</TabsTrigger>}
           <TabsTrigger value="plans">Plans</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          {(!isPatient || patientHasInvoices) && <TabsTrigger value="invoices">Invoices</TabsTrigger>}
           <TabsTrigger value="payments">Payments</TabsTrigger>
           {showLedgerTab && <TabsTrigger value="ledger">Ledger</TabsTrigger>}
         </TabsList>
@@ -448,7 +473,7 @@ export function RoleBasedBillingDashboard({
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
-          <PaymentHistory payments={filteredPayments} onRefetch={onRefetch} />
+          <PaymentHistory payments={filteredPayments} onRefetch={onRefetch} compact={isPatient} />
         </TabsContent>
 
         {showLedgerTab && (

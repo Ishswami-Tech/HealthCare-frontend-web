@@ -169,9 +169,9 @@ export default function PatientCheckInPage() {
 
           <Button
             className="w-full h-14 rounded-2xl text-base font-bold"
-            onClick={() => router.push("/patient/queue")}
+            onClick={() => router.push("/patient/dashboard")}
           >
-            View Live Queue
+            Go to Dashboard
           </Button>
         </motion.div>
       </div>

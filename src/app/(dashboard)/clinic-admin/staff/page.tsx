@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Role } from "@/types/auth.types";
 import { useLayoutStore } from "@/stores/layout.store";
 import { AssignRoleModal } from "@/components/clinic/AssignRoleModal";
+import { AddStaffModal } from "@/components/clinic/AddStaffModal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +64,8 @@ export default function ClinicAdminStaff() {
     status?: string;
     permissions?: string[];
   } | null>(null);
+
+  const [isAddStaffModalOpen, setIsAddStaffModalOpen] = useState(false);
 
   // Fetch real staff data
   const { data: staffData, isPending: isLoadingStaff, refetch } = useUsersByClinic(
@@ -176,7 +179,10 @@ export default function ClinicAdminStaff() {
           <div className="hidden sm:block">
             <WebSocketStatusIndicator />
           </div>
-          <Button className="bg-primary w-full sm:w-auto hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2 px-6">
+          <Button 
+            onClick={() => setIsAddStaffModalOpen(true)}
+            className="bg-primary w-full sm:w-auto hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2 px-6"
+          >
             <Plus className="w-4 h-4" />
             Add New Staff
           </Button>
@@ -385,6 +391,12 @@ export default function ClinicAdminStaff() {
           onSuccess={() => refetch?.()}
         />
       )}
+
+      <AddStaffModal
+        open={isAddStaffModalOpen}
+        onOpenChange={setIsAddStaffModalOpen}
+        onSuccess={() => refetch?.()}
+      />
     </div>
   );
 }

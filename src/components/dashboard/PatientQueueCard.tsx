@@ -88,9 +88,6 @@ export function PatientQueueCard() {
               >
                   {activeAppointment.status === 'IN_PROGRESS' ? 'Now Serving' : 'Waiting in Queue'}
               </Badge>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground" onClick={() => router.push('/patient/queue')} title="Full Screen View">
-                <Maximize2 className="h-4 w-4" />
-              </Button>
             </div>
         </div>
       </CardHeader>

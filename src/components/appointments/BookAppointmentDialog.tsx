@@ -123,7 +123,7 @@ const STEPS = ["Location", "Service", "Doctor", "Date", "Slot", "Confirm"] as co
 const getTodayIST = () => {
   const now = new Date();
   // Get date parts in IST
-  const formatter = new Intl.DateTimeFormat('en-CA', { 
+  const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Kolkata',
     year: 'numeric',
     month: '2-digit',
@@ -132,6 +132,17 @@ const getTodayIST = () => {
   const istDateString = formatter.format(now); // "YYYY-MM-DD"
   // Create a local date object set to that day (start of day)
   return new Date(istDateString);
+};
+
+/**
+ * Helper to get maximum booking date in IST (3 days from today)
+ * Restricts appointment booking to only 3 days in advance.
+ */
+const getMaxBookingDate = () => {
+  const today = getTodayIST();
+  const maxDate = new Date(today);
+  maxDate.setDate(today.getDate() + 3);
+  return maxDate;
 };
 
 const formatDateIST = (date: Date) =>
@@ -719,15 +730,17 @@ export function BookAppointmentDialog({
         <Calendar
           mode="single"
           selected={selectedDate}
-          onSelect={(d) => { 
-            setSelectedDate(d); 
-            setSelectedSlot(""); 
+          onSelect={(d) => {
+            setSelectedDate(d);
+            setSelectedSlot("");
             if (d) setTimeout(goNext, 150);
           }}
           disabled={(date) => {
             // Enforce Indian Standard Time (IST) exactly for calculating disabled "past" days
             const todayIST = getTodayIST();
-            return date < todayIST;
+            const maxDate = getMaxBookingDate();
+            // Disable dates before today OR after 3 days from today
+            return date < todayIST || date > maxDate;
           }}
           className="mx-auto"
         />

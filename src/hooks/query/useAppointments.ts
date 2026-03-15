@@ -724,7 +724,10 @@ export const useMyAppointments = (filters?: {
     },
     {
       enabled: hasPermission(Permission.VIEW_APPOINTMENTS),
-      staleTime: 2 * 60 * 1000, // 2 minutes
+      staleTime: 0, // always consider data stale so it refetches on page visit
+      gcTime: 5 * 60 * 1000,
+      refetchOnMount: true,
+      refetchOnWindowFocus: false,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
@@ -738,12 +741,12 @@ export const useMyAppointments = (filters?: {
 /**
  * Hook for fetching doctor availability
  */
-export const useDoctorAvailability = (clinicId: string, doctorId: string, date: string, locationId?: string) => {
+export const useDoctorAvailability = (clinicId: string, doctorId: string, date: string, locationId?: string, appointmentType?: string) => {
   
   return useQueryData(
-    ['doctorAvailability', clinicId, doctorId, date, locationId],
+    ['doctorAvailability', clinicId, doctorId, date, locationId, appointmentType],
     async () => {
-      const result = await getDoctorAvailability(clinicId, doctorId, date, locationId) as any;
+      const result = await getDoctorAvailability(clinicId, doctorId, date, locationId, appointmentType) as any;
       if (!result.success) {
         throw new Error(result.error);
       }

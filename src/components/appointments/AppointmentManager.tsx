@@ -27,6 +27,7 @@ import {
   useRescheduleAppointment,
   useRejectVideoProposal,
 } from "@/hooks/query/useAppointments";
+import { useQueryClient } from "@/hooks/core";
 import {
   AppointmentWithRelations,
 } from "@/types/appointment.types";
@@ -65,6 +66,7 @@ export default function AppointmentManager() {
   const { session } = useAuth();
   const user = session?.user;
   const hasShownRealtimeToastRef = useRef(false);
+  const queryClient = useQueryClient();
 
   // Real-time WebSocket integration
   const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
@@ -310,63 +312,51 @@ export default function AppointmentManager() {
                 )}
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-2 flex-wrap">
+              {/* Actions — unified to avoid duplicate buttons */}
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 {apt.status === "SCHEDULED" && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 flex-1 border-border/60 bg-background/80 text-xs"
-                      onClick={() => {
-                        setSelectedAppointment(apt as AppointmentWithRelations);
-                        setRescheduleData({ date: apt.date, time: apt.time });
-                        setIsRescheduleDialogOpen(true);
-                      }}
-                    >
-                      <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                      Reschedule
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 flex-1 border-border/60 bg-background/80 text-xs text-red-600 hover:text-red-700 dark:text-red-300 dark:hover:text-red-200"
-                      onClick={() => handleCancelAppointment(apt.id)}
-                      disabled={cancellingAppointment}
-                    >
-                      <XCircle className="w-3.5 h-3.5 mr-1" />
-                      Cancel
-                    </Button>
-                  </>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 col-span-1 border-border/60 bg-background/80 text-xs"
+                    onClick={() => {
+                      setSelectedAppointment(apt as AppointmentWithRelations);
+                      setRescheduleData({ date: apt.date, time: apt.time });
+                      setIsRescheduleDialogOpen(true);
+                    }}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                    Reschedule
+                  </Button>
                 )}
                 {apt.status === "SCHEDULED" && apt.type !== "VIDEO_CALL" && (
-                  <>
-                    <Button
-                      size="sm"
-                      className="flex-1 text-xs h-8 bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => {
-                        window.location.href = "/patient/check-in";
-                      }}
-                    >
-                      <CheckCircle className="w-3.5 h-3.5 mr-1" />
-                      Go To Check-In
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 border-border/60 bg-background/80 text-xs text-red-600 dark:text-red-300"
-                      onClick={() => handleCancelAppointment(apt.id)}
-                      disabled={cancellingAppointment}
-                    >
-                      <XCircle className="w-3.5 h-3.5 mr-1" />
-                      Cancel
-                    </Button>
-                  </>
+                  <Button
+                    size="sm"
+                    className="h-8 col-span-2 text-xs bg-green-600 hover:bg-green-700 text-white sm:flex-1"
+                    onClick={() => {
+                      window.location.href = "/patient/check-in";
+                    }}
+                  >
+                    <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                    Go To Check-In
+                  </Button>
+                )}
+                {apt.status === "SCHEDULED" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 col-span-1 border-border/60 bg-background/80 text-xs text-red-600 hover:text-red-700 dark:text-red-300 dark:hover:text-red-200"
+                    onClick={() => handleCancelAppointment(apt.id)}
+                    disabled={cancellingAppointment}
+                  >
+                    <XCircle className="w-3.5 h-3.5 mr-1" />
+                    Cancel
+                  </Button>
                 )}
                 {apt.type === "VIDEO_CALL" && apt.status === "CONFIRMED" && (
                   <Button
                     size="sm"
-                    className="flex-1 text-xs h-8 bg-indigo-600 hover:bg-indigo-700 text-white"
+                    className="col-span-2 text-xs h-8 bg-indigo-600 hover:bg-indigo-700 text-white sm:flex-1"
                     onClick={() => window.location.href = `/patient/video?appointmentId=${apt.id}`}
                   >
                     <Video className="w-3.5 h-3.5 mr-1" />
@@ -430,6 +420,11 @@ export default function AppointmentManager() {
                 Book Appointment
               </Button>
             }
+            onBooked={() => {
+              // Immediately bust the myAppointments cache so new appointment shows without manual refresh
+              queryClient.invalidateQueries({ queryKey: ['myAppointments'] });
+              queryClient.invalidateQueries({ queryKey: ['appointments'] });
+            }}
           />
         </div>
       </div>

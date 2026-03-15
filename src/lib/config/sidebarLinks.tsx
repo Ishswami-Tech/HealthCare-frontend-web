@@ -64,7 +64,6 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   PATIENT: [
     { title: "Dashboard", href: "/patient/dashboard", icon: LayoutDashboard },
     { title: "Appointments", href: "/patient/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
-    { title: "Live Queue", href: "/patient/queue", icon: ClipboardList, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Prescriptions", href: "/patient/prescriptions", icon: Pill, permission: Permission.VIEW_PHARMACY },
     { title: "Billing & Payments", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
 
@@ -74,6 +73,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
   ],
   RECEPTIONIST: [
     { title: "Dashboard", href: "/receptionist/dashboard", icon: LayoutDashboard },
+    { title: "Staff", href: "/clinic-admin/staff", icon: Users, permission: Permission.MANAGE_CLINIC_STAFF },
     { title: "Appointments", href: "/receptionist/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Patients", href: "/receptionist/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Billing & Invoicing", href: "/billing", icon: Wallet, permission: Permission.MANAGE_BILLING },

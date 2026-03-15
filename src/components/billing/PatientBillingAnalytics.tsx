@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Receipt, AlertTriangle, CreditCard, Clock } from "lucide-react";
+import { DollarSign, AlertCircle, CreditCard, Receipt } from "lucide-react";
 import type { Payment } from "@/types/billing.types";
 
 interface PatientBillingAnalyticsProps {
@@ -10,128 +10,95 @@ interface PatientBillingAnalyticsProps {
   totalPaid: number;
   totalPending: number;
   activeSubscriptions: number;
-  currentBalance: number;
   lastPayment?: Payment;
 }
 
-const METHOD_LABELS: Record<string, string> = {
-  CASH: "Cash",
-  CARD: "Card",
-  UPI: "UPI",
-  NET_BANKING: "Net Banking",
-  WALLET: "Wallet",
-  CHEQUE: "Cheque",
-};
-
 export function PatientBillingAnalytics({
+  totalPayments,
   totalPaid,
   totalPending,
   activeSubscriptions,
   lastPayment,
 }: PatientBillingAnalyticsProps) {
-  const lastPaymentDate = lastPayment?.paymentDate || lastPayment?.createdAt;
+  const lastPaymentDate = lastPayment?.paymentDate ?? lastPayment?.createdAt;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Subscription Status */}
-      <Card className="border-l-4 border-l-blue-500">
-        <CardContent className="pt-5 pb-4">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            Subscription
-          </p>
-          <div className="flex items-center gap-2">
-            {activeSubscriptions > 0 ? (
-              <>
-                <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-                <span className="font-semibold text-green-700 dark:text-green-400">
-                  Active
-                </span>
-              </>
-            ) : (
-              <>
-                <XCircle className="h-5 w-5 text-muted-foreground shrink-0" />
-                <span className="font-semibold text-muted-foreground">No plan</span>
-              </>
-            )}
-          </div>
-          {activeSubscriptions === 0 && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Subscribe to book in-person appointments
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Amount Paid */}
-      <Card className="border-l-4 border-l-green-500">
-        <CardContent className="pt-5 pb-4">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            Total Paid
-          </p>
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-green-500 shrink-0" />
-            <span className="text-xl font-bold">
-              ₹{(totalPaid ?? 0).toLocaleString("en-IN")}
-            </span>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Amount Paid</p>
+              <p className="text-2xl font-bold text-green-600">
+                ₹{totalPaid.toLocaleString("en-IN")}
+              </p>
+            </div>
+            <DollarSign className="h-8 w-8 text-green-600" />
           </div>
         </CardContent>
       </Card>
 
       {/* Pending Amount */}
-      <Card className={`border-l-4 ${totalPending > 0 ? "border-l-yellow-500" : "border-l-muted"}`}>
-        <CardContent className="pt-5 pb-4">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            Pending Dues
-          </p>
-          <div className="flex items-center gap-2">
-            {totalPending > 0 ? (
-              <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0" />
-            ) : (
-              <CheckCircle2 className="h-5 w-5 text-muted-foreground shrink-0" />
-            )}
-            <span className={`text-xl font-bold ${totalPending > 0 ? "text-yellow-600 dark:text-yellow-400" : ""}`}>
-              ₹{(totalPending ?? 0).toLocaleString("en-IN")}
-            </span>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Pending Amount</p>
+              <p className="text-2xl font-bold text-yellow-600">
+                ₹{totalPending.toLocaleString("en-IN")}
+              </p>
+            </div>
+            <AlertCircle className="h-8 w-8 text-yellow-600" />
           </div>
-          {totalPending > 0 && (
-            <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">Payment due</p>
-          )}
+        </CardContent>
+      </Card>
+
+      {/* Active Subscriptions */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Active Plan</p>
+              <p className="text-2xl font-bold">
+                {activeSubscriptions > 0 ? activeSubscriptions : "None"}
+              </p>
+            </div>
+            <CreditCard className="h-8 w-8 text-blue-600" />
+          </div>
         </CardContent>
       </Card>
 
       {/* Last Payment */}
-      <Card className="border-l-4 border-l-slate-400">
-        <CardContent className="pt-5 pb-4">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            Last Payment
-          </p>
-          {lastPayment ? (
-            <div>
-              <div className="flex items-center gap-1.5">
-                <Receipt className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-xl font-bold">
-                  ₹{(lastPayment.amount ?? 0).toLocaleString("en-IN")}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mt-1.5">
-                <Badge variant="outline" className="text-xs py-0 h-5">
-                  {METHOD_LABELS[lastPayment.method] ?? lastPayment.method}
-                </Badge>
-                {lastPaymentDate && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {new Date(lastPaymentDate).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
-                )}
-              </div>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-muted-foreground">Last Payment</p>
+              {lastPayment ? (
+                <div>
+                  <p className="text-lg font-semibold truncate">
+                    ₹{lastPayment.amount.toLocaleString("en-IN")}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <Badge variant="outline" className="text-xs">
+                      {lastPayment.method}
+                    </Badge>
+                    {lastPaymentDate && (
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(lastPaymentDate).toLocaleDateString("en-IN")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-1">
+                  No payments yet
+                </p>
+              )}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No payments yet</p>
-          )}
+            <Receipt className="h-8 w-8 text-gray-400 shrink-0 ml-2" />
+          </div>
         </CardContent>
       </Card>
     </div>

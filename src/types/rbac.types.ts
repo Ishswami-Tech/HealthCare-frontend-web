@@ -376,8 +376,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     // Doctor permissions (view for scheduling)
     Permission.VIEW_DOCTORS,
     
-    // Clinic permissions (view locations)
+    // Clinic permissions (view locations, manage staff)
     Permission.VIEW_CLINICS,
+    Permission.MANAGE_CLINIC_STAFF,
     
     // Queue
     Permission.VIEW_QUEUE,
@@ -389,6 +390,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     
     // Billing (front desk)
     Permission.VIEW_BILLING,
+    Permission.MANAGE_BILLING,
     Permission.PROCESS_PAYMENTS,
     Permission.CREATE_BILLS,
     Permission.UPDATE_BILLS,
@@ -479,6 +481,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_PATIENTS,
     Permission.VIEW_MEDICAL_RECORDS,
     Permission.VIEW_NOTIFICATIONS,
+    Permission.VIEW_BILLING,
     Permission.MANAGE_USER_SETTINGS,
   ],
 
@@ -489,6 +492,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.UPDATE_MEDICAL_RECORDS,
     Permission.CREATE_MEDICAL_RECORDS,
     Permission.VIEW_NOTIFICATIONS,
+    Permission.VIEW_BILLING,
     Permission.MANAGE_USER_SETTINGS,
   ],
 
@@ -497,6 +501,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_PATIENTS,
     Permission.VIEW_QUEUE,
     Permission.VIEW_NOTIFICATIONS,
+    Permission.VIEW_BILLING,
     Permission.MANAGE_USER_SETTINGS,
   ],
 
@@ -508,6 +513,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.UPDATE_BILLS,
     Permission.DELETE_BILLS,
     Permission.VIEW_FINANCIAL_REPORTS,
+    Permission.VIEW_ANALYTICS,
+    Permission.VIEW_REPORTS,
     Permission.VIEW_NOTIFICATIONS,
     Permission.MANAGE_USER_SETTINGS,
   ],
@@ -532,6 +539,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.JOIN_VIDEO_APPOINTMENTS,
     Permission.VIEW_NOTIFICATIONS,
     Permission.SEND_NOTIFICATIONS,
+    Permission.VIEW_BILLING,
+    Permission.MANAGE_BILLING,
     Permission.MANAGE_USER_SETTINGS,
   ],
 
@@ -541,6 +550,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_PATIENTS,
     Permission.VIEW_MEDICAL_RECORDS,
     Permission.VIEW_NOTIFICATIONS,
+    Permission.VIEW_BILLING,
     Permission.MANAGE_USER_SETTINGS,
   ],
 };

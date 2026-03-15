@@ -412,7 +412,7 @@ export class ApiClient {
            timeout: this.timeout
         });
         
-        if (res.status === HTTP_STATUS.UNAUTHORIZED && requireAuth) {
+        if (res.status === HTTP_STATUS.UNAUTHORIZED && shouldRequireAuth) {
            // Attempt refresh
            await this.performTokenRefresh();
            // Retry request with new headers
@@ -535,6 +535,15 @@ export class ApiClient {
       } catch (error) {
         // If refresh fails, clear session and throw
         await this.clearAuthSession();
+        
+        // Throw proper ApiError to stop unintended retries
+        if (!(error instanceof ApiError)) {
+          throw new ApiError(
+            'Session expired. Please log in again.',
+            HTTP_STATUS.UNAUTHORIZED,
+            ERROR_CODES.AUTH_TOKEN_INVALID
+          );
+        }
         throw error;
       } finally {
         activeRefreshPromises.delete(refreshKey);
@@ -740,7 +749,10 @@ export class ClinicApiClient extends ApiClient {
     password: string; 
     rememberMe?: boolean; 
   }) {
-    return this.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
+    return this.publicRequest(API_ENDPOINTS.AUTH.LOGIN, {
+      method: 'POST',
+      body: JSON.stringify(credentials)
+    });
   }
 
   // ✅ clinicId is sent via X-Clinic-ID header automatically - never in body
@@ -755,7 +767,10 @@ export class ClinicApiClient extends ApiClient {
     address?: string;
     role?: string;
   }) {
-    return this.post(API_ENDPOINTS.AUTH.REGISTER, data);
+    return this.publicRequest(API_ENDPOINTS.AUTH.REGISTER, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
   }
 
   async refreshToken(refreshTokenDto?: { refreshToken?: string }) {
@@ -768,9 +783,12 @@ export class ClinicApiClient extends ApiClient {
 
   async requestOTP(requestDto: { identifier?: string; contact?: string; clinicId?: string; isRegistration?: boolean }) {
     const identifier = requestDto.identifier || requestDto.contact;
-    return this.post(API_ENDPOINTS.AUTH.REQUEST_OTP, {
-      ...requestDto,
-      identifier,
+    return this.publicRequest(API_ENDPOINTS.AUTH.REQUEST_OTP, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...requestDto,
+        identifier,
+      })
     });
   }
 
@@ -785,18 +803,27 @@ export class ClinicApiClient extends ApiClient {
     lastName?: string;
   }) {
     const identifier = data.identifier || data.contact;
-    return this.post(API_ENDPOINTS.AUTH.VERIFY_OTP, {
-      ...data,
-      identifier,
+    return this.publicRequest(API_ENDPOINTS.AUTH.VERIFY_OTP, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...data,
+        identifier,
+      })
     });
   }
 
   async forgotPassword(requestDto: { email: string }) {
-    return this.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, requestDto);
+    return this.publicRequest(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, {
+      method: 'POST',
+      body: JSON.stringify(requestDto)
+    });
   }
 
   async resetPassword(data: { token: string; password: string }) {
-    return this.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, data);
+    return this.publicRequest(API_ENDPOINTS.AUTH.RESET_PASSWORD, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
   }
 
   async changePassword(data: { currentPassword: string; newPassword: string }) {
@@ -822,7 +849,10 @@ export class ClinicApiClient extends ApiClient {
       default:
         throw new Error('Invalid provider');
     }
-    return this.post(endpoint, { token: data.token, clinicId: data.clinicId });
+    return this.publicRequest(endpoint, {
+      method: 'POST',
+      body: JSON.stringify({ token: data.token, clinicId: data.clinicId })
+    });
   }
 
   async getProfile() {

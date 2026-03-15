@@ -515,144 +515,6 @@ export async function checkInAppointment(id: string) {
 }
 
 /**
- * Start appointment
- * @deprecated Use updateAppointmentStatus instead
- */
-export async function startAppointment(id: string) {
-  try {
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.START(id), { method: 'POST' });
-    revalidateCache('appointments');
-    return { success: true };
-  } catch (error) {
-    logger.error('Failed to start appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to start appointment' };
-  }
-}
-
-/**
- * Complete appointment
- * @deprecated Use updateAppointmentStatus instead
- */
-export async function completeAppointment(id: string, data: any) {
-  try {
-    const validatedData = completeAppointmentSchema.parse(data);
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.COMPLETE(id), {
-      method: 'POST',
-      body: JSON.stringify(validatedData)
-    });
-    revalidateCache('appointments');
-    return { success: true };
-  } catch (error) {
-    logger.error('Failed to complete appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to complete appointment' };
-  }
-}
-
-// ===== DOCTOR AVAILABILITY =====
-
-/**
- * Get doctor availability
- * Uses authenticatedApi when the user is logged in (patient booking flow),
- * falls back to publicApi for guest access.
- */
-export async function getDoctorAvailability(clinicId: string, doctorId: string, date: string, locationId?: string) {
-  try {
-    console.log('[getDoctorAvailability - ENTRY]', { clinicId, doctorId, date, locationId });
-    if (!doctorId) {
-      logger.warn('[getDoctorAvailability] Missing doctorId, skipping request');
-      return { success: false, error: 'Doctor ID is required' };
-    }
-    const params = new URLSearchParams({ date });
-    if (locationId) params.append('locationId', locationId);
-
-    // Use the appointments route path (served under /api/v1)
-    const url = `${API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId)}?${params.toString()}`;
-    console.log('[getDoctorAvailability - CALLING_API]', { url, clinicId });
-
-    const clinicHeaders = { 'X-Clinic-ID': clinicId };
-
-    // Prefer authenticatedApi — the patient IS logged in when booking.
-    // This avoids the backend's @Public() guard chain (JwtAuthGuard → ProfileCompletionGuard)
-    // rejecting requests that have no token.
-    const session = await getServerSession();
-    let data: DoctorAvailability;
-
-    if (session?.user) {
-      console.log('[getDoctorAvailability - using authenticatedApi]');
-      const result = await authenticatedApi<DoctorAvailability>(url, {
-        headers: clinicHeaders,
-        cache: 'no-store',
-      });
-      data = result.data;
-    } else {
-      console.log('[getDoctorAvailability - using publicApi (guest)]');
-      const result = await publicApi<DoctorAvailability>(url, {
-        headers: clinicHeaders,
-        cache: 'no-store',
-      });
-      data = result.data;
-    }
-
-    console.log('[getDoctorAvailability - API_SUCCESS]', data);
-    return { success: true, availability: data };
-  } catch (error: any) {
-    logger.error('Failed to get doctor availability', error instanceof Error ? error : new Error(String(error)));
-    const errorMessage = error?.response?.data?.message || error?.message || 'Failed to fetch availability';
-    return { success: false, error: errorMessage };
-  }
-}
-
-/**
- * Get user upcoming appointments
- */
-export async function getUserUpcomingAppointments() {
-  try {
-    const { data } = await authenticatedApi<Appointment[]>(API_ENDPOINTS.APPOINTMENTS.UPCOMING, {});
-    return { success: true, appointments: data };
-  } catch (error) {
-    logger.error('Failed to get upcoming appointments', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to fetch upcoming appointments' };
-  }
-}
-
-// ===== VIDEO APPOINTMENT SCHEDULING =====
-
-/**
- * Propose video appointment
- */
-export async function proposeVideoAppointment(data: any) {
-  try {
-    const validatedData = proposeVideoSlotsSchema.parse(data);
-    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.VIDEO_PROPOSE, {
-      method: 'POST',
-      body: JSON.stringify(validatedData)
-    });
-    revalidateCache('appointments');
-    return { success: true, appointment };
-  } catch (error) {
-    logger.error('Failed to propose video appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to propose video appointment' };
-  }
-}
-
-/**
- * Confirm video slot
- */
-export async function confirmVideoSlot(appointmentId: string, confirmedSlotIndex: number) {
-  try {
-    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_SLOT(appointmentId), {
-      method: 'POST',
-      body: JSON.stringify({ confirmedSlotIndex })
-    });
-    revalidateCache('appointments');
-    return { success: true, appointment };
-  } catch (error) {
-    logger.error('Failed to confirm video slot', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to confirm video slot' };
-  }
-}
-
-/**
  * Reschedule appointment
  */
 export async function rescheduleAppointment(id: string, data: any) {
@@ -897,5 +759,110 @@ export async function bulkUpdateAppointmentStatus(appointmentIds: string[], stat
   } catch (error) {
     logger.error('Failed bulk appointment update', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Bulk update failed' };
+  }
+}
+
+// ===== DOCTOR AVAILABILITY =====
+
+/**
+ * Get doctor availability
+ * Uses authenticatedApi when the user is logged in (patient booking flow),
+ * falls back to publicApi for guest access.
+ */
+export async function getDoctorAvailability(clinicId: string, doctorId: string, date: string, locationId?: string, appointmentType?: string) {
+  try {
+    console.log('[getDoctorAvailability - ENTRY]', { clinicId, doctorId, date, locationId, appointmentType });
+    if (!doctorId) {
+      logger.warn('[getDoctorAvailability] Missing doctorId, skipping request');
+      return { success: false, error: 'Doctor ID is required' };
+    }
+    const params = new URLSearchParams({ date });
+    if (locationId) params.append('locationId', locationId);
+    if (appointmentType) params.append('type', appointmentType);
+
+    // Use the appointments route path (served under /api/v1)
+    const url = `${API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId)}?${params.toString()}`;
+    console.log('[getDoctorAvailability - CALLING_API]', { url, clinicId });
+
+    const clinicHeaders = { 'X-Clinic-ID': clinicId };
+
+    // Prefer authenticatedApi — the patient IS logged in when booking.
+    // This avoids the backend's @Public() guard chain (JwtAuthGuard → ProfileCompletionGuard)
+    // rejecting requests that have no token.
+    const session = await getServerSession();
+    let data: DoctorAvailability;
+
+    if (session?.user) {
+      console.log('[getDoctorAvailability - using authenticatedApi]');
+      const result = await authenticatedApi<DoctorAvailability>(url, {
+        headers: clinicHeaders,
+        cache: 'no-store',
+      });
+      data = result.data;
+    } else {
+      console.log('[getDoctorAvailability - using publicApi (guest)]');
+      const result = await publicApi<DoctorAvailability>(url, {
+        headers: clinicHeaders,
+        cache: 'no-store',
+      });
+      data = result.data;
+    }
+
+    console.log('[getDoctorAvailability - API_SUCCESS]', data);
+    return { success: true, availability: data };
+  } catch (error: any) {
+    logger.error('Failed to get doctor availability', error instanceof Error ? error : new Error(String(error)));
+    const errorMessage = error?.response?.data?.message || error?.message || 'Failed to fetch availability';
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Get user upcoming appointments
+ */
+export async function getUserUpcomingAppointments() {
+  try {
+    const { data } = await authenticatedApi<Appointment[]>(API_ENDPOINTS.APPOINTMENTS.UPCOMING, {});
+    return { success: true, appointments: data };
+  } catch (error) {
+    logger.error('Failed to get upcoming appointments', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Failed to fetch upcoming appointments' };
+  }
+}
+
+// ===== VIDEO APPOINTMENT SCHEDULING =====
+
+/**
+ * Propose video appointment
+ */
+export async function proposeVideoAppointment(data: any) {
+  try {
+    const validatedData = proposeVideoSlotsSchema.parse(data);
+    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.VIDEO_PROPOSE, {
+      method: 'POST',
+      body: JSON.stringify(validatedData)
+    });
+    revalidateCache('appointments');
+    return { success: true, appointment };
+  } catch (error) {
+    logger.error('Failed to propose video appointment', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Failed to propose video appointment' };
+  }
+}
+
+/**
+ * Confirm video slot
+ */
+export async function confirmVideoSlot(appointmentId: string, confirmedSlotIndex: number) {
+  try {
+    const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_SLOT(appointmentId), {
+      method: 'POST',
+      body: JSON.stringify({ confirmedSlotIndex })
+    });
+    revalidateCache('appointments');
+    return { success: true, appointment };
+  } catch (error) {
+    logger.error('Failed to confirm video slot', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Failed to confirm video slot' };
   }
 }

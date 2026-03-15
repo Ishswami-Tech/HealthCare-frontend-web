@@ -20,7 +20,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { SocialLogin } from "@/components/auth/social-login";
-import { Loader2, ArrowLeft, Lock, Smartphone, Mail } from "lucide-react";
+import { Loader2, ArrowLeft, Lock, Smartphone, Mail, CheckCircle2 } from "lucide-react";
 import { TOAST_IDS, showErrorToast } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
 import useZodForm from "@/hooks/utils/useZodForm";
@@ -34,11 +34,14 @@ import PhoneInput from "@/components/ui/phone-input";
 type LoginMethod = "selection" | "password" | "otp";
 type OtpMethod = "email" | "phone";
 
+type SuccessPhase = "none" | "alert" | "redirecting";
+
 export default function LoginPage() {
   const [view, setView] = useState<LoginMethod>("selection");
   const [showOTPInput, setShowOTPInput] = useState(false);
   const [otpMethod, setOtpMethod] = useState<OtpMethod>("email");
   const [isSocialLoginLoading, setIsSocialLoginLoading] = useState(false);
+  const [successPhase, setSuccessPhase] = useState<SuccessPhase>("none");
 
   // Shared email state to persist across views
   const [sharedIdentifier, setSharedIdentifier] = useState("");
@@ -46,7 +49,12 @@ export default function LoginPage() {
   const otpInputRef = useRef<HTMLInputElement>(null);
   const { loginAsync, requestOTP, verifyOTP, isLoggingIn, isVerifyingOTP } = useAuth();
   
-  const isFormDisabled = isSocialLoginLoading;
+  const isFormDisabled = isSocialLoginLoading || successPhase !== "none";
+
+  const triggerSuccessFlow = useCallback(() => {
+    setSuccessPhase("alert");
+    setTimeout(() => setSuccessPhase("redirecting"), 1500);
+  }, []);
 
   useEffect(() => {
     if (showOTPInput && otpInputRef.current) {
@@ -57,18 +65,22 @@ export default function LoginPage() {
   // Login Mutation
   const loginMutation = useCallback(
     async (data: z.infer<typeof loginSchema>): Promise<AuthResponse> => {
-       return await loginAsync({
-          email: data.email,
-          password: data.password,
-          rememberMe: data.rememberMe,
-        });
+      const result = await loginAsync({
+        email: data.email,
+        password: data.password,
+        rememberMe: data.rememberMe,
+      });
+      triggerSuccessFlow();
+      return result;
     },
-    [loginAsync]
+    [loginAsync, triggerSuccessFlow]
   );
 
   // OTP Mutation
   const otpMutation = async (data: z.infer<typeof otpSchema>): Promise<AuthResponse> => {
-      return await verifyOTP(data as OTPFormData);
+    const result = await verifyOTP(data as OTPFormData);
+    triggerSuccessFlow();
+    return result;
   };
 
   const passwordForm = useZodForm(loginSchema, loginMutation, {
@@ -103,6 +115,7 @@ export default function LoginPage() {
       <SocialLogin
         showDivider={false}
         onLoadingStateChange={setIsSocialLoginLoading}
+        onSuccess={triggerSuccessFlow}
         onError={(error) => {
           showErrorToast(error.message, { id: TOAST_IDS.AUTH.SOCIAL_LOGIN });
         }}
@@ -448,6 +461,26 @@ export default function LoginPage() {
       return "Choose your preferred sign in method";
   };
 
+  // Redirecting overlay — replaces the whole card content
+  if (successPhase === "redirecting") {
+    return (
+      <Card className="w-full max-w-[380px] mx-auto shadow-lg">
+        <CardContent className="flex flex-col items-center justify-center py-16 gap-5">
+          <div className="relative flex items-center justify-center">
+            <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+            </div>
+            <Loader2 className="absolute h-20 w-20 animate-spin text-green-500/40" />
+          </div>
+          <div className="text-center space-y-1">
+            <p className="font-semibold text-gray-900 dark:text-gray-100">Successfully signed in!</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Redirecting to dashboard…</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-[380px] mx-auto shadow-lg">
       <CardHeader className={cn("space-y-1 px-4 sm:px-6 relative", view !== "selection" ? "pt-10" : "pt-2")}>
@@ -470,6 +503,16 @@ export default function LoginPage() {
         </p>
       </CardHeader>
       <CardContent className="px-4 sm:px-6">
+        {/* Success alert — shown briefly before the redirecting overlay */}
+        {successPhase === "alert" && (
+          <div className="mb-4 flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 animate-in fade-in slide-in-from-top-2 duration-300">
+            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-green-800 dark:text-green-300">Sign in successful!</p>
+              <p className="text-xs text-green-600 dark:text-green-400">Redirecting to your dashboard…</p>
+            </div>
+          </div>
+        )}
         {view === "selection" && renderSelectionView()}
         {view === "password" && renderPasswordView()}
         {view === "otp" && renderOtpView()}

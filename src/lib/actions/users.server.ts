@@ -170,6 +170,9 @@ export async function createUser(userData: {
   lastName: string;
   phone?: string;
   role: string;
+  clinicId?: string;
+  specialization?: string;
+  experience?: number;
   gender?: string;
   dateOfBirth?: string;
   address?: string;
