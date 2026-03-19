@@ -14,7 +14,7 @@
     "start:dev": "NODE_ENV=development next start",
     "start:staging": "NODE_ENV=production next start",
     "start:prod": "NODE_ENV=production next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "type-check": "tsc --noEmit",
     "test:ws": "node scripts/test-websocket.js test",
     "test:ws:health": "node scripts/test-websocket.js test --health",

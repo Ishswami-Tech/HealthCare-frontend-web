@@ -31,6 +31,7 @@ import { Loader2 } from "lucide-react";
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const safeToken = token || "";
   const { resetPassword, isResettingPassword } = useAuth();
 
   // ✅ Use unified auth form hook for consistent patterns
@@ -43,7 +44,25 @@ export default function ResetPasswordPage() {
     showToast: true,
   });
 
-  if (!token) {
+  const form = useZodForm(
+    resetPasswordSchema,
+    async (data: ResetPasswordFormData) => {
+      // ✅ Use unified pattern - consistent across all auth pages
+      await executeAuthOperation(async () => {
+        return await resetPassword({
+          token: data.token,
+          newPassword: data.password,
+        });
+      });
+    },
+    {
+      password: "",
+      confirmPassword: "",
+      token: safeToken,
+    }
+  );
+
+  if (!safeToken) {
     return (
       <Card className="w-full max-w-md mx-auto shadow-lg px-4 sm:px-0">
         <CardHeader className="px-4 sm:px-6">
@@ -67,24 +86,6 @@ export default function ResetPasswordPage() {
       </Card>
     );
   }
-
-  const form = useZodForm(
-    resetPasswordSchema,
-    async (data: ResetPasswordFormData) => {
-      // ✅ Use unified pattern - consistent across all auth pages
-      await executeAuthOperation(async () => {
-        return await resetPassword({
-          token: data.token,
-          newPassword: data.password,
-        });
-      });
-    },
-    {
-      password: "",
-      confirmPassword: "",
-      token: token || "",
-    }
-  );
 
   // ✅ Overlay clearing is handled by auth layout - no need to clear here
   // This prevents race conditions and ensures consistent behavior

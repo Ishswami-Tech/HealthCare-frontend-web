@@ -771,7 +771,6 @@ export async function bulkUpdateAppointmentStatus(appointmentIds: string[], stat
  */
 export async function getDoctorAvailability(clinicId: string, doctorId: string, date: string, locationId?: string, appointmentType?: string) {
   try {
-    console.log('[getDoctorAvailability - ENTRY]', { clinicId, doctorId, date, locationId, appointmentType });
     if (!doctorId) {
       logger.warn('[getDoctorAvailability] Missing doctorId, skipping request');
       return { success: false, error: 'Doctor ID is required' };
@@ -782,7 +781,6 @@ export async function getDoctorAvailability(clinicId: string, doctorId: string, 
 
     // Use the appointments route path (served under /api/v1)
     const url = `${API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId)}?${params.toString()}`;
-    console.log('[getDoctorAvailability - CALLING_API]', { url, clinicId });
 
     const clinicHeaders = { 'X-Clinic-ID': clinicId };
 
@@ -793,14 +791,12 @@ export async function getDoctorAvailability(clinicId: string, doctorId: string, 
     let data: DoctorAvailability;
 
     if (session?.user) {
-      console.log('[getDoctorAvailability - using authenticatedApi]');
       const result = await authenticatedApi<DoctorAvailability>(url, {
         headers: clinicHeaders,
         cache: 'no-store',
       });
       data = result.data;
     } else {
-      console.log('[getDoctorAvailability - using publicApi (guest)]');
       const result = await publicApi<DoctorAvailability>(url, {
         headers: clinicHeaders,
         cache: 'no-store',
@@ -808,7 +804,6 @@ export async function getDoctorAvailability(clinicId: string, doctorId: string, 
       data = result.data;
     }
 
-    console.log('[getDoctorAvailability - API_SUCCESS]', data);
     return { success: true, availability: data };
   } catch (error: any) {
     logger.error('Failed to get doctor availability', error instanceof Error ? error : new Error(String(error)));

@@ -242,6 +242,15 @@ export default function AppointmentManager() {
             setExpandedCard(isExpanded ? null : apt.id);
             setSelectedAppointment(isExpanded ? null : apt as AppointmentWithRelations);
           }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setExpandedCard(isExpanded ? null : apt.id);
+              setSelectedAppointment(isExpanded ? null : apt as AppointmentWithRelations);
+            }
+          }}
+          role="button"
+          tabIndex={0}
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-3 min-w-0">

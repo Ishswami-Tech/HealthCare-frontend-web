@@ -96,6 +96,14 @@ export function NotificationItem({
         className
       )}
       onClick={handleClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleClick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       {/* Icon */}
       <div

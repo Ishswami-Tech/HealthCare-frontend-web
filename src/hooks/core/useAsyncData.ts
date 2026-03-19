@@ -59,10 +59,15 @@ export function AsyncDataWrapper<T>({
   children: (data: T) => React.ReactNode;
 }) {
   const defaultFallback = React.createElement('div', null, 'Loading...');
+  const AsyncDataContentComponent = AsyncDataContent as React.ComponentType<{
+    promise: Promise<T>;
+    children: (data: T) => React.ReactNode;
+  }>;
+
   return React.createElement(
     Suspense,
     { fallback: fallback || defaultFallback },
-    React.createElement(AsyncDataContent, { promise, children: children as (data: unknown) => React.ReactNode }, null)
+    React.createElement(AsyncDataContentComponent, { promise, children })
   );
 }
 
@@ -71,10 +76,10 @@ function AsyncDataContent<T>({
   children,
 }: {
   promise: Promise<T>;
-  children: (data: T) => React.ReactNode;
+  children?: (data: T) => React.ReactNode;
 }) {
   const data = useAsyncData(promise);
-  return React.createElement(React.Fragment, null, children(data));
+  return React.createElement(React.Fragment, null, children ? children(data) : null);
 }
 
 /**
@@ -84,4 +89,3 @@ function AsyncDataContent<T>({
 export function useContextValue<T>(context: React.Context<T>): T {
   return React.useContext(context);
 }
-

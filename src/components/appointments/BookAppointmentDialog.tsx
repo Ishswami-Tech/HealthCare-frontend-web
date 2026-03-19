@@ -332,13 +332,21 @@ export function BookAppointmentDialog({
   const handleBook = useCallback(async () => {
     if (!selectedService || !selectedDoctorId || !selectedDate || !selectedSlot) return;
 
+    const redirectToSubscriptionCheckout = (message?: string) => {
+      toast.error(
+        message || "You don't have an active subscription for this in-person appointment. Please subscribe to continue."
+      );
+      router.push("/billing?tab=plans&intent=subscribe");
+    };
+
     try {
       const finalAppointmentType: AppointmentType =
         consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
 
       if (finalAppointmentType === "IN_PERSON" && userRole === "PATIENT" && !activeSubscription) {
-        toast.error("Active subscription required for in-person appointments. Please subscribe to continue.");
-        router.push("/billing?tab=plans&intent=subscribe");
+        redirectToSubscriptionCheckout(
+          "You don't have an active subscription for in-person appointments. Please subscribe to continue."
+        );
         return;
       }
 
@@ -359,8 +367,7 @@ export function BookAppointmentDialog({
             (coverage?.requiresPayment
               ? `Subscription coverage unavailable. Additional payment required: INR ${coverage?.paymentAmount || 0}`
               : "Subscription quota exhausted or inactive.");
-          toast.error(reason);
-          router.push("/billing?tab=plans&intent=subscribe");
+          redirectToSubscriptionCheckout(reason);
           return;
         }
       }
@@ -421,7 +428,26 @@ export function BookAppointmentDialog({
 
       setStep(7); // step 7 = success/QR screen
     } catch (err: any) {
-      toast.error(err?.message || "Failed to book appointment. Please try again.");
+      const errorMessage =
+        typeof err?.message === "string" ? err.message : "Failed to book appointment. Please try again.";
+      const lowerErrorMessage = errorMessage.toLowerCase();
+      const shouldRedirectToSubscription =
+        userRole === "PATIENT" &&
+        consultationMode === "IN_PERSON" &&
+        (lowerErrorMessage.includes("active in-person subscription coverage is required") ||
+          lowerErrorMessage.includes("active subscription required") ||
+          lowerErrorMessage.includes("subscription quota exhausted") ||
+          lowerErrorMessage.includes("subscription coverage unavailable") ||
+          (lowerErrorMessage.includes("subscription") && lowerErrorMessage.includes("required")));
+
+      if (shouldRedirectToSubscription) {
+        redirectToSubscriptionCheckout(
+          "You don't have an active subscription for this appointment. Please subscribe and continue to payment."
+        );
+        return;
+      }
+
+      toast.error(errorMessage);
     }
   }, [
     selectedService,

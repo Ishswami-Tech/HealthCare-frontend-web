@@ -303,6 +303,12 @@ export function LanguageSelector({
     setLanguage(newLocale as SupportedLanguage);
   };
 
+  const { supportedLanguages: supportedLangs } = useLanguage();
+  const languages = Object.entries(supportedLangs || {}).map(([code, lang]: [string, any]) => ({
+    code,
+    name: lang.nativeName,
+  }));
+
   if (variant === "compact") {
     return (
       <div className={cn("flex items-center gap-2", className)}>
@@ -331,12 +337,6 @@ export function LanguageSelector({
   }
 
   // Inline variant
-  const { supportedLanguages: supportedLangs } = useLanguage();
-  const languages = Object.entries(supportedLangs || {}).map(([code, lang]: [string, any]) => ({
-    code,
-    name: lang.nativeName,
-  }));
-
   return (
     <div className={cn("flex items-center space-x-1", className)}>
       {languages.map((lang, index) => (

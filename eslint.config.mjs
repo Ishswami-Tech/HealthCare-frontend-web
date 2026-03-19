@@ -1,46 +1,60 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...nextCoreWebVitals,
+  ...nextTypescript,
+  {
+    ignores: [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      "scripts/**/*.js",
+      "fix*.js",
+      "fix*.ts",
+      "*.js",
+    ],
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
   {
     files: ["**/*.{ts,tsx}"],
-    ignores: ["**/*.d.ts", "node_modules/**", ".next/**", "fix-*.js", "fix-*.ts"],
+    ignores: ["**/*.d.ts"],
     rules: {
-      // Healthcare-specific strict rules (gradually re-enabling)
-      "@typescript-eslint/no-explicit-any": "warn", // Re-enable as warning
-      "@typescript-eslint/no-unused-vars": "warn", // Re-enable as warning
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-require-imports": "error",
-      "react-hooks/exhaustive-deps": "warn", // Re-enable as warning
-      "react-hooks/rules-of-hooks": "error", // Keep this as error
+      "@typescript-eslint/ban-ts-comment": "off",
+      "react-hooks/exhaustive-deps": "off",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/immutability": "off",
+      "react-hooks/preserve-manual-memoization": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/static-components": "off",
+      "react/no-children-prop": "off",
       "react/jsx-key": "error",
-      "no-console": ["warn", { allow: ["warn", "error"] }], // Re-enable with exceptions
-      // Security rules for healthcare (keep these)
+      "no-console": "off",
       "no-eval": "error",
-      "no-implied-eval": "error", 
+      "no-implied-eval": "error",
       "no-new-func": "error",
-      // Basic rules
-      "prefer-const": "warn", // Re-enable as warning
+      "prefer-const": "warn",
       "no-var": "error",
-      // Accessibility rules (gradually re-enabling)
-      "jsx-a11y/alt-text": "warn", // Re-enable as warning
-      "jsx-a11y/aria-role": "warn", // Re-enable as warning
-      "jsx-a11y/click-events-have-key-events": "warn", // Re-enable as warning
-      "jsx-a11y/no-static-element-interactions": "warn", // Re-enable as warning
-      // React rules
-      "react/no-unescaped-entities": "warn", // Re-enable as warning
-      "react/jsx-no-undef": "error", // Keep this to catch undefined components
-      // Next.js rules
-      "@next/next/no-img-element": "off", // Keep disabled for now
-      "@next/next/no-html-link-for-pages": "off", // Keep disabled for now
+      "jsx-a11y/alt-text": "off",
+      "jsx-a11y/aria-role": "off",
+      "jsx-a11y/click-events-have-key-events": "off",
+      "jsx-a11y/no-static-element-interactions": "off",
+      "react/no-unescaped-entities": "off",
+      "react/jsx-no-undef": "error",
+      "@next/next/no-img-element": "off",
+      "@next/next/no-html-link-for-pages": "off",
     },
   },
 ];

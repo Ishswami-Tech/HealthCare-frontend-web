@@ -161,7 +161,9 @@ export function RoleBasedBillingDashboard({
       setNewPlanAppointments("");
       setNewPlanUnlimited(false);
       setCreatePlanError("");
-      onRefetch && onRefetch();
+      if (onRefetch) {
+        onRefetch();
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to create billing plan.";
       setCreatePlanError(message);
@@ -590,7 +592,9 @@ export function RoleBasedBillingDashboard({
           <InvoiceForm
             onSuccess={() => {
               setIsCreateInvoiceOpen(false);
-              onRefetch && onRefetch();
+              if (onRefetch) {
+                onRefetch();
+              }
             }}
             onCancel={() => setIsCreateInvoiceOpen(false)}
           />
@@ -727,7 +731,9 @@ export function RoleBasedBillingDashboard({
                 onSuccess={() => {
                   setIsSubscriptionPaymentOpen(false);
                   setPendingSubscriptionPayment(null);
-                  onRefetch && onRefetch();
+                  if (onRefetch) {
+                    onRefetch();
+                  }
                 }}
               >
                 Pay INR {(pendingSubscriptionPayment.amount ?? 0).toLocaleString("en-IN")}

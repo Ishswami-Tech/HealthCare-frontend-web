@@ -52,13 +52,13 @@ export function useOptimisticMutation<TData, TVariables, TError = Error>(
 ) {
   const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
+  const queryKeySignature = JSON.stringify(options.queryKey);
   
   // ✅ OPTIMIZED: Memoize current data to prevent unnecessary re-renders
   // Get current data from query cache (updates when query data changes)
   const currentData = useMemo(
     () => queryClient.getQueryData<TData[]>(options.queryKey) || [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [queryClient, JSON.stringify(options.queryKey)]
+    [queryClient, queryKeySignature]
   );
   
   // Optimistic state with useOptimistic

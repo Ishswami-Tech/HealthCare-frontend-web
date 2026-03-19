@@ -380,6 +380,14 @@ export function AssignRoleModal({
                           <div 
                             key={role}
                             onClick={() => handleRoleChange(role)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                handleRoleChange(role);
+                              }
+                            }}
+                            role="button"
+                            tabIndex={0}
                             className={cn(
                               "relative p-5 rounded-xl border-2 transition-all duration-200 cursor-pointer flex flex-col gap-4 group",
                               isSelected 
@@ -458,7 +466,8 @@ export function AssignRoleModal({
                                   </Badge>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <button 
+                                  <button
+                                    type="button"
                                     className="text-[11px] font-bold text-primary hover:underline"
                                     onClick={() => {
                                       const newPerms = Array.from(new Set([...selectedPermissions, ...perms]));
@@ -468,7 +477,8 @@ export function AssignRoleModal({
                                     Select All
                                   </button>
                                   <span className="text-neutral-300 text-xs">|</span>
-                                  <button 
+                                  <button
+                                    type="button"
                                     className="text-[11px] font-bold text-neutral-400 hover:text-red-500"
                                     onClick={() => {
                                       setSelectedPermissions(prev => prev.filter(p => !perms.includes(p)));
@@ -490,6 +500,14 @@ export function AssignRoleModal({
                                     <div 
                                       key={p} 
                                       onClick={() => togglePermission(p)}
+                                      onKeyDown={(event) => {
+                                        if (event.key === "Enter" || event.key === " ") {
+                                          event.preventDefault();
+                                          togglePermission(p);
+                                        }
+                                      }}
+                                      role="button"
+                                      tabIndex={0}
                                       className={cn(
                                         "flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 cursor-pointer group/item",
                                         isSelected 

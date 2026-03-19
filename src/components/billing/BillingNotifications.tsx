@@ -225,8 +225,10 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
       {showNotifications && (
         <>
           {/* Backdrop */}
-          <div
+          <button
+            type="button"
             className="fixed inset-0 bg-black/50 z-50"
+            aria-label="Close billing notifications"
             onClick={() => setShowNotifications(false)}
           />
 
@@ -270,6 +272,14 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
                             handleMarkAsRead(notification.id);
                           }
                         }}
+                        onKeyDown={(event) => {
+                          if ((event.key === "Enter" || event.key === " ") && !notification.read) {
+                            event.preventDefault();
+                            handleMarkAsRead(notification.id);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
                       >
                         <div className="flex gap-3">
                           <div className={`mt-1 shrink-0 rounded-full p-2 ${getNotificationColor(notification.type)}`}>
