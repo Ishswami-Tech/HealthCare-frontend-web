@@ -110,9 +110,12 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       if (filters?.page) historyFilters.page = filters.page;
       if (filters?.limit) historyFilters.limit = filters.limit;
       if (clinicId) historyFilters.clinicId = clinicId;
-      // ✅ FIX: Separate doctorId and patientId (was overwriting userId)
+      // Video history endpoint accepts userId/clinicId-based access.
+      // Do not send patientId here; backend validation rejects it for /video/history.
       if (filters?.doctorId) historyFilters.userId = filters.doctorId;
-      if (filters?.patientId) historyFilters.patientId = filters.patientId;
+      if (isPatient && session?.user?.id) {
+        historyFilters.userId = session.user.id;
+      }
 
       const result = await getVideoConsultationHistory(historyFilters);
       const calls = (result as { calls?: unknown[] })?.calls;

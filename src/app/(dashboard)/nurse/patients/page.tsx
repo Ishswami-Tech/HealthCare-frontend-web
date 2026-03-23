@@ -13,20 +13,18 @@ import {
   Heart,
   BedDouble,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { useClinicContext } from "@/contexts/clinic-context";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { useNursePatients } from "@/hooks/query/useNurse";
 import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
 
 export default function NursePatients() {
   const { user } = useAuth();
-  const { clinicId } = useClinicContext();
 
   const [searchQuery, setSearchQuery] = useState("");
 
   const nurseId = user?.id;
 
-  const { data: patientsData, isPending } = useNursePatients(nurseId);
+  const { data: patientsData, isPending } = useNursePatients({ nurseId } as any);
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync([['nursePatients', nurseId]]);

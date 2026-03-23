@@ -411,14 +411,16 @@ export const API_ENDPOINTS = {
     RESCHEDULE: (id: string) => `/appointments/${id}/reschedule`,
     DOCTOR_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     UPDATE_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
+    // Deprecated compatibility alias for queue callers that still reference
+    // APPOINTMENTS.QUEUE. All queue flows now resolve to the standalone /queue/* API.
     QUEUE: {
-      GET: (queueType: string) => `/appointments/queue/${queueType}`,
-      ADD: '/appointments/queue/add',
-      REMOVE: (queueId: string) => `/appointments/queue/${queueId}`,
-      CALL_NEXT: (queueType: string) => `/appointments/queue/${queueType}/call-next`,
-      REORDER: (queueType: string) => `/appointments/queue/${queueType}/reorder`,
-      STATS: '/appointments/queue/stats',
-      ANALYTICS: '/appointments/queue/analytics',
+      GET: (_queueType: string) => `/queue`,
+      ADD: '/queue',
+      REMOVE: (queueId: string) => `/queue/${queueId}`,
+      CALL_NEXT: (_queueType: string) => '/queue/call-next',
+      REORDER: (_queueType: string) => '/queue/reorder',
+      STATS: '/queue/stats',
+      ANALYTICS: '/queue/analytics',
     },
     QR: {
       GENERATE: (appointmentId: string) => `/appointments/${appointmentId}/qr`,
@@ -439,6 +441,7 @@ export const API_ENDPOINTS = {
   QUEUE: {
     BASE: '/queue',
     GET: '/queue',
+    GET_BY_TYPE: (queueType: string) => `/queue/${queueType}`,
     STATS: '/queue/stats',
     UPDATE_STATUS: (patientId: string) => `/queue/${patientId}/status`,
     CALL_NEXT: '/queue/call-next',
@@ -594,6 +597,7 @@ export const API_ENDPOINTS = {
       PATIENT: '/user/role/patient',
       DOCTORS: '/user/role/doctors',
       RECEPTIONISTS: '/user/role/receptionists',
+      CLINIC_ADMINS: '/user/role/clinic-admins',
     },
     GET_BY_CLINIC: (clinicId: string) => `/clinics/${clinicId}/staff`,
     UPDATE_ROLE: (id: string) => `/user/${id}/role`,

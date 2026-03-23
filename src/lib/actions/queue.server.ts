@@ -14,6 +14,7 @@ export async function getQueue(filters?: {
   status?: string;
   doctorId?: string;
   clinicId?: string;
+  date?: string;
 }) {
   try {
     const query = new URLSearchParams();
@@ -21,6 +22,7 @@ export async function getQueue(filters?: {
     if (filters?.status) query.set('status', filters.status);
     if (filters?.doctorId) query.set('doctorId', filters.doctorId);
     if (filters?.clinicId) query.set('clinicId', filters.clinicId);
+    if (filters?.date) query.set('date', filters.date);
     const endpoint = query.toString()
       ? `${API_ENDPOINTS.QUEUE.GET}?${query.toString()}`
       : API_ENDPOINTS.QUEUE.GET;
@@ -70,11 +72,11 @@ export async function updateQueueStatus(patientId: string, status: string) {
 /**
  * Call next patient in queue
  */
-export async function callNextPatient(doctorId: string, domain?: string) {
+export async function callNextPatient(doctorId: string, appointmentId: string) {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.CALL_NEXT, {
       method: 'POST',
-      body: JSON.stringify({ doctorId, domain: domain || 'clinic' })
+      body: JSON.stringify({ doctorId, appointmentId })
     });
     revalidateCache('queue');
     revalidateCache('appointments');
@@ -128,11 +130,11 @@ export async function removeFromQueue(queueId: string, reason?: string) {
 /**
  * Reorder queue
  */
-export async function reorderQueue(doctorId: string, date: string, newOrder: string[], domain?: string) {
+export async function reorderQueue(doctorId: string, date: string, newOrder: string[]) {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.REORDER, {
       method: 'POST',
-      body: JSON.stringify({ doctorId, date, newOrder, domain: domain || 'clinic' })
+      body: JSON.stringify({ doctorId, date, newOrder })
     });
     revalidateCache('queue');
     revalidateCache('appointments');
@@ -191,11 +193,11 @@ export async function updateQueuePosition(queueId: string, newPosition: number) 
 /**
  * Pause queue
  */
-export async function pauseQueue(doctorId: string, domain?: string) {
+export async function pauseQueue(doctorId: string) {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.PAUSE, {
       method: 'POST',
-      body: JSON.stringify({ doctorId, domain: domain || 'clinic' })
+      body: JSON.stringify({ doctorId })
     });
     revalidateCache('queue');
     revalidateCache('appointments');
@@ -209,11 +211,11 @@ export async function pauseQueue(doctorId: string, domain?: string) {
 /**
  * Resume queue
  */
-export async function resumeQueue(doctorId: string, domain?: string) {
+export async function resumeQueue(doctorId: string) {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.RESUME, {
       method: 'POST',
-      body: JSON.stringify({ doctorId, domain: domain || 'clinic' })
+      body: JSON.stringify({ doctorId })
     });
     revalidateCache('queue');
     revalidateCache('appointments');

@@ -19,7 +19,7 @@ import {
   updateTypingIndicator,
   type ChatMessage,
 } from "@/lib/actions/video.server";
-import { format } from "date-fns";
+import { formatTimeInIST } from "@/lib/utils/appointmentUtils";
 import { useToast } from "@/hooks/utils/use-toast";
 
 interface VideoChatProps {
@@ -138,15 +138,6 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
     }
   };
 
-  // Handle file attachment (placeholder)
-  const handleFileAttach = () => {
-    // TODO: Implement file upload
-    toast({
-      title: "Coming Soon",
-      description: "File attachment feature will be available soon",
-    });
-  };
-
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -199,7 +190,11 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium">{message.user?.name || 'Unknown'}</span>
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(message.createdAt), "HH:mm")}
+                          {formatTimeInIST(new Date(message.createdAt), {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: false,
+                          })}
                         </span>
                       </div>
                       <div
@@ -247,14 +242,6 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
         {/* Input Area */}
         <div className="border-t p-3">
           <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9"
-              onClick={handleFileAttach}
-            >
-              <Paperclip className="h-4 w-4" />
-            </Button>
             <Input
               ref={inputRef}
               value={newMessage}
@@ -286,9 +273,11 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
               Reconnecting to chat...
             </p>
           )}
+          <p className="text-xs text-muted-foreground mt-1">
+            File attachments are not available in this build.
+          </p>
         </div>
       </CardContent>
     </Card>
   );
 }
-

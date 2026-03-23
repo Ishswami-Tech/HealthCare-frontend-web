@@ -80,7 +80,10 @@ async function getDefaultHeaders(): Promise<Record<string, string>> {
 
 // ✅ Authentication Headers Generator
 // Requires authentication unless explicitly marked as public
-async function getAuthHeaders(requireAuth: boolean = true): Promise<Record<string, string>> {
+async function getAuthHeaders(
+  requireAuth: boolean = true,
+  includeClinicId: boolean = true
+): Promise<Record<string, string>> {
   // Support both server-side (cookies) and client-side (localStorage)
   let accessToken: string | undefined;
   let sessionId: string | undefined;
@@ -150,8 +153,8 @@ async function getAuthHeaders(requireAuth: boolean = true): Promise<Record<strin
     headers['X-Session-ID'] = sessionId;
   }
 
-  // ✅ Always include clinic ID in headers (from cookie/localStorage or config)
-  if (clinicId) {
+  // ✅ Include clinic ID only when the caller opts into tenant scoping.
+  if (includeClinicId && clinicId) {
     headers['X-Clinic-ID'] = clinicId;
   }
 
@@ -385,7 +388,9 @@ export class ApiClient {
     // Check if this is a public endpoint (auth endpoints, health checks, etc.)
     const isPublicEndpoint = url.includes('/auth/') || url.includes('/health');
     const shouldRequireAuth = requireAuth && !isPublicEndpoint;
-    const headers = await getAuthHeaders(shouldRequireAuth);
+    const includeClinicId =
+      (options as RequestInit & { omitClinicId?: boolean }).omitClinicId !== true;
+    const headers = await getAuthHeaders(shouldRequireAuth, includeClinicId);
     
     const config: RequestInit = {
       method: 'GET',
@@ -416,7 +421,7 @@ export class ApiClient {
            // Attempt refresh
            await this.performTokenRefresh();
            // Retry request with new headers
-           const newHeaders = await getAuthHeaders(shouldRequireAuth);
+           const newHeaders = await getAuthHeaders(shouldRequireAuth, includeClinicId);
            // Update headers in config
            const newConfig = { 
                ...config, 
@@ -1077,7 +1082,7 @@ export class ClinicApiClient extends ApiClient {
 
   // ✅ Queue Management Methods
   async getQueue(queueType: string) {
-    return this.get(API_ENDPOINTS.APPOINTMENTS.QUEUE.GET(queueType));
+    return this.get(API_ENDPOINTS.QUEUE.GET, { type: queueType });
   }
 
   async addToQueue(data: {
@@ -1086,7 +1091,7 @@ export class ClinicApiClient extends ApiClient {
     queueType: string;
     priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
   }) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.QUEUE.ADD, data);
+    return this.post(API_ENDPOINTS.QUEUE.ADD, data);
   }
 
   async callNextPatient(doctorId: string, domain?: string) {

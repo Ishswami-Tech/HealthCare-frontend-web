@@ -14,19 +14,17 @@ import {
   CheckCircle,
   MessageCircle,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { useClinicContext } from "@/contexts/clinic-context";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useCounselorAppointments,
   useUpdateCounselorAppointment,
   useDeleteCounselorAppointment,
-  useCreateCounselorAppointment,
 } from "@/hooks/query/useCounselor";
 import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
 
 export default function CounselorAppointments() {
-  const { user } = useAuth();
-  const { clinicId } = useClinicContext();
+  const { session } = useAuth();
+  const user = session?.user;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -36,7 +34,6 @@ export default function CounselorAppointments() {
   const { data: appointmentsData, isPending } = useCounselorAppointments(counselorId);
   const updateMutation = useUpdateCounselorAppointment();
   const deleteMutation = useDeleteCounselorAppointment();
-  const createMutation = useCreateCounselorAppointment();
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync([['counselorAppointments', counselorId]]);

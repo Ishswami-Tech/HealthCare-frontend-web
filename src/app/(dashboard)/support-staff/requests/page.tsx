@@ -14,8 +14,7 @@ import {
   CheckCircle,
   Play,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { useClinicContext } from "@/contexts/clinic-context";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useSupportStaffRequests,
   useUpdateSupportRequest,
@@ -26,14 +25,13 @@ import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-s
 
 export default function SupportStaffRequests() {
   const { user } = useAuth();
-  const { clinicId } = useClinicContext();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
   const staffId = user?.id;
 
-  const { data: requestsData, isPending } = useSupportStaffRequests(staffId);
+  const { data: requestsData, isPending } = useSupportStaffRequests({ staffId } as any);
   const updateMutation = useUpdateSupportRequest();
   const deleteMutation = useDeleteSupportRequest();
   const createMutation = useCreateSupportRequest();

@@ -11,7 +11,7 @@ export const createAppointmentSchema = z.object({
   doctorId: z.string().uuid(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
-  duration: z.number().min(15).max(480),
+  duration: z.number().min(3).max(480),
   type: z.string().min(1).max(100),
   notes: z.string().max(1000).optional(),
   clinicId: z.string().uuid().optional(),
@@ -23,7 +23,7 @@ export const createAppointmentSchema = z.object({
 export const updateAppointmentSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  duration: z.number().min(15).max(480).optional(),
+  duration: z.number().min(3).max(480).optional(),
   type: z.string().min(1).max(100).optional(),
   notes: z.string().max(1000).optional(),
   status: z.enum(['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
@@ -45,7 +45,7 @@ export const proposeVideoSlotsSchema = z.object({
   patientId: z.string().uuid(),
   doctorId: z.string().uuid(),
   clinicId: z.string().min(1),
-  duration: z.number().min(15).max(120),
+  duration: z.number().min(3).max(120),
   proposedSlots: z.array(z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     time: z.string().regex(/^\d{1,2}:\d{2}$/),

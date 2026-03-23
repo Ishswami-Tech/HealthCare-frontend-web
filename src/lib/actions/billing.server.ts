@@ -756,7 +756,6 @@ export async function processSubscriptionPayment(
 
 export async function processAppointmentPayment(
   appointmentId: string,
-  amount: number,
   appointmentType: 'VIDEO_CALL' | 'IN_PERSON' | 'HOME_VISIT',
   provider: PaymentProvider = 'cashfree'
 ): Promise<{
@@ -769,7 +768,7 @@ export async function processAppointmentPayment(
   try {
     const { data } = await authenticatedApi(`${API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(appointmentId)}?provider=${provider}`, {
       method: 'POST',
-      body: JSON.stringify({ amount, appointmentType }),
+      body: JSON.stringify({ appointmentType }),
     });
     return { 
       success: true, 

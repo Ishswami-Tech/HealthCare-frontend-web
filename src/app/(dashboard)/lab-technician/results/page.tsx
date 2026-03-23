@@ -16,8 +16,7 @@ import {
   Filter,
   Download,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { useClinicContext } from "@/contexts/clinic-context";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useLabTechnicianResults,
   useUpdateLabResult,
@@ -28,14 +27,13 @@ import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-s
 
 export default function LabTechnicianResults() {
   const { user } = useAuth();
-  const { clinicId } = useClinicContext();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
   const technicianId = user?.id;
 
-  const { data: labResultsData, isPending } = useLabTechnicianResults(technicianId);
+  const { data: labResultsData, isPending } = useLabTechnicianResults({ labTechnicianId: technicianId } as any);
   const updateMutation = useUpdateLabResult();
   const deleteMutation = useDeleteLabResult();
   const createMutation = useCreateLabResult();

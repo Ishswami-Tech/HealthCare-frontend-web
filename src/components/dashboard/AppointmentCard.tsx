@@ -175,7 +175,11 @@ function AppointmentCardComponent({
               {appointment.type === "video" && t("appointments.videoCall")}
               {appointment.type === "phone" && t("appointments.phoneCall")}
               {appointment.type === "in-person" &&
-                (appointment.location || t("appointments.inPerson"))}
+                ((typeof appointment.location === "string"
+                  ? appointment.location
+                  : ((appointment.location as unknown as { name?: string; address?: string } | undefined)?.name ||
+                    (appointment.location as unknown as { name?: string; address?: string } | undefined)?.address)) ||
+                  t("appointments.inPerson"))}
             </p>
           </div>
 

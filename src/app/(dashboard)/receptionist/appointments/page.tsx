@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Calendar, Loader2, QrCode, Search, Stethoscope, UserCheck } from "lucide-react";
+import { Bell, Calendar, Loader2, QrCode, Search, Stethoscope, UserCheck, Eye, MoreHorizontal, UserMinus } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DataTable } from "@/components/ui/data-table";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
@@ -40,8 +50,10 @@ type ViewAppointment = {
   assignedDoctorId?: string;
   doctorName: string;
   doctorRole?: string;
+  dateLabel: string;
   timeLabel: string;
   status: string;
+  paymentStatus: string;
   queuePosition: number | null;
   queueType: string;
   notes: string;
@@ -51,12 +63,12 @@ type ViewAppointment = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  SCHEDULED: "bg-slate-100 text-slate-800 dark:bg-slate-900/40 dark:text-slate-200",
-  CONFIRMED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  IN_PROGRESS: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  COMPLETED: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
-  NO_SHOW: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-  CANCELLED: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
+  SCHEDULED: "bg-slate-100 text-slate-800",
+  CONFIRMED: "bg-emerald-100 text-emerald-800",
+  IN_PROGRESS: "bg-blue-100 text-blue-800",
+  COMPLETED: "bg-violet-100 text-violet-800",
+  NO_SHOW: "bg-red-100 text-red-800",
+  CANCELLED: "bg-rose-100 text-rose-800",
 };
 
 function normalizeAppointment(
@@ -65,27 +77,43 @@ function normalizeAppointment(
 ): ViewAppointment {
   const startAt = app.startTime || app.appointmentDate || (app.date && app.time ? `${app.date}T${app.time}` : null);
   const parsed = startAt ? new Date(startAt) : null;
+  const patientName =
+    app.patientName ||
+    app.patient?.name ||
+    app.patient?.user?.name ||
+    `${app.patient?.firstName || app.patient?.user?.firstName || ""} ${app.patient?.lastName || app.patient?.user?.lastName || ""}`.trim() ||
+    "Unknown Patient";
+  const patientPhone =
+    app.patientPhone ||
+    app.patient?.phone ||
+    app.patient?.user?.phone ||
+    "";
+  const doctorName =
+    app.doctorName ||
+    app.doctor?.name ||
+    app.doctor?.user?.name ||
+    `${app.doctor?.firstName || app.doctor?.user?.firstName || ""} ${app.doctor?.lastName || app.doctor?.user?.lastName || ""}`.trim() ||
+    "Unassigned Doctor";
 
   return {
     id: app.id,
-    patientName:
-      app.patient?.name ||
-      `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() ||
-      "Unknown Patient",
-    patientPhone: app.patient?.phone || "",
+    patientName,
+    patientPhone,
     doctorId: app.doctor?.id || app.doctorId || "",
     primaryDoctorId: app.primaryDoctorId || app.metadata?.primaryDoctorId || app.doctorId || "",
     assignedDoctorId: app.assignedDoctorId || app.metadata?.assignedDoctorId || app.doctorId || "",
-    doctorName:
-      app.doctor?.name ||
-      `${app.doctor?.firstName || ""} ${app.doctor?.lastName || ""}`.trim() ||
-      "Unassigned Doctor",
+    doctorName,
     doctorRole: String(app.doctor?.role || app.doctor?.user?.role || "").toUpperCase(),
+    dateLabel:
+      parsed && !Number.isNaN(parsed.getTime())
+        ? parsed.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+        : app.date || "TBD",
     timeLabel:
       parsed && !Number.isNaN(parsed.getTime())
         ? parsed.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
         : app.time || "TBD",
     status: String(app.status || "SCHEDULED").toUpperCase(),
+    paymentStatus: String(app.payment?.status || "N/A").toUpperCase(),
     queuePosition: typeof app.queuePosition === "number" ? app.queuePosition : null,
     queueType: resolveQueueDisplayLabel(app, serviceCatalogMap),
     notes: app.notes || app.reason || "",
@@ -111,11 +139,10 @@ export default function ReceptionistAppointmentsPage() {
   useWebSocketQuerySync();
   const { data: serviceCatalog = [] } = useAppointmentServices();
 
-  const today = new Date().toISOString().split("T")[0] || "";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [queueFilter, setQueueFilter] = useState("all");
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState("");
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const [activeDoctorId, setActiveDoctorId] = useState<string | null>(null);
   const [selectedReassignments, setSelectedReassignments] = useState<Record<string, string>>({});
@@ -164,14 +191,13 @@ export default function ReceptionistAppointmentsPage() {
 
     if (Array.isArray(doctorsData)) return normalize(doctorsData);
     if (Array.isArray((doctorsData as any)?.data?.doctors)) return normalize((doctorsData as any).data.doctors);
-    if (Array.isArray((doctorsData as any)?.data)) return normalize((doctorsData as any).data);
     return normalize((doctorsData as any)?.doctors || []);
   }, [doctorsData]);
 
   const appointments = useMemo(() => {
     const raw = Array.isArray(appointmentsData)
       ? appointmentsData
-      : appointmentsData?.appointments || [];
+      : (appointmentsData as any)?.appointments || [];
     const serviceMap = new Map(
       serviceCatalog.map((service) => [
         String(service.treatmentType).toUpperCase(),
@@ -183,17 +209,11 @@ export default function ReceptionistAppointmentsPage() {
       ])
     );
 
-    return raw.map((appointment) => normalizeAppointment(appointment, serviceMap));
+    return raw.map((appointment: any) => normalizeAppointment(appointment, serviceMap));
   }, [appointmentsData, serviceCatalog]);
 
-  const availableQueueTypes = useMemo(() => {
-    return Array.from(
-      new Set(appointments.map((appointment) => appointment.queueType).filter(Boolean))
-    ).sort((left, right) => left.localeCompare(right));
-  }, [appointments]);
-
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((appointment) => {
+    return appointments.filter((appointment: ViewAppointment) => {
       const matchesSearch =
         !searchTerm ||
         appointment.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -207,10 +227,10 @@ export default function ReceptionistAppointmentsPage() {
 
   const stats = useMemo(() => {
     const total = appointments.length;
-    const scheduled = appointments.filter((item) => item.status === "SCHEDULED").length;
-    const confirmed = appointments.filter((item) => item.status === "CONFIRMED").length;
-    const inProgress = appointments.filter((item) => item.status === "IN_PROGRESS").length;
-    const completed = appointments.filter((item) => item.status === "COMPLETED").length;
+    const scheduled = appointments.filter((item: ViewAppointment) => item.status === "SCHEDULED").length;
+    const confirmed = appointments.filter((item: ViewAppointment) => item.status === "CONFIRMED").length;
+    const inProgress = appointments.filter((item: ViewAppointment) => item.status === "IN_PROGRESS").length;
+    const completed = appointments.filter((item: ViewAppointment) => item.status === "COMPLETED").length;
     return { total, scheduled, confirmed, inProgress, completed };
   }, [appointments]);
 
@@ -251,50 +271,6 @@ export default function ReceptionistAppointmentsPage() {
     return Array.from(grouped.values()).sort((a, b) => b.confirmed - a.confirmed || b.scheduled - a.scheduled);
   }, [filteredAppointments]);
 
-  useEffect(() => {
-    const pendingAppointmentIds = filteredAppointments
-      .filter(
-        (appointment) =>
-          (appointment.status === "SCHEDULED" || appointment.status === "CONFIRMED") &&
-          !reassignmentCandidates[appointment.id]
-      )
-      .map((appointment) => appointment.id);
-
-    if (pendingAppointmentIds.length === 0) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void (async () => {
-      const responses = await Promise.all(
-        pendingAppointmentIds.map(async (appointmentId) => {
-          const result = await getAppointmentReassignmentCandidates(appointmentId);
-          return {
-            appointmentId,
-            candidates: result.success ? result.candidates || [] : [],
-          };
-        })
-      );
-
-      if (cancelled) {
-        return;
-      }
-
-      setReassignmentCandidates((current) => {
-        const next = { ...current };
-        for (const response of responses) {
-          next[response.appointmentId] = response.candidates;
-        }
-        return next;
-      });
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [filteredAppointments, reassignmentCandidates]);
-
   async function handleConfirmArrival(appointmentId: string) {
     setActiveActionId(appointmentId);
     const result = await checkInAppointment(appointmentId);
@@ -320,64 +296,158 @@ export default function ReceptionistAppointmentsPage() {
   }
 
   async function handleNotifyNext(doctorId: string) {
-    if (!doctorId) {
-      showErrorToast("Doctor is required to call the next patient");
-      return;
-    }
-
+    if (!doctorId) return;
     setActiveDoctorId(doctorId);
-    const result = (await callNextPatient(doctorId, "clinic")) as
-      | { success?: boolean; message?: string }
-      | null;
+    const result = (await callNextPatient(doctorId, "clinic")) as any;
     if (result?.success) {
       showSuccessToast("Next patient moved into consultation", { id: TOAST_IDS.QUEUE.CALL_NEXT });
       await refetch?.();
     } else {
-      showErrorToast(result?.message || "No waiting patient available for this doctor", {
-        id: TOAST_IDS.QUEUE.CALL_NEXT,
-      });
+      showErrorToast(result?.message || "No waiting patient available", { id: TOAST_IDS.QUEUE.CALL_NEXT });
     }
     setActiveDoctorId(null);
   }
 
-  async function handleReassignDoctor(appointmentId: string) {
-    const selectedDoctorId = selectedReassignments[appointmentId];
-    if (!selectedDoctorId) {
-      showErrorToast("Select a doctor or assistant doctor first");
-      return;
-    }
-
+  async function handleReassignDoctor(appointmentId: string, doctorId: string) {
     setActiveActionId(appointmentId);
     const result = await reassignAppointmentDoctor(appointmentId, {
-      doctorId: selectedDoctorId,
+      doctorId,
       reason: "Reception desk reassignment",
     });
 
     if (result.success) {
-      showSuccessToast("Appointment reassigned successfully", {
-        id: TOAST_IDS.APPOINTMENT.UPDATE,
-      });
-      const refreshedCandidates = await getAppointmentReassignmentCandidates(appointmentId);
-      if (refreshedCandidates.success && refreshedCandidates.candidates) {
-        setReassignmentCandidates((current) => ({
-          ...current,
-          [appointmentId]: refreshedCandidates.candidates || [],
-        }));
-      }
-      setSelectedReassignments((current) => {
-        const next = { ...current };
-        delete next[appointmentId];
-        return next;
-      });
+      showSuccessToast("Appointment reassigned successfully", { id: TOAST_IDS.APPOINTMENT.UPDATE });
       await refetch?.();
     } else {
-      showErrorToast(result.error || "Failed to reassign appointment", {
-        id: TOAST_IDS.APPOINTMENT.UPDATE,
-      });
+      showErrorToast(result.error || "Failed to reassign", { id: TOAST_IDS.APPOINTMENT.UPDATE });
     }
-
     setActiveActionId(null);
   }
+
+  const columns: ColumnDef<ViewAppointment>[] = [
+    {
+      accessorKey: "patientName",
+      header: "Patient",
+      cell: ({ row }) => (
+        <div className="flex flex-col">
+          <span className="font-medium">{row.original.patientName}</span>
+          <span className="text-xs text-muted-foreground">{row.original.patientPhone}</span>
+          {row.original.isWalkIn && <Badge variant="outline" className="w-fit mt-1 text-[10px]">Walk-in</Badge>}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "doctorName",
+      header: "Doctor",
+      cell: ({ row }) => (
+        <div className="flex flex-col">
+          <span className="font-medium">{row.original.doctorName}</span>
+          <span className="text-xs text-muted-foreground">
+            {row.original.doctorRole === "ASSISTANT_DOCTOR" ? "Assistant" : "Doctor"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "dateTime",
+      header: "Schedule",
+      cell: ({ row }) => (
+        <div className="flex flex-col">
+          <span>{row.original.dateLabel}</span>
+          <span className="text-xs text-muted-foreground">{row.original.timeLabel}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge className={STATUS_STYLES[row.original.status] || STATUS_STYLES.SCHEDULED}>
+          {row.original.status.replace("_", " ")}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "queue",
+      header: "Queue",
+      cell: ({ row }) => (
+        <div className="flex flex-col text-xs">
+          <span className="font-medium">{row.original.queueType}</span>
+          <span className="text-muted-foreground">Pos: {row.original.queuePosition ?? "N/A"}</span>
+          <span className="text-muted-foreground">Wait: {row.original.waitLabel}</span>
+        </div>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const appointment = row.original;
+        const canConfirmArrival = appointment.status === "SCHEDULED";
+        const canReassign = appointment.status === "SCHEDULED" || appointment.status === "CONFIRMED";
+
+        return (
+          <div className="flex items-center gap-2">
+            {canConfirmArrival && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 px-2 text-xs"
+                onClick={() => handleConfirmArrival(appointment.id)}
+                disabled={activeActionId === appointment.id}
+              >
+                {activeActionId === appointment.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <UserCheck className="h-3 w-3 mr-1" />
+                )}
+                Confirm
+              </Button>
+            )}
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => window.open(`/receptionist/appointments/${appointment.id}`, "_blank")}>
+                  <Eye className="mr-2 h-4 w-4" /> View Details
+                </DropdownMenuItem>
+                
+                {canReassign && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-[10px] font-normal text-muted-foreground">Reassign Doctor</DropdownMenuLabel>
+                    {assignableDoctors.slice(0, 5).map((doc) => (
+                      <DropdownMenuItem 
+                        key={doc.id} 
+                        disabled={doc.id === appointment.doctorId}
+                        onClick={() => handleReassignDoctor(appointment.id, doc.id)}
+                      >
+                        <UserMinus className="mr-2 h-4 w-4" /> {doc.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+                
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="text-red-600"
+                  onClick={() => handleMarkNoShow(appointment.id)}
+                  disabled={activeActionId === appointment.id}
+                >
+                  Mark No Show
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
+    },
+  ];
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -385,14 +455,14 @@ export default function ReceptionistAppointmentsPage() {
         <div>
           <h1 className="text-3xl font-bold">Reception Queue Workspace</h1>
           <p className="text-muted-foreground">
-            Schedule appointments, confirm arrivals, and manage the doctor backlog with live data
+            Unified workspace for appointment management and doctor queue flow.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <Button asChild variant="outline">
             <Link href="/receptionist/check-in">
               <QrCode className="w-4 h-4 mr-2" />
-              QR / Manual Check-In
+              QR Check-In
             </Link>
           </Button>
           <BookAppointmentDialog
@@ -410,248 +480,89 @@ export default function ReceptionistAppointmentsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Total</div><div className="text-2xl font-bold">{stats.total}</div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Scheduled</div><div className="text-2xl font-bold">{stats.scheduled}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Queued</div><div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{stats.confirmed}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">In Progress</div><div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.inProgress}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Completed</div><div className="text-2xl font-bold text-violet-700 dark:text-violet-300">{stats.completed}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Queued</div><div className="text-2xl font-bold text-emerald-700">{stats.confirmed}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">In Progress</div><div className="text-2xl font-bold text-blue-700">{stats.inProgress}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Completed</div><div className="text-2xl font-bold text-violet-700">{stats.completed}</div></CardContent></Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Search and Filter</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-4">
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                placeholder="Search patient, doctor, or phone"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
-            </div>
-            <Input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                  <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                  <SelectItem value="COMPLETED">Completed</SelectItem>
-                  <SelectItem value="NO_SHOW">No Show</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={queueFilter} onValueChange={setQueueFilter}>
-                <SelectTrigger><SelectValue placeholder="Queue" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Queues</SelectItem>
-                  {availableQueueTypes.map((queueType) => (
-                    <SelectItem key={queueType} value={queueType}>
-                      {queueType}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Stethoscope className="w-5 h-5" />
-            Doctor Queue Backlog
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {doctorBacklog.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {isPending ? "Loading doctor backlog..." : "No appointments match the selected filters."}
-            </p>
-          ) : (
-            doctorBacklog.map((doctor) => (
-              <div key={doctor.doctorName} className="rounded-xl border bg-card p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="font-semibold">{doctor.doctorName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {doctor.nextPatient ? `Next queued patient: ${doctor.nextPatient}` : "No confirmed patient waiting"}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">Scheduled {doctor.scheduled}</Badge>
-                  <Badge className={STATUS_STYLES.CONFIRMED}>Queued {doctor.confirmed}</Badge>
-                  <Badge className={STATUS_STYLES.IN_PROGRESS}>In Progress {doctor.inProgress}</Badge>
-                </div>
-                <Button
-                  variant="outline"
-                  disabled={!doctor.doctorId || activeDoctorId === doctor.doctorId}
-                  onClick={() => void handleNotifyNext(doctor.doctorId)}
-                >
-                  {activeDoctorId === doctor.doctorId ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Bell className="w-4 h-4 mr-2" />
-                  )}
-                  Notify Next
-                </Button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Appointment List</CardTitle>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Search..." 
+                  className="w-64 h-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-32 h-8"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+            </CardHeader>
+            <CardContent>
+              <DataTable 
+                columns={columns} 
+                data={filteredAppointments} 
+                pageSize={10}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserCheck className="w-5 h-5" />
-            Appointment List
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isPending ? (
-            <div className="flex items-center justify-center py-10 text-muted-foreground">
-              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-              Loading appointments...
-            </div>
-          ) : filteredAppointments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No appointments match the current search and filter values.</p>
-          ) : (
-            filteredAppointments.map((appointment) => {
-              const canConfirmArrival = appointment.status === "SCHEDULED";
-              const canMarkNoShow = appointment.status === "SCHEDULED" || appointment.status === "CONFIRMED";
-
-              return (
-                <div key={appointment.id} className="rounded-xl border bg-card p-4 space-y-3">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold">{appointment.patientName}</p>
-                        {appointment.isWalkIn ? <Badge variant="outline">Walk-in</Badge> : null}
-                        <Badge className={STATUS_STYLES[appointment.status] || STATUS_STYLES.SCHEDULED}>
-                          {appointment.status.replaceAll("_", " ")}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{appointment.doctorName}</p>
-                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        <span>{appointment.patientPhone || "No phone"}</span>
-                        <span>{appointment.timeLabel}</span>
-                        <span>{appointment.queueType}</span>
-                        <span>{getQueuePositionLabel({ position: appointment.queuePosition ?? 0 })}</span>
-                        <span>Wait {appointment.waitLabel}</span>
-                        <span>
-                          Serving doctor: {appointment.doctorName}
-                          {appointment.doctorRole === "ASSISTANT_DOCTOR" ? " (Assistant Doctor)" : ""}
-                        </span>
-                        {appointment.isDelegated ? (
-                          <span>Delegated from primary doctor</span>
-                        ) : null}
-                      </div>
-                      {appointment.notes ? <p className="text-sm text-muted-foreground">{appointment.notes}</p> : null}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Stethoscope className="w-5 h-5" />
+                Doctor Queue
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {doctorBacklog.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No active queues</p>
+              ) : (
+                doctorBacklog.map((doctor) => (
+                  <div key={doctor.doctorId} className="p-3 border rounded-lg space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold">{doctor.doctorName}</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => handleNotifyNext(doctor.doctorId)}
+                        disabled={activeDoctorId === doctor.doctorId || doctor.confirmed === 0}
+                      >
+                        {activeDoctorId === doctor.doctorId ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Bell className="h-4 w-4 text-blue-600" />
+                        )}
+                      </Button>
                     </div>
-
-                    <div className="flex flex-col gap-2 lg:items-end">
-                      {(appointment.status === "SCHEDULED" || appointment.status === "CONFIRMED") ? (
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                          {(() => {
-                            const candidates =
-                              reassignmentCandidates[appointment.id] ||
-                              assignableDoctors.map((doctor) => ({
-                                ...doctor,
-                                eligible: true,
-                                isCurrent: doctor.id === appointment.doctorId,
-                                isPrimary: doctor.id === appointment.doctorId,
-                              }));
-
-                            const selectedCandidate = candidates.find(
-                              (candidate) =>
-                                candidate.id ===
-                                (selectedReassignments[appointment.id] || appointment.doctorId)
-                            );
-
-                            return (
-                              <>
-                          <Select
-                            value={selectedReassignments[appointment.id] || appointment.doctorId}
-                            onValueChange={(value) =>
-                              setSelectedReassignments((current) => ({
-                                ...current,
-                                [appointment.id]: value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger className="min-w-[220px]">
-                              <SelectValue placeholder="Assign doctor" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {candidates.map((doctor) => (
-                                <SelectItem
-                                  key={doctor.id}
-                                  value={doctor.id}
-                                  disabled={!doctor.eligible && !doctor.isCurrent}
-                                >
-                                  {doctor.name}
-                                  {doctor.role === "ASSISTANT_DOCTOR" ? " (Assistant)" : ""}
-                                  {!doctor.eligible && !doctor.isCurrent ? " - Unavailable" : ""}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {selectedCandidate && !selectedCandidate.eligible && !selectedCandidate.isCurrent ? (
-                            <p className="text-xs text-amber-600 dark:text-amber-300">
-                              {selectedCandidate.reason || "This servicing doctor is not eligible"}
-                            </p>
-                          ) : null}
-                          <Button
-                            variant="outline"
-                            onClick={() => void handleReassignDoctor(appointment.id)}
-                            disabled={
-                              activeActionId === appointment.id ||
-                              !selectedReassignments[appointment.id] ||
-                              selectedReassignments[appointment.id] === appointment.doctorId
-                            }
-                          >
-                            Reassign Doctor
-                          </Button>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      ) : null}
-                      <div className="flex flex-wrap gap-2">
-                      {canConfirmArrival ? (
-                        <Button
-                          onClick={() => void handleConfirmArrival(appointment.id)}
-                          disabled={activeActionId === appointment.id}
-                        >
-                          {activeActionId === appointment.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          ) : (
-                            <UserCheck className="w-4 h-4 mr-2" />
-                          )}
-                          Confirm Arrival
-                        </Button>
-                      ) : null}
-                      {canMarkNoShow ? (
-                        <Button
-                          variant="outline"
-                          onClick={() => void handleMarkNoShow(appointment.id)}
-                          disabled={activeActionId === appointment.id}
-                        >
-                          Mark No Show
-                        </Button>
-                      ) : null}
-                      </div>
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="text-[10px]">Q: {doctor.confirmed}</Badge>
+                      <Badge variant="outline" className="text-[10px]">Active: {doctor.inProgress}</Badge>
                     </div>
+                    {doctor.nextPatient && (
+                      <p className="text-[10px] text-muted-foreground">Next: {doctor.nextPatient}</p>
+                    )}
                   </div>
-                </div>
-              );
-            })
-          )}
-        </CardContent>
-      </Card>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

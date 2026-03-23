@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ProtectedComponent } from "@/components/rbac/ProtectedComponent";
 import { Permission } from "@/types/rbac.types";
 import {
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PaymentButton } from "@/components/payments/PaymentButton";
 import {
   Select,
   SelectContent,
@@ -39,7 +40,6 @@ import {
   XCircle,
   Ban,
 } from "lucide-react";
-import { format } from "date-fns";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
@@ -51,6 +51,7 @@ import {
   useRejectVideoProposal,
   type VideoAppointment,
 } from "@/hooks/query/useVideoAppointments";
+import { useAppointmentServices, useMyAppointments } from "@/hooks/query/useAppointments";
 import { useClinics } from "@/hooks/query/useClinics";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { VideoAppointmentRoom } from "./VideoAppointmentRoom";
@@ -61,6 +62,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  getAppointmentDateTimeValue,
+  getAppointmentDoctorName,
+  formatDateInIST,
+  formatTimeInIST,
+  isVideoAppointmentPaymentCompleted,
+} from "@/lib/utils/appointmentUtils";
 
 // ─── Module-scope pure helpers (DRY, no re-creation on render) ───────────────
 
@@ -104,6 +112,57 @@ function computeStats(appointments: VideoAppointment[]): AppointmentStats {
     },
     { total: 0, active: 0, scheduled: 0, completed: 0, cancelled: 0 }
   );
+}
+
+export function isJoinableVideoAppointment(appointment: VideoAppointment): boolean {
+  const normalizedStatus = String(appointment.status || "").toLowerCase();
+  if (normalizedStatus !== "scheduled" && normalizedStatus !== "in-progress") {
+    return false;
+  }
+
+  const paymentCompleted = (appointment as any).paymentCompleted;
+  return paymentCompleted !== false;
+}
+
+export function getVideoPaymentAmount(
+  appointment: VideoAppointment,
+  appointmentServices: unknown[] = []
+): number {
+  const matchingService = (appointmentServices as any[]).find(
+    (service) =>
+      service?.treatmentType &&
+      service.treatmentType === (appointment as any).treatmentType
+  );
+
+  const candidateValues = [
+    (appointment as any).videoConsultationFee,
+    (appointment as any).consultationFee,
+    (appointment as any).amount,
+    (appointment as any).price,
+    (appointment as any).fee,
+    (appointment as any).service?.videoConsultationFee,
+    (appointment as any).service?.consultationFee,
+    (appointment as any).service?.amount,
+    (appointment as any).service?.price,
+    (appointment as any).service?.fee,
+    (appointment as any).billing?.amount,
+    (appointment as any).payment?.amount,
+    (appointment as any).invoice?.amount,
+    matchingService?.videoConsultationFee,
+    matchingService?.consultationFee,
+    matchingService?.amount,
+    matchingService?.price,
+    matchingService?.fee,
+  ];
+
+  for (const value of candidateValues) {
+    const numericValue = Number(value);
+    if (Number.isFinite(numericValue) && numericValue > 0) {
+      return numericValue;
+    }
+  }
+
+  return 0;
 }
 
 interface VideoAppointmentsListProps {
@@ -154,6 +213,7 @@ export function VideoAppointmentsList({
   const [actionReason, setActionReason] = useState("");
 
   const userId = session?.user?.id || "";
+  const isPatient = user?.role === "PATIENT";
 
   // Determine permissions
   const canJoin = hasPermission(Permission.JOIN_VIDEO_APPOINTMENTS);
@@ -171,13 +231,64 @@ export function VideoAppointmentsList({
     page: 1,
     limit,
   });
+  const { data: myAppointmentsData, isPending: isLoadingMyAppointments } = useMyAppointments();
+  const { data: appointmentServices = [] } = useAppointmentServices();
 
   // Fetch clinics for filtering (if needed)
   const { data: clinicsData } = useClinics();
   const clinics = (Array.isArray(clinicsData) ? clinicsData : (clinicsData as any)?.clinics) || [];
 
   // ── Data extraction (resilient to backend shape variations) ──────────────
-  const appointments = extractAppointments(appointmentsData);
+  const historyAppointments = extractAppointments(appointmentsData);
+  const patientAppointments = useMemo<VideoAppointment[]>(() => {
+    const list = Array.isArray((myAppointmentsData as any)?.appointments)
+      ? (myAppointmentsData as any).appointments
+      : [];
+
+    return list
+      .filter((apt: any) => String(apt?.type || "").toUpperCase() === "VIDEO_CALL")
+      .map((apt: any) => {
+        const dateTime = getAppointmentDateTimeValue(apt);
+        const startTime =
+          (dateTime && !Number.isNaN(dateTime.getTime()) ? dateTime.toISOString() : undefined) ||
+          apt?.appointmentDate ||
+          apt?.startTime ||
+          "";
+        const normalizedStatus = String(apt?.status || "").toLowerCase().replace(/_/g, "-");
+
+        return {
+          id: apt?.id,
+          appointmentId: apt?.id,
+          roomName: getAppointmentDoctorName(apt),
+          doctorId: apt?.doctorId || apt?.doctor?.id || "",
+          patientId:
+            apt?.patientId ||
+            apt?.patient?.id ||
+            apt?.patient?.userId ||
+            apt?.patient?.user?.id ||
+            "",
+          startTime,
+          endTime: startTime,
+          status:
+            normalizedStatus === "awaiting-slot-confirmation"
+              ? "scheduled"
+              : (normalizedStatus as VideoAppointment["status"]),
+          sessionId: apt?.sessionId,
+          recordingUrl: apt?.recordingUrl,
+          notes: apt?.notes,
+          treatmentType: apt?.treatmentType,
+          createdAt: apt?.createdAt || apt?.updatedAt || startTime,
+          updatedAt: apt?.updatedAt || apt?.createdAt || startTime,
+          doctorName: getAppointmentDoctorName(apt),
+          paymentCompleted: isVideoAppointmentPaymentCompleted(apt),
+        } as VideoAppointment & {
+          doctorName?: string;
+          paymentCompleted?: boolean;
+          treatmentType?: string;
+        };
+      });
+  }, [myAppointmentsData]);
+  const appointments = isPatient ? patientAppointments : historyAppointments;
 
   // Mutations
   const joinVideoAppointment = useJoinVideoAppointment();
@@ -189,13 +300,16 @@ export function VideoAppointmentsList({
   // ── Single filtered list ──────────────────────────────────────────────────
   const searchLower = searchTerm.toLowerCase();
   const filteredAppointments = appointments.filter((apt) => {
+    const normalizedStatus = String(apt.status || "").toLowerCase();
     const matchesSearch =
       !searchTerm ||
       apt.appointmentId?.toLowerCase().includes(searchLower) ||
       apt.roomName?.toLowerCase().includes(searchLower) ||
+      ((apt as any).doctorName || "").toLowerCase().includes(searchLower) ||
       apt.doctorId?.toLowerCase().includes(searchLower) ||
       apt.patientId?.toLowerCase().includes(searchLower);
-    const matchesStatus = !filterStatus || filterStatus === "all" || apt.status === filterStatus;
+    const matchesStatus =
+      !filterStatus || filterStatus === "all" || normalizedStatus === filterStatus;
     const matchesClinic =
       !filterClinicId || filterClinicId === "all" || (apt as any).clinicId === filterClinicId;
     return matchesSearch && matchesStatus && matchesClinic;
@@ -209,11 +323,12 @@ export function VideoAppointmentsList({
           cancelled: cancelledAppointments } = stats;
 
   // Derived sub-lists for tabs
-  const upcomingAppointments = filteredAppointments.filter(
-    (apt) => apt.status === 'scheduled' || apt.status === 'in-progress'
-  );
+  const upcomingAppointments = filteredAppointments.filter((apt) => {
+    const normalizedStatus = String(apt.status || "").toLowerCase();
+    return normalizedStatus === "scheduled" || normalizedStatus === "in-progress";
+  });
   const completedAppointments = filteredAppointments.filter(
-    (apt) => apt.status === 'completed'
+    (apt) => String(apt.status || "").toLowerCase() === 'completed'
   );
 
   const handleJoinAppointment = async (appointment: VideoAppointment) => {
@@ -371,38 +486,54 @@ export function VideoAppointmentsList({
             <div className="flex items-center gap-2 mb-2">
               <Video className="h-5 w-5 text-primary" />
               <h3 className="font-semibold text-lg">
-                {appointment.roomName || `Room ${appointment.appointmentId}`}
+                {(appointment as any).doctorName || appointment.roomName || `Room ${appointment.appointmentId}`}
               </h3>
               {getStatusBadge(appointment.status)}
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <span>
-                  {appointment.startTime
-                    ? format(new Date(appointment.startTime), "MMM dd, yyyy")
-                    : "N/A"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                <span>
-                  {appointment.startTime
-                    ? format(new Date(appointment.startTime), "hh:mm a")
-                    : "N/A"}
-                </span>
-              </div>
-              {appointment.doctorId && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>
+                    {appointment.startTime
+                      ? formatDateInIST(new Date(appointment.startTime), {
+                          month: "short",
+                          day: "2-digit",
+                          year: "numeric",
+                        })
+                      : "N/A"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span>
+                    {appointment.startTime
+                      ? formatTimeInIST(new Date(appointment.startTime), {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : "N/A"}
+                  </span>
+                </div>
+              {((appointment as any).doctorName || appointment.doctorId) && (
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  <span>Doctor: {appointment.doctorId.slice(0, 8)}...</span>
+                  <span>
+                    Doctor: {(appointment as any).doctorName || `${appointment.doctorId.slice(0, 8)}...`}
+                  </span>
                 </div>
               )}
               {appointment.patientId && (
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4" />
                   <span>Patient: {appointment.patientId.slice(0, 8)}...</span>
+                </div>
+              )}
+              {(appointment as any).paymentCompleted === false && (
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4" />
+                  <span>Payment required before confirmation</span>
                 </div>
               )}
               {appointment.recordingUrl && (
@@ -418,6 +549,20 @@ export function VideoAppointmentsList({
             {/* Action Buttons */}
             {appointment.status === 'scheduled' && (
               <>
+                {(appointment as any).paymentCompleted === false &&
+                  getVideoPaymentAmount(appointment, appointmentServices as any[]) > 0 && (
+                  <PaymentButton
+                    appointmentId={appointment.appointmentId}
+                    amount={getVideoPaymentAmount(appointment, appointmentServices as any[])}
+                    description="Video Consultation"
+                    className="gap-1"
+                    onSuccess={() => {
+                      refetch();
+                    }}
+                  >
+                    Pay INR {getVideoPaymentAmount(appointment, appointmentServices as any[]).toLocaleString("en-IN")}
+                  </PaymentButton>
+                )}
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -451,7 +596,7 @@ export function VideoAppointmentsList({
 
             {showJoinButton && canJoin && (
               <>
-                {appointment.status === "scheduled" && (
+                {appointment.status === "scheduled" && isJoinableVideoAppointment(appointment) && (
                   <Button
                     onClick={() => handleJoinAppointment(appointment)}
                     size="sm"
@@ -471,7 +616,7 @@ export function VideoAppointmentsList({
                     )}
                   </Button>
                 )}
-                {appointment.status === "in-progress" && (
+                {appointment.status === "in-progress" && isJoinableVideoAppointment(appointment) && (
                   <Button
                     onClick={() => handleJoinAppointment(appointment)}
                     size="sm"
@@ -668,7 +813,7 @@ export function VideoAppointmentsList({
             </TabsList>
 
             <TabsContent value="upcoming" className="space-y-4">
-              {isLoading ? (
+              {isLoading || (isPatient && isLoadingMyAppointments) ? (
                 <Card>
                   <CardContent className="pt-6">
                     <p className="text-center text-muted-foreground">
@@ -695,7 +840,15 @@ export function VideoAppointmentsList({
             </TabsContent>
 
             <TabsContent value="completed" className="space-y-4">
-              {completedAppointments.length === 0 ? (
+              {isLoading || (isPatient && isLoadingMyAppointments) ? (
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-center text-muted-foreground">
+                      Loading appointments...
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : completedAppointments.length === 0 ? (
                 <Card>
                   <CardContent className="pt-6">
                     <p className="text-center text-muted-foreground">
@@ -944,4 +1097,3 @@ export function VideoAppointmentsList({
     </ProtectedComponent>
   );
 }
-

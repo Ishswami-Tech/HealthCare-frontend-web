@@ -44,11 +44,13 @@ export function useOptimisticUpdateQueueStatus(clinicId?: string) {
 export function useOptimisticCallNextPatient(clinicId?: string, doctorId?: string) {
   const queryClient = useQueryClient();
   
-  return useOptimisticMutation<any, void>({
+  return useOptimisticMutation<any, { appointmentId: string }>({
     queryKey: ['queue', clinicId],
-    mutationFn: useCallback(async () => {
+    mutationFn: useCallback(async ({ appointmentId }: { appointmentId: string }) => {
       if (!doctorId) throw new Error('Doctor ID is required');
-      const result = await callNextPatient(doctorId) as { success: boolean; error?: string; data?: unknown };
+      if (!appointmentId) throw new Error('Appointment ID is required');
+      
+      const result = await callNextPatient(doctorId, appointmentId) as { success: boolean; error?: string; data?: unknown };
       if (!result.success) {
         throw new Error(result.error || 'Failed to call next patient');
       }

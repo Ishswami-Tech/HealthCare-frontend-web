@@ -9,6 +9,7 @@ import {
   showErrorToast,
   TOAST_IDS,
 } from "@/hooks/utils/use-toast";
+import { useQueryClient } from "@/hooks/core";
 import { clinicApiClient } from "@/lib/api/client";
 import { API_ENDPOINTS, APP_CONFIG } from "@/lib/config/config";
 import {
@@ -52,6 +53,7 @@ export function PaymentButton({
   className,
   children,
 }: PaymentButtonProps) {
+  const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const hasAutoStartedRef = useRef(false);
   const effectiveProvider: PaymentProvider = DEFAULT_PAYMENT_PROVIDER;
@@ -77,7 +79,7 @@ export function PaymentButton({
       paymentIntentUrl =
         API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(appointmentId) +
         providerQuery;
-      body = { amount, appointmentType: "VIDEO_CALL" };
+      body = { appointmentType: "VIDEO_CALL" };
     } else if (invoiceId) {
       paymentIntentUrl =
         API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(invoiceId) + providerQuery;
@@ -160,33 +162,68 @@ export function PaymentButton({
       throw new Error("Clinic context is required for payment verification");
     }
 
-    if (redirectUrl && !paymentSessionId) {
-      window.location.href = redirectUrl;
-      return;
-    }
-
-    const cashfree = await load({
-      mode: cashfreeMode,
-    });
-
-    if (!cashfree) {
-      throw new Error("Cashfree SDK is not available");
-    }
-
     try {
+      const cashfree = await load({
+        mode: cashfreeMode,
+      });
+
+      if (!cashfree) {
+        if (redirectUrl) {
+          window.location.href = redirectUrl;
+          return;
+        }
+        throw new Error("Cashfree SDK is not available");
+      }
+
       if (!paymentSessionId) {
+        if (redirectUrl) {
+          window.location.href = redirectUrl;
+          return;
+        }
         throw new Error("Cashfree payment session is missing");
       }
 
-      const result = await cashfree.checkout({ paymentSessionId, orderId });
+      let fallbackRedirectTriggered = false;
+      const checkoutFallbackTimer =
+        redirectUrl
+          ? window.setTimeout(() => {
+              fallbackRedirectTriggered = true;
+              window.location.href = redirectUrl;
+            }, 1800)
+          : null;
+
+      const result = await cashfree.checkout({
+        paymentSessionId,
+        orderId,
+        redirectTarget: "_self",
+      });
+
+      if (checkoutFallbackTimer !== null) {
+        window.clearTimeout(checkoutFallbackTimer);
+      }
+
+      if (fallbackRedirectTriggered) {
+        return;
+      }
+
+      if (result?.error?.message) {
+        throw new Error(result.error.message);
+      }
+
       if (result?.redirectUrl) {
         window.location.href = result.redirectUrl;
+      } else if (result?.redirect) {
+        return;
       } else {
         await verifyPayment("cashfree", {
           orderId,
           paymentId: orderId,
           clinicId: resolvedClinicId,
         });
+        if (appointmentId) {
+          queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+          queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        }
         showSuccessToast("Payment successful!", {
           id: TOAST_IDS.PAYMENT.SUCCESS,
         });
@@ -194,11 +231,20 @@ export function PaymentButton({
       }
     } catch (error) {
       try {
+        if (redirectUrl) {
+          window.location.href = redirectUrl;
+          return;
+        }
+
         await verifyPayment("cashfree", {
           orderId,
           paymentId: orderId,
           clinicId: resolvedClinicId,
         });
+        if (appointmentId) {
+          queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+          queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        }
         showSuccessToast("Payment verified successfully!", {
           id: TOAST_IDS.PAYMENT.SUCCESS,
         });
@@ -248,6 +294,7 @@ export function PaymentButton({
 
   return (
     <Button
+      type="button"
       onClick={handlePayment}
       disabled={isProcessing}
       className={className}
@@ -258,7 +305,7 @@ export function PaymentButton({
           Processing...
         </>
       ) : (
-        children || `Pay ₹${amount.toLocaleString()}`
+        children || `Pay INR ${amount.toLocaleString("en-IN")}`
       )}
     </Button>
   );

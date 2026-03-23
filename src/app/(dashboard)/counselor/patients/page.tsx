@@ -9,28 +9,23 @@ import { Loader2 } from "@/components/ui/loader";
 import {
   Search,
   Users,
-  Filter,
   Calendar,
   MessageCircle,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { useClinicContext } from "@/contexts/clinic-context";
-import {
-  useCounselorClients,
-  useUpdateCounselorClientSession,
-} from "@/hooks/query/useCounselor";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useCounselorClients } from "@/hooks/query/useCounselor";
 import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
 
 export default function CounselorPatients() {
-  const { user } = useAuth();
-  const { clinicId } = useClinicContext();
+  const { session } = useAuth();
+  const user = session?.user;
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
 
   const counselorId = user?.id;
 
   const { data: clientsData, isPending } = useCounselorClients(counselorId);
-  const updateSessionMutation = useUpdateCounselorClientSession();
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync([['counselorClients', counselorId]]);
@@ -38,10 +33,13 @@ export default function CounselorPatients() {
   const clients = clientsData?.clients || [];
 
   const filteredClients = clients.filter((client: any) => {
-    return (
+    const matchesStatus =
+      filterStatus === "all" || String(client.status).toLowerCase() === filterStatus;
+    const matchesSearch =
       client.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.condition?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+      client.condition?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    return matchesStatus && matchesSearch;
   });
 
   const getStatusColor = (status: string) => {
@@ -82,10 +80,26 @@ export default function CounselorPatients() {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              Filter
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant={filterStatus === "all" ? "default" : "outline"}
+                onClick={() => setFilterStatus("all")}
+              >
+                All
+              </Button>
+              <Button
+                variant={filterStatus === "active" ? "default" : "outline"}
+                onClick={() => setFilterStatus("active")}
+              >
+                Active
+              </Button>
+              <Button
+                variant={filterStatus === "inactive" ? "default" : "outline"}
+                onClick={() => setFilterStatus("inactive")}
+              >
+                Inactive
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

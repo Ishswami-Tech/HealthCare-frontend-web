@@ -13,8 +13,7 @@ import {
   Calendar,
   Save,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { useClinicContext } from "@/contexts/clinic-context";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useNursePatientVitals,
   useCreateNursePatientRecord,
@@ -24,7 +23,6 @@ import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-s
 
 export default function NurseVitals() {
   const { user } = useAuth();
-  const { clinicId } = useClinicContext();
 
   const [searchQuery, setSearchQuery] = useState("");
 

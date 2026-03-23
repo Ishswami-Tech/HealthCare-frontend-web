@@ -1,5 +1,7 @@
+import { useCallback, useMemo } from 'react';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
+import { useCurrentClinicId } from './useClinics';
 import {
   getSupportRequests,
   createSupportRequest,
@@ -11,18 +13,31 @@ import type { SupportRequest } from '@/types/medical-records.types';
 /**
  * Hook to get all support requests
  */
-export const useSupportStaffRequests = (staffId?: string, filters?: {
+export const useSupportStaffRequests = (filters?: {
+  staffId?: string;
   status?: string;
   priority?: string;
   type?: string;
   limit?: number;
   offset?: number;
+  omitClinicId?: boolean;
 }) => {
+  const clinicId = useCurrentClinicId();
+
+  const queryKey = useMemo(
+    () => ['supportStaffRequests', clinicId, filters],
+    [clinicId, filters]
+  );
+
+  const queryFn = useCallback(async () => {
+    return await getSupportRequests(filters?.staffId, filters);
+  }, [filters]);
+
   return useQueryData(
-    ['supportStaffRequests', staffId, filters],
-    async () => await getSupportRequests(staffId, filters),
+    queryKey,
+    queryFn,
     {
-      enabled: !!staffId,
+      enabled: !!clinicId || !!filters?.omitClinicId,
     }
   );
 };

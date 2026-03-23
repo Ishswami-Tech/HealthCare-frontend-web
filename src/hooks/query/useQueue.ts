@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
+import { useQueueWebSocket } from '@/stores/websocket.store';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
 import {
@@ -34,19 +35,26 @@ import {
 // ===== QUEUE MANAGEMENT HOOKS =====
 
 /**
- * Hook to get queue data for a clinic
+ * Hook to get queue data for a clinic or global queue view.
+ * clinicId is optional so superadmins can load the shared queue surface
+ * without being forced into a single clinic context.
  */
-export const useQueue = (clinicId: string, filters?: {
+export const useQueue = (clinicId?: string, filters?: {
   type?: string;
   status?: string;
   doctorId?: string;
   date?: string;
   enabled?: boolean;
 }) => {
-  return useQueryData(['queue', clinicId, filters], async () => {
-    return await getQueue({ ...filters, clinicId });
+  const normalizedClinicId = clinicId?.trim();
+
+  return useQueryData(['queue', normalizedClinicId || 'all', filters], async () => {
+    return await getQueue({
+      ...filters,
+      ...(normalizedClinicId ? { clinicId: normalizedClinicId } : {}),
+    });
   }, {
-    enabled: !!clinicId && (filters?.enabled !== false),
+    enabled: filters?.enabled !== false,
     refetchInterval: 30000, // Refetch every 30 seconds for live updates
   });
 };
@@ -198,29 +206,29 @@ export const useQueueAnalytics = (period: 'day' | 'week' | 'month' | 'year' = 'd
 /**
  * Hook for consultation queue
  */
-export const useConsultationQueue = () => {
-  return useQueue('consultation', { type: 'consultation' });
+export const useConsultationQueue = (clinicId?: string) => {
+  return useQueue(clinicId, { type: 'consultation' });
 };
 
 /**
  * Hook for panchakarma queue
  */
-export const usePanchkarmaQueue = () => {
-  return useQueue('panchakarma', { type: 'panchakarma' });
+export const usePanchkarmaQueue = (clinicId?: string) => {
+  return useQueue(clinicId, { type: 'panchakarma' });
 };
 
 /**
  * Hook for agnikarma queue
  */
-export const useAgnikarmaQueue = () => {
-  return useQueue('agnikarma', { type: 'agnikarma' });
+export const useAgnikarmaQueue = (clinicId?: string) => {
+  return useQueue(clinicId, { type: 'agnikarma' });
 };
 
 /**
  * Hook for nadi pariksha queue
  */
-export const useNadiParikshaQueue = () => {
-  return useQueue('nadi-pariksha', { type: 'nadi-pariksha' });
+export const useNadiParikshaQueue = (clinicId?: string) => {
+  return useQueue(clinicId, { type: 'nadi-pariksha' });
 };
 
 // ===== QUEUE UTILITIES =====
@@ -305,27 +313,51 @@ export const useQueueUtils = () => {
 /**
  * Hook for real-time queue updates using WebSocket
  */
-export const useRealTimeQueue = (queueType?: string) => {
-  // This would integrate with your WebSocket implementation
-  // For now, we'll use polling as a fallback
-  
-  const { data: queueData, refetch } = useQueue(queueType || '', { 
+export const useRealTimeQueue = (clinicId?: string, queueType?: string) => {
+  const { data: queueData, refetch } = useQueue(clinicId, { 
     type: queueType,
-    enabled: true 
+    enabled: !!clinicId 
   } as any);
 
-  // Set up polling for real-time updates
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      refetch();
-    }, 10000); // Poll every 10 seconds
+  const { connectToQueue, subscribe, isConnected, disconnect, emit } = useQueueWebSocket();
 
-    return () => clearInterval(interval);
-  }, [refetch]);
+  useEffect(() => {
+    if (!clinicId) return;
+
+    // Connect to WebSocket with clinicId filter
+    connectToQueue({
+      reconnectionAttempts: 10,
+    });
+
+    const unsubscribeUpdate = subscribe('queue.updated', (payload: any) => {
+      if (payload.clinicId === clinicId) {
+        refetch();
+      }
+    });
+
+    const unsubscribePosition = subscribe('queue.position.updated', (payload: any) => {
+      if (payload.clinicId === clinicId) {
+        refetch();
+      }
+    });
+
+    emit('subscribe_queue', { 
+      queueName: `queue:clinic:${clinicId}`, 
+      filters: { clinicId, type: queueType } 
+    });
+
+    return () => {
+      // Execute unsubscribe callbacks
+      if (typeof unsubscribeUpdate === 'function') unsubscribeUpdate();
+      if (typeof unsubscribePosition === 'function') unsubscribePosition();
+      disconnect();
+    };
+  }, [clinicId, queueType, refetch, connectToQueue, subscribe, emit, disconnect]);
 
   return {
     queueData,
     refetch,
+    isConnected,
   };
 };
 

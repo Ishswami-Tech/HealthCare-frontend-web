@@ -12,14 +12,13 @@ import {
   Clock,
   Brain,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { useClinicContext } from "@/contexts/clinic-context";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { useCounselorAppointments } from "@/hooks/query/useCounselor";
 import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
 
 export default function CounselorDashboard() {
-  const { user } = useAuth();
-  const { clinicId } = useClinicContext();
+  const { session } = useAuth();
+  const user = session?.user;
 
   const counselorId = user?.id;
   const today = new Date().toISOString().split('T')[0];

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +28,7 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { usePatients, useCreatePatient } from "@/hooks/query/usePatients";
+import { useCreateUser } from "@/hooks/query/useUsers";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Calendar,
@@ -44,6 +47,57 @@ import {
   UserCheck,
 } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+
+interface PatientTableRow {
+  id: string;
+  patient: any;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  ageLabel: string;
+  genderLabel: string;
+  statusLabel: string;
+  visitsLabel: string;
+  registeredLabel: string;
+  lastVisitLabel: string;
+  nextAppointmentLabel: string;
+}
+
+function createTemporaryPatientPassword(phone: string): string {
+  const digits = phone.replace(/\D/g, "").slice(-4) || "1234";
+  return `Temp@${digits}Aa`;
+}
+
+function normalizePatientGender(
+  gender: string
+): "MALE" | "FEMALE" | "OTHER" | undefined {
+  const normalized = gender.trim().toUpperCase();
+  if (normalized === "MALE" || normalized === "FEMALE" || normalized === "OTHER") {
+    return normalized;
+  }
+  return undefined;
+}
+
+function extractCreatedUserId(result: unknown): string | undefined {
+  if (!result || typeof result !== "object") {
+    return undefined;
+  }
+
+  const record = result as Record<string, unknown>;
+  if (typeof record.id === "string") {
+    return record.id;
+  }
+
+  if (record.data && typeof record.data === "object") {
+    const nested = record.data as Record<string, unknown>;
+    if (typeof nested.id === "string") {
+      return nested.id;
+    }
+  }
+
+  return undefined;
+}
 
 export default function ReceptionistPatients() {
   useAuth();
@@ -82,6 +136,7 @@ export default function ReceptionistPatients() {
 
   // Create patient mutation
   const createPatientMutation = useCreatePatient();
+  const createUserMutation = useCreateUser();
 
   // Extract patients array from response
   const patients = useMemo(() => {
@@ -94,6 +149,12 @@ export default function ReceptionistPatients() {
   // Calculate age from dateOfBirth if needed
   const patientsWithAge = useMemo(() => {
     return patients.map((patient: any) => {
+      const resolvedName =
+        patient.name ||
+        patient.user?.name ||
+        `${patient.firstName || patient.user?.firstName || ""} ${patient.lastName || patient.user?.lastName || ""}`.trim() ||
+        patient.email ||
+        "Unknown Patient";
       if (!patient.age && patient.dateOfBirth) {
         const birthDate = new Date(patient.dateOfBirth);
         const today = new Date();
@@ -106,16 +167,12 @@ export default function ReceptionistPatients() {
             (monthDiff === 0 && today.getDate() < birthDate.getDate())
               ? age - 1
               : age,
-          name:
-            patient.name ||
-            `${patient.firstName || ""} ${patient.lastName || ""}`.trim(),
+          name: resolvedName,
         };
       }
       return {
         ...patient,
-        name:
-          patient.name ||
-          `${patient.firstName || ""} ${patient.lastName || ""}`.trim(),
+        name: resolvedName,
       };
     });
   }, [patients]);
@@ -135,6 +192,109 @@ export default function ReceptionistPatients() {
     });
   }, [patientsWithAge, searchTerm, statusFilter]);
 
+  const patientTableRows = useMemo<PatientTableRow[]>(
+    () =>
+      filteredPatients.map((patient: any) => ({
+        id: patient.id,
+        patient,
+        name: patient.name || "Unknown Patient",
+        address: patient.address || "Address not available",
+        phone: patient.phone || "N/A",
+        email: patient.email || "N/A",
+        ageLabel: patient.age ? `${patient.age} years` : "Age N/A",
+        genderLabel: patient.gender || "Gender N/A",
+        statusLabel: patient.isActive !== false ? "Active" : "Inactive",
+        visitsLabel:
+          patient.totalVisits !== undefined ? String(patient.totalVisits) : "N/A",
+        registeredLabel: patient.createdAt
+          ? new Date(patient.createdAt).toLocaleDateString()
+          : "N/A",
+        lastVisitLabel: patient.lastVisit
+          ? new Date(patient.lastVisit).toLocaleDateString()
+          : "N/A",
+        nextAppointmentLabel: patient.nextAppointment
+          ? new Date(patient.nextAppointment).toLocaleDateString()
+          : "N/A",
+      })),
+    [filteredPatients]
+  );
+
+  const patientColumns = useMemo<ColumnDef<PatientTableRow>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Patient",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-blue-100 to-green-100">
+              <span className="font-semibold text-blue-800">
+                {row.original.name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <div className="font-semibold">{row.original.name}</div>
+              <div className="line-clamp-1 text-xs text-muted-foreground">
+                {row.original.address}
+              </div>
+            </div>
+          </div>
+        ),
+      },
+      { accessorKey: "phone", header: "Phone" },
+      {
+        accessorKey: "email",
+        header: "Email",
+        cell: ({ row }) => <div className="break-all text-sm">{row.original.email}</div>,
+      },
+      {
+        accessorKey: "ageLabel",
+        header: "Profile",
+        cell: ({ row }) => (
+          <div className="text-sm">
+            <div>{row.original.ageLabel}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{row.original.genderLabel}</div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "statusLabel",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge className={getStatusColor(row.original.statusLabel)}>{row.original.statusLabel}</Badge>
+        ),
+      },
+      { accessorKey: "visitsLabel", header: "Visits" },
+      { accessorKey: "registeredLabel", header: "Registered" },
+      { accessorKey: "lastVisitLabel", header: "Last Visit" },
+      { accessorKey: "nextAppointmentLabel", header: "Next" },
+      {
+        id: "actions",
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedPatient(row.original.patient)}
+            >
+              <Eye className="mr-1 h-4 w-4" />
+              View
+            </Button>
+            <Button variant="outline" size="sm">
+              <Edit className="mr-1 h-4 w-4" />
+              Edit
+            </Button>
+            <Button size="sm">
+              <Calendar className="mr-1 h-4 w-4" />
+              Book
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
   const handleNewPatientSubmit = async () => {
     if (!clinicId) {
       showErrorToast("Clinic ID is required", {
@@ -144,29 +304,70 @@ export default function ReceptionistPatients() {
     }
 
     try {
-      await createPatientMutation.mutate({
-        firstName: newPatient.firstName,
-        lastName: newPatient.lastName,
-        phone: newPatient.phone,
-        email: newPatient.email,
-        dateOfBirth: newPatient.dateOfBirth,
-        gender: newPatient.gender as any,
-        address: newPatient.address,
-        emergencyContact: {
-          name: newPatient.emergencyContact,
-          relationship: "", // Default or add field
-          phone: newPatient.emergencyPhone,
-        },
-        medicalHistory: newPatient.medicalHistory ? [newPatient.medicalHistory] : [],
-        allergies: newPatient.allergies ? newPatient.allergies.split(",").map(s => s.trim()) : [],
-        currentMedications: newPatient.currentMedications,
-      } as any);
+      const gender = normalizePatientGender(newPatient.gender);
+      const allergies = newPatient.allergies
+        ? newPatient.allergies
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean)
+        : [];
+      const medicalHistory = [
+        newPatient.medicalHistory.trim(),
+        newPatient.currentMedications.trim()
+          ? `Current medications: ${newPatient.currentMedications.trim()}`
+          : "",
+      ].filter(Boolean);
+      const temporaryPassword = createTemporaryPatientPassword(newPatient.phone);
+      const emergencyContact =
+        newPatient.emergencyContact.trim() && newPatient.emergencyPhone.trim()
+          ? {
+              name: newPatient.emergencyContact.trim(),
+              relationship: "Emergency Contact",
+              phone: newPatient.emergencyPhone.trim(),
+            }
+          : undefined;
 
-      showSuccessToast("Patient created successfully", {
-        id: TOAST_IDS.GLOBAL.SUCCESS,
+      const createdUser = await createUserMutation.mutateAsync({
+        email:
+          newPatient.email.trim() ||
+          `patient.${newPatient.phone.replace(/\D/g, "")}@placeholder.local`,
+        password: temporaryPassword,
+        firstName: newPatient.firstName.trim(),
+        lastName: newPatient.lastName.trim(),
+        phone: newPatient.phone.trim(),
+        role: Role.PATIENT,
+        clinicId,
+        ...(gender ? { gender } : {}),
+        ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
+        ...(newPatient.address.trim() ? { address: newPatient.address.trim() } : {}),
+        ...(medicalHistory.length > 0 ? { medicalConditions: medicalHistory } : {}),
+        ...(emergencyContact ? { emergencyContact } : {}),
       });
+
+      const userId = extractCreatedUserId(createdUser);
+      if (!userId) {
+        throw new Error("Created patient user is missing an ID");
+      }
+
+      await createPatientMutation.mutateAsync({
+        userId,
+        ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
+        ...(gender ? { gender } : {}),
+        ...(allergies.length > 0 ? { allergies } : {}),
+        ...(medicalHistory.length > 0 ? { medicalHistory } : {}),
+        ...(emergencyContact ? { emergencyContact } : {}),
+      });
+
+      showSuccessToast(
+        `Patient created successfully. Temporary password: ${temporaryPassword}`,
+        {
+          id: TOAST_IDS.GLOBAL.SUCCESS,
+        }
+      );
       setShowNewPatientDialog(false);
-      // Reset form
+      setSelectedPatient(null);
+      setSearchTerm("");
+      setStatusFilter("all");
       setNewPatient({
         firstName: "",
         lastName: "",
@@ -182,9 +383,12 @@ export default function ReceptionistPatients() {
         currentMedications: "",
       });
     } catch (error) {
-      showErrorToast("Failed to create patient", {
-        id: TOAST_IDS.GLOBAL.ERROR,
-      });
+      showErrorToast(
+        error instanceof Error ? error.message : "Failed to create patient",
+        {
+          id: TOAST_IDS.GLOBAL.ERROR,
+        }
+      );
       console.error(error);
     }
   };
@@ -426,9 +630,11 @@ export default function ReceptionistPatients() {
                     </Button>
                     <Button
                       onClick={handleNewPatientSubmit}
-                      disabled={createPatientMutation.isPending}
+                      disabled={
+                        createPatientMutation.isPending || createUserMutation.isPending
+                      }
                     >
-                      {createPatientMutation.isPending ? (
+                      {createPatientMutation.isPending || createUserMutation.isPending ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                           Creating...
@@ -543,11 +749,25 @@ export default function ReceptionistPatients() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="mt-3 text-sm text-muted-foreground">
+                Showing {filteredPatients.length} of {patientsWithAge.length} patients
+              </div>
             </CardContent>
           </Card>
 
           {/* Patients List */}
-          <div className="grid gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <DataTable
+                columns={patientColumns}
+                data={patientTableRows}
+                emptyMessage="No patients found"
+                pageSize={12}
+              />
+            </CardContent>
+          </Card>
+
+          <div className="hidden grid gap-4">
             {filteredPatients.map((patient: any) => (
               <Card
                 key={patient.id}
@@ -824,6 +1044,110 @@ export default function ReceptionistPatients() {
               </CardContent>
             </Card>
           )}
+
+          <Dialog
+            open={!!selectedPatient}
+            onOpenChange={(open) => {
+              if (!open) setSelectedPatient(null);
+            }}
+          >
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  Patient Details: {selectedPatient?.name}
+                </DialogTitle>
+              </DialogHeader>
+              {selectedPatient && (
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">
+                        Personal Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <strong>Full Name:</strong>{" "}
+                        {selectedPatient.name ||
+                          `${selectedPatient.firstName || ""} ${
+                            selectedPatient.lastName || ""
+                          }`.trim()}
+                      </div>
+                      <div>
+                        <strong>Phone:</strong> {selectedPatient.phone || "N/A"}
+                      </div>
+                      <div>
+                        <strong>Email:</strong> {selectedPatient.email || "N/A"}
+                      </div>
+                      <div>
+                        <strong>Age:</strong>{" "}
+                        {selectedPatient.age ? `${selectedPatient.age} years` : "N/A"}
+                      </div>
+                      <div>
+                        <strong>Gender:</strong> {selectedPatient.gender || "N/A"}
+                      </div>
+                      <div>
+                        <strong>Registration:</strong>{" "}
+                        {selectedPatient.createdAt
+                          ? new Date(selectedPatient.createdAt).toLocaleDateString()
+                          : "N/A"}
+                      </div>
+                      <div className="md:col-span-2">
+                        <strong>Address:</strong> {selectedPatient.address || "N/A"}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Heart className="w-5 h-5" />
+                        Medical Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4 text-sm">
+                      <div>
+                        <strong>Blood Group:</strong> {selectedPatient.bloodGroup || "N/A"}
+                      </div>
+                      <div>
+                        <strong>Allergies:</strong>{" "}
+                        {Array.isArray(selectedPatient.allergies)
+                          ? selectedPatient.allergies.join(", ")
+                          : selectedPatient.allergies || "N/A"}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">
+                        Status Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <strong>Status:</strong>{" "}
+                        <Badge
+                          className={getStatusColor(
+                            selectedPatient.isActive !== false ? "Active" : "Inactive"
+                          )}
+                          variant="outline"
+                        >
+                          {selectedPatient.isActive !== false ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                      <div>
+                        <strong>Total Visits:</strong>{" "}
+                        {selectedPatient.totalVisits !== undefined
+                          ? selectedPatient.totalVisits
+                          : "N/A"}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
     
   );

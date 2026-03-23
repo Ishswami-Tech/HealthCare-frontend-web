@@ -11,6 +11,7 @@ import { logger } from '@/lib/utils/logger';
 import { useQueryData, useMutationOperation, useOptimisticMutation, useQueryClient } from '../core';
 import { TOAST_IDS, useToast } from '../utils/use-toast';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
+import { useAuth } from '../auth/useAuth';
 import {
   createAppointment,
   getAppointments,
@@ -47,7 +48,7 @@ import type {
 /**
  * Hook for fetching appointments with filters (Optimized for 100K users)
  */
-export const useAppointments = (clinicIdOrFilters?: string | AppointmentFilters) => {
+export const useAppointments = (clinicIdOrFilters?: string | (AppointmentFilters & { omitClinicId?: boolean })) => {
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
   
@@ -59,14 +60,23 @@ export const useAppointments = (clinicIdOrFilters?: string | AppointmentFilters)
   
   // Memoize query function
   const queryFn = useCallback(async () => {
-    if (!clinicId) {
-      throw new Error('No clinic ID available');
+    // ✅ Consolidated: Use filters parameter only (removed legacy clinicId parameter)
+    let filters: AppointmentFilters & { omitClinicId?: boolean } = {};
+    
+    if (typeof clinicIdOrFilters === 'string') {
+      filters = { clinicId: clinicIdOrFilters };
+    } else {
+      filters = { ...clinicIdOrFilters };
+      // Only include clinicId if not explicitly omitted and it exists
+      if (!filters.omitClinicId && clinicId) {
+        filters.clinicId = clinicId;
+      }
+    }
+
+    if (!filters.clinicId && !filters.omitClinicId) {
+      throw new Error('No clinic ID available and omitClinicId not set');
     }
     
-    // ✅ Consolidated: Use filters parameter only (removed legacy clinicId parameter)
-    const filters: AppointmentFilters = typeof clinicIdOrFilters === 'string' 
-      ? { clinicId: clinicIdOrFilters }
-      : { ...clinicIdOrFilters, clinicId };
     const result = await getAppointments(filters);
     if (!result.success) {
       throw new Error(result.error);
@@ -78,7 +88,7 @@ export const useAppointments = (clinicIdOrFilters?: string | AppointmentFilters)
     queryKey,
     queryFn,
     {
-      enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      enabled: (!!clinicId || (typeof clinicIdOrFilters === 'object' && !!clinicIdOrFilters.omitClinicId)) && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000, // 5 minutes for better caching
       gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
       refetchOnWindowFocus: false, // Reduce unnecessary refetches
@@ -617,11 +627,8 @@ export const useQueueStats = (locationId?: string) => {
     ['queue-stats', locationId],
     async () => {
       if (!locationId) throw new Error('Location ID required for queue stats');
-      const result = await getQueueStats(locationId) as any;
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      return result.stats;
+      // getQueueStats returns raw data directly (no .success/.stats wrapper)
+      return await getQueueStats(locationId);
     },
     {
       enabled: !!locationId && hasPermission(Permission.VIEW_QUEUE),
@@ -712,9 +719,12 @@ export const useMyAppointments = (filters?: {
   limit?: number;
 }) => {
   const { hasPermission } = useRBAC();
+  const { session } = useAuth();
+  const userId = session?.user?.id;
+  const userRole = session?.user?.role;
   
   return useQueryData(
-    ['myAppointments', filters],
+    ['myAppointments', userId, userRole, filters],
     async () => {
       const result = await getMyAppointments(filters) as any;
       if (!result.success) {
@@ -723,10 +733,10 @@ export const useMyAppointments = (filters?: {
       return result;
     },
     {
-      enabled: hasPermission(Permission.VIEW_APPOINTMENTS),
-      staleTime: 0, // always consider data stale so it refetches on page visit
-      gcTime: 5 * 60 * 1000,
-      refetchOnMount: true,
+      enabled: !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      staleTime: 2 * 60 * 1000, // reuse recent appointment data across patient pages
+      gcTime: 10 * 60 * 1000,
+      refetchOnMount: false,
       refetchOnWindowFocus: false,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {

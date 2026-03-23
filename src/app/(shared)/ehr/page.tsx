@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
 
 import { Permission } from "@/types/rbac.types";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -206,6 +208,15 @@ export default function EHRSystem() {
       }))
     : [];
 
+  const patientRecordRows = useMemo(
+    () =>
+      recentPatients.map((patient) => ({
+        ...patient,
+        ageLabel: String(patient.age),
+      })),
+    [recentPatients]
+  );
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "stable":
@@ -235,6 +246,46 @@ export default function EHRSystem() {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  const patientRecordColumns = useMemo<ColumnDef<(typeof patientRecordRows)[number]>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Patient",
+        cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
+      },
+      { accessorKey: "id", header: "ID" },
+      { accessorKey: "ageLabel", header: "Age" },
+      { accessorKey: "condition", header: "Condition" },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge className={getStatusColor(row.original.status)}>{row.original.status}</Badge>
+        ),
+      },
+      { accessorKey: "lastVisit", header: "Last Visit" },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex gap-2">
+            <PatientProtectedComponent action="view">
+              <Button variant="outline" size="sm" onClick={() => setSelectedPatientId(row.original.id)}>
+                <Eye className="h-3 w-3" />
+              </Button>
+            </PatientProtectedComponent>
+            <PatientProtectedComponent action="update">
+              <Button variant="outline" size="sm" onClick={() => setSelectedPatientId(row.original.id)}>
+                <Edit className="h-3 w-3" />
+              </Button>
+            </PatientProtectedComponent>
+          </div>
+        ),
+      },
+    ],
+    [setSelectedPatientId]
+  );
 
 
 
@@ -600,105 +651,12 @@ export default function EHRSystem() {
                         </Button>
                       </div>
 
-                      <div className="border rounded-lg overflow-hidden">
-                        <table className="w-full">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Patient
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                ID
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Age
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Condition
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Status
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Last Visit
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {recentPatients.map((patient) => (
-                              <tr
-                                key={patient.id}
-                                className="border-t hover:bg-gray-50"
-                              >
-                                <td className="px-4 py-3 font-medium">
-                                  {patient.name}
-                                </td>
-                                <td className="px-4 py-3 text-gray-600">
-                                  {patient.id}
-                                </td>
-                                <td className="px-4 py-3 text-gray-600">
-                                  {patient.age}
-                                </td>
-                                <td className="px-4 py-3 text-gray-600">
-                                  {patient.condition}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <Badge
-                                    className={getStatusColor(patient.status)}
-                                  >
-                                    {patient.status}
-                                  </Badge>
-                                </td>
-                                <td className="px-4 py-3 text-gray-600">
-                                  {patient.lastVisit}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div className="flex gap-2">
-                                    <PatientProtectedComponent action="view">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                          setSelectedPatientId(patient.id)
-                                        }
-                                      >
-                                        <Eye className="w-3 h-3" />
-                                      </Button>
-                                    </PatientProtectedComponent>
-
-                                    <PatientProtectedComponent action="update">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                          setSelectedPatientId(patient.id);
-                                        }}
-                                      >
-                                        <Edit className="w-3 h-3" />
-                                      </Button>
-                                    </PatientProtectedComponent>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>Showing 3 of 1,248 patients</span>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            Previous
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            Next
-                          </Button>
-                        </div>
-                      </div>
+                      <DataTable
+                        columns={patientRecordColumns}
+                        data={patientRecordRows}
+                        emptyMessage="No patient records found"
+                        pageSize={10}
+                      />
                     </div>
                   </CardContent>
                 </Card>

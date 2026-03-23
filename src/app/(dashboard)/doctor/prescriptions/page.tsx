@@ -16,8 +16,7 @@ import {
   Download,
   Filter,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { useClinicContext } from "@/contexts/clinic-context";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   usePrescriptions,
   useCreatePrescription,
@@ -27,8 +26,8 @@ import {
 import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
 
 export default function DoctorPrescriptions() {
-  const { user } = useAuth();
-  const { clinicId } = useClinicContext();
+  const { session } = useAuth();
+  const user = session?.user;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");

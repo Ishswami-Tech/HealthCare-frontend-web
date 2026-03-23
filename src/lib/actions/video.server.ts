@@ -410,14 +410,21 @@ export async function joinWaitingRoom(appointmentId: string) {
  */
 export async function leaveWaitingRoom(appointmentId: string) {
   const consultationId = await getConsultationId(appointmentId);
+  const session = await getServerSession();
+  const userId = session?.user?.id || '';
+  
+  if (!userId) {
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
+  }
+
   const { data: response } = await authenticatedApi(
-    API_ENDPOINTS.VIDEO.WAITING_ROOM.JOIN, // Backend might not have separate leave endpoint
+    API_ENDPOINTS.VIDEO.WAITING_ROOM.LEAVE,
     {
       method: 'POST',
       body: JSON.stringify({
         consultationId,
-        userId: '', // Will be set by auth middleware
-        action: 'leave',
+        userId,
       }),
     }
   );

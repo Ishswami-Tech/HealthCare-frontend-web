@@ -29,6 +29,7 @@ import {
   useWebSocketQuerySync,
 } from "@/hooks/realtime/useRealTimeQueries";
 import { useDebouncedCallback } from "@/lib/utils/performance";
+import { isVideoAppointmentPaymentCompleted } from "@/lib/utils/appointmentUtils";
 import { PAGINATION } from "@/hooks/query/config";
 import { Pagination } from "@/components/virtual/VirtualizedList";
 import {
@@ -162,15 +163,27 @@ export default function AppointmentsPage() {
 
   const [activeTab, setActiveTab] = useState("upcoming");
 
+  const getAppointmentDateTime = useCallback((appointment: { date?: string; time?: string }) => {
+    if (!appointment?.date) return null;
+
+    const dateTimeValue = `${appointment.date}T${appointment.time || "00:00"}:00`;
+    const parsed = new Date(dateTimeValue);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, []);
+
   // Memoize filtered appointments for performance (optimized for 10M users)
   const { upcomingAppointments, pastAppointments, totalPages } = useMemo(() => {
     const now = new Date();
     const appointmentsList = Array.isArray(appointments) ? appointments : [];
 
-    const upcoming = appointmentsList.filter(
-      (apt) => new Date(apt.date) >= now
-    );
-    const past = appointmentsList.filter((apt) => new Date(apt.date) < now);
+    const upcoming = appointmentsList.filter((apt) => {
+      const appointmentDateTime = getAppointmentDateTime(apt);
+      return appointmentDateTime !== null && appointmentDateTime >= now;
+    });
+    const past = appointmentsList.filter((apt) => {
+      const appointmentDateTime = getAppointmentDateTime(apt);
+      return appointmentDateTime !== null && appointmentDateTime < now;
+    });
 
     // Calculate pagination
     const pageSize = PAGINATION.DEFAULT_PAGE_SIZE;
@@ -190,20 +203,23 @@ export default function AppointmentsPage() {
       totalUpcoming: upcoming.length,
       totalPast: past.length,
     };
-  }, [appointments, page, activeTab]);
+  }, [appointments, page, activeTab, getAppointmentDateTime]);
 
   // Extract totals for pagination
   const { totalUpcoming, totalPast } = useMemo(() => {
     const now = new Date();
     const appointmentsList = Array.isArray(appointments) ? appointments : [];
     return {
-      totalUpcoming: appointmentsList.filter(
-        (apt: any) => new Date(apt.date) >= now
-      ).length,
-      totalPast: appointmentsList.filter((apt: any) => new Date(apt.date) < now)
-        .length,
+      totalUpcoming: appointmentsList.filter((apt: any) => {
+        const appointmentDateTime = getAppointmentDateTime(apt);
+        return appointmentDateTime !== null && appointmentDateTime >= now;
+      }).length,
+      totalPast: appointmentsList.filter((apt: any) => {
+        const appointmentDateTime = getAppointmentDateTime(apt);
+        return appointmentDateTime !== null && appointmentDateTime < now;
+      }).length,
     };
-  }, [appointments]);
+  }, [appointments, getAppointmentDateTime]);
 
   // AppointmentCard is already memoized above
 
@@ -458,7 +474,8 @@ export default function AppointmentsPage() {
                   {/* Video Join Button for video appointments */}
                   {appointment.mode === "video" &&
                     (appointment.status === APPOINTMENT_STATUS.CONFIRMED ||
-                      appointment.status === APPOINTMENT_STATUS.IN_PROGRESS) && (
+                      appointment.status === APPOINTMENT_STATUS.IN_PROGRESS) &&
+                    isVideoAppointmentPaymentCompleted(appointment) && (
                       <Button
                         size="sm"
                         variant="default"

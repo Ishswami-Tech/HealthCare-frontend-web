@@ -1,11 +1,14 @@
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
 import { useAuth } from '../auth/useAuth';
-import { APP_CONFIG } from '@/lib/config/config';
 import {
+  getAllUsers,
   getUserProfile,
+  getUserById,
   updateUserProfile,
   createUser,
+  updateUser,
+  deleteUser,
   updateUserRole,
   getUsersByRole,
   getUsersByClinic,
@@ -17,55 +20,8 @@ import {
   toggleUserVerification,
   getUserActivityLogs,
   getUserSessions,
-  terminateUserSession
+  terminateUserSession,
 } from '@/lib/actions/users.server';
-
-// API URL configuration - use centralized config
-const API_URL = APP_CONFIG.API.BASE_URL;
-
-/**
- * Helper to get auth headers
- */
-function getAuthHeaders(token?: string, sessionId?: string) {
-  const headers: Record<string, string> = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  if (sessionId) headers['X-Session-ID'] = sessionId;
-  const clinicId = process.env.NEXT_PUBLIC_CLINIC_ID;
-  if (clinicId) headers['X-Clinic-ID'] = clinicId;
-  return headers;
-}
-
-/**
- * Base API call function for client-side
- */
-async function apiCall<T>(
-  endpoint: string, 
-  options: RequestInit = {}
-): Promise<{ status: number; data: T }> {
-  const url = `${API_URL}${endpoint}`;
-  
-  // ✅ PERFORMANCE: Use fetch with AbortController
-  const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
-  const response = await fetchWithAbort(url, {
-    timeout: 10000,
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    // ✅ Use centralized error handler
-    const { handleApiError } = await import('@/lib/utils/error-handler');
-    const errorMessage = await handleApiError(response, errorData);
-    throw new Error(errorMessage);
-  }
-
-  const data = await response.json();
-  return { status: response.status, data };
-}
 
 // ===== USER PROFILE HOOKS =====
 
@@ -102,21 +58,11 @@ export const useUpdateUserProfile = () => {
  */
 export const useUser = (id: string) => {
   const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<Record<string, unknown>>(
     ['user', id],
-    async () => {
-      const response = await apiCall<Record<string, unknown>>(`/user/${id}`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId),
-        },
-      });
-      return response.data;
-    },
+    async () => (await getUserById(id)) as Record<string, unknown>,
     {
-      enabled: !!id && !!token,
+      enabled: !!id && !!session?.user,
     }
   );
 };
@@ -125,19 +71,9 @@ export const useUser = (id: string) => {
  * Hook to update user
  */
 export const useUpdateUser = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useMutationOperation<{ status: number; data: Record<string, unknown> }, { id: string; data: Record<string, unknown> }>(
     async ({ id, data }) => {
-      return apiCall<Record<string, unknown>>(`/user/${id}`, {
-        method: 'PATCH',
-        headers: {
-          ...getAuthHeaders(token, sessionId),
-        },
-        body: JSON.stringify(data),
-      });
+      return { status: 200, data: (await updateUser(id, data)) as Record<string, unknown> };
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -152,18 +88,9 @@ export const useUpdateUser = () => {
  * Hook to delete user
  */
 export const useDeleteUser = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useMutationOperation<{ status: number; data: { message: string } }, string>(
     async (id) => {
-      return apiCall<{ message: string }>(`/user/${id}`, {
-        method: 'DELETE',
-        headers: {
-          ...getAuthHeaders(token, sessionId),
-        },
-      });
+      return { status: 200, data: { message: String((await deleteUser(id)) ?? 'User deleted successfully') } };
     },
     {
       toastId: TOAST_IDS.USER.DELETE,
@@ -179,21 +106,11 @@ export const useDeleteUser = () => {
  */
 export const useUsers = () => {
   const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<Record<string, unknown>[]>(
     ['users'],
-    async () => {
-      const response = await apiCall<Record<string, unknown>[]>('/users', {
-        headers: {
-          ...getAuthHeaders(token, sessionId),
-        },
-      });
-      return response.data;
-    },
+    async () => (await getAllUsers()) as Record<string, unknown>[],
     {
-      enabled: !!token,
+      enabled: !!session?.user,
     }
   );
 };
@@ -205,21 +122,11 @@ export const useUsers = () => {
  */
 export const usePatients = () => {
   const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<Record<string, unknown>[]>(
     ['patients'],
-    async () => {
-      const response = await apiCall<Record<string, unknown>[]>('/users/patients', {
-        headers: {
-          ...getAuthHeaders(token, sessionId),
-        },
-      });
-      return response.data;
-    },
+    async () => (await getUsersByRole('PATIENT')) as Record<string, unknown>[],
     {
-      enabled: !!token,
+      enabled: !!session?.user,
     }
   );
 };
@@ -229,21 +136,11 @@ export const usePatients = () => {
  */
 export const useDoctors = () => {
   const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<Record<string, unknown>[]>(
     ['doctors'],
-    async () => {
-      const response = await apiCall<Record<string, unknown>[]>('/users/doctors', {
-        headers: {
-          ...getAuthHeaders(token, sessionId),
-        },
-      });
-      return response.data;
-    },
+    async () => (await getUsersByRole('DOCTOR')) as Record<string, unknown>[],
     {
-      enabled: !!token,
+      enabled: !!session?.user,
     }
   );
 };
@@ -253,21 +150,11 @@ export const useDoctors = () => {
  */
 export const useReceptionists = () => {
   const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<Record<string, unknown>[]>(
     ['receptionists'],
-    async () => {
-      const response = await apiCall<Record<string, unknown>[]>('/users/receptionists', {
-        headers: {
-          ...getAuthHeaders(token, sessionId),
-        },
-      });
-      return response.data;
-    },
+    async () => (await getUsersByRole('RECEPTIONIST')) as Record<string, unknown>[],
     {
-      enabled: !!token,
+      enabled: !!session?.user,
     }
   );
 };
@@ -277,21 +164,11 @@ export const useReceptionists = () => {
  */
 export const useClinicAdmins = () => {
   const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<Record<string, unknown>[]>(
     ['clinicAdmins'],
-    async () => {
-      const response = await apiCall<Record<string, unknown>[]>('/users/clinic-admins', {
-        headers: {
-          ...getAuthHeaders(token, sessionId),
-        },
-      });
-      return response.data;
-    },
+    async () => (await getUsersByRole('CLINIC_ADMIN')) as Record<string, unknown>[],
     {
-      enabled: !!token,
+      enabled: !!session?.user,
     }
   );
 };
@@ -439,6 +316,7 @@ export const useCreateUser = () => {
       lastName: string;
       phone?: string;
       role: string;
+      clinicId?: string;
       gender?: string;
       dateOfBirth?: string;
       address?: string;
@@ -464,7 +342,7 @@ export const useCreateUser = () => {
 export const useUpdateUserRole = () => {
   return useMutationOperation(
     async ({ userId, role }: { userId: string; role: string }) => {
-      return await updateUserRole(userId, role);
+      return (await updateUserRole(userId, role)) as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -480,7 +358,7 @@ export const useUpdateUserRole = () => {
  */
 export const useUsersByRole = (role: string) => {
   return useQueryData(['users', 'role', role], async () => {
-    return await getUsersByRole(role);
+    return (await getUsersByRole(role)) as Record<string, unknown>[];
   }, {
     enabled: !!role,
   });
@@ -491,7 +369,7 @@ export const useUsersByRole = (role: string) => {
  */
 export const useUsersByClinic = (clinicId: string) => {
   return useQueryData(['users', 'clinic', clinicId], async () => {
-    return await getUsersByClinic(clinicId);
+    return (await getUsersByClinic(clinicId)) as Record<string, unknown>[];
   }, {
     enabled: !!clinicId,
   });
@@ -510,7 +388,7 @@ export const useSearchUsers = () => {
         isVerified?: boolean;
       };
     }) => {
-      return await searchUsers(query, filters);
+      return (await searchUsers(query, filters)) as Record<string, unknown>[];
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -526,7 +404,7 @@ export const useSearchUsers = () => {
  */
 export const useUserStats = () => {
   return useQueryData(['userStats'], async () => {
-    return await getUserStats();
+    return (await getUserStats()) as Record<string, unknown>;
   });
 };
 
@@ -539,7 +417,7 @@ export const useBulkUpdateUsers = () => {
       userIds: string[];
       updates: Record<string, any>;
     }) => {
-      return await bulkUpdateUsers(userIds, updates);
+      return (await bulkUpdateUsers(userIds, updates)) as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -559,7 +437,7 @@ export const useExportUsers = () => {
       format?: 'csv' | 'excel';
       filters?: Record<string, any>;
     }) => {
-      return await exportUsers(format, filters);
+      return (await exportUsers(format, filters)) as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
@@ -578,7 +456,7 @@ export const useChangeUserPassword = () => {
       userId: string;
       newPassword: string;
     }) => {
-      return await changeUserPassword(userId, newPassword);
+      return (await changeUserPassword(userId, newPassword)) as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -597,7 +475,7 @@ export const useToggleUserVerification = () => {
       userId: string;
       isVerified: boolean;
     }) => {
-      return await toggleUserVerification(userId, isVerified);
+      return (await toggleUserVerification(userId, isVerified)) as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -613,7 +491,7 @@ export const useToggleUserVerification = () => {
  */
 export const useUserActivityLogs = (userId: string, limit: number = 50) => {
   return useQueryData(['userActivityLogs', userId], async () => {
-    return await getUserActivityLogs(userId, limit);
+    return (await getUserActivityLogs(userId, limit)) as Record<string, unknown>[];
   }, {
     enabled: !!userId,
   });
@@ -624,7 +502,7 @@ export const useUserActivityLogs = (userId: string, limit: number = 50) => {
  */
 export const useUserSessions = (userId: string) => {
   return useQueryData(['userSessions', userId], async () => {
-    return await getUserSessions(userId);
+    return (await getUserSessions(userId)) as Record<string, unknown>[];
   }, {
     enabled: !!userId,
   });
@@ -639,7 +517,7 @@ export const useTerminateUserSession = () => {
       userId: string;
       sessionId: string;
     }) => {
-      return await terminateUserSession(userId, sessionId);
+      return (await terminateUserSession(userId, sessionId)) as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.SESSION.TERMINATE,

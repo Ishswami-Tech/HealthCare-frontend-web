@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -185,100 +184,56 @@ export function RefillRequestModal({
   onOpenChange,
 }: RefillRequestModalProps) {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [notes, setNotes] = useState("");
 
   const isOpen = controlledOpen !== undefined ? controlledOpen : open;
   const handleOpenChange = onOpenChange || setOpen;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      // TODO: Connect to API
-      // await requestRefill({
-      //   prescriptionId: prescription.id,
-      //   notes,
-      // });
-
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Mock delay
-
-      toast.success("Refill request submitted successfully");
-      handleOpenChange(false);
-      setNotes("");
-    } catch (err) {
-      toast.error("Failed to submit refill request");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <RefreshCw className="w-5 h-5" />
-              Request Prescription Refill
-            </DialogTitle>
-            <DialogDescription>
-              Request a refill for prescription #{prescription.id}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <RefreshCw className="w-5 h-5" />
+            Request Prescription Refill
+          </DialogTitle>
+          <DialogDescription>
+            Request a refill for prescription #{prescription.id}
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="bg-muted p-3 rounded-lg">
-              <p className="text-sm font-medium mb-2">Medications:</p>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                {prescription.medications.map((med, idx) => (
-                  <li key={idx}>• {med.name}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Additional Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                placeholder="Any specific requests or information..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <Alert>
-              <AlertDescription className="text-sm">
-                Your doctor will review this request and contact you once
-                approved.
-              </AlertDescription>
-            </Alert>
+        <div className="space-y-4 py-4">
+          <div className="bg-muted p-3 rounded-lg">
+            <p className="text-sm font-medium mb-2">Medications:</p>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              {prescription.medications.map((med, idx) => (
+                <li key={idx}>• {med.name}</li>
+              ))}
+            </ul>
           </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Submitting..." : "Submit Request"}
-            </Button>
-          </DialogFooter>
-        </form>
+          <Alert>
+            <AlertCircle className="w-4 h-4" />
+            <AlertDescription className="text-sm">
+              Prescription refill requests are not available in this build yet.
+              Please contact your clinic directly for refill assistance.
+            </AlertDescription>
+          </Alert>
+        </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => handleOpenChange(false)}
+          >
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-
-// ============================================================================
-// DATA EXPORT MODAL
-// ============================================================================
 
 interface DataExportModalProps {
   dataType: "profile" | "medical-records" | "prescriptions";
@@ -287,6 +242,7 @@ interface DataExportModalProps {
   onOpenChange?: (open: boolean) => void;
 }
 
+
 export function DataExportModal({
   dataType,
   trigger,
@@ -294,8 +250,6 @@ export function DataExportModal({
   onOpenChange,
 }: DataExportModalProps) {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [format, setFormat] = useState<"pdf" | "json">("pdf");
 
   const isOpen = controlledOpen !== undefined ? controlledOpen : open;
   const handleOpenChange = onOpenChange || setOpen;
@@ -310,37 +264,6 @@ export function DataExportModal({
         return "Prescriptions";
       default:
         return "Data";
-    }
-  };
-
-  const handleExport = async () => {
-    setIsLoading(true);
-
-    try {
-      // TODO: Connect to API
-      // const data = await exportData({ type: dataType, format });
-      // downloadFile(data);
-
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // Mock delay
-
-      // Mock download
-      const mockData = JSON.stringify({ dataType, exportedAt: new Date() });
-      const blob = new Blob([mockData], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${dataType}-export-${Date.now()}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast.success(`${getDataTypeName()} exported successfully`);
-      handleOpenChange(false);
-    } catch (err) {
-      toast.error("Failed to export data");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -360,32 +283,11 @@ export function DataExportModal({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Export Format</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={format === "pdf" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setFormat("pdf")}
-              >
-                PDF
-              </Button>
-              <Button
-                type="button"
-                variant={format === "json" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setFormat("json")}
-              >
-                JSON
-              </Button>
-            </div>
-          </div>
-
           <Alert>
+            <AlertCircle className="w-4 h-4" />
             <AlertDescription className="text-sm">
-              Your data will be downloaded to your device. This may take a few
-              moments.
+              Data export is not connected in this build. Use the profile page
+              actions only after the backend export endpoint is enabled.
             </AlertDescription>
           </Alert>
         </div>
@@ -397,10 +299,6 @@ export function DataExportModal({
             onClick={() => handleOpenChange(false)}
           >
             Cancel
-          </Button>
-          <Button onClick={handleExport} disabled={isLoading}>
-            <Download className="w-4 h-4 mr-2" />
-            {isLoading ? "Exporting..." : "Export Data"}
           </Button>
         </DialogFooter>
       </DialogContent>

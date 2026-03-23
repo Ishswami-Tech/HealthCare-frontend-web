@@ -2,6 +2,7 @@
 
 import { HealthcareErrorsService } from '@/lib/config/config';
 import type { SupportRequest } from '@/types/medical-records.types';
+import { clinicApiClient as api } from '@/lib/api/client';
 
 /**
  * Get all support requests
@@ -17,8 +18,6 @@ export async function getSupportRequests(
   }
 ): Promise<{ requests: SupportRequest[] }> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.priority) params.append('priority', filters.priority);
@@ -26,19 +25,16 @@ export async function getSupportRequests(
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
 
-    const response = await fetch(`${baseUrl}/support-staff/${staffId}/requests?${params.toString()}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    });
+    // Using hypothetical standardized endpoint
+    const response = await api.get<{ requests: SupportRequest[] }>(
+      `/support-staff/requests?${params.toString()}`
+    );
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch support requests');
+    if (response.error) {
+      throw new Error(response.error || 'Failed to fetch support requests');
     }
 
-    const data = await response.json();
-    return data;
+    return response.data || { requests: [] };
   } catch (error) {
     HealthcareErrorsService.logError('fetch support requests', error);
     throw error;
@@ -52,22 +48,16 @@ export async function createSupportRequest(
   requestData: SupportRequest
 ): Promise<{ request: SupportRequest }> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const response = await api.post<{ request: SupportRequest }>(
+      '/support-staff/requests',
+      requestData
+    );
 
-    const response = await fetch(`${baseUrl}/support-staff/${requestData.supportStaffId}/requests`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(requestData),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to create support request');
+    if (response.error) {
+      throw new Error(response.error || 'Failed to create support request');
     }
 
-    const data = await response.json();
-    return data;
+    return response.data!;
   } catch (error) {
     HealthcareErrorsService.logError('create support request', error);
     throw error;
@@ -82,22 +72,16 @@ export async function updateSupportRequest(
   updates: Partial<SupportRequest>
 ): Promise<{ request: SupportRequest }> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const response = await api.patch<{ request: SupportRequest }>(
+      `/support-staff/requests/${requestId}`,
+      updates
+    );
 
-    const response = await fetch(`${baseUrl}/support-staff/requests/${requestId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(updates),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to update support request');
+    if (response.error) {
+      throw new Error(response.error || 'Failed to update support request');
     }
 
-    const data = await response.json();
-    return data;
+    return response.data!;
   } catch (error) {
     HealthcareErrorsService.logError('update support request', error);
     throw error;
@@ -109,20 +93,13 @@ export async function updateSupportRequest(
  */
 export async function deleteSupportRequest(requestId: string): Promise<void> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const response = await api.delete(
+      `/support-staff/requests/${requestId}`
+    );
 
-    const response = await fetch(`${baseUrl}/support-staff/requests/${requestId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to delete support request');
+    if (response.error) {
+      throw new Error(response.error || 'Failed to delete support request');
     }
-
-    await response.json();
   } catch (error) {
     HealthcareErrorsService.logError('delete support request', error);
     throw error;

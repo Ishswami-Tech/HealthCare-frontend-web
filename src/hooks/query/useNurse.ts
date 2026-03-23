@@ -1,5 +1,7 @@
+import { useCallback, useMemo } from 'react';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
+import { useCurrentClinicId } from './useClinics';
 import {
   getNursePatients,
   createNursePatientRecord,
@@ -10,17 +12,31 @@ import type { NursePatientRecord, PatientVitals } from '@/types/medical-records.
 /**
  * Hook to get all nurse patients
  */
-export const useNursePatients = (nurseId?: string, filters?: {
+export const useNursePatients = (filters?: {
+  nurseId?: string;
   search?: string;
   status?: string;
   limit?: number;
   offset?: number;
+  omitClinicId?: boolean;
 }) => {
+  const clinicId = useCurrentClinicId();
+  
+  const queryKey = useMemo(
+    () => ['nursePatients', clinicId, filters],
+    [clinicId, filters]
+  );
+
+  const queryFn = useCallback(async () => {
+    const result = await getNursePatients(filters?.nurseId, filters);
+    return result || { patients: [] };
+  }, [filters]);
+
   return useQueryData(
-    ['nursePatients', nurseId, filters],
-    async () => await getNursePatients(nurseId, filters),
+    queryKey,
+    queryFn,
     {
-      enabled: !!nurseId,
+      enabled: !!clinicId || !!filters?.omitClinicId,
     }
   );
 };
@@ -28,12 +44,24 @@ export const useNursePatients = (nurseId?: string, filters?: {
 /**
  * Hook to get nurse patient by ID
  */
-export const useNursePatient = (nurseId: string, patientId: string) => {
+export const useNursePatient = (patientId: string, nurseId?: string) => {
+  const clinicId = useCurrentClinicId();
+
+  const queryKey = useMemo(
+    () => ['nursePatient', clinicId, patientId, nurseId],
+    [clinicId, patientId, nurseId]
+  );
+
+  const queryFn = useCallback(async () => {
+    const result = await getNursePatients(nurseId, { patientId });
+    return result || { patients: [] };
+  }, [nurseId, patientId]);
+
   return useQueryData(
-    ['nursePatient', nurseId, patientId],
-    async () => await getNursePatients(nurseId, { patientId }),
+    queryKey,
+    queryFn,
     {
-      enabled: !!nurseId && !!patientId,
+      enabled: (!!clinicId && !!patientId),
     }
   );
 };
@@ -42,27 +70,38 @@ export const useNursePatient = (nurseId: string, patientId: string) => {
  * Hook to get patient vitals
  */
 export const useNursePatientVitals = (
-  nurseId?: string,
   patientId?: string,
   filters?: {
+    nurseId?: string;
     startDate?: string | undefined;
     endDate?: string | undefined;
     limit?: number | undefined;
+    omitClinicId?: boolean;
   }
 ) => {
+  const clinicId = useCurrentClinicId();
+
+  const queryKey = useMemo(
+    () => ['nursePatientVitals', clinicId, patientId, filters],
+    [clinicId, patientId, filters]
+  );
+
+  const queryFn = useCallback(async () => {
+    const result = await getNursePatients(filters?.nurseId, {
+      patientId,
+      vitalsOnly: true,
+      omitClinicId: filters?.omitClinicId,
+    } as any); // Type cast to allow omitClinicId through to server action
+    const patients = Array.isArray(result?.patients) ? result.patients : [];
+    const vitals = patients.flatMap((p: any) => (Array.isArray(p?.vitals) ? p.vitals : []));
+    return { vitals };
+  }, [filters, patientId]);
+
   return useQueryData(
-    ['nursePatientVitals', nurseId, patientId, filters],
-    async () => {
-      const result = await getNursePatients(nurseId, {
-        ...(patientId ? { patientId } : {}),
-        vitalsOnly: true,
-      });
-      const patients = Array.isArray(result?.patients) ? result.patients : [];
-      const vitals = patients.flatMap((p: any) => (Array.isArray(p?.vitals) ? p.vitals : []));
-      return { vitals };
-    },
+    queryKey,
+    queryFn,
     {
-      enabled: !!nurseId,
+      enabled: !!clinicId || !!filters?.omitClinicId,
     }
   );
 };
@@ -79,7 +118,7 @@ export const useCreateNursePatientRecord = () => {
       toastId: TOAST_IDS.EHR.VITAL_CREATE,
       loadingMessage: 'Creating patient record...',
       successMessage: 'Record created successfully',
-      invalidateQueries: [['nursePatients'], ['nursePatient']],
+      invalidateQueries: [['nursePatients'], ['nursePatient'], ['nursePatientVitals']],
     }
   );
 };

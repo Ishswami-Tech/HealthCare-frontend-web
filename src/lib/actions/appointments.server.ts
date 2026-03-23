@@ -131,8 +131,10 @@ export async function updateAppointmentStatus(id: string, data: any) {
     
     return { success: true };
   } catch (error) {
-    logger.error('Failed to update appointment status', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to update status' };
+    const normalizedError =
+      error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to update appointment status', normalizedError);
+    return { success: false, error: normalizedError.message || 'Failed to update status' };
   }
 }
 
@@ -313,9 +315,10 @@ export async function updateAssistantDoctorCoverage(
 /**
  * Get appointments with filtering
  */
-export async function getAppointments(filters?: AppointmentFilters) {
+export async function getAppointments(filters?: AppointmentFilters & { omitClinicId?: boolean }) {
   try {
-    const queryParams = filters ? new URLSearchParams(filters as any).toString() : '';
+    const { omitClinicId, ...restFilters } = filters || {};
+    const queryParams = new URLSearchParams(restFilters as any).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.GET_ALL;
     
     const { data } = await authenticatedApi<{
@@ -323,7 +326,9 @@ export async function getAppointments(filters?: AppointmentFilters) {
       appointments?: Appointment[];
       pagination?: any;
       meta?: any;
-    }>(endpoint, {});
+    }>(endpoint, {
+      ...(restFilters.clinicId ? { headers: { 'X-Clinic-ID': restFilters.clinicId } } : {}),
+    });
     const payload =
       Array.isArray(data)
         ? data
@@ -524,8 +529,8 @@ export async function rescheduleAppointment(id: string, data: any) {
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
     const payload = {
-      date: validatedData.date,
-      time: validatedData.time,
+      newDate: validatedData.date,
+      newTime: validatedData.time,
       reason: validatedData.reason
     };
 

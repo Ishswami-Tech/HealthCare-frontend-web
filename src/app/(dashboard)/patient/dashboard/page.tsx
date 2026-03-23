@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,8 @@ import {
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useTranslation } from "@/lib/i18n/context";
 import { theme } from "@/lib/utils/theme-utils";
+import { useAppointmentsStore } from "@/stores";
+import { normalizePatientAppointment } from "@/lib/utils/appointmentUtils";
 import {
   Activity,
   Calendar,
@@ -52,6 +54,17 @@ export default function PatientDashboard() {
 
   const { clinicId } = useClinicContext();
   const patientId = user?.id || "";
+  const lastSyncedAppointmentsRef = useRef("");
+  const storeAppointmentIds = useAppointmentsStore((state) => state.appointmentIds);
+  const storeAppointmentsById = useAppointmentsStore((state) => state.appointments);
+  const setAppointmentsInStore = useAppointmentsStore((state) => state.setAppointments);
+  const storeAppointments = useMemo(
+    () =>
+      storeAppointmentIds
+        .map((id) => storeAppointmentsById[id])
+        .filter((appointment) => appointment !== undefined),
+    [storeAppointmentIds, storeAppointmentsById]
+  );
 
   // Fetch real data using hooks with loading and error states
   const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments();
@@ -65,6 +78,20 @@ export default function PatientDashboard() {
     "active"
   );
   const { data: comprehensiveData, isPending: isPendingComprehensive } = useComprehensiveHealthRecord(patientId);
+
+  useEffect(() => {
+    const fetchedAppointments = Array.isArray(appointmentsData?.appointments)
+      ? appointmentsData.appointments
+      : [];
+    const syncKey = fetchedAppointments
+      .map((appointment: any) => `${appointment.id}:${appointment.updatedAt}:${appointment.status}`)
+      .join("|");
+
+    if (fetchedAppointments.length > 0 && syncKey !== lastSyncedAppointmentsRef.current) {
+      lastSyncedAppointmentsRef.current = syncKey;
+      setAppointmentsInStore(fetchedAppointments as any);
+    }
+  }, [appointmentsData, setAppointmentsInStore]);
 
   // Transform real data
   const patientData = useMemo(() => {
@@ -91,37 +118,72 @@ export default function PatientDashboard() {
       }
     };
 
-    const appointments = Array.isArray(appointmentsData?.appointments) ? appointmentsData.appointments : [];
+    const rawAppointments = Array.isArray(appointmentsData?.appointments)
+      ? appointmentsData.appointments
+      : storeAppointments;
+    const appointments = Array.isArray(rawAppointments)
+      ? rawAppointments.filter((apt: any) => {
+          const candidateIds = [
+            apt?.patientId,
+            apt?.patient?.id,
+            apt?.patient?.userId,
+            apt?.patient?.user?.id,
+            apt?.userId,
+          ]
+            .filter((value): value is string => typeof value === "string" && value.length > 0);
+
+          return user?.id ? candidateIds.includes(user.id) : true;
+        })
+      : [];
+    const activeUpcomingStatuses = new Set([
+      "SCHEDULED",
+      "CONFIRMED",
+      "IN_PROGRESS",
+      "AWAITING_SLOT_CONFIRMATION",
+      "PENDING",
+    ]);
     
     // Safety check for appointments array
     const upcomingAppointments = Array.isArray(appointments) 
       ? appointments
           .filter((apt: any) => {
-            try {
-               return new Date(apt.startTime || apt.date) >= new Date();
-            } catch { return false; }
+            const normalized = normalizePatientAppointment(apt);
+            const appointmentStart = normalized.dateTime;
+            const status = String(apt?.status || "").toUpperCase();
+            return (
+              appointmentStart !== null &&
+              appointmentStart >= new Date() &&
+              activeUpcomingStatuses.has(status)
+            );
+          })
+          .sort((a: any, b: any) => {
+            const first = normalizePatientAppointment(a).dateTime;
+            const second = normalizePatientAppointment(b).dateTime;
+            if (!first && !second) return 0;
+            if (!first) return 1;
+            if (!second) return -1;
+            return first.getTime() - second.getTime();
           })
           .slice(0, 5)
-          .map((apt: any) => ({
-            id: apt.id,
-            doctor:
-              apt.doctor?.name ||
-              `${apt.doctor?.firstName || ""} ${
-                apt.doctor?.lastName || ""
-              }`.trim() ||
-              "Unknown Doctor",
-            type: apt.type || apt.appointmentType || "Consultation",
-            date: apt.startTime
-              ? safeFormatDate(apt.startTime).split("T")[0] // Fallback if regular date
-              : "",
-            time: safeFormatTime(apt.startTime, {
-                 hour: "2-digit",
-                 minute: "2-digit",
-            }),
-            location: apt.location || apt.clinic?.name || "Clinic",
-            status: apt.status || "Scheduled",
-            isOnline: apt.isOnline || false,
-          }))
+          .map((apt: any) => {
+            const normalized = normalizePatientAppointment(apt);
+            const appointmentStart = normalized.dateTime;
+            return {
+              id: apt.id,
+              doctor: normalized.doctorName,
+              type: normalized.type,
+              date: normalized.normalizedDate,
+              time: appointmentStart
+                ? safeFormatTime(appointmentStart.toISOString(), {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "",
+              location: normalized.locationName,
+              status: apt.status || "Scheduled",
+              isOnline: normalized.isOnline,
+            };
+          })
       : [];
 
     const latestVitals = (vitalSignsData as any)?.[0] || {};
@@ -163,8 +225,8 @@ export default function PatientDashboard() {
             )
             .sort(
               (a: any, b: any) =>
-                new Date(b.startTime || b.date).getTime() -
-                new Date(a.startTime || a.date).getTime()
+                (normalizePatientAppointment(b).dateTime?.getTime() || 0) -
+                (normalizePatientAppointment(a).dateTime?.getTime() || 0)
             )[0]?.time || null,
       },
       upcomingAppointments,
@@ -189,9 +251,19 @@ export default function PatientDashboard() {
         kapha: 0,
         dominant: "Unknown",
       },
+      hasDoshaData: Boolean(
+        (comprehensiveData as any)?.doshaBalance &&
+          (((comprehensiveData as any)?.doshaBalance?.vata || 0) > 0 ||
+            ((comprehensiveData as any)?.doshaBalance?.pitta || 0) > 0 ||
+            ((comprehensiveData as any)?.doshaBalance?.kapha || 0) > 0)
+      ),
+      hasMedications: latestPrescriptions.length > 0,
+      hasTreatmentData: Boolean((medicalRecordsData as any)?.[0]?.treatment),
+      hasVitalData: Boolean((vitalSignsData as any)?.[0]),
     };
   }, [
     appointmentsData,
+    storeAppointments,
     medicalRecordsData,
     vitalSignsData,
     prescriptionsData,
@@ -200,12 +272,17 @@ export default function PatientDashboard() {
   ]);
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Confirmed":
+    switch (String(status).toUpperCase()) {
+      case "CONFIRMED":
         return theme.badges.green;
-      case "Pending":
+      case "PENDING":
+      case "SCHEDULED":
+      case "AWAITING_SLOT_CONFIRMATION":
         return theme.badges.yellow;
-      case "Cancelled":
+      case "IN_PROGRESS":
+        return theme.badges.blue;
+      case "CANCELLED":
+      case "NO_SHOW":
         return theme.badges.red;
       default:
         return theme.badges.gray;
@@ -285,7 +362,7 @@ export default function PatientDashboard() {
                  <Skeleton className="h-8 w-3/4" />
                  <Skeleton className="h-3 w-1/2" />
                </div>
-            ) : (
+            ) : patientData.hasDoshaData ? (
             <Card
               className={`hover:shadow-lg transition-shadow duration-300 border-l-4 ${theme.borders.green}`}
             >
@@ -306,9 +383,10 @@ export default function PatientDashboard() {
                 </p>
               </CardContent>
             </Card>
-            )}
+            ) : null}
 
             {/* Treatment Card */}
+            {patientData.hasTreatmentData ? (
             <Card
               className={`hover:shadow-lg transition-shadow duration-300 border-l-4 ${theme.borders.blue}`}
             >
@@ -329,6 +407,7 @@ export default function PatientDashboard() {
                 </p>
               </CardContent>
             </Card>
+            ) : null}
 
             {/* Next Appointment Card */}
             {isPendingAppointments ? (
@@ -378,7 +457,7 @@ export default function PatientDashboard() {
                  <Skeleton className="h-8 w-3/4" />
                  <Skeleton className="h-3 w-1/2" />
                </div>
-            ) : (
+            ) : patientData.hasVitalData ? (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle
@@ -397,12 +476,13 @@ export default function PatientDashboard() {
                 </p>
               </CardContent>
             </Card>
-            )}
+            ) : null}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.95fr] gap-6">
             {/* Dosha Balance Chart */}
-            <Card>
+            {patientData.hasDoshaData && (
+            <Card className="lg:order-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Leaf className="w-5 h-5" />
@@ -496,9 +576,10 @@ export default function PatientDashboard() {
                )}
               </CardContent>
             </Card>
+            )}
 
             {/* Upcoming Appointments */}
-            <Card>
+            <Card className="lg:order-1">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
@@ -603,6 +684,7 @@ export default function PatientDashboard() {
           </div>
 
           {/* Current Treatments */}
+          {patientData.currentTreatments.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -652,9 +734,11 @@ export default function PatientDashboard() {
               )}
             </CardContent>
           </Card>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Current Medications */}
+            {patientData.hasMedications && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -719,8 +803,10 @@ export default function PatientDashboard() {
                )}
               </CardContent>
             </Card>
+            )}
 
             {/* Recent Activity */}
+            {patientData.recentActivity.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -771,9 +857,11 @@ export default function PatientDashboard() {
                 </div>
               </CardContent>
             </Card>
+            )}
           </div>
 
           {/* Health Insights */}
+          {patientData.hasDoshaData && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -832,6 +920,7 @@ export default function PatientDashboard() {
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Quick Actions */}
           <Card>
@@ -871,6 +960,7 @@ export default function PatientDashboard() {
                   variant="outline"
                   className="h-16 flex flex-col items-center justify-center gap-2"
                   onClick={() => window.location.href = "/patient/prescriptions"}
+                  disabled={!patientData.hasMedications}
                 >
                   <Pill className="w-5 h-5" />
                   <span className="text-sm">Refill Prescription</span>

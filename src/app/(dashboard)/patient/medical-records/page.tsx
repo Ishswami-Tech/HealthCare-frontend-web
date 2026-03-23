@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -92,6 +94,66 @@ export default function PatientMedicalRecords() {
     fetchHealthRecords();
   }, [user?.id]);
 
+  const medicalHistory = healthData?.medicalHistory || [];
+  const prescriptions = healthData?.prescriptions || [];
+  const labReports = healthData?.labReports || [];
+  const vitalSigns = healthData?.vitals || [];
+
+  const filteredMedicalHistory = medicalHistory.filter((record: any) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      record.diagnosis?.toLowerCase().includes(term) ||
+      record.treatment?.toLowerCase().includes(term) ||
+      record.doctor?.toLowerCase().includes(term) ||
+      record.notes?.toLowerCase().includes(term) ||
+      record.type?.toLowerCase().includes(term)
+    );
+  });
+
+  const vitalHistoryRows = useMemo(
+    () =>
+      vitalSigns.map((vital: any, index: number) => ({
+        id: `${vital.date}-${index}`,
+        dateLabel: new Date(vital.date).toLocaleDateString(),
+        bpLabel: `${vital.bp} mmHg`,
+        hrLabel: `${vital.hr} bpm`,
+        weightLabel: `${vital.weight} kg`,
+        bmiLabel: String(vital.bmi),
+        currentWeight: parseFloat(vital.weight),
+        previousWeight: parseFloat(vitalSigns[index + 1]?.weight || "0"),
+        hasPrevious: index < vitalSigns.length - 1 && !!vitalSigns[index + 1],
+      })),
+    [vitalSigns]
+  );
+
+  const getTrendIcon = (current: number, previous: number) => {
+    if (current > previous)
+      return <TrendingUp className={`w-4 h-4 ${theme.iconColors.red}`} />;
+    if (current < previous)
+      return <TrendingDown className={`w-4 h-4 ${theme.iconColors.green}`} />;
+    return <Minus className={`w-4 h-4 ${theme.iconColors.gray}`} />;
+  };
+
+  const vitalHistoryColumns = useMemo<ColumnDef<(typeof vitalHistoryRows)[number]>[]>(
+    () => [
+      { accessorKey: "dateLabel", header: "Date" },
+      { accessorKey: "bpLabel", header: "Blood Pressure" },
+      { accessorKey: "hrLabel", header: "Heart Rate" },
+      { accessorKey: "weightLabel", header: "Weight" },
+      { accessorKey: "bmiLabel", header: "BMI" },
+      {
+        id: "trend",
+        header: "Trend",
+        cell: ({ row }) =>
+          row.original.hasPrevious
+            ? getTrendIcon(row.original.currentWeight, row.original.previousWeight)
+            : null,
+      },
+    ],
+    [vitalHistoryRows]
+  );
+
   // ✅ Show loading only if auth is actually loading (not just if user is null initially)
   // Don't block content if user data is being fetched in background
   if (authLoading) {
@@ -132,26 +194,6 @@ export default function PatientMedicalRecords() {
       
     );
   }
-
-  // Use real data if available, otherwise show empty state
-  const medicalHistory = healthData?.medicalHistory || [];
-  
-  // Filter medical history based on search term
-  const filteredMedicalHistory = medicalHistory.filter((record: any) => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    return (
-      record.diagnosis?.toLowerCase().includes(term) ||
-      record.treatment?.toLowerCase().includes(term) ||
-      record.doctor?.toLowerCase().includes(term) ||
-      record.notes?.toLowerCase().includes(term) ||
-      record.type?.toLowerCase().includes(term)
-    );
-  });
-
-  const prescriptions = healthData?.prescriptions || [];
-  const labReports = healthData?.labReports || [];
-  const vitalSigns = healthData?.vitals || [];
 
   const allergies = [
     {
@@ -212,15 +254,6 @@ export default function PatientMedicalRecords() {
         return theme.badges.gray;
     }
   };
-
-  const getTrendIcon = (current: number, previous: number) => {
-    if (current > previous)
-      return <TrendingUp className={`w-4 h-4 ${theme.iconColors.red}`} />;
-    if (current < previous)
-      return <TrendingDown className={`w-4 h-4 ${theme.iconColors.green}`} />;
-    return <Minus className={`w-4 h-4 ${theme.iconColors.gray}`} />;
-  };
-
 
 
   return (
@@ -657,48 +690,13 @@ export default function PatientMedicalRecords() {
                         >
                           Vital Signs History
                         </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className={theme.backgrounds.secondary}>
-                              <tr>
-                                <th className="px-4 py-2 text-left">Date</th>
-                                <th className="px-4 py-2 text-left">
-                                  Blood Pressure
-                                </th>
-                                <th className="px-4 py-2 text-left">
-                                  Heart Rate
-                                </th>
-                                <th className="px-4 py-2 text-left">Weight</th>
-                                <th className="px-4 py-2 text-left">BMI</th>
-                                <th className="px-4 py-2 text-left">Trend</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {vitalSigns.map((vital: any, index: number) => (
-                                <tr key={vital.date} className="border-t">
-                                  <td className="px-4 py-2">
-                                    {new Date(vital.date).toLocaleDateString()}
-                                  </td>
-                                  <td className="px-4 py-2">{vital.bp} mmHg</td>
-                                  <td className="px-4 py-2">{vital.hr} bpm</td>
-                                  <td className="px-4 py-2">
-                                    {vital.weight} kg
-                                  </td>
-                                  <td className="px-4 py-2">{vital.bmi}</td>
-                                  <td className="px-4 py-2">
-                                    {index < vitalSigns.length - 1 &&
-                                      vitalSigns[index + 1] &&
-                                      getTrendIcon(
-                                        parseFloat(vital.weight),
-                                        parseFloat(
-                                          vitalSigns[index + 1]?.weight || "0"
-                                        )
-                                      )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                        <div className="p-4">
+                          <DataTable
+                            columns={vitalHistoryColumns}
+                            data={vitalHistoryRows}
+                            emptyMessage="No vitals history available"
+                            pageSize={8}
+                          />
                         </div>
                       </div>
                     </div>

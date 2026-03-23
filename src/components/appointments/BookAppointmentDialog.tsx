@@ -26,6 +26,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useQueryClient } from "@/hooks/core";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import {
   useAppointmentServices,
@@ -113,6 +114,7 @@ function groupSlotsByPeriod(slots: string[]) {
 // ─── Step indicators ─────────────────────────────────────────────────────────
 
 const STEPS = ["Location", "Service", "Doctor", "Date", "Slot", "Confirm"] as const;
+const TEST_APPOINTMENT_DURATION_MINUTES = 3;
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -134,17 +136,6 @@ const getTodayIST = () => {
   return new Date(istDateString);
 };
 
-/**
- * Helper to get maximum booking date in IST (3 days from today)
- * Restricts appointment booking to only 3 days in advance.
- */
-const getMaxBookingDate = () => {
-  const today = getTodayIST();
-  const maxDate = new Date(today);
-  maxDate.setDate(today.getDate() + 3);
-  return maxDate;
-};
-
 const formatDateIST = (date: Date) =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -162,10 +153,12 @@ export function BookAppointmentDialog({
 }: BookAppointmentDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const { session } = useAuth();
   const userRole = (session?.user?.role || "").toUpperCase();
   const postBookingRoute = userRole === "RECEPTIONIST" ? "/receptionist/appointments" : "/patient/appointments";
   const postBookingLabel = userRole === "RECEPTIONIST" ? "View Reception Desk" : "View My Appointments";
+  const patientCheckInRoute = "/patient/check-in";
   const { clinicId: contextClinicId } = useClinicContext();
   const activeClinicId = clinicId || contextClinicId || APP_CONFIG.CLINIC.ID;
 
@@ -185,6 +178,7 @@ export function BookAppointmentDialog({
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [urgency, setUrgency] = useState("Normal");
   const [bookedAppointmentId, setBookedAppointmentId] = useState("");
+  const [videoPaymentCompleted, setVideoPaymentCompleted] = useState(false);
 
   // ─── Queries ─────────────────────────────────────────────────────────────
   const { data: locations = [] } = useActiveLocations(activeClinicId);
@@ -208,6 +202,7 @@ export function BookAppointmentDialog({
   // ─── Derived ─────────────────────────────────────────────────────────────
   const modeAppointmentType: AppointmentType =
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
+  const isPatientInPersonFlow = userRole === "PATIENT" && consultationMode === "IN_PERSON";
 
   const visibleServices = useMemo(() => {
     return (appointmentServices as AppointmentServiceDefinition[]).filter(
@@ -221,6 +216,27 @@ export function BookAppointmentDialog({
     () => visibleServices.find((service) => service.treatmentType === selectedServiceId),
     [selectedServiceId, visibleServices]
   );
+
+  const selectedVideoConsultationFee = useMemo(() => {
+    if (!selectedService) return 0;
+
+    const candidateValues = [
+      selectedService.videoConsultationFee,
+      (selectedService as any).consultationFee,
+      (selectedService as any).amount,
+      (selectedService as any).price,
+      (selectedService as any).fee,
+    ];
+
+    for (const value of candidateValues) {
+      const numericValue = Number(value);
+      if (Number.isFinite(numericValue) && numericValue > 0) {
+        return numericValue;
+      }
+    }
+
+    return 0;
+  }, [selectedService]);
 
   const doctorsList: any[] = useMemo(() => {
     // The GET /doctors API returns User records with a nested `doctor` relation:
@@ -309,6 +325,7 @@ export function BookAppointmentDialog({
       setChiefComplaint("");
       setUrgency("Normal");
       setBookedAppointmentId("");
+      setVideoPaymentCompleted(false);
     }
   }, [open, locationId]);
 
@@ -385,7 +402,8 @@ export function BookAppointmentDialog({
           clinicId: activeClinicId,
           locationId: selectedLocationId,
           appointmentDate: appointmentDate.toISOString(),
-          duration: selectedService.defaultDurationMinutes,
+          // Testing mode: keep bookings short so repeated appointment flows are easy to validate.
+          duration: TEST_APPOINTMENT_DURATION_MINUTES,
           treatmentType: selectedService.treatmentType,
           priority: urgency.toUpperCase(),
           notes: chiefComplaint || selectedService.label,
@@ -406,7 +424,8 @@ export function BookAppointmentDialog({
           time: selectedSlot,
           type: finalAppointmentType,
           treatmentType: selectedService.treatmentType,
-          duration: selectedService.defaultDurationMinutes,
+          // Testing mode: keep bookings short so repeated appointment flows are easy to validate.
+          duration: TEST_APPOINTMENT_DURATION_MINUTES,
           notes: chiefComplaint || selectedService.label,
           priority: urgency.toUpperCase() as any,
           patientId: session?.user?.id ?? "",
@@ -418,14 +437,9 @@ export function BookAppointmentDialog({
       }
 
       setBookedAppointmentId(apptId);
+      queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
       onBooked?.();
-
-      if (userRole === "PATIENT" && finalAppointmentType === "IN_PERSON") {
-        toast.success("Appointment booked. Continue to clinic check-in.");
-        router.push("/patient/check-in");
-        return;
-      }
-
       setStep(7); // step 7 = success/QR screen
     } catch (err: any) {
       const errorMessage =
@@ -465,6 +479,7 @@ export function BookAppointmentDialog({
     userRole,
     activeSubscription,
     router,
+    queryClient,
   ]);
 
   // ─── Navigation ──────────────────────────────────────────────────────────
@@ -764,9 +779,8 @@ export function BookAppointmentDialog({
           disabled={(date) => {
             // Enforce Indian Standard Time (IST) exactly for calculating disabled "past" days
             const todayIST = getTodayIST();
-            const maxDate = getMaxBookingDate();
-            // Disable dates before today OR after 3 days from today
-            return date < todayIST || date > maxDate;
+            // Testing mode: allow any non-past booking date.
+            return date < todayIST;
           }}
           className="mx-auto"
         />
@@ -914,38 +928,85 @@ export function BookAppointmentDialog({
         <Check className="w-7 h-7 text-green-600 dark:text-green-400" />
       </div>
       <div className="text-center">
-        <h3 className="text-lg font-bold">Appointment Confirmed!</h3>
+        <h3 className="text-lg font-bold">
+          {consultationMode === "VIDEO" && !videoPaymentCompleted
+            ? "Payment Required To Confirm"
+            : "Appointment Confirmed!"}
+        </h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Your appointment has been booked successfully.
+          {consultationMode === "VIDEO" && !videoPaymentCompleted
+            ? "Your video appointment has been created. Complete payment to confirm it."
+            : "Your appointment has been booked successfully."}
         </p>
       </div>
 
       {consultationMode === "VIDEO" ? (
         <div className="flex flex-col items-center gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm">
           <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <Video className="w-4 h-4" /> Video Payment Required
+            <Video className="w-4 h-4" />
+            {videoPaymentCompleted ? "Payment Received" : "Video Payment Required"}
           </div>
           <p className="text-xs text-muted-foreground text-center">
-            Video appointments are billed per appointment. Complete payment to proceed.
+            {videoPaymentCompleted
+              ? "Payment is complete. Your video appointment should now move to confirmed status."
+              : "Video appointments are billed per appointment. Complete payment first, then the appointment will be confirmed."}
           </p>
-          <PaymentButton
-            appointmentId={bookedAppointmentId}
-            amount={selectedService?.videoConsultationFee || 500}
-            description={selectedService?.label || "Video Consultation"}
-            className="w-full"
-          >
-            Pay INR {(selectedService?.videoConsultationFee || 500).toLocaleString("en-IN")}
-          </PaymentButton>
+          {!videoPaymentCompleted && selectedVideoConsultationFee > 0 ? (
+            <PaymentButton
+              appointmentId={bookedAppointmentId}
+              amount={selectedVideoConsultationFee}
+              description={selectedService?.label || "Video Consultation"}
+              className="w-full"
+              onSuccess={() => {
+                setVideoPaymentCompleted(true);
+                queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+                queryClient.invalidateQueries({ queryKey: ["appointments"] });
+              }}
+            >
+              Pay INR {selectedVideoConsultationFee.toLocaleString("en-IN")}
+            </PaymentButton>
+          ) : !videoPaymentCompleted ? (
+            <div className="w-full rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-center text-sm text-amber-700 dark:text-amber-300">
+              Video consultation fee is not available for this service yet.
+            </div>
+          ) : (
+            <div className="w-full rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 p-3 text-center text-sm text-green-700 dark:text-green-300">
+              Payment completed. You can check the appointment status from your appointments page.
+            </div>
+          )}
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm text-center">
-          <div className="flex justify-center w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 items-center mb-1">
+        <div className="flex flex-col gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm">
+          <div className="flex justify-center w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 items-center mx-auto mb-1">
             <QrCode className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
-          <h4 className="font-semibold text-sm">Fast Self Check-in Available</h4>
-          <p className="text-xs text-muted-foreground">
-            When you arrive at the clinic, simply scan the Reception QR code using your phone to instantly check-in to this appointment.
-          </p>
+          <div className="text-center">
+            <h4 className="font-semibold text-sm">
+              {isPatientInPersonFlow ? "Your Next Steps" : "Fast Self Check-in Available"}
+            </h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isPatientInPersonFlow
+                ? "Please reach the clinic a little before your appointment time. Once you arrive, open the check-in page and scan the reception QR to join the live queue."
+                : "When you arrive at the clinic, simply scan the Reception QR code using your phone to instantly check-in to this appointment."}
+            </p>
+          </div>
+
+          {isPatientInPersonFlow && (
+            <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-3 text-xs text-blue-900 dark:text-blue-100 space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 font-bold">1.</span>
+                <span>Arrive at the clinic before your slot to avoid delays.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 font-bold">2.</span>
+                <span>Use the QR scanner at the clinic to check in for this appointment.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 font-bold">3.</span>
+                <span>You can open the check-in page anytime from the button below.</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -963,18 +1024,34 @@ export function BookAppointmentDialog({
         ) : null)}
       </div>
 
-      <Button
-        className="w-full"
-        onClick={() => {
-          setOpen(false);
-          // Ensure users land on appointment list after successful booking.
-          if (pathname !== postBookingRoute) {
-            router.push(postBookingRoute);
-          }
-        }}
-      >
-        {postBookingLabel}
-      </Button>
+      <div className="w-full space-y-2">
+        {isPatientInPersonFlow && (
+          <Button
+            className="w-full"
+            onClick={() => {
+              setOpen(false);
+              if (pathname !== patientCheckInRoute) {
+                router.push(patientCheckInRoute);
+              }
+            }}
+          >
+            Open Check-in Page
+          </Button>
+        )}
+
+        <Button
+          variant={isPatientInPersonFlow ? "outline" : "default"}
+          className="w-full"
+          onClick={() => {
+            setOpen(false);
+            if (pathname !== postBookingRoute) {
+              router.push(postBookingRoute);
+            }
+          }}
+        >
+          {postBookingLabel}
+        </Button>
+      </div>
     </div>
   );
 

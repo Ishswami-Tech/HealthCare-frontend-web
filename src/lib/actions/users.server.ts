@@ -30,10 +30,20 @@ async function executeAction<T>(
   }
 }
 
+async function requestUserApi<T>(
+  endpoint: string,
+  options: RequestInit & { omitClinicId?: boolean } = {}
+): Promise<T> {
+  const { data } = await authenticatedApi<T>(endpoint, {
+    ...options,
+    omitClinicId: options.omitClinicId ?? true,
+  });
+  return data;
+}
+
 export async function getUserProfile() {
   return executeAction('getUserProfile', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.PROFILE, { method: 'GET' });
-    return data;
+    return await requestUserApi(API_ENDPOINTS.USERS.PROFILE, { method: 'GET' });
   });
 }
 
@@ -121,32 +131,28 @@ export async function updateUserProfile(profileData: Record<string, unknown>) {
 
 export async function getUserById(id: string) {
   return executeAction('getUserById', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_ID(id), { method: 'GET' });
-    return data;
+    return await requestUserApi(API_ENDPOINTS.USERS.GET_BY_ID(id), { method: 'GET' });
   }, { userId: id });
 }
 
 export async function updateUser(id: string, data: Record<string, unknown>) {
   return executeAction('updateUser', async () => {
-    const { data: updatedData } = await authenticatedApi(API_ENDPOINTS.USERS.UPDATE(id), { 
+    return await requestUserApi(API_ENDPOINTS.USERS.UPDATE(id), { 
       method: 'PATCH', 
       body: JSON.stringify(data) 
     });
-    return updatedData;
   }, { userId: id });
 }
 
 export async function deleteUser(id: string) {
   return executeAction('deleteUser', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.DELETE(id), { method: 'DELETE' });
-    return data;
+    return await requestUserApi(API_ENDPOINTS.USERS.DELETE(id), { method: 'DELETE' });
   }, { userId: id });
 }
 
 export async function getAllUsers() {
   return executeAction('getAllUsers', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_ALL, { method: 'GET' });
-    return data;
+    return await requestUserApi(API_ENDPOINTS.USERS.GET_ALL, { method: 'GET' });
   });
 }
 
@@ -182,11 +188,10 @@ export async function createUser(userData: {
   zipCode?: string;
 }) {
   return executeAction('createUser', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.BASE, {
+    return await requestUserApi(API_ENDPOINTS.USERS.BASE, {
       method: 'POST',
       body: JSON.stringify(userData)
     });
-    return data;
   }, { email: userData.email, role: userData.role });
 }
 
@@ -204,11 +209,10 @@ export async function updateUserRole(
     if (options?.clinicId) body.clinicId = options.clinicId;
     if (options?.locationId) body.locationId = options.locationId;
     if (options?.permissions) body.permissions = options.permissions;
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.UPDATE_ROLE(userId), {
+    return await requestUserApi(API_ENDPOINTS.USERS.UPDATE_ROLE(userId), {
       method: 'PUT',
       body: JSON.stringify(body)
     });
-    return data;
   }, { userId, role });
 }
 
@@ -217,11 +221,22 @@ export async function updateUserRole(
  */
 export async function getUsersByRole(role: string) {
   return executeAction('getUsersByRole', async () => {
-    // Use search endpoint which supports role filtering
-    // Function reused from searchUsers
-    const params = new URLSearchParams({ roles: role });
-    const { data } = await authenticatedApi(`${API_ENDPOINTS.USERS.SEARCH}?${params.toString()}`, { method: 'GET' });
-    return data;
+    const normalizedRole = role.trim().toUpperCase();
+    const roleEndpointMap: Record<string, string> = {
+      PATIENT: API_ENDPOINTS.USERS.GET_BY_ROLE.PATIENT,
+      DOCTOR: API_ENDPOINTS.USERS.GET_BY_ROLE.DOCTORS,
+      ASSISTANT_DOCTOR: API_ENDPOINTS.USERS.GET_BY_ROLE.DOCTORS,
+      RECEPTIONIST: API_ENDPOINTS.USERS.GET_BY_ROLE.RECEPTIONISTS,
+      CLINIC_ADMIN: API_ENDPOINTS.USERS.GET_BY_ROLE.CLINIC_ADMINS,
+    };
+
+    const endpoint = roleEndpointMap[normalizedRole];
+    if (endpoint) {
+      return await requestUserApi(endpoint, { method: 'GET' });
+    }
+
+    const params = new URLSearchParams({ q: '', roles: role });
+    return await requestUserApi(`${API_ENDPOINTS.USERS.SEARCH}?${params.toString()}`, { method: 'GET' });
   }, { role });
 }
 
@@ -252,8 +267,7 @@ export async function searchUsers(query: string, filters?: {
         }
       });
     }
-    const { data } = await authenticatedApi(`${API_ENDPOINTS.USERS.SEARCH}?${params.toString()}`, { method: 'GET' });
-    return data;
+    return await requestUserApi(`${API_ENDPOINTS.USERS.SEARCH}?${params.toString()}`, { method: 'GET' });
   }, { query, filters });
 }
 
@@ -262,8 +276,7 @@ export async function searchUsers(query: string, filters?: {
  */
 export async function getUserStats() {
   return executeAction('getUserStats', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.STATS, { method: 'GET' });
-    return data;
+    return await requestUserApi(API_ENDPOINTS.USERS.STATS, { method: 'GET' });
   });
 }
 
@@ -272,11 +285,10 @@ export async function getUserStats() {
  */
 export async function bulkUpdateUsers(userIds: string[], updates: Record<string, string | number | boolean>) {
   return executeAction('bulkUpdateUsers', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.BULK_UPDATE, {
+    return await requestUserApi(API_ENDPOINTS.USERS.BULK_UPDATE, {
       method: 'PATCH',
       body: JSON.stringify({ userIds, updates })
     });
-    return data;
   }, { userIdsCount: userIds.length });
 }
 
@@ -293,8 +305,7 @@ export async function exportUsers(format: 'csv' | 'excel' = 'csv', filters?: Rec
         }
       });
     }
-    const { data } = await authenticatedApi(`${API_ENDPOINTS.USERS.EXPORT}?${params.toString()}`, { method: 'GET' });
-    return data;
+    return await requestUserApi(`${API_ENDPOINTS.USERS.EXPORT}?${params.toString()}`, { method: 'GET' });
   }, { format });
 }
 
@@ -303,11 +314,10 @@ export async function exportUsers(format: 'csv' | 'excel' = 'csv', filters?: Rec
  */
 export async function changeUserPassword(userId: string, newPassword: string) {
   return executeAction('changeUserPassword', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.CHANGE_PASSWORD(userId), {
+    return await requestUserApi(API_ENDPOINTS.USERS.CHANGE_PASSWORD(userId), {
       method: 'PATCH',
       body: JSON.stringify({ password: newPassword })
     });
-    return data;
   }, { userId });
 }
 
@@ -316,11 +326,10 @@ export async function changeUserPassword(userId: string, newPassword: string) {
  */
 export async function toggleUserVerification(userId: string, isVerified: boolean) {
   return executeAction('toggleUserVerification', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.TOGGLE_VERIFICATION(userId), {
+    return await requestUserApi(API_ENDPOINTS.USERS.TOGGLE_VERIFICATION(userId), {
       method: 'PATCH',
       body: JSON.stringify({ isVerified })
     });
-    return data;
   }, { userId, isVerified });
 }
 
@@ -329,8 +338,7 @@ export async function toggleUserVerification(userId: string, isVerified: boolean
  */
 export async function getUserActivityLogs(userId: string, limit: number = 50) {
   return executeAction('getUserActivityLogs', async () => {
-    const { data } = await authenticatedApi(`${API_ENDPOINTS.USERS.ACTIVITY_LOGS(userId)}?limit=${limit}`, { method: 'GET' });
-    return data;
+    return await requestUserApi(`${API_ENDPOINTS.USERS.ACTIVITY_LOGS(userId)}?limit=${limit}`, { method: 'GET' });
   }, { userId, limit });
 }
 
@@ -340,8 +348,7 @@ export async function getUserActivityLogs(userId: string, limit: number = 50) {
 export async function getUserSessions(userId: string) {
   return executeAction('getUserSessions', async () => {
     // SESSIONS is an object, use GET_ALL and pass userId as query param
-    const { data } = await authenticatedApi(`${API_ENDPOINTS.USERS.SESSIONS.GET_ALL}?userId=${userId}`, { method: 'GET' });
-    return data;
+    return await requestUserApi(`${API_ENDPOINTS.USERS.SESSIONS.GET_ALL}?userId=${userId}`, { method: 'GET' });
   }, { userId });
 }
 
@@ -351,8 +358,7 @@ export async function getUserSessions(userId: string) {
 export async function terminateUserSession(userId: string, sessionId: string) {
   return executeAction('terminateUserSession', async () => {
     // TERMINATE_SESSION takes only sessionId
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.TERMINATE_SESSION(sessionId), { method: 'DELETE' });
-    return data;
+    return await requestUserApi(API_ENDPOINTS.USERS.TERMINATE_SESSION(sessionId), { method: 'DELETE' });
   }, { userId, sessionId });
 }
 
@@ -361,10 +367,9 @@ export async function terminateUserSession(userId: string, sessionId: string) {
  */
 export async function changeUserLocation(userId: string, locationId: string) {
   return executeAction('changeUserLocation', async () => {
-    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.CHANGE_LOCATION(userId), {
+    return await requestUserApi(API_ENDPOINTS.USERS.CHANGE_LOCATION(userId), {
       method: 'POST',
       body: JSON.stringify({ locationId })
     });
-    return data;
   }, { userId, locationId });
 }

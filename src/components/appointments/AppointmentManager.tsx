@@ -28,11 +28,18 @@ import {
   useRejectVideoProposal,
 } from "@/hooks/query/useAppointments";
 import { useQueryClient } from "@/hooks/core";
+import { useAppointmentsStore } from "@/stores";
 import {
   AppointmentWithRelations,
 } from "@/types/appointment.types";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { cn } from "@/lib/utils";
+import {
+  formatDateInIST,
+  getAppointmentDateTimeValue,
+  isVideoAppointmentPaymentCompleted,
+  normalizePatientAppointment,
+} from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
   Clock,
@@ -48,7 +55,6 @@ import {
   CalendarPlus,
   Timer,
 } from "lucide-react";
-import { format } from "date-fns";
 
 type StatusFilter = "ALL" | "SCHEDULED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
@@ -72,7 +78,7 @@ export default function AppointmentManager() {
   const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
 
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("SCHEDULED");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
@@ -80,6 +86,17 @@ export default function AppointmentManager() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const lastSyncedAppointmentsRef = useRef("");
+  const storeAppointmentIds = useAppointmentsStore((state) => state.appointmentIds);
+  const storeAppointmentsById = useAppointmentsStore((state) => state.appointments);
+  const setAppointmentsInStore = useAppointmentsStore((state) => state.setAppointments);
+  const storeAppointments = useMemo(
+    () =>
+      storeAppointmentIds
+        .map((id) => storeAppointmentsById[id])
+        .filter((appointment): appointment is AppointmentWithRelations => appointment !== undefined),
+    [storeAppointmentIds, storeAppointmentsById]
+  );
 
   // Data
   const { data: appointments, isPending: appointmentsLoading, isFetching: appointmentsFetching, refetch } = useMyAppointments({
@@ -103,7 +120,66 @@ export default function AppointmentManager() {
     return list;
   }, [appointmentData]);
 
-  const allAppointments = fetchedAppointments;
+  useEffect(() => {
+    const syncKey = fetchedAppointments
+      .map((appointment) => `${appointment.id}:${appointment.updatedAt}:${appointment.status}`)
+      .join("|");
+
+    if (fetchedAppointments.length > 0 && syncKey !== lastSyncedAppointmentsRef.current) {
+      lastSyncedAppointmentsRef.current = syncKey;
+      setAppointmentsInStore(fetchedAppointments as any);
+    }
+  }, [fetchedAppointments, setAppointmentsInStore]);
+
+  const allAppointments = fetchedAppointments.length > 0 ? fetchedAppointments : storeAppointments;
+  const patientScopedAppointments = useMemo(() => {
+    const currentUserId = user?.id;
+    if (!currentUserId) return allAppointments;
+
+    return allAppointments.filter((appointment: any) => {
+      const candidateIds = [
+        appointment?.patientId,
+        appointment?.patient?.id,
+        appointment?.patient?.userId,
+        appointment?.patient?.user?.id,
+        appointment?.userId,
+      ]
+        .filter((value): value is string => typeof value === "string" && value.length > 0);
+
+      return candidateIds.includes(currentUserId);
+    });
+  }, [allAppointments, user?.id]);
+
+  const normalizedAppointments = useMemo(() => {
+    return patientScopedAppointments
+      .map((appointment) => {
+        const normalized = normalizePatientAppointment(appointment);
+        return {
+          ...appointment,
+          location: {
+            ...(appointment.location || {}),
+            name: normalized.locationName,
+          },
+          doctorLabel: normalized.doctorName,
+          locationLabel: normalized.locationName,
+          normalizedDate: normalized.normalizedDate,
+          normalizedTime: normalized.normalizedTime,
+          appointmentDateTime: normalized.dateTime,
+        } as any;
+      })
+      .sort((a, b) => {
+        const aCancelled = a.status === "CANCELLED";
+        const bCancelled = b.status === "CANCELLED";
+
+        if (aCancelled !== bCancelled) {
+          return aCancelled ? 1 : -1;
+        }
+
+        const aTime = a.appointmentDateTime?.getTime() ?? 0;
+        const bTime = b.appointmentDateTime?.getTime() ?? 0;
+        return bTime - aTime;
+      });
+  }, [patientScopedAppointments]);
 
   const filteredAppointments = useMemo(() => {
     const parseAppointmentDate = (value: string) => {
@@ -114,32 +190,41 @@ export default function AppointmentManager() {
     const startDate = dateFilter.start ? parseAppointmentDate(`${dateFilter.start}T00:00:00`) : null;
     const endDate = dateFilter.end ? parseAppointmentDate(`${dateFilter.end}T23:59:59.999`) : null;
 
-    return allAppointments.filter(apt => {
-      const matchesStatus = statusFilter === "ALL" || apt.status === statusFilter;
+    return normalizedAppointments.filter(apt => {
+      const matchesStatus =
+        statusFilter === "ALL"
+          ? apt.status !== "CANCELLED"
+          : apt.status === statusFilter;
       const q = searchQuery.toLowerCase();
       const matchesSearch = !q ||
+        apt.doctorLabel.toLowerCase().includes(q) ||
         apt.doctor?.user?.firstName?.toLowerCase().includes(q) ||
         apt.doctor?.user?.lastName?.toLowerCase().includes(q) ||
-        apt.location?.name?.toLowerCase().includes(q) ||
+        (apt as any).doctorName?.toLowerCase().includes(q) ||
+        apt.locationLabel.toLowerCase().includes(q) ||
+        (apt as any).locationName?.toLowerCase().includes(q) ||
         apt.status?.toLowerCase().includes(q);
-      const appointmentDate = parseAppointmentDate(`${apt.date}T${apt.time || '00:00'}:00`);
+      const appointmentDate = apt.appointmentDateTime;
       const matchesStartDate = !startDate || (appointmentDate !== null && appointmentDate >= startDate);
       const matchesEndDate = !endDate || (appointmentDate !== null && appointmentDate <= endDate);
       return matchesStatus && matchesSearch && matchesStartDate && matchesEndDate;
     });
-  }, [allAppointments, statusFilter, searchQuery, dateFilter.start, dateFilter.end]);
+  }, [normalizedAppointments, statusFilter, searchQuery, dateFilter.start, dateFilter.end]);
 
   // Stats
   const stats = useMemo(() => {
-    const total = allAppointments.length;
-    const upcoming = allAppointments.filter(a => ["SCHEDULED", "CONFIRMED"].includes(a.status)).length;
-    const completed = allAppointments.filter(a => a.status === "COMPLETED").length;
-    const inProgress = allAppointments.filter(a => a.status === "IN_PROGRESS").length;
+    const total = normalizedAppointments.length;
+    const upcoming = normalizedAppointments.filter(a => ["SCHEDULED", "CONFIRMED"].includes(a.status)).length;
+    const completed = normalizedAppointments.filter(a => a.status === "COMPLETED").length;
+    const inProgress = normalizedAppointments.filter(a => a.status === "IN_PROGRESS").length;
     return { total, upcoming, completed, inProgress };
-  }, [allAppointments]);
+  }, [normalizedAppointments]);
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("en-IN", {
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return "Date TBD";
+    return parsed.toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata",
       weekday: "short",
       day: "numeric",
       month: "short",
@@ -164,7 +249,13 @@ export default function AppointmentManager() {
 
   const formatDateValue = (value: string, placeholder: string) => {
     const parsed = parseDateValue(value);
-    return parsed ? format(parsed, "PPP") : placeholder;
+    return parsed
+      ? formatDateInIST(parsed, {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : placeholder;
   };
 
   const toDateString = (date?: Date) => {
@@ -177,7 +268,7 @@ export default function AppointmentManager() {
 
 
   const handleCancelAppointment = useCallback((id: string) => {
-    cancelAppointment({ id }, {
+    cancelAppointment({ id, reason: "Cancelled by patient during testing" }, {
       onSuccess: () => toast({ title: "Appointment Cancelled", description: "Your appointment has been cancelled.", id: TOAST_IDS.APPOINTMENT.DELETE }),
       onError: (error: Error) => toast({ title: "Error", description: sanitizeErrorMessage(error) || "Failed to cancel", variant: "destructive", id: TOAST_IDS.APPOINTMENT.DELETE }),
     });
@@ -231,7 +322,24 @@ export default function AppointmentManager() {
   const AppointmentCard = ({ apt }: { apt: AppointmentWithRelations }) => {
     const cfg = (STATUS_CONFIG[apt.status] ?? STATUS_CONFIG["SCHEDULED"]) as { label: string; color: string; dot: string; bg: string };
     const isExpanded = expandedCard === apt.id;
-    const doctorName = `${apt.doctor?.user?.firstName || ""} ${apt.doctor?.user?.lastName || ""}`.trim() || "Unknown Doctor";
+    const appointmentDateTime = getAppointmentDateTimeValue(apt);
+    const normalizedAppointment = normalizePatientAppointment(apt);
+    const doctorName = (apt as any).doctorLabel || normalizedAppointment.doctorName;
+    const locationName = (apt as any).locationLabel || normalizedAppointment.locationName;
+    const appointmentTypeLabel =
+      apt.type === "VIDEO_CALL"
+        ? "Video Consultation"
+        : apt.type === "IN_PERSON"
+          ? "In-Person Visit"
+          : String(apt.type || "Appointment").replace(/_/g, " ");
+    const displayTime =
+      apt.time ||
+      (appointmentDateTime
+        ? `${String(appointmentDateTime.getHours()).padStart(2, "0")}:${String(
+            appointmentDateTime.getMinutes()
+          ).padStart(2, "0")}`
+        : undefined);
+    const normalizedDate = appointmentDateTime?.toISOString() || apt.date;
 
     return (
       <div className={`rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md ${isExpanded ? "shadow-md" : ""} ${cfg.bg}`}>
@@ -265,13 +373,19 @@ export default function AppointmentManager() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-background/80 px-2.5 py-1 text-xs font-semibold shadow-sm dark:border-white/10">
+                {apt.type === "VIDEO_CALL" ? <Video className="w-3.5 h-3.5" /> : <Stethoscope className="w-3.5 h-3.5" />}
+                {apt.type === "VIDEO_CALL"
+                  ? "Video"
+                  : apt.type === "IN_PERSON"
+                    ? "In-Person"
+                    : apt.type.replace(/_/g, " ")}
+              </span>
               {/* Status badge */}
               <span className={`inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-background/80 px-2.5 py-1 text-xs font-semibold shadow-sm dark:border-white/10 ${cfg.color}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                 {cfg.label}
               </span>
-              {/* Type icon */}
-              {apt.type === "VIDEO_CALL" && <Video className="w-4 h-4 opacity-60" />}
               <ChevronDown className={`w-4 h-4 opacity-40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
             </div>
           </div>
@@ -280,11 +394,11 @@ export default function AppointmentManager() {
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs opacity-70">
             <span className="flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5" />
-              {formatDate(apt.date)}
+              {formatDate(normalizedDate)}
             </span>
             <span className="flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" />
-              {formatTime(apt.time)}
+              {formatTime(displayTime)}
             </span>
             {apt.duration && (
               <span className="flex items-center gap-1.5">
@@ -316,7 +430,13 @@ export default function AppointmentManager() {
                 {apt.type && (
                   <div className="rounded-lg bg-background/70 p-2.5 ring-1 ring-border/40">
                     <p className="font-semibold mb-0.5 opacity-60">Type</p>
-                    <p className="font-medium">{apt.type.replace(/_/g, " ")}</p>
+                    <p className="font-medium">
+                      {apt.type === "VIDEO_CALL"
+                        ? "Video Consultation"
+                        : apt.type === "IN_PERSON"
+                          ? "In-Person Visit"
+                          : apt.type.replace(/_/g, " ")}
+                    </p>
                   </div>
                 )}
               </div>
@@ -330,7 +450,10 @@ export default function AppointmentManager() {
                     className="h-8 col-span-1 border-border/60 bg-background/80 text-xs"
                     onClick={() => {
                       setSelectedAppointment(apt as AppointmentWithRelations);
-                      setRescheduleData({ date: apt.date, time: apt.time });
+                      setRescheduleData({
+                        date: normalizedDate ? normalizedDate.slice(0, 10) : "",
+                        time: displayTime || "",
+                      });
                       setIsRescheduleDialogOpen(true);
                     }}
                   >
@@ -362,7 +485,9 @@ export default function AppointmentManager() {
                     Cancel
                   </Button>
                 )}
-                {apt.type === "VIDEO_CALL" && apt.status === "CONFIRMED" && (
+                {apt.type === "VIDEO_CALL" &&
+                  apt.status === "CONFIRMED" &&
+                  isVideoAppointmentPaymentCompleted(apt) && (
                   <Button
                     size="sm"
                     className="col-span-2 text-xs h-8 bg-indigo-600 hover:bg-indigo-700 text-white sm:flex-1"
@@ -370,6 +495,21 @@ export default function AppointmentManager() {
                   >
                     <Video className="w-3.5 h-3.5 mr-1" />
                     Join Video
+                  </Button>
+                )}
+                {apt.type === "VIDEO_CALL" &&
+                  !(apt.status === "CONFIRMED" && isVideoAppointmentPaymentCompleted(apt)) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="col-span-2 text-xs h-8 sm:flex-1"
+                    onClick={() => window.location.href = "/video-appointments"}
+                  >
+                    <Video className="w-3.5 h-3.5 mr-1" />
+                    {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED") &&
+                    !isVideoAppointmentPaymentCompleted(apt)
+                      ? "Complete Payment"
+                      : "Manage Video Appointment"}
                   </Button>
                 )}
               </div>
@@ -478,6 +618,11 @@ export default function AppointmentManager() {
             );
           })}
         </div>
+        {statusFilter === "SCHEDULED" && (
+          <p className="text-xs text-muted-foreground">
+            Default view is showing scheduled appointments first.
+          </p>
+        )}
 
         {/* Date range */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

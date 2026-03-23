@@ -1037,7 +1037,7 @@ async function setAuthCookies(data: {
 
 export async function authenticatedApi<T = unknown>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit & { omitClinicId?: boolean } = {}
 ): Promise<{ status: number; data: T }> {
   try {
     const response = await clinicApiClient.request<T>(endpoint, options);
