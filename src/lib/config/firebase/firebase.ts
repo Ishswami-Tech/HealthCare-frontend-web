@@ -46,7 +46,7 @@ export function initializeFirebase(): FirebaseApp | null {
 
     // Initialize Firebase
     firebaseApp = initializeApp(firebaseConfig);
-    console.log('Firebase initialized successfully');
+    console.debug('Firebase initialized successfully');
     return firebaseApp;
   } catch (error) {
     console.error('Failed to initialize Firebase:', error);
@@ -134,7 +134,7 @@ export async function getFCMToken(): Promise<string | null> {
     });
 
     if (token) {
-      console.log('FCM token retrieved successfully');
+      console.debug('FCM token retrieved successfully');
       return token;
     } else {
       console.warn('No FCM token available');

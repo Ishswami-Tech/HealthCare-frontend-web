@@ -1,6 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
+import { isApiError } from '@/lib/utils/error-handler';
 import { API_ENDPOINTS } from '../config/config';
 
 // ===== COMPREHENSIVE HEALTH RECORD =====
@@ -12,9 +13,9 @@ export async function getComprehensiveHealthRecord(userId: string) {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.EHR.COMPREHENSIVE(userId));
     return data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If it's the profile incomplete error, return null or an empty default state
-    if (error?.statusCode === 403 && error?.code === 'Profile Incomplete') {
+    if (isApiError(error) && error.statusCode === 403 && error.code === 'Profile Incomplete') {
       return null;
     }
     // Re-throw other unexpected errors

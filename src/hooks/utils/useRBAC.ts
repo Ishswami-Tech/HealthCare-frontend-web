@@ -162,7 +162,7 @@ export const useDoctorPermissions = () => {
     canCreateDoctors: rbac.hasPermission(Permission.CREATE_DOCTORS),
     canUpdateDoctors: rbac.hasPermission(Permission.UPDATE_DOCTORS),
     canDeleteDoctors: rbac.hasPermission(Permission.DELETE_DOCTORS),
-    canManageSchedule: rbac.hasPermission(Permission.UPDATE_DOCTORS),
+    canManageSchedule: rbac.hasPermission(Permission.MANAGE_DOCTOR_SCHEDULE),
   };
 };
 
@@ -177,8 +177,8 @@ export const useClinicPermissions = () => {
     canCreateClinics: rbac.hasPermission(Permission.CREATE_CLINICS),
     canUpdateClinics: rbac.hasPermission(Permission.UPDATE_CLINICS),
     canDeleteClinics: rbac.hasPermission(Permission.DELETE_CLINICS),
-    canManageSettings: rbac.hasPermission(Permission.UPDATE_CLINICS),
-    canManageStaff: rbac.hasPermission(Permission.UPDATE_CLINICS),
+    canManageSettings: rbac.hasPermission(Permission.MANAGE_CLINIC_SETTINGS),
+    canManageStaff: rbac.hasPermission(Permission.UPDATE_USERS),
   };
 };
 

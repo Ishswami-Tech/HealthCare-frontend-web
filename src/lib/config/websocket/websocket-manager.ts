@@ -38,7 +38,7 @@ export class WebSocketManager {
     this.defaultUrl = options.url || this.defaultUrl;
     this.isInitialized = true;
 
-    console.log('🚀 WebSocketManager initialized with URL:', this.defaultUrl);
+    console.debug('🚀 WebSocketManager initialized with URL:', this.defaultUrl);
 
     // Auto-connect if specified
     if (options.autoConnect) {
@@ -85,7 +85,7 @@ export class WebSocketManager {
       });
 
       this.activeConnections.set(connectionKey, true);
-      console.log(`📡 Connected to ${connectionKey}`);
+      console.debug(`📡 Connected to ${connectionKey}`);
 
     } catch (error) {
       console.error(`Failed to connect to ${connectionKey}:`, error);
@@ -105,7 +105,7 @@ export class WebSocketManager {
     disconnect();
     
     this.activeConnections.delete(connectionKey);
-    console.log(`🔌 Disconnected from ${connectionKey}`);
+    console.debug(`🔌 Disconnected from ${connectionKey}`);
   }
 
   emit(event: string, data: SocketEventData, _namespace = '') {
@@ -216,7 +216,7 @@ export class WebSocketManager {
   }
 
   destroy() {
-    console.log('🧹 Cleaning up WebSocketManager');
+    console.debug('🧹 Cleaning up WebSocketManager');
     
     // Disconnect all active connections
     for (const _connectionKey of this.activeConnections.keys()) {

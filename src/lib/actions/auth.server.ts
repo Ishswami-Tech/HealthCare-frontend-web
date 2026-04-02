@@ -19,6 +19,7 @@ import { calculateProfileCompletion } from '@/lib/config/profile';
 import { cookies, headers as getHeaders } from 'next/headers';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 import { logger } from '@/lib/utils/logger';
+import { isApiError } from '@/lib/utils/error-handler';
 import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
 import { revalidateTag } from 'next/cache';
 import { clinicApiClient } from '@/lib/api/client';
@@ -218,7 +219,11 @@ export async function getServerSession(): Promise<Session | null> {
         session.user.id = payload.sub || '';
         session.user.email = payload.email || '';
         session.user.role = payload.role || userRole as Role;
-        
+        // Fallback: read clinicId from JWT payload if cookie didn't provide it
+        if (!session.user.clinicId && payload.clinicId) {
+          session.user.clinicId = payload.clinicId;
+        }
+
         if (session.user.id && session.user.email && session.user.role) {
           return session;
         }
@@ -1045,9 +1050,9 @@ export async function authenticatedApi<T = unknown>(
       status: response.statusCode || 200, 
       data: response.data as T 
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Gracefully handle "Profile Incomplete" to prevent Next.js from crashing
-    if (error?.statusCode === 403 && error?.code === 'Profile Incomplete') {
+    if (isApiError(error) && error.statusCode === 403 && error.code === 'Profile Incomplete') {
       try {
         const cookieStore = await cookies();
         cookieStore.set({

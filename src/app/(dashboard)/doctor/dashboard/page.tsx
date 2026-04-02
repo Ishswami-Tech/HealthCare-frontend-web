@@ -52,10 +52,14 @@ export default function DoctorDashboard() {
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
 
+  // IST date for server-side filtering
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+
   // Fetch real data using existing hooks and server actions
-  const { data: appointments, isPending: isAppointmentsPending } = useAppointments({
+  const { data: appointments, isPending: isAppointmentsPending, error: appointmentsError } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
     ...(user?.id ? { doctorId: user.id } : {}),
+    date: today,
     limit: 100,
   });
   const startAppointmentMutation = useStartAppointment();
@@ -69,9 +73,12 @@ export default function DoctorDashboard() {
 
   // Today's appointments from real data (sorted by time)
   const todaysAppointments = useMemo(() => {
-    const todayStr = new Date().toDateString();
+    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     return appointmentsArray
-      .filter((apt: AppointmentWithRelations) => new Date(apt.date).toDateString() === todayStr)
+      .filter((apt: AppointmentWithRelations) => {
+        const aptDate = apt.date || (apt as unknown as Record<string, unknown>).appointmentDate?.toString().split("T")?.[0] || "";
+        return aptDate === todayStr;
+      })
       .sort(
         (a: AppointmentWithRelations, b: AppointmentWithRelations) =>
           (a.time || "").localeCompare(b.time || "", undefined, { numeric: true })
@@ -120,18 +127,17 @@ export default function DoctorDashboard() {
   );
 
   const stats = useMemo(() => {
-    const todayStr = new Date().toDateString();
-    const todayApts = appointmentsArray.filter((apt: AppointmentWithRelations) => 
-      new Date(apt.date).toDateString() === todayStr
-    );
+    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const todayApts = appointmentsArray.filter((apt: AppointmentWithRelations) => {
+      const aptDate = apt.date || (apt as unknown as Record<string, unknown>).appointmentDate?.toString().split("T")?.[0] || "";
+      return aptDate === todayStr;
+    });
 
     return {
       todayAppointments: todayApts.length,
       checkedInPatients: todayApts.filter((apt: AppointmentWithRelations) => apt.status === "CONFIRMED").length,
       completedToday: todayApts.filter((apt: AppointmentWithRelations) => apt.status === "COMPLETED").length,
       totalPatients: new Set(appointmentsArray.map((apt: AppointmentWithRelations) => apt.patientId)).size,
-      avgConsultationTime: 25, // Ideally derived from backend analytics
-      patientSatisfaction: 4.8, // Ideally derived from backend reviews
       nextAppointment: todaysAppointments.find(
         (a: TransformedAppointment) =>
           a.statusEnum === "SCHEDULED" ||
@@ -172,7 +178,7 @@ export default function DoctorDashboard() {
           "In Progress": "bg-blue-100 text-blue-800",
           "Confirmed": "bg-green-100 text-green-800",
           "Scheduled": "bg-slate-100 text-slate-800",
-          "Completed": "bg-purple-100 text-purple-800",
+          "Completed": "bg-emerald-100 text-emerald-800",
         };
         return (
           <Badge variant="secondary" className={`${colors[row.original.status] || "bg-slate-100"} border-none text-[10px]`}>
@@ -251,6 +257,14 @@ export default function DoctorDashboard() {
     );
   }
 
+  if (appointmentsError && appointmentsArray.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64 text-sm text-muted-foreground">
+        Error loading appointments: {appointmentsError.message}
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -268,9 +282,9 @@ export default function DoctorDashboard() {
             })}
           </p>
         </div>
-        <div className="text-left md:text-right p-4 bg-blue-50 rounded-lg border border-blue-100">
-          <div className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-1">Next Appointment</div>
-          <div className="text-2xl font-bold text-blue-700">
+        <div className="text-left md:text-right p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+          <div className="text-xs font-semibold uppercase tracking-wider text-emerald-600 mb-1">Next Appointment</div>
+          <div className="text-2xl font-bold text-emerald-700">
             {stats.nextAppointment}
           </div>
         </div>
@@ -313,16 +327,6 @@ export default function DoctorDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Consultation</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.avgConsultationTime} min</div>
-            <p className="text-xs text-muted-foreground">Per patient visit</p>
-          </CardContent>
-        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -381,7 +385,7 @@ export default function DoctorDashboard() {
                 className="w-full justify-start h-11"
                 onClick={() => router.push("/doctor/patients")}
               >
-                <Users className="w-4 h-4 mr-2 text-purple-600" />
+                <Users className="w-4 h-4 mr-2 text-emerald-600" />
                 View Patient Directory
               </Button>
             </CardContent>
@@ -389,24 +393,18 @@ export default function DoctorDashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Patient Satisfaction</CardTitle>
+              <CardTitle className="text-lg">Appointment Progress</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-600">
-                {stats.patientSatisfaction}/5.0
+                {stats.completedToday}/{stats.todayAppointments}
               </div>
-              <p className="text-sm text-muted-foreground mt-1">Average rating this month</p>
-              <div className="mt-4 flex items-center gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-4 h-4 rounded-full ${
-                      i < Math.floor(stats.patientSatisfaction)
-                        ? "bg-green-500"
-                        : "bg-slate-200"
-                    }`}
-                  />
-                ))}
+              <p className="text-sm text-muted-foreground mt-1">Completed of today's appointments</p>
+              <div className="mt-4 w-full bg-slate-200 rounded-full h-2">
+                <div
+                  className="bg-green-500 h-2 rounded-full transition-all"
+                  style={{ width: stats.todayAppointments > 0 ? `${Math.round((stats.completedToday / stats.todayAppointments) * 100)}%` : '0%' }}
+                />
               </div>
             </CardContent>
           </Card>

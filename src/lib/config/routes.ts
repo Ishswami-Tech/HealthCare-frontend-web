@@ -120,6 +120,35 @@ export function getProtectedRouteRoles(path: string): string[] {
   if (path.startsWith('/finance-billing')) return [Role.FINANCE_BILLING];
   if (path.startsWith('/counselor')) return [Role.COUNSELOR];
 
+  // Shared routes — proxy-level RBAC matching sidebar access and backend controller roles
+  if (path.startsWith('/queue')) return [
+    Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
+    Role.RECEPTIONIST, Role.CLINIC_LOCATION_HEAD,
+    Role.THERAPIST, Role.NURSE, Role.COUNSELOR,
+    Role.PATIENT,
+  ];
+
+  if (path.startsWith('/billing')) return [
+    Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
+    Role.RECEPTIONIST, Role.PHARMACIST,
+    Role.CLINIC_LOCATION_HEAD, Role.THERAPIST,
+    Role.NURSE, Role.COUNSELOR,
+    Role.LAB_TECHNICIAN, Role.SUPPORT_STAFF,
+    Role.FINANCE_BILLING,
+  ];
+
+  if (path.startsWith('/pharmacy')) return [
+    Role.PHARMACIST, Role.CLINIC_ADMIN, Role.SUPER_ADMIN,
+  ];
+
+  if (path.startsWith('/video-appointments')) return [
+    Role.THERAPIST, Role.COUNSELOR,
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
+    Role.PATIENT, Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+  ];
+
   return [];
 }
 

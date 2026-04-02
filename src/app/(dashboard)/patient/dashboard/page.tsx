@@ -42,6 +42,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ClinicSelectDialog } from "@/components/appointments/ClinicSelectDialog";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
+import { PatientPageHeader, PatientPageShell } from "@/components/patient/PatientPageShell";
 
 export default function PatientDashboard() {
   const { session } = useAuth();
@@ -101,7 +102,7 @@ export default function PatientDashboard() {
         if (!dateString) return "";
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return "";
-        return date.toLocaleDateString("en-US", options);
+        return date.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", ...options });
       } catch (e) {
         return "";
       }
@@ -112,7 +113,7 @@ export default function PatientDashboard() {
         if (!dateString) return "";
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return "";
-        return date.toLocaleTimeString("en-US", options);
+        return date.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", ...options });
       } catch (e) {
         return "";
       }
@@ -150,9 +151,12 @@ export default function PatientDashboard() {
             const normalized = normalizePatientAppointment(apt);
             const appointmentStart = normalized.dateTime;
             const status = String(apt?.status || "").toUpperCase();
+            // Show today + future appointments that are active (not just strictly future time)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             return (
               appointmentStart !== null &&
-              appointmentStart >= new Date() &&
+              appointmentStart >= today &&
               activeUpcomingStatuses.has(status)
             );
           })
@@ -303,24 +307,17 @@ export default function PatientDashboard() {
   };
 
   return (
-    
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="max-w-full overflow-hidden">
-              <h1
-                className={`text-2xl sm:text-3xl font-bold bg-linear-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent truncate`}
-              >
-                {t("dashboard.welcomeBack")},{" "}
-                {patientData.personalInfo.name.split(" ")[0]}
-              </h1>
-              <p className={theme.textColors.muted}>
-                {t("dashboard.overview")}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+        <PatientPageShell>
+          <PatientPageHeader
+            eyebrow="Patient Dashboard"
+            title={`${t("dashboard.welcomeBack")}, ${patientData.personalInfo.name.split(" ")[0]}`}
+            description={t("dashboard.overview")}
+          />
+
+          <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
-                className="flex items-center gap-2 hover:scale-105 transition-transform"
+                className="flex items-center gap-2 rounded-xl border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all"
                 onClick={() => router.push('/patient/check-in')}
               >
                 <div className="w-4 h-4 flex items-center justify-center border-2 border-current rounded-sm">
@@ -330,7 +327,7 @@ export default function PatientDashboard() {
               </Button>
               <Button
                 variant="outline"
-                className="flex items-center gap-2 hover:scale-105 transition-transform"
+                className="flex items-center gap-2 rounded-xl border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition-all"
                 onClick={() => router.push("/video-appointments")}
               >
                 <Video className="w-4 h-4" />
@@ -338,13 +335,15 @@ export default function PatientDashboard() {
               </Button>
               <ClinicSelectDialog 
                 trigger={
-                  <Button className="flex items-center gap-2 hover:scale-105 transition-transform bg-linear-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500">
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2 rounded-xl border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 font-semibold transition-all"
+                  >
                     <Plus className="w-4 h-4" />
                     {t("dashboard.bookAppointment")}
                   </Button>
                 }
               />
-            </div>
           </div>
 
           
@@ -363,19 +362,17 @@ export default function PatientDashboard() {
                  <Skeleton className="h-3 w-1/2" />
                </div>
             ) : patientData.hasDoshaData ? (
-            <Card
-              className={`hover:shadow-lg transition-shadow duration-300 border-l-4 ${theme.borders.green}`}
-            >
+            <Card className="hover:shadow-lg transition-shadow duration-300 border-l-4 border-l-emerald-400 border-t-emerald-100/50">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle
-                  className={`text-sm font-medium ${theme.textColors.heading}`}
-                >
+                <CardTitle className={`text-sm font-medium ${theme.textColors.heading}`}>
                   {t("healthcare.diagnosis")}
                 </CardTitle>
-                <Leaf className={`h-4 w-4 ${theme.iconColors.green}`} />
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                  <Leaf className="h-4 w-4 text-emerald-600" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className={`text-2xl font-bold ${theme.iconColors.green}`}>
+                <div className="text-2xl font-bold text-emerald-600">
                   {patientData.doshaBalance.dominant}
                 </div>
                 <p className={`text-xs ${theme.textColors.muted}`}>
@@ -387,19 +384,17 @@ export default function PatientDashboard() {
 
             {/* Treatment Card */}
             {patientData.hasTreatmentData ? (
-            <Card
-              className={`hover:shadow-lg transition-shadow duration-300 border-l-4 ${theme.borders.blue}`}
-            >
+            <Card className="hover:shadow-lg transition-shadow duration-300 border-l-4 border-l-blue-400">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle
-                  className={`text-sm font-medium ${theme.textColors.heading}`}
-                >
+                <CardTitle className={`text-sm font-medium ${theme.textColors.heading}`}>
                   {t("healthcare.treatment")}
                 </CardTitle>
-                <Activity className={`h-4 w-4 ${theme.iconColors.blue}`} />
+                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center">
+                  <Activity className="h-4 w-4 text-blue-600" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className={`text-2xl font-bold ${theme.iconColors.blue}`}>
+                <div className="text-2xl font-bold text-blue-600">
                   {patientData.healthOverview.treatmentProgress}%
                 </div>
                 <p className={`text-xs ${theme.textColors.muted}`}>
@@ -417,19 +412,17 @@ export default function PatientDashboard() {
                  <Skeleton className="h-3 w-1/2" />
                </div>
             ) : (
-            <Card
-              className={`hover:shadow-lg transition-shadow duration-300 border-l-4 ${theme.borders.purple}`}
-            >
+            <Card className="hover:shadow-lg transition-shadow duration-300 border-l-4 border-l-amber-400">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle
-                  className={`text-sm font-medium ${theme.textColors.heading}`}
-                >
+                <CardTitle className={`text-sm font-medium ${theme.textColors.heading}`}>
                   {t("appointments.upcoming")}
                 </CardTitle>
-                <Calendar className={`h-4 w-4 ${theme.iconColors.purple}`} />
+                <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center">
+                  <Calendar className="h-4 w-4 text-amber-600" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className={`text-lg font-bold ${theme.iconColors.purple}`}>
+                <div className={`text-lg font-bold text-primary`}>
                   {patientData.healthOverview.nextAppointment ? new Date(
                     patientData.healthOverview.nextAppointment
                   ).toLocaleDateString("en-IN", {
@@ -458,17 +451,17 @@ export default function PatientDashboard() {
                  <Skeleton className="h-3 w-1/2" />
                </div>
             ) : patientData.hasVitalData ? (
-            <Card>
+            <Card className="hover:shadow-lg transition-shadow duration-300 border-l-4 border-l-red-400">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle
-                  className={`text-sm font-medium ${theme.textColors.heading}`}
-                >
+                <CardTitle className={`text-sm font-medium ${theme.textColors.heading}`}>
                   Vital Stats
                 </CardTitle>
-                <Heart className={`h-4 w-4 ${theme.iconColors.red}`} />
+                <div className="w-8 h-8 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center">
+                  <Heart className="h-4 w-4 text-red-500" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className={`text-lg font-bold ${theme.iconColors.red}`}>
+                <div className="text-lg font-bold text-red-500">
                   {patientData.vitalStats.bloodPressure}
                 </div>
                 <p className={`text-xs ${theme.textColors.muted}`}>
@@ -479,13 +472,15 @@ export default function PatientDashboard() {
             ) : null}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.95fr] gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.35fr_0.95fr] gap-6">
             {/* Dosha Balance Chart */}
             {patientData.hasDoshaData && (
-            <Card className="lg:order-2">
+            <Card className="lg:order-2 border-l-4 border-l-violet-400 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Leaf className="w-5 h-5" />
+                  <div className="w-7 h-7 rounded-lg bg-violet-50 border border-violet-100 flex items-center justify-center">
+                    <Leaf className="w-4 h-4 text-violet-600" />
+                  </div>
                   Dosha Balance Analysis
                 </CardTitle>
               </CardHeader>
@@ -579,10 +574,12 @@ export default function PatientDashboard() {
             )}
 
             {/* Upcoming Appointments */}
-            <Card className="lg:order-1">
+            <Card className="lg:order-1 border-l-4 border-l-emerald-400 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                    <Calendar className="w-4 h-4 text-emerald-600" />
+                  </div>
                   Upcoming Appointments
                 </CardTitle>
               </CardHeader>
@@ -595,18 +592,18 @@ export default function PatientDashboard() {
                ) : (
                 <div className="space-y-4">
                   {patientData.upcomingAppointments.length === 0 ? (
-                     <div className="text-center py-8 text-gray-500">
+                     <div className="text-center py-8 text-muted-foreground">
                         No upcoming appointments
                      </div>
                   ) : (
                   patientData.upcomingAppointments.map((appointment: any) => (
                     <div
                       key={appointment.id}
-                      className={`flex items-center justify-between p-4 border rounded-lg ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}
+                      className={`flex items-start sm:items-center justify-between gap-3 p-4 border rounded-lg border-emerald-100 hover:bg-emerald-50/40 hover:border-emerald-200 transition-colors`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
                         <div
-                          className={`w-10 h-10 ${theme.containers.featureBlue} rounded-full flex items-center justify-center`}
+                          className={`w-10 h-10 ${theme.containers.featureBlue} rounded-full flex items-center justify-center shrink-0`}
                         >
                           {appointment.isOnline ? (
                             <Video
@@ -618,14 +615,14 @@ export default function PatientDashboard() {
                             />
                           )}
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <h4
-                            className={`font-semibold ${theme.textColors.heading}`}
+                            className={`font-semibold truncate ${theme.textColors.heading}`}
                           >
                             {appointment.type}
                           </h4>
                           <p
-                            className={`text-sm ${theme.textColors.secondary}`}
+                            className={`text-sm truncate ${theme.textColors.secondary}`}
                           >
                             {appointment.doctor}
                           </p>
@@ -634,20 +631,20 @@ export default function PatientDashboard() {
                           >
                             {appointment.isOnline ? (
                               <div className="flex items-center gap-1">
-                                <Video className="w-3 h-3" />
-                                <span>Online Consultation</span>
+                                <Video className="w-3 h-3 shrink-0" />
+                                <span className="truncate">Online Consultation</span>
                               </div>
                             ) : (
                               <div className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3" />
-                                <span>{appointment.location}</span>
+                                <MapPin className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{appointment.location}</span>
                               </div>
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-medium">
+                      <div className="text-right shrink-0">
+                        <div className="font-medium text-sm">
                           {new Date(appointment.date).toLocaleDateString(
                             "en-IN",
                             {
@@ -657,11 +654,11 @@ export default function PatientDashboard() {
                           )}
                         </div>
                         <div
-                          className={`text-sm ${theme.textColors.secondary}`}
+                          className={`text-xs ${theme.textColors.secondary}`}
                         >
                           {appointment.time}
                         </div>
-                        <Badge className={getStatusColor(appointment.status)}>
+                        <Badge className={`mt-1 text-[10px] ${getStatusColor(appointment.status)}`}>
                           {appointment.status}
                         </Badge>
                       </div>
@@ -694,7 +691,7 @@ export default function PatientDashboard() {
             </CardHeader>
             <CardContent>
               {patientData.currentTreatments.length === 0 ? (
-                 <div className="text-center py-4 text-gray-500">
+                 <div className="text-center py-4 text-muted-foreground">
                     No active treatment programs
                  </div>
               ) : (
@@ -755,7 +752,7 @@ export default function PatientDashboard() {
                ) : (
                 <div className="space-y-4">
                   {patientData.medications.length === 0 ? (
-                     <div className="text-center py-4 text-gray-500">No active medications</div>
+                     <div className="text-center py-4 text-muted-foreground">No active medications</div>
                   ) : (
                   patientData.medications.map((medication: any, index: number) => (
                     <div
@@ -832,7 +829,7 @@ export default function PatientDashboard() {
                         )}
                         {activity.type === "report" && (
                           <FileText
-                            className={`w-4 h-4 ${theme.iconColors.purple}`}
+                            className={`w-4 h-4 ${theme.iconColors.blue}`}
                           />
                         )}
                       </div>
@@ -968,7 +965,7 @@ export default function PatientDashboard() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </PatientPageShell>
     
   );
 }

@@ -88,7 +88,7 @@ export const useWebSocketStore = create<WebSocketState>()(
           // Add namespace if provided (Socket.IO namespaces start with /)
           const fullUrl = namespace ? `${normalizedUrl}${namespace}` : normalizedUrl;
           
-          console.log('🔌 Connecting to Socket.IO:', fullUrl);
+          console.debug('🔌 Connecting to Socket.IO:', fullUrl);
           
           const socket = io(fullUrl, {
             auth: {

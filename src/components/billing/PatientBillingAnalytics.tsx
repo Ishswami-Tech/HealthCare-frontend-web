@@ -25,82 +25,63 @@ export function PatientBillingAnalytics({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Amount Paid */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Amount Paid</p>
-              <p className="text-2xl font-bold text-green-600">
-                ₹{totalPaid.toLocaleString("en-IN")}
-              </p>
-            </div>
-            <DollarSign className="h-8 w-8 text-green-600" />
-          </div>
-        </CardContent>
-      </Card>
+      <StatCard 
+        label="AMOUNT PAID"
+        value={`₹${totalPaid.toLocaleString("en-IN")}`}
+        icon={<DollarSign className="w-4 h-4 text-emerald-600" />}
+        color="bg-emerald-50/50 border-emerald-100"
+      />
 
       {/* Pending Amount */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Pending Amount</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                ₹{totalPending.toLocaleString("en-IN")}
-              </p>
-            </div>
-            <AlertCircle className="h-8 w-8 text-yellow-600" />
-          </div>
-        </CardContent>
-      </Card>
+      <StatCard 
+        label="PENDING AMOUNT"
+        value={`₹${totalPending.toLocaleString("en-IN")}`}
+        icon={<AlertCircle className="w-4 h-4 text-orange-600" />}
+        color="bg-orange-50/50 border-orange-100"
+      />
 
       {/* Active Subscriptions */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Active Plan</p>
-              <p className="text-2xl font-bold">
-                {activeSubscriptions > 0 ? activeSubscriptions : "None"}
-              </p>
-            </div>
-            <CreditCard className="h-8 w-8 text-blue-600" />
-          </div>
-        </CardContent>
-      </Card>
+      <StatCard 
+        label="ACTIVE PLAN"
+        value={activeSubscriptions > 0 ? activeSubscriptions : "None"}
+        icon={<CreditCard className="w-4 h-4 text-emerald-600" />}
+        color="bg-emerald-50/50 border-emerald-100"
+      />
 
       {/* Last Payment */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-muted-foreground">Last Payment</p>
-              {lastPayment ? (
-                <div>
-                  <p className="text-lg font-semibold truncate">
-                    ₹{lastPayment.amount.toLocaleString("en-IN")}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <Badge variant="outline" className="text-xs">
-                      {lastPayment.method}
-                    </Badge>
-                    {lastPaymentDate && (
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(lastPaymentDate).toLocaleDateString("en-IN")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground mt-1">
-                  No payments yet
-                </p>
-              )}
-            </div>
-            <Receipt className="h-8 w-8 text-gray-400 shrink-0 ml-2" />
-          </div>
-        </CardContent>
-      </Card>
+      <StatCard 
+        label="LAST PAYMENT"
+        value={lastPayment ? `₹${lastPayment.amount.toLocaleString("en-IN")}` : "None"}
+        icon={<Receipt className="w-4 h-4 text-emerald-600" />}
+        color="bg-emerald-50/50 border-emerald-100"
+      />
+    </div>
+  );
+}
+
+// ─── Local StatCard Component ───────────────
+function StatCard({ 
+  label, 
+  value, 
+  icon, 
+  color 
+}: { 
+  label: string; 
+  value: number | string; 
+  icon: React.ReactNode; 
+  color: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-2 rounded-2xl border p-4 transition-colors ${color}`}>
+      <div className="flex items-center gap-2">
+        <div className="rounded-lg bg-background/80 p-1.5 shadow-sm ring-1 ring-border/20">
+          {icon}
+        </div>
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</span>
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className="text-2xl font-bold tracking-tight text-slate-900">{value}</span>
+      </div>
     </div>
   );
 }

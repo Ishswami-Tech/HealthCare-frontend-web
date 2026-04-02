@@ -42,43 +42,36 @@ export default function DoctorProfile() {
   // Profile data
   const [profileData, setProfileData] = useState({
     personalInfo: {
-      firstName: user?.firstName || "Priya",
-      lastName: user?.lastName || "Sharma",
-      email: user?.email || "dr.priya.sharma@ayurvedacenter.com",
-      phone: "+91 9876543210",
-      dateOfBirth: "1985-03-15",
-      gender: "Female",
-      address: "123 Medical District, Mumbai, MH 400001",
-      city: "Mumbai",
-      state: "Maharashtra",
-      country: "India",
-      zipCode: "400001"
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      email: user?.email || "",
+      phone: "",
+      dateOfBirth: "",
+      gender: "",
+      address: "",
+      city: "",
+      state: "",
+      country: "",
+      zipCode: ""
     },
     professionalInfo: {
-      medicalLicense: "MH123456",
-      specializations: ["Panchakarma", "Nadi Pariksha", "Ayurvedic Medicine"],
-      experience: "12 years",
-      education: [
-        { degree: "BAMS", institution: "KLE University", year: "2012" },
-        { degree: "MD Panchakarma", institution: "MUHS", year: "2015" }
-      ],
-      certifications: [
-        "Board Certified Ayurvedic Physician",
-        "Panchakarma Specialist Certification",
-        "Yoga Therapy Certification"
-      ],
-      languagesSpoken: ["English", "Hindi", "Marathi", "Sanskrit"],
-      clinicAffiliations: ["Ayurveda Wellness Center", "Holistic Health Institute"]
+      medicalLicense: "",
+      specializations: [] as string[],
+      experience: "",
+      education: [] as { degree: string; institution: string; year: string }[],
+      certifications: [] as string[],
+      languagesSpoken: [] as string[],
+      clinicAffiliations: [] as string[]
     },
     consultationSettings: {
-      consultationFee: "500",
-      followUpFee: "300",
-      onlineConsultation: true,
-      videoConsultation: true,
+      consultationFee: "",
+      followUpFee: "",
+      onlineConsultation: false,
+      videoConsultation: false,
       homeVisits: false,
-      emergencyConsultation: true,
+      emergencyConsultation: false,
       consultationDuration: "30",
-      maxPatientsPerDay: "20",
+      maxPatientsPerDay: "",
       bookingAdvanceDays: "30"
     },
     availability: {
@@ -100,35 +93,14 @@ export default function DoctorProfile() {
     }
   });
 
-  const [stats] = useState({
-    totalPatients: 324,
-    consultationsCompleted: 1248,
-    averageRating: 4.8,
-    totalReviews: 89,
-    yearsOfExperience: 12,
-    specializations: 3
-  });
+  // Stats derived from real profile data loaded via useEffect
+  const stats = {
+    specializations: profileData.professionalInfo.specializations.length,
+    certifications: profileData.professionalInfo.certifications.length,
+    languagesSpoken: profileData.professionalInfo.languagesSpoken.length,
+  };
 
-  const [recentReviews] = useState([
-    {
-      patientName: "Rajesh K.",
-      rating: 5,
-      review: "Excellent doctor with deep knowledge of Ayurveda. The Panchakarma treatment helped me tremendously.",
-      date: "2024-01-10"
-    },
-    {
-      patientName: "Meera S.",
-      rating: 5,
-      review: "Very thorough consultation. Dr. Sharma explained everything clearly and the treatment plan is working well.",
-      date: "2024-01-08"
-    },
-    {
-      patientName: "Anil P.",
-      rating: 4,
-      review: "Professional and caring approach. Nadi Pariksha was very insightful.",
-      date: "2024-01-05"
-    }
-  ]);
+  const recentReviews: { patientName: string; rating: number; review: string; date: string }[] = [];
 
   const updatePersonalInfo = (field: string, value: string) => {
     setProfileData(prev => ({
@@ -269,8 +241,8 @@ export default function DoctorProfile() {
                       {profileData.professionalInfo.experience} experience
                     </span>
                     <span className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-yellow-500" />
-                      {stats.averageRating}/5.0
+                      <Stethoscope className="w-4 h-4" />
+                      {stats.specializations} specialization{stats.specializations !== 1 ? 's' : ''}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
@@ -282,12 +254,12 @@ export default function DoctorProfile() {
                 <div className="text-right">
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
-                      <div className="text-2xl font-bold text-blue-600">{stats.totalPatients}</div>
-                      <div className="text-sm text-gray-600">Patients</div>
+                      <div className="text-2xl font-bold text-blue-600">{stats.certifications}</div>
+                      <div className="text-sm text-gray-600">Certifications</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-green-600">{stats.consultationsCompleted}</div>
-                      <div className="text-sm text-gray-600">Consultations</div>
+                      <div className="text-2xl font-bold text-green-600">{stats.languagesSpoken}</div>
+                      <div className="text-sm text-gray-600">Languages</div>
                     </div>
                   </div>
                 </div>
@@ -655,27 +627,9 @@ export default function DoctorProfile() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="text-center">
-                        <div className="text-4xl font-bold text-yellow-600">{stats.averageRating}</div>
-                        <div className="flex justify-center mt-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star 
-                              key={i} 
-                              className={`w-5 h-5 ${i < Math.floor(stats.averageRating) ? 'text-yellow-500 fill-current' : 'text-gray-300'}`} 
-                            />
-                          ))}
-                        </div>
-                        <div className="text-sm text-gray-600 mt-1">Overall Rating</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-4xl font-bold text-blue-600">{stats.totalReviews}</div>
-                        <div className="text-sm text-gray-600">Total Reviews</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-4xl font-bold text-green-600">96%</div>
-                        <div className="text-sm text-gray-600">Recommendation Rate</div>
-                      </div>
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Star className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">Rating data not yet available</p>
                     </div>
                   </CardContent>
                 </Card>

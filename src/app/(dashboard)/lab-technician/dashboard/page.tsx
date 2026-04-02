@@ -63,11 +63,29 @@ export default function LabTechnicianDashboard() {
       ["completed", "COMPLETED", "NORMAL", "ABNORMAL", "CRITICAL"].includes(r.status)
     ).length;
     
+    const completedWithTimes = labResults.filter(
+      (r: any) =>
+        ["completed", "COMPLETED", "NORMAL", "ABNORMAL", "CRITICAL"].includes(r.status) &&
+        r.createdAt &&
+        (r.reportedAt || r.updatedAt)
+    );
+    const processingTimes = completedWithTimes
+      .map((r: any) => {
+        const start = new Date(r.createdAt).getTime();
+        const end = new Date(r.reportedAt || r.updatedAt).getTime();
+        return (end - start) / 60000;
+      })
+      .filter((t: number) => t > 0);
+    const avgProcessingTime =
+      processingTimes.length > 0
+        ? Math.round(processingTimes.reduce((a: number, b: number) => a + b, 0) / processingTimes.length)
+        : 0;
+
     return {
       pendingTests: pendingCount,
       completedToday: completedCount,
       totalPatients: new Set(labResults.map((r: any) => r.patientId)).size,
-      avgProcessingTime: 45, // Mocked for now, ideally from backend
+      avgProcessingTime,
     };
   }, [labResults]);
 

@@ -34,6 +34,8 @@ export interface ProposeVideoAppointmentDialogProps {
   onOpenChange: (open: boolean) => void;
   patientId: string;
   userRole: Role | string;
+  initialDoctorId?: string;
+  initialDuration?: number;
 }
 
 export function ProposeVideoAppointmentDialog({
@@ -41,6 +43,8 @@ export function ProposeVideoAppointmentDialog({
   onOpenChange,
   patientId: initialPatientId,
   userRole,
+  initialDoctorId,
+  initialDuration,
 }: ProposeVideoAppointmentDialogProps) {
   const { clinicId } = useClinicContext();
   const proposeMutation = useProposeVideoAppointment();
@@ -65,8 +69,8 @@ export function ProposeVideoAppointmentDialog({
   const [selectedPatientId, setSelectedPatientId] = useState("");
   const patientId = userRole === Role.RECEPTIONIST ? selectedPatientId : initialPatientId;
 
-  const [doctorId, setDoctorId] = useState("");
-  const [duration, setDuration] = useState(30);
+  const [doctorId, setDoctorId] = useState(initialDoctorId || "");
+  const [duration, setDuration] = useState(initialDuration || 30);
   const [proposedSlots, setProposedSlots] = useState<Array<{ date: string; time: string }>>([
     { date: "", time: "" },
     { date: "", time: "" },

@@ -106,7 +106,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     if (subscribeToAppointments && clinicId) {
       const unsubscribeAppointmentCreated = subscribe('appointment:created', (rawData: unknown) => {
         const data = rawData as Appointment;
-        console.log('🆕 New appointment created:', data);
+        console.debug('🆕 New appointment created:', data);
         addAppointment(data);
         
         // Invalidate related queries
@@ -117,7 +117,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
       const unsubscribeAppointmentUpdated = subscribe('appointment:updated', (rawData: unknown) => {
         const data = rawData as { id: string; updates: Partial<Appointment> };
-        console.log('📝 Appointment updated:', data);
+        console.debug('📝 Appointment updated:', data);
         addPendingUpdate(data.id, data.updates);
         
         // Apply updates after a short delay to batch them
@@ -136,14 +136,14 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
       const unsubscribeAppointmentDeleted = subscribe('appointment:deleted', (rawData: unknown) => {
         const data = rawData as { id: string };
-        console.log('🗑️ Appointment deleted:', data);
+        console.debug('🗑️ Appointment deleted:', data);
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
         queryClient.invalidateQueries({ queryKey: ['myAppointments'] });
       });
 
       const unsubscribeAppointmentStatusChanged = subscribe('appointment:status_changed', (rawData: unknown) => {
         const data = rawData as { id: string; status: string; timestamp: string };
-        console.log('🔄 Appointment status changed:', data);
+        console.debug('🔄 Appointment status changed:', data);
         updateAppointment(data.id, { 
           status: data.status as any,
           updatedAt: data.timestamp 
@@ -187,25 +187,25 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
       const unsubscribeQueueUpdate = subscribe('queue:update', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
-        console.log('📊 Queue updated:', data);
+        console.debug('📊 Queue updated:', data);
         invalidateQueueQueries();
       });
 
       const unsubscribeQueuePatientAdded = subscribe('queue:patient_added', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
-        console.log('👤 Patient added to queue:', data);
+        console.debug('👤 Patient added to queue:', data);
         invalidateQueueQueries();
       });
 
       const unsubscribeQueuePatientRemoved = subscribe('queue:patient_removed', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
-        console.log('👤 Patient removed from queue:', data);
+        console.debug('👤 Patient removed from queue:', data);
         invalidateQueueQueries();
       });
 
       const unsubscribeEnterpriseQueueUpdated = subscribe('appointment.queue.updated', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
-        console.log('📊 Enterprise queue updated:', data);
+        console.debug('📊 Enterprise queue updated:', data);
         invalidateQueueQueries();
       });
 
@@ -213,14 +213,14 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         'appointment.queue.position.updated',
         (rawData: unknown) => {
           const data = rawData as Record<string, unknown>;
-          console.log('📍 Queue position updated:', data);
+          console.debug('📍 Queue position updated:', data);
           invalidateQueueQueries();
         }
       );
 
       const unsubscribeQueueMetrics = subscribe('queue_metrics_update', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
-        console.log('📈 Queue metrics updated:', data);
+        console.debug('📈 Queue metrics updated:', data);
         invalidateQueueQueries();
       });
 
@@ -228,7 +228,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         'pharmacy.medicine_desk.updated',
         (rawData: unknown) => {
           const data = rawData as Record<string, unknown>;
-          console.log('💊 Medicine desk queue updated:', data);
+          console.debug('💊 Medicine desk queue updated:', data);
           invalidateMedicineDeskQueries();
         }
       );

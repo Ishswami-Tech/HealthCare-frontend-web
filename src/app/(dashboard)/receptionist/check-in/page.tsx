@@ -74,6 +74,14 @@ interface CheckInRow {
   isConfirmedArrival: boolean;
 }
 
+const getTodayDateInIst = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
 const getPersonName = (
   entity?: {
     name?: string;
@@ -145,9 +153,11 @@ export default function ReceptionistCheckInPage() {
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const todayDate = getTodayDateInIst();
 
   const { data: appointmentsData, isPending: isLoading, refetch } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
+    date: todayDate,
     limit: 100,
   });
 
@@ -280,11 +290,11 @@ export default function ReceptionistCheckInPage() {
             variant={row.original.isConfirmedArrival ? "default" : "secondary"}
             className={
               row.original.isConfirmedArrival
-                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                : ""
+                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-none shadow-none"
+                : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-none shadow-none"
             }
           >
-            {row.original.status}
+            {row.original.status.replace("_", " ")}
           </Badge>
         ),
       },
@@ -314,7 +324,7 @@ export default function ReceptionistCheckInPage() {
                 )}
               </Button>
             ) : row.original.isConfirmedArrival ? (
-              <span className="flex items-center gap-1 text-sm text-green-600">
+              <span className="flex items-center gap-1 text-sm font-medium text-emerald-600 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-full">
                 <CheckCircle2 className="h-4 w-4" />
                 Confirmed
               </span>
@@ -330,8 +340,8 @@ export default function ReceptionistCheckInPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center p-6">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="flex min-h-[400px] items-center justify-center p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-100">
+        <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
       </div>
     );
   }
@@ -343,8 +353,8 @@ export default function ReceptionistCheckInPage() {
           <UserCheck className="h-7 w-7" />
           Patient Arrival Confirmation
         </h1>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Calendar className="h-4 w-4" />
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-500 bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-100 dark:border-slate-700 shadow-sm">
+          <Calendar className="h-4 w-4 text-emerald-500" />
           {new Date().toLocaleDateString("en-IN", {
             weekday: "long",
             year: "numeric",
@@ -358,8 +368,7 @@ export default function ReceptionistCheckInPage() {
         <CardHeader>
           <CardTitle className="text-lg">Appointments For Manual Check-In</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Testing mode: showing appointment records without the today-only filter. Manual
-            check-in stays available for in-person scheduled appointments.
+            Showing today&apos;s in-person scheduled appointments for manual arrival confirmation.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">

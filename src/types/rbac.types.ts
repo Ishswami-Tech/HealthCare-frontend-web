@@ -238,16 +238,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_FINANCIAL_REPORTS,
   ],
 
-  [Role.HR_MANAGER]: [
-    Permission.VIEW_USERS,
-    Permission.CREATE_USERS,
-    Permission.UPDATE_USERS,
-    Permission.DELETE_USERS,
-    Permission.VIEW_SETTINGS,
-    Permission.UPDATE_SETTINGS,
-    Permission.VIEW_REPORTS,
-  ],
-  
   [Role.DOCTOR]: [
     // Appointment permissions
     Permission.VIEW_APPOINTMENTS,
@@ -376,9 +366,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     // Doctor permissions (view for scheduling)
     Permission.VIEW_DOCTORS,
     
-    // Clinic permissions (view locations, manage staff)
+    // Clinic permissions (view locations only)
     Permission.VIEW_CLINICS,
-    Permission.MANAGE_CLINIC_STAFF,
     
     // Queue
     Permission.VIEW_QUEUE,
@@ -395,8 +384,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.CREATE_BILLS,
     Permission.UPDATE_BILLS,
     
-    // Video (view, manage)
+    // Video (view, create, manage)
     Permission.VIEW_VIDEO_APPOINTMENTS,
+    Permission.CREATE_VIDEO_APPOINTMENTS,
     Permission.JOIN_VIDEO_APPOINTMENTS,
     
     // Medical records (view for check-in)
@@ -413,13 +403,26 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   
   [Role.NURSE]: [
     Permission.VIEW_APPOINTMENTS,
+    Permission.CREATE_APPOINTMENTS,
     Permission.UPDATE_APPOINTMENTS,
+    Permission.MANAGE_APPOINTMENT_QUEUE,
     Permission.VIEW_PATIENTS,
+    Permission.CREATE_PATIENTS,
     Permission.UPDATE_PATIENTS,
     Permission.VIEW_PATIENT_MEDICAL_RECORDS,
+    Permission.CREATE_PATIENT_MEDICAL_RECORDS,
+    Permission.UPDATE_PATIENT_MEDICAL_RECORDS,
     Permission.VIEW_MEDICAL_RECORDS,
+    Permission.CREATE_MEDICAL_RECORDS,
+    Permission.UPDATE_MEDICAL_RECORDS,
     Permission.VIEW_QUEUE,
+    Permission.MANAGE_QUEUE,
+    Permission.ADD_TO_QUEUE,
     Permission.UPDATE_QUEUE_STATUS,
+    Permission.CALL_NEXT_PATIENT,
+    Permission.VIEW_VIDEO_APPOINTMENTS,
+    Permission.JOIN_VIDEO_APPOINTMENTS,
+    Permission.VIEW_BILLING,
     Permission.VIEW_NOTIFICATIONS,
     Permission.SEND_NOTIFICATIONS,
     Permission.MANAGE_USER_SETTINGS,
@@ -432,15 +435,18 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.MANAGE_PRESCRIPTIONS,
     Permission.MANAGE_INVENTORY,
     Permission.DISPENSE_MEDICINES,
-    
+
     // Patient permissions (limited - for dispensing context)
     Permission.VIEW_PATIENTS,
     Permission.VIEW_PATIENT_MEDICAL_RECORDS,
-    
+
+    // Billing (view for payment verification at pharmacy)
+    Permission.VIEW_BILLING,
+
     // Notifications
     Permission.VIEW_NOTIFICATIONS,
     Permission.SEND_NOTIFICATIONS,
-    
+
     // Settings (personal)
     Permission.MANAGE_USER_SETTINGS,
   ],
@@ -450,6 +456,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_APPOINTMENTS,
     Permission.CREATE_APPOINTMENTS,
     Permission.UPDATE_APPOINTMENTS,
+    Permission.DELETE_APPOINTMENTS,
     
     // Doctors (view for booking – backend allows PATIENT on GET doctors)
     Permission.VIEW_DOCTORS,
@@ -464,7 +471,10 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     
     // Medical records (own only)
     Permission.VIEW_MEDICAL_RECORDS,
-    
+
+    // Pharmacy – view own prescriptions (backend enforces patient ownership)
+    Permission.VIEW_PHARMACY,
+
     // Billing (own only – view, create/cancel subscriptions; backend enforces ownership)
     Permission.VIEW_BILLING,
     
@@ -480,6 +490,12 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.UPDATE_APPOINTMENTS,
     Permission.VIEW_PATIENTS,
     Permission.VIEW_MEDICAL_RECORDS,
+    Permission.VIEW_QUEUE,
+    Permission.UPDATE_QUEUE_STATUS,
+    Permission.VIEW_VIDEO_APPOINTMENTS,
+    Permission.CREATE_VIDEO_APPOINTMENTS,
+    Permission.JOIN_VIDEO_APPOINTMENTS,
+    Permission.END_VIDEO_APPOINTMENTS,
     Permission.VIEW_NOTIFICATIONS,
     Permission.VIEW_BILLING,
     Permission.MANAGE_USER_SETTINGS,
@@ -549,6 +565,14 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.UPDATE_APPOINTMENTS,
     Permission.VIEW_PATIENTS,
     Permission.VIEW_MEDICAL_RECORDS,
+    Permission.CREATE_MEDICAL_RECORDS,
+    Permission.UPDATE_MEDICAL_RECORDS,
+    Permission.VIEW_QUEUE,
+    Permission.UPDATE_QUEUE_STATUS,
+    Permission.VIEW_VIDEO_APPOINTMENTS,
+    Permission.CREATE_VIDEO_APPOINTMENTS,
+    Permission.JOIN_VIDEO_APPOINTMENTS,
+    Permission.END_VIDEO_APPOINTMENTS,
     Permission.VIEW_NOTIFICATIONS,
     Permission.VIEW_BILLING,
     Permission.MANAGE_USER_SETTINGS,

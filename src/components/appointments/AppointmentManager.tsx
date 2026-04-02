@@ -15,6 +15,13 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { 
+  Card, 
+  CardHeader, 
+  CardTitle, 
+  CardContent, 
+  CardFooter 
+} from "@/components/ui/card";
 
 import { useToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
@@ -23,6 +30,7 @@ import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
 import {
   useCancelAppointment,
   useMyAppointments,
+  useAppointments,
   useProcessCheckIn,
   useRescheduleAppointment,
   useRejectVideoProposal,
@@ -54,7 +62,9 @@ import {
   Zap,
   CalendarPlus,
   Timer,
+  CreditCard,
 } from "lucide-react";
+import { PaymentButton } from "@/components/payments/PaymentButton";
 
 type StatusFilter = "ALL" | "SCHEDULED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
@@ -67,7 +77,23 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string;
   NO_SHOW:     { label: "No Show",     color: "text-orange-700 dark:text-orange-300",dot: "bg-orange-400",bg: "bg-orange-50 dark:bg-orange-950/30 border-orange-100 dark:border-orange-900" },
 };
 
-export default function AppointmentManager() {
+interface AppointmentManagerProps {
+  filterType?: "VIDEO_CALL" | "IN_PERSON";
+  defaultConsultationMode?: "VIDEO" | "IN_PERSON";
+  isAdminView?: boolean;
+  clinicId?: string;
+  patientId?: string;
+  hideBookButton?: boolean;
+}
+
+export default function AppointmentManager({ 
+  filterType, 
+  defaultConsultationMode, 
+  isAdminView = false,
+  clinicId: propClinicId,
+  patientId: propPatientId,
+  hideBookButton = false,
+}: AppointmentManagerProps = {}) {
   const { toast } = useToast();
   const { session } = useAuth();
   const user = session?.user;
@@ -86,6 +112,8 @@ export default function AppointmentManager() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 8;
   const lastSyncedAppointmentsRef = useRef("");
   const storeAppointmentIds = useAppointmentsStore((state) => state.appointmentIds);
   const storeAppointmentsById = useAppointmentsStore((state) => state.appointments);
@@ -98,27 +126,49 @@ export default function AppointmentManager() {
     [storeAppointmentIds, storeAppointmentsById]
   );
 
-  // Data
-  const { data: appointments, isPending: appointmentsLoading, isFetching: appointmentsFetching, refetch } = useMyAppointments({
-    ...(dateFilter.start ? { date: dateFilter.start } : {}),
-  });
-  const appointmentData = appointments;
-  const isAppointmentsLoading = appointmentsLoading;
+  // ─── Data Fetching ────────────────────────────────────────────────────────
+  
+  // Choose hook based on view role
+  // Sanitize filters to avoid undefined properties breaking exactOptionalPropertyTypes
+  const adminFilters = useMemo(() => {
+    if (!isAdminView) return undefined;
+    const filters: any = {
+      clinicId: propClinicId || "",
+    };
+    if (propPatientId) filters.patientId = propPatientId;
+    if (filterType) filters.type = filterType;
+    if (dateFilter.start) filters.date = dateFilter.start;
+    return filters;
+  }, [isAdminView, propClinicId, propPatientId, filterType, dateFilter.start]);
+
+  const personalFilters = useMemo(() => {
+    if (isAdminView) return undefined;
+    const filters: any = {};
+    if (dateFilter.start) filters.date = dateFilter.start;
+    return filters;
+  }, [isAdminView, dateFilter.start]);
+
+  const adminAppointments = useAppointments(adminFilters);
+  const myPersonalAppointments = useMyAppointments(personalFilters);
 
   const { mutate: cancelAppointment, isPending: cancellingAppointment } = useCancelAppointment();
   const { mutate: rescheduleAppointment, isPending: reschedulingAppointment } = useRescheduleAppointment();
   const { mutate: rejectVideoProposal, isPending: rejectingProposal } = useRejectVideoProposal();
   const { mutate: processCheckIn, isPending: processingCheckIn } = useProcessCheckIn();
 
-  // Derived list
+  const appointmentsFetching = isAdminView ? adminAppointments.isFetching : myPersonalAppointments.isFetching;
+  const isAppointmentsLoading = isAdminView ? adminAppointments.isPending : myPersonalAppointments.isPending;
+  const refetch = isAdminView ? adminAppointments.refetch : myPersonalAppointments.refetch;
+  const rawData = isAdminView ? adminAppointments.data : myPersonalAppointments.data;
+
   const fetchedAppointments = useMemo((): AppointmentWithRelations[] => {
     let list: AppointmentWithRelations[] = [];
-    if (Array.isArray(appointmentData)) list = appointmentData;
-    else if (Array.isArray((appointmentData as any)?.data?.appointments)) list = (appointmentData as any).data.appointments;
-    else if (Array.isArray((appointmentData as any)?.appointments)) list = (appointmentData as any).appointments;
-    else if (Array.isArray((appointmentData as any)?.data)) list = (appointmentData as any).data;
+    if (Array.isArray(rawData)) list = rawData;
+    else if (Array.isArray((rawData as any)?.data?.appointments)) list = (rawData as any).data.appointments;
+    else if (Array.isArray((rawData as any)?.appointments)) list = (rawData as any).appointments;
+    else if (Array.isArray((rawData as any)?.data)) list = (rawData as any).data;
     return list;
-  }, [appointmentData]);
+  }, [rawData]);
 
   useEffect(() => {
     const syncKey = fetchedAppointments
@@ -191,9 +241,10 @@ export default function AppointmentManager() {
     const endDate = dateFilter.end ? parseAppointmentDate(`${dateFilter.end}T23:59:59.999`) : null;
 
     return normalizedAppointments.filter(apt => {
+      const matchesType = !filterType || apt.type === filterType;
       const matchesStatus =
         statusFilter === "ALL"
-          ? apt.status !== "CANCELLED"
+          ? true
           : apt.status === statusFilter;
       const q = searchQuery.toLowerCase();
       const matchesSearch = !q ||
@@ -207,7 +258,7 @@ export default function AppointmentManager() {
       const appointmentDate = apt.appointmentDateTime;
       const matchesStartDate = !startDate || (appointmentDate !== null && appointmentDate >= startDate);
       const matchesEndDate = !endDate || (appointmentDate !== null && appointmentDate <= endDate);
-      return matchesStatus && matchesSearch && matchesStartDate && matchesEndDate;
+      return matchesType && matchesStatus && matchesSearch && matchesStartDate && matchesEndDate;
     });
   }, [normalizedAppointments, statusFilter, searchQuery, dateFilter.start, dateFilter.end]);
 
@@ -309,12 +360,31 @@ export default function AppointmentManager() {
     }
   }, [isRealTimeEnabled, isConnected, toast]);
 
-  const StatCard = ({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) => (
-    <div className={`rounded-2xl border p-4 flex items-center gap-3 ${color}`}>
-      <div className="rounded-xl bg-background/80 p-2.5 shadow-sm ring-1 ring-border/50">{icon}</div>
+  const StatCard = ({
+    label,
+    value,
+    icon,
+    iconBg,
+    iconBorder,
+    iconColor,
+    cardBorder,
+    cardHover,
+  }: {
+    label: string;
+    value: number;
+    icon: React.ReactNode;
+    color?: string;
+    iconBg: string;
+    iconBorder: string;
+    iconColor: string;
+    cardBorder: string;
+    cardHover: string;
+  }) => (
+    <div className={`rounded-2xl border ${cardBorder} bg-white p-4 flex items-center gap-3 transition-all ${cardHover} hover:shadow-sm`}>
+      <div className={`rounded-xl ${iconBg} p-2.5 border ${iconBorder} ${iconColor}`}>{icon}</div>
       <div>
-        <p className="text-2xl font-bold text-foreground">{value}</p>
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <p className="text-2xl font-extrabold text-foreground tracking-tight">{value}</p>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
       </div>
     </div>
   );
@@ -341,8 +411,13 @@ export default function AppointmentManager() {
         : undefined);
     const normalizedDate = appointmentDateTime?.toISOString() || apt.date;
 
+    const isCancelled = apt.status === "CANCELLED" || apt.status === "NO_SHOW";
     return (
-      <div className={`rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md ${isExpanded ? "shadow-md" : ""} ${cfg.bg}`}>
+      <div className={`rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md ${
+        isCancelled
+          ? "bg-red-50 border-red-200 hover:border-red-300"
+          : `bg-white border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
+      }`}>
         {/* Card header */}
         <div
           className="p-4 cursor-pointer"
@@ -363,7 +438,7 @@ export default function AppointmentManager() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-3 min-w-0">
               {/* Avatar */}
-              <div className="w-10 h-10 rounded-full bg-white/60 dark:bg-black/20 flex items-center justify-center shrink-0 text-sm font-bold">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 text-sm font-bold text-emerald-700">
                 {doctorName.charAt(0)}
               </div>
               <div className="min-w-0">
@@ -373,7 +448,7 @@ export default function AppointmentManager() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-background/80 px-2.5 py-1 text-xs font-semibold shadow-sm dark:border-white/10">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold shadow-sm">
                 {apt.type === "VIDEO_CALL" ? <Video className="w-3.5 h-3.5" /> : <Stethoscope className="w-3.5 h-3.5" />}
                 {apt.type === "VIDEO_CALL"
                   ? "Video"
@@ -382,7 +457,7 @@ export default function AppointmentManager() {
                     : apt.type.replace(/_/g, " ")}
               </span>
               {/* Status badge */}
-              <span className={`inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-background/80 px-2.5 py-1 text-xs font-semibold shadow-sm dark:border-white/10 ${cfg.color}`}>
+              <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold shadow-sm ${cfg.color}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                 {cfg.label}
               </span>
@@ -411,7 +486,7 @@ export default function AppointmentManager() {
 
         {/* Expanded body */}
         {isExpanded && (
-          <div className="px-4 pb-4 pt-0 border-t border-white/30 dark:border-black/20 mt-0">
+          <div className="px-4 pb-4 pt-0 border-t border-border/60 mt-0">
             <div className="pt-3 space-y-3">
               {/* Details grid */}
               <div className="grid grid-cols-2 gap-3 text-xs">
@@ -442,12 +517,11 @@ export default function AppointmentManager() {
               </div>
 
               {/* Actions — unified to avoid duplicate buttons */}
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              <div className="flex flex-wrap gap-3 mt-4">
                 {apt.status === "SCHEDULED" && (
                   <Button
-                    size="sm"
                     variant="outline"
-                    className="h-8 col-span-1 border-border/60 bg-background/80 text-xs"
+                    className="h-10 px-5 rounded-lg border-border/50 bg-background/50 text-sm hover:bg-accent/50 transition-all active:scale-95 flex-1 sm:flex-none"
                     onClick={() => {
                       setSelectedAppointment(apt as AppointmentWithRelations);
                       setRescheduleData({
@@ -457,31 +531,29 @@ export default function AppointmentManager() {
                       setIsRescheduleDialogOpen(true);
                     }}
                   >
-                    <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                    <RefreshCw className="w-4 h-4 mr-2" />
                     Reschedule
                   </Button>
                 )}
                 {apt.status === "SCHEDULED" && apt.type !== "VIDEO_CALL" && (
                   <Button
-                    size="sm"
-                    className="h-8 col-span-2 text-xs bg-green-600 hover:bg-green-700 text-white sm:flex-1"
+                    className="h-10 px-6 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
                     onClick={() => {
                       window.location.href = "/patient/check-in";
                     }}
                   >
-                    <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                    <CheckCircle className="w-4 h-4 mr-2" />
                     Go To Check-In
                   </Button>
                 )}
                 {apt.status === "SCHEDULED" && (
                   <Button
-                    size="sm"
                     variant="outline"
-                    className="h-8 col-span-1 border-border/60 bg-background/80 text-xs text-red-600 hover:text-red-700 dark:text-red-300 dark:hover:text-red-200"
+                    className="h-10 px-5 rounded-lg border-red-200/50 bg-red-50/30 text-red-600 hover:bg-red-100/50 hover:text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 text-sm transition-all active:scale-95 flex-1 sm:flex-none"
                     onClick={() => handleCancelAppointment(apt.id)}
                     disabled={cancellingAppointment}
                   >
-                    <XCircle className="w-3.5 h-3.5 mr-1" />
+                    <XCircle className="w-4 h-4 mr-2" />
                     Cancel
                   </Button>
                 )}
@@ -489,29 +561,44 @@ export default function AppointmentManager() {
                   apt.status === "CONFIRMED" &&
                   isVideoAppointmentPaymentCompleted(apt) && (
                   <Button
-                    size="sm"
-                    className="col-span-2 text-xs h-8 bg-indigo-600 hover:bg-indigo-700 text-white sm:flex-1"
+                    className="h-10 px-6 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
                     onClick={() => window.location.href = `/patient/video?appointmentId=${apt.id}`}
                   >
-                    <Video className="w-3.5 h-3.5 mr-1" />
+                    <Video className="w-4 h-4 mr-2" />
                     Join Video
                   </Button>
                 )}
                 {apt.type === "VIDEO_CALL" &&
-                  !(apt.status === "CONFIRMED" && isVideoAppointmentPaymentCompleted(apt)) && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="col-span-2 text-xs h-8 sm:flex-1"
-                    onClick={() => window.location.href = "/video-appointments"}
+                  !isVideoAppointmentPaymentCompleted(apt) && (
+                  <PaymentButton
+                    appointmentId={apt.id}
+                    amount={apt.invoice?.amount || 500}
+                    className="h-10 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
+                    onSuccess={() => {
+                      if (apt.status === "CONFIRMED") {
+                        window.location.href = `/patient/video?appointmentId=${apt.id}`;
+                      } else {
+                         // Stay on page and wait for status update or redirect to video appointments list
+                         window.location.reload();
+                      }
+                    }}
                   >
-                    <Video className="w-3.5 h-3.5 mr-1" />
-                    {(apt.status === "SCHEDULED" || apt.status === "CONFIRMED") &&
-                    !isVideoAppointmentPaymentCompleted(apt)
-                      ? "Complete Payment"
-                      : "Manage Video Appointment"}
-                  </Button>
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Complete Payment
+                  </PaymentButton>
                 )}
+                {apt.type === "VIDEO_CALL" &&
+                  isVideoAppointmentPaymentCompleted(apt) &&
+                  apt.status !== "CONFIRMED" && (
+                    <Button
+                      variant="outline"
+                      className="h-10 px-6 rounded-lg border-border/50 bg-background/50 text-sm hover:bg-accent/50 transition-all active:scale-95 flex-1"
+                      onClick={() => (window.location.href = "/video-appointments")}
+                    >
+                      <Video className="w-4 h-4 mr-2" />
+                      Manage Video Appointment
+                    </Button>
+                  )}
               </div>
             </div>
           </div>
@@ -533,109 +620,155 @@ export default function AppointmentManager() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Activity className="w-6 h-6 text-primary" />
-            My Appointments
-          </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Manage your healthcare visits and schedules
-          </p>
+    <Card className="max-w-6xl mx-auto border border-emerald-100 bg-emerald-50/10 shadow-sm rounded-3xl overflow-hidden">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-bold flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+               <Calendar className="w-5 h-5 text-emerald-600" />
+            </div>
+            Current Appointments
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            {isRealTimeEnabled && (
+              <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${isConnected ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-amber-500"}`} />
+                {isConnected ? "Live" : "Connecting..."}
+              </span>
+            )}
+
+            {!hideBookButton && (
+              <BookAppointmentDialog 
+                trigger={
+                  <Button
+                    variant="outline"
+                    className="gap-2 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 rounded-xl px-4 font-semibold h-10 transition-all active:scale-95"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Book Appointment
+                  </Button>
+                }
+              />
+            )}
+
+            <Button
+              variant="outline"
+              onClick={() => refetch()}
+              className="h-10 w-10 rounded-xl flex items-center justify-center p-0 border-border/50 hover:bg-accent/50 transition-all shadow-sm"
+              disabled={appointmentsFetching}
+              title="Refresh Appointments"
+            >
+              <RefreshCw className={`w-4 h-4 text-muted-foreground ${appointmentsFetching ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-          {isRealTimeEnabled && (
-            <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${isConnected ? "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300" : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-amber-500"}`} />
-              {isConnected ? "Live" : "Connecting..."}
-            </span>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => refetch()}
-            className="w-full gap-1.5 sm:w-auto"
-            disabled={appointmentsFetching}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${appointmentsFetching ? "animate-spin" : ""}`} />
-            {appointmentsFetching ? "Refreshing..." : "Refresh"}
-          </Button>
-          <BookAppointmentDialog
-            trigger={
-              <Button size="sm" className="w-full gap-1.5 sm:w-auto">
-                <CalendarPlus className="w-4 h-4" />
-                Book Appointment
-              </Button>
-            }
-            onBooked={() => {
-              // Immediately bust the myAppointments cache so new appointment shows without manual refresh
-              queryClient.invalidateQueries({ queryKey: ['myAppointments'] });
-              queryClient.invalidateQueries({ queryKey: ['appointments'] });
-            }}
-          />
-        </div>
-      </div>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Total" value={stats.total} icon={<Stethoscope className="w-5 h-5 text-blue-600" />} color="border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20" />
-        <StatCard label="Upcoming" value={stats.upcoming} icon={<Calendar className="w-5 h-5 text-green-600" />} color="border-green-100 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20" />
-        <StatCard label="In Progress" value={stats.inProgress} icon={<Zap className="w-5 h-5 text-purple-600" />} color="border-purple-100 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-950/20" />
-        <StatCard label="Completed" value={stats.completed} icon={<CheckCircle className="w-5 h-5 text-slate-600" />} color="border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20" />
+          <StatCard
+            label="Total"
+            value={stats.total}
+            icon={<Stethoscope className="w-5 h-5" />}
+            iconBg="bg-blue-50"
+            iconBorder="border-blue-100"
+            iconColor="text-blue-600"
+            cardBorder="border-blue-100"
+            cardHover="hover:border-blue-300"
+          />
+          <StatCard
+            label="Upcoming"
+            value={stats.upcoming}
+            icon={<Calendar className="w-5 h-5" />}
+            iconBg="bg-emerald-50"
+            iconBorder="border-emerald-100"
+            iconColor="text-emerald-600"
+            cardBorder="border-emerald-100"
+            cardHover="hover:border-emerald-300"
+          />
+          <StatCard
+            label="In Progress"
+            value={stats.inProgress}
+            icon={<Zap className="w-5 h-5" />}
+            iconBg="bg-amber-50"
+            iconBorder="border-amber-100"
+            iconColor="text-amber-600"
+            cardBorder="border-amber-100"
+            cardHover="hover:border-amber-300"
+          />
+          <StatCard
+            label="Completed"
+            value={stats.completed}
+            icon={<CheckCircle className="w-5 h-5" />}
+            iconBg="bg-violet-50"
+            iconBorder="border-violet-100"
+            iconColor="text-violet-600"
+            cardBorder="border-violet-100"
+            cardHover="hover:border-violet-300"
+          />
       </div>
 
-      {/* Filters row */}
-      <div className="flex flex-col gap-3">
-        {/* Search */}
-        <div className="relative flex-1">
+      {/* Search and Filters (REPLICATING DASHBOARD EXACTLY) */}
+      <div className="space-y-4 mb-8">
+        {/* 1. Search Bar */}
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by doctor, location..."
-            className="pl-9 h-9"
+            className="pl-10 h-11 border-muted/30 bg-muted/5 rounded-lg text-sm focus-visible:ring-primary shadow-sm w-full"
           />
         </div>
 
-        {/* Status tabs */}
-        <div className="flex gap-1 overflow-x-auto pb-1">
+        <div className="bg-white border border-border/60 p-1.5 h-14 rounded-2xl w-fit flex gap-1.5 overflow-x-auto scrollbar-hide shadow-sm">
           {(["ALL", "SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as StatusFilter[]).map(s => {
-            const cfg = s === "ALL" ? null : STATUS_CONFIG[s];
+            const isActive = statusFilter === s;
+            const labelMap: Record<string, string> = {
+              ALL: "All",
+              SCHEDULED: "Scheduled",
+              CONFIRMED: "Confirmed",
+              IN_PROGRESS: "In Progress",
+              COMPLETED: "Completed",
+              CANCELLED: "Cancelled"
+            };
+
             return (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border transition-all ${
-                  statusFilter === s
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-card border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                }`}
+                className={cn(
+                  "rounded-xl px-6 h-full font-semibold text-sm transition-all whitespace-nowrap",
+                  isActive
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
+                )}
               >
-                {s === "ALL" ? "All" : cfg?.label}
+                {labelMap[s]}
               </button>
             );
           })}
         </div>
-        {statusFilter === "SCHEDULED" && (
-          <p className="text-xs text-muted-foreground">
-            Default view is showing scheduled appointments first.
-          </p>
-        )}
 
-        {/* Date range */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        {/* 3. Default View Label */}
+        <p className="text-[13px] text-muted-foreground/80 px-1">
+           Default view is showing scheduled appointments first.
+        </p>
+
+        {/* 4. Date Range Pickers (From date, To date) */}
+        <div className="flex flex-wrap items-center gap-3 mt-2">
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className={cn(
-                  "h-9 w-full justify-start text-left text-xs font-normal sm:w-44",
+                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-slate-200 bg-white",
                   !dateFilter.start && "text-muted-foreground"
                 )}
               >
-                <Calendar className="mr-2 h-4 w-4" />
+                <Calendar className="mr-2 h-4 w-4 opacity-50" />
                 {formatDateValue(dateFilter.start, "From date")}
               </Button>
             </PopoverTrigger>
@@ -648,16 +781,17 @@ export default function AppointmentManager() {
               />
             </PopoverContent>
           </Popover>
+
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className={cn(
-                  "h-9 w-full justify-start text-left text-xs font-normal sm:w-44",
+                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-slate-200 bg-white",
                   !dateFilter.end && "text-muted-foreground"
                 )}
               >
-                <Calendar className="mr-2 h-4 w-4" />
+                <Calendar className="mr-2 h-4 w-4 opacity-50" />
                 {formatDateValue(dateFilter.end, "To date")}
               </Button>
             </PopoverTrigger>
@@ -674,14 +808,19 @@ export default function AppointmentManager() {
               />
             </PopoverContent>
           </Popover>
-          {(dateFilter.start || dateFilter.end) && (
+
+          {(dateFilter.start || dateFilter.end || (statusFilter && statusFilter !== "SCHEDULED")) && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setDateFilter({ start: "", end: "" })}
-              className="h-9 px-2 text-xs sm:self-auto"
+              onClick={() => {
+                setDateFilter({ start: "", end: "" });
+                setStatusFilter("SCHEDULED");
+                setSearchQuery("");
+              }}
+              className="text-primary hover:bg-primary/5 h-9"
             >
-              Clear
+              Clear Filters
             </Button>
           )}
         </div>
@@ -712,12 +851,54 @@ export default function AppointmentManager() {
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground font-medium">
-            Showing {filteredAppointments.length} of {allAppointments.length} appointments
-          </p>
-          {filteredAppointments.map((apt) => (
-            <AppointmentCard key={apt.id} apt={apt} />
-          ))}
+          {/* Pagination info */}
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground font-medium">
+              Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredAppointments.length)}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length} appointments
+            </p>
+          </div>
+          {filteredAppointments
+            .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+            .map((apt) => (
+              <AppointmentCard key={apt.id} apt={apt} />
+            ))}
+          {/* Pagination controls */}
+          {filteredAppointments.length > ITEMS_PER_PAGE && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-9 px-4 rounded-lg border-border/60 text-sm"
+              >
+                ← Prev
+              </Button>
+              {Array.from({ length: Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={cn(
+                    "w-9 h-9 rounded-lg text-sm font-semibold transition-all",
+                    page === currentPage
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "border border-border/60 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
+                  )}
+                >
+                  {page}
+                </button>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE), p + 1))}
+                disabled={currentPage === Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE)}
+                className="h-9 px-4 rounded-lg border-border/60 text-sm"
+              >
+                Next →
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -773,11 +954,18 @@ export default function AppointmentManager() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRescheduleDialogOpen(false)}>Cancel</Button>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsRescheduleDialogOpen(false)}
+              className="h-11 px-6 rounded-xl border-border/50 transition-all active:scale-95"
+            >
+              Cancel
+            </Button>
             <Button
               onClick={handleRescheduleSubmit}
               disabled={reschedulingAppointment || !rescheduleData.date || !rescheduleData.time}
+              className="h-11 px-8 rounded-xl font-semibold shadow-sm transition-all active:scale-95 bg-primary hover:bg-primary/90 text-white"
             >
               {reschedulingAppointment ? "Rescheduling..." : "Confirm Reschedule"}
             </Button>
@@ -800,21 +988,29 @@ export default function AppointmentManager() {
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               placeholder="e.g., Only available in evenings"
-              className="mt-2"
+              className="mt-2 rounded-xl"
             />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsRejectDialogOpen(false)}
+              className="h-11 px-6 rounded-xl border-border/50 transition-all active:scale-95"
+            >
+              Cancel
+            </Button>
             <Button
               variant="destructive"
               onClick={handleRejectProposal}
               disabled={!rejectReason || rejectingProposal}
+              className="h-11 px-8 rounded-xl font-semibold shadow-sm transition-all active:scale-95"
             >
               {rejectingProposal ? "Rejecting..." : "Reject Proposal"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -83,49 +83,49 @@ export default function ClinicAdminSchedule() {
           startTime: "09:00",
           endTime: "17:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Tuesday",
           startTime: "09:00",
           endTime: "17:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Wednesday",
           startTime: "09:00",
           endTime: "17:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Thursday",
           startTime: "09:00",
           endTime: "17:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Friday",
           startTime: "09:00",
           endTime: "17:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Saturday",
           startTime: "09:00",
           endTime: "13:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Sunday",
           startTime: "",
           endTime: "",
           available: false,
-          slotDuration: 30,
+          slotDuration: 3,
         },
       ];
 
@@ -459,8 +459,11 @@ export default function ClinicAdminSchedule() {
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="15">15 min</SelectItem>
-                                    <SelectItem value="30">30 min</SelectItem>
+                                    <SelectItem value="3">3 min (20/hr)</SelectItem>
+                                    <SelectItem value="5">5 min (12/hr)</SelectItem>
+                                    <SelectItem value="10">10 min (6/hr)</SelectItem>
+                                    <SelectItem value="15">15 min (4/hr)</SelectItem>
+                                    <SelectItem value="30">30 min (2/hr)</SelectItem>
                                     <SelectItem value="45">45 min</SelectItem>
                                     <SelectItem value="60">60 min</SelectItem>
                                   </SelectContent>
@@ -516,7 +519,7 @@ export default function ClinicAdminSchedule() {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between p-3 border rounded-lg">
                           <span>General Consultation</span>
-                          <Badge>30 min</Badge>
+                          <Badge>3 min</Badge>
                         </div>
                         <div className="flex items-center justify-between p-3 border rounded-lg">
                           <span>Nadi Pariksha</span>

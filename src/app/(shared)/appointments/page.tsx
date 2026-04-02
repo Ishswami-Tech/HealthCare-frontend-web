@@ -344,7 +344,7 @@ export default function AppointmentsPage() {
           "_blank"
         );
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to join video:", error);
     }
   };

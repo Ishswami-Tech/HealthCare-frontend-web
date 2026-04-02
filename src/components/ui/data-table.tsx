@@ -41,6 +41,7 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
@@ -58,6 +59,11 @@ export function DataTable<TData, TValue>({
       sorting,
     },
   });
+
+  const pageIndex = table.getState().pagination.pageIndex;
+  const currentPageRows = table.getRowModel().rows.length;
+  const rangeStart = data.length === 0 ? 0 : pageIndex * pageSize + 1;
+  const rangeEnd = data.length === 0 ? 0 : pageIndex * pageSize + currentPageRows;
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -101,7 +107,7 @@ export function DataTable<TData, TValue>({
 
       <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
         <div>
-          Showing {table.getRowModel().rows.length} of {data.length} row(s)
+          Showing {rangeStart}-{rangeEnd} of {data.length} row(s)
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -113,7 +119,7 @@ export function DataTable<TData, TValue>({
             Previous
           </Button>
           <span>
-            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
+            Page {pageIndex + 1} of {table.getPageCount() || 1}
           </span>
           <Button
             variant="outline"

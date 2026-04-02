@@ -43,7 +43,7 @@ export function PushNotificationProvider({
           }
         );
 
-        console.log("Service Worker registered:", registration);
+        console.debug("Service Worker registered:", registration);
 
         // Inject Firebase config into service worker
         const sendConfigToSW = () => {
@@ -91,7 +91,7 @@ export function PushNotificationProvider({
                 newWorker.state === "installed" &&
                 navigator.serviceWorker.controller
               ) {
-                console.log(
+                console.debug(
                   "New service worker available. Please refresh the page."
                 );
               }
@@ -134,7 +134,7 @@ export function PushNotificationProvider({
   // Log registration status
   useEffect(() => {
     if (isRegistered) {
-      console.log("Push notifications registered successfully");
+      console.debug("Push notifications registered successfully");
     }
   }, [isRegistered]);
 

@@ -7,6 +7,21 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "@/components/ui/loader";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Search,
   Plus,
   FileText,
@@ -15,6 +30,7 @@ import {
   Pill,
   Download,
   Filter,
+  Edit2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
@@ -31,6 +47,9 @@ export default function DoctorPrescriptions() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [editingPrescription, setEditingPrescription] = useState<any | null>(null);
+  const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
+  const [editForm, setEditForm] = useState({ diagnosis: "", notes: "", status: "active", medicines: "" });
 
   const doctorId = user?.id;
 
@@ -57,6 +76,57 @@ export default function DoctorPrescriptions() {
 
     return matchesSearch && matchesStatus;
   });
+
+  const openCreate = () => {
+    setEditingPrescription(null);
+    setEditForm({ diagnosis: "", notes: "", status: "active", medicines: "" });
+    setShowPrescriptionDialog(true);
+  };
+
+  const openEdit = (prescription: any) => {
+    setEditingPrescription(prescription);
+    setEditForm({
+      diagnosis: prescription.diagnosis || "",
+      notes: prescription.doctorNotes || prescription.notes || "",
+      status: prescription.status || "active",
+      medicines: Array.isArray(prescription.medicines) ? prescription.medicines.join(", ") : "",
+    });
+    setShowPrescriptionDialog(true);
+  };
+
+  const handleDownload = (prescription: any) => {
+    if (prescription.pdfUrl) {
+      window.open(prescription.pdfUrl, "_blank");
+    } else {
+      import("sonner").then(({ toast }) => toast.info("PDF not available for this prescription"));
+    }
+  };
+
+  const handleSavePrescription = () => {
+    const medicinesArr = editForm.medicines
+      .split(",")
+      .map((m) => m.trim())
+      .filter(Boolean);
+
+    if (editingPrescription?.id) {
+      updateMutation.mutate({
+        prescriptionId: editingPrescription.id,
+        updates: {
+          notes: editForm.notes,
+          status: editForm.status,
+        },
+      });
+    } else {
+      createMutation.mutate({
+        patientId: "",
+        doctorId: user?.id,
+        notes: editForm.notes,
+        status: editForm.status,
+        medications: medicinesArr.map((name) => ({ name })),
+      } as any);
+    }
+    setShowPrescriptionDialog(false);
+  };
 
   const handleDelete = (prescriptionId: string) => {
     if (confirm("Are you sure you want to delete this prescription?")) {
@@ -95,7 +165,7 @@ export default function DoctorPrescriptions() {
             Manage and view all patient prescriptions
           </p>
         </div>
-        <Button className="flex items-center gap-2" disabled={createMutation.isPending}>
+        <Button className="flex items-center gap-2" disabled={createMutation.isPending} onClick={openCreate}>
           <Plus className="w-4 h-4" />
           New Prescription
         </Button>
@@ -298,10 +368,11 @@ export default function DoctorPrescriptions() {
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" disabled={updateMutation.isPending}>
+                      <Button variant="outline" size="sm" onClick={() => handleDownload(prescription)} title="Download PDF">
                         <Download className="w-4 h-4" />
                       </Button>
-                      <Button variant="outline" size="sm" disabled={updateMutation.isPending}>
+                      <Button variant="outline" size="sm" disabled={updateMutation.isPending} onClick={() => openEdit(prescription)}>
+                        <Edit2 className="w-4 h-4 mr-1" />
                         Edit
                       </Button>
                       <Button
@@ -320,6 +391,65 @@ export default function DoctorPrescriptions() {
           )}
         </CardContent>
       </Card>
+
+      {/* Create / Edit Prescription Dialog */}
+      <Dialog open={showPrescriptionDialog} onOpenChange={setShowPrescriptionDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingPrescription ? "Edit Prescription" : "New Prescription"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Diagnosis / Notes</Label>
+              <textarea
+                className="w-full border rounded-md p-2 text-sm min-h-[80px] resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Enter diagnosis or clinical notes..."
+                value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+              />
+            </div>
+            {!editingPrescription && (
+              <div className="space-y-1.5">
+                <Label>Medicines (comma-separated)</Label>
+                <Input
+                  placeholder="e.g. Paracetamol 500mg, Amoxicillin 250mg"
+                  value={editForm.medicines}
+                  onChange={(e) => setEditForm((f) => ({ ...f, medicines: e.target.value }))}
+                />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select
+                value={editForm.status}
+                onValueChange={(v) => setEditForm((f) => ({ ...f, status: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPrescriptionDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSavePrescription}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

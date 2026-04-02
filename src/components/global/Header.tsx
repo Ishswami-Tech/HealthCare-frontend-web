@@ -67,7 +67,7 @@ export function Header({ className, children }: HeaderProps) {
       "sticky top-0 z-40 w-full transition-all duration-200",
       className
     )}>
-      <div className="flex h-16 items-center px-6 gap-4">
+      <div className="flex h-16 items-center px-6 gap-4 max-w-6xl mx-auto">
         {/* Left side content (title, breadcrumbs, etc) */}
         <div className="flex-1 flex items-center">
           {pageTitle && (

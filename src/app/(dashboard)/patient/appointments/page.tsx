@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { theme } from "@/lib/utils/theme-utils";
 import {
-  Activity,
+  Stethoscope,
   Leaf,
   Flame,
   Heart,
@@ -18,7 +18,55 @@ import {
   Wind,
   Sun,
 } from "lucide-react";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PatientPageShell, PatientPageHeader } from "@/components/patient/PatientPageShell";
 
+interface TreatmentCategory {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  containerClass: string;
+  iconClass: string;
+}
+
+const TREATMENT_CATEGORIES: TreatmentCategory[] = [
+  {
+    icon: Stethoscope,
+    title: "Consultations",
+    description: "General health assessment and follow-ups",
+    containerClass: theme.containers.featureBlue,
+    iconClass: theme.iconColors.blue,
+  },
+  {
+    icon: Droplets,
+    title: "Panchakarma",
+    description: "Detox and rejuvenation therapies",
+    containerClass: theme.containers.featureGreen,
+    iconClass: theme.iconColors.emerald,
+  },
+  {
+    icon: Heart,
+    title: "Diagnosis",
+    description: "Nadi Pariksha and dosha analysis",
+    containerClass: theme.containers.featureBlue,
+    iconClass: theme.iconColors.blue,
+  },
+  {
+    icon: Flame,
+    title: "Specialized",
+    description: "Agnikarma, Viddhakarma procedures",
+    containerClass: theme.containers.featureGreen,
+    iconClass: theme.iconColors.emerald,
+  },
+];
+
+/**
+ * Patient Appointments Page.
+ *
+ * This page serves as a central hub for patients to manage their health journey.
+ * It provides categorized appointment booking, real-time queue status,
+ * and a simplified overview of Ayurvedic treatments.
+ */
 export default function PatientAppointments() {
   const searchParams = useSearchParams();
   const queryClinicId = searchParams.get("clinicId") || undefined;
@@ -28,117 +76,73 @@ export default function PatientAppointments() {
   // Clear query parameters from URL to keep it clean, without triggering a re-render
   useEffect(() => {
     if (queryClinicId || queryLocationId || queryClinicName) {
-      window.history.replaceState(null, '', window.location.pathname);
+      window.history.replaceState(null, "", window.location.pathname);
     }
   }, [queryClinicId, queryLocationId, queryClinicName]);
 
   return (
-    
-      <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold">My Appointments</h1>
+    <DashboardLayout title="My Appointments">
+      <PatientPageShell>
 
-          {/* ✅ Single reusable BookAppointmentDialog */}
-          <BookAppointmentDialog
-            {...(queryClinicId && { clinicId: queryClinicId })}
-            {...(queryLocationId && { locationId: queryLocationId })}
-            {...(queryClinicName && { clinicName: queryClinicName })}
-            defaultOpen={!!queryClinicId}
-          />
-        </div>
+        {/* Page Header — matches screenshot: eyebrow + title + Book CTA */}
+        <PatientPageHeader
+          eyebrow="MY APPOINTMENTS"
+          title="My Appointments"
+          description="Book and manage your in-person and virtual health appointments."
+          actionsSlot={
+            <BookAppointmentDialog
+              {...(queryClinicId && { clinicId: queryClinicId })}
+              {...(queryLocationId && { locationId: queryLocationId })}
+              {...(queryClinicName && { clinicName: queryClinicName })}
+              defaultOpen={!!queryClinicId}
+            />
+          }
+        />
 
         {/* Real-time Queue Status */}
         <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-           <PatientQueueCard />
+          <PatientQueueCard />
         </div>
 
-        {/* Existing AppointmentManager Component */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Appointments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AppointmentManager />
-          </CardContent>
-        </Card>
+        {/* AppointmentManager — rendered directly, has its own internal header */}
+        <AppointmentManager hideBookButton={true} />
 
         {/* Ayurveda Treatment Categories — quick-book cards */}
-        <Card>
+        <Card className="border-l-4 border-l-amber-400 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Leaf className="w-5 h-5" />
+              <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center">
+                <Leaf className="w-4 h-4 text-amber-600" />
+              </div>
               Ayurvedic Treatment Categories
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800 transition-all hover:shadow-md">
-                <Activity className={`w-8 h-8 ${theme.iconColors.blue} mb-3`} />
-                <h3 className="font-semibold mb-2">Consultations</h3>
-                <p className={`text-sm ${theme.textColors.secondary} mb-3`}>
-                  General health assessment and follow-ups
-                </p>
-                <BookAppointmentDialog
-                  trigger={
-                    <Button variant="outline" size="sm" className="w-full">
-                      Book Now
-                    </Button>
-                  }
-                />
-              </div>
-
-              <div className="p-4 rounded-xl bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-800 transition-all hover:shadow-md">
-                <Droplets className={`w-8 h-8 ${theme.iconColors.green} mb-3`} />
-                <h3 className="font-semibold mb-2">Panchakarma</h3>
-                <p className={`text-sm ${theme.textColors.secondary} mb-3`}>
-                  Detox and rejuvenation therapies
-                </p>
-                <BookAppointmentDialog
-                  trigger={
-                    <Button variant="outline" size="sm" className="w-full">
-                      Book Now
-                    </Button>
-                  }
-                />
-              </div>
-
-              <div className="p-4 rounded-xl bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border border-purple-200 dark:border-purple-800 transition-all hover:shadow-md">
-                <Heart className={`w-8 h-8 ${theme.iconColors.purple} mb-3`} />
-                <h3 className="font-semibold mb-2">Diagnosis</h3>
-                <p className={`text-sm ${theme.textColors.secondary} mb-3`}>
-                  Nadi Pariksha and dosha analysis
-                </p>
-                <BookAppointmentDialog
-                  trigger={
-                    <Button variant="outline" size="sm" className="w-full">
-                      Book Now
-                    </Button>
-                  }
-                />
-              </div>
-
-              <div className="p-4 rounded-xl bg-linear-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border border-orange-200 dark:border-orange-800 transition-all hover:shadow-md">
-                <Flame className={`w-8 h-8 ${theme.iconColors.orange} mb-3`} />
-                <h3 className="font-semibold mb-2">Specialized</h3>
-                <p className={`text-sm ${theme.textColors.secondary} mb-3`}>
-                  Agnikarma, Viddhakarma procedures
-                </p>
-                <BookAppointmentDialog
-                  trigger={
-                    <Button variant="outline" size="sm" className="w-full">
-                      Book Now
-                    </Button>
-                  }
-                />
-              </div>
+              {TREATMENT_CATEGORIES.map(({ icon: Icon, title, description, containerClass, iconClass }) => (
+                <div key={title} className={`p-4 rounded-xl border ${containerClass} transition-all hover:shadow-md`}>
+                  <Icon className={`w-8 h-8 ${iconClass} mb-3`} />
+                  <h3 className="font-semibold mb-2">{title}</h3>
+                  <p className={`text-sm ${theme.textColors.secondary} mb-3`}>{description}</p>
+                  <BookAppointmentDialog
+                    trigger={
+                      <Button variant="outline" size="sm" className="w-full border-emerald-200 bg-emerald-50/60 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300">
+                        Book Now
+                      </Button>
+                    }
+                  />
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
         {/* Treatment Information */}
-        <Card>
+        <Card className="border-l-4 border-l-blue-400 shadow-sm">
           <CardHeader>
-            <CardTitle>Understanding Ayurvedic Treatments</CardTitle>
+            <CardTitle>
+              Understanding Ayurvedic Treatments
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -146,32 +150,38 @@ export default function PatientAppointments() {
                 <h4 className="font-semibold text-lg">Traditional Therapies</h4>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3">
-                    <Droplets className={`w-5 h-5 ${theme.iconColors.cyan} mt-0.5`} />
+                    <Droplets
+                      className={`w-5 h-5 ${theme.iconColors.cyan} mt-0.5`}
+                    />
                     <div>
                       <h5 className="font-medium">Panchakarma</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Five-action detoxification process including Vamana, Virechana, Basti,
-                        Nasya, and Raktamokshana
+                        Five-action detoxification process including Vamana,
+                        Virechana, Basti, Nasya, and Raktamokshana
                       </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <Waves className={`w-5 h-5 ${theme.iconColors.indigo} mt-0.5`} />
+                    <Waves
+                      className={`w-5 h-5 ${theme.iconColors.cyan} mt-0.5`}
+                    />
                     <div>
                       <h5 className="font-medium">Shirodhara</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Continuous pouring of medicated oils on forehead for stress relief and
-                        mental clarity
+                        Continuous pouring of medicated oils on forehead for
+                        stress relief and mental clarity
                       </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <Wind className={`w-5 h-5 ${theme.iconColors.purple} mt-0.5`} />
+                    <Wind
+                      className={`w-5 h-5 ${theme.iconColors.blue} mt-0.5`}
+                    />
                     <div>
                       <h5 className="font-medium">Abhyanga</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Full-body therapeutic massage with warm herbal oils to improve circulation
-                        and flexibility
+                        Full-body therapeutic massage with warm herbal oils to
+                        improve circulation and flexibility
                       </p>
                     </div>
                   </div>
@@ -182,30 +192,38 @@ export default function PatientAppointments() {
                 <h4 className="font-semibold text-lg">Diagnostic Methods</h4>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3">
-                    <Heart className={`w-5 h-5 ${theme.iconColors.red} mt-0.5`} />
+                    <Heart
+                      className={`w-5 h-5 ${theme.iconColors.red} mt-0.5`}
+                    />
                     <div>
                       <h5 className="font-medium">Nadi Pariksha</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Pulse diagnosis to assess dosha imbalances and overall health status
+                        Pulse diagnosis to assess dosha imbalances and overall
+                        health status
                       </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <Leaf className={`w-5 h-5 ${theme.iconColors.green} mt-0.5`} />
+                    <Leaf
+                      className={`w-5 h-5 ${theme.iconColors.green} mt-0.5`}
+                    />
                     <div>
                       <h5 className="font-medium">Prakriti Analysis</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Constitutional assessment to determine individual body type and treatment
-                        approach
+                        Constitutional assessment to determine individual body
+                        type and treatment approach
                       </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <Sun className={`w-5 h-5 ${theme.iconColors.yellow} mt-0.5`} />
+                    <Sun
+                      className={`w-5 h-5 ${theme.iconColors.yellow} mt-0.5`}
+                    />
                     <div>
                       <h5 className="font-medium">Vikriti Assessment</h5>
                       <p className={`text-sm ${theme.textColors.secondary}`}>
-                        Current health imbalances and deviation from natural constitution
+                        Current health imbalances and deviation from natural
+                        constitution
                       </p>
                     </div>
                   </div>
@@ -214,7 +232,7 @@ export default function PatientAppointments() {
             </div>
           </CardContent>
         </Card>
-      </div>
-    
+      </PatientPageShell>
+    </DashboardLayout>
   );
 }

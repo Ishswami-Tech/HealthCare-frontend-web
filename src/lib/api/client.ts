@@ -1094,8 +1094,8 @@ export class ClinicApiClient extends ApiClient {
     return this.post(API_ENDPOINTS.QUEUE.ADD, data);
   }
 
-  async callNextPatient(doctorId: string, domain?: string) {
-    return this.post(API_ENDPOINTS.QUEUE.CALL_NEXT, { doctorId, domain: domain || 'clinic' });
+  async callNextPatient(doctorId: string, appointmentId: string) {
+    return this.post(API_ENDPOINTS.QUEUE.CALL_NEXT, { doctorId, appointmentId });
   }
 
   async getQueueStats(locationId: string) {

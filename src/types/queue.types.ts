@@ -317,9 +317,16 @@ export interface CanonicalQueueEntry {
   serviceBucket?: string;
   treatmentType?: string;
   estimatedWaitTime?: number;
+  estimatedDuration?: number;
   paymentStatus?: string;
   waitingForPayment?: boolean;
   readyForHandover?: boolean;
+  // Projection fields from QueueProjectionEntry
+  paused?: boolean;
+  tokenNumber?: string;
+  scheduledDate?: string;
+  startedAt?: string;
+  completedAt?: string;
 }
 
 /**

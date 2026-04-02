@@ -470,6 +470,7 @@ export const API_ENDPOINTS = {
       UPDATE: (alertId: string) => `/queue/alerts/${alertId}`,
       DELETE: (alertId: string) => `/queue/alerts/${alertId}`,
     },
+    TRANSFER: (entryId: string) => `/queue/${entryId}/transfer`,
   },
   
   // Pharmacy Endpoints
@@ -623,7 +624,7 @@ export const API_ENDPOINTS = {
     DETAILED: '/health?detailed=true',
     STATUS: '/health/status',
     READY: '/health/ready',
-    LIVE: '/health/live',
+    LIVE: '/health/status',
   },
   
   // Billing Endpoints

@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,6 @@ import {
   MapPin,
   Loader2,
   Plus,
-  Edit,
   UserPlus,
   AlertCircle,
   Heart,
@@ -179,11 +179,13 @@ export default function ReceptionistPatients() {
 
   const filteredPatients = useMemo(() => {
     return patientsWithAge.filter((patient: any) => {
+      const patientPhone = patient.phone || patient.user?.phone || "";
+      const patientEmail = patient.email || patient.user?.email || "";
       const matchesSearch =
         !searchTerm ||
         patient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.phone?.includes(searchTerm) ||
-        patient.email?.toLowerCase().includes(searchTerm.toLowerCase());
+        patientPhone.includes(searchTerm) ||
+        patientEmail.toLowerCase().includes(searchTerm.toLowerCase());
       const patientStatus = patient.isActive ? "active" : "inactive";
       const matchesStatus =
         statusFilter === "all" || patientStatus === statusFilter;
@@ -199,8 +201,8 @@ export default function ReceptionistPatients() {
         patient,
         name: patient.name || "Unknown Patient",
         address: patient.address || "Address not available",
-        phone: patient.phone || "N/A",
-        email: patient.email || "N/A",
+        phone: patient.phone || patient.user?.phone || "N/A",
+        email: patient.email || patient.user?.email || "N/A",
         ageLabel: patient.age ? `${patient.age} years` : "Age N/A",
         genderLabel: patient.gender || "Gender N/A",
         statusLabel: patient.isActive !== false ? "Active" : "Inactive",
@@ -280,24 +282,37 @@ export default function ReceptionistPatients() {
               <Eye className="mr-1 h-4 w-4" />
               View
             </Button>
-            <Button variant="outline" size="sm">
-              <Edit className="mr-1 h-4 w-4" />
-              Edit
-            </Button>
-            <Button size="sm">
-              <Calendar className="mr-1 h-4 w-4" />
-              Book
-            </Button>
+            <BookAppointmentDialog
+              clinicId={clinicId || ""}
+              initialPatientId={row.original.patient.id}
+              trigger={
+                <Button size="sm">
+                  <Calendar className="mr-1 h-4 w-4" />
+                  Book
+                </Button>
+              }
+            />
           </div>
         ),
       },
     ],
-    []
+    [clinicId]
   );
 
   const handleNewPatientSubmit = async () => {
     if (!clinicId) {
       showErrorToast("Clinic ID is required", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
+      return;
+    }
+
+    const trimmedFirstName = newPatient.firstName.trim();
+    const trimmedLastName = newPatient.lastName.trim();
+    const trimmedPhone = newPatient.phone.trim();
+
+    if (!trimmedFirstName || !trimmedLastName || !trimmedPhone) {
+      showErrorToast("First name, last name, and phone number are required", {
         id: TOAST_IDS.GLOBAL.ERROR,
       });
       return;
@@ -332,9 +347,9 @@ export default function ReceptionistPatients() {
           newPatient.email.trim() ||
           `patient.${newPatient.phone.replace(/\D/g, "")}@placeholder.local`,
         password: temporaryPassword,
-        firstName: newPatient.firstName.trim(),
-        lastName: newPatient.lastName.trim(),
-        phone: newPatient.phone.trim(),
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        phone: trimmedPhone,
         role: Role.PATIENT,
         clinicId,
         ...(gender ? { gender } : {}),
@@ -899,18 +914,18 @@ export default function ReceptionistPatients() {
                                         {selectedPatient.gender}
                                       </div>
                                     )}
-                                    {selectedPatient.phone && (
-                                      <div>
-                                        <strong>Phone:</strong>{" "}
-                                        {selectedPatient.phone}
-                                      </div>
-                                    )}
-                                    {selectedPatient.email && (
-                                      <div>
-                                        <strong>Email:</strong>{" "}
-                                        {selectedPatient.email}
-                                      </div>
-                                    )}
+                                      {(selectedPatient.phone || selectedPatient.user?.phone) && (
+                                        <div>
+                                          <strong>Phone:</strong>{" "}
+                                          {selectedPatient.phone || selectedPatient.user?.phone}
+                                        </div>
+                                      )}
+                                      {(selectedPatient.email || selectedPatient.user?.email) && (
+                                        <div>
+                                          <strong>Email:</strong>{" "}
+                                          {selectedPatient.email || selectedPatient.user?.email}
+                                        </div>
+                                      )}
                                     {selectedPatient.createdAt && (
                                       <div>
                                         <strong>Registration:</strong>{" "}
@@ -1014,15 +1029,16 @@ export default function ReceptionistPatients() {
                           </DialogContent>
                         </Dialog>
 
-                        <Button variant="outline" size="sm">
-                          <Edit className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-
-                        <Button size="sm">
-                          <Calendar className="w-4 h-4 mr-1" />
-                          Book
-                        </Button>
+                        <BookAppointmentDialog
+                          clinicId={clinicId || ""}
+                          initialPatientId={patient.id}
+                          trigger={
+                            <Button size="sm">
+                              <Calendar className="w-4 h-4 mr-1" />
+                              Book
+                            </Button>
+                          }
+                        />
                       </div>
                     </div>
                   </div>
@@ -1074,10 +1090,10 @@ export default function ReceptionistPatients() {
                           }`.trim()}
                       </div>
                       <div>
-                        <strong>Phone:</strong> {selectedPatient.phone || "N/A"}
+                        <strong>Phone:</strong> {selectedPatient.phone || selectedPatient.user?.phone || "N/A"}
                       </div>
                       <div>
-                        <strong>Email:</strong> {selectedPatient.email || "N/A"}
+                        <strong>Email:</strong> {selectedPatient.email || selectedPatient.user?.email || "N/A"}
                       </div>
                       <div>
                         <strong>Age:</strong>{" "}

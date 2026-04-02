@@ -462,3 +462,26 @@ export async function deleteQueueAlert(alertId: string) {
     return null;
   }
 }
+
+/**
+ * Transfer patient from one logical queue to another
+ * (e.g. Vidhakarma → Agnikarma, Consultation → Panchakarma)
+ */
+export async function transferQueueEntry(
+  entryId: string,
+  targetQueue: string,
+  treatmentType?: string,
+  notes?: string
+) {
+  try {
+    const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.TRANSFER(entryId), {
+      method: 'PATCH',
+      body: JSON.stringify({ targetQueue, treatmentType, notes }),
+    });
+    revalidateCache('queue');
+    return data;
+  } catch (error) {
+    logger.error('transferQueueEntry failed', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}

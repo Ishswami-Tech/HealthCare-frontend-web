@@ -152,10 +152,6 @@ export default function StatusPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Debug: Log health status
-  console.log('[Status Page] Health Status:', healthStatus);
-  console.log('[Status Page] Last Update:', lastUpdate);
-
   // We don't use useTheme here anymore to avoid hydration mismatch with duplicate headers/toggles
   // const [mounted, setMounted] = useState(false); // Removed unused
 

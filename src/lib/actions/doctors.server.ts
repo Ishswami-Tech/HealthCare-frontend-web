@@ -103,11 +103,11 @@ export async function deleteDoctor(doctorId: string) {
  */
 export async function getDoctorSchedule(clinicId: string, doctorId: string, date?: string) {
   if (!clinicId || !doctorId) {
-    console.warn('[getDoctorSchedule] Missing clinicId or doctorId, skipping request', { clinicId, doctorId });
     return null;
   }
+  // Backend: GET /appointments/doctor/:doctorId/availability?date=X
   const params = date ? `?date=${date}` : '';
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.SCHEDULE.GET(clinicId, doctorId)}${params}`, {
+  const { data } = await authenticatedApi(`/appointments/doctor/${doctorId}/availability${params}`, {
     headers: { 'X-Clinic-ID': clinicId },
   });
   return data;
@@ -122,7 +122,8 @@ export async function updateDoctorSchedule(doctorId: string, schedule: {
   endTime: string;
   isAvailable: boolean;
 }[]) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.SCHEDULE.UPDATE(doctorId), {
+  // Backend: PUT /appointments/doctor/:doctorId/availability
+  const { data } = await authenticatedApi(`/appointments/doctor/${doctorId}/availability`, {
     method: 'PUT',
     body: JSON.stringify({ schedule }),
   });
@@ -164,7 +165,9 @@ export async function getDoctorAppointments(doctorId: string, filters?: {
     });
   }
   
-  const endpoint = `${API_ENDPOINTS.DOCTORS.APPOINTMENTS(doctorId)}${params.toString() ? `?${params.toString()}` : ''}`;
+  // Backend: GET /appointments?doctorId=X (no /doctors/:id/appointments route)
+  params.append('doctorId', doctorId);
+  const endpoint = `/appointments${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint, {});
   return data;
 }
@@ -183,7 +186,9 @@ export async function getDoctorPatients(clinicId: string, doctorId: string, filt
     });
   }
 
-  const endpoint = `/clinics/${clinicId}/doctors/${doctorId}/patients${params.toString() ? `?${params.toString()}` : ''}`;
+  // Backend: GET /patients/clinic/:clinicId?doctorId=X
+  params.append('doctorId', doctorId);
+  const endpoint = `/patients/clinic/${clinicId}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint, {
     headers: { 'X-Clinic-ID': clinicId },
   });
@@ -193,34 +198,30 @@ export async function getDoctorPatients(clinicId: string, doctorId: string, filt
 /**
  * Get doctor statistics
  */
-export async function getDoctorStats(doctorId: string, period?: 'day' | 'week' | 'month' | 'year') {
-  const params = period ? `?period=${period}` : '';
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.STATS(doctorId)}${params}`, {});
-  return data;
+export async function getDoctorStats(_doctorId: string, _period?: 'day' | 'week' | 'month' | 'year') {
+  // Backend has no /doctors/:id/stats endpoint
+  return null;
 }
 
 /**
  * Get doctor reviews
  */
-export async function getDoctorReviews(doctorId: string, limit: number = 10) {
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.REVIEWS.GET(doctorId)}?limit=${limit}`, {});
-  return data;
+export async function getDoctorReviews(_doctorId: string, _limit: number = 10) {
+  // Backend has no /doctors/:id/reviews endpoint
+  return null;
 }
 
 /**
  * Add doctor review
  */
-export async function addDoctorReview(doctorId: string, reviewData: {
+export async function addDoctorReview(_doctorId: string, _reviewData: {
   patientId: string;
   rating: number;
   comment?: string;
   appointmentId?: string;
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.REVIEWS.CREATE(doctorId), {
-    method: 'POST',
-    body: JSON.stringify(reviewData),
-  });
-  return data;
+  // Backend has no /doctors/:id/reviews endpoint
+  return null;
 }
 
 /**
@@ -255,20 +256,12 @@ export async function searchDoctors(query: string, filters?: {
 /**
  * Get doctor performance metrics
  */
-export async function getDoctorPerformanceMetrics(doctorId: string, filters?: {
+export async function getDoctorPerformanceMetrics(_doctorId: string, _filters?: {
   startDate?: string;
   endDate?: string;
 }) {
-  const params = new URLSearchParams();
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, String(value));
-    });
-  }
-  
-  const endpoint = `${API_ENDPOINTS.DOCTORS.PERFORMANCE(doctorId)}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint, {});
-  return data;
+  // Backend has no /doctors/:id/performance endpoint
+  return null;
 }
 
 /**
@@ -281,7 +274,8 @@ export async function updateDoctorProfile(doctorId: string, profileData: {
   languages?: string[];
   profilePicture?: string;
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.PROFILE.UPDATE(doctorId), {
+  // Backend: PATCH /doctors/:id (profile fields included in main update)
+  const { data } = await authenticatedApi(`/doctors/${doctorId}`, {
     method: 'PATCH',
     body: JSON.stringify(profileData),
   });
@@ -291,36 +285,25 @@ export async function updateDoctorProfile(doctorId: string, profileData: {
 /**
  * Get doctor earnings
  */
-export async function getDoctorEarnings(doctorId: string, filters?: {
+export async function getDoctorEarnings(_doctorId: string, _filters?: {
   startDate?: string;
   endDate?: string;
   period?: 'day' | 'week' | 'month' | 'year';
 }) {
-  const params = new URLSearchParams();
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, String(value));
-    });
-  }
-  
-  const endpoint = `/doctors/${doctorId}/earnings${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint, {});
-  return data;
+  // Backend has no /doctors/:id/earnings endpoint
+  return null;
 }
 
 /**
  * Export doctor data
  */
-export async function exportDoctorData(filters: {
+export async function exportDoctorData(_filters: {
   format: 'csv' | 'excel' | 'pdf';
   doctorIds?: string[];
   includeStats?: boolean;
   startDate?: string;
   endDate?: string;
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.EXPORT, {
-    method: 'POST',
-    body: JSON.stringify(filters),
-  });
-  return data;
+  // Backend has no doctors export endpoint
+  return null;
 }

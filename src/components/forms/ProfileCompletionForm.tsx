@@ -83,18 +83,11 @@ export default function ProfileCompletionForm({
       async () => {
         try {
           const response = await getUserProfile();
-          console.log("Raw API response:", JSON.stringify(response, null, 2));
 
           // Transform the API response to match our expected format
           const transformedData = transformApiResponse(response as Record<string, unknown>);
-          console.log(
-            "Transformed profile data:",
-            JSON.stringify(transformedData, null, 2)
-          );
-
           return transformedData;
         } catch (error) {
-          console.log("No existing profile data, starting fresh:", error);
           return null;
         }
       },
@@ -227,7 +220,6 @@ export default function ProfileCompletionForm({
       onSuccess: async (result) => {
         try {
           // Log the result for debugging
-          console.log("Profile update successful:", result);
 
           // Check if the server action returned an error
           const response = result as { success?: boolean; error?: string };
@@ -261,7 +253,6 @@ export default function ProfileCompletionForm({
                   userRole,
                   redirectUrl
                 );
-                console.log("Redirecting to:", finalRedirect);
                 // Use hard redirect to ensure navigation happens
                 window.location.href = finalRedirect;
               }
@@ -329,10 +320,6 @@ export default function ProfileCompletionForm({
 
       const finalData = { ...baseProfileData, ...roleSpecificData };
 
-      console.log(
-        "Submitting profile data:",
-        JSON.stringify(finalData, null, 2)
-      );
       updateProfile(finalData as Record<string, unknown>);
     } catch (error) {
       console.error("Profile completion error:", error);

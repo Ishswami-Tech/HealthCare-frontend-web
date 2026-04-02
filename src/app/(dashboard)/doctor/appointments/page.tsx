@@ -99,8 +99,8 @@ export default function DoctorAppointments() {
 
   // Fetch real appointment data
   const appointmentsQuery = useAppointments({
-    clinicId: clinicId || "",
-    doctorId: user?.id || "",
+    ...(clinicId ? { clinicId } : {}),
+    ...(user?.id ? { doctorId: user.id } : {}),
     ...(statusFilter !== APPOINTMENT_STATUS.ALL && { status: statusFilter as AppointmentStatus }),
     limit: 100,
   });
@@ -128,7 +128,9 @@ export default function DoctorAppointments() {
       status: (app.status || "SCHEDULED") as AppointmentStatus,
       type: app.type || app.appointmentType || "Consultation",
       duration: typeof app.duration === 'number' ? `${app.duration} min` : (app.duration as string || "30 min"),
-      appointmentDate: app.startTime ? new Date(app.startTime).toISOString().split("T")[0] ?? "" : new Date().toISOString().split("T")[0] ?? "",
+      appointmentDate: app.startTime
+        ? new Date(app.startTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+        : new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
       patientPhone: app.patient?.phone || "",
       patientEmail: app.patient?.email || "",
       chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
@@ -189,8 +191,8 @@ export default function DoctorAppointments() {
         id: TOAST_IDS.GLOBAL.SUCCESS,
       });
       appointmentsQuery.refetch();
-    } catch (error: any) {
-      showErrorToast(error?.message || "Failed to start consultation", {
+    } catch (error: unknown) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to start consultation", {
         id: TOAST_IDS.GLOBAL.ERROR,
       });
     }
@@ -214,8 +216,8 @@ export default function DoctorAppointments() {
       setConsultationNotes("");
       setSelectedAppointment(null);
       appointmentsQuery.refetch();
-    } catch (error: any) {
-      showErrorToast(error?.message || "Failed to complete consultation", {
+    } catch (error: unknown) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to complete consultation", {
         id: TOAST_IDS.GLOBAL.ERROR,
       });
     }

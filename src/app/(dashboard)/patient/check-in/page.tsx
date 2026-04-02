@@ -19,6 +19,9 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { PatientPageShell, PatientPageHeader } from "@/components/patient/PatientPageShell";
+import { theme } from "@/lib/utils/theme-utils";
 
 interface EligibleAppointment {
   id: string;
@@ -121,13 +124,13 @@ export default function PatientCheckInPage() {
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm text-center space-y-8"
         >
-          <div className="relative mx-auto w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center shadow-inner">
+          <div className={`relative mx-auto w-24 h-24 ${theme.badges.emerald} rounded-full flex items-center justify-center shadow-inner border-none`}>
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
             >
-              <CheckCircle2 className="h-10 w-10 text-green-600" />
+              <CheckCircle2 className={`h-10 w-10 ${theme.iconColors.emerald}`} />
             </motion.div>
           </div>
 
@@ -168,7 +171,7 @@ export default function PatientCheckInPage() {
           </div>
 
           <Button
-            className="w-full h-14 rounded-2xl text-base font-bold"
+            className="w-full h-14 rounded-2xl text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium"
             onClick={() => router.push("/patient/dashboard")}
           >
             Go to Dashboard
@@ -253,14 +256,13 @@ export default function PatientCheckInPage() {
 
   // ─── Scanner State ────────────────────────────────────────────────────────
   return (
-    <div className="max-w-xl mx-auto space-y-6 py-4">
-      {/* Page Title */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">QR Check-in</h1>
-        <p className="text-muted-foreground text-sm">
-          Scan the QR at your booked clinic location to confirm appointment and join the live queue.
-        </p>
-      </div>
+    <DashboardLayout title="QR Check-In">
+      <PatientPageShell className="max-w-xl mx-auto">
+        <PatientPageHeader
+          eyebrow="QR CHECK-IN"
+          title="QR Check-in"
+          description="Scan the QR at your booked clinic location to confirm appointment and join the live queue."
+        />
 
       {/* Scanner Card */}
       <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
@@ -281,9 +283,9 @@ export default function PatientCheckInPage() {
                 />
               </div>
 
-              <div className="flex items-start gap-3 bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 w-full max-w-sm">
-                <Info className="h-4 w-4 text-blue-600 dark:text-blue-500 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-blue-800 dark:text-blue-300/80 leading-relaxed font-medium">
+              <div className={`flex items-start gap-3 ${theme.containers.featureBlue} p-4 rounded-xl w-full max-w-sm`}>
+                <Info className={`h-4 w-4 ${theme.iconColors.blue} shrink-0 mt-0.5`} />
+                <p className={`text-[11px] ${theme.textColors.info} leading-relaxed font-medium`}>
                   QR check-in works only at the booked appointment location. Once scanned, you are added to the live queue.
                 </p>
               </div>
@@ -365,6 +367,7 @@ export default function PatientCheckInPage() {
           </DrawerContent>
         </Drawer>
       </div>
-    </div>
+      </PatientPageShell>
+    </DashboardLayout>
   );
 }

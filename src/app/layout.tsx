@@ -86,7 +86,11 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang={DEFAULT_LANGUAGE} suppressHydrationWarning>
+    <html
+      lang={DEFAULT_LANGUAGE}
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
+    >
       <head>
         {/* Performance & Resource Hints */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

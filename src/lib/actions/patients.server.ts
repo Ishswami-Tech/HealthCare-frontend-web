@@ -27,7 +27,8 @@ export async function getPatients(clinicId: string, filters?: {
     });
   }
 
-  const endpoint = `${API_ENDPOINTS.PATIENTS.GET_CLINIC_PATIENTS(clinicId)}${params.toString() ? `?${params.toString()}` : ''}`;
+  // Backend: GET /patients/clinic/:clinicId
+  const endpoint = `/patients/clinic/${clinicId}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -35,8 +36,9 @@ export async function getPatients(clinicId: string, filters?: {
 /**
  * Get patient by ID
  */
-export async function getPatientById(clinicId: string, patientId: string) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.GET_BY_ID(clinicId, patientId));
+export async function getPatientById(_clinicId: string, patientId: string) {
+  // Backend: GET /patients/:id
+  const { data } = await authenticatedApi(`/patients/${patientId}`);
   return data;
 }
 

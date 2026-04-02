@@ -2,9 +2,11 @@
 
 import { HealthcareErrorsService } from '@/lib/config/config';
 import type { Prescription } from '@/types/medical-records.types';
+import { clinicApiClient as api } from '@/lib/api/client';
 
 /**
- * Get all prescriptions
+ * Get all prescriptions for the current doctor/clinic
+ * Backend: GET /pharmacy/prescriptions (clinic-scoped via guard)
  */
 export async function getPrescriptions(
   doctorId?: string,
@@ -18,9 +20,8 @@ export async function getPrescriptions(
   }
 ): Promise<{ prescriptions: Prescription[] }> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
     const params = new URLSearchParams();
+    if (doctorId) params.append('doctorId', doctorId);
     if (filters?.status) params.append('status', filters.status);
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
@@ -28,19 +29,21 @@ export async function getPrescriptions(
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
 
-    const response = await fetch(`${baseUrl}/doctors/${doctorId}/prescriptions?${params.toString()}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    });
+    const response = await api.get<unknown>(
+      `/pharmacy/prescriptions?${params.toString()}`
+    );
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch prescriptions');
+    if (response.error) {
+      throw new Error(response.error || 'Failed to fetch prescriptions');
     }
 
-    const data = await response.json();
-    return data;
+    const data = response.data;
+    // Backend returns array or { prescriptions: [...] }
+    const prescriptions = Array.isArray(data)
+      ? (data as Prescription[])
+      : ((data as { prescriptions?: Prescription[] })?.prescriptions ?? []);
+
+    return { prescriptions };
   } catch (error) {
     HealthcareErrorsService.logError('fetch prescriptions', error);
     throw error;
@@ -49,6 +52,7 @@ export async function getPrescriptions(
 
 /**
  * Get prescriptions for a specific patient
+ * Backend: GET /pharmacy/prescriptions/patient/:userId
  */
 export async function getPrescriptionsByPatientId(
   doctorId: string,
@@ -60,55 +64,53 @@ export async function getPrescriptionsByPatientId(
   }
 ): Promise<{ prescriptions: Prescription[] }> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
     const params = new URLSearchParams();
+    if (doctorId) params.append('doctorId', doctorId);
     if (filters?.status) params.append('status', filters.status);
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
 
-    const response = await fetch(`${baseUrl}/doctors/${doctorId}/patients/${patientId}/prescriptions?${params.toString()}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    });
+    const response = await api.get<unknown>(
+      `/pharmacy/prescriptions/patient/${patientId}?${params.toString()}`
+    );
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch patient prescriptions');
+    if (response.error) {
+      throw new Error(response.error || 'Failed to fetch patient prescriptions');
     }
 
-    const data = await response.json();
-    return data;
+    const data = response.data;
+    const prescriptions = Array.isArray(data)
+      ? (data as Prescription[])
+      : ((data as { prescriptions?: Prescription[] })?.prescriptions ?? []);
+
+    return { prescriptions };
   } catch (error) {
-    HealthcareErrorsService.logError('fetch prescriptions', error);
+    HealthcareErrorsService.logError('fetch patient prescriptions', error);
     throw error;
   }
 }
 
 /**
  * Create a new prescription
+ * Backend: POST /pharmacy/prescriptions
  */
 export async function createPrescription(
   prescriptionData: Prescription
 ): Promise<{ prescription: Prescription }> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const response = await api.post<unknown>(
+      '/pharmacy/prescriptions',
+      prescriptionData
+    );
 
-    const response = await fetch(`${baseUrl}/doctors/${prescriptionData.doctorId}/prescriptions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(prescriptionData),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to create prescription');
+    if (response.error) {
+      throw new Error(response.error || 'Failed to create prescription');
     }
 
-    const data = await response.json();
-    return data;
+    const data = response.data;
+    const prescription = ((data as { prescription?: Prescription })?.prescription ?? data) as Prescription;
+
+    return { prescription };
   } catch (error) {
     HealthcareErrorsService.logError('create prescription', error);
     throw error;
@@ -116,29 +118,27 @@ export async function createPrescription(
 }
 
 /**
- * Update a prescription
+ * Update a prescription status
+ * Backend: PATCH /pharmacy/prescriptions/:id/status
  */
 export async function updatePrescription(
   prescriptionId: string,
   updates: Partial<Prescription>
 ): Promise<{ prescription: Prescription }> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const response = await api.patch<unknown>(
+      `/pharmacy/prescriptions/${prescriptionId}/status`,
+      updates
+    );
 
-    const response = await fetch(`${baseUrl}/doctors/prescriptions/${prescriptionId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(updates),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to update prescription');
+    if (response.error) {
+      throw new Error(response.error || 'Failed to update prescription');
     }
 
-    const data = await response.json();
-    return data;
+    const data = response.data;
+    const prescription = ((data as { prescription?: Prescription })?.prescription ?? data) as Prescription;
+
+    return { prescription };
   } catch (error) {
     HealthcareErrorsService.logError('update prescription', error);
     throw error;
@@ -147,23 +147,18 @@ export async function updatePrescription(
 
 /**
  * Delete a prescription
+ * Backend: No direct delete endpoint — use status update to CANCELLED
  */
 export async function deletePrescription(prescriptionId: string): Promise<void> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const response = await api.patch<unknown>(
+      `/pharmacy/prescriptions/${prescriptionId}/status`,
+      { status: 'CANCELLED' }
+    );
 
-    const response = await fetch(`${baseUrl}/doctors/prescriptions/${prescriptionId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to delete prescription');
+    if (response.error) {
+      throw new Error(response.error || 'Failed to cancel prescription');
     }
-
-    await response.json();
   } catch (error) {
     HealthcareErrorsService.logError('delete prescription', error);
     throw error;

@@ -88,7 +88,7 @@ export const useAppointments = (clinicIdOrFilters?: string | (AppointmentFilters
     queryKey,
     queryFn,
     {
-      enabled: (!!clinicId || (typeof clinicIdOrFilters === 'object' && !!clinicIdOrFilters.omitClinicId)) && hasPermission(Permission.VIEW_APPOINTMENTS),
+      enabled: (!!clinicId || (typeof clinicIdOrFilters === 'object' && (!!clinicIdOrFilters.omitClinicId || !!clinicIdOrFilters.clinicId))) && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000, // 5 minutes for better caching
       gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
       refetchOnWindowFocus: false, // Reduce unnecessary refetches
@@ -597,12 +597,12 @@ export const useCallNextPatient = () => {
   const { hasPermission } = useRBAC();
   
   return useMutationOperation(
-    async (doctorId: string) => {
+    async ({ doctorId, appointmentId }: { doctorId: string; appointmentId: string }) => {
       if (!hasPermission(Permission.MANAGE_QUEUE)) {
         throw new Error('Insufficient permissions to call next patient');
       }
       
-      const result = await callNextPatient(doctorId) as any;
+      const result = await callNextPatient(doctorId, appointmentId) as any;
       if (!result.success) {
         throw new Error(result.error);
       }

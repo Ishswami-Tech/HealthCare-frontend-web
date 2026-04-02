@@ -9,6 +9,7 @@ import { authenticatedApi, publicApi, getServerSession, getClientInfo, revalidat
 import { auditLog } from '@/lib/utils/audit';
 import { validateClinicAccess } from '@/lib/config/permissions';
 import { logger } from '@/lib/utils/logger';
+import { isApiError } from '@/lib/utils/error-handler';
 import { API_ENDPOINTS, APP_CONFIG } from '@/lib/config/config';
 import type { 
   Appointment, 
@@ -85,13 +86,19 @@ function normalizeAppointment(raw: Appointment | (Appointment & { appointmentDat
     return normalizedRaw;
   }
 
-  const hours = String(parsedDate.getHours()).padStart(2, '0');
-  const minutes = String(parsedDate.getMinutes()).padStart(2, '0');
+  // Use IST timezone for both date and time to ensure correct clinic-local values
+  const istDate = parsedDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const istTime = parsedDate.toLocaleTimeString('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).replace(/^24:/, '00:');
 
   return {
     ...normalizedRaw,
-    date: parsedDate.toISOString().split('T')[0] || '',
-    time: `${hours}:${minutes}`,
+    date: istDate,
+    time: istTime,
   };
 }
 
@@ -321,7 +328,7 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
     const queryParams = new URLSearchParams(restFilters as any).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.GET_ALL;
     
-    const { data } = await authenticatedApi<{
+    const { status, data } = await authenticatedApi<{
       data?: Appointment[] | { appointments?: Appointment[]; pagination?: any };
       appointments?: Appointment[];
       pagination?: any;
@@ -329,6 +336,12 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
     }>(endpoint, {
       ...(restFilters.clinicId ? { headers: { 'X-Clinic-ID': restFilters.clinicId } } : {}),
     });
+
+    // Detect profile-incomplete 403 returned gracefully by authenticatedApi
+    if (status === 403 && !data) {
+      return { success: false, error: 'Profile incomplete. Please complete your profile to access appointments.', code: 'PROFILE_INCOMPLETE' as const };
+    }
+
     const payload =
       Array.isArray(data)
         ? data
@@ -346,7 +359,17 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
       data.meta;
     return { success: true, appointments, meta };
   } catch (error) {
-    logger.error('Failed to get appointments', error instanceof Error ? error : new Error(String(error)));
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to get appointments', error instanceof Error ? error : new Error(errorMessage));
+
+    // Preserve specific error types for proper UI feedback
+    if (errorMessage.includes('Profile Incomplete') || errorMessage.includes('requiresProfileCompletion')) {
+      return { success: false, error: 'Profile incomplete. Please complete your profile to access appointments.', code: 'PROFILE_INCOMPLETE' as const };
+    }
+    if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+      return { success: false, error: errorMessage, code: 'ACCESS_DENIED' as const };
+    }
+
     return { success: false, error: 'Failed to fetch appointments' };
   }
 }
@@ -502,14 +525,34 @@ export async function confirmAppointment(id: string) {
 
 /**
  * Check in appointment
- * @deprecated Use updateAppointmentStatus instead
  */
 export async function checkInAppointment(id: string) {
   try {
-    const result = await updateAppointmentStatus(id, { status: 'CONFIRMED' });
-    if (!result.success) {
-      return result;
-    }
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id), {
+      method: 'POST',
+      body: JSON.stringify({
+        checkInMethod: 'manual',
+        notes: 'Manual receptionist check-in',
+      }),
+    });
+
+    const { ipAddress, userAgent } = await getClientInfo();
+    await auditLog({
+      userId: session.user.id,
+      action: 'APPOINTMENT_CHECKED_IN',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: { checkInMethod: 'manual' },
+    });
+
     revalidateCache('appointments');
     revalidateCache('queue');
     return { success: true };
@@ -810,9 +853,11 @@ export async function getDoctorAvailability(clinicId: string, doctorId: string, 
     }
 
     return { success: true, availability: data };
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Failed to get doctor availability', error instanceof Error ? error : new Error(String(error)));
-    const errorMessage = error?.response?.data?.message || error?.message || 'Failed to fetch availability';
+    const errorMessage = isApiError(error)
+      ? (error.message ?? 'Failed to fetch availability')
+      : error instanceof Error ? error.message : 'Failed to fetch availability';
     return { success: false, error: errorMessage };
   }
 }

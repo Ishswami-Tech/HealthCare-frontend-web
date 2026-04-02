@@ -52,6 +52,8 @@ export interface CreateVideoAppointmentData {
   endTime: string;
   notes?: string;
   sessionId?: string;
+  clinicId?: string;
+  locationId?: string;
 }
 
 export interface UpdateVideoAppointmentData {
@@ -234,11 +236,14 @@ export function useVideoAppointment(id: string) {
 export function useCreateVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
+  const clinicId = useCurrentClinicId();
 
   return useMutationOperation<{ success: boolean; data: any; token: any }, CreateVideoAppointmentData>(
     async (data: CreateVideoAppointmentData) => {
       const hasAccess = hasPermission(Permission.CREATE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+
+      const resolvedClinicId = data.clinicId || clinicId;
 
       // Generate token first, then start consultation
       const tokenResult = await generateVideoToken({
@@ -249,14 +254,16 @@ export function useCreateVideoAppointment() {
           displayName: 'Doctor',
           email: 'doctor@example.com',
         },
+        ...(resolvedClinicId && { clinicId: resolvedClinicId }),
       });
-      
+
       const consultationResult = await startVideoConsultation({
         appointmentId: data.appointmentId,
         userId: data.doctorId,
         userRole: 'doctor',
+        ...(resolvedClinicId && { clinicId: resolvedClinicId }),
       });
-      
+
       return { success: true, data: consultationResult, token: tokenResult };
     },
     {

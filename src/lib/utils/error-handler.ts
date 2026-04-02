@@ -11,6 +11,7 @@ export interface ApiErrorResponse {
   error?: string;
   details?: string;
   statusCode?: number;
+  code?: string;
   [key: string]: unknown;
 }
 
@@ -134,6 +135,31 @@ export function sanitizeErrorMessage(
   
   // Return the error message if it's user-friendly
   return errorMessage;
+}
+
+/**
+ * Extract a plain error message string from an unknown catch value.
+ * Prefer this over `(error as any).message` in catch blocks.
+ */
+export function extractErrorMessage(error: unknown, fallback = 'An unexpected error occurred'): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object') {
+    const e = error as ApiErrorResponse;
+    if (typeof e.message === 'string' && e.message) return e.message;
+    if (typeof e.error === 'string' && e.error) return e.error;
+  }
+  if (typeof error === 'string' && error) return error;
+  return fallback;
+}
+
+/**
+ * Type-narrow an unknown catch value to ApiErrorResponse for accessing custom fields
+ * like statusCode, code, response.data etc.
+ */
+export function isApiError(error: unknown): error is ApiErrorResponse {
+  return error !== null && typeof error === 'object' && (
+    'statusCode' in error || 'message' in error || 'code' in error
+  );
 }
 
 /**

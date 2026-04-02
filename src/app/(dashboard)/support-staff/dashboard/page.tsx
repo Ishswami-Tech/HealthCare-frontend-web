@@ -45,11 +45,23 @@ export default function SupportStaffDashboard() {
   const stats = useMemo(() => {
     const active = requests.filter((r: any) => ["pending", "in_progress", "OPEN"].includes(r.status)).length;
     const completed = requests.filter((r: any) => ["completed", "RESOLVED", "CLOSED"].includes(r.status)).length;
+    // Calculate avg response time from resolved requests that have both createdAt and updatedAt
+    const resolved = requests.filter((r: any) =>
+      ["completed", "RESOLVED", "CLOSED"].includes(r.status) && r.createdAt && r.updatedAt
+    );
+    let avgResponseTime = "N/A";
+    if (resolved.length > 0) {
+      const avgMs = resolved.reduce((sum: number, r: any) => {
+        return sum + (new Date(r.updatedAt).getTime() - new Date(r.createdAt).getTime());
+      }, 0) / resolved.length;
+      const avgMins = Math.round(avgMs / 60000);
+      avgResponseTime = avgMins < 60 ? `${avgMins} min` : `${Math.round(avgMins / 60)}h`;
+    }
     return {
       activeRequests: active,
       resolvedToday: completed,
       totalRequests: requests.length,
-      avgResponseTime: "5 min", // Ideally from backend
+      avgResponseTime,
     };
   }, [requests]);
 

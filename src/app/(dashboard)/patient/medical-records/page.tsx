@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Role } from "@/types/auth.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
+import { PatientPageHeader, PatientPageShell } from "@/components/patient/PatientPageShell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { theme } from "@/lib/utils/theme-utils";
 import { LoadingSpinner, PageLoading, ErrorState, EmptyState } from "@/components/ui/loading";
-import { getComprehensiveHealthRecord } from "@/lib/actions/ehr.server";
+import { getComprehensiveHealthRecord, getAllergies } from "@/lib/actions/ehr.server";
 import { useEffect } from "react";
 import {
   FileText,
@@ -32,7 +32,6 @@ import {
   Search,
   Filter,
   AlertTriangle,
-  CheckCircle,
   Clock,
   Heart,
   Thermometer,
@@ -55,6 +54,7 @@ export default function PatientMedicalRecords() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [healthData, setHealthData] = useState<any>(null);
+  const [allergies, setAllergies] = useState<any[]>([]);
   
   // View Details State
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
@@ -73,16 +73,20 @@ export default function PatientMedicalRecords() {
     });
   };
 
-  // Fetch comprehensive health records on mount
+  // Fetch comprehensive health records and allergies on mount
   useEffect(() => {
     const fetchHealthRecords = async () => {
       if (!user?.id) return;
-      
+
       try {
         setIsLoading(true);
         setHasError(false);
-        const data = await getComprehensiveHealthRecord(user.id);
+        const [data, allergiesData] = await Promise.all([
+          getComprehensiveHealthRecord(user.id),
+          getAllergies(user.id).catch(() => []),
+        ]);
         setHealthData(data);
+        setAllergies(Array.isArray(allergiesData) ? allergiesData : []);
       } catch (error) {
         console.error('Failed to fetch health records:', error);
         setHasError(true);
@@ -195,34 +199,6 @@ export default function PatientMedicalRecords() {
     );
   }
 
-  const allergies = [
-    {
-      allergen: "Tree Nuts",
-      severity: "Moderate",
-      reaction: "Skin rash, itching",
-      discovered: "2020-03-15",
-    },
-    {
-      allergen: "Shellfish",
-      severity: "Mild",
-      reaction: "Digestive discomfort",
-      discovered: "2019-08-22",
-    },
-    {
-      allergen: "Dust Mites",
-      severity: "Mild",
-      reaction: "Respiratory symptoms",
-      discovered: "2018-11-10",
-    },
-  ];
-
-  const dietaryPreferences = {
-    type: "Vegetarian",
-    restrictions: ["No onion", "No garlic", "Limited spicy food"],
-    preferences: ["Warm foods", "Cooked vegetables", "Herbal teas"],
-    constitution: "Vata-Pitta balancing diet recommended",
-  };
-
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "normal":
@@ -257,24 +233,27 @@ export default function PatientMedicalRecords() {
 
 
   return (
-    <>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Medical Records</h1>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex items-center gap-2">
-                <Upload className="w-4 h-4" />
-                Upload Report
-              </Button>
-              <Button variant="outline" className="flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                Export Records
-              </Button>
-            </div>
-          </div>
+    <PatientPageShell>
+      <PatientPageHeader
+        eyebrow="Health History"
+        title="Medical records"
+        description="Review your consultations, lab reports, vitals, allergies, and care notes with the same spacing, contrast, and controls across light and dark mode."
+        actions={[
+          {
+            label: "Upload report",
+            icon: <Upload className="h-4 w-4" />,
+            variant: "outline",
+          },
+          {
+            label: "Export records",
+            icon: <Download className="h-4 w-4" />,
+            variant: "outline",
+          },
+        ]}
+      />
 
           <Tabs defaultValue="history" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList>
               <TabsTrigger value="history">History</TabsTrigger>
               <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
               <TabsTrigger value="reports">Lab Reports</TabsTrigger>
@@ -285,7 +264,7 @@ export default function PatientMedicalRecords() {
 
             <TabsContent value="history">
               <div className="space-y-4">
-                <Card>
+                <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Clock className="w-5 h-5" />
@@ -303,10 +282,10 @@ export default function PatientMedicalRecords() {
                             placeholder="Search medical history..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10"
+                            className="h-11 rounded-xl pl-10"
                           />
                         </div>
-                        <Button variant="outline">
+                        <Button variant="outline" className="h-11 rounded-xl">
                           <Filter className="w-4 h-4 mr-2" />
                           Filter
                         </Button>
@@ -323,7 +302,7 @@ export default function PatientMedicalRecords() {
                           filteredMedicalHistory.map((record: any) => (
                           <div
                             key={record.id}
-                            className={`border rounded-lg p-4 ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}
+                            className={`rounded-2xl border p-4 ${theme.borders.primary} hover:bg-emerald-50/40 transition-colors`}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
@@ -376,6 +355,7 @@ export default function PatientMedicalRecords() {
                                 <Button 
                                   variant="outline" 
                                   size="sm"
+                                  className="rounded-xl"
                                   onClick={() => handleViewRecord(record)}
                                 >
                                   <Eye className="w-4 h-4" />
@@ -383,6 +363,7 @@ export default function PatientMedicalRecords() {
                                 <Button 
                                   variant="outline" 
                                   size="sm"
+                                  className="rounded-xl"
                                   onClick={(e) => handleDownload(e, "Medical Record")}
                                 >
                                   <Download className="w-4 h-4" />
@@ -401,7 +382,7 @@ export default function PatientMedicalRecords() {
 
             <TabsContent value="prescriptions">
               <div className="space-y-4">
-                <Card>
+                <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Pill className="w-5 h-5" />
@@ -411,10 +392,7 @@ export default function PatientMedicalRecords() {
                   <CardContent>
                     <div className="space-y-6">
                       {prescriptions.map((prescription: any) => (
-                        <div
-                          key={prescription.id}
-                          className="border rounded-lg p-4"
-                        >
+                        <div key={prescription.id} className="rounded-2xl border border-border/70 p-4 dark:border-border/60">
                           <div className="flex items-center justify-between mb-4">
                             <div>
                               <h3 className="font-semibold">
@@ -435,7 +413,7 @@ export default function PatientMedicalRecords() {
                               >
                                 {prescription.status}
                               </Badge>
-                              <Button variant="outline" size="sm">
+                              <Button variant="outline" size="sm" className="rounded-xl">
                                 <Download className="w-4 h-4" />
                               </Button>
                             </div>
@@ -499,7 +477,7 @@ export default function PatientMedicalRecords() {
 
             <TabsContent value="reports">
               <div className="space-y-4">
-                <Card>
+                <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <TestTube className="w-5 h-5" />
@@ -659,11 +637,11 @@ export default function PatientMedicalRecords() {
                         </div>
 
                         <div
-                          className={`p-4 ${theme.containers.featurePurple} rounded-lg`}
+                          className={`p-4 ${theme.containers.featureBlue} rounded-lg`}
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <Thermometer
-                              className={`w-5 h-5 ${theme.iconColors.purple}`}
+                              className={`w-5 h-5 ${theme.iconColors.blue}`}
                             />
                             <span
                               className={`font-medium ${theme.textColors.heading}`}
@@ -672,7 +650,7 @@ export default function PatientMedicalRecords() {
                             </span>
                           </div>
                           <div
-                            className={`text-2xl font-bold ${theme.iconColors.purple}`}
+                            className={`text-2xl font-bold ${theme.iconColors.blue}`}
                           >
                             {vitalSigns[0]?.bmi || "N/A"}
                           </div>
@@ -716,35 +694,49 @@ export default function PatientMedicalRecords() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {allergies.map((allergy, index) => (
-                        <div
-                          key={index}
-                          className="p-4 border rounded-lg bg-red-50 border-red-200"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-semibold text-red-800">
-                              {allergy.allergen}
-                            </h3>
-                            <Badge
-                              className={getSeverityColor(allergy.severity)}
-                            >
-                              {allergy.severity}
-                            </Badge>
+                      {allergies.length === 0 ? (
+                        <EmptyState
+                          title="No allergies recorded"
+                          description="No known allergies or sensitivities have been recorded yet."
+                        />
+                      ) : (
+                        allergies.map((allergy: any) => (
+                          <div
+                            key={allergy.id || allergy.allergen}
+                            className={`p-4 border rounded-xl ${theme.containers.featureRed}`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className={`font-semibold ${theme.iconColors.red}`}>
+                                {allergy.allergen}
+                              </h3>
+                              <Badge className={getSeverityColor(allergy.severity)}>
+                                {allergy.severity}
+                              </Badge>
+                            </div>
+                            {allergy.reaction && (
+                              <p className={`text-sm ${theme.textColors.secondary} mb-1`}>
+                                <strong>Reaction:</strong> {allergy.reaction}
+                              </p>
+                            )}
+                            {(allergy.onsetDate || allergy.diagnosedDate) && (
+                              <p className={`text-xs ${theme.textColors.muted}`}>
+                                Onset:{" "}
+                                {new Date(allergy.onsetDate || allergy.diagnosedDate).toLocaleDateString()}
+                              </p>
+                            )}
+                            {allergy.status && (
+                              <Badge className={allergy.status === "active" ? theme.badges.red : theme.badges.gray} variant="outline">
+                                {allergy.status}
+                              </Badge>
+                            )}
                           </div>
-                          <p className="text-sm text-red-700 mb-2">
-                            <strong>Reaction:</strong> {allergy.reaction}
-                          </p>
-                          <p className="text-xs text-red-600">
-                            Discovered:{" "}
-                            {new Date(allergy.discovered).toLocaleDateString()}
-                          </p>
-                        </div>
-                      ))}
+                        ))
+                      )}
 
-                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className={`p-4 border rounded-xl ${theme.containers.featureYellow}`}>
                         <div className="flex items-start gap-2">
-                          <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                          <div className="text-sm text-yellow-800">
+                          <AlertTriangle className={`w-5 h-5 ${theme.iconColors.yellow} mt-0.5`} />
+                          <div className={`text-sm ${theme.textColors.warning}`}>
                             <p className="font-medium mb-1">Important:</p>
                             <p>
                               Always inform your healthcare providers about
@@ -766,115 +758,14 @@ export default function PatientMedicalRecords() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Leaf className="w-5 h-5" />
-                      Ayurvedic Diet & Lifestyle Plan
+                      Diet Plan
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <div className="p-4 bg-green-50 rounded-lg">
-                            <h3 className="font-semibold text-green-800 mb-2">
-                              Dietary Type
-                            </h3>
-                            <p className="text-green-700">
-                              {dietaryPreferences.type}
-                            </p>
-                          </div>
-
-                          <div className="p-4 bg-blue-50 rounded-lg">
-                            <h3 className="font-semibold text-blue-800 mb-2">
-                              Constitutional Guidance
-                            </h3>
-                            <p className="text-blue-700">
-                              {dietaryPreferences.constitution}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div className="p-4 bg-red-50 rounded-lg">
-                            <h3 className="font-semibold text-red-800 mb-2">
-                              Restrictions
-                            </h3>
-                            <div className="space-y-1">
-                              {dietaryPreferences.restrictions.map(
-                                (restriction, index) => (
-                                  <div
-                                    key={index}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <AlertTriangle className="w-3 h-3 text-red-600" />
-                                    <span className="text-red-700 text-sm">
-                                      {restriction}
-                                    </span>
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="p-4 bg-emerald-50 rounded-lg">
-                            <h3 className="font-semibold text-emerald-800 mb-2">
-                              Recommendations
-                            </h3>
-                            <div className="space-y-1">
-                              {dietaryPreferences.preferences.map(
-                                (preference, index) => (
-                                  <div
-                                    key={index}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <CheckCircle className="w-3 h-3 text-emerald-600" />
-                                    <span className="text-emerald-700 text-sm">
-                                      {preference}
-                                    </span>
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="p-4 bg-linear-to-br from-orange-50 to-yellow-50 rounded-lg">
-                          <h4 className="font-semibold text-orange-800 mb-2">
-                            Morning Routine
-                          </h4>
-                          <ul className="text-sm text-orange-700 space-y-1">
-                            <li>• Wake up before sunrise</li>
-                            <li>• Warm water with lemon</li>
-                            <li>• Gentle yoga or stretching</li>
-                            <li>• Meditation (10-15 min)</li>
-                          </ul>
-                        </div>
-
-                        <div className="p-4 bg-linear-to-br from-blue-50 to-cyan-50 rounded-lg">
-                          <h4 className="font-semibold text-blue-800 mb-2">
-                            Meal Guidelines
-                          </h4>
-                          <ul className="text-sm text-blue-700 space-y-1">
-                            <li>• Eat largest meal at lunch</li>
-                            <li>• Light, warm dinner before 7 PM</li>
-                            <li>• Avoid cold, raw foods</li>
-                            <li>• Chew slowly and mindfully</li>
-                          </ul>
-                        </div>
-
-                        <div className="p-4 bg-linear-to-br from-purple-50 to-pink-50 rounded-lg">
-                          <h4 className="font-semibold text-purple-800 mb-2">
-                            Evening Routine
-                          </h4>
-                          <ul className="text-sm text-purple-700 space-y-1">
-                            <li>• Light walk after dinner</li>
-                            <li>• Herbal tea (chamomile/brahmi)</li>
-                            <li>• Oil massage for feet</li>
-                            <li>• Sleep by 10 PM</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
+                    <EmptyState
+                      title="No diet plan available"
+                      description="Your doctor hasn't prescribed a diet plan yet. Ask your doctor to add a personalized diet and lifestyle plan during your next consultation."
+                    />
                   </CardContent>
                 </Card>
               </div>
@@ -922,8 +813,6 @@ export default function PatientMedicalRecords() {
               </div>
             </CardContent>
           </Card>
-      </div>
-
       {/* View Record Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-2xl">
@@ -957,18 +846,18 @@ export default function PatientMedicalRecords() {
 
               <div className="border-t pt-4">
                 <h4 className="font-semibold text-sm text-muted-foreground mb-1">Diagnosis</h4>
-                <p className="bg-muted/50 p-2 rounded-md">{selectedRecord.diagnosis}</p>
+                <p className="bg-slate-50 border border-border/50 p-2 rounded-md text-sm">{selectedRecord.diagnosis}</p>
               </div>
 
               <div>
                 <h4 className="font-semibold text-sm text-muted-foreground mb-1">Treatment Plan</h4>
-                <p className="bg-muted/50 p-2 rounded-md">{selectedRecord.treatment}</p>
+                <p className="bg-slate-50 border border-border/50 p-2 rounded-md text-sm">{selectedRecord.treatment}</p>
               </div>
 
               {selectedRecord.notes && (
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground mb-1">Notes</h4>
-                  <p className="bg-muted/50 p-2 rounded-md text-sm">{selectedRecord.notes}</p>
+                  <p className="bg-slate-50 border border-border/50 p-2 rounded-md text-sm">{selectedRecord.notes}</p>
                 </div>
               )}
             </div>
@@ -986,6 +875,6 @@ export default function PatientMedicalRecords() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </PatientPageShell>
   );
 }

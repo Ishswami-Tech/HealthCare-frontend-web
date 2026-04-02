@@ -95,11 +95,13 @@ function extractUserDataFromToken(accessToken: string): Record<string, unknown> 
  */
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  console.debug(`[PROXY] Incoming: ${request.method} ${pathname}`);
 
   // =========================================================================
   // STEP 1: Skip proxy for static files and API routes
   // =========================================================================
   if (shouldSkipProxyRoute(pathname)) {
+    console.debug(`[PROXY] Skipping: ${pathname}`);
     return NextResponse.next();
   }
 
@@ -131,7 +133,10 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   // STEP 3: Allow public routes without authentication
   // =========================================================================
-  if (isPublicRoute(pathname)) {
+  const isPublic = isPublicRoute(pathname);
+  console.debug(`[PROXY] isPublic: ${isPublic} for ${pathname}`);
+  if (isPublic) {
+    console.debug(`[PROXY] Allowing public: ${pathname}`);
     return response;
   }
 
@@ -197,12 +202,16 @@ export default async function proxy(request: NextRequest) {
   // STEP 6: Handle Auth Routes (Redirect if already authenticated)
   // =========================================================================
   // Parity with middleware.ts: Don't let logged-in users see login page
-  if (isAuthPath(pathname)) {
+  const isAuth = isAuthPath(pathname);
+  console.debug(`[PROXY] isAuthPath: ${isAuth} for ${pathname}`);
+  if (isAuth) {
     if (hasValidToken && userRole) {
       const dashboardUrl = getDashboardByRole(userRole);
+      console.debug(`[PROXY] Redirecting authenticated user from ${pathname} to ${dashboardUrl}`);
       return NextResponse.redirect(new URL(dashboardUrl, request.url));
     }
     // Allow access to auth pages if not authenticated
+    console.debug(`[PROXY] Allowing auth path for guest: ${pathname}`);
     return response;
   }
 
@@ -298,7 +307,7 @@ export default async function proxy(request: NextRequest) {
     media-src 'self' blob:;
     object-src 'none';
     base-uri 'self';
-    form-action 'self';
+    form-action 'self' https://*.cashfree.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;
     frame-ancestors 'none';
     upgrade-insecure-requests;
   `.replace(/\s{2,}/g, ' ').trim();

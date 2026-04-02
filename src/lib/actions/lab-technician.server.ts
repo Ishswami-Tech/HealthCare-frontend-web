@@ -25,8 +25,10 @@ export async function getLabResults(
     if (filters?.endDate) params.append('endDate', filters.endDate);
     if (filters?.priority) params.append('priority', filters.priority);
 
+    // Backend: GET /ehr/lab-reports/:userId — use the technician's own userId
+    const userPath = labTechnicianId ? `/ehr/lab-reports/${labTechnicianId}` : '/ehr/lab-reports/me';
     const response = await api.get<{ results: LabResult[] }>(
-      `/ehr/lab-reports?${params.toString()}`
+      `${userPath}?${params.toString()}`
     );
 
     if (response.error) {

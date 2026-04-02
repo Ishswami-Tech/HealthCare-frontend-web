@@ -210,7 +210,7 @@ export function useFCM(): UseFCMReturn {
       // You can implement token deletion on backend if needed
       setToken(null);
       setIsRegistered(false);
-      console.log('Device token unregistered');
+      console.debug('Device token unregistered');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to unregister token';
       setError(errorMessage);

@@ -32,8 +32,8 @@ const STATUS_STYLES: Record<string, string> = {
   SCHEDULED: "bg-slate-100 text-slate-800 dark:bg-slate-900/40 dark:text-slate-200",
   CONFIRMED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
   IN_PROGRESS: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  COMPLETED: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
-  NO_SHOW: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+  COMPLETED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
+  NO_SHOW: "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-300",
   CANCELLED: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
 };
 
@@ -42,28 +42,29 @@ export default function ReceptionistDashboard() {
   const { clinicId } = useClinicContext();
   useWebSocketQuerySync();
 
-  const today = new Date().toISOString().split("T")[0] || "";
-  const { data: appointmentsData, isPending } = useAppointments({
-    ...(clinicId ? { clinicId } : {}),
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const { data: appointmentsData, isPending, error: appointmentsError } = useAppointments({
     date: today,
     limit: 200,
   });
-  const { data: medicineDeskQueue = [] } = useMedicineDeskQueue(clinicId || "", !!clinicId);
+  const { data: medicineDeskQueueResult } = useMedicineDeskQueue(clinicId || "", !!clinicId);
+  const medicineDeskQueue = Array.isArray(medicineDeskQueueResult) ? medicineDeskQueueResult : (medicineDeskQueueResult as any)?.prescriptions || [];
 
   const appointments = useMemo(() => {
-    const raw = Array.isArray(appointmentsData)
-      ? appointmentsData
-      : appointmentsData?.appointments || [];
-    return raw.map(appointment => {
+    const raw = appointmentsData?.appointments || [];
+    return (raw as any[]).map(appointment => {
       const canonical = normalizeQueueEntry(appointment);
-      const startAt = appointment.startTime || appointment.appointmentDate || (appointment.date && appointment.time ? `${appointment.date}T${appointment.time}` : null);
+      const startAt = 
+        appointment.startTime || 
+        appointment.appointmentDate || 
+        (appointment.date && appointment.time ? `${appointment.date}T${appointment.time}` : null);
       const parsed = startAt ? new Date(startAt) : null;
 
       return {
         id: canonical.entryId || canonical.appointmentId || appointment.id,
         patientName: canonical.patientName || "Unknown Patient",
         doctorName: canonical.doctorName || "Unassigned Doctor",
-        doctorRole: String(appointment.doctor?.role || appointment.doctor?.user?.role || "").toUpperCase(),
+        doctorRole: String(appointment.doctor?.role || appointment.doctor?.user?.role || "DOCTOR").toUpperCase(),
         isDelegated:
           Boolean(canonical.primaryDoctorId || appointment.primaryDoctorId || appointment.metadata?.primaryDoctorId) &&
           String(canonical.primaryDoctorId || appointment.primaryDoctorId || appointment.metadata?.primaryDoctorId || "") !==
@@ -77,10 +78,10 @@ export default function ReceptionistDashboard() {
         waitLabel:
           typeof canonical.estimatedWaitTime === "number"
             ? `${canonical.estimatedWaitTime} min`
-            : typeof appointment.waitTime === "number"
-              ? `${appointment.waitTime} min`
-              : typeof appointment.waitTime === "string"
-                ? appointment.waitTime
+            : typeof (appointment as any).waitTime === "number"
+              ? `${(appointment as any).waitTime} min`
+              : typeof (appointment as any).waitTime === "string"
+                ? (appointment as any).waitTime
                 : "Pending",
         queueCategory: canonical.queueCategory,
       };
@@ -220,16 +221,16 @@ export default function ReceptionistDashboard() {
             <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{stats.confirmed}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-blue-100/50 shadow-sm">
           <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">In Progress</div>
+            <div className="text-sm font-medium text-slate-500">In Progress</div>
             <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.inProgress}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-emerald-100/50 shadow-sm">
           <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Completed</div>
-            <div className="text-2xl font-bold text-violet-700 dark:text-violet-300">{stats.completed}</div>
+            <div className="text-sm font-medium text-slate-500">Completed</div>
+            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{stats.completed}</div>
           </CardContent>
         </Card>
         <Card>
@@ -253,13 +254,17 @@ export default function ReceptionistDashboard() {
           <CardContent className="space-y-3">
             {doctorBacklog.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                {isPending ? "Loading clinic backlog..." : "No doctor backlog for today."}
+                {appointmentsError
+                  ? `Error loading appointments: ${appointmentsError.message}`
+                  : isPending
+                    ? "Loading clinic backlog..."
+                    : "No doctor backlog for today."}
               </p>
             ) : (
               doctorBacklog.map((doctor) => (
                 <div
                   key={doctor.doctorName}
-                  className="rounded-xl border bg-card p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+                  className="rounded-xl border border-slate-100 bg-white dark:bg-slate-800/50 p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between shadow-sm hover:border-emerald-100 transition-colors"
                 >
                   <div>
                     <p className="font-semibold">{doctor.doctorName}</p>
@@ -389,13 +394,13 @@ export default function ReceptionistDashboard() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Clock className="w-4 h-4 text-violet-600" />
+              <Clock className="w-4 h-4 text-emerald-600" />
               <h3 className="font-semibold">Queue View</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-3">
               Review scheduled backlog, queued patients, and live consultation state.
             </p>
-            <Button asChild variant="outline" className="w-full">
+            <Button asChild variant="outline" className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50">
               <Link href="/receptionist/appointments">Open Queue Workspace</Link>
             </Button>
           </CardContent>

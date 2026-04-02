@@ -235,7 +235,7 @@ export class PerformanceMonitor {
       console.group('Performance Report');
       this.measurements.forEach((measurements, name) => {
         const avg = this.getAverageDuration(name);
-        console.log(`${name}: ${avg.toFixed(2)}ms average (${measurements.length} samples)`);
+        console.debug(`${name}: ${avg.toFixed(2)}ms average (${measurements.length} samples)`);
       });
       console.groupEnd();
     }

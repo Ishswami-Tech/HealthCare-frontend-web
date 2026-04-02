@@ -52,7 +52,7 @@ const StatsSection = () => {
       number: "95%",
       label: t("stats.successRate"),
       description: t("stats.chronicConditions"),
-      color: "from-purple-600 to-violet-800",
+      color: "from-blue-600 to-indigo-800",
     },
   ];
 

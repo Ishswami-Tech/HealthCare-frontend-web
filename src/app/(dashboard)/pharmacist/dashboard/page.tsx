@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,7 @@ import {
   Eye,
   Check,
   Loader2,
+  ArrowRight,
 } from "lucide-react";
 import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
 import { DataTable } from "@/components/ui/data-table";
@@ -34,6 +35,13 @@ import { Input } from "@/components/ui/input";
 export default function PharmacistDashboard() {
   const router = useRouter();
   const { session } = useAuth();
+
+  const handleDispense = useCallback(
+    (prescriptionId: string) => {
+      router.push(`/pharmacist/prescriptions?prescriptionId=${prescriptionId}`);
+    },
+    [router]
+  );
   const user = session?.user;
   const clinicId = user?.clinicId;
 
@@ -137,7 +145,7 @@ export default function PharmacistDashboard() {
         const status = row.getValue("status") as string;
         const isReady = status === "ready_to_dispense";
         return (
-          <Badge variant={isReady ? "default" : "secondary"} className={isReady ? "bg-green-600" : "bg-blue-100 text-blue-800"}>
+          <Badge variant={isReady ? "default" : "secondary"} className={isReady ? "bg-emerald-600 hover:bg-emerald-700 border-none shadow-none" : "bg-blue-100 text-blue-800 border-none shadow-none"}>
             {isReady ? "READY" : "AWAITING PAYMENT"}
           </Badge>
         );
@@ -148,11 +156,21 @@ export default function PharmacistDashboard() {
       header: "Actions",
       cell: ({ row }) => (
         <div className="flex gap-2">
-          <Button size="icon" variant="outline" className="h-8 w-8">
+          <Button
+            size="icon"
+            variant="outline"
+            className="h-8 w-8"
+            onClick={() => router.push(`/pharmacist/prescriptions?prescriptionId=${row.original.id}`)}
+          >
             <Eye className="h-4 w-4" />
           </Button>
           {row.getValue("status") === "ready_to_dispense" && (
-            <Button size="icon" className="h-8 w-8 bg-green-600 hover:bg-green-700">
+            <Button
+              size="icon"
+              className="h-8 w-8 bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => handleDispense(row.original.id as string)}
+              title="Dispense prescription"
+            >
               <Check className="h-4 w-4" />
             </Button>
           )}
@@ -177,11 +195,11 @@ export default function PharmacistDashboard() {
           <p className="text-muted-foreground">Manage prescriptions and medical inventory</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => router.push('/pharmacist/inventory')}>
             <Search className="w-4 h-4" />
             Find Medicine
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => router.push('/pharmacist/inventory?action=add')}>
             <Plus className="w-4 h-4" />
             Add Stock
           </Button>
@@ -190,49 +208,49 @@ export default function PharmacistDashboard() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-        <Card>
+        <Card className="border-slate-100 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-tight">Pending</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-600">{stats.pendingPrescriptions}</div>
-            <p className="text-xs text-muted-foreground mt-1">Prescriptions to fill</p>
+            <p className="text-xs text-slate-400 mt-1">Prescriptions to fill</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-slate-100 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Payment Due</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-tight">Payment Due</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{stats.awaitingPayment}</div>
-            <p className="text-xs text-muted-foreground mt-1">Awaiting checkout</p>
+            <p className="text-xs text-slate-400 mt-1">Awaiting checkout</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-emerald-100 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Dispensed</CardTitle>
+            <CardTitle className="text-sm font-medium text-emerald-600 uppercase tracking-tight">Dispensed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.dispensedToday}</div>
-            <p className="text-xs text-muted-foreground mt-1">Today's total</p>
+            <div className="text-2xl font-bold text-emerald-700">{stats.dispensedToday}</div>
+            <p className="text-xs text-slate-400 mt-1">Today's total</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-rose-100 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
+            <CardTitle className="text-sm font-medium text-rose-600 uppercase tracking-tight">Low Stock</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.lowStockItems}</div>
-            <p className="text-xs text-muted-foreground mt-1">Action required</p>
+            <div className="text-2xl font-bold text-rose-700">{stats.lowStockItems}</div>
+            <p className="text-xs text-slate-400 mt-1">Action required</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-slate-100 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Monthly</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-tight">Monthly</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.monthlyDispensed}</div>
-            <p className="text-xs text-muted-foreground mt-1">Volume this month</p>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white">{stats.monthlyDispensed}</div>
+            <p className="text-xs text-slate-400 mt-1">Volume this month</p>
           </CardContent>
         </Card>
       </div>
@@ -242,9 +260,12 @@ export default function PharmacistDashboard() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Pill className="w-5 h-5 text-blue-600" />
+              <Pill className="w-5 h-5 text-emerald-600" />
               Prescription Queue
             </CardTitle>
+            <Button variant="ghost" size="sm" className="gap-1 text-emerald-600" onClick={() => router.push('/pharmacist/prescriptions')}>
+              See all <ArrowRight className="w-3 h-3" />
+            </Button>
             <div className="relative w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -282,7 +303,7 @@ export default function PharmacistDashboard() {
                       <p className="font-semibold text-red-900">{item.name || item.medicineName}</p>
                       <p className="text-xs text-red-700">Stock: {item.currentStock || item.quantity} {item.unit || 'units'}</p>
                     </div>
-                    <Button size="sm" variant="outline" className="h-7 text-xs border-red-200 hover:bg-red-100 text-red-700">
+                    <Button size="sm" variant="outline" className="h-7 text-xs border-red-200 hover:bg-red-100 text-red-700" onClick={() => router.push(`/pharmacist/inventory?action=add&item=${encodeURIComponent(item.id || item.name || '')}`)}>
                       Restock
                     </Button>
                   </div>
@@ -299,19 +320,19 @@ export default function PharmacistDashboard() {
               <CardTitle className="text-base">Pharmacy Operations</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1" onClick={() => router.push('/pharmacist/inventory')}>
-                <Package className="w-5 h-5 text-green-600" />
-                <span className="text-[10px]">Inventory</span>
+              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1 border-slate-100 hover:bg-emerald-50 dark:hover:bg-emerald-900/10" onClick={() => router.push('/pharmacist/inventory')}>
+                <Package className="w-5 h-5 text-emerald-600" />
+                <span className="text-[11px] font-medium text-slate-600">Inventory</span>
               </Button>
-              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
-                <span className="text-[10px]">Analytics</span>
+              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1 border-slate-100 hover:bg-blue-50 dark:hover:bg-blue-900/10" onClick={() => router.push('/pharmacist/inventory')}>
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+                <span className="text-[11px] font-medium text-slate-600">Analytics</span>
               </Button>
-              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1">
+              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1" onClick={() => router.push('/pharmacist/prescriptions')}>
                 <Clock className="w-5 h-5 text-amber-600" />
                 <span className="text-[10px]">History</span>
               </Button>
-              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1">
+              <Button variant="outline" className="flex flex-col items-center justify-center h-20 gap-1" onClick={() => router.push('/pharmacist/inventory?filter=expiring')}>
                 <AlertTriangle className="w-5 h-5 text-red-600" />
                 <span className="text-[10px]">Expiry</span>
               </Button>

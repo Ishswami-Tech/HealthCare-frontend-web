@@ -723,7 +723,6 @@ export default function EHRSystem() {
                                   size="sm"
                                   onClick={() => {
                                     // Handle resolve alert
-                                    console.log("Resolving alert:", alert.id);
                                   }}
                                 >
                                   <CheckCircle className="w-3 h-3 mr-1" />

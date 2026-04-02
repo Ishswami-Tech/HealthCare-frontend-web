@@ -38,7 +38,7 @@ export async function auditLog(data: AuditLogData): Promise<AuditLogResponse> {
 
     // Log to console in development
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 AUDIT LOG:', auditEntry);
+      console.debug('🔍 AUDIT LOG:', auditEntry);
     }
 
     // TODO: Send to your audit service/backend

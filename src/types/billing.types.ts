@@ -55,6 +55,7 @@ export interface Invoice {
   paidDate?: string;
   items: InvoiceItem[];
   pdfUrl?: string;
+  patientName?: string;
   createdAt: string;
   updatedAt: string;
 }

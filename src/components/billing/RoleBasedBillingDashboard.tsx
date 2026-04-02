@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Plus, CreditCard, FileText, Wallet, BarChart3, Info } from "lucide-react";
+import { RefreshCw, Plus, CreditCard, FileText, Wallet, BarChart3, Info, AlertCircle, LayoutDashboard, Search } from "lucide-react";
+import { PatientPageHeader } from "@/components/patient/PatientPageShell";
 import { InvoiceForm } from "./InvoiceForm";
 import { PaymentHistory } from "./PaymentHistory";
 import { PatientBillingAnalytics } from "./PatientBillingAnalytics";
@@ -39,6 +40,33 @@ interface RoleBasedBillingDashboardProps {
   analytics?: BillingAnalytics;
   ledger?: ClinicLedgerResponse;
   onRefetch?: () => void;
+}
+
+// ─── Module-scope StatCard Component ───────────────
+function StatCard({ 
+  label, 
+  value, 
+  icon, 
+  color 
+}: { 
+  label: string; 
+  value: number | string; 
+  icon: React.ReactNode; 
+  color: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-2 rounded-2xl border p-4 transition-colors ${color}`}>
+      <div className="flex items-center gap-2">
+        <div className="rounded-lg bg-background/80 p-1.5 shadow-sm ring-1 ring-border/20">
+          {icon}
+        </div>
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</span>
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className="text-2xl font-bold tracking-tight text-foreground">{value}</span>
+      </div>
+    </div>
+  );
 }
 
 export function RoleBasedBillingDashboard({
@@ -232,61 +260,34 @@ export function RoleBasedBillingDashboard({
     setActiveTab(availableTabs.has(normalized) ? normalized : fallback);
   }, [initialTab, availableTabs, isPatient]);
 
+  const billingDescription = !isPatient
+    ? `Role-wise billing access active for ${userRole.replaceAll("_", " ")}`
+    : !activeSubscription
+    ? "Select a plan to unlock in-person appointments"
+    : "Manage your billing, subscriptions, and history";
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {isPatient ? "My Billing" : "Billing Dashboard"}
-          </h1>
-          <div className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-            {!isPatient ? (
-              `Role-wise billing access is active for ${userRole.replaceAll("_", " ")}.`
-            ) : !activeSubscription ? (
-              <>
-                <Info className="w-4 h-4 text-blue-500" />
-                <span>
-                  Choose a subscription plan below and complete payment to book in-person appointments. 
-                  {isLoading && <span className="ml-1 italic text-muted-foreground">(Refreshing...)</span>}
-                </span>
-              </>
-            ) : (
-              "Manage your billing, subscriptions, and payment history."
-            )}
-          </div>
-        </div>
-        {!isPatient ? (
-          <div className="flex items-center gap-2">
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search invoices/payments"
-              className="w-64"
-            />
-            <Button variant="outline" onClick={() => onRefetch && onRefetch()}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
-            {canManageBilling && (
-              <Button onClick={() => setIsCreateInvoiceOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Invoice
+    <div className="min-h-screen">
+      <div className="max-w-6xl mx-auto p-6 space-y-8">
+        <PatientPageHeader
+          eyebrow={isPatient ? "BILLING" : "BILLING DASHBOARD"}
+          title={isPatient ? "My Billing" : "Billing Dashboard"}
+          description={billingDescription}
+          actionsSlot={
+            <div className="flex items-center gap-2">
+              {canManageBilling && (
+                <Button variant="outline" className="h-10 px-4 rounded-xl flex items-center gap-2" onClick={() => setIsCreateInvoiceOpen(true)}>
+                  <Plus className="w-4 h-4" />
+                  New Invoice
+                </Button>
+              )}
+              <Button className="h-10 px-4 rounded-xl flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 border-none" onClick={() => onRefetch && onRefetch()}>
+                <RefreshCw className="w-4 h-4" />
+                Sync Data
               </Button>
-            )}
-            {isAdmin && (
-              <Button onClick={() => setIsCreatePlanOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Plan
-              </Button>
-            )}
-          </div>
-        ) : (
-          <Button variant="outline" onClick={() => onRefetch && onRefetch()}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-        )}
-      </div>
+            </div>
+          }
+        />
 
       {isPatient && <PatientBillingAnalytics {...patientAnalytics} />}
 
@@ -313,45 +314,48 @@ export function RoleBasedBillingDashboard({
         </Card>
       )}
 
-      {/* Mini stat grid — only for staff/admin, not patients */}
+      {/* Premium Stat Grid — only for staff/admin */}
       {!isPatient && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Invoices</div>
-              <div className="text-2xl font-bold">{invoices.length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Pending Invoices</div>
-              <div className="text-2xl font-bold">{pendingInvoicesCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Payments</div>
-              <div className="text-2xl font-bold">{payments.length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Subscriptions</div>
-              <div className="text-2xl font-bold">{subscriptions.length}</div>
-            </CardContent>
-          </Card>
+          <StatCard 
+            label="TOTAL INVOICES"
+            value={invoices.length}
+            icon={<FileText className="w-4 h-4 text-blue-600" />}
+            color="bg-blue-50/50 border-blue-100"
+          />
+          <StatCard 
+            label="PENDING INVOICES"
+            value={pendingInvoicesCount}
+            icon={<AlertCircle className="w-4 h-4 text-orange-600" />}
+            color="bg-orange-50/50 border-orange-100"
+          />
+          <StatCard 
+            label="COMPLETED PAYMENTS"
+            value={payments.filter(p => p.status === 'COMPLETED').length}
+            icon={<CreditCard className="w-4 h-4 text-emerald-600" />}
+            color="bg-emerald-50/50 border-emerald-100"
+          />
+          <StatCard 
+            label="TOTAL REVENUE"
+            value={`₹${(paidAmount ?? 0).toLocaleString('en-IN')}`}
+            icon={<Wallet className="w-4 h-4 text-purple-600" />}
+            color="bg-purple-50/50 border-purple-100"
+          />
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={`grid w-full grid-cols-${tabCount}`}>
-          {!isPatient && <TabsTrigger value="overview">Overview</TabsTrigger>}
-          <TabsTrigger value="plans">Plans</TabsTrigger>
-          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          {(!isPatient || patientHasInvoices) && <TabsTrigger value="invoices">Invoices</TabsTrigger>}
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          {showLedgerTab && <TabsTrigger value="ledger">Ledger</TabsTrigger>}
-        </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+          <TabsList>
+            {[...(isPatient ? patientTabs : adminTabs)].map((val) => (
+              <TabsTrigger
+                key={val}
+                value={val}
+                className="capitalize whitespace-nowrap"
+              >
+                {val}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
         {!isPatient && (
           <TabsContent value="overview" className="space-y-4">
@@ -379,10 +383,10 @@ export function RoleBasedBillingDashboard({
                 <p className="text-sm text-muted-foreground">
                   Please refresh or contact clinic admin to publish billing plans for this clinic.
                 </p>
-                <Button variant="outline" onClick={() => onRefetch && onRefetch()}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh Plans
-                </Button>
+                  <Button variant="outline" size="lg" className="rounded-xl h-11 border-slate-200 text-slate-700 font-bold mt-2" onClick={() => onRefetch && onRefetch()}>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Reload Plans
+                  </Button>
               </CardContent>
             </Card>
           ) : (
@@ -394,25 +398,32 @@ export function RoleBasedBillingDashboard({
               ) : null}
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {plans.map((plan) => (
-                <Card key={plan.id}>
-                  <CardHeader>
-                    <CardTitle>{plan.name}</CardTitle>
+                <Card key={plan.id} className="rounded-2xl border-slate-200/60 shadow-sm hover:shadow-md transition-shadow ring-1 ring-slate-100 flex flex-col">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xl font-bold text-slate-800">{plan.name}</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-xl font-bold">INR {(plan.price ?? 0).toLocaleString("en-IN")}</p>
-                    <p className="text-sm text-muted-foreground">{plan.billingCycle}</p>
-                    {plan.isUnlimitedAppointments ? (
-                      <Badge className="mt-2">Unlimited Appointments</Badge>
-                    ) : (
-                      <Badge className="mt-2">{plan.appointmentsIncluded || 0} Appointments</Badge>
-                    )}
+                  <CardContent className="flex-1 flex flex-col pt-0">
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <p className="text-3xl font-bold text-[#006951]">₹{(plan.price ?? 0).toLocaleString("en-IN")}</p>
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">/ {plan.billingCycle.toLowerCase()}</p>
+                    </div>
+                    <div className="flex items-center gap-2 mt-3">
+                      {plan.isUnlimitedAppointments ? (
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 pointer-events-none rounded-full px-3">Unlimited Appointments</Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 pointer-events-none rounded-full px-3">{plan.appointmentsIncluded || 0} Appointments</Badge>
+                      )}
+                    </div>
                     {isPatient && (
-                      <div className="mt-4">
+                      <div className="mt-8 pt-4 border-t border-slate-100">
                         {activeSubscription?.planId === plan.id ? (
-                          <Badge variant="secondary">Current Plan</Badge>
+                          <div className="flex items-center justify-center gap-2 w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                            <Badge variant="secondary" className="bg-[#006951]/10 text-[#006951] hover:bg-[#006951]/10 px-3 font-bold border-none">Current Plan</Badge>
+                          </div>
                         ) : (
                           <Button
-                            className="w-full"
+                            size="lg"
+                            className="w-full rounded-xl bg-[#006951] hover:bg-[#005a45] shadow-sm font-bold h-11 transition-all active:scale-[0.98]"
                             onClick={() => setPlanToConfirm(plan)}
                           >
                             Subscribe & Pay
@@ -430,47 +441,100 @@ export function RoleBasedBillingDashboard({
 
         <TabsContent value="subscriptions" className="space-y-4">
           {subscriptions.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">No subscriptions found.</CardContent></Card>
+            <Card className="rounded-2xl border-dashed border-slate-200 bg-slate-50/50">
+              <CardContent className="py-12 text-center">
+                <div className="mx-auto w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                  <CreditCard className="w-6 h-6 text-slate-400" />
+                </div>
+                <p className="font-semibold text-slate-600">No subscriptions found</p>
+                <p className="text-sm text-slate-500 mt-1">You haven't subscribed to any billing plans yet.</p>
+              </CardContent>
+            </Card>
           ) : (
-            subscriptions.map((sub) => (
-              <Card key={sub.id}>
-                <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{sub.plan?.name || "Subscription"}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {sub.startDate ? new Date(sub.startDate).toLocaleDateString("en-IN") : "N/A"}
-                    </p>
-                  </div>
-                  <Badge>{sub.status}</Badge>
-                </CardContent>
-              </Card>
-            ))
+            <div className="grid gap-3">
+              {subscriptions.map((sub) => (
+                <Card key={sub.id} className="rounded-2xl border-slate-200/50 shadow-sm hover:shadow-md hover:border-[#006951]/30 transition-all ring-1 ring-slate-100 group">
+                  <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100/60 flex items-center justify-center shrink-0 transition-colors group-hover:bg-emerald-100/60">
+                        <CreditCard className="w-6 h-6 text-[#006951]" />
+                      </div>
+                      <div>
+                        <p className="font-extrabold text-[#006951] text-base leading-none">{sub.plan?.name || "Subscription Plan"}</p>
+                        <p className="text-[13px] font-bold text-slate-400 mt-2 flex items-center gap-1.5 uppercase tracking-tight">
+                          Started on <span className="text-slate-600">{sub.startDate ? new Date(sub.startDate).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' }) : "Not available"}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Badge className={`rounded-full px-3.5 py-1 font-bold uppercase text-[10px] tracking-wider border-none shadow-sm ${
+                        sub.status === 'ACTIVE' ? 'bg-emerald-500 text-white' :
+                        sub.status === 'TRIALING' ? 'bg-blue-500 text-white' :
+                        'bg-slate-500 text-white'
+                      }`}>
+                        {sub.status}
+                      </Badge>
+                      <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100 transition-colors">
+                        <Info className="w-4 h-4 text-slate-400" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </TabsContent>
 
         <TabsContent value="invoices" className="space-y-4">
           {filteredInvoices.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">No invoices found.</CardContent></Card>
+            <Card className="rounded-2xl border-dashed border-slate-200 bg-slate-50/50">
+              <CardContent className="py-12 text-center">
+                <div className="mx-auto w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                  <FileText className="w-6 h-6 text-slate-400" />
+                </div>
+                <p className="font-semibold text-slate-600">No invoices found</p>
+                <p className="text-sm text-slate-500 mt-1">There are no records matching your criteria.</p>
+              </CardContent>
+            </Card>
           ) : (
-            filteredInvoices.map((invoice) => (
-              <Card key={invoice.id}>
-                <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-4 h-4" />
-                    <div>
-                      <p className="font-semibold">{invoice.invoiceNumber}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Due: {new Date(invoice.dueDate).toLocaleDateString("en-IN")}
-                      </p>
+            <div className="grid gap-3">
+              {filteredInvoices.map((invoice) => (
+                <Card key={invoice.id} className="rounded-2xl border-slate-200/50 shadow-sm hover:shadow-md hover:border-[#006951]/30 transition-all ring-1 ring-slate-100 group">
+                  <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-all ${
+                        invoice.status === 'PAID' 
+                          ? 'bg-emerald-50 border-emerald-100/60 text-[#006951] group-hover:bg-emerald-100/60' 
+                          : 'bg-orange-50 border-orange-100/60 text-orange-600 group-hover:bg-orange-100/60'
+                      }`}>
+                        <FileText className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="font-extrabold text-foreground text-base leading-none group-hover:text-[#006951] transition-colors">{invoice.invoiceNumber}</p>
+                        <p className="text-[11px] font-bold text-slate-400 mt-2 flex items-center gap-1.5 uppercase tracking-tight">
+                          Due on <span className="text-slate-600 font-bold">{new Date(invoice.dueDate).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex flex-col sm:items-end gap-1 mt-3 sm:mt-0">
-                    <p className="font-bold">INR {(invoice.amount ?? 0).toLocaleString("en-IN")}</p>
-                    <Badge className="w-fit">{invoice.status}</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                    <div className="flex items-center gap-4 sm:text-right">
+                      <div className="flex flex-col sm:items-end">
+                        <p className="font-extrabold text-foreground text-xl tracking-tight">₹{(invoice.amount ?? 0).toLocaleString("en-IN")}</p>
+                        <Badge className={`mt-2 rounded-full px-2.5 py-0.5 font-bold uppercase text-[10px] tracking-wider border-none shadow-sm ${
+                        invoice.status === 'PAID' ? 'bg-emerald-500 text-white' :
+                        invoice.status === 'OVERDUE' ? 'bg-red-500 text-white' :
+                        'bg-slate-500 text-white'
+                        }`}>
+                          {invoice.status}
+                        </Badge>
+                      </div>
+                      <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100 transition-colors">
+                        <FileText className="w-4 h-4 text-slate-400" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </TabsContent>
 
@@ -479,107 +543,143 @@ export function RoleBasedBillingDashboard({
         </TabsContent>
 
         {showLedgerTab && (
-          <TabsContent value="ledger" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue Ledger</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!ledger ? (
-                  <p className="text-sm text-muted-foreground">Ledger data is not available.</p>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Collections</p>
-                        <p className="text-lg font-semibold">INR {(ledger.summary.totalCollections ?? 0).toLocaleString("en-IN")}</p>
+          <TabsContent value="ledger" className="space-y-6">
+            {!ledger ? (
+              <Card className="rounded-2xl border-dashed border-slate-200 bg-slate-50/50">
+                <CardContent className="py-12 text-center text-slate-500">
+                  Ledger data is not available yet.
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <StatCard 
+                    label="TOTAL COLLECTIONS"
+                    value={`₹${(ledger.summary.totalCollections ?? 0).toLocaleString("en-IN")}`}
+                    icon={<Wallet className="w-4 h-4 text-blue-600" />}
+                    color="bg-blue-50/50 border-blue-100"
+                  />
+                  <StatCard 
+                    label="PENDING PAYOUTS"
+                    value={`₹${(ledger.summary.pendingPayouts ?? 0).toLocaleString("en-IN")}`}
+                    icon={<RefreshCw className="w-4 h-4 text-orange-600" />}
+                    color="bg-orange-50/50 border-orange-100"
+                  />
+                  <StatCard 
+                    label="PLATFORM REVENUE"
+                    value={`₹${(ledger.summary.totalPlatformRevenue ?? 0).toLocaleString("en-IN")}`}
+                    icon={<BarChart3 className="w-4 h-4 text-purple-600" />}
+                    color="bg-purple-50/50 border-purple-100"
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Card className="rounded-2xl border-slate-200/60 shadow-sm ring-1 ring-slate-100">
+                    <CardHeader className="pb-3 border-b border-slate-50">
+                      <CardTitle className="text-base font-bold text-slate-800">Revenue Breakup</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-5 flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span className="text-sm font-medium text-slate-600">Appointments</span>
+                        </div>
+                        <span className="text-sm font-bold text-foreground">₹{(ledger?.summary.byRevenueModel?.APPOINTMENT ?? 0).toLocaleString("en-IN")}</span>
                       </div>
-                      <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Pending Payouts</p>
-                        <p className="text-lg font-semibold">INR {(ledger.summary.pendingPayouts ?? 0).toLocaleString("en-IN")}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-blue-500" />
+                          <span className="text-sm font-medium text-slate-600">Subscriptions</span>
+                        </div>
+                        <span className="text-sm font-bold text-foreground">₹{(ledger?.summary.byRevenueModel?.SUBSCRIPTION ?? 0).toLocaleString("en-IN")}</span>
                       </div>
-                      <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Platform Revenue</p>
-                        <p className="text-lg font-semibold">INR {(ledger.summary.totalPlatformRevenue ?? 0).toLocaleString("en-IN")}</p>
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                        <span className="text-sm font-bold text-foreground">Total System Revenue</span>
+                        <span className="text-sm font-bold text-[#006951]">₹{((ledger?.summary.byRevenueModel?.APPOINTMENT || 0) + (ledger?.summary.byRevenueModel?.SUBSCRIPTION || 0)).toLocaleString("en-IN")}</span>
                       </div>
-                    </div>
-                    <div className="rounded-md border p-3">
-                      <p className="text-sm font-medium mb-2">Revenue Model Split</p>
-                      <p className="text-sm text-muted-foreground">
-                        Appointment: INR {(ledger.summary.byRevenueModel?.APPOINTMENT ?? 0).toLocaleString("en-IN")} | Subscription: INR {(ledger.summary.byRevenueModel?.SUBSCRIPTION ?? 0).toLocaleString("en-IN")} | Other: INR {(ledger.summary.byRevenueModel?.OTHER ?? 0).toLocaleString("en-IN")}
-                      </p>
-                    </div>
-                    <div className="rounded-md border p-3">
-                      <p className="text-sm font-medium mb-2">Recent Payment Ledger Entries</p>
-                      {ledger.payments.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No ledger entries found.</p>
-                      ) : (
-                        <div className="space-y-2 max-h-72 overflow-auto">
-                          {ledger.payments.slice(0, 20).map((entry) => (
-                            <div key={entry.paymentId} className="flex items-center justify-between text-sm border rounded px-3 py-2">
+                    </CardContent>
+                  </Card>
+
+                  <Card className="rounded-2xl border-slate-200/60 shadow-sm ring-1 ring-slate-100">
+                    <CardHeader className="pb-3 border-b border-slate-50">
+                      <CardTitle className="text-base font-bold text-slate-800">Quick Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-5 flex flex-col gap-2">
+                      <Button variant="outline" size="lg" className="w-full justify-start rounded-xl h-11 border-slate-200 text-slate-700 font-bold">
+                        <FileText className="w-4 h-4 mr-2 text-slate-400" />
+                        Download PDF Statement
+                      </Button>
+                      <Button variant="outline" size="lg" className="w-full justify-start rounded-xl h-11 border-slate-200 text-slate-700 font-bold">
+                        <RefreshCw className="w-4 h-4 mr-2 text-slate-400" />
+                        Reconcile Pending Payouts
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card className="rounded-2xl border-slate-200/60 shadow-sm ring-1 ring-slate-100">
+                  <CardHeader className="pb-3 border-b border-slate-50">
+                    <CardTitle className="text-base font-bold text-slate-800">Recent Payment Ledger Entries</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0 pb-0">
+                    {ledger.payments.length === 0 ? (
+                      <div className="py-12 text-center text-slate-400 text-sm italic">No recent ledger entries found.</div>
+                    ) : (
+                      <div className="divide-y divide-slate-50 max-h-[500px] overflow-auto pr-2">
+                        {ledger.payments.slice(0, 30).map((entry) => (
+                          <div key={entry.paymentId} className="flex items-center justify-between py-4 group">
+                            <div className="flex items-start gap-3">
+                              <div className={`mt-0.5 p-1.5 rounded-lg ${entry.revenueModel === 'APPOINTMENT' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                                {entry.revenueModel === 'APPOINTMENT' ? <BarChart3 className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
+                              </div>
                               <div>
-                                <p className="font-medium">{entry.paymentId}</p>
-                                <p className="text-muted-foreground">
-                                  {entry.revenueModel} {entry.appointmentType ? `| ${entry.appointmentType}` : ""} {entry.provider ? `| ${entry.provider}` : ""}
+                                <p className="font-bold text-foreground text-[13px]">{entry.paymentId}</p>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">
+                                  {entry.revenueModel} • {entry.provider || 'UNKNOWN'} • {entry.appointmentType || 'OFFLINE'}
                                 </p>
                               </div>
-                              <div className="text-right">
-                                <p className="font-semibold">INR {(entry.amount ?? 0).toLocaleString("en-IN")}</p>
-                                <p className="text-muted-foreground">{entry.payoutState}</p>
-                                {entry.appointmentId && entry.payoutState === "PAYOUT_READY" && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-1"
-                                    disabled={releasePayoutMutation.isPending}
-                                    onClick={() => {
-                                      void releasePayoutMutation.mutateAsync(entry.appointmentId as string);
-                                    }}
-                                  >
-                                    Release Payout
-                                  </Button>
-                                )}
-                                {(entry.status === "PENDING" || entry.status === "FAILED") && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="mt-1"
-                                    disabled={reconcilePaymentMutation.isPending}
-                                    onClick={() => {
-                                      const provider = (entry.provider || undefined) as "cashfree" | undefined;
-                                      void reconcilePaymentMutation.mutateAsync({
-                                        paymentId: entry.paymentId,
-                                        ...(provider ? { provider } : {}),
-                                      });
-                                    }}
-                                  >
-                                    Reconcile
-                                  </Button>
-                                )}
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-foreground">₹{(entry.amount ?? 0).toLocaleString("en-IN")}</p>
+                              <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                                <div className={`w-1.5 h-1.5 rounded-full ${entry.payoutState === 'PAYMENT_COMPLETED' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">{entry.payoutState.replace('_', ' ')}</span>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
         )}
       </Tabs>
 
-      {canViewAnalytics && analytics && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Financial Analytics</CardTitle>
+      {!isPatient && analytics && (
+        <Card className="rounded-2xl border-slate-200/60 shadow-sm ring-1 ring-slate-100 mt-6">
+          <CardHeader className="pb-3 border-b border-slate-50">
+            <CardTitle className="text-base font-bold text-slate-800">Financial Analytics Summary</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div><p className="text-sm text-muted-foreground">Total Revenue</p><p className="font-bold">INR {(analytics.totalRevenue ?? 0).toLocaleString("en-IN")}</p></div>
-            <div><p className="text-sm text-muted-foreground">Monthly Revenue</p><p className="font-bold">INR {(analytics.monthlyRevenue ?? 0).toLocaleString("en-IN")}</p></div>
-            <div><p className="text-sm text-muted-foreground">Active Subscriptions</p><p className="font-bold">{analytics.activeSubscriptions}</p></div>
-            <div><p className="text-sm text-muted-foreground">Pending Invoices</p><p className="font-bold">{analytics.pendingInvoices}</p></div>
+          <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-6">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Revenue</p>
+              <p className="font-bold text-foreground text-xl mt-1">₹{(analytics.totalRevenue ?? 0).toLocaleString("en-IN")}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Monthly Revenue</p>
+              <p className="font-bold text-foreground text-xl mt-1">₹{(analytics.monthlyRevenue ?? 0).toLocaleString("en-IN")}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Subscriptions</p>
+              <p className="font-bold text-foreground text-xl mt-1">{analytics.activeSubscriptions}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending Invoices</p>
+              <p className="font-bold text-foreground text-xl mt-1">{analytics.pendingInvoices}</p>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -687,20 +787,21 @@ export function RoleBasedBillingDashboard({
             <div className="space-y-4 py-4">
               <div className="bg-muted p-4 rounded-lg space-y-2">
                 <div className="flex justify-between items-center wrap-break-word">
-                  <span className="font-semibold text-lg">{planToConfirm.name}</span>
-                  <span className="font-bold text-lg whitespace-nowrap ml-2">INR {(planToConfirm.price ?? 0).toLocaleString("en-IN")}</span>
+                  <span className="font-semibold text-lg">{planToConfirm?.name}</span>
+                  <span className="font-bold text-lg whitespace-nowrap ml-2">INR {(planToConfirm?.price ?? 0).toLocaleString("en-IN")}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">{planToConfirm.description}</p>
+                <p className="text-sm text-muted-foreground">{planToConfirm?.description}</p>
               </div>
               {subscribeError && (
-                <div className="text-sm mt-2 p-2 bg-destructive/15 text-destructive border border-destructive/30 rounded-md">{subscribeError}</div>
+                <div className="text-[11px] font-bold uppercase tracking-tight mt-2 p-2.5 bg-red-50 text-red-700 border border-red-100 rounded-xl">{subscribeError}</div>
               )}
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t">
-                <Button variant="outline" className="w-full sm:w-auto" onClick={() => setPlanToConfirm(null)}>
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto h-11 rounded-xl text-slate-700 font-bold" onClick={() => setPlanToConfirm(null)}>
                   Cancel
                 </Button>
                 <Button 
-                  className="w-full sm:w-auto"
+                  size="lg"
+                  className="w-full sm:w-auto h-11 rounded-xl bg-[#006951] hover:bg-[#005a45] text-white font-bold transition-all shadow-sm active:scale-95"
                   onClick={() => void handleSubscribePlan()} 
                   disabled={createSubscriptionMutation.isPending}
                 >
@@ -720,14 +821,14 @@ export function RoleBasedBillingDashboard({
           {pendingSubscriptionPayment && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Plan: <span className="font-medium text-foreground">{pendingSubscriptionPayment.planName}</span>
+                Plan: <span className="font-medium text-foreground">{pendingSubscriptionPayment?.planName}</span>
               </p>
               <PaymentButton
-                subscriptionId={pendingSubscriptionPayment.subscriptionId}
-                amount={pendingSubscriptionPayment.amount}
-                description={pendingSubscriptionPayment.planName}
+                subscriptionId={pendingSubscriptionPayment?.subscriptionId || ""}
+                amount={pendingSubscriptionPayment?.amount || 0}
+                description={pendingSubscriptionPayment?.planName || ""}
                 autoStart
-                className="w-full"
+                className="w-full h-11 rounded-xl font-bold bg-[#006951] hover:bg-[#005a45]"
                 onSuccess={() => {
                   setIsSubscriptionPaymentOpen(false);
                   setPendingSubscriptionPayment(null);
@@ -736,12 +837,13 @@ export function RoleBasedBillingDashboard({
                   }
                 }}
               >
-                Pay INR {(pendingSubscriptionPayment.amount ?? 0).toLocaleString("en-IN")}
+                Pay INR {(pendingSubscriptionPayment?.amount ?? 0).toLocaleString("en-IN")}
               </PaymentButton>
             </div>
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

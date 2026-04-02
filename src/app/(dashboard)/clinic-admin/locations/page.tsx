@@ -282,8 +282,8 @@ export default function ClinicLocationsPage() {
         },
       });
       setIsCreateDialogOpen(false);
-    } catch (error: any) {
-      showErrorToast(error?.message || "Failed to create location", {
+    } catch (error: unknown) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to create location", {
         id: TOAST_IDS.GLOBAL.ERROR,
       });
     }

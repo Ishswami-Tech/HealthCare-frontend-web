@@ -70,6 +70,7 @@ export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
     serviceBucket: raw.serviceBucket,
     treatmentType: raw.treatmentType,
     estimatedWaitTime: raw.estimatedWaitTime,
+    estimatedDuration: raw.estimatedDuration,
     paymentStatus: raw.paymentStatus,
     waitingForPayment:
       typeof raw.waitingForPayment === 'boolean'
@@ -79,6 +80,12 @@ export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
       typeof raw.readyForHandover === 'boolean'
         ? raw.readyForHandover
         : raw.paymentStatus === 'PAID',
+    // Projection fields
+    paused: typeof raw.paused === 'boolean' ? raw.paused : false,
+    ...(raw.tokenNumber != null ? { tokenNumber: String(raw.tokenNumber) } : {}),
+    ...(raw.scheduledDate != null ? { scheduledDate: raw.scheduledDate as string } : {}),
+    ...(raw.startedAt != null ? { startedAt: raw.startedAt as string } : {}),
+    ...(raw.completedAt != null ? { completedAt: raw.completedAt as string } : {}),
   };
 }
 

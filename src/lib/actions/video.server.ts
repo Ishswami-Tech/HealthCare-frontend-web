@@ -123,12 +123,17 @@ export async function getVideoConsultationHistory(filters?: {
   limit?: number;
 }) {
   const params = new URLSearchParams();
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined) {
-        params.append(key, value.toString());
-      }
-    });
+  if (filters?.userId) {
+    params.append('userId', filters.userId);
+  }
+  if (filters?.clinicId) {
+    params.append('clinicId', filters.clinicId);
+  }
+  if (filters?.page !== undefined) {
+    params.append('page', filters.page.toString());
+  }
+  if (filters?.limit !== undefined) {
+    params.append('limit', filters.limit.toString());
   }
   
   const endpoint = `${API_ENDPOINTS.VIDEO.HISTORY}${params.toString() ? `?${params.toString()}` : ''}`;

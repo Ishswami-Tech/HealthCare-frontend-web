@@ -1,16 +1,23 @@
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
-import { pauseQueue } from "@/lib/actions/queue.server";
+import { pauseQueue, transferQueueEntry } from "@/lib/actions/queue.server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueuePermissions } from "@/hooks/utils/useRBAC";
 import { QueueProtectedComponent, ProtectedComponent } from "@/components/rbac";
 import { useQueue, useQueueStats } from "@/hooks/query/useQueue";
-// ✅ Removed: useUpdateQueueStatus, useCallNextPatient - using optimistic hooks instead
 import { useClinicContext, useActiveLocations } from "@/hooks/query/useClinics";
 import { Role } from "@/types/auth.types";
 import { QueueCategory, type CanonicalQueueEntry } from "@/types/queue.types";
@@ -24,7 +31,6 @@ import {
   useOptimisticCallNextPatient,
 } from "@/hooks/utils/useOptimisticQueue";
 
-// Real-time queue data interface
 import {
   Clock,
   User,
@@ -41,7 +47,23 @@ import {
   Users,
   Timer,
   Activity,
+  ArrowRightLeft,
+  ChevronDown,
+  Syringe,
+  Wind,
 } from "lucide-react";
+
+// ─── Logical queue options the receptionist can move patients between ─────────
+const QUEUE_TRANSFER_OPTIONS = [
+  { label: "Consultation",  value: "DOCTOR_CONSULTATION",  treatmentType: "CONSULTATION",  icon: "stethoscope" },
+  { label: "Agnikarma",     value: "THERAPY_PROCEDURE",    treatmentType: "AGNIKARMA",     icon: "flame" },
+  { label: "Panchakarma",   value: "THERAPY_PROCEDURE",    treatmentType: "PANCHAKARMA",   icon: "droplets" },
+  { label: "Shirodhara",    value: "THERAPY_PROCEDURE",    treatmentType: "SHIRODHARA",    icon: "leaf" },
+  { label: "Vidhakarma",    value: "THERAPY_PROCEDURE",    treatmentType: "VIDHAKARMA",    icon: "syringe" },
+  { label: "Nasya",         value: "THERAPY_PROCEDURE",    treatmentType: "NASYA",         icon: "wind" },
+  { label: "Basti",         value: "THERAPY_PROCEDURE",    treatmentType: "BASTI",         icon: "droplets" },
+  { label: "Medicine Desk", value: "MEDICINE_DESK",        treatmentType: "MEDICINE_DESK", icon: "stethoscope" },
+] as const;
 
 // Queue status constants - must match backend enum values
 const QUEUE_STATUS = {
@@ -117,7 +139,10 @@ function matchesQueueSection(item: QueueDisplayItem, section: string): boolean {
         token.includes("THERAPY") ||
         token.includes("AGNIKARMA") ||
         token.includes("PANCHAKARMA") ||
-        token.includes("SHIRODHARA")
+        token.includes("SHIRODHARA") ||
+        token.includes("VIDHAKARMA") ||
+        token.includes("NASYA") ||
+        token.includes("BASTI")
     );
   }
 
@@ -255,6 +280,29 @@ export default function QueuePage() {
   // Mutation hooks for queue actions with React 19 useOptimistic
   const updateQueueStatusOptimistic = useOptimisticUpdateQueueStatus(clinicId);
 
+  // Transfer patient between logical queues (receptionist/clinic-admin only)
+  const [transferringId, setTransferringId] = useState<string | null>(null);
+  const canTransfer =
+    userRole === Role.RECEPTIONIST ||
+    userRole === Role.CLINIC_ADMIN ||
+    userRole === Role.SUPER_ADMIN;
+
+  const handleTransfer = useCallback(
+    async (entryId: string, targetQueue: string, treatmentType: string, label: string) => {
+      setTransferringId(entryId);
+      try {
+        await transferQueueEntry(entryId, targetQueue, treatmentType);
+        await refetchQueue();
+        showSuccessToast(`Moved to ${label}`, { id: TOAST_IDS.GLOBAL.SUCCESS });
+      } catch {
+        showErrorToast(`Failed to move patient`, { id: TOAST_IDS.GLOBAL.ERROR });
+      } finally {
+        setTransferringId(null);
+      }
+    },
+    [refetchQueue]
+  );
+
   // Handle queue actions with optimistic updates
   const handleUpdateQueueStatus = (patientId: string, status: string) => {
     updateQueueStatusOptimistic.mutation.mutate(
@@ -313,6 +361,9 @@ export default function QueuePage() {
   const agnikarmaQueue = getQueueByType("agnikarma");
   const panchakarmaQueue = getQueueByType("panchakarma");
   const shirodharaQueue = getQueueByType("shirodhara");
+  const vidhakarmaQueue = getQueueByType("vidhakarma");
+  const nasyaQueue = getQueueByType("nasya");
+  const bastiQueue = getQueueByType("basti");
 
 
 
@@ -465,8 +516,8 @@ export default function QueuePage() {
                       size="sm"
                       variant="outline"
                       className="flex items-center gap-1"
-                      onClick={() => rowCallNext.mutation.mutate({ 
-                        appointmentId: item.appointmentId 
+                      onClick={() => rowCallNext.mutation.mutate({
+                        appointmentId: item.appointmentId
                       }, {
                         onSuccess: () => {
                           refetchQueue();
@@ -482,6 +533,42 @@ export default function QueuePage() {
                       {rowCallNext.isPending ? "Calling..." : "Call Next"}
                     </Button>
                   </QueueProtectedComponent>
+                )}
+
+                {/* Move to Queue — receptionist/clinic-admin only */}
+                {canTransfer && item.status !== QUEUE_STATUS.COMPLETED && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center gap-1"
+                        disabled={transferringId === item.id}
+                      >
+                        <ArrowRightLeft className="w-3 h-3" />
+                        {transferringId === item.id ? "Moving..." : "Move to"}
+                        <ChevronDown className="w-3 h-3 ml-0.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuLabel className="text-xs text-muted-foreground">
+                        Transfer to queue
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {QUEUE_TRANSFER_OPTIONS.filter(
+                        (opt) => opt.treatmentType !== (item.treatmentType?.toUpperCase() ?? "")
+                      ).map((opt) => (
+                        <DropdownMenuItem
+                          key={opt.treatmentType}
+                          onSelect={() =>
+                            void handleTransfer(item.id, opt.value, opt.treatmentType, opt.label)
+                          }
+                        >
+                          {opt.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
               </div>
             )}
@@ -656,6 +743,21 @@ export default function QueuePage() {
               title="Shirodhara"
               items={shirodharaQueue}
               icon={<Leaf className="w-5 h-5 text-green-600" />}
+            />
+            <TherapyQueueSection
+              title="Vidhakarma"
+              items={vidhakarmaQueue}
+              icon={<Syringe className="w-5 h-5 text-purple-600" />}
+            />
+            <TherapyQueueSection
+              title="Nasya"
+              items={nasyaQueue}
+              icon={<Wind className="w-5 h-5 text-cyan-600" />}
+            />
+            <TherapyQueueSection
+              title="Basti"
+              items={bastiQueue}
+              icon={<Droplets className="w-5 h-5 text-teal-600" />}
             />
           </div>
         </TabsContent>

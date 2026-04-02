@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
@@ -21,13 +21,21 @@ import {
 } from "@/hooks/query/useBilling";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { Card, CardContent } from "@/components/ui/card";
+import { useLayoutStore } from "@/stores/layout.store";
 
 function BillingPageContent() {
   const { session, isPending: isAuthPending } = useAuth();
   const { clinicId: contextClinicId } = useClinicContext();
   const searchParams = useSearchParams();
+  const setPageTitle = useLayoutStore((state) => state.setPageTitle);
 
   useWebSocketQuerySync();
+
+  const userRoleForTitle = (session?.user?.role || "").toUpperCase();
+  useEffect(() => {
+    const isPatientRole = userRoleForTitle === "PATIENT";
+    setPageTitle(isPatientRole ? "My Billing" : "Billing Dashboard");
+  }, [userRoleForTitle, setPageTitle]);
 
   const userId = (session?.user?.id || "").trim();
   const clinicId = contextClinicId || session?.user?.clinicId || "";

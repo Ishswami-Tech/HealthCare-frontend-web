@@ -25,6 +25,9 @@ const nextConfig: NextConfig = {
       'date-fns',
       'sonner',
     ],
+    serverActions: {
+      allowedOrigins: ['localhost:3000', '*.cashfree.com', 'sandbox.cashfree.com', 'api.cashfree.com', 'payments.cashfree.com'],
+    },
   },
 
   /* =====================================================
@@ -73,6 +76,10 @@ const nextConfig: NextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=31536000; includeSubDomains',
           },
+          {
+            key: 'Content-Security-Policy',
+            value: "form-action 'self' https://*.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;"
+          }
         ],
       },
     ];

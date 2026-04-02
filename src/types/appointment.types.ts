@@ -8,6 +8,8 @@
 import type { Patient } from './patient.types';
 import type { Doctor } from './doctor.types';
 import type { Clinic, ClinicLocation } from './clinic.types';
+import type { Invoice } from './billing.types';
+
 export type AppointmentStatus = 
   | 'SCHEDULED'
   | 'CONFIRMED' 
@@ -296,6 +298,7 @@ export interface Appointment {
   resourceBookings?: ResourceBooking[];
   parentAppointment?: Appointment;
   followUpAppointments?: Appointment[];
+  invoice?: Invoice;
 }
 
 export interface AppointmentWithRelations extends Appointment {
@@ -303,6 +306,7 @@ export interface AppointmentWithRelations extends Appointment {
   doctor: Doctor;
   clinic?: Clinic;
   location?: ClinicLocation;
+  invoice?: Invoice;
 }
 
 export interface ProcessCheckInData {

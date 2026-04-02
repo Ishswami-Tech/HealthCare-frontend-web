@@ -29,7 +29,7 @@ export function HealthStatusProvider() {
     if (socket?.connected || isConnected) {
       subscribe();
       if (process.env.NODE_ENV === 'development') {
-        console.log('✅ HealthStatusProvider: Subscribed to health updates');
+        console.debug('✅ HealthStatusProvider: Subscribed to health updates');
       }
     }
   }, [socket, isConnected, subscribe, isAuthPage]);

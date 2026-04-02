@@ -271,10 +271,12 @@ export function useHealthRealtime(
   const setError = useHealthStore((state) => state.setError);
 
   const socketRef = useRef<Socket | null>(null);
+  const isUnmountingRef = useRef(false);
 
   // Initialize Socket.IO connection
   useEffect(() => {
     if (!enabled) return;
+    isUnmountingRef.current = false;
 
     // ✅ FIX: Use WebSocket URL, not API URL (API URL has /api/v1 prefix)
     // Socket.IO health namespace is at base WebSocket URL + /health
@@ -292,11 +294,13 @@ export function useHealthRealtime(
     const baseUrl = normalizedUrl.replace(/\/$/, '');
     const healthSocketUrl = `${baseUrl}/health`;
     
-    console.log('🔌 Connecting to health namespace:', {
-      baseUrl,
-      healthSocketUrl,
-      websocketUrl: WEBSOCKET_URL,
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('🔌 Connecting to health namespace:', {
+        baseUrl,
+        healthSocketUrl,
+        websocketUrl: WEBSOCKET_URL,
+      });
+    }
     
     const healthSocket = io(healthSocketUrl, {
       transports: ['websocket', 'polling'],
@@ -314,11 +318,13 @@ export function useHealthRealtime(
 
     // Connection events
     healthSocket.on('connect', () => {
-      console.log('✅ Health monitoring connected via Socket.IO to /health namespace', {
-        id: healthSocket.id,
-        url: healthSocketUrl,
-        transport: healthSocket.io.engine.transport.name,
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('✅ Health monitoring connected via Socket.IO to /health namespace', {
+          id: healthSocket.id,
+          url: healthSocketUrl,
+          transport: healthSocket.io.engine.transport.name,
+        });
+      }
       setIsConnected(true);
       setConnectionStatus('connected');
       setError(null);
@@ -331,13 +337,21 @@ export function useHealthRealtime(
           if (response.status.t) {
             setLastUpdate(new Date(response.status.t));
           }
-          console.log('✅ Auto-subscribed to health updates on connection');
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('✅ Auto-subscribed to health updates on connection');
+          }
         }
       });
     });
 
     healthSocket.on('disconnect', (reason) => {
-      console.log('❌ Health monitoring disconnected:', reason);
+      const expectedDevDisconnect =
+        reason === 'io client disconnect' ||
+        (process.env.NODE_ENV === 'development' && isUnmountingRef.current);
+
+      if (!expectedDevDisconnect) {
+        console.debug('❌ Health monitoring disconnected:', reason);
+      }
       setIsConnected(false);
       setConnectionStatus('disconnected');
       
@@ -350,18 +364,26 @@ export function useHealthRealtime(
     });
 
     healthSocket.on('connect_error', (err: Error & { type?: string; description?: string; context?: unknown }) => {
-      console.error('❌ Health monitoring connection error:', {
-        message: err.message,
-        type: err.type,
-        description: err.description,
-        context: err.context,
-        url: healthSocketUrl,
-      });
+      const isExpectedDevAbort =
+        isUnmountingRef.current ||
+        err.message.includes('WebSocket is closed before the connection is established');
+
+      if (!isExpectedDevAbort) {
+        console.error('❌ Health monitoring connection error:', {
+          message: err.message,
+          type: err.type,
+          description: err.description,
+          context: err.context,
+          url: healthSocketUrl,
+        });
+      }
       setConnectionStatus('error');
       setError(err);
       
       // ⚠️ FALLBACK: Connection error - component will use REST polling fallback
-      console.warn('⚠️ Socket.IO connection error, component will use REST polling fallback');
+      if (!isExpectedDevAbort) {
+        console.warn('⚠️ Socket.IO connection error, component will use REST polling fallback');
+      }
     });
 
     // Health status events
@@ -491,6 +513,7 @@ export function useHealthRealtime(
 
     // Cleanup
     return () => {
+      isUnmountingRef.current = true;
       healthSocket.disconnect();
     };
   }, [enabled, setHealthStatus, setConnectionStatus, setIsConnected, setLastUpdate, setError]);

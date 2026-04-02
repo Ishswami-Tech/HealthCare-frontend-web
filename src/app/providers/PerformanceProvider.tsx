@@ -288,7 +288,7 @@ export function PerformanceDebugger() {
     // Log performance entries to console
     const observer = new PerformanceObserver((list) => {
       list.getEntries().forEach((entry) => {
-        console.log(`[Performance] ${entry.name}: ${entry.duration}ms`);
+        console.debug(`[Performance] ${entry.name}: ${entry.duration}ms`);
       });
     });
 

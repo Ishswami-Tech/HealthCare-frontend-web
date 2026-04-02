@@ -43,14 +43,14 @@ export default function NurseDashboard() {
   const patients = patientsData?.patients || [];
 
   const stats = useMemo(() => {
-    const totalPatients = patients.length;
+    const todayDate = new Date().toISOString().split('T')[0];
+    const vitalsRecordedToday = patients.filter((p: any) =>
+      p.vitals?.some((v: any) => v.recordedAt?.startsWith(todayDate))
+    ).length;
     return {
-      activePatients: totalPatients,
-      vitalsRecordedToday: patients.filter((p: any) => 
-        p.vitals?.some((v: any) => v.recordedAt?.startsWith(new Date().toISOString().split('T')[0]))
-      ).length,
-      tasksCompleted: 0, // Mock for now
-      pendingTasks: totalPatients, // Mock for now
+      activePatients: patients.length,
+      vitalsRecordedToday,
+      vitalsNeeded: patients.length - vitalsRecordedToday,
     };
   }, [patients]);
 
@@ -169,23 +169,23 @@ export default function NurseDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Care Tasks</CardTitle>
+            <CardTitle className="text-sm font-medium">Vitals Updated</CardTitle>
             <CheckCircle className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{stats.tasksCompleted}</div>
-            <p className="text-xs text-muted-foreground">Completed today</p>
+            <div className="text-2xl font-bold text-purple-600">{stats.vitalsRecordedToday}</div>
+            <p className="text-xs text-muted-foreground">Patients updated today</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Care</CardTitle>
+            <CardTitle className="text-sm font-medium">Vitals Needed</CardTitle>
             <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.pendingTasks}</div>
-            <p className="text-xs text-muted-foreground">Next scheduled rounds</p>
+            <div className="text-2xl font-bold text-orange-600">{stats.vitalsNeeded}</div>
+            <p className="text-xs text-muted-foreground">Patients pending check</p>
           </CardContent>
         </Card>
       </div>

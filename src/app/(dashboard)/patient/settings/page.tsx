@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,14 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { PasswordChangeModal } from "@/components/patient/PatientModals";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { getActiveSessions, revokeSession } from "@/lib/actions/session.server";
 import {
   Settings,
   Bell,
@@ -45,6 +53,7 @@ import {
 import { logout } from "@/lib/actions/auth.server";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/config/routes";
+import { PatientPageShell, PatientPageHeader } from "@/components/patient/PatientPageShell";
 
 export default function PatientSettings() {
   const { session } = useAuth();
@@ -85,6 +94,49 @@ export default function PatientSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  // Session management
+  interface ActiveSession {
+    id: string;
+    deviceInfo: string;
+    ipAddress: string;
+    lastActivity: string;
+    createdAt: string;
+    isCurrent: boolean;
+  }
+  const [showSessions, setShowSessions] = useState(false);
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  const handleViewSessions = () => {
+    setShowSessions(true);
+    setSessionsLoading(true);
+    startTransition(async () => {
+      try {
+        const sessions = await getActiveSessions();
+        setActiveSessions(sessions);
+      } catch {
+        toast.error("Failed to load active sessions");
+      } finally {
+        setSessionsLoading(false);
+      }
+    });
+  };
+
+  const handleRevokeSession = async (sessionId: string) => {
+    setRevokingId(sessionId);
+    try {
+      await revokeSession(sessionId);
+      setActiveSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      toast.success("Session revoked successfully");
+    } catch {
+      toast.error("Failed to revoke session");
+    } finally {
+      setRevokingId(null);
+    }
+  };
 
   const handleSaveNotifications = async () => {
     setIsSaving(true);
@@ -142,24 +194,12 @@ export default function PatientSettings() {
   );
 
   return (
-    
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Settings className="w-8 h-8 text-primary" />
-              Settings
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Manage your account preferences and privacy settings
-            </p>
-          </div>
-          <Badge variant="outline" className="gap-1">
-            <CheckCircle className="w-3 h-3 text-green-500" />
-            Account Active
-          </Badge>
-        </div>
+    <PatientPageShell>
+        <PatientPageHeader
+          eyebrow="ACCOUNT SETTINGS"
+          title="Settings"
+          description="Manage your account preferences, notifications, and privacy settings."
+        />
 
         {/* Account Summary Card */}
         <Card className="border-primary/20 bg-linear-to-r from-primary/5 to-blue-500/5">
@@ -194,18 +234,18 @@ export default function PatientSettings() {
         </Card>
 
         <Tabs defaultValue="notifications" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList>
             <TabsTrigger value="notifications" className="gap-1.5">
-              <Bell className="w-4 h-4" /> Notifications
+              <Bell className="w-4 h-4" /> <span className="hidden sm:inline">Notifications</span><span className="sm:hidden">Alerts</span>
             </TabsTrigger>
             <TabsTrigger value="privacy" className="gap-1.5">
-              <Shield className="w-4 h-4" /> Privacy & Security
+              <Shield className="w-4 h-4" /> <span className="hidden sm:inline">Privacy & Security</span><span className="sm:hidden">Privacy</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className="gap-1.5">
-              <Palette className="w-4 h-4" /> Appearance
+              <Palette className="w-4 h-4" /> <span className="hidden sm:inline">Appearance</span><span className="sm:hidden">Theme</span>
             </TabsTrigger>
             <TabsTrigger value="danger" className="gap-1.5 text-destructive">
-              <Trash2 className="w-4 h-4" /> Danger Zone
+              <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Danger Zone</span><span className="sm:hidden">Danger</span>
             </TabsTrigger>
           </TabsList>
 
@@ -404,7 +444,7 @@ export default function PatientSettings() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => toast.info("Session management coming soon")}
+                      onClick={handleViewSessions}
                     >
                       View Sessions
                     </Button>
@@ -657,7 +697,72 @@ export default function PatientSettings() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
-    
+
+        {/* Active Sessions Dialog */}
+        <Dialog open={showSessions} onOpenChange={setShowSessions}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Smartphone className="w-5 h-5 text-blue-500" />
+                Active Sessions
+              </DialogTitle>
+              <DialogDescription>
+                These devices are currently logged into your account. Revoke any session you don&apos;t recognize.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 mt-2 max-h-[400px] overflow-y-auto pr-1">
+              {sessionsLoading ? (
+                <div className="flex items-center justify-center py-10 text-muted-foreground">
+                  <Clock className="w-5 h-5 animate-spin mr-2" />
+                  Loading sessions…
+                </div>
+              ) : activeSessions.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Smartphone className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No active sessions found</p>
+                </div>
+              ) : (
+                activeSessions.map((s) => (
+                  <div
+                    key={s.id}
+                    className={`flex items-start justify-between p-3 rounded-lg border ${
+                      s.isCurrent ? "border-blue-200 bg-blue-50" : "border-slate-100 bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 p-1.5 rounded-md ${s.isCurrent ? "bg-blue-100" : "bg-slate-200"}`}>
+                        <Smartphone className={`w-4 h-4 ${s.isCurrent ? "text-blue-600" : "text-slate-500"}`} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium flex items-center gap-2">
+                          {s.deviceInfo || "Unknown device"}
+                          {s.isCurrent && (
+                            <Badge className="text-xs bg-blue-600 text-white border-none py-0">Current</Badge>
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{s.ipAddress}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Last active: {new Date(s.lastActivity).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    {!s.isCurrent && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-600 hover:bg-red-50 hover:text-red-700 shrink-0 h-7 text-xs"
+                        disabled={revokingId === s.id}
+                        onClick={() => handleRevokeSession(s.id)}
+                      >
+                        {revokingId === s.id ? "Revoking…" : "Revoke"}
+                      </Button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </PatientPageShell>
   );
 }

@@ -6,6 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PatientPageHeader, PatientPageShell } from "@/components/patient/PatientPageShell";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, ErrorState, PageLoading } from "@/components/ui/loading";
 import { PaymentButton } from "@/components/payments/PaymentButton";
@@ -232,28 +240,28 @@ export default function PatientPrescriptions() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">My Prescriptions</h1>
-          <p className={`text-sm ${theme.textColors.secondary}`}>
-            Real prescriptions issued by your doctor
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="flex items-center gap-2" disabled>
-            <Bell className="w-4 h-4" />
-            Refill Unavailable
-          </Button>
-          <Button className="flex items-center gap-2" disabled>
-            <ShoppingCart className="w-4 h-4" />
-            Ordering Unavailable
-          </Button>
-        </div>
-      </div>
+    <PatientPageShell>
+      <PatientPageHeader
+        eyebrow="Prescriptions & Billing"
+        title="My prescriptions"
+        description="Track active medicines, review doctor instructions, and complete prescription payments from one consistent patient-friendly surface."
+        actions={[
+          {
+            label: "Refill unavailable",
+            icon: <Bell className="h-4 w-4" />,
+            variant: "outline",
+            disabled: true,
+          },
+          {
+            label: "Ordering unavailable",
+            icon: <ShoppingCart className="h-4 w-4" />,
+            disabled: true,
+          },
+        ]}
+      />
 
       <Tabs defaultValue="prescriptions" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList>
           <TabsTrigger value="prescriptions">Current Prescriptions</TabsTrigger>
           <TabsTrigger value="plan">Medication Plan</TabsTrigger>
           <TabsTrigger value="pharmacy">Medicine Queue</TabsTrigger>
@@ -261,7 +269,7 @@ export default function PatientPrescriptions() {
         </TabsList>
 
         <TabsContent value="prescriptions" className="space-y-4">
-          <Card>
+          <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 lg:flex-row">
                 <div className="relative flex-1">
@@ -270,23 +278,26 @@ export default function PatientPrescriptions() {
                     placeholder="Search prescriptions or medications..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="h-11 rounded-xl pl-10"
                   />
                 </div>
-                <select
+                <Select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-2 border rounded-lg bg-background"
-                  aria-label="Filter prescriptions by status"
+                  onValueChange={setStatusFilter}
                 >
-                  <option value="all">All Status</option>
-                  <option value="dispensed">Dispensed</option>
-                  <option value="pending">Pending</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="expired">Expired</option>
-                </select>
-                <Button variant="outline">
+                  <SelectTrigger className="h-11 min-w-[180px] rounded-xl">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="dispensed">Dispensed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" className="h-11 rounded-xl">
                   <Filter className="w-4 h-4 mr-2" />
                   Filter
                 </Button>
@@ -307,7 +318,7 @@ export default function PatientPrescriptions() {
           ) : (
             <div className="space-y-6">
               {filteredPrescriptions.map((prescription) => (
-                <Card key={prescription.id}>
+                <Card key={prescription.id} className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
@@ -408,7 +419,7 @@ export default function PatientPrescriptions() {
                           <PaymentButton
                             prescriptionId={prescription.id}
                             amount={prescription.pendingAmount}
-                            className="bg-emerald-600 hover:bg-emerald-700"
+                            className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
                           >
                             <ShoppingCart className="w-4 h-4 mr-1" />
                             Pay â‚¹{prescription.pendingAmount.toLocaleString()}
@@ -434,7 +445,7 @@ export default function PatientPrescriptions() {
         </TabsContent>
 
         <TabsContent value="plan" className="space-y-4">
-          <Card>
+          <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="w-5 h-5" />
@@ -451,7 +462,7 @@ export default function PatientPrescriptions() {
               ) : (
                 <div className="space-y-4">
                   {medicationPlan.map((entry) => (
-                    <div key={entry.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg">
+                    <div key={entry.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-border/60">
                       <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 ${theme.containers.featureBlue} rounded-full flex items-center justify-center`}>
                           <Clock className={`w-6 h-6 ${theme.iconColors.blue}`} />
@@ -471,7 +482,7 @@ export default function PatientPrescriptions() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardHeader>
               <CardTitle>Reminder Settings</CardTitle>
             </CardHeader>
@@ -499,7 +510,7 @@ export default function PatientPrescriptions() {
         </TabsContent>
 
         <TabsContent value="pharmacy">
-          <Card>
+          <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="w-5 h-5" />
@@ -516,7 +527,7 @@ export default function PatientPrescriptions() {
               ) : (
                 <div className="space-y-4">
                   {medicineDeskQueue.map((prescription) => (
-                    <div key={prescription.id} className="rounded-lg border p-4">
+                    <div key={prescription.id} className="rounded-2xl border border-border/70 p-4 dark:border-border/60">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <h3 className="font-semibold">Prescription #{prescription.id}</h3>
@@ -562,7 +573,7 @@ export default function PatientPrescriptions() {
                           <PaymentButton
                             prescriptionId={prescription.id}
                             amount={prescription.pendingAmount}
-                            className="bg-emerald-600 hover:bg-emerald-700"
+                            className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
                           >
                             <ShoppingCart className="mr-1 h-4 w-4" />
                             Pay ₹{prescription.pendingAmount.toLocaleString()}
@@ -640,6 +651,6 @@ export default function PatientPrescriptions() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </PatientPageShell>
   );
 }

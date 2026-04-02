@@ -97,11 +97,11 @@ export const useUpdateQueueStatus = () => {
  */
 export const useCallNextPatient = () => {
   return useMutationOperation(
-    async ({ doctorId, domain }: {
+    async ({ doctorId, appointmentId }: {
       doctorId: string;
-      domain?: string;
+      appointmentId: string;
     }) => {
-      return await callNextPatient(doctorId, domain);
+      return await callNextPatient(doctorId, appointmentId);
     },
     {
       toastId: TOAST_IDS.QUEUE.CALL_NEXT,
@@ -160,13 +160,12 @@ export const useRemoveFromQueue = () => {
  */
 export const useReorderQueue = () => {
   return useMutationOperation(
-    async ({ doctorId, date, newOrder, domain }: {
+    async ({ doctorId, date, newOrder }: {
       doctorId: string;
       date: string;
       newOrder: string[];
-      domain?: string;
     }) => {
-      return await reorderQueue(doctorId, date, newOrder, domain);
+      return await reorderQueue(doctorId, date, newOrder);
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -313,7 +312,7 @@ export const useQueueUtils = () => {
 /**
  * Hook for real-time queue updates using WebSocket
  */
-export const useRealTimeQueue = (clinicId?: string, queueType?: string) => {
+export const useRealTimeQueue = (clinicId?: string, locationId?: string, queueType?: string) => {
   const { data: queueData, refetch } = useQueue(clinicId, { 
     type: queueType,
     enabled: !!clinicId 
@@ -324,35 +323,55 @@ export const useRealTimeQueue = (clinicId?: string, queueType?: string) => {
   useEffect(() => {
     if (!clinicId) return;
 
-    // Connect to WebSocket with clinicId filter
+    // Connect to WebSocket with clinicId+locationId filters
     connectToQueue({
       reconnectionAttempts: 10,
     });
 
+    const matchesScope = (payload: any) =>
+      payload.clinicId === clinicId &&
+      (!locationId || !payload.locationId || payload.locationId === locationId);
+
     const unsubscribeUpdate = subscribe('queue.updated', (payload: any) => {
-      if (payload.clinicId === clinicId) {
-        refetch();
-      }
+      if (matchesScope(payload)) refetch();
     });
 
     const unsubscribePosition = subscribe('queue.position.updated', (payload: any) => {
-      if (payload.clinicId === clinicId) {
-        refetch();
-      }
+      if (matchesScope(payload)) refetch();
+    });
+
+    // Additional events emitted by worker after projection updates
+    const unsubscribeStarted = subscribe('queue.entry.started', (payload: any) => {
+      if (matchesScope(payload)) refetch();
+    });
+
+    const unsubscribeCompleted = subscribe('queue.entry.completed', (payload: any) => {
+      if (matchesScope(payload)) refetch();
+    });
+
+    const unsubscribePaused = subscribe('queue.paused', (payload: any) => {
+      if (matchesScope(payload)) refetch();
+    });
+
+    const unsubscribeResumed = subscribe('queue.resumed', (payload: any) => {
+      if (matchesScope(payload)) refetch();
     });
 
     emit('subscribe_queue', { 
       queueName: `queue:clinic:${clinicId}`, 
-      filters: { clinicId, type: queueType } 
+      filters: { clinicId, locationId, type: queueType } 
     });
 
     return () => {
-      // Execute unsubscribe callbacks
       if (typeof unsubscribeUpdate === 'function') unsubscribeUpdate();
       if (typeof unsubscribePosition === 'function') unsubscribePosition();
+      if (typeof unsubscribeStarted === 'function') unsubscribeStarted();
+      if (typeof unsubscribeCompleted === 'function') unsubscribeCompleted();
+      if (typeof unsubscribePaused === 'function') unsubscribePaused();
+      if (typeof unsubscribeResumed === 'function') unsubscribeResumed();
       disconnect();
     };
-  }, [clinicId, queueType, refetch, connectToQueue, subscribe, emit, disconnect]);
+  }, [clinicId, locationId, queueType, refetch, connectToQueue, subscribe, emit, disconnect]);
 
   return {
     queueData,
@@ -386,11 +405,10 @@ export const useUpdateQueuePosition = () => {
  */
 export const usePauseQueue = () => {
   return useMutationOperation(
-    async ({ doctorId, domain }: {
+    async ({ doctorId }: {
       doctorId: string;
-      domain?: string;
     }) => {
-      return await pauseQueue(doctorId, domain);
+      return await pauseQueue(doctorId);
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,
@@ -406,11 +424,10 @@ export const usePauseQueue = () => {
  */
 export const useResumeQueue = () => {
   return useMutationOperation(
-    async ({ doctorId, domain }: {
+    async ({ doctorId }: {
       doctorId: string;
-      domain?: string;
     }) => {
-      return await resumeQueue(doctorId, domain);
+      return await resumeQueue(doctorId);
     },
     {
       toastId: TOAST_IDS.QUEUE.UPDATE,

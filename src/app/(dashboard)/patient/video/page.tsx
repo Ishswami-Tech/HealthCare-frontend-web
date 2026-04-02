@@ -1,6 +1,7 @@
 "use client";
 
 import { VideoAppointmentsList } from "@/components/video/VideoAppointmentsList";
+import { PatientPageHeader, PatientPageShell } from "@/components/patient/PatientPageShell";
 import { useAuth } from "@/hooks/auth/useAuth";
 
 export default function PatientVideoPage() {
@@ -8,10 +9,15 @@ export default function PatientVideoPage() {
   const userId = session?.user?.id || "";
 
   return (
-    
+    <PatientPageShell>
+      <PatientPageHeader
+        eyebrow="Virtual Care"
+        title="Video consultations"
+        description="Join scheduled online visits, review upcoming virtual appointments, and keep your remote care experience consistent across light and dark mode."
+      />
       <VideoAppointmentsList
-        title="My Video Consultations"
-        description="Join your scheduled video consultations with doctors"
+        title=""
+        description=""
         showStatistics={true}
         showJoinButton={true}
         showEndButton={false}
@@ -19,6 +25,6 @@ export default function PatientVideoPage() {
         limit={50}
         filters={{ patientId: userId }}
       />
-    
+    </PatientPageShell>
   );
 }

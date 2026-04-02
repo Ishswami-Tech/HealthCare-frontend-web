@@ -50,7 +50,6 @@ const CLINIC_ADMIN_ASSIGNABLE_ROLES: Role[] = [
   Role.COUNSELOR,
   Role.SUPPORT_STAFF,
   Role.FINANCE_BILLING,
-  Role.HR_MANAGER,
 ];
 
 // All staff roles for super admin
@@ -65,7 +64,6 @@ const ALL_STAFF_ROLES: Role[] = [
   Role.COUNSELOR,
   Role.SUPPORT_STAFF,
   Role.FINANCE_BILLING,
-  Role.HR_MANAGER,
   Role.CLINIC_ADMIN,
   Role.CLINIC_LOCATION_HEAD,
 ];
@@ -84,7 +82,6 @@ const ROLE_INFO: Record<string, { label: string; description: string }> = {
   [Role.COUNSELOR]: { label: "Counselor", description: "Specialized mental health or guidance consulting." },
   [Role.SUPPORT_STAFF]: { label: "Support Staff", description: "General maintenance, help Requests and clinic utilities." },
   [Role.FINANCE_BILLING]: { label: "Finance & Billing", description: "Full financial control, invoices, payments and revenue analytics." },
-  [Role.HR_MANAGER]: { label: "HR Manager", description: "Manage staff directory, payroll, and clinic human resources." },
 };
 
 const PERMISSION_GROUPS = [

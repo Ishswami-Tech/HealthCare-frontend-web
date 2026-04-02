@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import React from "react";
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
@@ -39,132 +40,62 @@ export default function EnhancedDoctorDashboard() {
   // Fetch real data
   const { data: appointments } = useMyAppointments();
 
-  // Enhanced stats with better calculations
+  const allAppointments: any[] = appointments?.appointments || [];
+  const todayStr = new Date().toDateString();
+
+  // Stats derived entirely from real data
   const stats = {
-    todayAppointments:
-      appointments?.appointments?.filter((apt: any) => {
-        const today = new Date().toDateString();
-        return new Date(apt.date).toDateString() === today;
-      })?.length || 8,
-    checkedInPatients:
-      appointments?.appointments?.filter((apt: any) => apt.status === "CONFIRMED")?.length || 3,
-    completedToday:
-      appointments?.appointments?.filter((apt: any) => {
-        const today = new Date().toDateString();
-        return (
-          new Date(apt.date).toDateString() === today &&
-          apt.status === "COMPLETED"
-        );
-      })?.length || 5,
-    totalPatients:
-      appointments?.appointments?.reduce((acc: any[], apt: any) => {
-        const patientIds = new Set(acc.map((p) => p.patientId));
-        if (!patientIds.has(apt.patientId)) {
-          acc.push(apt);
-        }
-        return acc;
-      }, [])?.length || 124,
-    avgConsultationTime: 25,
-    patientSatisfaction: 4.8,
-    nextAppointment: "10:30 AM",
-    urgentTasks: 2,
-    pendingReports: 5,
-    todayRevenue: 8500,
-    monthlyTarget: 50000,
-    targetProgress: 68,
+    todayAppointments: allAppointments.filter((apt: any) =>
+      new Date(apt.date).toDateString() === todayStr
+    ).length,
+    checkedInPatients: allAppointments.filter((apt: any) => apt.status === "CONFIRMED").length,
+    completedToday: allAppointments.filter((apt: any) =>
+      new Date(apt.date).toDateString() === todayStr && apt.status === "COMPLETED"
+    ).length,
+    totalPatients: new Set(allAppointments.map((apt: any) => apt.patientId)).size,
+    nextAppointment: allAppointments
+      .filter((apt: any) =>
+        new Date(apt.date).toDateString() === todayStr &&
+        ["SCHEDULED", "CONFIRMED"].includes(apt.status)
+      )
+      .sort((a: any, b: any) => (a.time || "").localeCompare(b.time || ""))
+      [0]?.time || "—",
+    urgentTasks: allAppointments.filter((apt: any) => apt.priority === "URGENT" || apt.priority === "CRITICAL").length,
   };
 
-  // Enhanced queue data
-  const todaysQueue = [
-    {
-      id: "1",
-      patientName: "Rajesh Kumar",
-      time: "10:00 AM",
-      status: "in-progress" as const,
-      type: "Consultation",
-      duration: "30 min",
-      priority: "normal" as const,
-      notes: "Follow-up for Panchakarma treatment",
-      vitals: { bp: "120/80", temp: "98.6°F", pulse: "72" },
-      lastVisit: "2 weeks ago",
-    },
-    {
-      id: "2",
-      patientName: "Priya Sharma",
-      time: "10:30 AM",
-      status: "waiting" as const,
-      type: "Nadi Pariksha",
-      duration: "45 min",
-      priority: "high" as const,
-      notes: "Initial consultation for dosha analysis",
-      condition: "Chronic fatigue, digestive issues",
-      age: 34,
-    },
-    {
-      id: "3",
-      patientName: "Amit Singh",
-      time: "11:15 AM",
-      status: "waiting" as const,
-      type: "Follow-up",
-      duration: "15 min",
-      priority: "normal" as const,
-      notes: "Review treatment progress",
-      medication: "Triphala, Ashwagandha",
-      improvement: "70%",
-    },
-    {
-      id: "4",
-      patientName: "Sunita Devi",
-      time: "12:00 PM",
-      status: "waiting" as const,
-      type: "Shirodhara",
-      duration: "60 min",
-      priority: "critical" as const,
-      notes: "Stress management therapy session",
-      symptoms: "Anxiety, insomnia",
-      referral: "Psychiatrist recommendation",
-    },
-  ];
+  // Today's queue from real appointment data
+  const todaysQueue = allAppointments
+    .filter((apt: any) => {
+      const status = apt.status as string;
+      return (
+        new Date(apt.date).toDateString() === todayStr &&
+        ["CONFIRMED", "IN_PROGRESS", "SCHEDULED"].includes(status)
+      );
+    })
+    .sort((a: any, b: any) => (a.time || "").localeCompare(b.time || ""))
+    .slice(0, 5)
+    .map((apt: any) => ({
+      id: apt.id,
+      patientName: `${apt.patient?.firstName || ""} ${apt.patient?.lastName || ""}`.trim() || "Unknown Patient",
+      time: apt.time || "",
+      status: apt.status === "IN_PROGRESS" ? "in-progress" as const : "waiting" as const,
+      type: apt.type || "Consultation",
+      duration: `${apt.duration || 30} min`,
+      priority: (apt.priority?.toLowerCase() || "normal") as "normal" | "high" | "critical",
+      notes: apt.notes || "",
+    }));
 
-  // Recent achievements and updates
-  const recentAchievements = [
-    {
-      icon: <Star className="h-4 w-4 text-yellow-500" />,
-      text: "Achieved 4.9★ patient satisfaction rating",
-      time: "This month",
-      type: "achievement",
-    },
-    {
-      icon: <TrendingUp className="h-4 w-4 text-green-500" />,
-      text: "Completed 50+ consultations ahead of target",
-      time: "This week",
-      type: "milestone",
-    },
-    {
-      icon: <Heart className="h-4 w-4 text-red-500" />,
-      text: "Successfully treated 3 chronic conditions",
-      time: "Last 30 days",
-      type: "success",
-    },
-  ];
-
-  // Urgent notifications
-  const urgentNotifications = [
-    {
-      id: "1",
-      type: "critical",
-      message: "Patient Sunita Devi requires immediate attention",
-      time: "5 min ago",
+  // Urgent appointments from real data
+  const urgentNotifications = allAppointments
+    .filter((apt: any) => ["URGENT", "CRITICAL"].includes(apt.priority) && apt.status !== "COMPLETED")
+    .slice(0, 3)
+    .map((apt: any) => ({
+      id: apt.id,
+      type: apt.priority === "CRITICAL" ? "critical" : "warning",
+      message: `${`${apt.patient?.firstName || ""} ${apt.patient?.lastName || ""}`.trim() || "Patient"} — ${apt.type || "Appointment"} at ${apt.time || "scheduled time"}`,
+      time: apt.time || "",
       action: "Review Case",
-    },
-    {
-      id: "2",
-      type: "warning",
-      message: "Lab results pending for 3 patients",
-      time: "1 hour ago",
-      action: "Check Reports",
-    },
-  ];
+    }));
 
 
 
@@ -436,57 +367,35 @@ export default function EnhancedDoctorDashboard() {
 
               {/* Right Sidebar */}
               <div className="space-y-6">
-                {/* Performance Overview */}
+                {/* Today's Progress */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <TrendingUp className="h-5 w-5 text-green-600" />
-                      Performance Overview
+                      Today's Progress
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>Monthly Target</span>
-                        <span className="font-medium">₹{stats.todayRevenue.toLocaleString()} / ₹{stats.monthlyTarget.toLocaleString()}</span>
+                        <span>Appointments</span>
+                        <span className="font-medium">{stats.completedToday} / {stats.todayAppointments}</span>
                       </div>
-                      <Progress value={stats.targetProgress} className="h-2" />
+                      <Progress value={stats.todayAppointments > 0 ? Math.round((stats.completedToday / stats.todayAppointments) * 100) : 0} className="h-2" />
                       <p className="text-xs text-muted-foreground">
-                        {stats.targetProgress}% of monthly target achieved
+                        {stats.todayAppointments > 0 ? Math.round((stats.completedToday / stats.todayAppointments) * 100) : 0}% completed today
                       </p>
                     </div>
-
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">4.8</div>
-                        <div className="text-xs text-muted-foreground">Satisfaction</div>
+                        <div className="text-2xl font-bold text-green-600">{stats.completedToday}</div>
+                        <div className="text-xs text-muted-foreground">Completed</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">95%</div>
-                        <div className="text-xs text-muted-foreground">Success Rate</div>
+                        <div className="text-2xl font-bold text-blue-600">{stats.checkedInPatients}</div>
+                        <div className="text-xs text-muted-foreground">Waiting</div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Recent Achievements */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Star className="h-5 w-5 text-yellow-500" />
-                      Recent Achievements
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {recentAchievements.map((achievement, index) => (
-                      <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-gradient-to-r from-yellow-50 to-orange-50">
-                        {achievement.icon}
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">{achievement.text}</p>
-                          <p className="text-xs text-muted-foreground">{achievement.time}</p>
-                        </div>
-                      </div>
-                    ))}
                   </CardContent>
                 </Card>
 

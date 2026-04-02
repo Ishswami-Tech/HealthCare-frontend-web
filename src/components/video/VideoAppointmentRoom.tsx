@@ -101,8 +101,13 @@ export function VideoAppointmentRoom({
   const [callDuration, setCallDuration] = useState(0);
   
   // Role-based access
-  const isDoctor = user?.role === 'DOCTOR';
+  const isDoctor = user?.role === 'DOCTOR' || user?.role === 'ASSISTANT_DOCTOR';
+  const isPatient = user?.role === 'PATIENT';
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'CLINIC_ADMIN';
+  // canRecord: only doctors and admins can initiate recordings
+  const canRecord = isDoctor || isAdmin;
+  // canEndForAll: doctors and admins can end the session for everyone; patients only leave
+  const canEndForAll = isDoctor || isAdmin;
 
   // ✅ Subscribe to WebSocket events
   useEffect(() => {
@@ -595,34 +600,38 @@ export function VideoAppointmentRoom({
                   <Monitor className="h-5 w-5" />
                 </Button>
 
-                {/* Recording with Enhanced Controls - Only for doctors/admins */}
-                {isRecording && (isDoctor || isAdmin) && (
+                {/* Recording — doctors/admins only */}
+                {canRecord && isRecording && (
                   <EnhancedRecordingControls
                     appointmentId={appointment.appointmentId}
                     isRecording={isRecording}
                     onRecordingChange={setIsRecording}
                   />
                 )}
-                {!isRecording && (
+                {canRecord && !isRecording && (
                   <Button
                     variant="outline"
                     size="lg"
                     onClick={toggleRecording}
                     className="rounded-full w-12 h-12 p-0"
+                    title="Start recording"
                   >
                     <CircleDot className="h-5 w-5" />
                   </Button>
                 )}
 
-                {/* Raise Hand */}
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={raiseHand}
-                  className="rounded-full w-12 h-12 p-0"
-                >
-                  <Hand className="h-5 w-5" />
-                </Button>
+                {/* Raise Hand — patients and assistants */}
+                {!isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={raiseHand}
+                    className="rounded-full w-12 h-12 p-0"
+                    title="Raise hand"
+                  >
+                    <Hand className="h-5 w-5" />
+                  </Button>
+                )}
 
                 {/* Call Quality Indicator - Always visible */}
                 <CallQualityIndicator
@@ -630,15 +639,31 @@ export function VideoAppointmentRoom({
                   showDetails={true}
                 />
 
-                {/* End Call */}
-                <Button
-                  variant="destructive"
-                  size="lg"
-                  onClick={handleEndCall}
-                  className="rounded-full w-12 h-12 p-0"
-                >
-                  <PhoneOff className="h-5 w-5" />
-                </Button>
+                {/* End Call (for all) — doctors/admins only */}
+                {canEndForAll && (
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    onClick={handleEndCall}
+                    className="rounded-full w-12 h-12 p-0"
+                    title="End session for all"
+                  >
+                    <PhoneOff className="h-5 w-5" />
+                  </Button>
+                )}
+
+                {/* Leave Room — patients and non-doctor staff */}
+                {!canEndForAll && (
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    onClick={handleLeaveRoom}
+                    className="rounded-full w-12 h-12 p-0"
+                    title="Leave session"
+                  >
+                    <PhoneOff className="h-5 w-5" />
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -652,10 +677,13 @@ export function VideoAppointmentRoom({
                 <MessageSquare className="h-4 w-4 mr-1" />
                 Chat
               </TabsTrigger>
-              <TabsTrigger value="notes" className="flex-1">
-                <FileText className="h-4 w-4 mr-1" />
-                Notes
-              </TabsTrigger>
+              {/* Medical notes visible to doctors/admins only */}
+              {(isDoctor || isAdmin) && (
+                <TabsTrigger value="notes" className="flex-1">
+                  <FileText className="h-4 w-4 mr-1" />
+                  Notes
+                </TabsTrigger>
+              )}
               <TabsTrigger value="participants" className="flex-1">
                 <Users className="h-4 w-4 mr-1" />
                 People
@@ -666,9 +694,11 @@ export function VideoAppointmentRoom({
               <VideoChat appointmentId={appointment.appointmentId} className="h-full border-0 rounded-none" />
             </TabsContent>
 
-            <TabsContent value="notes" className="flex-1 m-0 p-0 overflow-hidden">
-              <MedicalNotes appointmentId={appointment.appointmentId} className="h-full border-0 rounded-none" />
-            </TabsContent>
+            {(isDoctor || isAdmin) && (
+              <TabsContent value="notes" className="flex-1 m-0 p-0 overflow-hidden">
+                <MedicalNotes appointmentId={appointment.appointmentId} className="h-full border-0 rounded-none" />
+              </TabsContent>
+            )}
 
             <TabsContent value="participants" className="flex-1 m-0 p-4 overflow-auto">
               {/* Appointment Info */}
@@ -680,14 +710,17 @@ export function VideoAppointmentRoom({
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 text-gray-500" />
                     <span className="text-sm text-gray-600">
-                      {new Date(appointment.startTime).toLocaleDateString()}
+                      {new Date(appointment.startTime).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" })}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Clock className="h-4 w-4 text-gray-500" />
                     <span className="text-sm text-gray-600">
-                      {new Date(appointment.startTime).toLocaleTimeString()} -{" "}
-                      {new Date(appointment.endTime).toLocaleTimeString()}
+                      {new Date(appointment.startTime).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}
+                      {" — "}
+                      {appointment.endTime
+                        ? new Date(appointment.endTime).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })
+                        : "—"}
                     </span>
                   </div>
                   <Separator />

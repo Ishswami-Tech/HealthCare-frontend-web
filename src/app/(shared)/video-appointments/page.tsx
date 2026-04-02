@@ -37,6 +37,7 @@ import {
   useConfirmVideoSlot,
 } from "@/hooks/query/useAppointments";
 import { ProposeVideoAppointmentDialog } from "@/components/appointments/ProposeVideoAppointmentDialog";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import {
   Video,
   Plus,
@@ -254,8 +255,8 @@ export default function VideoAppointmentsPage() {
           id: TOAST_IDS.VIDEO.JOIN,
         });
       }
-    } catch (error: any) {
-      showErrorToast(error.message || "Failed to join appointment", {
+    } catch (error: unknown) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to join appointment", {
         id: TOAST_IDS.VIDEO.ERROR,
       });
     }
@@ -268,8 +269,8 @@ export default function VideoAppointmentsPage() {
         id: TOAST_IDS.VIDEO.END,
       });
       refetch();
-    } catch (error: any) {
-      showErrorToast(error.message || "Failed to end appointment", {
+    } catch (error: unknown) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to end appointment", {
         id: TOAST_IDS.VIDEO.ERROR,
       });
     }
@@ -478,11 +479,12 @@ export default function VideoAppointmentsPage() {
   };
 
   return (
-    <ProtectedComponent permission={Permission.VIEW_VIDEO_APPOINTMENTS}>
-      <div className="container mx-auto py-8 px-4">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Video Appointments</h1>
+    <DashboardLayout title="My Appointments">
+      <ProtectedComponent permission={Permission.VIEW_VIDEO_APPOINTMENTS}>
+        <div className="container mx-auto py-8 px-4">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold">Video Appointments</h1>
           <p className="text-muted-foreground mt-2">
             Manage and join video consultations
           </p>
@@ -745,7 +747,8 @@ export default function VideoAppointmentsPage() {
           )}
         </TabsContent>
       </Tabs>
-      </div>
-    </ProtectedComponent>
+        </div>
+      </ProtectedComponent>
+    </DashboardLayout>
   );
 }

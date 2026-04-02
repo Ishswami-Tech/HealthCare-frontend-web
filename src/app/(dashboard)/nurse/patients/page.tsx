@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-s
 
 export default function NursePatients() {
   const { user } = useAuth();
+  const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -130,11 +132,19 @@ export default function NursePatients() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/nurse/vitals?patientId=${patient.id}&patientName=${encodeURIComponent(patient.patientName || patient.name || "")}`)}
+                      >
                         <Heart className="w-3 h-3 mr-1" />
                         Vitals
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/nurse/care?patientId=${patient.id}`)}
+                      >
                         <BedDouble className="w-3 h-3 mr-1" />
                         Care
                       </Button>

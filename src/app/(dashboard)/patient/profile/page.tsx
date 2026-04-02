@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { theme } from "@/lib/utils/theme-utils";
 import { PageLoading, ErrorState } from "@/components/ui/loading";
 import { PasswordChangeModal, DataExportModal } from "@/components/patient/PatientModals";
+import { PatientPageShell, PatientPageHeader } from "@/components/patient/PatientPageShell";
 import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
 import { useEffect } from "react";
 import { 
@@ -269,14 +270,16 @@ export default function PatientProfile() {
   }
 
   return (
-    
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">My Profile</h1>
-            <div className="flex items-center gap-2">
+    <PatientPageShell>
+        <PatientPageHeader
+          eyebrow="MY PROFILE"
+          title="My Profile"
+          description="Update your personal information, Ayurvedic profile, and health data."
+          actionsSlot={
+            <div className="flex flex-wrap items-center gap-2">
               <PasswordChangeModal
                 trigger={
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="flex items-center gap-2 h-10 rounded-xl px-4">
                     <Lock className="w-4 h-4" />
                     Change Password
                   </Button>
@@ -285,18 +288,19 @@ export default function PatientProfile() {
               <DataExportModal
                 dataType="profile"
                 trigger={
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="flex items-center gap-2 h-10 rounded-xl px-4">
                     <Download className="w-4 h-4" />
                     Export Data
                   </Button>
                 }
               />
-              <Button className="flex items-center gap-2" disabled={isSaving} onClick={handleSaveProfile}>
+              <Button size="sm" className="flex items-center gap-2 h-10 rounded-xl px-4" disabled={isSaving} onClick={handleSaveProfile}>
                 <Save className="w-4 h-4" />
                 {isSaving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
-          </div>
+          }
+        />
 
           {validationErrors.general && (
             <Alert variant="destructive">
@@ -310,8 +314,8 @@ export default function PatientProfile() {
           {/* Profile Overview */}
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center gap-6">
-                <div className="relative">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                <div className="relative shrink-0">
                   <div className="w-24 h-24 bg-linear-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
                     <span className={`${theme.textColors.info} font-semibold text-3xl`}>
                       {profileData.personalInfo.firstName.charAt(0)}
@@ -324,11 +328,11 @@ export default function PatientProfile() {
                     <Camera className="w-3 h-3" />
                   </Button>
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0 text-center sm:text-left">
                   <h2 className={`text-2xl font-bold ${theme.textColors.heading}`}>
                     {profileData.personalInfo.firstName} {profileData.personalInfo.lastName}
                   </h2>
-                  <div className={`flex items-center gap-4 mt-2 ${theme.textColors.secondary}`}>
+                  <div className={`flex flex-wrap justify-center sm:justify-start items-center gap-2 sm:gap-4 mt-2 ${theme.textColors.secondary}`}>
                     <span className="flex items-center gap-1">
                       <User className="w-4 h-4" />
                       {profileData.personalInfo.occupation}
@@ -537,9 +541,9 @@ export default function PatientProfile() {
                         <div className={`text-sm ${theme.textColors.secondary}`}>Weight</div>
                         <div className={`text-lg font-semibold ${theme.iconColors.green}`}>{profileData.vitals.weight}</div>
                       </div>
-                      <div className={`p-3 ${theme.containers.featurePurple} rounded-lg text-center`}>
+                      <div className={`p-3 ${theme.containers.featureBlue} rounded-lg text-center`}>
                         <div className={`text-sm ${theme.textColors.secondary}`}>Blood Group</div>
-                        <div className={`text-lg font-semibold ${theme.iconColors.purple}`}>{profileData.vitals.bloodGroup}</div>
+                        <div className={`text-lg font-semibold ${theme.iconColors.blue}`}>{profileData.vitals.bloodGroup}</div>
                       </div>
                       <div className={`p-3 ${theme.containers.featureOrange} rounded-lg text-center`}>
                         <div className={`text-sm ${theme.textColors.secondary}`}>BMI</div>
@@ -693,7 +697,7 @@ export default function PatientProfile() {
                       <Label>Previous Surgeries</Label>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {profileData.medicalHistory.surgeries.map((surgery, index) => (
-                          <Badge key={index} variant="outline" className={theme.badges.purple}>
+                          <Badge key={index} variant="outline" className={theme.badges.blue}>
                             {surgery}
                           </Badge>
                         ))}
@@ -878,14 +882,14 @@ export default function PatientProfile() {
 
                   <div className="grid gap-4">
                     {profileData.documents.map((doc: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                      <div key={index} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-emerald-50/40 hover:border-emerald-200 transition-colors">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                             <FileText className="w-5 h-5 text-blue-600" />
                           </div>
                           <div>
                             <h4 className="font-medium">{doc.name}</h4>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Badge variant="outline">{doc.type}</Badge>
                               <span>•</span>
                               <span>{doc.date}</span>
@@ -906,10 +910,10 @@ export default function PatientProfile() {
                     ))}
                   </div>
 
-                  <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-lg">
                     <div className="flex items-start gap-2">
-                      <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-                      <div className="text-sm text-gray-700">
+                      <Info className="w-5 h-5 text-emerald-600 mt-0.5" />
+                      <div className="text-sm text-muted-foreground">
                         <p className="font-medium mb-1">Document Upload Guidelines:</p>
                         <ul className="list-disc list-inside space-y-1">
                           <li>Supported formats: PDF, JPG, PNG</li>
@@ -962,8 +966,6 @@ export default function PatientProfile() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Dr. Priya Sharma">Dr. Priya Sharma</SelectItem>
-                            <SelectItem value="Dr. Amit Singh">Dr. Amit Singh</SelectItem>
                             <SelectItem value="No preference">No Preference</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1103,8 +1105,7 @@ export default function PatientProfile() {
               </div>
             </TabsContent>
           </Tabs>
-        </div>
-    
+      </PatientPageShell>
   );
 }
 

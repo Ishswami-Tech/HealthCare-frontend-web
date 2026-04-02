@@ -160,12 +160,6 @@ export default function ClinicAdminStaff() {
             Finance
           </Badge>
         );
-      case Role.HR_MANAGER:
-        return (
-          <Badge className="border-slate-200/50 bg-slate-500/10 text-slate-700 hover:bg-slate-500/20 dark:text-slate-400">
-            HR
-          </Badge>
-        );
       default:
         return (
           <Badge variant="secondary" className="capitalize">
@@ -399,7 +393,6 @@ export default function ClinicAdminStaff() {
                   <SelectItem value={Role.LAB_TECHNICIAN}>Lab Tech</SelectItem>
                   <SelectItem value={Role.COUNSELOR}>Counselor</SelectItem>
                   <SelectItem value={Role.FINANCE_BILLING}>Finance</SelectItem>
-                  <SelectItem value={Role.HR_MANAGER}>HR Manager</SelectItem>
                 </SelectContent>
               </Select>
 

@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Complete Your Profile | Ishswami Healthcare",
+  description: "Complete your profile to get started with Ishswami Healthcare.",
+  robots: { index: false, follow: false },
+};
+
 export default function ProfileCompleteLayout({
   children,
 }: {
