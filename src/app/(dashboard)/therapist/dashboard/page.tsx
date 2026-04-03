@@ -50,7 +50,9 @@ export default function TherapistDashboard() {
       todayAppointments: todayAppointments.length,
       completedToday: todayAppointments.filter((a: any) => a.status === "COMPLETED").length,
       totalPatients: clientsArray.length,
-      avgSessionDuration: 45,
+      avgSessionDuration: appointmentsArray.length > 0
+        ? Math.round(appointmentsArray.reduce((sum: number, a: any) => sum + (parseInt(a.duration) || 60), 0) / appointmentsArray.length)
+        : 0,
     };
   }, [appointmentsArray, clientsArray]);
 

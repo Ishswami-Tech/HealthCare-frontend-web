@@ -55,6 +55,22 @@ export default function LabTechnicianDashboard() {
       }));
   }, [labResults]);
 
+  const categoryStats = useMemo(() => {
+    const hematology = labResults.filter((r: any) =>
+      /hematol|blood.*count|cbc/i.test(r.testName || r.testType || '')
+    ).length;
+    const urineAnalysis = labResults.filter((r: any) =>
+      /urine|urinanal|urinalysis/i.test(r.testName || r.testType || '')
+    ).length;
+    const biochemistry = labResults.filter((r: any) =>
+      /biochem|metabol|glucose|lipid|liver|kidney/i.test(r.testName || r.testType || '')
+    ).length;
+    const microbiology = labResults.filter((r: any) =>
+      /microb|cultur|bacteria|virus|parasite/i.test(r.testName || r.testType || '')
+    ).length;
+    return { hematology, urineAnalysis, biochemistry, microbiology };
+  }, [labResults]);
+
   const stats = useMemo(() => {
     const pendingCount = labResults.filter((r: any) => 
       ["pending", "in_progress", "PENDING"].includes(r.status)
@@ -277,7 +293,7 @@ export default function LabTechnicianDashboard() {
                 <TestTube2 className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-blue-700">12</div>
+                <div className="text-2xl font-bold text-blue-700">{categoryStats.hematology}</div>
                 <div className="text-sm text-blue-600/80 font-medium">Hematology</div>
               </div>
             </div>
@@ -286,7 +302,7 @@ export default function LabTechnicianDashboard() {
                 <Activity className="w-6 h-6 text-purple-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-purple-700">8</div>
+                <div className="text-2xl font-bold text-purple-700">{categoryStats.urineAnalysis}</div>
                 <div className="text-sm text-purple-600/80 font-medium">Urine Analysis</div>
               </div>
             </div>
@@ -295,7 +311,7 @@ export default function LabTechnicianDashboard() {
                 <CheckCircle className="w-6 h-6 text-emerald-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-emerald-700">5</div>
+                <div className="text-2xl font-bold text-emerald-700">{categoryStats.biochemistry}</div>
                 <div className="text-sm text-emerald-600/80 font-medium">Biochemistry</div>
               </div>
             </div>
@@ -304,7 +320,7 @@ export default function LabTechnicianDashboard() {
                 <AlertCircle className="w-6 h-6 text-orange-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-orange-700">3</div>
+                <div className="text-2xl font-bold text-orange-700">{categoryStats.microbiology}</div>
                 <div className="text-sm text-orange-600/80 font-medium">Microbiology</div>
               </div>
             </div>

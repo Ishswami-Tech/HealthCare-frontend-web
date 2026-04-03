@@ -25,6 +25,7 @@ import {
   reconcilePayment,
   createPayment,
   getBillingAnalytics,
+  sendInvoiceViaWhatsApp,
 } from '@/lib/actions/billing.server';
 import type { PaymentProvider } from '@/lib/payments/providers';
 import type {
@@ -425,6 +426,19 @@ export function useReconcilePayment() {
       loadingMessage: 'Reconciling payment...',
       successMessage: 'Payment reconciled',
       invalidateQueries: [['clinic-ledger'], ['clinic-payments'], ['payments'], ['billing-analytics']],
+    }
+  );
+}
+
+// ============ Invoice Communication Hooks ============
+
+export function useSendInvoiceViaWhatsApp() {
+  return useMutationOperation<{ success: boolean; error?: string }, string>(
+    (invoiceId: string) => sendInvoiceViaWhatsApp(invoiceId),
+    {
+      loadingMessage: 'Sending invoice via WhatsApp...',
+      successMessage: 'Invoice sent via WhatsApp successfully',
+      errorMessage: 'Failed to send invoice via WhatsApp',
     }
   );
 }

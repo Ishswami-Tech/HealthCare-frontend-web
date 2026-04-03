@@ -16,6 +16,13 @@ import { Role } from '@/types/auth.types';
 import { getDashboardByRole, ROUTES, isAuthPath } from '@/lib/config/routes';
 import { getProfileCompletionRedirectUrl } from '@/lib/config/profile';
 
+function isSafeInternalPath(path?: string | null): path is string {
+  if (!path) return false;
+  if (!path.startsWith('/')) return false;
+  if (path.startsWith('//')) return false;
+  return !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(path);
+}
+
 /**
  * Redirection context - all information needed for proper redirection
  */
@@ -60,7 +67,7 @@ export function getLoginRedirect(context: RedirectContext): RedirectResult {
   // Priority 1: Check if profile is incomplete
   if (user.profileComplete === false) {
     const profileUrl = new URL(ROUTES.PROFILE_COMPLETION, window.location.origin);
-    if (currentPath && !isAuthPath(currentPath)) {
+    if (isSafeInternalPath(currentPath) && !isAuthPath(currentPath)) {
       profileUrl.searchParams.set('redirect', currentPath);
     }
     return {
@@ -70,7 +77,7 @@ export function getLoginRedirect(context: RedirectContext): RedirectResult {
   }
 
   // Priority 2: Use callback URL if provided and valid
-  if (callbackUrl && !isAuthPath(callbackUrl)) {
+  if (isSafeInternalPath(callbackUrl) && !isAuthPath(callbackUrl)) {
     return {
       path: callbackUrl,
       reason: 'callback_url',
@@ -78,7 +85,7 @@ export function getLoginRedirect(context: RedirectContext): RedirectResult {
   }
 
   // Priority 3: Use redirect URL from response if provided and valid
-  if (redirectUrl && !isAuthPath(redirectUrl)) {
+  if (isSafeInternalPath(redirectUrl) && !isAuthPath(redirectUrl)) {
     return {
       path: redirectUrl,
       reason: 'response_redirect_url',
@@ -126,7 +133,7 @@ export function getUnauthorizedRedirect(context: RedirectContext): RedirectResul
   // If no user, redirect to login
   if (!user || !user.role) {
     const loginUrl = new URL(ROUTES.LOGIN, window.location.origin);
-    if (currentPath) {
+    if (isSafeInternalPath(currentPath)) {
       loginUrl.searchParams.set('callbackUrl', currentPath);
     }
     return {
@@ -163,7 +170,7 @@ export function getProfileCompletionRedirect(
   originalPath?: string
 ): RedirectResult {
   const profileUrl = new URL(ROUTES.PROFILE_COMPLETION, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
-  if (originalPath && !isAuthPath(originalPath)) {
+  if (isSafeInternalPath(originalPath) && !isAuthPath(originalPath)) {
     profileUrl.searchParams.set('redirect', originalPath);
   }
   
@@ -180,7 +187,7 @@ export function getProfileCompletionRedirect(
 export function getSessionExpiredRedirect(currentPath?: string): RedirectResult {
   const loginUrl = new URL(ROUTES.LOGIN, window.location.origin);
   loginUrl.searchParams.set('error', 'session_expired');
-  if (currentPath && !isAuthPath(currentPath)) {
+  if (isSafeInternalPath(currentPath) && !isAuthPath(currentPath)) {
     loginUrl.searchParams.set('callbackUrl', currentPath);
   }
   return {
@@ -196,7 +203,7 @@ export function getSessionExpiredRedirect(currentPath?: string): RedirectResult 
 export function getInvalidTokenRedirect(currentPath?: string): RedirectResult {
   const loginUrl = new URL(ROUTES.LOGIN, window.location.origin);
   loginUrl.searchParams.set('error', 'invalid_token');
-  if (currentPath && !isAuthPath(currentPath)) {
+  if (isSafeInternalPath(currentPath) && !isAuthPath(currentPath)) {
     loginUrl.searchParams.set('callbackUrl', currentPath);
   }
   return {

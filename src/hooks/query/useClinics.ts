@@ -45,10 +45,8 @@ const CLINIC_ID = APP_CONFIG.CLINIC.ID;
 /**
  * Helper to get auth headers
  */
-function getAuthHeaders(token?: string, sessionId?: string, clinicId?: string) {
+function getAuthHeaders(_token?: string, _sessionId?: string, clinicId?: string) {
   const headers: Record<string, string> = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  if (sessionId) headers['X-Session-ID'] = sessionId;
   if (clinicId) headers['X-Clinic-ID'] = clinicId;
   headers['Content-Type'] = 'application/json';
   return headers;
@@ -67,6 +65,7 @@ async function apiCall<T>(
   const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
   const response = await fetchWithAbort(url, {
     timeout: 10000,
+    credentials: 'include',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -185,7 +184,7 @@ export const useMyClinic = () => {
       return response.data;
     },
     {
-      enabled: !!token && !!sessionId && !isPending,
+      enabled: !!session?.user?.id && !isPending,
     }
   );
 };

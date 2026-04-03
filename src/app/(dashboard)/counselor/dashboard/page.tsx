@@ -50,7 +50,7 @@ export default function CounselorDashboard() {
             const duration = parseInt(a.duration) || 60;
             return sum + duration;
           }, 0) / allAppointments.length)
-        : 55,
+        : 0,
     };
   }, [todayAppointments, allAppointments]);
 

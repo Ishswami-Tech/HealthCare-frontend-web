@@ -60,7 +60,19 @@ export default function EnhancedDoctorDashboard() {
       )
       .sort((a: any, b: any) => (a.time || "").localeCompare(b.time || ""))
       [0]?.time || "—",
-    urgentTasks: allAppointments.filter((apt: any) => apt.priority === "URGENT" || apt.priority === "CRITICAL").length,
+    urgentTasks: allAppointments.filter(
+      (apt: any) => apt.priority === "URGENT" || apt.priority === "CRITICAL"
+    ).length,
+    patientSatisfaction: 5.0,
+    avgConsultationTime:
+      allAppointments.length > 0
+        ? Math.round(
+            allAppointments.reduce(
+              (total: number, apt: any) => total + Number(apt.duration || 30),
+              0
+            ) / allAppointments.length
+          )
+        : 30,
   };
 
   // Today's queue from real appointment data
@@ -83,6 +95,13 @@ export default function EnhancedDoctorDashboard() {
       duration: `${apt.duration || 30} min`,
       priority: (apt.priority?.toLowerCase() || "normal") as "normal" | "high" | "critical",
       notes: apt.notes || "",
+      vitals: apt.vitals
+        ? {
+            bp: apt.vitals.bp || "N/A",
+            temp: apt.vitals.temp || "N/A",
+            pulse: apt.vitals.pulse || "N/A",
+          }
+        : undefined,
     }));
 
   // Urgent appointments from real data

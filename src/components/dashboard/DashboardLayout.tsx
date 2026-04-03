@@ -129,7 +129,7 @@ export function DashboardLayout({
       }
       return transformApiResponse({} as Record<string, unknown>);
     },
-    { enabled: !!session?.access_token }
+    { enabled: !!session?.isAuthenticated }
   );
 
   // Memoize merged profile

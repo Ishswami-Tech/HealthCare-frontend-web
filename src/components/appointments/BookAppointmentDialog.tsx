@@ -35,7 +35,10 @@ import {
   useDoctorAvailability,
 } from "@/hooks/query/useAppointments";
 import { useSubscriptions } from "@/hooks/query/useBilling";
+import { useSendAppointmentReminder } from "@/hooks/query/useCommunication";
 import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
+import { useRBAC } from "@/hooks/utils/useRBAC";
+import { Permission } from "@/types/rbac.types";
 import { checkSubscriptionCoverage, createInPersonAppointmentWithSubscription } from "@/lib/actions/billing.server";
 import { PaymentButton } from "@/components/payments";
 import { APP_CONFIG } from "@/lib/config/config";
@@ -165,6 +168,7 @@ export function BookAppointmentDialog({
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { session } = useAuth();
+  const { hasPermission } = useRBAC();
   const userRole = (session?.user?.role || "").toUpperCase();
   const postBookingRoute = userRole === "RECEPTIONIST" ? "/receptionist/appointments" : "/patient/appointments";
   const postBookingLabel = userRole === "RECEPTIONIST" ? "View Reception Desk" : "View My Appointments";
@@ -215,6 +219,7 @@ export function BookAppointmentDialog({
   );
 
   const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment();
+  const { mutate: sendReminder } = useSendAppointmentReminder();
   const targetPatientId =
     userRole === "RECEPTIONIST" ? selectedPatientId : session?.user?.id || "";
   const { data: subscriptionsData = [] } = useSubscriptions(targetPatientId);
@@ -481,6 +486,10 @@ export function BookAppointmentDialog({
       setBookedAppointmentId(apptId);
       queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      // Send appointment reminder via push + email + WhatsApp
+      if (hasPermission(Permission.SEND_NOTIFICATIONS)) {
+        sendReminder({ appointmentId: apptId, reminderType: 'all' });
+      }
       onBooked?.();
       setStep(7); // step 7 = success/QR screen
     } catch (err: any) {

@@ -1,10 +1,26 @@
 'use server';
 
-import { HealthcareErrorsService } from '@/lib/config/config';
+import { authenticatedApi } from './auth.server';
+import { cookies } from 'next/headers';
 import type { CounselorAppointment, CounselorClient, CounselorSession } from '@/types/medical-records.types';
 
+// ===== COUNSELOR SERVER ACTIONS =====
+// Counselors are doctors with the COUNSELOR role.
+// Appointments → /appointments (filtered by doctorId)
+// Clients     → /patients/clinic/:clinicId (filtered by doctorId)
+// Sessions    → /ehr/medical-history (session notes stored as medical history)
+
+async function getClinicId(): Promise<string> {
+  try {
+    const cookieStore = await cookies();
+    return cookieStore.get('clinic_id')?.value || '';
+  } catch {
+    return '';
+  }
+}
+
 /**
- * Get all counselor appointments
+ * Get all counselor appointments — proxied through GET /appointments?doctorId=counselorId
  */
 export async function getCounselorAppointments(
   counselorId?: string,
@@ -14,35 +30,26 @@ export async function getCounselorAppointments(
     endDate?: string;
   }
 ): Promise<{ appointments: CounselorAppointment[] }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  if (!counselorId) return { appointments: [] };
 
-    const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.startDate) params.append('startDate', filters.startDate);
-    if (filters?.endDate) params.append('endDate', filters.endDate);
+  const params = new URLSearchParams();
+  params.append('doctorId', counselorId);
+  if (filters?.status) params.append('status', filters.status);
+  if (filters?.startDate) params.append('startDate', filters.startDate);
+  if (filters?.endDate) params.append('endDate', filters.endDate);
 
-    const response = await fetch(`${baseUrl}/counselor/${counselorId}/appointments?${params.toString()}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    });
+  const { data } = await authenticatedApi<{ appointments: CounselorAppointment[] } | CounselorAppointment[]>(
+    `/appointments?${params.toString()}`
+  );
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch counselor appointments');
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('fetch counselor appointments', error);
-    throw error;
-  }
+  const appointments = Array.isArray(data)
+    ? data
+    : (data as any)?.appointments || (data as any)?.data || [];
+  return { appointments };
 }
 
 /**
- * Get all counselor clients
+ * Get counselor clients — proxied through GET /patients/clinic/:clinicId?doctorId=counselorId
  */
 export async function getCounselorClients(
   counselorId?: string,
@@ -55,127 +62,89 @@ export async function getCounselorClients(
     clientId?: string;
   }
 ): Promise<{ clients: CounselorClient[] }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  if (!counselorId) return { clients: [] };
 
-    const params = new URLSearchParams();
-    if (filters?.search) params.append('search', filters.search);
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.condition) params.append('condition', filters.condition);
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-    if (filters?.offset) params.append('offset', filters.offset.toString());
-    if (filters?.clientId) params.append('clientId', filters.clientId);
+  const clinicId = await getClinicId();
+  if (!clinicId) return { clients: [] };
 
-    const response = await fetch(`${baseUrl}/counselor/${counselorId}/clients?${params.toString()}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    });
+  const params = new URLSearchParams();
+  params.append('doctorId', counselorId);
+  if (filters?.search) params.append('search', filters.search);
+  if (filters?.status) params.append('status', filters.status);
+  if (typeof filters?.limit === 'number') params.append('limit', filters.limit.toString());
+  if (typeof filters?.offset === 'number') params.append('offset', filters.offset.toString());
+  if (filters?.clientId) params.append('patientId', filters.clientId);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch counselor clients');
-    }
+  const { data } = await authenticatedApi<{ patients: CounselorClient[] } | CounselorClient[]>(
+    `/patients/clinic/${clinicId}?${params.toString()}`
+  );
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('fetch counselor clients', error);
-    throw error;
-  }
+  const clients = Array.isArray(data)
+    ? data
+    : (data as any)?.patients || (data as any)?.data || [];
+  return { clients };
 }
 
 /**
- * Create a new counseling appointment
+ * Create counseling appointment — proxied through POST /appointments
  */
 export async function createCounselorAppointment(
   appointmentData: CounselorAppointment
 ): Promise<{ appointment: CounselorAppointment }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-    const response = await fetch(`${baseUrl}/counselor/${appointmentData.counselorId}/appointments`, {
+  const { data } = await authenticatedApi<{ appointment: CounselorAppointment } | CounselorAppointment>(
+    '/appointments',
+    {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(appointmentData),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to create counseling appointment');
+      body: JSON.stringify({
+        patientId: appointmentData.patientId,
+        doctorId: appointmentData.counselorId || appointmentData.doctorId,
+        date: appointmentData.date,
+        time: appointmentData.time,
+        type: appointmentData.type || 'COUNSELING',
+        notes: appointmentData.notes,
+        duration: appointmentData.duration,
+      }),
     }
+  );
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('create counseling appointment', error);
-    throw error;
-  }
+  const appointment = (data as any)?.appointment || data;
+  return { appointment };
 }
 
 /**
- * Update a counseling appointment
+ * Update counseling appointment — proxied through PATCH /appointments/:id
  */
 export async function updateCounselorAppointment(
   appointmentId: string,
   updates: Partial<CounselorAppointment>
 ): Promise<{ appointment: CounselorAppointment }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-    const response = await fetch(`${baseUrl}/counselor/appointments/${appointmentId}`, {
+  const { data } = await authenticatedApi<{ appointment: CounselorAppointment } | CounselorAppointment>(
+    `/appointments/${appointmentId}`,
+    {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify(updates),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to update counseling appointment');
     }
+  );
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('update counseling appointment', error);
-    throw error;
-  }
+  const appointment = (data as any)?.appointment || data;
+  return { appointment };
 }
 
 /**
- * Delete a counseling appointment
+ * Delete (cancel) counseling appointment — PATCH /appointments/:id/status with CANCELLED
  */
-export async function deleteCounselorAppointment(
-  appointmentId: string
-): Promise<void> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-    const response = await fetch(`${baseUrl}/counselor/appointments/${appointmentId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to delete counseling appointment');
-    }
-
-    await response.json();
-  } catch (error) {
-    HealthcareErrorsService.logError('delete counseling appointment', error);
-    throw error;
-  }
+export async function deleteCounselorAppointment(appointmentId: string): Promise<void> {
+  await authenticatedApi(`/appointments/${appointmentId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'CANCELLED' }),
+  });
 }
 
 /**
- * Update counselor client session
+ * Update counselor client session — stored as EHR medical history note
  */
 export async function updateCounselorClientSession(
-  counselorId: string,
+  _counselorId: string,
   clientId: string,
   sessionData: {
     sessionDate?: string;
@@ -183,25 +152,20 @@ export async function updateCounselorClientSession(
     nextSessionDate?: string;
   }
 ): Promise<{ session: CounselorSession }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-    const response = await fetch(`${baseUrl}/counselor/${counselorId}/clients/${clientId}/sessions`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(sessionData),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to update counselor session');
+  const { data } = await authenticatedApi<CounselorSession>(
+    '/ehr/medical-history',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        userId: clientId,
+        type: 'TREATMENT',
+        title: 'Counseling Session',
+        description: sessionData.notes || '',
+        date: sessionData.sessionDate || new Date().toISOString(),
+        ...(sessionData.nextSessionDate ? { followUpDate: sessionData.nextSessionDate } : {}),
+      }),
     }
+  );
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('update counselor session', error);
-    throw error;
-  }
+  return { session: data as CounselorSession };
 }

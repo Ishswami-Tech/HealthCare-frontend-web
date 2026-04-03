@@ -736,8 +736,8 @@ export const useMyAppointments = (filters?: {
       enabled: !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 2 * 60 * 1000, // reuse recent appointment data across patient pages
       gcTime: 10 * 60 * 1000,
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;

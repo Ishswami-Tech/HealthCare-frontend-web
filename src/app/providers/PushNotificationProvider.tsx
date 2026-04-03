@@ -20,7 +20,6 @@ export function PushNotificationProvider({
   const {
     isSupported,
     permission,
-    isRegistered,
     isLoading,
     requestPermission,
   } = useFCM();
@@ -43,7 +42,6 @@ export function PushNotificationProvider({
           }
         );
 
-        console.debug("Service Worker registered:", registration);
 
         // Inject Firebase config into service worker
         const sendConfigToSW = () => {
@@ -91,15 +89,12 @@ export function PushNotificationProvider({
                 newWorker.state === "installed" &&
                 navigator.serviceWorker.controller
               ) {
-                console.debug(
-                  "New service worker available. Please refresh the page."
-                );
               }
             });
           }
         });
-      } catch (error) {
-        console.error("Service Worker registration failed:", error);
+      } catch {
+        // Service Worker registration failed silently — push notifications unavailable
       }
     };
 
@@ -131,12 +126,6 @@ export function PushNotificationProvider({
     requestPermission,
   ]);
 
-  // Log registration status
-  useEffect(() => {
-    if (isRegistered) {
-      console.debug("Push notifications registered successfully");
-    }
-  }, [isRegistered]);
 
   return <>{children}</>;
 }

@@ -1,5 +1,25 @@
 import type { NextConfig } from 'next';
 
+const isProduction = process.env.NODE_ENV === 'production';
+const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+const appOrigin = (() => {
+  if (!appUrl) return '';
+  try {
+    return new URL(appUrl).host;
+  } catch {
+    return '';
+  }
+})();
+
+const configuredServerActionOrigins = (
+  process.env.NEXT_SERVER_ACTION_ALLOWED_ORIGINS || ''
+)
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+const serverActionOrigins = [...new Set([appOrigin, 'localhost:3000', ...configuredServerActionOrigins])];
+
 const nextConfig: NextConfig = {
   /* =====================================================
    * Core
@@ -26,7 +46,7 @@ const nextConfig: NextConfig = {
       'sonner',
     ],
     serverActions: {
-      allowedOrigins: ['localhost:3000', '*.cashfree.com', 'sandbox.cashfree.com', 'api.cashfree.com', 'payments.cashfree.com'],
+      allowedOrigins: serverActionOrigins,
     },
   },
 
@@ -80,7 +100,7 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: "form-action 'self' https://*.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;"
           }
-        ],
+        ].filter((header) => header.key !== 'Strict-Transport-Security' || isProduction),
       },
     ];
   },
@@ -101,7 +121,7 @@ const nextConfig: NextConfig = {
    * TypeScript (do NOT hide errors)
    * ===================================================== */
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 };
 

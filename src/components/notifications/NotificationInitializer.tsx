@@ -8,20 +8,18 @@ import { useAuth } from "@/hooks/auth/useAuth";
  * Component to initialize notification sync on app start
  * Should be placed in AppProvider or root layout
  * 
- * Only syncs when user is authenticated AND has an access token
+ * Only syncs when user is authenticated
  */
 export function NotificationInitializer() {
   const { session } = useAuth();
   const { sync } = useNotifications();
 
   useEffect(() => {
-    // Only sync if user is authenticated AND has an access token
-    // This prevents "No access token found" errors during login flow
-    if (session?.user?.id && session?.access_token) {
+    if (session?.user?.id && session?.isAuthenticated) {
       // Initial sync on mount
       sync();
     }
-  }, [session?.user?.id, session?.access_token, sync]);
+  }, [session?.user?.id, session?.isAuthenticated, sync]);
 
   return null;
 }

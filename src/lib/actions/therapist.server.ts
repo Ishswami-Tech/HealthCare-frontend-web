@@ -1,12 +1,26 @@
 'use server';
 
-import { HealthcareErrorsService } from '@/lib/config/config';
+import { authenticatedApi } from './auth.server';
+import { cookies } from 'next/headers';
 import type { TherapistAppointment, TherapistPatient, TherapistSession } from '@/types/medical-records.types';
 
 // ===== THERAPIST SERVER ACTIONS =====
+// Therapists are doctors with the THERAPIST role.
+// Appointments → /appointments (filtered by doctorId)
+// Clients     → /patients/clinic/:clinicId (filtered by doctorId)
+// Sessions    → /ehr/medical-history (session notes stored as medical history)
+
+async function getClinicId(): Promise<string> {
+  try {
+    const cookieStore = await cookies();
+    return cookieStore.get('clinic_id')?.value || '';
+  } catch {
+    return '';
+  }
+}
 
 /**
- * Get all therapist appointments
+ * Get all therapist appointments — proxied through GET /appointments?doctorId=therapistId
  */
 export async function getAppointments(
   therapistId?: string,
@@ -16,33 +30,22 @@ export async function getAppointments(
     endDate?: string;
   }
 ): Promise<{ appointments: TherapistAppointment[] }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  if (!therapistId) return { appointments: [] };
 
-    const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.startDate) params.append('startDate', filters.startDate);
-    if (filters?.endDate) params.append('endDate', filters.endDate);
+  const params = new URLSearchParams();
+  params.append('doctorId', therapistId);
+  if (filters?.status) params.append('status', filters.status);
+  if (filters?.startDate) params.append('startDate', filters.startDate);
+  if (filters?.endDate) params.append('endDate', filters.endDate);
 
-    const response = await fetch(`${baseUrl}/therapist/${therapistId}/appointments?${params.toString()}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
+  const { data } = await authenticatedApi<{ appointments: TherapistAppointment[] } | TherapistAppointment[]>(
+    `/appointments?${params.toString()}`
+  );
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch appointments');
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('fetch therapist appointments', error);
-    throw error;
-  }
+  const appointments = Array.isArray(data)
+    ? data
+    : (data as any)?.appointments || (data as any)?.data || [];
+  return { appointments };
 }
 
 /**
@@ -57,37 +60,25 @@ export async function getAppointmentsByPatientId(
     endDate?: string;
   }
 ): Promise<{ appointments: TherapistAppointment[] }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  const params = new URLSearchParams();
+  params.append('doctorId', therapistId);
+  params.append('patientId', patientId);
+  if (filters?.status) params.append('status', filters.status);
+  if (filters?.startDate) params.append('startDate', filters.startDate);
+  if (filters?.endDate) params.append('endDate', filters.endDate);
 
-    const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.startDate) params.append('startDate', filters.startDate);
-    if (filters?.endDate) params.append('endDate', filters.endDate);
+  const { data } = await authenticatedApi<{ appointments: TherapistAppointment[] } | TherapistAppointment[]>(
+    `/appointments?${params.toString()}`
+  );
 
-    const response = await fetch(`${baseUrl}/therapist/${therapistId}/patients/${patientId}/appointments?${params.toString()}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch patient appointments');
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('fetch patient appointments', error);
-    throw error;
-  }
+  const appointments = Array.isArray(data)
+    ? data
+    : (data as any)?.appointments || (data as any)?.data || [];
+  return { appointments };
 }
 
 /**
- * Get all clients for a therapist
+ * Get all clients for a therapist — proxied through GET /patients/clinic/:clinicId?doctorId=therapistId
  */
 export async function getClients(
   therapistId?: string,
@@ -99,163 +90,101 @@ export async function getClients(
     offset?: number;
   }
 ): Promise<{ clients: TherapistPatient[] }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  if (!therapistId) return { clients: [] };
 
-    const params = new URLSearchParams();
-    if (filters?.search) params.append('search', filters.search);
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.condition) params.append('condition', filters.condition);
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-    if (filters?.offset) params.append('offset', filters.offset.toString());
+  const clinicId = await getClinicId();
+  if (!clinicId) return { clients: [] };
 
-    const response = await fetch(`${baseUrl}/therapist/${therapistId}/clients?${params.toString()}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
+  const params = new URLSearchParams();
+  params.append('doctorId', therapistId);
+  if (filters?.search) params.append('search', filters.search);
+  if (filters?.status) params.append('status', filters.status);
+  if (typeof filters?.limit === 'number') params.append('limit', filters.limit.toString());
+  if (typeof filters?.offset === 'number') params.append('offset', filters.offset.toString());
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch clients');
-    }
+  const { data } = await authenticatedApi<{ patients: TherapistPatient[] } | TherapistPatient[]>(
+    `/patients/clinic/${clinicId}?${params.toString()}`
+  );
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('fetch therapist clients', error);
-    throw error;
-  }
+  const clients = Array.isArray(data)
+    ? data
+    : (data as any)?.patients || (data as any)?.data || [];
+  return { clients };
 }
 
 /**
- * Get therapist client by ID
+ * Get therapist client by ID — proxied through GET /patients/:patientId
  */
 export async function getClientsByTherapistId(
-  therapistId: string,
+  _therapistId: string,
   clientId: string
 ): Promise<{ client: TherapistPatient }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-    const response = await fetch(`${baseUrl}/therapist/${therapistId}/clients/${clientId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch client');
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('fetch therapist client', error);
-    throw error;
-  }
+  const { data } = await authenticatedApi<TherapistPatient>(
+    `/patients/${clientId}`
+  );
+  return { client: data as TherapistPatient };
 }
 
 /**
- * Create a new therapy appointment
+ * Create therapy appointment — proxied through POST /appointments
  */
 export async function createAppointment(
   appointmentData: TherapistAppointment
 ): Promise<{ appointment: TherapistAppointment }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-    const response = await fetch(`${baseUrl}/therapist/${appointmentData.therapistId}/appointments`, {
+  const { data } = await authenticatedApi<{ appointment: TherapistAppointment } | TherapistAppointment>(
+    '/appointments',
+    {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify(appointmentData),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to create appointment');
+      body: JSON.stringify({
+        patientId: appointmentData.patientId,
+        doctorId: appointmentData.therapistId || appointmentData.doctorId,
+        date: appointmentData.date,
+        time: appointmentData.time,
+        type: appointmentData.type || 'THERAPY',
+        notes: appointmentData.notes,
+        duration: appointmentData.duration,
+      }),
     }
+  );
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('create therapist appointment', error);
-    throw error;
-  }
+  const appointment = (data as any)?.appointment || data;
+  return { appointment };
 }
 
 /**
- * Update a therapy appointment
+ * Update therapy appointment — proxied through PATCH /appointments/:id
  */
 export async function updateAppointment(
   appointmentId: string,
   updates: Partial<TherapistAppointment>
 ): Promise<{ appointment: TherapistAppointment }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-    const response = await fetch(`${baseUrl}/therapist/appointments/${appointmentId}`, {
+  const { data } = await authenticatedApi<{ appointment: TherapistAppointment } | TherapistAppointment>(
+    `/appointments/${appointmentId}`,
+    {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
       body: JSON.stringify(updates),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to update appointment');
     }
+  );
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('update therapist appointment', error);
-    throw error;
-  }
+  const appointment = (data as any)?.appointment || data;
+  return { appointment };
 }
 
 /**
- * Delete a therapy appointment
+ * Delete (cancel) therapy appointment — PATCH /appointments/:id/status with CANCELLED
  */
 export async function deleteAppointment(appointmentId: string): Promise<void> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-    const response = await fetch(`${baseUrl}/therapist/appointments/${appointmentId}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to delete appointment');
-    }
-
-    await response.json();
-  } catch (error) {
-    HealthcareErrorsService.logError('delete therapist appointment', error);
-    throw error;
-  }
+  await authenticatedApi(`/appointments/${appointmentId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'CANCELLED' }),
+  });
 }
 
 /**
- * Update client session information
+ * Update client session — stored as EHR medical history note
  */
 export async function updateClientSession(
-  therapistId: string,
+  _therapistId: string,
   clientId: string,
   sessionData: {
     sessionDate?: string;
@@ -263,27 +192,20 @@ export async function updateClientSession(
     nextSessionDate?: string;
   }
 ): Promise<{ session: TherapistSession }> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-    const response = await fetch(`${baseUrl}/therapist/${therapistId}/clients/${clientId}/sessions`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify(sessionData),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to update session');
+  const { data } = await authenticatedApi<TherapistSession>(
+    '/ehr/medical-history',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        userId: clientId,
+        type: 'TREATMENT',
+        title: 'Therapy Session',
+        description: sessionData.notes || '',
+        date: sessionData.sessionDate || new Date().toISOString(),
+        ...(sessionData.nextSessionDate ? { followUpDate: sessionData.nextSessionDate } : {}),
+      }),
     }
+  );
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    HealthcareErrorsService.logError('update therapist session', error);
-    throw error;
-  }
+  return { session: data as TherapistSession };
 }

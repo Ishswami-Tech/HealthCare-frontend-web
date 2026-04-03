@@ -92,7 +92,7 @@ export default function ProfileCompletionForm({
         }
       },
       {
-        enabled: !!session?.access_token,
+        enabled: !!session?.isAuthenticated,
       }
     );
 

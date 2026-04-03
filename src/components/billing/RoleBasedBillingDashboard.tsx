@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Plus, CreditCard, FileText, Wallet, BarChart3, Info, AlertCircle, LayoutDashboard, Search } from "lucide-react";
+import { RefreshCw, Plus, CreditCard, FileText, Wallet, BarChart3, Info, AlertCircle, LayoutDashboard, Search, MessageCircle } from "lucide-react";
 import { PatientPageHeader } from "@/components/patient/PatientPageShell";
 import { InvoiceForm } from "./InvoiceForm";
 import { PaymentHistory } from "./PaymentHistory";
@@ -26,6 +26,7 @@ import {
   useCreateBillingPlan,
   useReconcilePayment,
   useReleaseAppointmentPayout,
+  useSendInvoiceViaWhatsApp,
 } from "@/hooks/query/useBilling";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PaymentButton } from "@/components/payments";
@@ -112,6 +113,7 @@ export function RoleBasedBillingDashboard({
   const reconcilePaymentMutation = useReconcilePayment();
   const createSubscriptionMutation = useCreateSubscription();
   const createPlanMutation = useCreateBillingPlan();
+  const sendInvoiceWhatsAppMutation = useSendInvoiceViaWhatsApp();
 
   const activeSubscription = subscriptions.find(
     (s) => s.status === "ACTIVE" || s.status === "TRIALING"
@@ -530,6 +532,18 @@ export function RoleBasedBillingDashboard({
                       <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100 transition-colors">
                         <FileText className="w-4 h-4 text-slate-400" />
                       </Button>
+                      {canManageBilling && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-xl hover:bg-green-50 transition-colors"
+                          title="Send invoice via WhatsApp"
+                          disabled={sendInvoiceWhatsAppMutation.isPending}
+                          onClick={() => sendInvoiceWhatsAppMutation.mutate(invoice.id)}
+                        >
+                          <MessageCircle className="w-4 h-4 text-green-600" />
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

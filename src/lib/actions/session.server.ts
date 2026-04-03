@@ -51,16 +51,12 @@ export async function revokeSession(sessionId: string): Promise<void> {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_URL}/auth/logout`, {
-      method: 'POST',
+    const response = await fetch(`${API_URL}/user/sessions/${sessionId}`, {
+      method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ 
-        refreshToken: (session as any).refreshToken || (session as any).refresh_token,
-        sessionId 
-      }),
     });
 
     if (!response.ok) {

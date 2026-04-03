@@ -16,6 +16,7 @@ import type {
 
 import { fetchWithAbort, TimeoutError } from '@/lib/utils/fetch-with-abort';
 import { getAccessToken, getSessionId, getClinicId } from '@/lib/utils/token-manager';
+import { useAuthStore } from '@/stores/auth.store';
 
 // ✅ Custom Error Classes
 export class ApiError extends Error {
@@ -113,8 +114,9 @@ async function getAuthHeaders(
     clinicId = APP_CONFIG.CLINIC.ID;
   }
 
-  // ✅ Enforce authentication unless explicitly disabled
-  if (requireAuth && !accessToken) {
+  // ✅ Enforce authentication for server-side requests only.
+  // Client-side requests rely on same-site httpOnly cookies.
+  if (requireAuth && !accessToken && typeof window === 'undefined') {
     // If on server and we have a refresh token, we might be able to refresh. 
     // But getAuthHeaders is usually called before the request.
     // We'll let the request fail with 401 -> retry logic will handle refresh.
@@ -128,8 +130,6 @@ async function getAuthHeaders(
         const cookieStore = await cookies();
         hasRefreshToken = !!cookieStore.get('refresh_token')?.value;
        } catch {}
-    } else {
-       hasRefreshToken = !!localStorage.getItem('refresh_token');
     }
 
     if (!hasRefreshToken) {
@@ -498,12 +498,9 @@ export class ApiClient {
       const cookieStore = await cookies();
       refreshToken = cookieStore.get('refresh_token')?.value;
       sessionId = cookieStore.get('session_id')?.value;
-    } else {
-      refreshToken = localStorage.getItem('refresh_token') || undefined;
-      sessionId = localStorage.getItem('session_id') || undefined;
     }
 
-    if (!refreshToken) {
+    if (!refreshToken && typeof window === 'undefined') {
       throw new Error('No refresh token available');
     }
 
@@ -525,7 +522,8 @@ export class ApiClient {
             'Content-Type': 'application/json',
             ...(sessionId ? { 'X-Session-ID': sessionId } : {})
           },
-          body: JSON.stringify({ refreshToken })
+          credentials: this.withCredentials ? 'include' : 'omit',
+          body: JSON.stringify(refreshToken ? { refreshToken } : {})
         });
 
         if (!response.ok) {
@@ -584,13 +582,6 @@ export class ApiClient {
        if (user?.role) cookieStore.set('user_role', user.role, { ...cookieOptions, maxAge: 604800 });
        if (user?.clinicId) cookieStore.set('clinic_id', user.clinicId, { ...cookieOptions, maxAge: 604800 });
 
-    } else {
-       // Client-side: Update localStorage
-       if (accessToken) localStorage.setItem('access_token', accessToken);
-       if (refreshToken) localStorage.setItem('refresh_token', refreshToken);
-       if (sessionId) localStorage.setItem('session_id', sessionId);
-       if (user?.role) localStorage.setItem('user_role', user.role);
-       if (user?.clinicId) localStorage.setItem('clinic_id', user.clinicId);
     }
   }
 
@@ -602,12 +593,11 @@ export class ApiClient {
        cookieStore.delete('refresh_token');
        cookieStore.delete('session_id');
        cookieStore.delete('user_role');
-     } else {
-       localStorage.removeItem('access_token');
-       localStorage.removeItem('refresh_token');
-       localStorage.removeItem('session_id');
-       localStorage.removeItem('user_role');
-     }
+    }
+
+    if (typeof window !== 'undefined') {
+      useAuthStore.getState().clearAuth();
+    }
   }
 
   // ✅ HTTP Method Helpers

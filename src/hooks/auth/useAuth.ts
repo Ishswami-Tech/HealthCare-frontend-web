@@ -47,8 +47,6 @@ import type {
 import { Role } from '@/types/auth.types';
 import { getDashboardByRole, ROUTES } from '@/lib/config/routes';
 import { 
-  setAccessToken, 
-  setSessionId, 
   clearTokens 
 } from '@/lib/utils/token-manager';
 
@@ -139,7 +137,6 @@ export function useAuth() {
           try {
             const refreshedSession = await refreshToken();
             if (refreshedSession && refreshedSession.access_token && refreshedSession.user) {
-              setAccessToken(refreshedSession.access_token);
               // Ensure clinicId is compatible by allowing undefined
               return {
                 ...refreshedSession,
@@ -212,11 +209,6 @@ export function useAuth() {
       };
       setSession(sessionForStore);
       
-      // Sync to localStorage using token-manager
-      setAccessToken(session.access_token);
-      if (session.session_id) {
-        setSessionId(session.session_id);
-      }
       setError(null);
     } else if (session === null && !isPending) {
       // Only clear if explicitly null (logged out) and not loading

@@ -15,7 +15,7 @@ import {
 } from '@/lib/config/firebase';
 import { showErrorToast, showInfoToast, TOAST_IDS } from '@/hooks/utils/use-toast';
 import { useNotificationStore, type Notification } from '@/stores/notifications.store';
-import { registerFCMToken } from '@/lib/actions/communication.server';
+import { registerFCMToken, subscribeToTopic } from '@/lib/actions/communication.server';
 
 interface UseFCMReturn {
   token: string | null;
@@ -184,6 +184,26 @@ export function useFCM(): UseFCMReturn {
       }
 
       setIsRegistered(true);
+
+      // Auto-subscribe to role-based topics
+      const user = session.user;
+      const clinicId = (user as any).clinicId;
+      const role = (user as any).role?.toLowerCase?.() || '';
+      const topicsToSubscribe: string[] = [];
+
+      if (clinicId) {
+        topicsToSubscribe.push(`clinic-${clinicId}`);
+        if (role) {
+          topicsToSubscribe.push(`${role}-${clinicId}`);
+        }
+      }
+      topicsToSubscribe.push('all-users');
+
+      await Promise.allSettled(
+        topicsToSubscribe.map((topic) =>
+          subscribeToTopic({ userId: user.id, topic, deviceToken: token })
+        )
+      );
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to register token';
       setError(errorMessage);
@@ -210,7 +230,6 @@ export function useFCM(): UseFCMReturn {
       // You can implement token deletion on backend if needed
       setToken(null);
       setIsRegistered(false);
-      console.debug('Device token unregistered');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to unregister token';
       setError(errorMessage);

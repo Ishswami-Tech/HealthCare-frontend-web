@@ -1,15 +1,22 @@
 'use server';
 
-import { HealthcareErrorsService } from '@/lib/config/config';
+import { authenticatedApi } from './auth.server';
 import type { SupportRequest } from '@/types/medical-records.types';
-import { clinicApiClient as api } from '@/lib/api/client';
+
+// ===== SUPPORT STAFF SERVER ACTIONS =====
+// Support staff manage patient-facing requests (general inquiries, help tickets).
+// The backend has no dedicated /support-staff endpoint.
+// Requests are proxied through the appointments + queue system:
+//   GET  /queue          → active queue entries treated as support requests
+//   POST /appointments   → create a support/general appointment
+// For full support ticketing, a backend endpoint needs to be added.
 
 /**
- * Get all support requests
+ * Get support requests — proxied through GET /queue (clinic-scoped via header)
  */
 export async function getSupportRequests(
-  staffId?: string,
-  filters?: {
+  _staffId?: string,
+  _filters?: {
     status?: string;
     priority?: string;
     type?: string;
@@ -18,90 +25,80 @@ export async function getSupportRequests(
   }
 ): Promise<{ requests: SupportRequest[] }> {
   try {
-    const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.priority) params.append('priority', filters.priority);
-    if (filters?.type) params.append('type', filters.type);
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-    if (filters?.offset) params.append('offset', filters.offset.toString());
+    const { data } = await authenticatedApi<{ queue: SupportRequest[] } | SupportRequest[]>('/queue');
 
-    // Using hypothetical standardized endpoint
-    const response = await api.get<{ requests: SupportRequest[] }>(
-      `/support-staff/requests?${params.toString()}`
-    );
+    const raw = Array.isArray(data)
+      ? data
+      : (data as any)?.queue || (data as any)?.data || [];
 
-    if (response.error) {
-      throw new Error(response.error || 'Failed to fetch support requests');
-    }
+    // Normalize queue entries into SupportRequest shape
+    const requests: SupportRequest[] = raw.map((entry: any) => ({
+      id: entry.id,
+      type: entry.type || 'General Support',
+      status: entry.status || 'pending',
+      priority: entry.priority || 'normal',
+      requesterName: entry.patient?.name || entry.patientName || 'Unknown',
+      patient: entry.patient,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+    }));
 
-    return response.data || { requests: [] };
-  } catch (error) {
-    HealthcareErrorsService.logError('fetch support requests', error);
-    throw error;
+    return { requests };
+  } catch {
+    // No backend support-staff endpoint — return empty gracefully
+    return { requests: [] };
   }
 }
 
 /**
- * Create a new support request
+ * Create a support request — proxied through POST /appointments with type GENERAL
  */
 export async function createSupportRequest(
   requestData: SupportRequest
 ): Promise<{ request: SupportRequest }> {
-  try {
-    const response = await api.post<{ request: SupportRequest }>(
-      '/support-staff/requests',
-      requestData
-    );
-
-    if (response.error) {
-      throw new Error(response.error || 'Failed to create support request');
+  const { data } = await authenticatedApi<SupportRequest>(
+    '/appointments',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        patientId: requestData.patientId,
+        type: 'GENERAL',
+        notes: requestData.description || requestData.type,
+        priority: requestData.priority,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().slice(0, 5),
+      }),
     }
-
-    return response.data!;
-  } catch (error) {
-    HealthcareErrorsService.logError('create support request', error);
-    throw error;
-  }
+  );
+  return { request: (data as any)?.appointment || data as SupportRequest };
 }
 
 /**
- * Update a support request
+ * Update a support request — proxied through PATCH /appointments/:id/status
  */
 export async function updateSupportRequest(
   requestId: string,
   updates: Partial<SupportRequest>
 ): Promise<{ request: SupportRequest }> {
-  try {
-    const response = await api.patch<{ request: SupportRequest }>(
-      `/support-staff/requests/${requestId}`,
-      updates
-    );
-
-    if (response.error) {
-      throw new Error(response.error || 'Failed to update support request');
+  const { data } = await authenticatedApi<SupportRequest>(
+    `/appointments/${requestId}/status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        status: updates.status,
+        notes: updates.notes,
+      }),
     }
-
-    return response.data!;
-  } catch (error) {
-    HealthcareErrorsService.logError('update support request', error);
-    throw error;
-  }
+  );
+  return { request: data as SupportRequest };
 }
 
 /**
- * Delete a support request
+ * Delete a support request — proxied through PATCH /appointments/:id/status with CANCELLED
  */
 export async function deleteSupportRequest(requestId: string): Promise<void> {
-  try {
-    const response = await api.delete(
-      `/support-staff/requests/${requestId}`
-    );
-
-    if (response.error) {
-      throw new Error(response.error || 'Failed to delete support request');
-    }
-  } catch (error) {
-    HealthcareErrorsService.logError('delete support request', error);
-    throw error;
-  }
+  await authenticatedApi(`/appointments/${requestId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'CANCELLED' }),
+  });
 }

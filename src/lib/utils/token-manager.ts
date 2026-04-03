@@ -1,90 +1,84 @@
 /**
  * 🔒 Secure Token Manager
- * Provides secure token access with fallback to httpOnly cookies
+ * Provides secure token access with httpOnly-cookie-first behavior.
  * 
- * SECURITY: Tokens should ideally be in httpOnly cookies, but for client-side
- * operations, we provide a secure wrapper that can be migrated to server-side
- * operations in the future.
+ * SECURITY: Tokens must never be persisted in browser storage.
  */
 
 'use client';
 
+import { useAuthStore } from '@/stores/auth.store';
+
 // clinicApiClient import removed - not used in this file
 
 /**
- * Get access token securely
- * Priority: httpOnly cookies (via Server Actions) > localStorage (fallback)
+ * Client-side code should not read access tokens directly.
  */
 export async function getAccessToken(): Promise<string | null> {
-  // In client components, we need to use localStorage as fallback
-  // TODO: Migrate to httpOnly cookies via Server Actions for better security
-  if (typeof window === 'undefined') {
-    // Server-side: should use cookies via Server Actions
-    return null;
-  }
-
-  // Client-side: use localStorage (will be migrated to httpOnly cookies)
-  return localStorage.getItem('access_token') || null;
+  return useAuthStore.getState().session?.access_token || null;
 }
 
 /**
  * Get session ID securely
  */
 export async function getSessionId(): Promise<string | null> {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  return localStorage.getItem('session_id') || null;
+  return useAuthStore.getState().session?.session_id || null;
 }
 
 /**
  * Get clinic ID securely
  */
 export async function getClinicId(): Promise<string | null> {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  return localStorage.getItem('clinic_id') || null;
+  return useAuthStore.getState().session?.user?.clinicId || null;
 }
 
 /**
- * Set access token (for client-side operations)
- * ⚠️ SECURITY: This is a temporary solution. Tokens should be set via httpOnly cookies
+ * Tokens are intentionally not written to browser storage.
  */
-export function setAccessToken(token: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('access_token', token);
-  }
+export function setAccessToken(_token: string): void {
+  const currentSession = useAuthStore.getState().session;
+  if (!currentSession) return;
+  useAuthStore.getState().setSession({
+    ...currentSession,
+    access_token: _token,
+  });
+  return;
 }
 
 /**
  * Set session ID (for client-side operations)
  */
-export function setSessionId(sessionId: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('session_id', sessionId);
-  }
+export function setSessionId(_sessionId: string): void {
+  const currentSession = useAuthStore.getState().session;
+  if (!currentSession) return;
+  useAuthStore.getState().setSession({
+    ...currentSession,
+    session_id: _sessionId,
+  });
+  return;
 }
 
 /**
  * Set clinic ID (for client-side operations)
  */
-export function setClinicId(clinicId: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('clinic_id', clinicId);
-  }
+export function setClinicId(_clinicId: string): void {
+  const currentSession = useAuthStore.getState().session;
+  if (!currentSession) return;
+  useAuthStore.getState().setSession({
+    ...currentSession,
+    user: {
+      ...currentSession.user,
+      clinicId: _clinicId,
+    },
+  });
+  return;
 }
 
 /**
  * Clear all tokens (logout)
  */
 export function clearTokens(): void {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('session_id');
-    localStorage.removeItem('clinic_id');
-    localStorage.removeItem('refresh_token');
-  }
+  useAuthStore.getState().clearAuth();
 }
 
 /**

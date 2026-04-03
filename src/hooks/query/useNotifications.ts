@@ -72,9 +72,7 @@ export function useNotifications() {
       return result;
     },
     {
-      // Only enable if user is authenticated AND has an access token
-      // This prevents "No access token found" errors during login flow
-      enabled: !!session?.user?.id && !!session?.access_token,
+      enabled: !!session?.user?.id && !!session?.isAuthenticated,
       refetchOnWindowFocus: false,
       refetchInterval: SYNC_INTERVAL,
       staleTime: 2 * 60 * 1000, // 2 minutes

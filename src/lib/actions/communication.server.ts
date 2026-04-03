@@ -428,9 +428,14 @@ export async function sendSMS(messageData: {
   templateId?: string;
   variables?: Record<string, string>;
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.SMS, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
     method: 'POST',
-    body: JSON.stringify(messageData),
+    body: JSON.stringify({
+      type: 'sms',
+      title: 'SMS Message',
+      message: messageData.message,
+      recipientId: messageData.to,
+    }),
   });
   return data;
 }
@@ -445,9 +450,14 @@ export async function sendWhatsAppMessage(messageData: {
   variables?: Record<string, string>;
   mediaUrl?: string;
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.WHATSAPP, {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
     method: 'POST',
-    body: JSON.stringify(messageData),
+    body: JSON.stringify({
+      type: 'whatsapp',
+      title: 'WhatsApp Message',
+      message: messageData.message,
+      recipientId: messageData.to,
+    }),
   });
   return data;
 }
@@ -457,7 +467,7 @@ export async function sendWhatsAppMessage(messageData: {
  */
 export async function getMessageTemplates(type?: 'sms' | 'email' | 'whatsapp') {
   const params = type ? `?type=${type}` : '';
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.BASE}${params}`);
+  const { data } = await authenticatedApi(`/communication/templates${params}`);
   return data;
 }
 
@@ -472,7 +482,7 @@ export async function createMessageTemplate(templateData: {
   variables?: string[];
   category?: string;
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.CREATE, {
+  const { data } = await authenticatedApi('/communication/templates', {
     method: 'POST',
     body: JSON.stringify(templateData),
   });
@@ -490,7 +500,7 @@ export async function updateMessageTemplate(templateId: string, updates: {
   category?: string;
   isActive?: boolean;
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.UPDATE(templateId), {
+  const { data } = await authenticatedApi(`/communication/templates/${templateId}`, {
     method: 'PATCH',
     body: JSON.stringify(updates),
   });
@@ -501,7 +511,7 @@ export async function updateMessageTemplate(templateId: string, updates: {
  * Delete message template
  */
 export async function deleteMessageTemplate(templateId: string) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.TEMPLATES.DELETE(templateId), {
+  const { data } = await authenticatedApi(`/communication/templates/${templateId}`, {
     method: 'DELETE',
   });
   return data;
@@ -527,7 +537,7 @@ export async function getMessageHistory(filters?: {
     });
   }
   
-  const endpoint = `${API_ENDPOINTS.COMMUNICATION.MESSAGING.HISTORY}${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `/communication/logs${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;
 }
@@ -536,14 +546,14 @@ export async function getMessageHistory(filters?: {
  * Get messaging statistics
  */
 export async function getMessagingStats(period: 'day' | 'week' | 'month' | 'year' = 'month') {
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.MESSAGING.STATS}?period=${period}`);
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.STATS}?period=${period}`);
   return data;
 }
 
 /**
  * Schedule message
  */
-export async function scheduleMessage(messageData: {
+export async function scheduleMessage(_messageData: {
   type: 'sms' | 'email' | 'whatsapp';
   to: string | string[];
   content: string;
@@ -552,38 +562,25 @@ export async function scheduleMessage(messageData: {
   templateId?: string;
   variables?: Record<string, string>;
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.CREATE, {
-    method: 'POST',
-    body: JSON.stringify(messageData),
-  });
-  return data;
+  // No scheduled messaging endpoint exists in the backend yet
+  return null;
 }
 
 /**
  * Cancel scheduled message
  */
-export async function cancelScheduledMessage(messageId: string) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.DELETE(messageId), {
-    method: 'DELETE',
-  });
-  return data;
+export async function cancelScheduledMessage(_messageId: string) {
+  // No scheduled messaging endpoint exists in the backend yet
+  return null;
 }
 
 /**
  * Get scheduled messages
  */
-export async function getScheduledMessages(filters?: {
+export async function getScheduledMessages(_filters?: {
   type?: 'sms' | 'email' | 'whatsapp';
   status?: 'pending' | 'sent' | 'cancelled';
 }) {
-  const params = new URLSearchParams();
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
-    });
-  }
-  
-  const endpoint = `${API_ENDPOINTS.COMMUNICATION.MESSAGING.SCHEDULE.BASE}${params.toString() ? `?${params.toString()}` : ''}`;
-  const { data } = await authenticatedApi(endpoint);
-  return data;
+  // No scheduled messaging endpoint exists in the backend yet
+  return null;
 }
