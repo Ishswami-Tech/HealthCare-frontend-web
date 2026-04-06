@@ -86,7 +86,7 @@ export async function updateSupportRequest(
       method: 'PATCH',
       body: JSON.stringify({
         status: updates.status,
-        notes: updates.notes,
+        notes: (updates as any).notes,
       }),
     }
   );

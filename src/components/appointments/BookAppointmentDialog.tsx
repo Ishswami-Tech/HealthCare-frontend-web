@@ -205,7 +205,7 @@ export function BookAppointmentDialog({
   // Patients book for themselves — calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
   const { data: patientsData = [] } = usePatients(
-    userRole === "RECEPTIONIST" ? activeClinicId : "",
+    ["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole) ? activeClinicId : "",
     { limit: 1000, isActive: true }
   );
 
@@ -218,10 +218,12 @@ export function BookAppointmentDialog({
     selectedLocationId
   );
 
-  const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment();
+  const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment(activeClinicId);
   const { mutate: sendReminder } = useSendAppointmentReminder();
   const targetPatientId =
-    userRole === "RECEPTIONIST" ? selectedPatientId : session?.user?.id || "";
+    ["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole)
+      ? selectedPatientId
+      : session?.user?.id || "";
   const { data: subscriptionsData = [] } = useSubscriptions(targetPatientId);
 
   // ─── Derived ─────────────────────────────────────────────────────────────
@@ -308,7 +310,7 @@ export function BookAppointmentDialog({
   }, [patientsData]);
 
   const selectedPatient = useMemo(
-    () => patientsList.find((patient: any) => patient.id === selectedPatientId),
+    () => patientsList.find((patient: any) => (patient.userId || patient.id) === selectedPatientId),
     [patientsList, selectedPatientId]
   );
 
@@ -463,7 +465,7 @@ export function BookAppointmentDialog({
           (atomicResult as any)?.appointment?.data?.id ||
           "APPT-" + Date.now();
       } else {
-        const appointment = await createAppointment({
+        const payload = {
           clinicId: activeClinicId,
           doctorId: selectedDoctorId,
           locationId: selectedLocationId,
@@ -471,14 +473,20 @@ export function BookAppointmentDialog({
           time: selectedSlot,
           type: finalAppointmentType,
           treatmentType: selectedService.treatmentType,
-          // Testing mode: keep bookings short so repeated appointment flows are easy to validate.
           duration: APPOINTMENT_SLOT_DURATION_MINUTES,
           notes: chiefComplaint || selectedService.label,
           priority: urgency.toUpperCase() as any,
           patientId: targetPatientId,
-        });
+        };
+
+        console.log("[BookAppointmentDialog] handleBook Payload:", payload);
+
+        const appointment = await createAppointment(payload);
+
+        console.log("[BookAppointmentDialog] handleBook Response:", appointment);
+
         if (!appointment?.id) {
-          throw new Error("Failed to create appointment");
+          throw new Error("Failed to create appointment; check console for details.");
         }
         apptId = appointment.id;
       }
@@ -537,7 +545,8 @@ export function BookAppointmentDialog({
   const canNext = useMemo(() => {
     if (step === 1) return !!selectedLocationId && !!consultationMode;
     if (step === 2) {
-      return !!selectedServiceId && (userRole !== "RECEPTIONIST" || !!selectedPatientId);
+      const isOfficeStaff = ["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
+      return !!selectedServiceId && (!isOfficeStaff || !!selectedPatientId);
     }
     if (step === 3) return !!selectedDoctorId;
     if (step === 4) return !!selectedDate;
@@ -700,7 +709,7 @@ export function BookAppointmentDialog({
     return (
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">What type of consultation do you need?</p>
-        {userRole === "RECEPTIONIST" ? (
+        {["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole) ? (
           <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-4">
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Select Patient
@@ -711,7 +720,7 @@ export function BookAppointmentDialog({
               </SelectTrigger>
               <SelectContent>
                 {patientsList.map((patient: any) => (
-                  <SelectItem key={patient.id} value={patient.id}>
+                  <SelectItem key={patient.userId || patient.id} value={patient.userId || patient.id}>
                     {patient.displayName}
                     {patient.phone ? ` • ${patient.phone}` : ""}
                   </SelectItem>
@@ -852,7 +861,7 @@ export function BookAppointmentDialog({
   const renderStep3 = () => (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">Pick your preferred appointment date</p>
-      <div className="flex justify-center p-2 rounded-2xl bg-muted/20 border border-border shadow-sm">
+      <div className="flex justify-center w-full max-w-sm mx-auto">
         <Calendar
           mode="single"
           selected={selectedDate}
@@ -867,11 +876,11 @@ export function BookAppointmentDialog({
             // Testing mode: allow any non-past booking date.
             return date < todayIST;
           }}
-          className="mx-auto"
+          className="border border-border/50 shadow-sm"
         />
       </div>
       {selectedDate && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-primary/5 border border-primary/20">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-primary/5 border border-primary/20 max-w-sm mx-auto w-full justify-center mt-2">
           <CalendarIcon className="w-4 h-4 text-primary shrink-0" />
           <span className="text-sm font-semibold">{format(selectedDate, "EEEE, d MMMM yyyy")}</span>
         </div>

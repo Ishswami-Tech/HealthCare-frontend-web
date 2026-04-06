@@ -70,7 +70,10 @@ export async function endVideoConsultation(data: {
  * Get consultation status
  */
 export async function getConsultationStatus(appointmentId: string) {
-  const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId), {});
+  const { data: response } = await authenticatedApi(
+    API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId),
+    {}
+  );
   return response;
 }
 
@@ -83,10 +86,13 @@ export async function reportConsultationIssue(appointmentId: string, data: {
   severity?: 'low' | 'medium' | 'high';
   timestamp?: string;
 }) {
-  const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.REPORT(appointmentId), {
+  const { data: response } = await authenticatedApi(
+    API_ENDPOINTS.VIDEO.CONSULTATION.REPORT(appointmentId),
+    {
     method: 'POST',
     body: JSON.stringify(data),
-  });
+    }
+  );
   return response;
 }
 
@@ -233,7 +239,10 @@ export async function getVideoHealth() {
 // Helper to get consultationId from appointmentId
 async function getConsultationId(appointmentId: string): Promise<string> {
   try {
-    const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId), {});
+    const { data: response } = await authenticatedApi(
+      API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId),
+      {}
+    );
     // The status response should contain the consultation/session ID
     if (response && typeof response === 'object' && 'id' in response) {
       return response.id as string;

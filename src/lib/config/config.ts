@@ -398,11 +398,11 @@ export const API_ENDPOINTS = {
     REASSIGNMENT_CANDIDATES: (id: string) => `/appointments/${id}/reassignment-candidates`,
     ASSISTANT_COVERAGE: '/appointments/assistant-coverage',
     DELETE: (id: string) => `/appointments/${id}`,
-    CANCEL: (id: string) => `/appointments/${id}/cancel`,
-    CONFIRM: (id: string) => `/appointments/${id}/confirm`,
+    CANCEL: (id: string) => `/appointments/${id}/status`,
+    CONFIRM: (id: string) => `/appointments/${id}/status`,
     STATUS: (id: string) => `/appointments/${id}/status`, // Consolidated endpoint
     VIDEO_PROPOSE: '/appointments/video/propose',
-    VIDEO_REJECT_PROPOSAL: (id: string) => `/appointments/${id}/video/reject-proposal`,
+    VIDEO_REJECT_PROPOSAL: (id: string) => `/appointments/${id}/video/reject`,
     VIDEO_CONFIRM_SLOT: (id: string) => `/appointments/${id}/video/confirm-slot`,
     CHECK_IN: (id: string) => `/appointments/${id}/check-in`,
     SCAN_QR: '/appointments/check-in/scan-qr',
@@ -415,7 +415,7 @@ export const API_ENDPOINTS = {
     // APPOINTMENTS.QUEUE. All queue flows now resolve to the standalone /queue/* API.
     QUEUE: {
       GET: (_queueType: string) => `/queue`,
-      ADD: '/queue',
+      ADD: '/queue/add',
       REMOVE: (queueId: string) => `/queue/${queueId}`,
       CALL_NEXT: (_queueType: string) => '/queue/call-next',
       REORDER: (_queueType: string) => '/queue/reorder',
@@ -423,7 +423,7 @@ export const API_ENDPOINTS = {
       ANALYTICS: '/queue/analytics',
     },
     QR: {
-      GENERATE: (appointmentId: string) => `/appointments/${appointmentId}/qr`,
+      GENERATE: (locationId: string) => `/appointments/locations/${locationId}/qr-code`,
       VERIFY: '/appointments/verify-qr',
     },
     NOTIFICATIONS: {
@@ -433,8 +433,7 @@ export const API_ENDPOINTS = {
     },
     ANALYTICS: '/appointments/analytics/wait-times',
     UPCOMING: '/appointments/upcoming',
-    TEST_CONTEXT: '/appointments/test-context',
-    BULK_STATUS: '/appointments/bulk-status',
+    TEST_CONTEXT: '/appointments/test/context',
   },
   
   // Queue Endpoints (Standalone queue management)
@@ -445,7 +444,7 @@ export const API_ENDPOINTS = {
     STATS: '/queue/stats',
     UPDATE_STATUS: (patientId: string) => `/queue/${patientId}/status`,
     CALL_NEXT: '/queue/call-next',
-    ADD: '/queue',
+    ADD: '/queue/add',
     REMOVE: (queueId: string) => `/queue/${queueId}`,
     REORDER: '/queue/reorder',
     HISTORY: '/queue/history',
@@ -772,18 +771,6 @@ export const API_ENDPOINTS = {
       SHARE_IMAGE: (appointmentId: string) => `/video/consultation/${appointmentId}/share-image`,
     },
     HISTORY: '/video/history',
-    // Video Appointments Management
-    APPOINTMENTS: {
-      BASE: '/video-appointments',
-      CREATE: '/video-appointments',
-      GET_ALL: (clinicId: string) => `/clinics/${clinicId}/video-appointments`,
-      GET_BY_ID: (id: string) => `/video-appointments/${id}`,
-      UPDATE: (appointmentId: string) => `/video-appointments/${appointmentId}`,
-      DELETE: (appointmentId: string) => `/video-appointments/${appointmentId}`,
-      JOIN: (appointmentId: string) => `/video-appointments/${appointmentId}/join`,
-      END: (appointmentId: string) => `/video-appointments/${appointmentId}/end`,
-      RECORDING: (appointmentId: string) => `/video-appointments/${appointmentId}/recording`,
-    },
     RECORDING: {
       START: '/video/recording/start',
       STOP: '/video/recording/stop',
@@ -794,7 +781,7 @@ export const API_ENDPOINTS = {
       GET: (appointmentId: string) => `/video/participants/${appointmentId}`,
     },
     ANALYTICS: (appointmentId: string) => `/video/analytics/${appointmentId}`,
-    HEALTH: '/video/health',
+    HEALTH: '/health',
     // Phase 1 & 2 Features - Backend uses consultationId
     CHAT: {
       SEND: '/video/chat/send',
@@ -1268,4 +1255,3 @@ export const HealthcareErrorsService = {
 };
 
 export default APP_CONFIG;
-

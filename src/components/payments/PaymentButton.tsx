@@ -22,6 +22,7 @@ import { getClinicId } from "@/lib/utils/token-manager";
 interface PaymentButtonProps {
   invoiceId?: string;
   appointmentId?: string;
+  appointmentType?: 'VIDEO_CALL' | 'IN_PERSON' | 'HOME_VISIT';
   subscriptionId?: string;
   prescriptionId?: string;
   amount: number;
@@ -47,6 +48,7 @@ export function PaymentButton({
   description,
   clinicId,
   provider,
+  appointmentType,
   autoStart = false,
   onSuccess,
   onError,
@@ -56,7 +58,7 @@ export function PaymentButton({
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const hasAutoStartedRef = useRef(false);
-  const effectiveProvider: PaymentProvider = DEFAULT_PAYMENT_PROVIDER;
+  const effectiveProvider: PaymentProvider = provider ?? DEFAULT_PAYMENT_PROVIDER;
   const cashfreeMode =
     process.env.NEXT_PUBLIC_CASHFREE_MODE === "production"
       ? "production"
@@ -79,7 +81,7 @@ export function PaymentButton({
       paymentIntentUrl =
         API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(appointmentId) +
         providerQuery;
-      body = { appointmentType: "VIDEO_CALL" };
+      body = { appointmentType: appointmentType ?? "VIDEO_CALL" };
     } else if (invoiceId) {
       paymentIntentUrl =
         API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(invoiceId) + providerQuery;

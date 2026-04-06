@@ -27,6 +27,45 @@ import {
   updateAppointmentStatus,
 } from '@/lib/actions/appointments.server';
 
+export type VideoTokenRole = 'patient' | 'doctor' | 'receptionist' | 'clinic_admin';
+
+function normalizeVideoRole(role?: string | null): string {
+  return String(role || '').trim().toUpperCase().replace(/\s+/g, '_');
+}
+
+export function getVideoTokenRole(role?: string | null): VideoTokenRole {
+  switch (normalizeVideoRole(role)) {
+    case 'DOCTOR':
+    case 'ASSISTANT_DOCTOR':
+    case 'NURSE':
+      return 'doctor';
+    case 'RECEPTIONIST':
+      return 'receptionist';
+    case 'CLINIC_ADMIN':
+    case 'CLINIC_LOCATION_HEAD':
+    case 'SUPER_ADMIN':
+      return 'clinic_admin';
+    case 'PATIENT':
+    default:
+      return 'patient';
+  }
+}
+
+function getOpenViduRole(role?: string | null): Role | 'admin' {
+  const videoRole = getVideoTokenRole(role);
+  switch (videoRole) {
+    case 'doctor':
+      return Role.DOCTOR;
+    case 'receptionist':
+      return Role.RECEPTIONIST;
+    case 'clinic_admin':
+      return 'admin';
+    case 'patient':
+    default:
+      return Role.PATIENT;
+  }
+}
+
 // ✅ Video Appointment Types
 export interface VideoAppointment {
   id: string;
@@ -270,7 +309,7 @@ export function useCreateVideoAppointment() {
       toastId: TOAST_IDS.VIDEO.JOIN,
       loadingMessage: 'Creating video appointment...',
       successMessage: 'Video appointment created successfully',
-      invalidateQueries: [['video-appointments']],
+      invalidateQueries: [['video-appointments'], ['appointments'], ['myAppointments']],
       onSuccess: (_, variables) => {
         // Send WebSocket event
         sendVideoAppointmentEvent('created', {
@@ -317,7 +356,7 @@ export function useUpdateVideoAppointment() {
       toastId: TOAST_IDS.VIDEO.JOIN,
       loadingMessage: 'Updating video appointment...',
       successMessage: 'Video appointment updated successfully',
-      invalidateQueries: [['video-appointments'], ['video-appointment']],
+      invalidateQueries: [['video-appointments'], ['video-appointment'], ['appointments'], ['myAppointments']],
       onSuccess: (_, variables) => {
         // Send WebSocket event
         sendVideoAppointmentEvent('updated', {
@@ -334,20 +373,23 @@ export function useUpdateVideoAppointment() {
 export function useJoinVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendParticipantJoined } = useVideoAppointmentWebSocket();
+  const { user } = useAuth();
 
-  return useMutationOperation<{ success: boolean; data: any; token: any }, { appointmentId: string; userId: string; role: 'doctor' | 'patient' | 'admin' }>(
-    async (data: { appointmentId: string; userId: string; role: 'doctor' | 'patient' | 'admin' }) => {
+  return useMutationOperation<{ success: boolean; data: any; token: any }, { appointmentId: string; userId: string; role?: string }>(
+    async (data: { appointmentId: string; userId: string; role?: string }) => {
       const hasAccess = hasPermission(Permission.JOIN_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+
+      const videoRole = getVideoTokenRole(data.role);
 
       // Generate token for joining
       const tokenResult = await generateVideoToken({
         appointmentId: data.appointmentId,
         userId: data.userId,
-        userRole: data.role === 'doctor' ? 'doctor' : 'patient',
+        userRole: videoRole,
         userInfo: {
-          displayName: data.role,
-          email: `${data.role}@example.com`,
+          displayName: user?.name || videoRole,
+          email: user?.email || `${videoRole}@example.com`,
         },
       }) as { token: string; roomName: string; roomId: string; meetingUrl: string };
       
@@ -361,8 +403,8 @@ export function useJoinVideoAppointment() {
         // Send WebSocket event for participant joined
         sendParticipantJoined(variables.appointmentId, {
           userId: variables.userId,
-          displayName: variables.role,
-          role: variables.role,
+          displayName: user?.name || getVideoTokenRole(variables.role),
+          role: getVideoTokenRole(variables.role),
         });
       },
     }
@@ -373,6 +415,7 @@ export function useJoinVideoAppointment() {
 export function useEndVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
+  const { user } = useAuth();
 
   return useMutationOperation<{ success: boolean; data: any }, string>(
     async (appointmentId: string) => {
@@ -382,7 +425,7 @@ export function useEndVideoAppointment() {
       const result = await endVideoConsultation({
         appointmentId,
         userId: '', // Will be set from session
-        userRole: 'doctor',
+        userRole: getVideoTokenRole(user?.role),
       });
       
       return { success: true, data: result };
@@ -391,7 +434,7 @@ export function useEndVideoAppointment() {
       toastId: TOAST_IDS.VIDEO.END,
       loadingMessage: 'Ending video appointment...',
       successMessage: 'Video appointment ended successfully',
-      invalidateQueries: [['video-appointments'], ['video-appointment']],
+      invalidateQueries: [['video-appointments'], ['video-appointment'], ['appointments'], ['myAppointments']],
       onSuccess: (_, appointmentId) => {
         // Send WebSocket events
         sendVideoAppointmentEvent('ended', {
@@ -426,7 +469,7 @@ export function useDeleteVideoAppointment() {
       toastId: TOAST_IDS.VIDEO.END,
       loadingMessage: 'Deleting video appointment...',
       successMessage: 'Video appointment deleted successfully',
-      invalidateQueries: [['video-appointments']],
+      invalidateQueries: [['video-appointments'], ['appointments'], ['myAppointments']],
       onSuccess: (_, appointmentId) => {
         queryClient.removeQueries({ queryKey: ['video-appointment', appointmentId] });
       },
@@ -458,7 +501,7 @@ export function useRescheduleVideoAppointment() {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Rescheduling appointment...',
       successMessage: 'Appointment rescheduled successfully',
-      invalidateQueries: [['video-appointments'], ['video-appointment']],
+      invalidateQueries: [['video-appointments'], ['video-appointment'], ['appointments'], ['myAppointments']],
       onSuccess: (_, variables) => {
         sendVideoAppointmentEvent('updated', {
           appointmentId: variables.appointmentId,
@@ -491,7 +534,7 @@ export function useRejectVideoProposal() {
       toastId: TOAST_IDS.APPOINTMENT.CANCEL, // Using cancel toast ID as it's a rejection
       loadingMessage: 'Rejecting proposal...',
       successMessage: 'Proposal rejected successfully',
-      invalidateQueries: [['video-appointments'], ['video-appointment']],
+      invalidateQueries: [['video-appointments'], ['video-appointment'], ['appointments'], ['myAppointments']],
       onSuccess: (_, variables) => {
         sendVideoAppointmentEvent('updated', {
           appointmentId: variables.appointmentId,
@@ -527,7 +570,7 @@ export function useCancelVideoAppointment() {
       toastId: TOAST_IDS.APPOINTMENT.CANCEL,
       loadingMessage: 'Cancelling appointment...',
       successMessage: 'Appointment cancelled successfully',
-      invalidateQueries: [['video-appointments'], ['video-appointment']],
+      invalidateQueries: [['video-appointments'], ['video-appointment'], ['appointments'], ['myAppointments']],
       onSuccess: (_, variables) => {
         sendVideoAppointmentEvent('updated', {
           appointmentId: variables.appointmentId,
@@ -604,11 +647,14 @@ export function useVideoCall() {
   // ✅ Start Video Call
   const startCall = useCallback(async (appointmentData: VideoAppointment, userInfo: { userId?: string; role?: string; displayName?: string; email?: string }) => {
     try {
+      const videoRole = getVideoTokenRole(userInfo.role || user?.role);
+      const openViduRole = getOpenViduRole(userInfo.role || user?.role);
+
       // First, generate token from backend
       const tokenResult = await generateVideoToken({
         appointmentId: appointmentData.appointmentId,
         userId: userInfo.userId || user?.id || '',
-        userRole: userInfo.role === 'doctor' ? 'doctor' : 'patient',
+        userRole: videoRole,
         userInfo: {
           displayName: userInfo.displayName || user?.name || 'User',
           email: userInfo.email || user?.email || '',
@@ -625,7 +671,7 @@ export function useVideoCall() {
           userId: userInfo.userId || user?.id || '',
           displayName: userInfo.displayName || user?.name || 'User',
           email: userInfo.email || user?.email || '',
-          role: (userInfo.role as Role) || (user?.role as Role) || Role.PATIENT,
+          role: openViduRole,
         },
         tokenResult.token,
         openviduServerUrl
@@ -646,7 +692,7 @@ export function useVideoCall() {
       sendParticipantJoined(appointmentData.appointmentId, {
         userId: userInfo.userId || user?.id || '',
         displayName: userInfo.displayName || user?.name || 'User',
-        role: (userInfo.role as Role) || (user?.role as Role) || Role.PATIENT,
+        role: videoRole,
       });
       
       toast({

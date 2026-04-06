@@ -30,6 +30,7 @@ import {
   useVideoAppointments,
   useJoinVideoAppointment,
   useEndVideoAppointment,
+  getVideoTokenRole,
 } from "@/hooks/query/useVideoAppointments";
 import {
   useAppointments,
@@ -242,7 +243,7 @@ export default function VideoAppointmentsPage() {
       const result = await joinVideoAppointment.mutateAsync({
         appointmentId,
         userId,
-        role: session?.user?.role === "DOCTOR" ? "doctor" : "patient",
+        role: getVideoTokenRole(session?.user?.role),
       });
 
       if (result?.token) {
@@ -383,6 +384,7 @@ export default function VideoAppointmentsPage() {
                 <PaymentButton
                   appointmentId={appointment.appointmentId}
                   amount={paymentAmount}
+                  appointmentType="VIDEO_CALL"
                   description="Video consultation"
                   onSuccess={() => {
                     queryClient.invalidateQueries({ queryKey: ["appointments"] });
@@ -599,6 +601,7 @@ export default function VideoAppointmentsPage() {
                           <PaymentButton
                             appointmentId={apt.id}
                             amount={paymentAmount}
+                            appointmentType="VIDEO_CALL"
                             description="Video consultation"
                             onSuccess={() => {
                               queryClient.invalidateQueries({ queryKey: ["appointments"] });

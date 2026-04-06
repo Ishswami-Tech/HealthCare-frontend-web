@@ -70,6 +70,7 @@ import {
   useVideoAppointments,
   useJoinVideoAppointment,
   useEndVideoAppointment,
+  getVideoTokenRole,
   useRescheduleVideoAppointment,
   useCancelVideoAppointment,
   useRejectVideoProposal,
@@ -102,14 +103,6 @@ import { CalendarPlus, Filter } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Module-scope pure helpers ───────────────────────────────────────────────
-
-function getRoleString(role?: string): 'doctor' | 'patient' | 'admin' {
-  if (!role) return 'patient';
-  const r = role.toUpperCase();
-  if (r === 'DOCTOR') return 'doctor';
-  if (r === 'CLINIC_ADMIN' || r === 'SUPER_ADMIN' || r === 'ADMIN') return 'admin';
-  return 'patient';
-}
 
 function extractAppointments(data: unknown): VideoAppointment[] {
   if (!data || typeof data !== 'object') return [];
@@ -240,7 +233,7 @@ export function VideoAppointmentsList({
 
   const userId = session?.user?.id || "";
   const isPatient = user?.role === "PATIENT";
-  const role = getRoleString(user?.role);
+  const role = getVideoTokenRole(user?.role);
 
   const canJoin = hasPermission(Permission.JOIN_VIDEO_APPOINTMENTS);
   const canEnd = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
@@ -456,7 +449,7 @@ export function VideoAppointmentsList({
                     {appointment.status === 'scheduled' && (
                       <>
                         {(appointment as any).paymentCompleted === false && getVideoPaymentAmount(appointment, appointmentServices) > 0 && (
-                          <PaymentButton appointmentId={appointment.appointmentId} amount={getVideoPaymentAmount(appointment, appointmentServices)} description="Video Consult" className="h-9 px-4 rounded-xl text-sm font-semibold" onSuccess={() => refetch()}>
+                          <PaymentButton appointmentId={appointment.appointmentId} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-9 px-4 rounded-xl text-sm font-semibold" onSuccess={() => refetch()}>
                             Pay ₹{getVideoPaymentAmount(appointment, appointmentServices)}
                           </PaymentButton>
                         )}

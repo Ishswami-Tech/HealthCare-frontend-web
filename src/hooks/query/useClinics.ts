@@ -379,8 +379,8 @@ export const useGenerateLocationQR = () => {
   const sessionId = session?.session_id;
   
   return useMutationOperation<{ status: number; data: { qrCode: string } }, { clinicId: string; locationId: string }>(
-    async ({ clinicId, locationId }) => {
-      return apiCall<{ qrCode: string }>(`/clinics/${clinicId}/locations/${locationId}/qr`, {
+    async ({ clinicId: _clinicId, locationId }) => {
+      return apiCall<{ qrCode: string }>(`/appointments/locations/${locationId}/qr-code`, {
         headers: {
           ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
@@ -403,14 +403,17 @@ export const useVerifyLocationQR = () => {
   const token = session?.access_token;
   const sessionId = session?.session_id;
   
-  return useMutationOperation<{ status: number; data: ClinicLocation }, { qrData: string }>(
+  return useMutationOperation<
+    { status: number; data: { appointmentId: string; verified: boolean } },
+    { qrData: string }
+  >(
     async ({ qrData }) => {
-      return apiCall<ClinicLocation>('/clinics/locations/verify-qr', {
+      return apiCall<{ appointmentId: string; verified: boolean }>('/appointments/verify-qr', {
         method: 'POST',
         headers: {
           ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
-        body: JSON.stringify({ qrData }),
+        body: JSON.stringify({ qrToken: qrData }),
       });
     },
     {

@@ -48,7 +48,17 @@ import {
   FileText,
 } from "lucide-react";
 
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+
 export default function AnalyticsDashboard() {
+  return (
+    <ProtectedRoute allowedRoles={[Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.DOCTOR, Role.FINANCE_BILLING]}>
+      <AnalyticsDashboardContent />
+    </ProtectedRoute>
+  );
+}
+
+function AnalyticsDashboardContent() {
   const { session } = useAuth();
   const user = session?.user;
   const [timeRange, setTimeRange] = useState("30d");

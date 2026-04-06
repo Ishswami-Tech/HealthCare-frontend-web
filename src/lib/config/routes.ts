@@ -146,7 +146,26 @@ export function getProtectedRouteRoles(path: string): string[] {
   if (path.startsWith('/video-appointments')) return [
     Role.THERAPIST, Role.COUNSELOR,
     Role.DOCTOR, Role.ASSISTANT_DOCTOR,
+    Role.NURSE, Role.RECEPTIONIST,
     Role.PATIENT, Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+  ];
+
+  if (path.startsWith('/analytics')) return [
+    Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+    Role.DOCTOR, Role.FINANCE_BILLING,
+  ];
+
+  if (path.startsWith('/appointments')) return [
+    Role.CLINIC_ADMIN, Role.RECEPTIONIST,
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
+    Role.PATIENT, Role.CLINIC_LOCATION_HEAD,
+    Role.THERAPIST, Role.COUNSELOR, Role.NURSE,
+  ];
+
+  if (path.startsWith('/ehr') || path.startsWith('/medical-records')) return [
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
+    Role.NURSE, Role.THERAPIST, Role.COUNSELOR,
+    Role.PATIENT, Role.CLINIC_ADMIN,
   ];
 
   return [];

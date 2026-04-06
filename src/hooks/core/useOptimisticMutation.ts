@@ -92,21 +92,26 @@ export function useOptimisticMutation<TData, TVariables, TError = Error>(
       
       return { previous };
     },
-    onError: (error: TError, _variables: TVariables, context) => {
-      // Rollback on error
-      if (context && typeof context === 'object' && 'previous' in context && context.previous) {
-        queryClient.setQueryData(options.queryKey, context.previous);
+    // Merge internal onError with caller's onError
+    onError: async (error: TError, variables: TVariables, context: unknown) => {
+      // Internal: rollback on error
+      if (context && typeof context === 'object' && 'previous' in context && (context as { previous?: unknown }).previous) {
+        queryClient.setQueryData(options.queryKey, (context as { previous: TData[] }).previous);
       } else if (options.rollback) {
         const current = queryClient.getQueryData<TData[]>(options.queryKey) || [];
         queryClient.setQueryData(options.queryKey, options.rollback(current, error));
       }
+      // Caller's onError (if provided)
+      if (options.mutationOptions?.onError) {
+        await (options.mutationOptions.onError as (e: TError, v: TVariables, c: unknown) => unknown)(error, variables, context);
+      }
     },
-    onSuccess: (data: TData) => {
-      // Update with real data on success
+    // Merge internal onSuccess with caller's onSuccess
+    onSuccess: async (data: TData, variables: TVariables, context: unknown) => {
+      // Internal: update cache with real data
       queryClient.setQueryData<TData[]>(options.queryKey, (old = []) => {
-        // Replace optimistic entry with real data
-        const index = old.findIndex((item: any) => 
-          (item as any).id === (data as any).id || 
+        const index = old.findIndex((item: any) =>
+          (item as any).id === (data as any).id ||
           (item as any).tempId
         );
         if (index >= 0) {
@@ -116,11 +121,18 @@ export function useOptimisticMutation<TData, TVariables, TError = Error>(
         }
         return [...old, data];
       });
-      
-      // Invalidate to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: options.queryKey, exact: false });
+      // Internal: invalidate to ensure fresh data from server
+      void queryClient.invalidateQueries({ queryKey: options.queryKey, exact: false });
+      // Caller's onSuccess (if provided)
+      if (options.mutationOptions?.onSuccess) {
+        await (options.mutationOptions.onSuccess as (d: TData, v: TVariables, c: unknown) => unknown)(data, variables, context);
+      }
     },
-    ...options.mutationOptions,
+    // Spread remaining mutationOptions excluding onSuccess/onError (handled above)
+    ...(() => {
+      const { onSuccess: _s, onError: _e, ...rest } = options.mutationOptions || {};
+      return rest;
+    })(),
   });
   
   return {

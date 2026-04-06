@@ -436,6 +436,7 @@ export function useSendInvoiceViaWhatsApp() {
   return useMutationOperation<{ success: boolean; error?: string }, string>(
     (invoiceId: string) => sendInvoiceViaWhatsApp(invoiceId),
     {
+      toastId: 'send-invoice-whatsapp',
       loadingMessage: 'Sending invoice via WhatsApp...',
       successMessage: 'Invoice sent via WhatsApp successfully',
       errorMessage: 'Failed to send invoice via WhatsApp',

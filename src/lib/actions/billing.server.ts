@@ -599,13 +599,20 @@ export async function sendInvoiceViaWhatsApp(invoiceId: string): Promise<{
 export async function generateInvoicePDF(id: string): Promise<{
   success: boolean;
   pdfUrl?: string;
+  message?: string;
   error?: string;
 }> {
   try {
-    const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.GENERATE_PDF(id));
-    const pdfData = data as { url?: string; pdfUrl?: string } | undefined;
+    const { data } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.GENERATE_PDF(id), {
+      method: 'POST',
+    });
+    const pdfData = data as { url?: string; pdfUrl?: string; message?: string } | undefined;
     const pdfUrl = pdfData?.url || pdfData?.pdfUrl;
-    return { success: true, ...(pdfUrl ? { pdfUrl } : {}) };
+    return {
+      success: true,
+      ...(pdfUrl ? { pdfUrl } : {}),
+      ...(pdfData?.message ? { message: pdfData.message } : {}),
+    };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to generate invoice PDF' };
   }

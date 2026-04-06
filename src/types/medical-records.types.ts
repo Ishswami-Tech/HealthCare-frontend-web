@@ -1,4 +1,6 @@
-// ===== MEDICAL RECORD TYPES =====
+import { Appointment } from './appointment.types';
+import { Patient } from './patient.types';
+import { User } from './auth.types';
 
 export interface MedicalRecord {
   id: string;
@@ -180,21 +182,27 @@ export interface CounselorSession {
   nextSessionDate?: string;
   createdAt?: string;
   updatedAt?: string;
+  // Compatibility with medical history
+  userId?: string;
+  type?: string;
+  title?: string;
+  description?: string;
+  date?: string;
 }
 
-export interface CounselorAppointment {
+export interface CounselorAppointment extends Partial<Appointment> {
   id?: string;
-  counselorId: string;
-  clientId?: string;
+  counselorId?: string; // Maps to doctorId
+  clientId?: string;   // Maps to patientId
   patientId?: string;
-  status?: string;
-  appointmentDate?: string;
-  startDate?: string;
-  endDate?: string;
-  notes?: string;
+  doctorId?: string;
+  status?: any;
+  date: string;
+  time: string;
+  duration: number;
 }
 
-export interface CounselorClient {
+export interface CounselorClient extends Partial<Patient> {
   id: string;
   counselorId?: string;
   patientId?: string;
@@ -202,6 +210,12 @@ export interface CounselorClient {
   lastName?: string;
   status?: string;
   condition?: string;
+  user?: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
 }
 
 export interface NursePatientRecord {
@@ -262,26 +276,29 @@ export interface TherapistSession {
   nextSessionDate?: string;
   createdAt?: string;
   updatedAt?: string;
+  // Compatibility with medical history
+  userId?: string;
+  type?: string;
+  title?: string;
+  description?: string;
+  date?: string;
 }
 
-export interface TherapistAppointment {
+export interface TherapistAppointment extends Partial<Appointment> {
   id: string;
-  therapistId: string;
-  clientId?: string;
+  therapistId?: string; // Maps to doctorId
+  clientId?: string;   // Maps to patientId
   patientId?: string;
+  doctorId?: string;
   patientName: string;
-  status: string;
-  type: string;
+  status: any;
+  type: any;
   duration: number;
   date: string;
   time: string;
-  appointmentDate?: string;
-  startDate?: string;
-  endDate?: string;
-  notes?: string;
 }
 
-export interface TherapistPatient {
+export interface TherapistPatient extends Partial<Patient> {
   id: string;
   therapistId?: string;
   patientId?: string;
@@ -292,6 +309,12 @@ export interface TherapistPatient {
   condition?: string;
   sessionsCompleted?: number;
   lastVisit: string;
+  user?: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
 }
 
 // ===== IMAGING RESULTS =====

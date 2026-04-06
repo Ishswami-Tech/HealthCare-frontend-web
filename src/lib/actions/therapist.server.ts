@@ -136,11 +136,12 @@ export async function createAppointment(
     {
       method: 'POST',
       body: JSON.stringify({
-        patientId: appointmentData.patientId,
+        patientId: appointmentData.patientId || appointmentData.clientId,
         doctorId: appointmentData.therapistId || appointmentData.doctorId,
         date: appointmentData.date,
         time: appointmentData.time,
-        type: appointmentData.type || 'THERAPY',
+        type: appointmentData.type || 'IN_PERSON',
+        treatmentType: appointmentData.treatmentType || 'THERAPY',
         notes: appointmentData.notes,
         duration: appointmentData.duration,
       }),
@@ -207,5 +208,15 @@ export async function updateClientSession(
     }
   );
 
-  return { session: data as TherapistSession };
+  const session: TherapistSession = {
+    ...(data as any),
+    id: (data as any).id || (data as any)._id,
+    therapistId: _therapistId,
+    patientId: clientId,
+    ...(sessionData.sessionDate ? { sessionDate: sessionData.sessionDate } : {}),
+    ...(sessionData.notes ? { notes: sessionData.notes } : {}),
+    ...(sessionData.nextSessionDate ? { nextSessionDate: sessionData.nextSessionDate } : {}),
+  };
+
+  return { session };
 }

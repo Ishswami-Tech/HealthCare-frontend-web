@@ -983,7 +983,7 @@ export class ClinicApiClient extends ApiClient {
   }
 
   async cancelAppointment(id: string) {
-    return this.delete(API_ENDPOINTS.APPOINTMENTS.CANCEL(id));
+    return this.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(id), { status: 'CANCELLED' });
   }
 
   /**
@@ -1018,7 +1018,7 @@ export class ClinicApiClient extends ApiClient {
   }
 
   async confirmAppointment(id: string) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.CONFIRM(id));
+    return this.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(id), { status: 'CONFIRMED' });
   }
 
   async proposeVideoAppointment(data: {
@@ -1170,7 +1170,7 @@ export class ClinicApiClient extends ApiClient {
 
   // ✅ Test Context Endpoint (from appointments controller)
   async testAppointmentContext() {
-    return this.get(`${API_ENDPOINTS.APPOINTMENTS.BASE}/test/context`);
+    return this.get(API_ENDPOINTS.APPOINTMENTS.TEST_CONTEXT);
   }
 
   // ✅ Utility Methods

@@ -179,6 +179,7 @@ export const useCreateAppointment = (clinicId?: string) => {
   }, [hasPermission]);
   
   // Use optimistic mutation hook
+  const queryClient = useQueryClient();
   const { optimisticData, addOptimistic, mutation, isPending } = useOptimisticMutation({
     queryKey: ['appointments', clinicId],
     mutationFn,
@@ -196,10 +197,15 @@ export const useCreateAppointment = (clinicId?: string) => {
     },
     mutationOptions: {
       onSuccess: (appointment: Appointment) => {
+        // Invalidate both appointments and myAppointments so all views refresh
+        void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+        void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
+        void queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
+        void queryClient.invalidateQueries({ queryKey: ['appointmentStats'], exact: false });
         if (appointment) {
           toast({
             title: 'Success',
-            description: `Appointment scheduled for ${appointment.date} at ${appointment.time}`,
+            description: `Appointment scheduled for ${appointment.date ?? ''} at ${appointment.time ?? ''}`,
             id: TOAST_IDS.APPOINTMENT.CREATE, // ✅ Prevent duplicates
           });
         }
@@ -323,7 +329,7 @@ export const useUpdateAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Updating appointment...',
       successMessage: 'Appointment updated successfully',
-      invalidateQueries: [['appointments'], ['appointment']],
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
     }
   );
 };
@@ -349,11 +355,7 @@ export const useCancelAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.CANCEL,
       loadingMessage: 'Cancelling appointment...',
       successMessage: 'Appointment cancelled successfully',
-      invalidateQueries: [['appointments'], ['appointment']],
-      onSuccess: () => {
-          // Just invalidate, don't try to set data without the object
-          queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      },
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
       onError: (error: Error) => {
         logger.error('Failed to cancel appointment', error, { component: 'useAppointments' });
       },
@@ -383,7 +385,7 @@ export const useConfirmAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Confirming appointment...',
       successMessage: 'Appointment confirmed successfully',
-      invalidateQueries: [['appointments'], ['appointment']],
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
     }
   );
 };
@@ -436,7 +438,7 @@ export const useCheckInAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Checking in patient...',
       successMessage: 'Patient check-in confirmed successfully',
-      invalidateQueries: [['appointments'], ['appointment']],
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
     }
   );
 };
@@ -960,7 +962,7 @@ export const useBulkAppointmentOperations = () => {
       toastId: TOAST_IDS.APPOINTMENT.BULK_UPDATE,
       loadingMessage: 'Updating appointments...',
       successMessage: 'Appointments updated successfully',
-      invalidateQueries: [['appointments']],
+      invalidateQueries: [['appointments'], ['myAppointments']],
       onSuccess: (data, _variables) => {
         onSuccess(data);
       },
@@ -1049,7 +1051,7 @@ export const useProcessCheckIn = () => {
       toastId: TOAST_IDS.APPOINTMENT.CHECK_IN,
       loadingMessage: 'Confirming patient arrival...',
       successMessage: 'Patient confirmed and added to queue successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['queue']],
+      invalidateQueries: [['appointments'], ['appointment'], ['queue'], ['myAppointments']],
     }
   );
 };
@@ -1140,7 +1142,7 @@ export const useStartConsultation = () => {
       toastId: TOAST_IDS.APPOINTMENT.START,
       loadingMessage: 'Starting consultation...',
       successMessage: 'Consultation started successfully',
-      invalidateQueries: [['appointments']],
+      invalidateQueries: [['appointments'], ['myAppointments']],
     }
   );
 };
@@ -1211,7 +1213,7 @@ export const useRescheduleAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Rescheduling appointment...',
       successMessage: 'Appointment rescheduled successfully',
-      invalidateQueries: [['appointments'], ['appointment']],
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
     }
   );
 };
@@ -1238,7 +1240,7 @@ export const useRejectVideoProposal = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Rejecting proposal...',
       successMessage: 'Proposal rejected successfully',
-      invalidateQueries: [['appointments'], ['appointment']],
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
     }
   );
 };

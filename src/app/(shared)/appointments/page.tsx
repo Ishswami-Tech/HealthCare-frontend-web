@@ -21,7 +21,7 @@ import {
   useCancelAppointment,
   useAppointmentStats,
 } from "@/hooks/query/useAppointments";
-import { useJoinVideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { getVideoTokenRole, useJoinVideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import {
@@ -35,6 +35,7 @@ import { Pagination } from "@/components/virtual/VirtualizedList";
 import {
   AppointmentProtectedComponent,
   ProtectedComponent,
+  AppointmentRouteProtection,
 } from "@/components/rbac";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
@@ -69,6 +70,14 @@ const APPOINTMENT_STATUS = {
 } as const;
 
 export default function AppointmentsPage() {
+  return (
+    <AppointmentRouteProtection>
+      <AppointmentsPageContent />
+    </AppointmentRouteProtection>
+  );
+}
+
+function AppointmentsPageContent() {
   const { session } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -142,7 +151,9 @@ export default function AppointmentsPage() {
       ? (appointmentsQuery.data as any)?.appointments ||
         (appointmentsQuery.data as any)?.data ||
         appointmentsQuery.data
-      : appointmentsQuery.data;
+      : (appointmentsQuery.data as any)?.appointments ||
+        (appointmentsQuery.data as any)?.data?.appointments ||
+        appointmentsQuery.data;
 
   const appointments = Array.isArray(appointmentsData) ? appointmentsData : [];
   const isLoading =
@@ -328,7 +339,7 @@ export default function AppointmentsPage() {
       const result = await joinVideoAppointment.mutateAsync({
         appointmentId,
         userId,
-        role: (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) ? "doctor" : "patient",
+        role: getVideoTokenRole(userRole),
       });
 
       const resultData = result as { token?: { token?: string } | string };

@@ -479,9 +479,9 @@ export async function cancelAppointment(id: string, reason?: string) {
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.CANCEL(id), {
-      method: 'POST',
-      body: JSON.stringify({ reason })
+    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.STATUS(id), {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'CANCELLED', reason }),
     });
 
     const { ipAddress, userAgent } = await getClientInfo();
@@ -514,7 +514,10 @@ export async function cancelAppointment(id: string, reason?: string) {
  */
 export async function confirmAppointment(id: string) {
   try {
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.CONFIRM(id), { method: 'POST' });
+    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.STATUS(id), {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'CONFIRMED' }),
+    });
     revalidateCache('appointments');
     return { success: true };
   } catch (error) {
@@ -798,12 +801,27 @@ export async function testAppointmentContext(): Promise<{
  */
 export async function bulkUpdateAppointmentStatus(appointmentIds: string[], status: string) {
   try {
-    const { data: result } = await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.BULK_STATUS, {
-      method: 'POST',
-      body: JSON.stringify({ appointmentIds, status })
-    });
+    const normalizedStatus = status.toUpperCase();
+    const results = await Promise.allSettled(
+      appointmentIds.map((appointmentId) =>
+        authenticatedApi(API_ENDPOINTS.APPOINTMENTS.STATUS(appointmentId), {
+          method: 'PATCH',
+          body: JSON.stringify({ status: normalizedStatus }),
+        })
+      )
+    );
+
+    const failedIds = results
+      .map((result, index) => (result.status === 'rejected' ? appointmentIds[index] : null))
+      .filter((id): id is string => !!id);
+
+    const updated = results.length - failedIds.length;
+    const failedReasons = failedIds.reduce<Record<string, string>>((acc, appointmentId) => {
+      acc[appointmentId] = 'Bulk update failed';
+      return acc;
+    }, {});
     revalidateCache('appointments');
-    return { success: true, ...((result as any) || {}) };
+    return { success: failedIds.length === 0, updated, failed: failedIds.length, failedIds, failedReasons };
   } catch (error) {
     logger.error('Failed bulk appointment update', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Bulk update failed' };
