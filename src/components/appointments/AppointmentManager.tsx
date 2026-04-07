@@ -46,6 +46,7 @@ import {
   formatDateInIST,
   getAppointmentDateTimeValue,
   isVideoAppointmentPaymentCompleted,
+  normalizeAppointmentStatus,
   normalizePatientAppointment,
 } from "@/lib/utils/appointmentUtils";
 import {
@@ -115,16 +116,8 @@ export default function AppointmentManager({
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
   const lastSyncedAppointmentsRef = useRef("");
-  const storeAppointmentIds = useAppointmentsStore((state) => state.appointmentIds);
-  const storeAppointmentsById = useAppointmentsStore((state) => state.appointments);
   const setAppointmentsInStore = useAppointmentsStore((state) => state.setAppointments);
-  const storeAppointments = useMemo(
-    () =>
-      storeAppointmentIds
-        .map((id) => storeAppointmentsById[id])
-        .filter((appointment): appointment is AppointmentWithRelations => appointment !== undefined),
-    [storeAppointmentIds, storeAppointmentsById]
-  );
+  const setScopedAppointmentsInStore = useAppointmentsStore((state) => state.setScopedAppointments);
 
   // ─── Data Fetching ────────────────────────────────────────────────────────
   
@@ -150,6 +143,13 @@ export default function AppointmentManager({
 
   const adminAppointments = useAppointments(adminFilters);
   const myPersonalAppointments = useMyAppointments(personalFilters);
+  const personalScopeKey = useMemo(() => {
+    if (isAdminView || !user?.id) return null;
+    return `myAppointments:${user.id}:${JSON.stringify(personalFilters || {})}`;
+  }, [isAdminView, user?.id, personalFilters]);
+  const scopedStoreAppointments = useAppointmentsStore((state) =>
+    personalScopeKey ? (state.queryBuckets[personalScopeKey]?.ids || []).map((id) => state.appointments[id]).filter(Boolean) as AppointmentWithRelations[] : []
+  );
 
   const { mutate: cancelAppointment, isPending: cancellingAppointment } = useCancelAppointment();
   const { mutate: rescheduleAppointment, isPending: reschedulingAppointment } = useRescheduleAppointment();
@@ -160,6 +160,7 @@ export default function AppointmentManager({
   const isAppointmentsLoading = isAdminView ? adminAppointments.isPending : myPersonalAppointments.isPending;
   const refetch = isAdminView ? adminAppointments.refetch : myPersonalAppointments.refetch;
   const rawData = isAdminView ? adminAppointments.data : myPersonalAppointments.data;
+  const hasResolvedQueryData = rawData !== undefined;
 
   const fetchedAppointments = useMemo((): AppointmentWithRelations[] => {
     let list: AppointmentWithRelations[] = [];
@@ -177,14 +178,27 @@ export default function AppointmentManager({
 
     if (fetchedAppointments.length > 0 && syncKey !== lastSyncedAppointmentsRef.current) {
       lastSyncedAppointmentsRef.current = syncKey;
-      setAppointmentsInStore(fetchedAppointments as any);
+      if (isAdminView) {
+        setAppointmentsInStore(fetchedAppointments as any);
+      } else if (personalScopeKey) {
+        setScopedAppointmentsInStore(personalScopeKey, fetchedAppointments as any);
+      }
     }
-  }, [fetchedAppointments, setAppointmentsInStore]);
+  }, [fetchedAppointments, setAppointmentsInStore, setScopedAppointmentsInStore, isAdminView, personalScopeKey]);
 
-  const allAppointments = fetchedAppointments.length > 0 ? fetchedAppointments : storeAppointments;
+  const allAppointments = hasResolvedQueryData
+    ? fetchedAppointments
+    : isAdminView
+      ? []
+      : scopedStoreAppointments;
   const patientScopedAppointments = useMemo(() => {
-    // Admin views already fetch filtered by clinic/patient — don't re-filter
+    // Admin views already fetch filtered by clinic/patient — don't re-filter.
     if (isAdminView) return allAppointments;
+
+    // Personal views already use /appointments/my-appointments.
+    // Re-filtering here can hide valid records when the API returns a patient entity id
+    // instead of the current auth user id on nested relations.
+    if (hasResolvedQueryData) return allAppointments;
 
     const currentUserId = user?.id;
     // If no user id yet (loading), return all appointments rather than empty
@@ -206,7 +220,7 @@ export default function AppointmentManager({
       // Include the appointment if any candidate matches the current user
       return candidateIds.includes(currentUserId) || candidateIds.length === 0;
     });
-  }, [allAppointments, user?.id, isAdminView]);
+  }, [allAppointments, user?.id, isAdminView, hasResolvedQueryData]);
 
   const normalizedAppointments = useMemo(() => {
     return patientScopedAppointments
@@ -214,6 +228,8 @@ export default function AppointmentManager({
         const normalized = normalizePatientAppointment(appointment);
         return {
           ...appointment,
+          status: normalized.status,
+          type: normalized.type,
           location: {
             ...(appointment.location || {}),
             name: normalized.locationName,
@@ -226,8 +242,8 @@ export default function AppointmentManager({
         } as any;
       })
       .sort((a, b) => {
-        const aCancelled = a.status === "CANCELLED";
-        const bCancelled = b.status === "CANCELLED";
+        const aCancelled = normalizeAppointmentStatus(a.status) === "CANCELLED";
+        const bCancelled = normalizeAppointmentStatus(b.status) === "CANCELLED";
 
         if (aCancelled !== bCancelled) {
           return aCancelled ? 1 : -1;

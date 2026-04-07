@@ -20,7 +20,10 @@ import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useTranslation } from "@/lib/i18n/context";
 import { theme } from "@/lib/utils/theme-utils";
 import { useAppointmentsStore } from "@/stores";
-import { normalizePatientAppointment } from "@/lib/utils/appointmentUtils";
+import {
+  normalizeAppointmentStatus,
+  normalizePatientAppointment,
+} from "@/lib/utils/appointmentUtils";
 import {
   Activity,
   Calendar,
@@ -56,19 +59,21 @@ export default function PatientDashboard() {
   const { clinicId } = useClinicContext();
   const patientId = user?.id || "";
   const lastSyncedAppointmentsRef = useRef("");
-  const storeAppointmentIds = useAppointmentsStore((state) => state.appointmentIds);
-  const storeAppointmentsById = useAppointmentsStore((state) => state.appointments);
-  const setAppointmentsInStore = useAppointmentsStore((state) => state.setAppointments);
-  const storeAppointments = useMemo(
-    () =>
-      storeAppointmentIds
-        .map((id) => storeAppointmentsById[id])
-        .filter((appointment) => appointment !== undefined),
-    [storeAppointmentIds, storeAppointmentsById]
-  );
+  const setScopedAppointmentsInStore = useAppointmentsStore((state) => state.setScopedAppointments);
 
   // Fetch real data using hooks with loading and error states
   const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments();
+  const appointmentsScopeKey = useMemo(
+    () => (user?.id ? `myAppointments:${user.id}:{}` : null),
+    [user?.id]
+  );
+  const storeAppointments = useAppointmentsStore((state) =>
+    appointmentsScopeKey
+      ? (state.queryBuckets[appointmentsScopeKey]?.ids || [])
+          .map((id) => state.appointments[id])
+          .filter((appointment) => appointment !== undefined)
+      : []
+  );
   const { data: medicalRecordsData } = usePatientMedicalRecords(
     clinicId || "",
     patientId
@@ -90,9 +95,11 @@ export default function PatientDashboard() {
 
     if (fetchedAppointments.length > 0 && syncKey !== lastSyncedAppointmentsRef.current) {
       lastSyncedAppointmentsRef.current = syncKey;
-      setAppointmentsInStore(fetchedAppointments as any);
+      if (appointmentsScopeKey) {
+        setScopedAppointmentsInStore(appointmentsScopeKey, fetchedAppointments as any);
+      }
     }
-  }, [appointmentsData, setAppointmentsInStore]);
+  }, [appointmentsData, setScopedAppointmentsInStore, appointmentsScopeKey]);
 
   // Transform real data
   const patientData = useMemo(() => {
@@ -119,29 +126,17 @@ export default function PatientDashboard() {
       }
     };
 
+    const hasResolvedAppointments = appointmentsData !== undefined;
     const rawAppointments = Array.isArray(appointmentsData?.appointments)
       ? appointmentsData.appointments
-      : storeAppointments;
-    const appointments = Array.isArray(rawAppointments)
-      ? rawAppointments.filter((apt: any) => {
-          const candidateIds = [
-            apt?.patientId,
-            apt?.patient?.id,
-            apt?.patient?.userId,
-            apt?.patient?.user?.id,
-            apt?.userId,
-          ]
-            .filter((value): value is string => typeof value === "string" && value.length > 0);
-
-          return user?.id ? candidateIds.includes(user.id) : true;
-        })
-      : [];
+      : hasResolvedAppointments
+        ? []
+        : storeAppointments;
+    const appointments = Array.isArray(rawAppointments) ? rawAppointments : [];
     const activeUpcomingStatuses = new Set([
       "SCHEDULED",
       "CONFIRMED",
       "IN_PROGRESS",
-      "AWAITING_SLOT_CONFIRMATION",
-      "PENDING",
     ]);
     
     // Safety check for appointments array
@@ -150,7 +145,7 @@ export default function PatientDashboard() {
           .filter((apt: any) => {
             const normalized = normalizePatientAppointment(apt);
             const appointmentStart = normalized.dateTime;
-            const status = String(apt?.status || "").toUpperCase();
+            const status = normalized.status;
             // Show today + future appointments that are active (not just strictly future time)
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -184,7 +179,7 @@ export default function PatientDashboard() {
                   })
                 : "",
               location: normalized.locationName,
-              status: apt.status || "Scheduled",
+              status: normalized.status || "SCHEDULED",
               isOnline: normalized.isOnline,
             };
           })
@@ -223,10 +218,7 @@ export default function PatientDashboard() {
         nextAppointment: upcomingAppointments[0]?.date || null,
         lastVisit:
           appointments
-            .filter(
-              (apt: any) =>
-                apt.status === "COMPLETED" || apt.status === "completed"
-            )
+            .filter((apt: any) => normalizePatientAppointment(apt).status === "COMPLETED")
             .sort(
               (a: any, b: any) =>
                 (normalizePatientAppointment(b).dateTime?.getTime() || 0) -
@@ -276,15 +268,15 @@ export default function PatientDashboard() {
   ]);
 
   const getStatusColor = (status: string) => {
-    switch (String(status).toUpperCase()) {
+    switch (normalizeAppointmentStatus(status)) {
       case "CONFIRMED":
         return theme.badges.green;
-      case "PENDING":
       case "SCHEDULED":
-      case "AWAITING_SLOT_CONFIRMATION":
         return theme.badges.yellow;
       case "IN_PROGRESS":
         return theme.badges.blue;
+      case "COMPLETED":
+        return theme.badges.gray;
       case "CANCELLED":
       case "NO_SHOW":
         return theme.badges.red;

@@ -18,6 +18,7 @@ import {
   type PaymentProvider,
 } from "@/lib/payments/providers";
 import { getClinicId } from "@/lib/utils/token-manager";
+import { useMyClinic } from "@/hooks/query/useClinics";
 
 interface PaymentButtonProps {
   invoiceId?: string;
@@ -58,7 +59,25 @@ export function PaymentButton({
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const hasAutoStartedRef = useRef(false);
-  const effectiveProvider: PaymentProvider = provider ?? DEFAULT_PAYMENT_PROVIDER;
+  const { data: clinic } = useMyClinic();
+  const clinicSettings = clinic?.settings as Record<string, any> | undefined;
+  const rawClinicPaymentMethods = clinicSettings?.paymentSettings?.paymentMethods;
+  const clinicPaymentMethods = Array.isArray(rawClinicPaymentMethods)
+    ? rawClinicPaymentMethods
+    : [];
+  const normalizedCandidates = [
+    provider,
+    ...clinicPaymentMethods,
+    DEFAULT_PAYMENT_PROVIDER,
+  ]
+    .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+    .map((value) => value.toLowerCase());
+  const resolvedProviderGuess = normalizedCandidates.find((value) =>
+    isPaymentProviderEnabled(value)
+  );
+  const effectiveProvider: PaymentProvider = isPaymentProviderEnabled(resolvedProviderGuess || "")
+    ? (resolvedProviderGuess as PaymentProvider)
+    : DEFAULT_PAYMENT_PROVIDER;
   const cashfreeMode =
     process.env.NEXT_PUBLIC_CASHFREE_MODE === "production"
       ? "production"
@@ -70,7 +89,7 @@ export function PaymentButton({
 
   const getPaymentIntent = async () => {
     let paymentIntentUrl: string;
-    let body: Record<string, unknown> = {};
+    const body: Record<string, unknown> = {};
     const providerQuery = `?provider=${effectiveProvider}`;
 
     if (subscriptionId) {
@@ -81,7 +100,9 @@ export function PaymentButton({
       paymentIntentUrl =
         API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(appointmentId) +
         providerQuery;
-      body = { appointmentType: appointmentType ?? "VIDEO_CALL" };
+      if (appointmentType) {
+        body.appointmentType = appointmentType;
+      }
     } else if (invoiceId) {
       paymentIntentUrl =
         API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(invoiceId) + providerQuery;
@@ -137,7 +158,10 @@ export function PaymentButton({
     return verifyResponse;
   };
 
-  const handleCashfreePayment = async (paymentIntent: Record<string, unknown>) => {
+  const handleCashfreePayment = async (
+    paymentIntent: Record<string, unknown>,
+    usedProvider: PaymentProvider
+  ) => {
     const metadata = (paymentIntent?.metadata as Record<string, unknown>) || {};
     const orderId =
       (paymentIntent?.orderId as string) ||
@@ -217,7 +241,7 @@ export function PaymentButton({
       } else if (result?.redirect) {
         return;
       } else {
-        await verifyPayment("cashfree", {
+        await verifyPayment(usedProvider, {
           orderId,
           paymentId: orderId,
           clinicId: resolvedClinicId,
@@ -238,7 +262,7 @@ export function PaymentButton({
           return;
         }
 
-        await verifyPayment("cashfree", {
+        await verifyPayment(usedProvider, {
           orderId,
           paymentId: orderId,
           clinicId: resolvedClinicId,
@@ -268,14 +292,20 @@ export function PaymentButton({
     setIsProcessing(true);
     try {
       const paymentIntent = await getPaymentIntent();
-      const usedProvider = String(provider || paymentIntent?.provider || DEFAULT_PAYMENT_PROVIDER).toLowerCase();
+      const providerFromIntent =
+        typeof paymentIntent?.provider === "string"
+          ? paymentIntent.provider.toLowerCase()
+          : undefined;
+      const usedProvider = providerFromIntent && isPaymentProviderEnabled(providerFromIntent)
+        ? (providerFromIntent as PaymentProvider)
+        : effectiveProvider;
       if (!isPaymentProviderEnabled(usedProvider)) {
         throw new Error(`Payment provider '${usedProvider}' is not enabled`);
       }
       if (usedProvider !== "cashfree") {
         throw new Error(`Provider '${usedProvider}' is enabled but SDK handler is not implemented yet`);
       }
-      await handleCashfreePayment(paymentIntent);
+      await handleCashfreePayment(paymentIntent, usedProvider);
     } catch (error) {
       setIsProcessing(false);
       const message =

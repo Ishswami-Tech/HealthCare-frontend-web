@@ -290,7 +290,7 @@ export function useCreateInvoice() {
       if (!result.success) {
         throw new Error(result.error || 'Failed to create invoice');
       }
-      return result.invoice;
+      return result;
     },
     {
       toastId: 'invoice-create',

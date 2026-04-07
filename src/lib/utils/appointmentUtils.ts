@@ -15,6 +15,27 @@ export interface NormalizedPatientAppointment {
 
 export const IST_TIMEZONE = 'Asia/Kolkata';
 
+export function normalizeAppointmentStatus(value: unknown): string {
+  const normalized = String(value || '')
+    .trim()
+    .replace(/[\s-]+/g, '_')
+    .toUpperCase();
+
+  switch (normalized) {
+    case 'PENDING':
+    case 'AWAITING_SLOT_CONFIRMATION':
+    case 'FOLLOW_UP_SCHEDULED':
+    case 'RESCHEDULED':
+      return 'SCHEDULED';
+    case 'ACTIVE':
+      return 'IN_PROGRESS';
+    case 'ENDED':
+      return 'COMPLETED';
+    default:
+      return normalized;
+  }
+}
+
 function normalizeDateInput(value: Date | string): Date | null {
   const parsed = value instanceof Date ? value : new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -148,6 +169,7 @@ export function getAppointmentLocationName(appointment: any): string {
 
 export function normalizePatientAppointment(appointment: any): NormalizedPatientAppointment {
   const dateTime = getAppointmentDateTimeValue(appointment);
+  const normalizedStatus = normalizeAppointmentStatus(appointment?.status);
   const normalizedTime =
     appointment?.time ||
     (dateTime
@@ -161,7 +183,7 @@ export function normalizePatientAppointment(appointment: any): NormalizedPatient
   return {
     id: appointment?.id || '',
     raw: appointment,
-    status: String(appointment?.status || ''),
+    status: normalizedStatus,
     type: appointment?.type || appointment?.appointmentType || 'Consultation',
     dateTime,
     normalizedDate: dateTime ? formatISODateInIST(dateTime) : appointment?.date || '',
@@ -197,7 +219,7 @@ export function calculateAppointmentDuration(startTime: string, endTime: string)
 }
 
 export function getAppointmentStatusDisplayName(status: string): string {
-  const normalizedStatus = status.toUpperCase();
+  const normalizedStatus = normalizeAppointmentStatus(status);
   const statusNames: Record<string, string> = {
     SCHEDULED: 'Scheduled',
     CONFIRMED: 'Confirmed',
@@ -223,8 +245,7 @@ export function getAppointmentStatusColor(status: string): string {
   };
   
   // Handle lowercase variants just in case
-  const normalizedStatus =
-    status.toUpperCase();
+  const normalizedStatus = normalizeAppointmentStatus(status);
   return statusColors[normalizedStatus] || 'bg-muted text-muted-foreground border-border';
 }
 

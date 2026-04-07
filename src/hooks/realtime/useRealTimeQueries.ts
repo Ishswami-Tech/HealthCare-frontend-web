@@ -479,9 +479,9 @@ export function useRealTimeIntegration() {
 
     // Sync appointments store
     const unsubscribeAppointmentSync = webSocketIntegration.subscribe('store:sync:appointments', (data: unknown) => {
-      const { setAppointments } = useAppointmentsStore.getState();
+      const { setScopedAppointments } = useAppointmentsStore.getState();
       const typedData = data as { appointments: Appointment[] };
-      setAppointments(typedData.appointments);
+      setScopedAppointments('realtime:appointments', typedData.appointments as any);
     });
 
     // Sync user data

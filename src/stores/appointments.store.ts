@@ -58,10 +58,16 @@ export interface TimeSlot {
   reason?: string;
 }
 
+export interface AppointmentQueryBucket {
+  ids: string[];
+  lastSyncedAt: string;
+}
+
 export interface AppointmentsState {
   // Data
   appointments: Record<string, StoreAppointment>;
   appointmentIds: string[];
+  queryBuckets: Record<string, AppointmentQueryBucket>;
   
   // UI State
   selectedAppointment: StoreAppointment | null;
@@ -89,6 +95,8 @@ export interface AppointmentsState {
   
   // Actions
   setAppointments: (appointments: StoreAppointment[]) => void;
+  setScopedAppointments: (scopeKey: string, appointments: StoreAppointment[]) => void;
+  clearScopedAppointments: (scopeKey: string) => void;
   addAppointment: (appointment: StoreAppointment) => void;
   updateAppointment: (id: string, updates: Partial<StoreAppointment>) => void;
   removeAppointment: (id: string) => void;
@@ -118,6 +126,7 @@ export interface AppointmentsState {
   getAppointmentsByDate: (date: string) => StoreAppointment[];
   getAppointmentsByDoctor: (doctorId: string) => StoreAppointment[];
   getAppointmentsByPatient: (patientId: string) => StoreAppointment[];
+  getAppointmentsForScope: (scopeKey: string) => StoreAppointment[];
   getFilteredAppointments: () => StoreAppointment[];
   getTodayAppointments: () => StoreAppointment[];
   getUpcomingAppointments: (limit?: number) => StoreAppointment[];
@@ -142,16 +151,17 @@ export interface AppointmentsState {
 
 const initialState: Omit<AppointmentsState, 
   'getAppointmentsByDate' | 'getAppointmentsByDoctor' | 'getAppointmentsByPatient' | 
-  'getFilteredAppointments' | 'getTodayAppointments' | 'getUpcomingAppointments' | 
+  'getAppointmentsForScope' | 'getFilteredAppointments' | 'getTodayAppointments' | 'getUpcomingAppointments' | 
   'syncAppointmentFromServer' | 'markAsCompleted' | 'markAsNoShow' | 'checkInPatient' | 'cancelAppointment' | 
   'rescheduleAppointment' | 'updateLastSync' | 'reset' | 'setAppointments' | 
-  'addAppointment' | 'updateAppointment' | 'removeAppointment' | 'setSelectedAppointment' |
+  'setScopedAppointments' | 'clearScopedAppointments' | 'addAppointment' | 'updateAppointment' | 'removeAppointment' | 'setSelectedAppointment' |
   'setSelectedDate' | 'setCurrentView' | 'setFilters' | 'setStats' | 'setAvailableSlots' |
   'setLoading' | 'setCreating' | 'setUpdating' | 'setDeleting' | 'addPendingUpdate' |
   'applyPendingUpdates' | 'clearPendingUpdates' | 'setError' | 'setValidationError' | 'clearValidationErrors'
 > = {
   appointments: {},
   appointmentIds: [],
+  queryBuckets: {},
   selectedAppointment: null,
   selectedDate: new Date().toISOString().split('T')[0] || '',
   currentView: 'day' as const,
@@ -168,6 +178,19 @@ const initialState: Omit<AppointmentsState,
   validationErrors: {},
 };
 
+function toAppointmentDateTime(appointment?: Partial<StoreAppointment>): number {
+  if (!appointment) return 0;
+  const appointmentDate = appointment.appointmentDate || appointment.date || '';
+  const appointmentTime = appointment.startTime || appointment.time || '';
+  if (!appointmentDate || !appointmentTime) return 0;
+  const parsed = new Date(`${appointmentDate} ${appointmentTime}`);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+}
+
+function sortAppointmentIds(ids: string[], appointments: Record<string, StoreAppointment>) {
+  ids.sort((a, b) => toAppointmentDateTime(appointments[a]) - toAppointmentDateTime(appointments[b]));
+}
+
 export const useAppointmentsStore = create<AppointmentsState>()(
   devtools(
     subscribeWithSelector(
@@ -179,36 +202,64 @@ export const useAppointmentsStore = create<AppointmentsState>()(
           set((state) => {
             state.appointments = {};
             state.appointmentIds = [];
+            state.queryBuckets = {};
             
             appointments.forEach(appointment => {
               state.appointments[appointment.id] = appointment;
               state.appointmentIds.push(appointment.id);
             });
-            
-            state.appointmentIds.sort((a, b) => {
-              const aApt = state.appointments[a];
-              const bApt = state.appointments[b];
-              if (!aApt || !bApt) return 0;
-              const aDate = new Date(`${aApt.appointmentDate || aApt.date || ''} ${aApt.startTime || aApt.time || ''}`);
-              const bDate = new Date(`${bApt.appointmentDate || bApt.date || ''} ${bApt.startTime || bApt.time || ''}`);
-              return aDate.getTime() - bDate.getTime();
+            sortAppointmentIds(state.appointmentIds, state.appointments);
+          }),
+
+        setScopedAppointments: (scopeKey, appointments) =>
+          set((state) => {
+            const ids: string[] = [];
+
+            appointments.forEach((appointment) => {
+              state.appointments[appointment.id] = {
+                ...(state.appointments[appointment.id] || {}),
+                ...appointment,
+              };
+              ids.push(appointment.id);
             });
+
+            const dedupedIds = Array.from(new Set(ids));
+            sortAppointmentIds(dedupedIds, state.appointments);
+
+            state.queryBuckets[scopeKey] = {
+              ids: dedupedIds,
+              lastSyncedAt: new Date().toISOString(),
+            };
+
+            const globalIds = Array.from(
+              new Set(
+                Object.values(state.queryBuckets).flatMap((bucket) => bucket.ids)
+              )
+            );
+            sortAppointmentIds(globalIds, state.appointments);
+            state.appointmentIds = globalIds;
+          }),
+
+        clearScopedAppointments: (scopeKey) =>
+          set((state) => {
+            delete state.queryBuckets[scopeKey];
+
+            const globalIds = Array.from(
+              new Set(
+                Object.values(state.queryBuckets).flatMap((bucket) => bucket.ids)
+              )
+            );
+            sortAppointmentIds(globalIds, state.appointments);
+            state.appointmentIds = globalIds;
           }),
 
         addAppointment: (appointment) =>
           set((state) => {
             state.appointments[appointment.id] = appointment;
-            state.appointmentIds.push(appointment.id);
-            
-            // Re-sort
-            state.appointmentIds.sort((a, b) => {
-              const aApt = state.appointments[a];
-              const bApt = state.appointments[b];
-              if (!aApt || !bApt) return 0;
-              const aDate = new Date(`${aApt.appointmentDate || aApt.date || ''} ${aApt.startTime || aApt.time || ''}`);
-              const bDate = new Date(`${bApt.appointmentDate || bApt.date || ''} ${bApt.startTime || bApt.time || ''}`);
-              return aDate.getTime() - bDate.getTime();
-            });
+            if (!state.appointmentIds.includes(appointment.id)) {
+              state.appointmentIds.push(appointment.id);
+            }
+            sortAppointmentIds(state.appointmentIds, state.appointments);
           }),
 
         updateAppointment: (id, updates) =>
@@ -229,6 +280,9 @@ export const useAppointmentsStore = create<AppointmentsState>()(
           set((state) => {
             delete state.appointments[id];
             state.appointmentIds = state.appointmentIds.filter(appointmentId => appointmentId !== id);
+            Object.values(state.queryBuckets).forEach((bucket) => {
+              bucket.ids = bucket.ids.filter((appointmentId) => appointmentId !== id);
+            });
             
             if (state.selectedAppointment?.id === id) {
               state.selectedAppointment = null;
@@ -357,6 +411,15 @@ export const useAppointmentsStore = create<AppointmentsState>()(
             .filter((appointment): appointment is StoreAppointment => 
               appointment !== undefined && appointment.patientId === patientId
             );
+        },
+
+        getAppointmentsForScope: (scopeKey: string) => {
+          const state = get();
+          const bucket = state.queryBuckets[scopeKey];
+          if (!bucket) return [];
+          return bucket.ids
+            .map((id) => state.appointments[id])
+            .filter((appointment): appointment is StoreAppointment => appointment !== undefined);
         },
 
         getFilteredAppointments: () => {
@@ -514,6 +577,13 @@ export const useAppointmentsStore = create<AppointmentsState>()(
 export const useAppointments = () => useAppointmentsStore(state => 
   state.appointmentIds.map(id => state.appointments[id])
 );
+
+export const useScopedAppointments = (scopeKey: string) =>
+  useAppointmentsStore((state) =>
+    (state.queryBuckets[scopeKey]?.ids || [])
+      .map((id) => state.appointments[id])
+      .filter((appointment): appointment is StoreAppointment => appointment !== undefined)
+  );
 
 export const useSelectedAppointment = () => useAppointmentsStore(state => state.selectedAppointment);
 

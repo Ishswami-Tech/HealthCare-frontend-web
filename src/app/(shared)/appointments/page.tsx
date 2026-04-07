@@ -21,7 +21,7 @@ import {
   useCancelAppointment,
   useAppointmentStats,
 } from "@/hooks/query/useAppointments";
-import { getVideoTokenRole, useJoinVideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { useJoinVideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import {
@@ -35,7 +35,6 @@ import { Pagination } from "@/components/virtual/VirtualizedList";
 import {
   AppointmentProtectedComponent,
   ProtectedComponent,
-  AppointmentRouteProtection,
 } from "@/components/rbac";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
@@ -70,14 +69,6 @@ const APPOINTMENT_STATUS = {
 } as const;
 
 export default function AppointmentsPage() {
-  return (
-    <AppointmentRouteProtection>
-      <AppointmentsPageContent />
-    </AppointmentRouteProtection>
-  );
-}
-
-function AppointmentsPageContent() {
   const { session } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -339,7 +330,7 @@ function AppointmentsPageContent() {
       const result = await joinVideoAppointment.mutateAsync({
         appointmentId,
         userId,
-        role: getVideoTokenRole(userRole),
+        role: (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) ? "doctor" : "patient",
       });
 
       const resultData = result as { token?: { token?: string } | string };

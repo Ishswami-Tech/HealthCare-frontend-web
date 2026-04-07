@@ -276,6 +276,13 @@ export function useCreateVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
   const clinicId = useCurrentClinicId();
+  const { session } = useAuth();
+
+  const currentUserRole = getVideoTokenRole(session?.user?.role);
+  const userInfo = {
+    displayName: session?.user?.name || 'Doctor',
+    email: session?.user?.email || `${currentUserRole}@example.com`,
+  };
 
   return useMutationOperation<{ success: boolean; data: any; token: any }, CreateVideoAppointmentData>(
     async (data: CreateVideoAppointmentData) => {
@@ -288,18 +295,15 @@ export function useCreateVideoAppointment() {
       const tokenResult = await generateVideoToken({
         appointmentId: data.appointmentId,
         userId: data.doctorId,
-        userRole: 'doctor',
-        userInfo: {
-          displayName: 'Doctor',
-          email: 'doctor@example.com',
-        },
+        userRole: currentUserRole,
+        userInfo,
         ...(resolvedClinicId && { clinicId: resolvedClinicId }),
       });
 
       const consultationResult = await startVideoConsultation({
         appointmentId: data.appointmentId,
         userId: data.doctorId,
-        userRole: 'doctor',
+        userRole: currentUserRole,
         ...(resolvedClinicId && { clinicId: resolvedClinicId }),
       });
 
@@ -380,7 +384,8 @@ export function useJoinVideoAppointment() {
       const hasAccess = hasPermission(Permission.JOIN_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
-      const videoRole = getVideoTokenRole(data.role);
+      const roleCandidate = data.role ?? user?.role;
+      const videoRole = getVideoTokenRole(roleCandidate);
 
       // Generate token for joining
       const tokenResult = await generateVideoToken({
@@ -401,10 +406,11 @@ export function useJoinVideoAppointment() {
       successMessage: 'Joining video appointment...',
       onSuccess: (_, variables) => {
         // Send WebSocket event for participant joined
+        const resolvedRole = getVideoTokenRole(variables.role ?? user?.role);
         sendParticipantJoined(variables.appointmentId, {
           userId: variables.userId,
-          displayName: user?.name || getVideoTokenRole(variables.role),
-          role: getVideoTokenRole(variables.role),
+          displayName: user?.name || resolvedRole,
+          role: resolvedRole,
         });
       },
     }

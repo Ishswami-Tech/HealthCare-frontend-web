@@ -542,10 +542,14 @@ export async function getClinicInvoices(): Promise<{
 }
 
 export async function createInvoice(data: CreateInvoiceData): Promise<{
-  success: boolean;
-  invoice?: Invoice;
-  error?: string;
-}> {
+    success: boolean;
+    invoice?: Invoice;
+    error?: string;
+    enqueued?: boolean;
+    jobId?: string;
+    message?: string;
+    raw?: unknown;
+  }> {
   try {
     const validated = createInvoiceSchema.parse(data);
     const { data: response } = await authenticatedApi(API_ENDPOINTS.BILLING.INVOICES.CREATE, {
@@ -555,6 +559,29 @@ export async function createInvoice(data: CreateInvoiceData): Promise<{
     if (!response || typeof response !== 'object') {
       return { success: false, error: 'Invalid invoice response' };
     }
+
+    const normalizedResponse = response as Record<string, unknown>;
+    const statusValue = typeof normalizedResponse.status === 'string' ? normalizedResponse.status.toLowerCase() : undefined;
+    const hasInvoiceNumber =
+      typeof normalizedResponse.invoiceNumber === 'string' && normalizedResponse.invoiceNumber.trim().length > 0;
+    const isEnqueued =
+      statusValue === 'enqueued' ||
+      (typeof normalizedResponse.jobId === 'string' && !hasInvoiceNumber);
+    if (isEnqueued) {
+      const jobId =
+        typeof normalizedResponse.jobId === 'string' ? normalizedResponse.jobId : undefined;
+      return {
+        success: true,
+        enqueued: true,
+        ...(jobId ? { jobId } : {}),
+        message:
+          typeof normalizedResponse.message === 'string'
+            ? normalizedResponse.message
+            : 'Invoice generation has been enqueued',
+        raw: normalizedResponse,
+      };
+    }
+
     return { success: true, invoice: normalizeInvoice(response as RawInvoice) };
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -600,6 +627,7 @@ export async function generateInvoicePDF(id: string): Promise<{
   success: boolean;
   pdfUrl?: string;
   message?: string;
+  data?: unknown;
   error?: string;
 }> {
   try {
@@ -610,6 +638,7 @@ export async function generateInvoicePDF(id: string): Promise<{
     const pdfUrl = pdfData?.url || pdfData?.pdfUrl;
     return {
       success: true,
+      data,
       ...(pdfUrl ? { pdfUrl } : {}),
       ...(pdfData?.message ? { message: pdfData.message } : {}),
     };

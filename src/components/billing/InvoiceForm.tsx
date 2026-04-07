@@ -58,7 +58,9 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
     };
 
     const created = await createInvoice.mutateAsync(payload);
-    if (created && onSuccess) onSuccess(created);
+    if (created?.invoice && onSuccess) {
+      onSuccess(created.invoice);
+    }
   };
 
   return (
