@@ -25,7 +25,7 @@ import {
   Settings2,
   Zap
 } from "lucide-react";
-import { updateUserRole, updateUser } from "@/lib/actions/users.server";
+import { useUpdateUser, useUpdateUserRole } from "@/hooks/query";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
@@ -146,6 +146,8 @@ export function AssignRoleModal({
   const [selectedPermissions, setSelectedPermissions] = useState<Permission[]>([]);
   const [permissionSearch, setPermissionSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const updateUserRoleMutation = useUpdateUserRole();
+  const updateUserMutation = useUpdateUser();
 
   // Initialize permissions
   useEffect(() => {
@@ -224,16 +226,29 @@ export function AssignRoleModal({
 
       if (selectedRole !== (staffMember.role as Role) || 
           JSON.stringify(currentPermissions) !== JSON.stringify(originalPermissions)) {
-        await updateUserRole(staffMember.id, selectedRole, {
-          ...(clinicId && { clinicId }),
+        const updatePayload: {
+          userId: string;
+          role: Role;
+          clinicId?: string;
+          permissions: Permission[];
+        } = {
+          userId: staffMember.id,
+          role: selectedRole,
           permissions: selectedPermissions,
-        });
+        };
+        if (clinicId) {
+          updatePayload.clinicId = clinicId;
+        }
+        await updateUserRoleMutation.mutateAsync(updatePayload);
         updated = true;
       }
       
       const wasActive = staffMember.status !== "Inactive";
       if (isActive !== wasActive) {
-        await updateUser(staffMember.id, { isActive });
+        await updateUserMutation.mutateAsync({
+          id: staffMember.id,
+          data: { isActive },
+        });
         updated = true;
       }
 

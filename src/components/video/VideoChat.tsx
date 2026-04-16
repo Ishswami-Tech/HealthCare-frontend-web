@@ -14,13 +14,13 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
-  sendChatMessage,
-  getChatMessages,
-  updateTypingIndicator,
+  useSendVideoChatMessage,
+  useUpdateVideoTypingIndicator,
+  useVideoChatMessages,
   type ChatMessage,
-} from "@/lib/actions/video.server";
+} from "@/hooks/query";
 import { formatTimeInIST } from "@/lib/utils/appointmentUtils";
-import { useToast } from "@/hooks/utils/use-toast";
+import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 interface VideoChatProps {
   appointmentId: string;
@@ -29,36 +29,26 @@ interface VideoChatProps {
 
 export function VideoChat({ appointmentId, className }: VideoChatProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const {
+    data: chatMessages = [],
+    isPending: isLoading,
+  } = useVideoChatMessages(appointmentId);
+  const sendChatMessageMutation = useSendVideoChatMessage();
+  const typingIndicatorMutation = useUpdateVideoTypingIndicator();
 
   const { subscribeToChatMessages, sendChatMessage: sendChatMessageWS, isConnected } =
     useVideoAppointmentWebSocket();
 
-  // Load initial messages
   useEffect(() => {
-    const loadMessages = async () => {
-      try {
-        const result = await getChatMessages(appointmentId, { limit: 50 });
-        if (result && result.messages) {
-          setMessages(result.messages);
-        }
-      } catch (error) {
-        // Error handled by React Query
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadMessages();
-  }, [appointmentId]);
+    setMessages(chatMessages);
+  }, [chatMessages]);
 
   // Subscribe to real-time chat messages
   useEffect(() => {
@@ -90,7 +80,10 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
   const handleTyping = () => {
     if (!isTyping) {
       setIsTyping(true);
-      updateTypingIndicator(appointmentId, true).catch(console.error);
+      void typingIndicatorMutation.mutateAsync({
+        appointmentId,
+        isTyping: true,
+      });
     }
 
     // Clear existing timeout
@@ -101,8 +94,9 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
     // Set timeout to stop typing indicator
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      updateTypingIndicator(appointmentId, false).catch(() => {
-        // Silently handle typing indicator errors
+      void typingIndicatorMutation.mutateAsync({
+        appointmentId,
+        isTyping: false,
       });
     }, 3000);
   };
@@ -116,25 +110,22 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
       sendChatMessageWS(appointmentId, newMessage.trim());
 
       // Also send via API for persistence
-      const result = await sendChatMessage(appointmentId, {
+      const result = await sendChatMessageMutation.mutateAsync({
+        appointmentId,
         message: newMessage.trim(),
-        messageType: 'TEXT',
       });
 
       if (result) {
         setNewMessage("");
         setIsTyping(false);
-        updateTypingIndicator(appointmentId, false).catch(() => {
-        // Silently handle typing indicator errors
-      });
+        void typingIndicatorMutation.mutateAsync({
+          appointmentId,
+          isTyping: false,
+        });
         inputRef.current?.focus();
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      });
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 
@@ -252,18 +243,18 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSendMessage();
+                  void handleSendMessage();
                 }
               }}
               placeholder="Type a message..."
               className="flex-1"
-              disabled={!isConnected}
+              disabled={!isConnected || sendChatMessageMutation.isPending}
             />
             <Button
-              onClick={handleSendMessage}
+              onClick={() => void handleSendMessage()}
               size="icon"
               className="h-9 w-9"
-              disabled={!newMessage.trim() || !isConnected}
+              disabled={!newMessage.trim() || !isConnected || sendChatMessageMutation.isPending}
             >
               <Send className="h-4 w-4" />
             </Button>

@@ -35,11 +35,13 @@ export const usePatients = (clinicId: string, filters?: {
   isActive?: boolean;
   limit?: number;
   offset?: number;
+}, options?: {
+  enabled?: boolean;
 }) => {
   return useQueryData(['patients', clinicId, filters], async () => {
     return await getPatients(clinicId, filters);
   }, {
-    enabled: !!clinicId,
+    enabled: !!clinicId && (options?.enabled ?? true),
   });
 };
 

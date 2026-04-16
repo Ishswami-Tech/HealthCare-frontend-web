@@ -84,6 +84,13 @@ export default function VideoAppointmentsPage() {
   const userId = session?.user?.id || "";
   const userRole = (session?.user?.role as Role) ?? "";
   const queryClient = useQueryClient();
+  const invalidateAppointmentLists = React.useCallback(() => {
+    if (userRole === Role.PATIENT) {
+      queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+    }
+  }, [queryClient, userRole]);
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -387,8 +394,7 @@ export default function VideoAppointmentsPage() {
                   appointmentType="VIDEO_CALL"
                   description="Video consultation"
                   onSuccess={() => {
-                    queryClient.invalidateQueries({ queryKey: ["appointments"] });
-                    queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+                    invalidateAppointmentLists();
                     refetch();
                   }}
                   className="gap-2"
@@ -597,21 +603,25 @@ export default function VideoAppointmentsPage() {
                               .join(", ")}
                           </p>
                         </div>
-                        {paymentAmount > 0 && (
+                        {paymentAmount > 0 && !isVideoAppointmentPaymentCompleted(apt) ? (
                           <PaymentButton
                             appointmentId={apt.id}
                             amount={paymentAmount}
                             appointmentType="VIDEO_CALL"
                             description="Video consultation"
                             onSuccess={() => {
-                              queryClient.invalidateQueries({ queryKey: ["appointments"] });
-                              queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+                              invalidateAppointmentLists();
                               refetch();
                             }}
                             className="gap-2"
                           >
                             Pay INR {paymentAmount.toLocaleString("en-IN")}
                           </PaymentButton>
+                        ) : (
+                          <Button variant="outline" className="gap-2 border-amber-200 bg-amber-50 text-amber-700 pointer-events-none" disabled>
+                            <Clock className="w-4 h-4" />
+                            Awaiting Doctor Confirmation
+                          </Button>
                         )}
                       </div>
                     </CardContent>

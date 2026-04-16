@@ -15,8 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Lock, Download, RefreshCw, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
-import { changePassword } from "@/lib/actions/auth.server";
+import { useAuth } from "@/hooks/auth/useAuth";
 
 // ============================================================================
 // PASSWORD CHANGE MODAL
@@ -33,8 +32,8 @@ export function PasswordChangeModal({
   open: controlledOpen,
   onOpenChange,
 }: PasswordChangeModalProps) {
+  const { changePasswordAsync, isChangingPassword } = useAuth();
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -60,21 +59,15 @@ export function PasswordChangeModal({
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      await changePassword({
+      await changePasswordAsync({
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
       });
-
-      toast.success("Password changed successfully");
       handleOpenChange(false);
       setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to change password. Please try again.");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -111,6 +104,7 @@ export function PasswordChangeModal({
                   setFormData({ ...formData, currentPassword: e.target.value })
                 }
                 required
+                disabled={isChangingPassword}
               />
             </div>
 
@@ -125,6 +119,7 @@ export function PasswordChangeModal({
                 }
                 required
                 minLength={8}
+                disabled={isChangingPassword}
               />
               <p className="text-xs text-muted-foreground">
                 Minimum 8 characters
@@ -141,6 +136,7 @@ export function PasswordChangeModal({
                   setFormData({ ...formData, confirmPassword: e.target.value })
                 }
                 required
+                disabled={isChangingPassword}
               />
             </div>
           </div>
@@ -150,11 +146,12 @@ export function PasswordChangeModal({
               type="button"
               variant="outline"
               onClick={() => handleOpenChange(false)}
+              disabled={isChangingPassword}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Changing..." : "Change Password"}
+            <Button type="submit" disabled={isChangingPassword}>
+              {isChangingPassword ? "Changing..." : "Change Password"}
             </Button>
           </DialogFooter>
         </form>

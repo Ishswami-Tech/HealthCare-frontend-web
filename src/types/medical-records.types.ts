@@ -239,6 +239,69 @@ export interface PatientVitals {
   recordedAt?: string;
 }
 
+export interface PatientMedicalHistoryEntry {
+  id: string;
+  type: string;
+  status: string;
+  date: string;
+  doctor: string;
+  diagnosis?: string;
+  treatment?: string;
+  notes?: string;
+}
+
+export interface PatientPrescriptionEntry {
+  id: string;
+  date: string;
+  doctor: string;
+  status: string;
+  instructions?: string;
+  medications: Array<{
+    name: string;
+    dosage: string;
+    duration: string;
+  }>;
+}
+
+export interface PatientLabReportEntry {
+  id: string;
+  testName: string;
+  date: string;
+  doctor: string;
+  status: string;
+  results: Array<{
+    parameter: string;
+    value: string;
+    normalRange?: string;
+    status: string;
+  }>;
+}
+
+export interface PatientVitalEntry {
+  date: string;
+  bp: string;
+  hr: string;
+  weight: string;
+  bmi: string | number;
+}
+
+export interface PatientAllergyEntry {
+  id?: string;
+  allergen: string;
+  severity: string;
+  reaction?: string;
+  onsetDate?: string;
+  diagnosedDate?: string;
+  status?: string;
+}
+
+export interface ComprehensiveHealthRecord {
+  medicalHistory: PatientMedicalHistoryEntry[];
+  prescriptions: PatientPrescriptionEntry[];
+  labReports: PatientLabReportEntry[];
+  vitals: PatientVitalEntry[];
+}
+
 export interface Prescription {
   id?: string;
   doctorId?: string;

@@ -903,13 +903,14 @@ export async function proposeVideoAppointment(data: any) {
     const validatedData = proposeVideoSlotsSchema.parse(data);
     const { data: appointment } = await authenticatedApi<Appointment>(API_ENDPOINTS.APPOINTMENTS.VIDEO_PROPOSE, {
       method: 'POST',
-      body: JSON.stringify(validatedData)
+      body: JSON.stringify(validatedData),
+      ...(validatedData.clinicId ? { headers: { 'X-Clinic-ID': validatedData.clinicId } } : {}),
     });
     revalidateCache('appointments');
     return { success: true, appointment };
   } catch (error) {
     logger.error('Failed to propose video appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to propose video appointment' };
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to propose video appointment' };
   }
 }
 

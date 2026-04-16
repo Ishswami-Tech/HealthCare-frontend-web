@@ -113,6 +113,28 @@ export interface ClinicSettings {
   };
 }
 
+export type ClinicOperatingDayKey =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+export interface ClinicOperatingSession {
+  start: string;
+  end: string;
+}
+
+export interface ClinicDoctorConsultationControl {
+  isPaused: boolean;
+  pauseReason: string;
+  generalConsultationEnabled: boolean;
+  videoConsultationEnabled: boolean;
+  emergencyOnly: boolean;
+}
+
 // DTOs for API calls
 export interface CreateClinicData {
   name: string;

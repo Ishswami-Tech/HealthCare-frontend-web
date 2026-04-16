@@ -23,7 +23,7 @@ import {
   CardFooter 
 } from "@/components/ui/card";
 
-import { useToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
@@ -35,8 +35,6 @@ import {
   useRescheduleAppointment,
   useRejectVideoProposal,
 } from "@/hooks/query/useAppointments";
-import { useQueryClient } from "@/hooks/core";
-import { useAppointmentsStore } from "@/stores";
 import {
   AppointmentWithRelations,
 } from "@/types/appointment.types";
@@ -45,6 +43,7 @@ import { cn } from "@/lib/utils";
 import {
   formatDateInIST,
   getAppointmentDateTimeValue,
+  getDisplayAppointmentDuration,
   isVideoAppointmentPaymentCompleted,
   normalizeAppointmentStatus,
   normalizePatientAppointment,
@@ -85,6 +84,7 @@ interface AppointmentManagerProps {
   clinicId?: string;
   patientId?: string;
   hideBookButton?: boolean;
+  autoOpenBookDialog?: boolean;
 }
 
 export default function AppointmentManager({ 
@@ -94,12 +94,11 @@ export default function AppointmentManager({
   clinicId: propClinicId,
   patientId: propPatientId,
   hideBookButton = false,
+  autoOpenBookDialog = false,
 }: AppointmentManagerProps = {}) {
-  const { toast } = useToast();
   const { session } = useAuth();
   const user = session?.user;
   const hasShownRealtimeToastRef = useRef(false);
-  const queryClient = useQueryClient();
 
   // Real-time WebSocket integration
   const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
@@ -115,9 +114,6 @@ export default function AppointmentManager({
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
-  const lastSyncedAppointmentsRef = useRef("");
-  const setAppointmentsInStore = useAppointmentsStore((state) => state.setAppointments);
-  const setScopedAppointmentsInStore = useAppointmentsStore((state) => state.setScopedAppointments);
 
   // ─── Data Fetching ────────────────────────────────────────────────────────
   
@@ -143,13 +139,6 @@ export default function AppointmentManager({
 
   const adminAppointments = useAppointments(adminFilters);
   const myPersonalAppointments = useMyAppointments(personalFilters);
-  const personalScopeKey = useMemo(() => {
-    if (isAdminView || !user?.id) return null;
-    return `myAppointments:${user.id}:${JSON.stringify(personalFilters || {})}`;
-  }, [isAdminView, user?.id, personalFilters]);
-  const scopedStoreAppointments = useAppointmentsStore((state) =>
-    personalScopeKey ? (state.queryBuckets[personalScopeKey]?.ids || []).map((id) => state.appointments[id]).filter(Boolean) as AppointmentWithRelations[] : []
-  );
 
   const { mutate: cancelAppointment, isPending: cancellingAppointment } = useCancelAppointment();
   const { mutate: rescheduleAppointment, isPending: reschedulingAppointment } = useRescheduleAppointment();
@@ -160,7 +149,6 @@ export default function AppointmentManager({
   const isAppointmentsLoading = isAdminView ? adminAppointments.isPending : myPersonalAppointments.isPending;
   const refetch = isAdminView ? adminAppointments.refetch : myPersonalAppointments.refetch;
   const rawData = isAdminView ? adminAppointments.data : myPersonalAppointments.data;
-  const hasResolvedQueryData = rawData !== undefined;
 
   const fetchedAppointments = useMemo((): AppointmentWithRelations[] => {
     let list: AppointmentWithRelations[] = [];
@@ -171,34 +159,10 @@ export default function AppointmentManager({
     return list;
   }, [rawData]);
 
-  useEffect(() => {
-    const syncKey = fetchedAppointments
-      .map((appointment) => `${appointment.id}:${appointment.updatedAt}:${appointment.status}`)
-      .join("|");
-
-    if (fetchedAppointments.length > 0 && syncKey !== lastSyncedAppointmentsRef.current) {
-      lastSyncedAppointmentsRef.current = syncKey;
-      if (isAdminView) {
-        setAppointmentsInStore(fetchedAppointments as any);
-      } else if (personalScopeKey) {
-        setScopedAppointmentsInStore(personalScopeKey, fetchedAppointments as any);
-      }
-    }
-  }, [fetchedAppointments, setAppointmentsInStore, setScopedAppointmentsInStore, isAdminView, personalScopeKey]);
-
-  const allAppointments = hasResolvedQueryData
-    ? fetchedAppointments
-    : isAdminView
-      ? []
-      : scopedStoreAppointments;
+  const allAppointments = fetchedAppointments;
   const patientScopedAppointments = useMemo(() => {
     // Admin views already fetch filtered by clinic/patient — don't re-filter.
     if (isAdminView) return allAppointments;
-
-    // Personal views already use /appointments/my-appointments.
-    // Re-filtering here can hide valid records when the API returns a patient entity id
-    // instead of the current auth user id on nested relations.
-    if (hasResolvedQueryData) return allAppointments;
 
     const currentUserId = user?.id;
     // If no user id yet (loading), return all appointments rather than empty
@@ -220,7 +184,7 @@ export default function AppointmentManager({
       // Include the appointment if any candidate matches the current user
       return candidateIds.includes(currentUserId) || candidateIds.length === 0;
     });
-  }, [allAppointments, user?.id, isAdminView, hasResolvedQueryData]);
+  }, [allAppointments, user?.id, isAdminView]);
 
   const normalizedAppointments = useMemo(() => {
     return patientScopedAppointments
@@ -344,19 +308,19 @@ export default function AppointmentManager({
 
   const handleCancelAppointment = useCallback((id: string) => {
     cancelAppointment({ id, reason: "Cancelled by patient during testing" }, {
-      onSuccess: () => toast({ title: "Appointment Cancelled", description: "Your appointment has been cancelled.", id: TOAST_IDS.APPOINTMENT.DELETE }),
-      onError: (error: Error) => toast({ title: "Error", description: sanitizeErrorMessage(error) || "Failed to cancel", variant: "destructive", id: TOAST_IDS.APPOINTMENT.DELETE }),
+      onSuccess: () => showSuccessToast("Appointment cancelled", { id: TOAST_IDS.APPOINTMENT.DELETE, description: "Your appointment has been cancelled." }),
+      onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to cancel", { id: TOAST_IDS.APPOINTMENT.DELETE }),
     });
-  }, [cancelAppointment, toast]);
+  }, [cancelAppointment]);
 
   const handleRescheduleSubmit = () => {
     if (!selectedAppointment) return;
     rescheduleAppointment({ id: selectedAppointment.id, data: { date: rescheduleData.date, time: rescheduleData.time } }, {
       onSuccess: () => {
-        toast({ title: "Rescheduled", description: "Your appointment has been rescheduled." });
+        showSuccessToast("Appointment rescheduled", { id: TOAST_IDS.APPOINTMENT.UPDATE, description: "Your appointment has been rescheduled." });
         setIsRescheduleDialogOpen(false);
       },
-      onError: (error: Error) => toast({ title: "Error", description: sanitizeErrorMessage(error) || "Failed to reschedule", variant: "destructive" }),
+      onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to reschedule", { id: TOAST_IDS.APPOINTMENT.UPDATE }),
     });
   };
 
@@ -364,25 +328,25 @@ export default function AppointmentManager({
     if (!selectedAppointment) return;
     rejectVideoProposal({ id: selectedAppointment.id, reason: rejectReason }, {
       onSuccess: () => {
-        toast({ title: "Proposal Rejected" });
+        showSuccessToast("Proposal rejected", { id: TOAST_IDS.APPOINTMENT.UPDATE });
         setIsRejectDialogOpen(false);
         setRejectReason("");
         setSelectedAppointment(null);
       },
-      onError: (error: Error) => toast({ title: "Error", description: sanitizeErrorMessage(error) || "Failed to reject", variant: "destructive" }),
+      onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to reject", { id: TOAST_IDS.APPOINTMENT.UPDATE }),
     });
   };
 
   useEffect(() => {
     if (isRealTimeEnabled && isConnected && !hasShownRealtimeToastRef.current) {
       hasShownRealtimeToastRef.current = true;
-      toast({ title: "Live Updates Active", description: "Appointments update in real-time", duration: 2000 });
+      showInfoToast("Live updates active", { id: TOAST_IDS.GLOBAL.INFO, description: "Appointments update in real-time", duration: 2000 });
     }
 
     if (!isConnected) {
       hasShownRealtimeToastRef.current = false;
     }
-  }, [isRealTimeEnabled, isConnected, toast]);
+  }, [isRealTimeEnabled, isConnected]);
 
   const StatCard = ({
     label,
@@ -434,6 +398,7 @@ export default function AppointmentManager({
           ).padStart(2, "0")}`
         : undefined);
     const normalizedDate = appointmentDateTime?.toISOString() || apt.date;
+    const displayDuration = getDisplayAppointmentDuration(apt);
 
     const isCancelled = apt.status === "CANCELLED" || apt.status === "NO_SHOW";
     return (
@@ -499,10 +464,10 @@ export default function AppointmentManager({
               <Clock className="w-3.5 h-3.5" />
               {formatTime(displayTime)}
             </span>
-            {apt.duration && (
+            {displayDuration && (
               <span className="flex items-center gap-1.5">
                 <Timer className="w-3.5 h-3.5" />
-                {apt.duration} min
+                {displayDuration} min
               </span>
             )}
           </div>
@@ -582,7 +547,7 @@ export default function AppointmentManager({
                   </Button>
                 )}
                 {apt.type === "VIDEO_CALL" &&
-                  apt.status === "CONFIRMED" &&
+                  ["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes((apt as any).raw?.status) &&
                   isVideoAppointmentPaymentCompleted(apt) && (
                   <Button
                     className="h-10 px-6 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
@@ -599,10 +564,9 @@ export default function AppointmentManager({
                     amount={apt.invoice?.amount || 500}
                     className="h-10 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
                     onSuccess={() => {
-                      if (apt.status === "CONFIRMED") {
+                      if (["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes((apt as any).raw?.status)) {
                         window.location.href = `/patient/video?appointmentId=${apt.id}`;
                       } else {
-                         // Stay on page and wait for status update or redirect to video appointments list
                          window.location.reload();
                       }
                     }}
@@ -613,14 +577,14 @@ export default function AppointmentManager({
                 )}
                 {apt.type === "VIDEO_CALL" &&
                   isVideoAppointmentPaymentCompleted(apt) &&
-                  apt.status !== "CONFIRMED" && (
+                  (apt as any).raw?.status === "AWAITING_SLOT_CONFIRMATION" && (
                     <Button
                       variant="outline"
-                      className="h-10 px-6 rounded-lg border-border/50 bg-background/50 text-sm hover:bg-accent/50 transition-all active:scale-95 flex-1"
-                      onClick={() => (window.location.href = "/video-appointments")}
+                      className="h-10 px-6 rounded-lg border-amber-200 bg-amber-50 text-amber-700 text-sm pointer-events-none flex-1"
+                      disabled
                     >
-                      <Video className="w-4 h-4 mr-2" />
-                      Manage Video Appointment
+                      <Clock className="w-4 h-4 mr-2" />
+                      Awaiting Doctor Confirmation
                     </Button>
                   )}
               </div>
@@ -644,7 +608,7 @@ export default function AppointmentManager({
   }
 
   return (
-    <Card className="max-w-6xl mx-auto border border-emerald-100 bg-emerald-50/10 shadow-sm rounded-3xl overflow-hidden">
+    <Card className="max-w-6xl mx-auto bg-white rounded-xl border border-border sm:rounded-2xl shadow-sm overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-bold flex items-center gap-2">
@@ -663,6 +627,10 @@ export default function AppointmentManager({
 
             {!hideBookButton && (
               <BookAppointmentDialog 
+                defaultOpen={autoOpenBookDialog}
+                {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
+                {...(propClinicId ? { clinicId: propClinicId } : {})}
+                {...(propPatientId ? { initialPatientId: propPatientId } : {})}
                 trigger={
                   <Button
                     variant="outline"
@@ -691,7 +659,7 @@ export default function AppointmentManager({
       <CardContent className="space-y-6">
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
           <StatCard
             label="Total"
             value={stats.total}
@@ -747,7 +715,7 @@ export default function AppointmentManager({
           />
         </div>
 
-        <div className="bg-white border border-border/60 p-1.5 h-14 rounded-2xl w-fit flex gap-1.5 overflow-x-auto scrollbar-hide shadow-sm">
+        <div className="bg-white border border-border/60 p-1 sm:p-1.5 h-12 sm:h-14 rounded-xl sm:rounded-2xl max-w-full flex gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide shadow-sm">
           {(["ALL", "SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as StatusFilter[]).map(s => {
             const isActive = statusFilter === s;
             const labelMap: Record<string, string> = {
@@ -764,7 +732,7 @@ export default function AppointmentManager({
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={cn(
-                  "rounded-xl px-6 h-full font-semibold text-sm transition-all whitespace-nowrap",
+                  "rounded-lg sm:rounded-xl px-3 sm:px-6 h-full font-semibold text-[11px] sm:text-sm transition-all whitespace-nowrap",
                   isActive
                     ? "bg-emerald-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
@@ -864,6 +832,10 @@ export default function AppointmentManager({
           </p>
           {allAppointments.length === 0 && (
             <BookAppointmentDialog
+              defaultOpen={autoOpenBookDialog}
+              {...(defaultConsultationMode ? { initialConsultationMode: defaultConsultationMode } : {})}
+              {...(propClinicId ? { clinicId: propClinicId } : {})}
+              {...(propPatientId ? { initialPatientId: propPatientId } : {})}
               trigger={
                 <Button className="mt-4 gap-2">
                   <CalendarPlus className="w-4 h-4" />

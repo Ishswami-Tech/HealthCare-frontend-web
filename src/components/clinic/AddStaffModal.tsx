@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Role } from "@/types/auth.types";
-import { 
+import {
   Loader2, 
   UserPlus, 
   Mail, 
@@ -46,8 +46,8 @@ import {
   Briefcase,
   CalendarIcon
 } from "lucide-react";
-import { createUser } from "@/lib/actions/users.server";
 import { useCurrentClinic } from "@/hooks/query/useClinics";
+import { useCreateUser } from "@/hooks/query";
 import { showSuccessToast, showErrorToast } from "@/hooks/utils/use-toast";
 import { cn, clean } from "@/lib/utils";
 import { format } from "date-fns";
@@ -91,6 +91,7 @@ const STAFF_ROLES = [
 export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalProps) {
   const { data: currentClinic } = useCurrentClinic();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const createUserMutation = useCreateUser();
 
   const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffSchema),
@@ -123,7 +124,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
         dateOfBirth: values.dateOfBirth ? format(values.dateOfBirth, "yyyy-MM-dd") : undefined,
       });
 
-      await createUser(payload as any);
+      await createUserMutation.mutateAsync(payload as any);
       showSuccessToast("Staff member added successfully");
       form.reset();
       onOpenChange(false);

@@ -28,6 +28,7 @@ import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { getDisplayAppointmentDuration } from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
   Play,
@@ -116,35 +117,39 @@ export default function DoctorAppointments() {
     if (!appointmentsData) return [];
     const apps = Array.isArray(appointmentsData) ? appointmentsData : appointmentsData.appointments || [];
 
-    return apps.map((app: any): TransformedAppointment => ({
-      id: app.id,
-      appointmentId: app.id,
-      patientId: app.patientId || app.patient?.id || app.patient?.userId || "",
-      doctorId: app.doctorId || app.doctor?.id || app.doctor?.userId || "",
-      patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
-      patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
-      patientGender: app.patient?.gender || "Unknown",
-      time: app.startTime ? new Date(app.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "TBD",
-      status: (app.status || "SCHEDULED") as AppointmentStatus,
-      type: app.type || app.appointmentType || "Consultation",
-      duration: typeof app.duration === 'number' ? `${app.duration} min` : (app.duration as string || "30 min"),
-      appointmentDate: app.startTime
-        ? new Date(app.startTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
-        : new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
-      patientPhone: app.patient?.phone || "",
-      patientEmail: app.patient?.email || "",
-      chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
-      medicalHistory: app.patient?.medicalHistory || [],
-      allergies: app.patient?.allergies || [],
-      currentMedications: app.patient?.currentMedications || [],
-      vitalSigns: app.vitalSigns || null,
-      checkedInAt: app.checkedInAt ? new Date(app.checkedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
-      queuePosition: app.queuePosition || null,
-    }));
+    return apps.map((app: any): TransformedAppointment => {
+      const displayDuration = getDisplayAppointmentDuration(app);
+
+      return {
+        id: app.id,
+        appointmentId: app.id,
+        patientId: app.patientId || app.patient?.id || app.patient?.userId || "",
+        doctorId: app.doctorId || app.doctor?.id || app.doctor?.userId || "",
+        patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
+        patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
+        patientGender: app.patient?.gender || "Unknown",
+        time: app.startTime ? new Date(app.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "TBD",
+        status: (app.status || "SCHEDULED") as AppointmentStatus,
+        type: app.type || app.appointmentType || "Consultation",
+        duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
+        appointmentDate: app.startTime
+          ? new Date(app.startTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+          : new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
+        patientPhone: app.patient?.phone || "",
+        patientEmail: app.patient?.email || "",
+        chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
+        medicalHistory: app.patient?.medicalHistory || [],
+        allergies: app.patient?.allergies || [],
+        currentMedications: app.patient?.currentMedications || [],
+        vitalSigns: app.vitalSigns || null,
+        checkedInAt: app.checkedInAt ? new Date(app.checkedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
+        queuePosition: app.queuePosition || null,
+      };
+    });
   }, [appointmentsData]);
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((app) => {
+    return appointments.filter((app: TransformedAppointment) => {
       const matchesSearch =
         !searchTerm ||
         app.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -248,7 +253,7 @@ export default function DoctorAppointments() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {appointments.filter(a => a.status === APPOINTMENT_STATUS.CONFIRMED).length}
+                  {appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.CONFIRMED).length}
                 </div>
               </CardContent>
             </Card>
@@ -260,7 +265,7 @@ export default function DoctorAppointments() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {appointments.filter(a => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length}
+                  {appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length}
                 </div>
               </CardContent>
             </Card>
@@ -272,7 +277,7 @@ export default function DoctorAppointments() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-gray-600">
-                  {appointments.filter(a => a.status === APPOINTMENT_STATUS.SCHEDULED || a.status === APPOINTMENT_STATUS.CONFIRMED).length}
+                  {appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.SCHEDULED || a.status === APPOINTMENT_STATUS.CONFIRMED).length}
                 </div>
               </CardContent>
             </Card>
@@ -324,7 +329,7 @@ export default function DoctorAppointments() {
 
           {/* Appointments List */}
           <div className="grid gap-4">
-            {filteredAppointments.map((appointment) => (
+            {filteredAppointments.map((appointment: TransformedAppointment) => (
               <Card key={appointment.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">

@@ -198,7 +198,13 @@ const DoctorProfile = () => {
                     <Phone className="w-4 h-4 mr-2" />
                     Call Now
                   </Button>
-                  <Button variant="outline" className="w-full">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      window.location.href = "/patient/appointments";
+                    }}
+                  >
                     <Calendar className="w-4 h-4 mr-2" />
                     Book Appointment
                   </Button>

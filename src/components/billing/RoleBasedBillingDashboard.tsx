@@ -26,10 +26,12 @@ import {
   useCreateBillingPlan,
   useReconcilePayment,
   useReleaseAppointmentPayout,
+  useGenerateInvoicePDF,
   useSendInvoiceViaWhatsApp,
 } from "@/hooks/query/useBilling";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PaymentButton } from "@/components/payments";
+import { showInfoToast } from "@/hooks/utils/use-toast";
 
 interface RoleBasedBillingDashboardProps {
   initialTab?: string;
@@ -114,6 +116,7 @@ export function RoleBasedBillingDashboard({
   const createSubscriptionMutation = useCreateSubscription();
   const createPlanMutation = useCreateBillingPlan();
   const sendInvoiceWhatsAppMutation = useSendInvoiceViaWhatsApp();
+  const generateInvoicePDFMutation = useGenerateInvoicePDF();
 
   const activeSubscription = subscriptions.find(
     (s) => s.status === "ACTIVE" || s.status === "TRIALING"
@@ -267,6 +270,27 @@ export function RoleBasedBillingDashboard({
     : !activeSubscription
     ? "Select a plan to unlock in-person appointments"
     : "Manage your billing, subscriptions, and history";
+
+  const handleGenerateInvoicePDF = async (invoice: Invoice) => {
+    try {
+      const result = await generateInvoicePDFMutation.mutateAsync(invoice.id);
+
+      if (!result.success) {
+        return;
+      }
+
+      if (result.pdfUrl) {
+        window.open(`/api/billing/invoices/${invoice.id}/download`, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      showInfoToast(
+        result.message || "Invoice PDF generation has been queued. Refresh in a moment to fetch the file."
+      );
+    } catch {
+      // Error toast is already handled by the mutation wrapper.
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -529,7 +553,14 @@ export function RoleBasedBillingDashboard({
                           {invoice.status}
                         </Badge>
                       </div>
-                      <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100 transition-colors">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-xl hover:bg-slate-100 transition-colors"
+                        title="Generate invoice PDF"
+                        disabled={generateInvoicePDFMutation.isPending}
+                        onClick={() => void handleGenerateInvoicePDF(invoice)}
+                      >
                         <FileText className="w-4 h-4 text-slate-400" />
                       </Button>
                       {canManageBilling && (

@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCurrentClinic, useUpdateClinic } from "@/hooks/query/useClinics";
 import { useDoctors } from "@/hooks/query/useDoctors";
+import {
+  useAssistantDoctorCoverage,
+  useUpdateAssistantDoctorCoverage,
+} from "@/hooks/query/useAppointments";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,26 +15,31 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, Plus, Trash2 } from "lucide-react";
-import type { Clinic, UpdateClinicData } from "@/types/clinic.types";
-import {
-  getAssistantDoctorCoverage,
-  updateAssistantDoctorCoverage,
-} from "@/lib/actions/appointments.server";
+import type {
+  Clinic,
+  ClinicDoctorConsultationControl,
+  ClinicOperatingDayKey,
+  ClinicOperatingSession,
+  UpdateClinicData,
+} from "@/types/clinic.types";
+import type { AssistantDoctorCoverageAssignment } from "@/types/appointment.types";
 
-type DayKey = "monday"|"tuesday"|"wednesday"|"thursday"|"friday"|"saturday"|"sunday";
-type Session = { start: string; end: string };
-type DoctorCtrl = { isPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; emergencyOnly: boolean };
-type AssistantCoverage = { primaryDoctorIds: string[]; isActive: boolean };
+type DoctorListItem = {
+  id: string;
+  name: string;
+  role: string;
+};
+type AssistantCoverageState = Record<string, AssistantDoctorCoverageAssignment>;
 type ClinicForm = { name: string; address: string; city: string; state: string; country: string; zipCode: string; phone: string; email: string; website: string; description: string; timezone: string; currency: string; language: string; operatingHours: string };
 type SettingsForm = { appointmentDuration: number; maxAdvanceBooking: number; minAdvanceBooking: number; cancellationWindow: number; noShowWindowMinutes: number; noShowFee: number; cancellationFee: number; allowRescheduling: boolean; allowCancellation: boolean; autoConfirmation: boolean; walkInAllowed: boolean; emailNotifications: boolean; smsNotifications: boolean; pushNotifications: boolean; appointmentReminders: boolean; cancellationAlerts: boolean; paymentMethodsText: string; autoBilling: boolean; clinicPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; emergencyOnly: boolean };
 
-const DAYS: DayKey[] = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
-const DAY_LABEL: Record<DayKey, string> = { monday:"Monday", tuesday:"Tuesday", wednesday:"Wednesday", thursday:"Thursday", friday:"Friday", saturday:"Saturday", sunday:"Sunday" };
-const defaultSessions = (): Record<DayKey, Session[]> => ({ monday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], tuesday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], wednesday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], thursday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], friday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], saturday:[{start:"11:00",end:"14:00"}], sunday:[] });
+const DAYS: ClinicOperatingDayKey[] = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+const DAY_LABEL: Record<ClinicOperatingDayKey, string> = { monday:"Monday", tuesday:"Tuesday", wednesday:"Wednesday", thursday:"Thursday", friday:"Friday", saturday:"Saturday", sunday:"Sunday" };
+const defaultSessions = (): Record<ClinicOperatingDayKey, ClinicOperatingSession[]> => ({ monday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], tuesday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], wednesday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], thursday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], friday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], saturday:[{start:"11:00",end:"14:00"}], sunday:[] });
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const toNumber = (v: unknown, fb: number) => Number.isFinite(Number(v)) ? Number(v) : fb;
 const normalizeTime = (v: unknown, fb: string) => typeof v === "string" && /^([01]\d|2[0-3]):([0-5]\d)$/.test(v.trim()) ? v.trim() : fb;
-const parseSessions = (v: unknown): Session[] => Array.isArray(v) ? v.map(x => isRecord(x) ? ({ start: normalizeTime(x.start,"11:00"), end: normalizeTime(x.end,"14:00") }) : null).filter((x): x is Session => !!x) : isRecord(v) ? [{ start: normalizeTime(v.start,"11:00"), end: normalizeTime(v.end,"14:00") }] : [];
+const parseSessions = (v: unknown): ClinicOperatingSession[] => Array.isArray(v) ? v.map(x => isRecord(x) ? ({ start: normalizeTime(x.start,"11:00"), end: normalizeTime(x.end,"14:00") }) : null).filter((x): x is ClinicOperatingSession => !!x) : isRecord(v) ? [{ start: normalizeTime(v.start,"11:00"), end: normalizeTime(v.end,"14:00") }] : [];
 
 function omitAssistantCoverage(value: unknown): Record<string, unknown> {
   const record = isRecord(value) ? value : {};
@@ -42,26 +51,33 @@ export default function ClinicAdminSettingsPage() {
   useAuth();
   const { data: clinicData, isPending } = useCurrentClinic();
   const updateClinic = useUpdateClinic();
+  const { data: assistantCoverageData = [] } = useAssistantDoctorCoverage();
+  const updateAssistantCoverageMutation = useUpdateAssistantDoctorCoverage();
   const clinic = useMemo(() => clinicData as Clinic | null, [clinicData]);
   const { data: doctorsData } = useDoctors(clinic?.id || "");
-  const doctors = useMemo(() => {
+  const doctors = useMemo<DoctorListItem[]>(() => {
     const raw = doctorsData as unknown;
     const arr = Array.isArray(raw) ? raw : isRecord(raw) && Array.isArray(raw.data) ? raw.data : isRecord(raw) && isRecord(raw.data) && Array.isArray(raw.data.doctors) ? raw.data.doctors : [];
-    return arr.map((d: any) => ({
-      id: d?.doctor?.id || d?.id || "",
-      name: d?.name || d?.doctor?.user?.name || "Doctor",
-      role: String(d?.role || d?.doctor?.user?.role || "").toUpperCase(),
-    })).filter((x: any) => !!x.id);
+    return arr.map((doctorValue) => {
+      const doctorRecord = isRecord(doctorValue) ? doctorValue : {};
+      const nestedDoctor = isRecord(doctorRecord.doctor) ? doctorRecord.doctor : {};
+      const nestedUser = isRecord(nestedDoctor.user) ? nestedDoctor.user : {};
+      return {
+        id: String(nestedDoctor.id ?? doctorRecord.id ?? ""),
+        name: String(doctorRecord.name ?? nestedUser.name ?? "Doctor"),
+        role: String(doctorRecord.role ?? nestedUser.role ?? "").toUpperCase(),
+      };
+    }).filter((doctor) => !!doctor.id);
   }, [doctorsData]);
-  const primaryDoctors = useMemo(() => doctors.filter((doctor: any) => doctor.role === "DOCTOR"), [doctors]);
-  const assistantDoctors = useMemo(() => doctors.filter((doctor: any) => doctor.role === "ASSISTANT_DOCTOR"), [doctors]);
+  const primaryDoctors = useMemo(() => doctors.filter((doctor) => doctor.role === "DOCTOR"), [doctors]);
+  const assistantDoctors = useMemo(() => doctors.filter((doctor) => doctor.role === "ASSISTANT_DOCTOR"), [doctors]);
 
   const [ready, setReady] = useState(false);
   const [clinicForm, setClinicForm] = useState<ClinicForm>({ name:"",address:"",city:"",state:"",country:"India",zipCode:"",phone:"",email:"",website:"",description:"",timezone:"Asia/Kolkata",currency:"INR",language:"en",operatingHours:"Mon-Sun multi-session OPD" });
   const [settings, setSettings] = useState<SettingsForm>({ appointmentDuration:30,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false });
-  const [sessions, setSessions] = useState<Record<DayKey, Session[]>>(defaultSessions());
-  const [doctorCtrl, setDoctorCtrl] = useState<Record<string, DoctorCtrl>>({});
-  const [assistantCoverage, setAssistantCoverage] = useState<Record<string, AssistantCoverage>>({});
+  const [sessions, setSessions] = useState<Record<ClinicOperatingDayKey, ClinicOperatingSession[]>>(defaultSessions());
+  const [doctorCtrl, setDoctorCtrl] = useState<Record<string, ClinicDoctorConsultationControl>>({});
+  const [assistantCoverage, setAssistantCoverage] = useState<AssistantCoverageState>({});
 
   useEffect(() => {
     if (!clinic || ready) return;
@@ -75,7 +91,7 @@ export default function ClinicAdminSettingsPage() {
     const docMap = isRecord(appt.doctorConsultationControls) ? appt.doctorConsultationControls : {};
     const dayWin = isRecord(appt.operatingWindowsByDay) ? appt.operatingWindowsByDay : {};
     const parsed = defaultSessions(); DAYS.forEach(d => { if (dayWin[d] !== undefined) parsed[d] = parseSessions(dayWin[d]); });
-    const mapped: Record<string, DoctorCtrl> = {};
+    const mapped: Record<string, ClinicDoctorConsultationControl> = {};
     Object.entries(docMap).forEach(([id,v]) => { if (isRecord(v)) mapped[id] = { isPaused: Boolean(v.isPaused ?? v.paused ?? false), pauseReason: typeof v.pauseReason==="string"?v.pauseReason:"", generalConsultationEnabled: Boolean(v.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(v.videoConsultationEnabled ?? true), emergencyOnly: Boolean(v.emergencyOnly ?? false) }; });
     setClinicForm({ name: clinic.name||"", address: clinic.address||"", city: (clinic as any).city||"", state: (clinic as any).state||"", country: (clinic as any).country||"India", zipCode: (clinic as any).zipCode||"", phone: clinic.phone||"", email: clinic.email||"", website: clinic.website||"", description: clinic.description||"", timezone: clinic.timezone||"Asia/Kolkata", currency: clinic.currency||"INR", language: clinic.language||"en", operatingHours: clinic.operatingHours||"Mon-Sun multi-session OPD" });
     setSettings({ appointmentDuration: toNumber(appt.appointmentDuration,30), maxAdvanceBooking: toNumber(appt.maxAdvanceBooking,30), minAdvanceBooking: toNumber(appt.minAdvanceBooking,2), cancellationWindow: toNumber(appt.cancellationWindow,24), noShowWindowMinutes: toNumber(appt.noShowWindowMinutes,15), noShowFee: toNumber(policy.noShowFee,0), cancellationFee: toNumber(policy.cancellationFee,0), allowRescheduling: typeof appt.allowRescheduling==="boolean"?appt.allowRescheduling:true, allowCancellation: typeof appt.allowCancellation==="boolean"?appt.allowCancellation:true, autoConfirmation: typeof appt.autoConfirmation==="boolean"?appt.autoConfirmation:true, walkInAllowed: typeof appt.walkInAllowed==="boolean"?appt.walkInAllowed:true, emailNotifications: typeof notif.email==="boolean"?notif.email:typeof notifSet.emailNotifications==="boolean"?notifSet.emailNotifications:true, smsNotifications: typeof notif.sms==="boolean"?notif.sms:typeof notifSet.smsNotifications==="boolean"?notifSet.smsNotifications:true, pushNotifications: typeof notif.push==="boolean"?notif.push:typeof notifSet.pushNotifications==="boolean"?notifSet.pushNotifications:false, appointmentReminders: typeof notifSet.appointmentReminders==="boolean"?notifSet.appointmentReminders:true, cancellationAlerts: typeof notifSet.cancellationAlerts==="boolean"?notifSet.cancellationAlerts:true, paymentMethodsText: Array.isArray(pay.paymentMethods)?pay.paymentMethods.join(", "):"Cash, Card, UPI", autoBilling: typeof pay.autoBilling==="boolean"?pay.autoBilling:false, clinicPaused: Boolean(opd.isOpdPaused ?? opd.clinicPaused ?? false), pauseReason: typeof opd.pauseReason==="string"?opd.pauseReason:"", generalConsultationEnabled: Boolean(opd.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(opd.videoConsultationEnabled ?? true), emergencyOnly: Boolean(opd.emergencyOnly ?? false) });
@@ -83,38 +99,26 @@ export default function ClinicAdminSettingsPage() {
   }, [clinic, ready]);
 
   useEffect(() => {
-    let cancelled = false;
+    if (assistantCoverageData.length === 0) return;
+    const coverageMap = assistantCoverageData.reduce<AssistantCoverageState>((accumulator, entry) => {
+      accumulator[entry.assistantDoctorId] = {
+        assistantDoctorId: entry.assistantDoctorId,
+        primaryDoctorIds: entry.primaryDoctorIds,
+        isActive: entry.isActive,
+      };
+      return accumulator;
+    }, {});
+    setAssistantCoverage((current) => ({ ...current, ...coverageMap }));
+  }, [assistantCoverageData]);
 
-    const loadAssistantCoverage = async () => {
-      const result = await getAssistantDoctorCoverage();
-      if (!result.success || !result.entries || cancelled) return;
-
-      const coverageMap: Record<string, AssistantCoverage> = {};
-      for (const entry of result.entries) {
-        coverageMap[entry.assistantDoctorId] = {
-          primaryDoctorIds: entry.primaryDoctorIds,
-          isActive: entry.isActive,
-        };
-      }
-
-      setAssistantCoverage(coverageMap);
-    };
-
-    void loadAssistantCoverage();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => { if (doctors.length===0) return; setDoctorCtrl(prev => { const n={...prev}; doctors.forEach((d:any)=>{ if(!n[d.id]) n[d.id]={ isPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false }; }); return n; }); }, [doctors]);
+  useEffect(() => { if (doctors.length===0) return; setDoctorCtrl(prev => { const n={...prev}; doctors.forEach((doctor)=>{ if(!n[doctor.id]) n[doctor.id]={ isPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false }; }); return n; }); }, [doctors]);
   useEffect(() => {
     if (assistantDoctors.length===0) return;
     setAssistantCoverage(prev => {
       const next = { ...prev };
-      assistantDoctors.forEach((doctor: any) => {
+      assistantDoctors.forEach((doctor) => {
         if (!next[doctor.id]) {
-          next[doctor.id] = { primaryDoctorIds: [], isActive: false };
+          next[doctor.id] = { assistantDoctorId: doctor.id, primaryDoctorIds: [], isActive: false };
         }
       });
       return next;
@@ -142,31 +146,33 @@ export default function ClinicAdminSettingsPage() {
       },
     };
     await updateClinic.mutateAsync({ id: clinic.id, data: payload });
-    const coverageEntries = Object.entries(assistantCoverage).map(([assistantDoctorId, value]) => ({
-      assistantDoctorId,
+    const coverageEntries = Object.values(assistantCoverage).map((value) => ({
+      assistantDoctorId: value.assistantDoctorId,
       primaryDoctorIds: value.primaryDoctorIds,
       isActive: value.isActive,
     }));
-    await updateAssistantDoctorCoverage(coverageEntries);
+    await updateAssistantCoverageMutation.mutateAsync(coverageEntries);
   };
 
-  const setSF = (k: keyof SettingsForm, v: string|number|boolean) => setSettings(p => ({ ...p, [k]: v as never }));
+  const setSF = <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) =>
+    setSettings((previous) => ({ ...previous, [key]: value }));
   const setCF = (k: keyof ClinicForm, v: string) => setClinicForm(p => ({ ...p, [k]: v }));
-  const addSession = (d: DayKey) => setSessions(p => ({ ...p, [d]: [...p[d], { start:"16:00", end:"20:00" }] }));
-  const updSession = (d: DayKey, i: number, k: "start"|"end", v: string) => setSessions(p => ({ ...p, [d]: p[d].map((s,idx)=>idx===i?{...s,[k]:v}:s) }));
-  const delSession = (d: DayKey, i: number) => setSessions(p => ({ ...p, [d]: p[d].filter((_,idx)=>idx!==i) }));
-  const updDoc = (id: string, k: keyof DoctorCtrl, v: string|boolean) => setDoctorCtrl(p => {
-    const current: DoctorCtrl = p[id] || { isPaused:false, pauseReason:"", generalConsultationEnabled:true, videoConsultationEnabled:true, emergencyOnly:false };
+  const addSession = (d: ClinicOperatingDayKey) => setSessions(p => ({ ...p, [d]: [...p[d], { start:"16:00", end:"20:00" }] }));
+  const updSession = (d: ClinicOperatingDayKey, i: number, k: "start"|"end", v: string) => setSessions(p => ({ ...p, [d]: p[d].map((s,idx)=>idx===i?{...s,[k]:v}:s) }));
+  const delSession = (d: ClinicOperatingDayKey, i: number) => setSessions(p => ({ ...p, [d]: p[d].filter((_,idx)=>idx!==i) }));
+  const updDoc = (id: string, k: keyof ClinicDoctorConsultationControl, v: string|boolean) => setDoctorCtrl(p => {
+    const current: ClinicDoctorConsultationControl = p[id] || { isPaused:false, pauseReason:"", generalConsultationEnabled:true, videoConsultationEnabled:true, emergencyOnly:false };
     return { ...p, [id]: { ...current, [k]: v as never } };
   });
   const toggleAssistantPrimaryDoctor = (assistantDoctorId: string, primaryDoctorId: string) =>
     setAssistantCoverage((current) => {
-      const existing = current[assistantDoctorId] || { primaryDoctorIds: [], isActive: false };
+      const existing = current[assistantDoctorId] || { assistantDoctorId, primaryDoctorIds: [], isActive: false };
       const hasDoctor = existing.primaryDoctorIds.includes(primaryDoctorId);
       return {
         ...current,
         [assistantDoctorId]: {
           ...existing,
+          assistantDoctorId,
           primaryDoctorIds: hasDoctor
             ? existing.primaryDoctorIds.filter((id) => id !== primaryDoctorId)
             : [...existing.primaryDoctorIds, primaryDoctorId],
@@ -177,7 +183,7 @@ export default function ClinicAdminSettingsPage() {
     setAssistantCoverage((current) => ({
       ...current,
       [assistantDoctorId]: {
-        ...(current[assistantDoctorId] || { primaryDoctorIds: [] }),
+        ...(current[assistantDoctorId] || { assistantDoctorId, primaryDoctorIds: [] }),
         isActive,
       },
     }));
@@ -189,7 +195,7 @@ export default function ClinicAdminSettingsPage() {
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div><h1 className="text-2xl sm:text-3xl font-bold">Clinic Settings</h1><p className="text-sm text-muted-foreground mt-1">Dynamic OPD sessions + emergency + doctor-wise controls.</p></div>
-        <Button className="w-full sm:w-auto" onClick={save} disabled={updateClinic.isPending}>{updateClinic.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}Save Changes</Button>
+        <Button className="w-full sm:w-auto" onClick={save} disabled={updateClinic.isPending || updateAssistantCoverageMutation.isPending}>{updateClinic.isPending || updateAssistantCoverageMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}Save Changes</Button>
       </div>
 
       <Card><CardHeader><CardTitle>Clinic Profile</CardTitle></CardHeader><CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -213,11 +219,11 @@ export default function ClinicAdminSettingsPage() {
       </CardContent></Card>
 
       <Card><CardHeader><CardTitle>Doctor-Wise Controls</CardTitle></CardHeader><CardContent className="space-y-3">
-        {doctors.length===0 ? <p className="text-sm text-muted-foreground">No doctors found.</p> : doctors.map((d:any)=>{ const c=doctorCtrl[d.id]; if(!c) return null; return <div key={d.id} className="border rounded-md p-3 space-y-2"><p className="font-medium">{d.name}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Pause Doctor</Label><Switch checked={c.isPaused} onCheckedChange={v=>updDoc(d.id,"isPaused",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">General Enabled</Label><Switch checked={c.generalConsultationEnabled} onCheckedChange={v=>updDoc(d.id,"generalConsultationEnabled",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Video Enabled</Label><Switch checked={c.videoConsultationEnabled} onCheckedChange={v=>updDoc(d.id,"videoConsultationEnabled",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Emergency Only</Label><Switch checked={c.emergencyOnly} onCheckedChange={v=>updDoc(d.id,"emergencyOnly",v)} /></div></div><div><Label className="text-xs">Reason</Label><Input value={c.pauseReason} onChange={e=>updDoc(d.id,"pauseReason",e.target.value)} /></div></div>; })}
+        {doctors.length===0 ? <p className="text-sm text-muted-foreground">No doctors found.</p> : doctors.map((doctor)=>{ const c=doctorCtrl[doctor.id]; if(!c) return null; return <div key={doctor.id} className="border rounded-md p-3 space-y-2"><p className="font-medium">{doctor.name}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Pause Doctor</Label><Switch checked={c.isPaused} onCheckedChange={v=>updDoc(doctor.id,"isPaused",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">General Enabled</Label><Switch checked={c.generalConsultationEnabled} onCheckedChange={v=>updDoc(doctor.id,"generalConsultationEnabled",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Video Enabled</Label><Switch checked={c.videoConsultationEnabled} onCheckedChange={v=>updDoc(doctor.id,"videoConsultationEnabled",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Emergency Only</Label><Switch checked={c.emergencyOnly} onCheckedChange={v=>updDoc(doctor.id,"emergencyOnly",v)} /></div></div><div><Label className="text-xs">Reason</Label><Input value={c.pauseReason} onChange={e=>updDoc(doctor.id,"pauseReason",e.target.value)} /></div></div>; })}
       </CardContent></Card>
 
       <Card><CardHeader><CardTitle>Assistant Doctor Coverage</CardTitle><CardDescription>Choose which primary doctors each assistant doctor can cover at this clinic. Reassignment will use this configuration.</CardDescription></CardHeader><CardContent className="space-y-3">
-        {assistantDoctors.length===0 ? <p className="text-sm text-muted-foreground">No assistant doctors found.</p> : assistantDoctors.map((assistant: any) => { const coverage = assistantCoverage[assistant.id] || { primaryDoctorIds: [], isActive: false }; return <div key={assistant.id} className="border rounded-md p-3 space-y-3"><div className="flex items-center justify-between gap-3"><div><p className="font-medium">{assistant.name}</p><p className="text-xs text-muted-foreground">Assistant coverage for main doctor bookings</p></div><div className="flex items-center gap-2"><Label className="text-sm">Active</Label><Switch checked={coverage.isActive} onCheckedChange={(value)=>setAssistantCoverageActive(assistant.id, value)} /></div></div><div className="flex flex-wrap gap-2">{primaryDoctors.length===0 ? <p className="text-sm text-muted-foreground">No primary doctors found.</p> : primaryDoctors.map((doctor: any) => { const selected = coverage.primaryDoctorIds.includes(doctor.id); return <Button key={doctor.id} type="button" variant={selected ? "default" : "outline"} size="sm" onClick={()=>toggleAssistantPrimaryDoctor(assistant.id, doctor.id)}>{doctor.name}</Button>; })}</div></div>; })}
+        {assistantDoctors.length===0 ? <p className="text-sm text-muted-foreground">No assistant doctors found.</p> : assistantDoctors.map((assistant) => { const coverage = assistantCoverage[assistant.id] || { assistantDoctorId: assistant.id, primaryDoctorIds: [], isActive: false }; return <div key={assistant.id} className="border rounded-md p-3 space-y-3"><div className="flex items-center justify-between gap-3"><div><p className="font-medium">{assistant.name}</p><p className="text-xs text-muted-foreground">Assistant coverage for main doctor bookings</p></div><div className="flex items-center gap-2"><Label className="text-sm">Active</Label><Switch checked={coverage.isActive} onCheckedChange={(value)=>setAssistantCoverageActive(assistant.id, value)} /></div></div><div className="flex flex-wrap gap-2">{primaryDoctors.length===0 ? <p className="text-sm text-muted-foreground">No primary doctors found.</p> : primaryDoctors.map((doctor) => { const selected = coverage.primaryDoctorIds.includes(doctor.id); return <Button key={doctor.id} type="button" variant={selected ? "default" : "outline"} size="sm" onClick={()=>toggleAssistantPrimaryDoctor(assistant.id, doctor.id)}>{doctor.name}</Button>; })}</div></div>; })}
       </CardContent></Card>
     </div>
   );

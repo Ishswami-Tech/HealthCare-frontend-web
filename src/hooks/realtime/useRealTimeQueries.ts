@@ -4,7 +4,12 @@ import { useEffect, useRef } from 'react';
 import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
 import { useWebSocketIntegration } from './useWebSocketIntegration';
 import { useWebSocketContext, useWebSocketStatus } from '@/app/providers/WebSocketProvider';
-import { useAppStore, useAppointmentsStore } from '@/stores';
+import { useAppStore } from '@/stores';
+import {
+  getQueueStatusQueryKey,
+  normalizeQueueStatusSnapshot,
+  type QueueStatusSnapshot,
+} from '@/lib/queue/queue-cache';
 // ✅ Consolidated: Import types from @/types (single source of truth)
 import type { Appointment, AppointmentFilters } from '@/types/appointment.types';
 import type { User } from '@/types/auth.types';
@@ -196,9 +201,10 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
   const { currentClinic } = useAppStore();
   const { isConnected } = useWebSocketStatus();
   const { subscribe } = useWebSocketContext();
+  const queryKey = getQueueStatusQueryKey(currentClinic?.id, locationId, queueName);
 
   const query = useQueryData(
-    ['queue-status', currentClinic?.id, queueName, locationId],
+    queryKey,
     async () => {
       if (!currentClinic) throw new Error('No clinic selected');
 
@@ -218,7 +224,7 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
         throw new Error('Failed to fetch queue status');
       }
 
-      return { success: true, data: response.data };
+      return normalizeQueueStatusSnapshot(response.data);
     },
     {
       enabled: !!currentClinic && !!locationId,
@@ -240,7 +246,7 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
         clinicId: string;
         queueName?: string;
         locationId?: string;
-        status: Record<string, unknown>;
+        status: QueueStatusSnapshot;
       };
       if (data.clinicId === currentClinic.id) {
         const eventLocationId = data.locationId || locationId;
@@ -253,15 +259,15 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
           return;
         }
 
-        queryClient.setQueryData(['queue-status', currentClinic.id, queueName, locationId], {
-          success: true,
-          data: data.status,
-        });
+        queryClient.setQueryData(
+          getQueueStatusQueryKey(currentClinic.id, locationId, queueName),
+          normalizeQueueStatusSnapshot(data.status)
+        );
       }
     });
 
     return unsubscribe;
-  }, [isConnected, currentClinic, queueName, subscribe, queryClient]);
+  }, [isConnected, currentClinic, locationId, queueName, queryClient, subscribe]);
 
   return {
     ...query,
@@ -348,9 +354,6 @@ export function useRealTimeAppointmentMutation() {
           updates: data,
           clinicId: currentClinic?.id,
         });
-        
-        // Update Zustand store
-        useAppointmentsStore.getState().updateAppointment(variables.id, variables.updates);
       },
     },
   });
@@ -477,13 +480,6 @@ export function useRealTimeIntegration() {
     // Subscribe to real-time store synchronization events
     const unsubscribeFunctions: (() => void)[] = [];
 
-    // Sync appointments store
-    const unsubscribeAppointmentSync = webSocketIntegration.subscribe('store:sync:appointments', (data: unknown) => {
-      const { setScopedAppointments } = useAppointmentsStore.getState();
-      const typedData = data as { appointments: Appointment[] };
-      setScopedAppointments('realtime:appointments', typedData.appointments as any);
-    });
-
     // Sync user data
     const unsubscribeUserSync = webSocketIntegration.subscribe('store:sync:user', (data: unknown) => {
       const { setUser } = useAppStore.getState();
@@ -559,7 +555,6 @@ export function useRealTimeIntegration() {
     });
 
     unsubscribeFunctions.push(
-      unsubscribeAppointmentSync,
       unsubscribeUserSync,
       unsubscribeClinicSync
     );

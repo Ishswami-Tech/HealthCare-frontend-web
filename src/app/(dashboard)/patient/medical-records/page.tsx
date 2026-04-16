@@ -17,12 +17,19 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { theme } from "@/lib/utils/theme-utils";
 import { LoadingSpinner, PageLoading, ErrorState, EmptyState } from "@/components/ui/loading";
-import { getComprehensiveHealthRecord, getAllergies } from "@/lib/actions/ehr.server";
-import { useEffect } from "react";
+import { useComprehensiveHealthRecord, useAllergies } from "@/hooks/query/useMedicalRecords";
+import { showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import type {
+  ComprehensiveHealthRecord,
+  PatientAllergyEntry,
+  PatientLabReportEntry,
+  PatientMedicalHistoryEntry,
+  PatientPrescriptionEntry,
+  PatientVitalEntry,
+} from "@/types/medical-records.types";
 import {
   FileText,
   Pill,
@@ -49,61 +56,38 @@ import {
 export default function PatientMedicalRecords() {
   const { session, isPending: authLoading } = useAuth();
   const user = session?.user;
-  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [healthData, setHealthData] = useState<any>(null);
-  const [allergies, setAllergies] = useState<any[]>([]);
+  const {
+    data: healthData,
+    isPending: isLoading,
+    error: healthDataError,
+  } = useComprehensiveHealthRecord(user?.id || "");
+  const { data: allergiesData } = useAllergies(user?.id || "");
+  const typedHealthData = (healthData ?? null) as ComprehensiveHealthRecord | null;
+  const allergies = Array.isArray(allergiesData) ? (allergiesData as PatientAllergyEntry[]) : [];
   
   // View Details State
-  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [selectedRecord, setSelectedRecord] = useState<PatientMedicalHistoryEntry | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
-  const handleViewRecord = (record: any) => {
+  const handleViewRecord = (record: PatientMedicalHistoryEntry) => {
     setSelectedRecord(record);
     setIsViewDialogOpen(true);
   };
 
   const handleDownload = (e: React.MouseEvent, recordType: string) => {
     e.stopPropagation();
-    toast({
-      title: "Download Started",
-      description: `Downloading ${recordType}...`,
+    showSuccessToast(`Downloading ${recordType}...`, {
+      id: TOAST_IDS.GLOBAL.SUCCESS,
     });
   };
 
-  // Fetch comprehensive health records and allergies on mount
-  useEffect(() => {
-    const fetchHealthRecords = async () => {
-      if (!user?.id) return;
+  const medicalHistory = typedHealthData?.medicalHistory || [];
+  const prescriptions = typedHealthData?.prescriptions || [];
+  const labReports = typedHealthData?.labReports || [];
+  const vitalSigns = typedHealthData?.vitals || [];
 
-      try {
-        setIsLoading(true);
-        setHasError(false);
-        const [data, allergiesData] = await Promise.all([
-          getComprehensiveHealthRecord(user.id),
-          getAllergies(user.id).catch(() => []),
-        ]);
-        setHealthData(data);
-        setAllergies(Array.isArray(allergiesData) ? allergiesData : []);
-      } catch (error) {
-        console.error('Failed to fetch health records:', error);
-        setHasError(true);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchHealthRecords();
-  }, [user?.id]);
-
-  const medicalHistory = healthData?.medicalHistory || [];
-  const prescriptions = healthData?.prescriptions || [];
-  const labReports = healthData?.labReports || [];
-  const vitalSigns = healthData?.vitals || [];
-
-  const filteredMedicalHistory = medicalHistory.filter((record: any) => {
+  const filteredMedicalHistory = medicalHistory.filter((record: PatientMedicalHistoryEntry) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
@@ -117,7 +101,7 @@ export default function PatientMedicalRecords() {
 
   const vitalHistoryRows = useMemo(
     () =>
-      vitalSigns.map((vital: any, index: number) => ({
+      vitalSigns.map((vital: PatientVitalEntry, index: number) => ({
         id: `${vital.date}-${index}`,
         dateLabel: new Date(vital.date).toLocaleDateString(),
         bpLabel: `${vital.bp} mmHg`,
@@ -178,13 +162,13 @@ export default function PatientMedicalRecords() {
   }
 
   // Show error state if data fetch failed
-  if (hasError) {
+  if (healthDataError) {
     return (
       
         <ErrorState
           title="Unable to load medical records"
           message="We couldn't fetch your medical records. Please try again."
-          onRetry={() => setHasError(false)}
+          onRetry={() => window.location.reload()}
         />
       
     );
@@ -253,13 +237,13 @@ export default function PatientMedicalRecords() {
       />
 
           <Tabs defaultValue="history" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="history">History</TabsTrigger>
-              <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
-              <TabsTrigger value="reports">Lab Reports</TabsTrigger>
-              <TabsTrigger value="vitals">Vitals</TabsTrigger>
-              <TabsTrigger value="allergies">Allergies</TabsTrigger>
-              <TabsTrigger value="diet">Diet Plan</TabsTrigger>
+            <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
+              <TabsTrigger value="history" className="text-xs sm:text-sm px-3 sm:px-4">History</TabsTrigger>
+              <TabsTrigger value="prescriptions" className="text-xs sm:text-sm px-3 sm:px-4">Prescriptions</TabsTrigger>
+              <TabsTrigger value="reports" className="text-xs sm:text-sm px-3 sm:px-4">Reports</TabsTrigger>
+              <TabsTrigger value="vitals" className="text-xs sm:text-sm px-3 sm:px-4">Vitals</TabsTrigger>
+              <TabsTrigger value="allergies" className="text-xs sm:text-sm px-3 sm:px-4">Allergies</TabsTrigger>
+              <TabsTrigger value="diet" className="text-xs sm:text-sm px-3 sm:px-4">Diet</TabsTrigger>
             </TabsList>
 
             <TabsContent value="history">
@@ -299,10 +283,10 @@ export default function PatientMedicalRecords() {
                             icon={FileText}
                           />
                         ) : (
-                          filteredMedicalHistory.map((record: any) => (
+                          filteredMedicalHistory.map((record: PatientMedicalHistoryEntry) => (
                           <div
                             key={record.id}
-                            className={`rounded-2xl border p-4 ${theme.borders.primary} hover:bg-emerald-50/40 transition-colors`}
+                            className={`rounded-2xl border p-3 sm:p-4 ${theme.borders.primary} hover:bg-emerald-50/40 transition-colors`}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
@@ -316,7 +300,7 @@ export default function PatientMedicalRecords() {
                                     {record.status}
                                   </Badge>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                                   <div>
                                     <p>
                                       <strong>Date:</strong>{" "}
@@ -391,8 +375,8 @@ export default function PatientMedicalRecords() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {prescriptions.map((prescription: any) => (
-                        <div key={prescription.id} className="rounded-2xl border border-border/70 p-4 dark:border-border/60">
+                      {prescriptions.map((prescription: PatientPrescriptionEntry) => (
+                        <div key={prescription.id} className="rounded-2xl border border-border/70 p-3 sm:p-4 dark:border-border/60">
                           <div className="flex items-center justify-between mb-4">
                             <div>
                               <h3 className="font-semibold">
@@ -421,10 +405,10 @@ export default function PatientMedicalRecords() {
 
                           <div className="space-y-3">
                             <h4 className="font-medium">Medications:</h4>
-                            {prescription.medications.map((med: any, index: number) => (
+                            {prescription.medications.map((med, index: number) => (
                               <div
                                 key={index}
-                                className={`flex items-center justify-between p-3 ${theme.containers.featureGreen} rounded-lg`}
+                                className={`flex items-center justify-between p-2.5 sm:p-3 ${theme.containers.featureGreen} rounded-lg`}
                               >
                                 <div className="flex items-center gap-3">
                                   <Leaf
@@ -486,8 +470,8 @@ export default function PatientMedicalRecords() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {labReports.map((report: any) => (
-                        <div key={report.id} className="border rounded-lg p-4">
+                      {labReports.map((report: PatientLabReportEntry) => (
+                        <div key={report.id} className="border rounded-lg p-3 sm:p-4">
                           <div className="flex items-center justify-between mb-4">
                             <div>
                               <h3 className="font-semibold">
@@ -512,8 +496,8 @@ export default function PatientMedicalRecords() {
 
                           <div className="space-y-3">
                             <h4 className="font-medium">Results:</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                              {report.results.map((result: any, index: number) => (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+                              {report.results.map((result, index: number) => (
                                 <div
                                   key={index}
                                   className="p-3 border rounded-lg"
@@ -560,9 +544,9 @@ export default function PatientMedicalRecords() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <div
-                          className={`p-4 ${theme.containers.featureRed} rounded-lg`}
+                          className={`p-3 sm:p-4 ${theme.containers.featureRed} rounded-lg`}
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <Heart
@@ -587,7 +571,7 @@ export default function PatientMedicalRecords() {
                         </div>
 
                         <div
-                          className={`p-4 ${theme.containers.featureBlue} rounded-lg`}
+                          className={`p-3 sm:p-4 ${theme.containers.featureBlue} rounded-lg`}
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <Pulse
@@ -612,7 +596,7 @@ export default function PatientMedicalRecords() {
                         </div>
 
                         <div
-                          className={`p-4 ${theme.containers.featureGreen} rounded-lg`}
+                          className={`p-3 sm:p-4 ${theme.containers.featureGreen} rounded-lg`}
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <Scale
@@ -637,7 +621,7 @@ export default function PatientMedicalRecords() {
                         </div>
 
                         <div
-                          className={`p-4 ${theme.containers.featureBlue} rounded-lg`}
+                          className={`p-3 sm:p-4 ${theme.containers.featureBlue} rounded-lg`}
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <Thermometer
@@ -700,10 +684,10 @@ export default function PatientMedicalRecords() {
                           description="No known allergies or sensitivities have been recorded yet."
                         />
                       ) : (
-                        allergies.map((allergy: any) => (
+                        allergies.map((allergy: PatientAllergyEntry) => (
                           <div
                             key={allergy.id || allergy.allergen}
-                            className={`p-4 border rounded-xl ${theme.containers.featureRed}`}
+                            className={`p-3 sm:p-4 border rounded-xl ${theme.containers.featureRed}`}
                           >
                             <div className="flex items-center justify-between mb-2">
                               <h3 className={`font-semibold ${theme.iconColors.red}`}>
@@ -721,7 +705,7 @@ export default function PatientMedicalRecords() {
                             {(allergy.onsetDate || allergy.diagnosedDate) && (
                               <p className={`text-xs ${theme.textColors.muted}`}>
                                 Onset:{" "}
-                                {new Date(allergy.onsetDate || allergy.diagnosedDate).toLocaleDateString()}
+                                {new Date(allergy.onsetDate ?? allergy.diagnosedDate ?? "").toLocaleDateString()}
                               </p>
                             )}
                             {allergy.status && (
@@ -778,7 +762,7 @@ export default function PatientMedicalRecords() {
               <CardTitle>Quick Upload</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 <Button
                   variant="outline"
                   className="h-20 flex flex-col items-center justify-center gap-2"
@@ -813,6 +797,7 @@ export default function PatientMedicalRecords() {
               </div>
             </CardContent>
           </Card>
+
       {/* View Record Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-2xl">

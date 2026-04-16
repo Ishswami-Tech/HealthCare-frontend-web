@@ -5,8 +5,8 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useClinicInvoices,
   useClinicPayments,
+  useMarkInvoiceAsPaid,
 } from "@/hooks/query/useBilling";
-import { markInvoiceAsPaid } from "@/lib/actions/billing.server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,16 +18,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileText, CreditCard, Search, CheckCircle, RefreshCw } from "lucide-react";
+import { FileText, CreditCard, Search, CheckCircle, RefreshCw, Download } from "lucide-react";
 import { PaymentButton } from "@/components/payments";
 import { InvoiceForm } from "@/components/billing/InvoiceForm";
 import { useLayoutStore } from "@/stores/layout.store";
-import { useToast } from "@/hooks/utils/use-toast";
+import { showErrorToast } from "@/hooks/utils/use-toast";
 
 export default function ReceptionistCollectionsPage() {
   const { session } = useAuth();
   const setPageTitle = useLayoutStore((state) => state.setPageTitle);
-  const { toast } = useToast();
 
   const [search, setSearch] = useState("");
   const [showCreateInvoice, setShowCreateInvoice] = useState(false);
@@ -48,6 +47,7 @@ export default function ReceptionistCollectionsPage() {
     isPending: paymentsPending,
     refetch: refetchPayments,
   } = useClinicPayments(undefined, true);
+  const markInvoiceAsPaidMutation = useMarkInvoiceAsPaid();
 
   function formatAmount(amount: number) {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
@@ -60,6 +60,14 @@ export default function ReceptionistCollectionsPage() {
       month: "short",
       year: "numeric",
     });
+  }
+
+  function getInvoiceDateLabel(invoice: { status: string; dueDate?: string; paidDate?: string }) {
+    if (invoice.status === "PAID") {
+      return `Paid: ${invoice.paidDate ? formatDate(invoice.paidDate) : "—"}`;
+    }
+
+    return `Due: ${invoice.dueDate ? formatDate(invoice.dueDate) : "—"}`;
   }
 
   function statusColor(status: string) {
@@ -76,15 +84,11 @@ export default function ReceptionistCollectionsPage() {
   async function handleMarkPaid(invoiceId: string) {
     setMarkingPaidId(invoiceId);
     try {
-      const result = await markInvoiceAsPaid(invoiceId);
-      if (result.success) {
-        toast({ title: "Invoice marked as paid" });
-        void refetchInvoices();
-      } else {
-        toast({ title: result.error || "Failed to mark invoice as paid", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Failed to mark invoice as paid", variant: "destructive" });
+      await markInvoiceAsPaidMutation.mutateAsync(invoiceId);
+      await refetchInvoices();
+      await refetchPayments();
+    } catch (error) {
+      showErrorToast(error);
     } finally {
       setMarkingPaidId(null);
     }
@@ -229,12 +233,16 @@ export default function ReceptionistCollectionsPage() {
               <Card key={invoice.id}>
                 <CardContent className="flex items-center justify-between p-4 flex-wrap gap-3">
                   <div className="space-y-1">
-                    <p className="font-medium">Invoice #{invoice.id.slice(-8).toUpperCase()}</p>
+                    <p className="font-medium">
+                      {invoice.invoiceNumber
+                        ? `Invoice ${invoice.invoiceNumber}`
+                        : `Invoice #${invoice.id.slice(-8).toUpperCase()}`}
+                    </p>
                     {invoice.patientName && (
                       <p className="text-sm text-muted-foreground">Patient: {invoice.patientName}</p>
                     )}
                     <p className="text-sm text-muted-foreground">
-                      Due: {invoice.dueDate ? formatDate(invoice.dueDate) : "—"}
+                      {getInvoiceDateLabel(invoice)}
                     </p>
                     <Badge variant="outline" className={statusColor(invoice.status)}>
                       {invoice.status}
@@ -242,23 +250,43 @@ export default function ReceptionistCollectionsPage() {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <p className="text-lg font-semibold">{formatAmount(invoice.amount)}</p>
-                    {(invoice.status === "OPEN" || invoice.status === "OVERDUE") && (
-                      <div className="flex gap-2">
-                        <PaymentButton
-                          invoiceId={invoice.id}
-                          amount={invoice.amount}
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleMarkPaid(invoice.id)}
-                          disabled={markingPaidId === invoice.id}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Mark Paid
-                        </Button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      {(invoice.status === "OPEN" || invoice.status === "OVERDUE") && (
+                        <>
+                          <PaymentButton
+                            invoiceId={invoice.id}
+                            amount={invoice.amount}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleMarkPaid(invoice.id)}
+                            disabled={markingPaidId === invoice.id || markInvoiceAsPaidMutation.isPending}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            {markingPaidId === invoice.id ? "Marking..." : "Mark Paid"}
+                          </Button>
+                        </>
+                      )}
+                      {/* PDF download — visible for all invoice statuses */}
+                      <Button
+                        id={`download-invoice-${invoice.id}`}
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() =>
+                          window.open(
+                            `/api/billing/invoices/${invoice.id}/download`,
+                            "_blank",
+                            "noopener,noreferrer"
+                          )
+                        }
+                        title="Download PDF"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        PDF
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

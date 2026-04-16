@@ -1,7 +1,13 @@
 import React, { useEffect, useCallback } from 'react';
 import { useQueueWebSocket } from '@/stores/websocket.store';
+import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
+import {
+  getQueueListQueryKey,
+  getQueueStatsQueryKey,
+  type QueueListFilters,
+} from '@/lib/queue/queue-cache';
 import {
   getQueue,
   getQueueStats,
@@ -30,6 +36,7 @@ import {
   createQueueAlert,
   updateQueueAlert,
   deleteQueueAlert,
+  transferQueueEntry,
 } from '@/lib/actions/queue.server';
 
 // ===== QUEUE MANAGEMENT HOOKS =====
@@ -47,15 +54,25 @@ export const useQueue = (clinicId?: string, filters?: {
   enabled?: boolean;
 }) => {
   const normalizedClinicId = clinicId?.trim();
+  const { isConnected } = useWebSocketStatus();
+  const queueFilters: QueueListFilters | undefined = filters
+    ? {
+        ...(filters.type ? { type: filters.type } : {}),
+        ...(filters.status ? { status: filters.status } : {}),
+        ...(filters.doctorId ? { doctorId: filters.doctorId } : {}),
+        ...(filters.date ? { date: filters.date } : {}),
+      }
+    : undefined;
 
-  return useQueryData(['queue', normalizedClinicId || 'all', filters], async () => {
+  return useQueryData(getQueueListQueryKey(normalizedClinicId, queueFilters), async () => {
     return await getQueue({
       ...filters,
       ...(normalizedClinicId ? { clinicId: normalizedClinicId } : {}),
     });
   }, {
     enabled: filters?.enabled !== false,
-    refetchInterval: 30000, // Refetch every 30 seconds for live updates
+    // Websocket invalidation owns freshness when connected; polling becomes fallback only.
+    refetchInterval: isConnected ? 2 * 60 * 1000 : 30000,
   });
 };
 
@@ -63,12 +80,14 @@ export const useQueue = (clinicId?: string, filters?: {
  * Hook to get queue statistics
  */
 export const useQueueStats = (locationId?: string, options?: { enabled?: boolean }) => {
-  return useQueryData(['queueStats', locationId], async () => {
+  const { isConnected } = useWebSocketStatus();
+
+  return useQueryData(getQueueStatsQueryKey(locationId), async () => {
     if (!locationId) throw new Error('Location ID required for queue stats');
     return await getQueueStats(locationId);
   }, {
     enabled: !!locationId && options?.enabled !== false,
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: isConnected ? 2 * 60 * 1000 : 60000,
   });
 };
 
@@ -87,7 +106,7 @@ export const useUpdateQueueStatus = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Updating queue status...',
       successMessage: 'Queue status updated successfully',
-      invalidateQueries: [['queue']],
+      invalidateQueries: [['queue'], ['queue-status']],
     }
   );
 };
@@ -107,7 +126,7 @@ export const useCallNextPatient = () => {
       toastId: TOAST_IDS.QUEUE.CALL_NEXT,
       loadingMessage: 'Calling next patient...',
       successMessage: 'Next patient called successfully',
-      invalidateQueries: [['queue']],
+      invalidateQueries: [['queue'], ['queue-status']],
     }
   );
 };
@@ -130,7 +149,7 @@ export const useAddToQueue = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Adding to queue...',
       successMessage: 'Patient added to queue successfully',
-      invalidateQueries: [['queue']],
+      invalidateQueries: [['queue'], ['queue-status']],
     }
   );
 };
@@ -150,7 +169,7 @@ export const useRemoveFromQueue = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Removing from queue...',
       successMessage: 'Patient removed from queue successfully',
-      invalidateQueries: [['queue']],
+      invalidateQueries: [['queue'], ['queue-status']],
     }
   );
 };
@@ -171,7 +190,7 @@ export const useReorderQueue = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Reordering queue...',
       successMessage: 'Queue reordered successfully',
-      invalidateQueries: [['queue']],
+      invalidateQueries: [['queue'], ['queue-status']],
     }
   );
 };
@@ -395,7 +414,7 @@ export const useUpdateQueuePosition = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Updating queue position...',
       successMessage: 'Queue position updated successfully',
-      invalidateQueries: [['queue']],
+      invalidateQueries: [['queue'], ['queue-status']],
     }
   );
 };
@@ -414,7 +433,38 @@ export const usePauseQueue = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Pausing queue...',
       successMessage: 'Queue paused successfully',
-      invalidateQueries: [['queue']],
+      invalidateQueries: [['queue'], ['queue-status']],
+    }
+  );
+};
+
+/**
+ * Hook to transfer a queue entry between logical queues
+ */
+export const useTransferQueueEntry = () => {
+  return useMutationOperation(
+    async ({
+      entryId,
+      targetQueue,
+      treatmentType,
+      notes,
+    }: {
+      entryId: string;
+      targetQueue: string;
+      treatmentType?: string;
+      notes?: string;
+    }) => {
+      const result = await transferQueueEntry(entryId, targetQueue, treatmentType, notes);
+      if (!result) {
+        throw new Error('Failed to transfer queue entry');
+      }
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.QUEUE.UPDATE,
+      loadingMessage: 'Moving patient to queue...',
+      successMessage: 'Patient moved successfully',
+      invalidateQueries: [['queue'], ['queue-status']],
     }
   );
 };
@@ -433,7 +483,7 @@ export const useResumeQueue = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Resuming queue...',
       successMessage: 'Queue resumed successfully',
-      invalidateQueries: [['queue']],
+      invalidateQueries: [['queue'], ['queue-status']],
     }
   );
 };
@@ -465,7 +515,7 @@ export const useUpdateQueueConfig = () => {
       toastId: TOAST_IDS.QUEUE.UPDATE,
       loadingMessage: 'Updating queue configuration...',
       successMessage: 'Queue configuration updated successfully',
-      invalidateQueries: [['queue'], ['queueConfig']],
+      invalidateQueries: [['queue'], ['queue-status'], ['queueConfig']],
     }
   );
 };

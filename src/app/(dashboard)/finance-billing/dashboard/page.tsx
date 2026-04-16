@@ -25,6 +25,7 @@ import {
   AlertCircle,
   BarChart3,
   Receipt,
+  Download,
 } from "lucide-react";
 
 export default function FinanceBillingDashboard() {
@@ -288,6 +289,21 @@ export default function FinanceBillingDashboard() {
                         >
                           {isOverdue ? "OVERDUE" : inv.status}
                         </Badge>
+                        <button
+                          id={`download-invoice-${inv.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(
+                              `/api/billing/invoices/${inv.id}/download`,
+                              "_blank",
+                              "noopener,noreferrer"
+                            );
+                          }}
+                          title="Download PDF"
+                          className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
                   );

@@ -6,11 +6,23 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { normalizeAppointmentStatus } from "@/lib/utils/appointmentUtils";
+import type { QueueStatusSnapshot } from "@/lib/queue/queue-cache";
+import type { Appointment } from "@/types/appointment.types";
+
+type QueueAwareAppointment = Appointment & {
+  locationId?: string;
+  tokenNumber?: number;
+  queuePosition?: number;
+  metadata?: {
+    tokenNumber?: number;
+  };
+};
 
 export function PatientQueueCard() {
   const { data: appointmentsData, isPending: isAppointmentsPending } = useMyAppointments();
 
-  const activeAppointment = useMemo(() => {
+  const activeAppointment = useMemo<QueueAwareAppointment | null>(() => {
     const appointments = Array.isArray(appointmentsData)
       ? appointmentsData
       : appointmentsData?.appointments ||
@@ -20,9 +32,10 @@ export function PatientQueueCard() {
 
     if (!Array.isArray(appointments)) return null;
 
-    return appointments.find(
-      (apt: any) => apt.status === "CONFIRMED" || apt.status === "IN_PROGRESS"
-    );
+    return (appointments as QueueAwareAppointment[]).find((apt) => {
+      const status = normalizeAppointmentStatus(apt?.status);
+      return status === "CONFIRMED" || status === "IN_PROGRESS";
+    }) || null;
   }, [appointmentsData]);
 
   const { data: queueStats } = useRealTimeQueueStatus(
@@ -43,7 +56,7 @@ export function PatientQueueCard() {
 
   if (!activeAppointment) return null;
 
-  const stats = (queueStats as any)?.data || {};
+  const stats = (queueStats || {}) as QueueStatusSnapshot;
   const currentToken = stats.currentToken || 0;
   const userToken =
     activeAppointment.tokenNumber ||
@@ -52,17 +65,19 @@ export function PatientQueueCard() {
     0;
   const totalInQueue = stats.totalInQueue || 0;
 
+  const normalizedStatus = normalizeAppointmentStatus(activeAppointment.status);
+
   let peopleAhead = 0;
-  if (activeAppointment.status === "CONFIRMED" && userToken > currentToken) {
+  if (normalizedStatus === "CONFIRMED" && userToken > currentToken) {
     peopleAhead = userToken - currentToken;
   }
 
   const estimatedWait =
     typeof stats.estimatedWaitTime === "number" ? stats.estimatedWaitTime : 15;
-  const isInProgress = activeAppointment.status === "IN_PROGRESS";
+  const isInProgress = normalizedStatus === "IN_PROGRESS";
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-0.5">
@@ -87,12 +102,12 @@ export function PatientQueueCard() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-none">
             Your Token
           </span>
-          <span className="text-3xl font-bold text-primary">
+          <span className="text-2xl sm:text-3xl font-bold text-primary">
             #{userToken || "--"}
           </span>
         </div>
@@ -101,7 +116,7 @@ export function PatientQueueCard() {
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-none">
             Serving
           </span>
-          <span className="text-3xl font-bold text-foreground">
+          <span className="text-2xl sm:text-3xl font-bold text-foreground">
             #{currentToken || "--"}
           </span>
         </div>
@@ -110,7 +125,7 @@ export function PatientQueueCard() {
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-none">
             Ahead
           </span>
-          <span className="text-3xl font-bold text-foreground">
+          <span className="text-2xl sm:text-3xl font-bold text-foreground">
             {isInProgress ? "0" : peopleAhead}
           </span>
         </div>
@@ -120,7 +135,7 @@ export function PatientQueueCard() {
             Estimated
           </span>
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold text-foreground">
+            <span className="text-2xl sm:text-3xl font-bold text-foreground">
               {isInProgress ? "0" : estimatedWait}
             </span>
             <span className="text-xs font-bold uppercase text-muted-foreground">
@@ -131,7 +146,7 @@ export function PatientQueueCard() {
       </div>
 
       {/* Footer */}
-      <div className="mt-6 flex flex-col gap-2 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-6 flex flex-col gap-2 border-t border-border pt-4 sm:pt-5 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
           Total Patients: {totalInQueue}
         </span>

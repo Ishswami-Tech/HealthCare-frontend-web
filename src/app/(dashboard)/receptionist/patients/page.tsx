@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
-import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -287,16 +287,12 @@ export default function ReceptionistPatients() {
               <Eye className="mr-1 h-4 w-4" />
               View
             </Button>
-            <BookAppointmentDialog
-              clinicId={clinicId || ""}
-              initialPatientId={row.original.patient.id}
-              trigger={
-                <Button size="sm">
-                  <Calendar className="mr-1 h-4 w-4" />
-                  Book
-                </Button>
-              }
-            />
+            <Button asChild size="sm">
+              <Link href="/receptionist/appointments#appointment-manager">
+                <Calendar className="mr-1 h-4 w-4" />
+                Book
+              </Link>
+            </Button>
           </div>
         ),
       },
@@ -1049,16 +1045,12 @@ export default function ReceptionistPatients() {
                           </DialogContent>
                         </Dialog>
 
-                        <BookAppointmentDialog
-                          clinicId={clinicId || ""}
-                          initialPatientId={patient.id}
-                          trigger={
-                            <Button size="sm">
-                              <Calendar className="w-4 h-4 mr-1" />
-                              Book
-                            </Button>
-                          }
-                        />
+                        <Button asChild size="sm">
+                          <Link href="/receptionist/appointments#appointment-manager">
+                            <Calendar className="w-4 h-4 mr-1" />
+                            Book
+                          </Link>
+                        </Button>
                       </div>
                     </div>
                   </div>

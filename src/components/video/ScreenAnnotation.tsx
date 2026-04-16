@@ -23,12 +23,12 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
-  createAnnotation,
-  getAnnotations,
-  deleteAnnotation,
+  useAnnotations,
+  useCreateAnnotation,
+  useDeleteAnnotation,
   type Annotation,
-} from "@/lib/actions/video.server";
-import { useToast } from "@/hooks/utils/use-toast";
+} from "@/hooks/query";
+import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 interface ScreenAnnotationProps {
   appointmentId: string;
@@ -45,7 +45,6 @@ export function ScreenAnnotation({
   onAnnotationChange,
 }: ScreenAnnotationProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -57,25 +56,18 @@ export function ScreenAnnotation({
   );
   const [history, setHistory] = useState<Annotation[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [deletingAnnotationId, setDeletingAnnotationId] = useState<string | null>(null);
 
   const { subscribeToAnnotations, isConnected } = useVideoAppointmentWebSocket();
+  const { data: fetchedAnnotations = [] } = useAnnotations(appointmentId);
+  const createAnnotationMutation = useCreateAnnotation();
+  const deleteAnnotationMutation = useDeleteAnnotation();
+  const isSavingAnnotation = createAnnotationMutation.isPending;
 
-  // Load annotations
   useEffect(() => {
-    const loadAnnotations = async () => {
-      try {
-        const result = await getAnnotations(appointmentId);
-        if (result && result.annotations) {
-          setAnnotations(result.annotations);
-          drawAnnotations(result.annotations);
-        }
-      } catch (error) {
-        // Error handled by React Query
-      }
-    };
-
-    loadAnnotations();
-  }, [appointmentId]);
+    setAnnotations(fetchedAnnotations);
+    drawAnnotations(fetchedAnnotations);
+  }, [fetchedAnnotations]);
 
   // Subscribe to real-time annotation updates
   useEffect(() => {
@@ -285,7 +277,6 @@ export function ScreenAnnotation({
       const annotationData: {
         annotationType: 'DRAWING' | 'TEXT' | 'ARROW' | 'HIGHLIGHT' | 'SHAPE';
         data: Record<string, unknown>;
-        position?: Annotation['position'];
         color?: string;
         thickness?: number;
       } = {
@@ -296,39 +287,40 @@ export function ScreenAnnotation({
       if (typeof data.data.color === 'string') {
         annotationData.color = data.data.color;
       }
-      const result = await createAnnotation(appointmentId, annotationData);
+      const result = await createAnnotationMutation.mutateAsync({
+        appointmentId,
+        data: annotationData,
+      });
       if (result) {
         saveToHistory();
-        toast({
-          title: "Annotation Created",
+        showSuccessToast("Annotation created", {
+          id: TOAST_IDS.GLOBAL.SUCCESS,
           description: "Annotation has been saved",
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create annotation",
-        variant: "destructive",
-      });
+      showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
     }
   };
 
   const handleDeleteAnnotation = async (annotationId: string) => {
+    setDeletingAnnotationId(annotationId);
     try {
-      const result = await deleteAnnotation(appointmentId, annotationId);
+      const result = await deleteAnnotationMutation.mutateAsync({
+        appointmentId,
+        annotationId,
+      });
       if (result && result.success) {
         saveToHistory();
-        toast({
-          title: "Annotation Deleted",
+        showSuccessToast("Annotation deleted", {
+          id: TOAST_IDS.GLOBAL.SUCCESS,
           description: "Annotation has been deleted",
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete annotation",
-        variant: "destructive",
-      });
+      showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
+    } finally {
+      setDeletingAnnotationId(null);
     }
   };
 
@@ -373,37 +365,41 @@ export function ScreenAnnotation({
       <CardContent className="space-y-4">
         {/* Toolbar */}
         <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            size="sm"
-            variant={currentTool === "drawing" ? "default" : "outline"}
-            onClick={() => setCurrentTool("drawing")}
-          >
+            <Button
+              size="sm"
+              variant={currentTool === "drawing" ? "default" : "outline"}
+              onClick={() => setCurrentTool("drawing")}
+              disabled={isSavingAnnotation}
+            >
             <Pen className="h-4 w-4" />
           </Button>
-          <Button
-            size="sm"
-            variant={currentTool === "text" ? "default" : "outline"}
-            onClick={() => setCurrentTool("text")}
-          >
+            <Button
+              size="sm"
+              variant={currentTool === "text" ? "default" : "outline"}
+              onClick={() => setCurrentTool("text")}
+              disabled={isSavingAnnotation}
+            >
             <Type className="h-4 w-4" />
           </Button>
-          <Button
-            size="sm"
-            variant={currentTool === "shape" ? "default" : "outline"}
-            onClick={() => setCurrentTool("shape")}
-          >
+            <Button
+              size="sm"
+              variant={currentTool === "shape" ? "default" : "outline"}
+              onClick={() => setCurrentTool("shape")}
+              disabled={isSavingAnnotation}
+            >
             <Square className="h-4 w-4" />
           </Button>
-          <Button
-            size="sm"
-            variant={currentTool === "highlight" ? "default" : "outline"}
-            onClick={() => setCurrentTool("highlight")}
-          >
+            <Button
+              size="sm"
+              variant={currentTool === "highlight" ? "default" : "outline"}
+              onClick={() => setCurrentTool("highlight")}
+              disabled={isSavingAnnotation}
+            >
             <Highlighter className="h-4 w-4" />
           </Button>
 
           {currentTool === "shape" && (
-            <Select value={currentShape} onValueChange={(v) => setCurrentShape(v as ShapeType)}>
+            <Select value={currentShape} onValueChange={(v) => setCurrentShape(v as ShapeType)} disabled={isSavingAnnotation}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -423,20 +419,21 @@ export function ScreenAnnotation({
                   currentColor === color ? "border-primary" : "border-transparent"
                 }`}
                 style={{ backgroundColor: color }}
-                onClick={() => setCurrentColor(color)}
-              />
+                  disabled={isSavingAnnotation}
+                  onClick={() => setCurrentColor(color)}
+                />
             ))}
           </div>
 
           <div className="flex gap-1 ml-auto">
-            <Button size="sm" variant="outline" onClick={handleUndo} disabled={historyIndex <= 0}>
+            <Button size="sm" variant="outline" onClick={handleUndo} disabled={historyIndex <= 0 || isSavingAnnotation}>
               <Undo className="h-4 w-4" />
             </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={handleRedo}
-              disabled={historyIndex >= history.length - 1}
+              disabled={historyIndex >= history.length - 1 || isSavingAnnotation}
             >
               <Redo className="h-4 w-4" />
             </Button>
@@ -478,6 +475,7 @@ export function ScreenAnnotation({
                       size="sm"
                       variant="ghost"
                       onClick={() => handleDeleteAnnotation(annotation.id)}
+                      disabled={deletingAnnotationId === annotation.id}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -491,4 +489,3 @@ export function ScreenAnnotation({
     </Card>
   );
 }
-

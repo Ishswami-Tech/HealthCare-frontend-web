@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { AppointmentWithRelations, AppointmentStatus } from "@/types/appointment.types";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { getDisplayAppointmentDuration } from "@/lib/utils/appointmentUtils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
@@ -87,6 +88,7 @@ export default function DoctorDashboard() {
         const patientName =
           `${apt.patient?.firstName || ""} ${apt.patient?.lastName || ""}`.trim() ||
           "Unknown Patient";
+        const displayDuration = getDisplayAppointmentDuration(apt);
         const statusLabels: Partial<Record<AppointmentStatus, string>> = {
           IN_PROGRESS: "In Progress",
           SCHEDULED: "Scheduled",
@@ -104,7 +106,7 @@ export default function DoctorDashboard() {
           status: statusLabels[apt.status] || apt.status,
           statusEnum: apt.status,
           type: apt.type || "Consultation",
-          duration: `${apt.duration || 30} min`,
+          duration: `${displayDuration || 30} min`,
           notes: apt.notes || "",
           isVideo: apt.type === "VIDEO_CALL",
         };

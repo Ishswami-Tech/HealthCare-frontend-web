@@ -15,7 +15,7 @@ const DEFAULT_STATUS_CONFIG = {
 
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ProtectedComponent } from "@/components/rbac/ProtectedComponent";
 import { Permission } from "@/types/rbac.types";
 import {
@@ -94,7 +94,6 @@ import {
   formatTimeInIST,
   isVideoAppointmentPaymentCompleted,
 } from "@/lib/utils/appointmentUtils";
-import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { ProposeVideoAppointmentDialog } from "@/components/appointments/ProposeVideoAppointmentDialog";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -135,11 +134,18 @@ function computeStats(appointments: VideoAppointment[]): AppointmentStats {
   );
 }
 
-export function isJoinableVideoAppointment(appointment: VideoAppointment): boolean {
+export function isJoinableVideoAppointment(appointment: VideoAppointment | any): boolean {
   const normalizedStatus = String(appointment.status || "").toLowerCase();
+  const rawStatus = String(appointment.rawStatus || appointment.status || "").toLowerCase().replace(/_/g, "-");
+
   if (normalizedStatus !== "scheduled" && normalizedStatus !== "in-progress") {
     return false;
   }
+  
+  if (rawStatus === "awaiting-slot-confirmation") {
+    return false;
+  }
+
   const paymentCompleted = (appointment as any).paymentCompleted;
   return paymentCompleted !== false;
 }
@@ -212,6 +218,7 @@ export function VideoAppointmentsList({
   filters = {},
 }: VideoAppointmentsListProps) {
   const { session, user } = useAuth();
+  const router = useRouter();
   const { hasPermission } = useRBAC();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("scheduled");
@@ -265,6 +272,7 @@ export function VideoAppointmentsList({
           patientId: apt?.patientId || apt?.patient?.id || "",
           startTime,
           status: normalizedStatus === "awaiting-slot-confirmation" ? "scheduled" : normalizedStatus,
+          rawStatus: apt?.status,
           sessionId: apt?.sessionId,
           recordingUrl: apt?.recordingUrl,
           notes: apt?.notes,
@@ -373,13 +381,13 @@ export function VideoAppointmentsList({
   const formatDateValue = (v: string, p: string) => { const d = parseDateValue(v); return d ? formatDateInIST(d, { day: "2-digit", month: "short", year: "numeric" }) : p; };
 
   const LocalStatCard = ({ label, value, icon, color }: any) => (
-    <div className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3 shadow-sm">
-      <div className={cn("rounded-xl p-2.5 shrink-0", color)}>
+    <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 flex items-center gap-2 sm:gap-3 shadow-sm">
+      <div className={cn("rounded-xl p-2 sm:p-2.5 shrink-0", color)}>
         {icon}
       </div>
       <div>
-        <p className="text-2xl font-bold text-foreground tracking-tight leading-none mb-0.5">{value}</p>
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</p>
+        <p className="text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-none mb-0.5">{value}</p>
+        <p className="text-[9px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</p>
       </div>
     </div>
   );
@@ -394,30 +402,32 @@ export function VideoAppointmentsList({
     
     return (
       <div className={cn("rounded-2xl border transition-all duration-200", isExpanded ? "border-muted-foreground/20 bg-muted/20 shadow-sm" : "border-border bg-card hover:border-muted-foreground/20")}>
-        <div className="p-4 sm:p-5 cursor-pointer" onClick={() => setExpandedCard(isExpanded ? null : (appointment.id || appointment.appointmentId))}>
+        <div className="p-3 sm:p-5 cursor-pointer" onClick={() => setExpandedCard(isExpanded ? null : (appointment.id || appointment.appointmentId))}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0 text-sm font-bold text-muted-foreground italic">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs sm:text-sm font-bold text-muted-foreground italic">
                 {doctorName.charAt(0)}
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-base text-foreground leading-tight mb-0.5">{doctorName}</p>
+                <p className="font-semibold text-sm sm:text-base text-foreground leading-tight mb-0.5 truncate">{doctorName}</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Video Consultation</span>
-                  {(appointment as any).paymentCompleted === false && <span className="text-[9px] text-red-600 font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-50 border border-red-100">Unpaid</span>}
+                  <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Video Consultation</span>
+                  {(appointment as any).paymentCompleted === false && <span className="text-[8px] sm:text-[9px] text-red-600 font-bold uppercase tracking-widest px-1.5 sm:px-2 py-0.5 rounded-full bg-red-50 border border-red-100">Unpaid</span>}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-               <div className="text-right hidden sm:block">
-                  <p className="text-sm font-bold text-foreground leading-none">{appointment.startTime ? formatTimeInIST(new Date(appointment.startTime), { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{appointment.startTime ? formatDateInIST(new Date(appointment.startTime), { month: "short", day: "2-digit" }) : "—"}</p>
+            <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+               <div className="text-left sm:text-right">
+                  <p className="text-xs sm:text-sm font-bold text-foreground leading-none">{appointment.startTime ? formatTimeInIST(new Date(appointment.startTime), { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}</p>
+                  <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{appointment.startTime ? formatDateInIST(new Date(appointment.startTime), { month: "short", day: "2-digit" }) : "—"}</p>
                </div>
-               <span className={cn("inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-wider", cfg.bg, cfg.color)}>
-                 <span className={cn("w-1.5 h-1.5 rounded-full", cfg.dot)} />
-                 {cfg.label}
-               </span>
-               <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-300", isExpanded && "rotate-180")} />
+               <div className="flex items-center gap-2">
+                 <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider", cfg.bg, cfg.color)}>
+                   <span className={cn("w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full", cfg.dot)} />
+                   {cfg.label}
+                 </span>
+                 <ChevronDown className={cn("w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground transition-transform duration-300", isExpanded && "rotate-180")} />
+               </div>
             </div>
           </div>
         </div>
@@ -428,47 +438,53 @@ export function VideoAppointmentsList({
                <div className="pt-3 border-t border-border space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                     <div className="md:col-span-2 space-y-2">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic font-serif">Diagnostic Context</span>
-                      <p className="font-medium text-foreground/80 leading-relaxed italic border-l-2 border-emerald-500 pl-6 bg-emerald-50/30 dark:bg-emerald-900/10 py-3 rounded-r-2xl">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic font-serif">Diagnostic Context</span>
+                      <p className="font-medium text-xs sm:text-sm text-foreground/80 leading-relaxed italic border-l-2 border-emerald-500 pl-4 sm:pl-6 bg-emerald-50/30 dark:bg-emerald-900/10 py-2 sm:py-3 rounded-r-2xl">
                         "{(appointment as any).chiefComplaint || "Routine video checkup and clinical review."}"
                       </p>
                     </div>
                     <div className="space-y-4">
                       <div>
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Protocol Type</span>
-                        <p className="font-bold text-foreground text-sm uppercase">{(appointment as any).treatmentType || "Virtual Consultation"}</p>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Protocol Type</span>
+                        <p className="font-bold text-foreground text-xs sm:text-sm uppercase">{(appointment as any).treatmentType || "Virtual Consultation"}</p>
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Authorization</span>
-                        <p className="font-bold text-emerald-600 text-sm uppercase tracking-tighter italic">{role} Access</p>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Authorization</span>
+                        <p className="font-bold text-emerald-600 text-xs sm:text-sm uppercase tracking-tighter italic">{role} Access</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 justify-end pt-4 border-t border-border">
+                  <div className="flex flex-wrap gap-2 justify-end pt-3 sm:pt-4 border-t border-border">
                     {appointment.status === 'scheduled' && (
                       <>
                         {(appointment as any).paymentCompleted === false && getVideoPaymentAmount(appointment, appointmentServices) > 0 && (
-                          <PaymentButton appointmentId={appointment.appointmentId} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-9 px-4 rounded-xl text-sm font-semibold" onSuccess={() => refetch()}>
+                          <PaymentButton appointmentId={appointment.appointmentId} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold" onSuccess={() => refetch()}>
                             Pay ₹{getVideoPaymentAmount(appointment, appointmentServices)}
                           </PaymentButton>
                         )}
-                        <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-9 px-4 rounded-xl">Reschedule</Button>
-                        <Button variant="ghost" size="sm" onClick={() => openCancel(appointment)} className="h-9 px-4 rounded-xl text-destructive hover:text-destructive">Cancel</Button>
+                        {(appointment as any).paymentCompleted !== false && (appointment as any).rawStatus === 'AWAITING_SLOT_CONFIRMATION' && (
+                          <Button variant="outline" className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm border-amber-200 bg-amber-50 text-amber-700 pointer-events-none" disabled>
+                            <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5" />
+                            Awaiting Doctor Confirmation
+                          </Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm">Reschedule</Button>
+                        <Button variant="ghost" size="sm" onClick={() => openCancel(appointment)} className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm text-destructive hover:text-destructive">Cancel</Button>
                       </>
                     )}
                     {showJoinButton && ["scheduled", "in-progress"].includes(appointment.status) && isJoinableVideoAppointment(appointment) && (
-                      <Button size="sm" onClick={() => handleJoinAppointment(appointment)} className="h-9 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold" disabled={joinVideoAppointment.isPending}>
+                      <Button size="sm" onClick={() => handleJoinAppointment(appointment)} className="h-8 sm:h-9 px-4 sm:px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold" disabled={joinVideoAppointment.isPending}>
                         {joinVideoAppointment.isPending ? "Joining..." : "Join Session"}
                       </Button>
                     )}
                     {showEndButton && appointment.status === "in-progress" && (
-                      <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(appointment.appointmentId || appointment.id || "")} className="h-9 px-4 rounded-xl" disabled={endVideoAppointment.isPending}>
+                      <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(appointment.appointmentId || appointment.id || "")} className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm" disabled={endVideoAppointment.isPending}>
                         {endVideoAppointment.isPending ? "Ending..." : "End Session"}
                       </Button>
                     )}
                     {showDownloadButton && appointment.status === "completed" && appointment.recordingUrl && (
-                        <Button size="sm" onClick={() => window.open(appointment.recordingUrl, "_blank")} variant="outline" className="h-9 px-4 rounded-xl">Download Recording</Button>
+                        <Button size="sm" onClick={() => window.open(appointment.recordingUrl, "_blank")} variant="outline" className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm">Download Recording</Button>
                     )}
                   </div>
                </div>
@@ -490,7 +506,13 @@ export function VideoAppointmentsList({
             </div>
             {isPatient && (
               <div className="flex gap-2">
-                <BookAppointmentDialog trigger={<Button size="sm" className="h-9 px-4 rounded-xl">Book Session</Button>} initialConsultationMode="VIDEO" />
+                <Button
+                  size="sm"
+                  className="h-9 px-4 rounded-xl"
+                  onClick={() => router.push("/patient/appointments?mode=video")}
+                >
+                  Book Session
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => refetch()} className="h-9 w-9 rounded-xl p-0"><RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} /></Button>
               </div>
             )}
@@ -498,11 +520,11 @@ export function VideoAppointmentsList({
         )}
 
         {showStatistics && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <LocalStatCard label="Active" value={activeAppointments} icon={<Activity className="w-5 h-5" />} color="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20" />
-            <LocalStatCard label="Pending" value={scheduledAppointments} icon={<Calendar className="w-5 h-5" />} color="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20" />
-            <LocalStatCard label="Finished" value={completedAppointmentsCount} icon={<CheckCircle className="w-5 h-5" />} color="text-muted-foreground bg-muted" />
-            <LocalStatCard label="Cancelled" value={cancelledAppointments} icon={<XCircle className="w-5 h-5" />} color="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-6">
+            <LocalStatCard label="Active" value={activeAppointments} icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20" />
+            <LocalStatCard label="Pending" value={scheduledAppointments} icon={<Calendar className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20" />
+            <LocalStatCard label="Finished" value={completedAppointmentsCount} icon={<CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-muted-foreground bg-muted" />
+            <LocalStatCard label="Cancelled" value={cancelledAppointments} icon={<XCircle className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" />
           </div>
         )}
 
@@ -513,9 +535,9 @@ export function VideoAppointmentsList({
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
              <Tabs value={filterStatus} onValueChange={setFilterStatus} className="w-full sm:w-auto">
-                <TabsList>
+                <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
                     {["all", "scheduled", "in-progress", "completed", "cancelled"].map(s => (
-                        <TabsTrigger key={s} value={s} className="capitalize shrink-0">{s}</TabsTrigger>
+                        <TabsTrigger key={s} value={s} className="capitalize shrink-0 text-xs sm:text-sm px-3">{s}</TabsTrigger>
                     ))}
                 </TabsList>
              </Tabs>
@@ -533,7 +555,15 @@ export function VideoAppointmentsList({
               <CalendarClock className="w-12 h-12 text-muted-foreground/20 mb-4" />
               <p className="text-base font-semibold text-foreground mb-1">No Sessions Found</p>
               <p className="text-muted-foreground text-sm max-w-sm mb-6">Try adjusting the status filter or book a new video consultation.</p>
-              {isPatient && <BookAppointmentDialog trigger={<Button size="sm" className="rounded-xl">Book Session</Button>} initialConsultationMode="VIDEO" />}
+              {isPatient && (
+                <Button
+                  size="sm"
+                  className="rounded-xl"
+                  onClick={() => router.push("/patient/appointments?mode=video")}
+                >
+                  Book Session
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid gap-6">

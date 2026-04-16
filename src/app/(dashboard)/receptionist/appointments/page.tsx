@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Bell, Calendar, Loader2, QrCode, Search, Stethoscope, UserCheck, Eye, MoreHorizontal, UserMinus } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
 
-import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
+import AppointmentManager from "@/components/appointments/AppointmentManager";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar as DateCalendar } from "@/components/ui/calendar";
@@ -37,17 +37,17 @@ import {
 import { DataTable } from "@/components/ui/data-table";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useDoctors } from "@/hooks/query/useDoctors";
-import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { useAppointmentServices, useAppointments } from "@/hooks/query/useAppointments";
-import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
-import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
-  checkInAppointment,
-  getAppointmentReassignmentCandidates,
-  reassignAppointmentDoctor,
-  updateAppointmentStatus,
-} from "@/lib/actions/appointments.server";
-import { callNextPatient } from "@/lib/actions/queue.server";
+  useAppointmentServices,
+  useAppointments,
+  useCheckInAppointment,
+  useMarkAppointmentNoShow,
+  useReassignAppointmentDoctor,
+} from "@/hooks/query/useAppointments";
+import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
+import { useCallNextPatient as useQueueCallNextPatient } from "@/hooks/query/useQueue";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { getQueuePositionLabel, resolveQueueDisplayLabel } from "@/lib/queue/queue-adapter";
 
 type ViewAppointment = {
@@ -158,21 +158,10 @@ export default function ReceptionistAppointmentsPage() {
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const [activeDoctorId, setActiveDoctorId] = useState<string | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<ViewAppointment | null>(null);
-  const [selectedReassignments, setSelectedReassignments] = useState<Record<string, string>>({});
-  const [reassignmentCandidates, setReassignmentCandidates] = useState<
-    Record<
-      string,
-      Array<{
-        id: string;
-        name: string;
-        role: string;
-        eligible: boolean;
-        reason?: string;
-        isCurrent: boolean;
-        isPrimary: boolean;
-      }>
-    >
-  >({});
+  const checkInMutation = useCheckInAppointment();
+  const markNoShowMutation = useMarkAppointmentNoShow();
+  const reassignAppointmentMutation = useReassignAppointmentDoctor();
+  const callNextPatientMutation = useQueueCallNextPatient();
 
   const {
     data: appointmentsData,
@@ -311,26 +300,22 @@ export default function ReceptionistAppointmentsPage() {
 
   async function handleConfirmArrival(appointmentId: string) {
     setActiveActionId(appointmentId);
-    const result = await checkInAppointment(appointmentId);
-    if (result.success) {
-      showSuccessToast("Patient confirmed and added to queue", { id: TOAST_IDS.APPOINTMENT.CHECK_IN });
+    try {
+      await checkInMutation.mutateAsync(appointmentId);
       await refetch?.();
-    } else {
-      showErrorToast(result.error || "Failed to confirm patient arrival", { id: TOAST_IDS.APPOINTMENT.CHECK_IN });
+    } finally {
+      setActiveActionId(null);
     }
-    setActiveActionId(null);
   }
 
   async function handleMarkNoShow(appointmentId: string) {
     setActiveActionId(appointmentId);
-    const result = await updateAppointmentStatus(appointmentId, { status: "NO_SHOW" });
-    if (result.success) {
-      showSuccessToast("Appointment marked as no-show", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+    try {
+      await markNoShowMutation.mutateAsync(appointmentId);
       await refetch?.();
-    } else {
-      showErrorToast(result.error || "Failed to mark no-show", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+    } finally {
+      setActiveActionId(null);
     }
-    setActiveActionId(null);
   }
 
   async function handleNotifyNext(doctorId: string, appointmentId: string | null) {
@@ -339,30 +324,26 @@ export default function ReceptionistAppointmentsPage() {
       return;
     }
     setActiveDoctorId(doctorId);
-    const result = (await callNextPatient(doctorId, appointmentId)) as any;
-    if (result?.success) {
-      showSuccessToast("Next patient moved into consultation", { id: TOAST_IDS.QUEUE.CALL_NEXT });
+    try {
+      await callNextPatientMutation.mutateAsync({ doctorId, appointmentId });
       await refetch?.();
-    } else {
-      showErrorToast(result?.message || "No waiting patient available", { id: TOAST_IDS.QUEUE.CALL_NEXT });
+    } finally {
+      setActiveDoctorId(null);
     }
-    setActiveDoctorId(null);
   }
 
   async function handleReassignDoctor(appointmentId: string, doctorId: string) {
     setActiveActionId(appointmentId);
-    const result = await reassignAppointmentDoctor(appointmentId, {
-      doctorId,
-      reason: "Reception desk reassignment",
-    });
-
-    if (result.success) {
-      showSuccessToast("Appointment reassigned successfully", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+    try {
+      await reassignAppointmentMutation.mutateAsync({
+        appointmentId,
+        doctorId,
+        reason: "Reception desk reassignment",
+      });
       await refetch?.();
-    } else {
-      showErrorToast(result.error || "Failed to reassign", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+    } finally {
+      setActiveActionId(null);
     }
-    setActiveActionId(null);
   }
 
   const columns: ColumnDef<ViewAppointment>[] = [
@@ -506,16 +487,20 @@ export default function ReceptionistAppointmentsPage() {
               QR Check-In
             </Link>
           </Button>
-          <BookAppointmentDialog
-            {...(clinicId ? { clinicId } : {})}
-            trigger={
-              <Button>
-                <Calendar className="w-4 h-4 mr-2" />
-                New Appointment
-              </Button>
-            }
-          />
+          <Button asChild>
+            <Link href="#appointment-manager">
+              <Calendar className="w-4 h-4 mr-2" />
+              New Appointment
+            </Link>
+          </Button>
         </div>
+      </div>
+
+      <div id="appointment-manager">
+        <AppointmentManager
+          isAdminView={true}
+          {...(clinicId ? { clinicId } : {})}
+        />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">

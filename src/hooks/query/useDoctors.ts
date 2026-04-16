@@ -38,11 +38,13 @@ export const useDoctors = (clinicId: string, filters?: {
   limit?: number;
   offset?: number;
   locationId?: string;
+}, options?: {
+  enabled?: boolean;
 }) => {
   return useQueryData(['doctors', clinicId, filters], async () => {
     return await getDoctors(clinicId, filters);
   }, {
-    enabled: !!clinicId,
+    enabled: !!clinicId && (options?.enabled ?? true),
   });
 };
 

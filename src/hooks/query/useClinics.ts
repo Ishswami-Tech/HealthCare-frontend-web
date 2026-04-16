@@ -709,7 +709,9 @@ export const useUpdateClinicSettings = () => {
 /**
  * Hook to get active locations
  */
-export const useActiveLocations = (clinicId: string) => {
+export const useActiveLocations = (clinicId: string, options?: {
+  enabled?: boolean;
+}) => {
   
   return useQueryData<ClinicLocation[]>(
     ['activeLocations', clinicId],
@@ -721,7 +723,7 @@ export const useActiveLocations = (clinicId: string) => {
       return result.filter((location) => location?.isActive !== false);
     },
     {
-      enabled: !!clinicId,
+      enabled: !!clinicId && (options?.enabled ?? true),
     }
   );
 };

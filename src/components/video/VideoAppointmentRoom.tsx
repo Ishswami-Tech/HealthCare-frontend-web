@@ -48,7 +48,7 @@ import {
 } from "@/hooks/query/useVideoAppointments";
 import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useToast } from "@/hooks/utils/use-toast";
+import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import type { OpenViduAPI } from "@/lib/video/openvidu";
 import type { ParticipantInfo } from "@/lib/video/openvidu";
@@ -65,7 +65,6 @@ export function VideoAppointmentRoom({
   onLeaveRoom,
 }: VideoAppointmentRoomProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const {
     startCall,
     endCall,
@@ -129,8 +128,8 @@ export function VideoAppointmentRoom({
             if (prev.some(p => p.userId === participant.userId)) return prev;
             return [...prev, participant];
           });
-          toast({
-            title: "Participant Joined",
+          showInfoToast("Participant joined", {
+            id: TOAST_IDS.VIDEO.JOIN,
             description: `${participantData.displayName} joined the call`,
           });
         } else if (data.action === "participant_left" && data.participant) {
@@ -138,8 +137,8 @@ export function VideoAppointmentRoom({
           setParticipants((prev) =>
             prev.filter((p) => (p.userId || p.connectionId) !== participantData.userId)
           );
-          toast({
-            title: "Participant Left",
+          showInfoToast("Participant left", {
+            id: TOAST_IDS.VIDEO.END,
             description: `${participantData.displayName} left the call`,
           });
         }
@@ -151,14 +150,14 @@ export function VideoAppointmentRoom({
       if (data.appointmentId === appointment.appointmentId) {
         if (data.action === "recording_started") {
           setIsRecording(true);
-          toast({
-            title: "Recording Started",
+          showSuccessToast("Recording started", {
+            id: TOAST_IDS.VIDEO.JOIN,
             description: "Video recording has started",
           });
         } else if (data.action === "recording_stopped") {
           setIsRecording(false);
-          toast({
-            title: "Recording Stopped",
+          showInfoToast("Recording stopped", {
+            id: TOAST_IDS.VIDEO.END,
             description: "Video recording has stopped",
           });
         }
@@ -234,7 +233,6 @@ export function VideoAppointmentRoom({
     subscribeToCallQuality,
     subscribeToAnnotations,
     subscribeToTranscription,
-    toast,
   ]);
 
   // ✅ Start video call
@@ -260,18 +258,10 @@ export function VideoAppointmentRoom({
         role: userInfo.role || user?.role || 'patient',
       });
 
-      toast({
-        title: "Connected",
-        description: "Successfully connected to video appointment",
-      });
+      showSuccessToast("Connected to video appointment", { id: TOAST_IDS.VIDEO.JOIN });
     } catch (error) {
-      toast({
-        title: "Connection Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to connect to video call",
-        variant: "destructive",
+      showErrorToast(error instanceof Error ? error.message : "Failed to connect to video call", {
+        id: TOAST_IDS.VIDEO.ERROR,
       });
     } finally {
       setIsConnecting(false);
@@ -297,16 +287,9 @@ export function VideoAppointmentRoom({
         onEndCall();
       }
 
-      toast({
-        title: "Call Ended",
-        description: "Video appointment has been ended",
-      });
+      showSuccessToast("Call ended", { id: TOAST_IDS.VIDEO.END });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to end video call",
-        variant: "destructive",
-      });
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 

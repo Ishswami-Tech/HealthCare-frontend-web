@@ -7,7 +7,7 @@ export interface BillingPlan {
   description?: string;
   price: number;
   currency: string;
-  billingCycle: 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+  billingCycle: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
   appointmentsIncluded?: number;
   isUnlimitedAppointments: boolean;
   appointmentTypes?: string[];
@@ -34,10 +34,16 @@ export interface Subscription {
     | 'PAUSED';
   startDate: string;
   endDate?: string;
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
   nextBillingDate?: string;
+  cancelledAt?: string;
+  cancelAtPeriodEnd?: boolean;
   autoRenew: boolean;
   appointmentsUsed: number;
   appointmentsLimit?: number;
+  appointmentsRemaining?: number;
+  remainingVisits?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -156,7 +162,7 @@ export interface CreateBillingPlanData {
   description?: string;
   price: number;
   currency?: string;
-  billingCycle: 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+  billingCycle: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
   appointmentsIncluded?: number;
   isUnlimitedAppointments?: boolean;
   isActive?: boolean;

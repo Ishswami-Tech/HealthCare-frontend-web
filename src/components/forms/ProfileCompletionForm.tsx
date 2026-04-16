@@ -5,9 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useQueryData, useMutationOperation } from "@/hooks/core";
-import { updateUserProfile, getUserProfile } from "@/lib/actions/users.server";
-import { setProfileComplete } from "@/lib/actions/auth.server";
+import { useSetProfileComplete, useUpdateUserProfile, useUserProfile } from "@/hooks/query";
 import {
   getProfileCompletionRedirectUrl,
   transformApiResponse,
@@ -77,24 +75,15 @@ export default function ProfileCompletionForm({
   };
 
   // Fetch existing user profile data
-  const { data: existingProfile, isPending: loadingProfile } =
-    useQueryData<UserProfileData | null>(
-      ["user-profile-completion"],
-      async () => {
-        try {
-          const response = await getUserProfile();
-
-          // Transform the API response to match our expected format
-          const transformedData = transformApiResponse(response as Record<string, unknown>);
-          return transformedData;
-        } catch (error) {
-          return null;
-        }
-      },
-      {
-        enabled: !!session?.isAuthenticated,
-      }
-    );
+  const { data: existingProfileResponse, isPending: loadingProfile } = useUserProfile();
+  const existingProfile = (() => {
+    try {
+      if (!session?.isAuthenticated || !existingProfileResponse) return null;
+      return transformApiResponse(existingProfileResponse as Record<string, unknown>);
+    } catch (_error) {
+      return null;
+    }
+  })() as UserProfileData | null;
 
   const form = useForm<ProfileCompletionFormData>({
     resolver: zodResolver(profileCompletionSchema),
@@ -198,6 +187,7 @@ export default function ProfileCompletionForm({
     }
   }, [existingProfile, session, form, loadingProfile, isInitialized]);
 
+  /*
   // Update profile mutation
   const updateProfileMutation = useMutationOperation<unknown, Record<string, unknown>>(
     async (data: Record<string, unknown>) => {
@@ -277,6 +267,46 @@ export default function ProfileCompletionForm({
 
   const updateProfile = updateProfileMutation.mutate;
   const updatingProfile = updateProfileMutation.isPending;
+  */
+  const updateProfileMutation = useUpdateUserProfile();
+  const setProfileCompleteMutation = useSetProfileComplete();
+  const updatingProfile =
+    updateProfileMutation.isPending || setProfileCompleteMutation.isPending;
+  const updateProfile = async (data: Record<string, unknown>) => {
+    const result = await updateProfileMutation.mutateAsync(data);
+    const response = result as { success?: boolean; error?: string };
+    if (response && response.success === false && response.error) {
+      showErrorToast(response.error, { id: TOAST_IDS.PROFILE.COMPLETE });
+      return;
+    }
+
+    showSuccessToast("Profile completed successfully!", {
+      id: TOAST_IDS.PROFILE.COMPLETE,
+    });
+
+    await refreshSession(true);
+    await setProfileCompleteMutation.mutateAsync(true);
+
+    setTimeout(() => {
+      try {
+        if (onComplete) {
+          onComplete();
+        } else {
+          const userRole = session?.user?.role as Role;
+          const finalRedirect = getProfileCompletionRedirectUrl(
+            userRole,
+            redirectUrl
+          );
+          window.location.href = finalRedirect;
+        }
+      } catch (_redirectError) {
+        showErrorToast(
+          "Profile was updated but there was an error redirecting. Please try navigating manually.",
+          { id: TOAST_IDS.PROFILE.COMPLETE }
+        );
+      }
+    }, 1500);
+  };
 
   const onSubmit = async (data: ProfileCompletionFormData) => {
     setIsSubmitting(true);
@@ -320,7 +350,7 @@ export default function ProfileCompletionForm({
 
       const finalData = { ...baseProfileData, ...roleSpecificData };
 
-      updateProfile(finalData as Record<string, unknown>);
+      await updateProfile(finalData as Record<string, unknown>);
     } catch (error) {
       console.error("Profile completion error:", error);
 

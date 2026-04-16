@@ -14,10 +14,10 @@ import {
 // import { useAuth } from "@/hooks/auth/useAuth";
 import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
-  getTranscription,
+  useCallTranscription,
   type TranscriptionSegment,
-} from "@/lib/actions/video.server";
-import { useToast } from "@/hooks/utils/use-toast";
+} from "@/hooks/query";
+import { showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 
@@ -30,31 +30,21 @@ export function CallTranscription({
   appointmentId,
   className,
 }: CallTranscriptionProps) {
-  const { toast } = useToast();
   const [transcription, setTranscription] = useState<TranscriptionSegment[]>([]);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const {
+    data: transcriptionSegments = [],
+    isPending: isLoading,
+  } = useCallTranscription(appointmentId);
 
   const { subscribeToTranscription, isConnected } = useVideoAppointmentWebSocket();
 
-  // Load existing transcription
   useEffect(() => {
-    const loadTranscription = async () => {
-      try {
-        const result = await getTranscription(appointmentId);
-        if (result) {
-          if ('segments' in result) {
-            setTranscription(result.segments);
-          }
-        }
-      } catch (error) {
-        // Error handled by React Query
-      }
-    };
-
-    loadTranscription();
-  }, [appointmentId]);
+    setTranscription(transcriptionSegments);
+  }, [transcriptionSegments]);
 
   // Subscribe to real-time transcription
   useEffect(() => {
@@ -64,14 +54,14 @@ export function CallTranscription({
       if (data.appointmentId === appointmentId) {
         if (data.action === "transcription_started") {
           setIsTranscribing(true);
-          toast({
-            title: "Transcription Started",
+          showInfoToast("Transcription started", {
+            id: TOAST_IDS.VIDEO.JOIN,
             description: "Call is now being transcribed",
           });
         } else if (data.action === "transcription_stopped") {
           setIsTranscribing(false);
-          toast({
-            title: "Transcription Stopped",
+          showInfoToast("Transcription stopped", {
+            id: TOAST_IDS.VIDEO.END,
             description: "Transcription has been stopped",
           });
         } else if (data.action === "transcription_segment") {
@@ -94,11 +84,12 @@ export function CallTranscription({
     });
 
     return unsubscribe;
-  }, [isConnected, appointmentId, subscribeToTranscription, toast]);
+  }, [isConnected, appointmentId, subscribeToTranscription]);
 
   // Transcription is created automatically by backend when segments are received
 
   const handleDownload = () => {
+    setIsDownloading(true);
     const content = transcription
       .map(
         (seg) =>
@@ -115,6 +106,7 @@ export function CallTranscription({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    setIsDownloading(false);
   };
 
   const formatTime = (seconds: number) => {
@@ -144,15 +136,21 @@ export function CallTranscription({
           </div>
           <div className="flex gap-2">
             {transcription.length > 0 && (
-              <Button size="sm" variant="outline" onClick={handleDownload}>
+              <Button size="sm" variant="outline" onClick={handleDownload} disabled={isDownloading}>
                 <Download className="h-4 w-4 mr-2" />
-                Download
+                {isDownloading ? "Downloading..." : "Download"}
               </Button>
             )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-0 flex flex-col h-[400px]">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-muted-foreground">Loading transcription...</p>
+          </div>
+        ) : (
+          <>
         {/* Search */}
         {transcription.length > 0 && (
           <div className="px-4 pt-4 pb-2">
@@ -208,9 +206,9 @@ export function CallTranscription({
             </div>
           )}
         </ScrollArea>
-
+          </>
+        )}
       </CardContent>
     </Card>
   );
 }
-

@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { APP_CONFIG, API_ENDPOINTS } from "@/lib/config/config";
+import { useQueryClient } from "@/hooks/core";
+import { API_ENDPOINTS } from "@/lib/config/config";
+import { clinicApiClient } from "@/lib/api/client";
 
 type VerifyState = "loading" | "success" | "failed";
 const ALLOWED_PROVIDERS = new Set(["cashfree"]);
 
 export default function PaymentCallbackPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const [state, setState] = useState<VerifyState>("loading");
   const [message, setMessage] = useState("Verifying payment...");
@@ -28,11 +30,13 @@ export default function PaymentCallbackPage() {
     const rawProvider = (searchParams.get("provider") || "cashfree").toLowerCase();
     const provider = ALLOWED_PROVIDERS.has(rawProvider) ? rawProvider : "cashfree";
     const clinicId = searchParams.get("clinicId") || "";
-    return { orderId, paymentId, provider, clinicId };
+    const appointmentId = searchParams.get("appointmentId") || "";
+    return { orderId, paymentId, provider, clinicId, appointmentId };
   }, [searchParams]);
 
   useEffect(() => {
     const controller = new AbortController();
+    let redirectTimer: ReturnType<typeof setTimeout> | undefined;
     const verify = async () => {
       if (!params.orderId) {
         setState("failed");
@@ -46,12 +50,6 @@ export default function PaymentCallbackPage() {
         return;
       }
 
-      if (!APP_CONFIG.API.BASE_URL || !/^https?:\/\//.test(APP_CONFIG.API.BASE_URL)) {
-        setState("failed");
-        setMessage("Payment verification service is not configured.");
-        return;
-      }
-
       try {
         const query = new URLSearchParams({
           clinicId: params.clinicId,
@@ -60,30 +58,41 @@ export default function PaymentCallbackPage() {
           provider: params.provider,
         });
 
-        const response = await fetch(
-          `${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${query.toString()}`,
-          {
-            method: "POST",
-            credentials: "include",
-            signal: controller.signal,
-            headers: {
-              "Content-Type": "application/json",
-              "X-Clinic-ID": params.clinicId,
-            },
-            body: JSON.stringify({ orderId: params.orderId }),
-          }
-        );
-
-        const data = (await response.json().catch(() => ({}))) as {
+        const response = await clinicApiClient.publicRequest<{
           success?: boolean;
           message?: string;
-        };
-        if (!response.ok || !data?.success) {
-          throw new Error(data?.message || "Payment verification failed");
+        }>(`${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${query.toString()}`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Clinic-ID": params.clinicId,
+          },
+          body: JSON.stringify({ orderId: params.orderId }),
+        });
+
+        if (!response.data?.success) {
+          throw new Error(response.data?.message || "Payment verification failed");
         }
+
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["myAppointments"], exact: false }),
+          queryClient.invalidateQueries({ queryKey: ["appointments"], exact: false }),
+          queryClient.invalidateQueries({ queryKey: ["appointmentStats"], exact: false }),
+          queryClient.invalidateQueries({ queryKey: ["appointment-stats"], exact: false }),
+          queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"], exact: false }),
+          queryClient.invalidateQueries({ queryKey: ["invoices"], exact: false }),
+          queryClient.invalidateQueries({ queryKey: ["payments"], exact: false }),
+          queryClient.invalidateQueries({ queryKey: ["subscriptions"], exact: false }),
+          queryClient.invalidateQueries({ queryKey: ["active-subscription"], exact: false }),
+          queryClient.invalidateQueries({ queryKey: ["billing-analytics"], exact: false }),
+        ]);
 
         setState("success");
         setMessage("Payment verified successfully.");
+        redirectTimer = setTimeout(() => {
+          router.replace(params.appointmentId ? "/patient/appointments" : "/patient/billing");
+        }, 1500);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -98,8 +107,11 @@ export default function PaymentCallbackPage() {
     verify();
     return () => {
       controller.abort();
+      if (redirectTimer) {
+        clearTimeout(redirectTimer);
+      }
     };
-  }, [params]);
+  }, [params, queryClient, router]);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
@@ -116,15 +128,11 @@ export default function PaymentCallbackPage() {
 
         <h1 className="text-lg font-semibold">Payment Callback</h1>
         <p className="text-sm text-muted-foreground">{message}</p>
-
-        <div className="flex gap-2 justify-center">
-          <Button asChild variant="default">
-            <Link href="/patient/appointments">Go To Appointments</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/patient/dashboard">Dashboard</Link>
-          </Button>
-        </div>
+        {state === "success" && (
+          <p className="text-sm font-medium text-primary">
+            Redirecting to {params.appointmentId ? "appointments" : "billing"}...
+          </p>
+        )}
       </div>
     </div>
   );

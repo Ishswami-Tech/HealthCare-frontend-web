@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,9 +18,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, ErrorState, PageLoading } from "@/components/ui/loading";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { getPrescriptions } from "@/lib/actions/pharmacy.server";
+import { usePrescriptions } from "@/hooks/query/usePharmacy";
 import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
 import { theme } from "@/lib/utils/theme-utils";
+import type {
+  Prescription as PharmacyPrescription,
+  PrescriptionMedication,
+} from "@/types/pharmacy.types";
 import {
   Bell,
   Clock,
@@ -63,6 +67,16 @@ type DisplayPrescription = {
   validUntil?: string | null;
 };
 
+type PrescriptionMedicationResponse = PrescriptionMedication & {
+  medicineName?: string;
+  medicine?: (PrescriptionMedication["medicine"] & { properties?: string }) | undefined;
+};
+
+type PrescriptionResponseItem = PharmacyPrescription & {
+  items?: PrescriptionMedicationResponse[];
+  medications: PrescriptionMedicationResponse[];
+};
+
 function normalizePrescriptionStatus(status?: string) {
   const value = String(status || "PENDING").toUpperCase();
   if (value === "FILLED" || value === "DISPENSED") {
@@ -73,7 +87,7 @@ function normalizePrescriptionStatus(status?: string) {
   return "PENDING";
 }
 
-function normalizePrescription(raw: any): DisplayPrescription {
+function normalizePrescription(raw: PrescriptionResponseItem): DisplayPrescription {
   const medicationItems = Array.isArray(raw.medications)
     ? raw.medications
     : Array.isArray(raw.items)
@@ -81,7 +95,7 @@ function normalizePrescription(raw: any): DisplayPrescription {
       : [];
   const queueEntry = normalizeQueueEntry(raw);
 
-  const medications = medicationItems.map((item: any) => ({
+  const medications: DisplayMedication[] = medicationItems.map((item: PrescriptionMedicationResponse) => ({
     name: item.medicine?.name || item.medicineName || "Medicine",
     dosage: item.dosage || "As prescribed",
     duration: item.duration || "Follow doctor instructions",
@@ -93,24 +107,25 @@ function normalizePrescription(raw: any): DisplayPrescription {
           : item.quantity
             ? `${item.quantity} units`
             : "As prescribed",
-    instructions: item.instructions,
     category: item.medicine?.category || item.medicine?.type || "Prescription",
-    description: item.medicine?.description || item.medicine?.properties,
+    ...(item.instructions ? { instructions: item.instructions } : {}),
+    ...(item.medicine?.description || item.medicine?.properties
+      ? { description: item.medicine?.description || item.medicine?.properties }
+      : {}),
   }));
 
   const doctorName =
-    raw.doctor?.user?.name ||
-    raw.doctor?.name ||
     `${raw.doctor?.firstName || ""} ${raw.doctor?.lastName || ""}`.trim() ||
+    raw.doctorName ||
     "Assigned Doctor";
 
   return {
     id: raw.prescriptionNumber || raw.id,
-    date: raw.date || raw.createdAt || raw.updatedAt || new Date().toISOString(),
+    date: raw.prescribedAt || raw.createdAt || raw.updatedAt || new Date().toISOString(),
     doctor: doctorName,
     status: normalizePrescriptionStatus(raw.status),
     queueCategory: queueEntry.queueCategory,
-    queueStatus: raw.queueStatus,
+    ...(raw.queueStatus ? { queueStatus: raw.queueStatus } : {}),
     queuePosition: queueEntry.position > 0 ? queueEntry.position : null,
     activeQueueEntry: Boolean(raw.activeQueueEntry ?? queueEntry.position > 0),
     medications,
@@ -121,7 +136,7 @@ function normalizePrescription(raw: any): DisplayPrescription {
       | "PENDING"
       | "PARTIAL"
       | "PAID",
-    notes: raw.notes,
+    ...(raw.notes ? { notes: raw.notes } : {}),
     validUntil: raw.validUntil || null,
   };
 }
@@ -147,34 +162,20 @@ export default function PatientPrescriptions() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const {
+    data: prescriptionsData = [],
+    isPending: isLoading,
+    error,
+  } = usePrescriptions(user?.clinicId || "", {
+    ...(user?.id ? { patientId: user.id } : {}),
+    enabled: !!user?.clinicId && !!user?.id,
+  });
 
-  useEffect(() => {
-    const fetchPrescriptions = async () => {
-      if (!user?.clinicId || !user?.id) return;
-
-      try {
-        setIsLoading(true);
-        setHasError(false);
-        const data = await getPrescriptions(user.clinicId, { patientId: user.id });
-        const list = Array.isArray(data)
-          ? data
-          : Array.isArray((data as any)?.prescriptions)
-            ? (data as any).prescriptions
-            : [];
-        setPrescriptions(list);
-      } catch (error) {
-        console.error("Failed to fetch prescriptions:", error);
-        setHasError(true);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void fetchPrescriptions();
-  }, [user?.clinicId, user?.id]);
+  const prescriptions = Array.isArray(prescriptionsData)
+    ? (prescriptionsData as PrescriptionResponseItem[])
+    : Array.isArray((prescriptionsData as { prescriptions?: PrescriptionResponseItem[] })?.prescriptions)
+      ? ((prescriptionsData as { prescriptions?: PrescriptionResponseItem[] }).prescriptions ?? [])
+      : [];
 
   const displayPrescriptions = useMemo(
     () => prescriptions.map(normalizePrescription),
@@ -225,12 +226,12 @@ export default function PatientPrescriptions() {
     [displayPrescriptions]
   );
 
-  if (hasError) {
+  if (error) {
     return (
       <ErrorState
         title="Unable to load prescriptions"
         message="We couldn't fetch your prescriptions. Please try again."
-        onRetry={() => setHasError(false)}
+        onRetry={() => window.location.reload()}
       />
     );
   }
@@ -261,46 +262,48 @@ export default function PatientPrescriptions() {
       />
 
       <Tabs defaultValue="prescriptions" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="prescriptions">Current Prescriptions</TabsTrigger>
-          <TabsTrigger value="plan">Medication Plan</TabsTrigger>
-          <TabsTrigger value="pharmacy">Medicine Queue</TabsTrigger>
-          <TabsTrigger value="history">Prescription History</TabsTrigger>
+        <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
+          <TabsTrigger value="prescriptions" className="text-xs sm:text-sm px-3 sm:px-4">Current Prescriptions</TabsTrigger>
+          <TabsTrigger value="plan" className="text-xs sm:text-sm px-3 sm:px-4">Medication Plan</TabsTrigger>
+          <TabsTrigger value="pharmacy" className="text-xs sm:text-sm px-3 sm:px-4">Medicine Queue</TabsTrigger>
+          <TabsTrigger value="history" className="text-xs sm:text-sm px-3 sm:px-4">Prescription History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="prescriptions" className="space-y-4">
           <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardContent className="p-4">
-              <div className="flex flex-col gap-3 lg:flex-row">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="relative flex-1">
                   <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${theme.textColors.muted}`} />
                   <Input
-                    placeholder="Search prescriptions or medications..."
+                    placeholder="Search prescriptions..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="h-11 rounded-xl pl-10"
                   />
                 </div>
-                <Select
-                  value={statusFilter}
-                  onValueChange={setStatusFilter}
-                >
-                  <SelectTrigger className="h-11 min-w-[180px] rounded-xl">
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="dispensed">Dispensed</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                    <SelectItem value="expired">Expired</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" className="h-11 rounded-xl">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filter
-                </Button>
+                <div className="flex gap-2">
+                  <Select
+                    value={statusFilter}
+                    onValueChange={setStatusFilter}
+                  >
+                    <SelectTrigger className="h-11 flex-1 sm:min-w-[180px] rounded-xl">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="dispensed">Dispensed</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" className="h-11 rounded-xl px-3 sm:px-4">
+                    <Filter className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Filter</span>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -321,17 +324,17 @@ export default function PatientPrescriptions() {
                 <Card key={prescription.id} className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
                   <CardHeader>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold">Prescription #{prescription.id}</h3>
-                        <p className={`text-sm ${theme.textColors.secondary}`}>
+                      <div className="space-y-1">
+                        <h3 className="text-base sm:text-lg font-semibold">Prescription #{prescription.id}</h3>
+                        <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
                           Prescribed by {prescription.doctor} • {new Date(prescription.date).toLocaleDateString()}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={getStatusColor(prescription.status)}>
+                      <div className="flex items-center justify-between sm:justify-end gap-2">
+                        <Badge className={`${getStatusColor(prescription.status)} text-[10px] sm:text-xs`}>
                           {prescription.status}
                         </Badge>
-                        <Button variant="outline" size="sm" disabled>
+                        <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-lg sm:h-9 sm:w-auto sm:px-3 sm:rounded-xl" disabled>
                           <Download className="w-4 h-4" />
                         </Button>
                       </div>
@@ -344,23 +347,23 @@ export default function PatientPrescriptions() {
                         {prescription.medications.map((medication, index) => (
                           <div
                             key={`${prescription.id}-${index}`}
-                            className={`p-4 ${theme.containers.featureGreen} rounded-lg border ${theme.borders.green}`}
+                            className={`p-3 sm:p-4 ${theme.containers.featureGreen} rounded-lg border ${theme.borders.green}`}
                           >
-                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                               <div className="flex items-start gap-3">
-                                <Leaf className={`w-5 h-5 ${theme.iconColors.green} mt-1`} />
+                                <Leaf className={`w-4 h-4 sm:w-5 sm:h-5 ${theme.iconColors.green} mt-1`} />
                                 <div className="space-y-1">
-                                  <h5 className={`font-semibold ${theme.textColors.success}`}>{medication.name}</h5>
-                                  <p className={`text-sm ${theme.textColors.success}`}>
+                                  <h5 className={`text-sm sm:text-base font-semibold ${theme.textColors.success}`}>{medication.name}</h5>
+                                  <p className={`text-xs sm:text-sm ${theme.textColors.success}`}>
                                     {medication.dosage} • {medication.duration}
                                   </p>
                                   {medication.instructions ? (
-                                    <p className={`text-xs ${theme.iconColors.green}`}>
+                                    <p className={`text-[10px] sm:text-xs ${theme.iconColors.green}`}>
                                       {medication.instructions}
                                     </p>
                                   ) : null}
-                                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                                    <Badge variant="outline" className={theme.badges.green}>
+                                  <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs pt-1">
+                                    <Badge variant="outline" className={`${theme.badges.green} px-1.5 py-0`}>
                                       {medication.category}
                                     </Badge>
                                     {medication.description ? (
@@ -369,7 +372,7 @@ export default function PatientPrescriptions() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="text-sm font-medium lg:text-right">
+                              <div className="text-[10px] sm:text-sm font-medium sm:text-right">
                                 <p className={theme.textColors.success}>{medication.remaining}</p>
                               </div>
                             </div>
@@ -387,47 +390,47 @@ export default function PatientPrescriptions() {
                       </div>
                     ) : null}
 
-                    <div className={`flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between p-4 ${theme.backgrounds.secondary} rounded-lg`}>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div className={`flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between p-3 sm:p-4 ${theme.backgrounds.secondary} rounded-xl`}>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
                         <div>
                           <span className={theme.textColors.secondary}>Total Cost:</span>
-                          <span className={`font-semibold ml-2 ${theme.textColors.heading}`}>
+                          <span className={`font-semibold ml-1 sm:ml-2 ${theme.textColors.heading}`}>
                             ₹{prescription.totalCost}
                           </span>
                         </div>
                         <div>
                           <span className={theme.textColors.secondary}>Payment:</span>
-                          <span className={`font-semibold ml-2 ${theme.textColors.heading}`}>
+                          <span className={`font-semibold ml-1 sm:ml-2 ${theme.textColors.heading}`}>
                             {prescription.paymentStatus}
                           </span>
                         </div>
                         <div>
                           <span className={theme.textColors.secondary}>Valid Until:</span>
-                          <span className={`font-semibold ml-2 ${theme.textColors.heading}`}>
+                          <span className={`font-semibold ml-1 sm:ml-2 ${theme.textColors.heading}`}>
                             {prescription.validUntil
                               ? new Date(prescription.validUntil).toLocaleDateString()
-                              : "Not specified"}
+                              : "N/A"}
                           </span>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" size="sm" disabled>
+                        <Button variant="outline" size="sm" className="flex-1 sm:flex-initial h-9 sm:h-auto rounded-xl" disabled>
                           <Bell className="w-4 h-4 mr-1" />
-                          Refill N/A
+                          <span className="text-xs sm:text-sm">Refill</span>
                         </Button>
                         {prescription.pendingAmount > 0 ? (
                           <PaymentButton
                             prescriptionId={prescription.id}
                             amount={prescription.pendingAmount}
-                            className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                            className="flex-1 sm:flex-initial rounded-xl bg-emerald-600 hover:bg-emerald-700 h-9 sm:h-auto"
                           >
                             <ShoppingCart className="w-4 h-4 mr-1" />
-                            Pay â‚¹{prescription.pendingAmount.toLocaleString()}
+                            <span className="text-xs sm:text-sm">Pay ₹{prescription.pendingAmount.toLocaleString()}</span>
                           </PaymentButton>
                         ) : (
-                          <Button variant="outline" size="sm" disabled>
+                          <Button variant="outline" size="sm" className="flex-1 sm:flex-initial h-9 sm:h-auto rounded-xl" disabled>
                             <Package className="w-4 h-4 mr-1" />
-                            Ready For Dispense
+                            <span className="text-xs sm:text-sm">Ready</span>
                           </Button>
                         )}
                       </div>
@@ -462,19 +465,19 @@ export default function PatientPrescriptions() {
               ) : (
                 <div className="space-y-4">
                   {medicationPlan.map((entry) => (
-                    <div key={entry.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-border/60">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 ${theme.containers.featureBlue} rounded-full flex items-center justify-center`}>
-                          <Clock className={`w-6 h-6 ${theme.iconColors.blue}`} />
+                    <div key={entry.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 p-3 sm:p-4 sm:flex-row sm:items-center sm:justify-between dark:border-border/60">
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className={`w-10 h-10 sm:w-12 sm:h-12 ${theme.containers.featureBlue} rounded-full flex items-center justify-center`}>
+                          <Clock className={`w-5 h-5 sm:w-6 sm:h-6 ${theme.iconColors.blue}`} />
                         </div>
                         <div>
-                          <h4 className={`font-semibold ${theme.textColors.heading}`}>{entry.name}</h4>
-                          <p className={`text-sm ${theme.textColors.secondary}`}>{entry.dosage}</p>
-                          <p className={`text-xs ${theme.textColors.tertiary}`}>{entry.duration}</p>
-                          <p className={`text-xs ${theme.textColors.tertiary}`}>{entry.instructions || "Follow doctor instructions"}</p>
+                          <h4 className={`text-sm sm:text-base font-semibold ${theme.textColors.heading}`}>{entry.name}</h4>
+                          <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>{entry.dosage}</p>
+                          <p className={`text-[10px] sm:text-xs ${theme.textColors.tertiary}`}>{entry.duration}</p>
+                          <p className={`text-[10px] sm:text-xs ${theme.textColors.tertiary}`}>{entry.instructions || "Follow doctor instructions"}</p>
                         </div>
                       </div>
-                      <Badge className={getStatusColor(entry.status)}>{entry.status}</Badge>
+                      <Badge className={`${getStatusColor(entry.status)} text-[10px] sm:text-xs w-fit`}>{entry.status}</Badge>
                     </div>
                   ))}
                 </div>
@@ -527,44 +530,44 @@ export default function PatientPrescriptions() {
               ) : (
                 <div className="space-y-4">
                   {medicineDeskQueue.map((prescription) => (
-                    <div key={prescription.id} className="rounded-2xl border border-border/70 p-4 dark:border-border/60">
+                    <div key={prescription.id} className="rounded-2xl border border-border/70 p-3 sm:p-4 dark:border-border/60">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <h3 className="font-semibold">Prescription #{prescription.id}</h3>
-                          <p className={`text-sm ${theme.textColors.secondary}`}>
+                        <div className="space-y-1">
+                          <h3 className="text-sm sm:text-base font-semibold">Prescription #{prescription.id}</h3>
+                          <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
                             {prescription.doctor} • {new Date(prescription.date).toLocaleDateString()}
                           </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge className={getStatusColor(prescription.status)}>
+                        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
+                          <Badge className={`${getStatusColor(prescription.status)} text-[10px] sm:text-xs`}>
                             {prescription.pendingAmount > 0
                               ? "Awaiting Payment"
                               : "Pending Handover"}
                           </Badge>
                           {prescription.queuePosition ? (
-                            <Badge variant="outline">
+                            <Badge variant="outline" className="text-[10px] sm:text-xs">
                               {getQueuePositionLabel({ position: prescription.queuePosition ?? 0 })}
                             </Badge>
                           ) : null}
                         </div>
                       </div>
 
-                      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                      <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
                         <div>
                           <span className={theme.textColors.secondary}>Lane:</span>
-                          <span className="ml-2 font-medium">
+                          <span className="ml-1 sm:ml-2 font-medium">
                             {prescription.queueCategory || "MEDICINE_DESK"}
                           </span>
                         </div>
                         <div>
                           <span className={theme.textColors.secondary}>Pending:</span>
-                          <span className="ml-2 font-medium">
+                          <span className="ml-1 sm:ml-2 font-medium">
                             ₹{prescription.pendingAmount.toLocaleString()}
                           </span>
                         </div>
                         <div>
                           <span className={theme.textColors.secondary}>Payment:</span>
-                          <span className="ml-2 font-medium">{prescription.paymentStatus}</span>
+                          <span className="ml-1 sm:ml-2 font-medium">{prescription.paymentStatus}</span>
                         </div>
                       </div>
 
@@ -573,13 +576,13 @@ export default function PatientPrescriptions() {
                           <PaymentButton
                             prescriptionId={prescription.id}
                             amount={prescription.pendingAmount}
-                            className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                            className="rounded-xl bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto h-10 sm:h-auto"
                           >
                             <ShoppingCart className="mr-1 h-4 w-4" />
                             Pay ₹{prescription.pendingAmount.toLocaleString()}
                           </PaymentButton>
                         ) : (
-                          <Button variant="outline" size="sm" disabled>
+                          <Button variant="outline" size="sm" className="rounded-xl w-full sm:w-auto h-10 sm:h-auto" disabled>
                             <Package className="mr-1 h-4 w-4" />
                             Waiting for handover
                           </Button>
@@ -594,14 +597,14 @@ export default function PatientPrescriptions() {
         </TabsContent>
 
         <TabsContent value="history">
-          <Card>
+          <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Package className="w-5 h-5" />
                 Prescription History
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-4">
               {displayPrescriptions.length === 0 ? (
                 <EmptyState
                   title="No prescription history"
@@ -611,19 +614,19 @@ export default function PatientPrescriptions() {
               ) : (
                 <div className="space-y-4">
                   {displayPrescriptions.map((prescription) => (
-                    <div key={prescription.id} className="p-4 border rounded-lg">
+                    <div key={prescription.id} className="p-3 sm:p-4 border rounded-xl">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
-                        <div>
-                          <h3 className="font-semibold">Prescription #{prescription.id}</h3>
-                          <p className={`text-sm ${theme.textColors.secondary}`}>
+                        <div className="space-y-1">
+                          <h3 className="text-sm sm:text-base font-semibold">Prescription #{prescription.id}</h3>
+                          <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
                             {prescription.doctor} • {new Date(prescription.date).toLocaleDateString()}
                           </p>
                         </div>
-                        <Badge className={getStatusColor(prescription.status)}>
+                        <Badge className={`${getStatusColor(prescription.status)} text-[10px] sm:text-xs w-fit`}>
                           {prescription.status}
                         </Badge>
                       </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs sm:text-sm">
                         <div>
                           <span className={theme.textColors.secondary}>Medicines:</span>
                           <span className="ml-2">
@@ -639,7 +642,7 @@ export default function PatientPrescriptions() {
                           <span className="ml-2">
                             {prescription.validUntil
                               ? new Date(prescription.validUntil).toLocaleDateString()
-                              : "Not specified"}
+                              : "N/A"}
                           </span>
                         </div>
                       </div>

@@ -18,10 +18,3 @@ export {
   useContextualPermissions,
 } from './useRBAC';
 export { useOptimisticUpdateQueueStatus, useOptimisticCallNextPatient } from './useOptimisticQueue';
-export { 
-  useNotificationPreferences,
-  useUserNotificationPreferences,
-  useCreateNotificationPreferences,
-  useUpdateNotificationPreferences,
-  useDeleteNotificationPreferences
-} from './useNotificationPreferences';

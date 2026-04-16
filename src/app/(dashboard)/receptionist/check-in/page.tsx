@@ -19,11 +19,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { useAppointments } from "@/hooks/query/useAppointments";
-import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { checkInAppointment } from "@/lib/actions/appointments.server";
-import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
-import { logger } from "@/lib/utils/logger";
+import { useAppointments, useCheckInAppointment } from "@/hooks/query/useAppointments";
 
 interface AppointmentListItem {
   id: string;
@@ -154,6 +150,7 @@ export default function ReceptionistCheckInPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const todayDate = getTodayDateInIst();
+  const checkInMutation = useCheckInAppointment();
 
   const { data: appointmentsData, isPending: isLoading, refetch } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
@@ -214,25 +211,8 @@ export default function ReceptionistCheckInPage() {
   const handleCheckIn = async (appointmentId: string) => {
     setCheckingInId(appointmentId);
     try {
-      const result = await checkInAppointment(appointmentId);
-      if (result.success) {
-        showSuccessToast("Patient confirmed and added to queue", {
-          id: TOAST_IDS.APPOINTMENT.CHECK_IN,
-        });
-        refetch?.();
-      } else {
-        showErrorToast(result.error || "Failed to check in", {
-          id: TOAST_IDS.APPOINTMENT.CHECK_IN,
-        });
-      }
-    } catch (error) {
-      logger.error("Arrival confirmation failed", error instanceof Error ? error : undefined, {
-        component: "ReceptionistCheckInPage",
-        appointmentId,
-      });
-      showErrorToast(sanitizeErrorMessage(error), {
-        id: TOAST_IDS.APPOINTMENT.CHECK_IN,
-      });
+      await checkInMutation.mutateAsync(appointmentId);
+      await refetch?.();
     } finally {
       setCheckingInId(null);
     }

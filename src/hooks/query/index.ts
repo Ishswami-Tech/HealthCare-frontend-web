@@ -95,10 +95,14 @@ export {
 
 // Users - export specific, excluding usePatients and useDoctors
 export {
+  useUserProfile,
   useUsers,
   useUser,
   useCreateUser,
   useUpdateUser,
+  useUpdateUserProfile,
+  useUpdateUserRole,
+  useSetProfileComplete,
   useDeleteUser,
   useUsersByRole,
   useUsersByClinic,
@@ -253,6 +257,7 @@ export * from './useVideoAppointments';
 
 // Notifications (reading, actions, settings)
 export * from './useNotifications';
+export * from './useNotificationPreferences';
 
 // Communication (sending emails, SMS, WhatsApp, chat)
 export * from './useCommunication';

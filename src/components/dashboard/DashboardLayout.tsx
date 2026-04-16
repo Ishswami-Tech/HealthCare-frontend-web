@@ -11,13 +11,9 @@ import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
 import { Loader2, Shield, AlertTriangle } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { useQueryData } from "@/hooks/core/useQueryData";
-import { getUserProfile } from "@/lib/actions/users.server";
-import { transformApiResponse } from "@/lib/config/profile";
 import { ROUTES, getProtectedRouteRoles } from "@/lib/config/routes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import type { UserProfile } from "@/types/auth.types";
 
 // Layout imports
 import Sidebar from "@/components/global/GlobalSidebar/Sidebar";
@@ -119,54 +115,19 @@ export function DashboardLayout({
   const hasAccess = hasRoleAccess && hasRouteRoleAccess && hasPermissionAccess;
 
   // ─── Fetch User Profile (React Query) ──────────────────────────────────────
-  const { data: profile, isPending: loadingProfile } = useQueryData(
-    ["dashboard-profile"],
-    async () => {
-      const response = await getUserProfile();
-      if (typeof response === "object" && response !== null) {
-        const data = (response as Record<string, unknown>).data || response;
-        return transformApiResponse(data as Record<string, unknown>);
-      }
-      return transformApiResponse({} as Record<string, unknown>);
-    },
-    { enabled: !!session?.isAuthenticated }
-  );
-
-  // Memoize merged profile
-  const mergedProfile = useMemo(() => {
-    if (!user || !profile) return null;
-    const dateOfBirthRaw = profile?.dateOfBirth ?? user?.dateOfBirth;
-    const genderRaw = profile?.gender ?? user?.gender;
-    const allowedGenders = ["male", "female", "other"];
-    let gender: "male" | "female" | "other" | undefined = undefined;
-
-    if (allowedGenders.includes((genderRaw || "").toLowerCase())) {
-      gender = genderRaw as "male" | "female" | "other";
-    }
-
-    return {
-      ...profile,
-      ...user,
-      dateOfBirth: dateOfBirthRaw === null ? undefined : dateOfBirthRaw,
-      gender,
-    } as UserProfile;
-  }, [user, profile]);
-
   // ─── Sync Store Data (Zustand) ─────────────────────────────────────────────
   const userDisplayData = useMemo(() => {
     if (!user) return null;
     
-    // Use profile data if available, fall back to basic user data
-    const profileData = profile || {};
-    const firstName = (profileData as any).firstName || user.firstName || "User";
-    const lastName = (profileData as any).lastName || user.lastName || "";
+    const firstName = user.firstName || "User";
+    const lastName = user.lastName || "";
     
     const displayName = lastName ? `${firstName} ${lastName}` : firstName;
     
     // Generate initials (more robustly)
     const initials = `${(firstName?.[0] || "U")}${(lastName?.[0] || "")}`.toUpperCase();
 
-    const avatar = (profileData as any).profilePicture ||
+    const avatar = user.profilePicture ||
       `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&format=png`;
 
     return {
@@ -176,7 +137,7 @@ export function DashboardLayout({
       avatar,
       email: user.email || "",
     };
-  }, [user, profile, normalizedUserRole]);
+  }, [user, normalizedUserRole]);
 
   useEffect(() => {
     if (userDisplayData) {
@@ -193,7 +154,7 @@ export function DashboardLayout({
 
   // Authorization effect
   useEffect(() => {
-    if (isPending || loadingProfile) return;
+    if (isPending) return;
     
     if (!user) {
       router.replace(ROUTES.LOGIN);
@@ -208,7 +169,7 @@ export function DashboardLayout({
     if (user?.profileComplete === false) {
       router.replace(ROUTES.PROFILE_COMPLETION);
     }
-  }, [isPending, loadingProfile, user, mergedProfile, hasAccess, getDefaultRoute, router]);
+  }, [isPending, user, hasAccess, getDefaultRoute, router]);
 
   // Shell detection effect (for other store consumers)
   useEffect(() => {

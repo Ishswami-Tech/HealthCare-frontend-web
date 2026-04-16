@@ -7,7 +7,6 @@ import { Calendar, CheckCircle, Clock, ListTodo, QrCode, Users } from "lucide-re
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -187,18 +186,12 @@ export default function ReceptionistDashboard() {
               Confirm Arrival
             </Link>
           </Button>
-          <BookAppointmentDialog
-            {...(clinicId ? { clinicId } : {})}
-            onBooked={() => {
-              void 0;
-            }}
-            trigger={
-              <Button>
-                <Calendar className="w-4 h-4 mr-2" />
-                New Appointment
-              </Button>
-            }
-          />
+          <Button asChild>
+            <Link href="/receptionist/appointments">
+              <Calendar className="w-4 h-4 mr-2" />
+              New Appointment
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -385,10 +378,9 @@ export default function ReceptionistDashboard() {
             <p className="text-sm text-muted-foreground mb-3">
               Create appointments for walk-ins or assisted front-desk booking.
             </p>
-            <BookAppointmentDialog
-              {...(clinicId ? { clinicId } : {})}
-              trigger={<Button variant="outline" className="w-full">Create Appointment</Button>}
-            />
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/receptionist/appointments#appointment-manager">Create Appointment</Link>
+            </Button>
           </CardContent>
         </Card>
         <Card>

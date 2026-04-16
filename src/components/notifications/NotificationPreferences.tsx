@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/utils/useNotificationPreferences';
+import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/query';
 import { Loader2, Bell, Save } from 'lucide-react';
 import { showSuccessToast, showErrorToast, TOAST_IDS } from '@/hooks/utils/use-toast';
 
@@ -237,6 +237,5 @@ export function NotificationPreferences({ userId, onSave }: NotificationPreferen
     </Card>
   );
 }
-
 
 

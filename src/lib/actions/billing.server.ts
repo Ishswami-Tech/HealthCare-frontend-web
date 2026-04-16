@@ -27,6 +27,28 @@ type RawSubscription = Record<string, unknown>;
 type RawInvoice = Record<string, unknown>;
 type RawPayment = Record<string, unknown>;
 
+function normalizeStringList(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => (typeof item === 'string' ? item.trim() : String(item ?? '').trim()))
+      .filter(Boolean);
+  }
+
+  if (!raw || typeof raw !== 'object') {
+    return [];
+  }
+
+  return Object.entries(raw as Record<string, unknown>)
+    .map(([key, value]) => {
+      if (typeof value === 'string') return value.trim();
+      if (typeof value === 'boolean') return value ? key : '';
+      if (typeof value === 'number') return `${key}: ${value}`;
+      if (value && typeof value === 'object') return key;
+      return '';
+    })
+    .filter(Boolean);
+}
+
 function normalizeBillingPlan(raw: RawBillingPlan): BillingPlan {
   const billingCycleRaw = raw.interval ?? raw.billingCycle;
   const billingCycle =
@@ -34,15 +56,8 @@ function normalizeBillingPlan(raw: RawBillingPlan): BillingPlan {
       ? (billingCycleRaw as BillingPlan['billingCycle'])
       : 'MONTHLY';
 
-  const featuresRaw = raw.features;
-  const normalizedFeatures = Array.isArray(featuresRaw)
-    ? (featuresRaw as string[])
-    : [];
-
-  const appointmentTypesRaw = raw.appointmentTypes;
-  const normalizedAppointmentTypes = Array.isArray(appointmentTypesRaw)
-    ? (appointmentTypesRaw as string[])
-    : [];
+  const normalizedFeatures = normalizeStringList(raw.features);
+  const normalizedAppointmentTypes = normalizeStringList(raw.appointmentTypes);
 
   return {
     id: String(raw.id ?? ''),
@@ -81,9 +96,21 @@ function normalizeSubscription(raw: RawSubscription): Subscription {
     status: String(raw.status ?? 'INCOMPLETE') as Subscription['status'],
     startDate: String(raw.startDate ?? new Date().toISOString()),
     ...(raw.endDate ? { endDate: String(raw.endDate) } : {}),
+    ...(raw.currentPeriodStart ? { currentPeriodStart: String(raw.currentPeriodStart) } : {}),
+    ...(raw.currentPeriodEnd ? { currentPeriodEnd: String(raw.currentPeriodEnd) } : {}),
     ...(raw.currentPeriodEnd ? { nextBillingDate: String(raw.currentPeriodEnd) } : {}),
+    ...(raw.cancelledAt ? { cancelledAt: String(raw.cancelledAt) } : {}),
+    ...(raw.cancelAtPeriodEnd !== undefined
+      ? { cancelAtPeriodEnd: Boolean(raw.cancelAtPeriodEnd) }
+      : {}),
     autoRenew: raw.cancelAtPeriodEnd !== true,
     appointmentsUsed: Number(raw.appointmentsUsed ?? 0),
+    ...(raw.appointmentsRemaining !== undefined && raw.appointmentsRemaining !== null
+      ? { appointmentsRemaining: Number(raw.appointmentsRemaining) }
+      : {}),
+    ...(raw.appointmentsRemaining !== undefined && raw.appointmentsRemaining !== null
+      ? { remainingVisits: Number(raw.appointmentsRemaining) }
+      : {}),
     ...(raw.appointmentsRemaining !== undefined && raw.appointmentsRemaining !== null
       ? { appointmentsLimit: Number(raw.appointmentsUsed ?? 0) + Number(raw.appointmentsRemaining) }
       : {}),
@@ -218,9 +245,13 @@ export async function getBillingPlans(_clinicId?: string): Promise<{
 
     let plans = parsePlans(data);
 
-    // Fallback in case clinic header format causes over-filtering in some environments.
+    // Fallback to an unscoped fetch when the clinic-scoped request returns no plans.
+    // `authenticatedApi` injects `X-Clinic-ID` from the session by default, so we must
+    // explicitly opt out here or the retry will remain clinic-scoped.
     if (_clinicId && plans.length === 0) {
-      const fallback = await authenticatedApi(API_ENDPOINTS.BILLING.PLANS.GET_ALL);
+      const fallback = await authenticatedApi(API_ENDPOINTS.BILLING.PLANS.GET_ALL, {
+        omitClinicId: true,
+      });
       if (fallback.status < 400) {
         plans = parsePlans(fallback.data);
       }
@@ -408,7 +439,10 @@ export async function getActiveSubscription(
   try {
     const endpoint = `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.GET_ACTIVE(userId)}?clinicId=${encodeURIComponent(clinicId)}`;
     const { data } = await authenticatedApi(endpoint);
-    if (!data || typeof data !== 'object') {
+    if (!data) {
+      return { success: true };
+    }
+    if (typeof data !== 'object') {
       return { success: false, error: 'Invalid active subscription response' };
     }
     return { success: true, subscription: normalizeSubscription(data as RawSubscription) };
@@ -635,11 +669,11 @@ export async function generateInvoicePDF(id: string): Promise<{
       method: 'POST',
     });
     const pdfData = data as { url?: string; pdfUrl?: string; message?: string } | undefined;
-    const pdfUrl = pdfData?.url || pdfData?.pdfUrl;
+    const pdfUrl = `/api/billing/invoices/${id}/download`;
     return {
       success: true,
       data,
-      ...(pdfUrl ? { pdfUrl } : {}),
+      pdfUrl,
       ...(pdfData?.message ? { message: pdfData.message } : {}),
     };
   } catch (error) {

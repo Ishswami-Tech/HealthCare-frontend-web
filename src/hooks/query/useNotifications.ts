@@ -44,7 +44,7 @@ const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
  * Main hook for reading and managing notifications
  * Combines fetching, actions, and state management
  */
-export function useNotifications() {
+export function useNotifications(enabled: boolean = true) {
   const { session } = useAuth();
   const {
     notifications,
@@ -72,9 +72,9 @@ export function useNotifications() {
       return result;
     },
     {
-      enabled: !!session?.user?.id && !!session?.isAuthenticated,
+      enabled: enabled && !!session?.user?.id && !!session?.isAuthenticated,
       refetchOnWindowFocus: false,
-      refetchInterval: SYNC_INTERVAL,
+      refetchInterval: enabled ? SYNC_INTERVAL : false,
       staleTime: 2 * 60 * 1000, // 2 minutes
     }
   );

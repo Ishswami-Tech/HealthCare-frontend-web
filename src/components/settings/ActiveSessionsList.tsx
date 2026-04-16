@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getActiveSessions, revokeSession } from '@/lib/actions/session.server';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Monitor, Smartphone, AlertCircle, CheckCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useActiveSessions, useRevokeSession } from '@/hooks/query/useSessions';
 
 interface Session {
   id: string;
@@ -19,37 +19,14 @@ interface Session {
 }
 
 export function ActiveSessionsList() {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [revokingId, setRevokingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadSessions();
-  }, []);
-
-  async function loadSessions() {
-    try {
-      setLoading(true);
-      setError('');
-      const data = await getActiveSessions();
-      setSessions(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load sessions');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const { data: sessions = [], isPending: loading, error } = useActiveSessions();
+  const revokeSessionMutation = useRevokeSession();
 
   async function handleRevoke(sessionId: string) {
     try {
       setRevokingId(sessionId);
-      setError('');
-      await revokeSession(sessionId);
-      // Reload sessions after successful revocation
-      await loadSessions();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to revoke session');
+      await revokeSessionMutation.mutateAsync(sessionId);
     } finally {
       setRevokingId(null);
     }
@@ -80,7 +57,7 @@ export function ActiveSessionsList() {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
+        <AlertDescription>{error.message}</AlertDescription>
       </Alert>
     );
   }

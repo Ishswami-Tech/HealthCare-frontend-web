@@ -13,6 +13,9 @@ export interface NormalizedPatientAppointment {
   isOnline: boolean;
 }
 
+const IN_PERSON_DEFAULT_DURATION_MINUTES = 3;
+const VIDEO_DEFAULT_DURATION_MINUTES = 15;
+
 export const IST_TIMEZONE = 'Asia/Kolkata';
 
 export function normalizeAppointmentStatus(value: unknown): string {
@@ -100,6 +103,7 @@ export function isVideoAppointmentPaymentCompleted(appointment: any): boolean {
       appointment?.paymentStatus ||
       appointment?.billing?.paymentStatus ||
       appointment?.invoice?.paymentStatus ||
+      appointment?.invoice?.status ||
       ''
   ).toUpperCase();
 
@@ -195,6 +199,29 @@ export function normalizePatientAppointment(appointment: any): NormalizedPatient
       appointment?.type === 'VIDEO_CALL' ||
       appointment?.appointmentType === 'VIDEO_CALL',
   };
+}
+
+export function getDisplayAppointmentDuration(appointment: any): number | undefined {
+  const rawDuration = Number(appointment?.duration);
+  const hasNumericDuration = Number.isFinite(rawDuration) && rawDuration > 0;
+  const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
+
+  if (type === 'VIDEO_CALL') {
+    if (!hasNumericDuration || rawDuration <= IN_PERSON_DEFAULT_DURATION_MINUTES) {
+      return VIDEO_DEFAULT_DURATION_MINUTES;
+    }
+    return rawDuration;
+  }
+
+  if (hasNumericDuration) {
+    return rawDuration;
+  }
+
+  if (type === 'IN_PERSON') {
+    return IN_PERSON_DEFAULT_DURATION_MINUTES;
+  }
+
+  return undefined;
 }
 
 export function getNextAvailableTime(currentTime: string, duration: number = 30): string {

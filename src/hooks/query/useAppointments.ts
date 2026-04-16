@@ -12,22 +12,24 @@ import { useQueryData, useMutationOperation, useOptimisticMutation, useQueryClie
 import { TOAST_IDS, useToast } from '../utils/use-toast';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { useAuth } from '../auth/useAuth';
+import { clinicApiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import {
   createAppointment,
-  getAppointments,
   getAppointmentServiceCatalog,
-  getAppointmentById,
   updateAppointment,
   updateAppointmentStatus, // Consolidated status update
   bulkUpdateAppointmentStatus,
-  getDoctorAvailability,
   getUserUpcomingAppointments,
-  getMyAppointments,
   testAppointmentContext,
   proposeVideoAppointment,
   confirmVideoSlot,
   rescheduleAppointment,
   rejectVideoProposal,
+  reassignAppointmentDoctor,
+  getAssistantDoctorCoverage,
+  updateAssistantDoctorCoverage,
+  scanLocationQRAndCheckIn,
 } from '@/lib/actions/appointments.server';
 import {
   getQueue,
@@ -35,13 +37,57 @@ import {
   callNextPatient,
   getQueueStats,
 } from '@/lib/actions/queue.server';
+import {
+  getQueueListQueryKey,
+  getQueueStatsQueryKey,
+} from '@/lib/queue/queue-cache';
 import type { 
   CreateAppointmentData, 
   UpdateAppointmentData,
   AppointmentFilters,
   Appointment,
   AppointmentServiceDefinition,
+  AssistantDoctorCoverageAssignment,
 } from '@/types/appointment.types';
+
+const extractAppointments = (payload: unknown): Appointment[] => {
+  if (Array.isArray(payload)) return payload as Appointment[];
+  if (payload && typeof payload === 'object') {
+    const record = payload as { appointments?: unknown; data?: unknown };
+    if (Array.isArray(record.appointments)) return record.appointments as Appointment[];
+    if (Array.isArray(record.data)) return record.data as Appointment[];
+    if (record.data && typeof record.data === 'object') {
+      const nested = record.data as { appointments?: unknown };
+      if (Array.isArray(nested.appointments)) return nested.appointments as Appointment[];
+    }
+  }
+  return [];
+};
+
+const serializeAppointmentFilters = (
+  filters: AppointmentFilters & { omitClinicId?: boolean }
+): Record<string, string | number> => {
+  const params: Record<string, string | number> = {};
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (key === 'omitClinicId' || value === undefined || value === null || value === '') {
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length > 0) {
+        params[key] = value.join(',');
+      }
+      return;
+    }
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      params[key] = value;
+    }
+  });
+
+  return params;
+};
 
 // ✅ Appointment Management Hooks
 
@@ -59,7 +105,7 @@ export const useAppointments = (clinicIdOrFilters?: string | (AppointmentFilters
   );
   
   // Memoize query function
-  const queryFn = useCallback(async () => {
+  const queryFn = useCallback(async (): Promise<any> => {
     // ✅ Consolidated: Use filters parameter only (removed legacy clinicId parameter)
     let filters: AppointmentFilters & { omitClinicId?: boolean } = {};
     
@@ -76,12 +122,22 @@ export const useAppointments = (clinicIdOrFilters?: string | (AppointmentFilters
     if (!filters.clinicId && !filters.omitClinicId) {
       throw new Error('No clinic ID available and omitClinicId not set');
     }
-    
-    const result = await getAppointments(filters);
-    if (!result.success) {
-      throw new Error(result.error);
+
+    const response = await clinicApiClient.get<unknown>(
+      API_ENDPOINTS.APPOINTMENTS.GET_ALL,
+      serializeAppointmentFilters(filters)
+    );
+    if (!response.success) {
+      throw new Error(response.message || response.error || 'Failed to fetch appointments');
     }
-    return result;
+
+    const appointments = extractAppointments(response.data);
+    return {
+      success: true,
+      appointments,
+      data: appointments,
+      meta: response.meta,
+    } as any;
   }, [clinicId, clinicIdOrFilters]);
   
   return useQueryData(
@@ -92,6 +148,7 @@ export const useAppointments = (clinicIdOrFilters?: string | (AppointmentFilters
       staleTime: 5 * 60 * 1000, // 5 minutes for better caching
       gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
       refetchOnWindowFocus: false, // Reduce unnecessary refetches
+      refetchOnMount: true, // Refetch when invalidated so post-payment redirects see fresh data
       refetchOnReconnect: true,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
@@ -103,7 +160,7 @@ export const useAppointments = (clinicIdOrFilters?: string | (AppointmentFilters
   );
 };
 
-export const useAppointmentServices = () => {
+export const useAppointmentServices = (enabled: boolean = true) => {
   return useQueryData(
     ['appointment-services'],
     async () => {
@@ -116,6 +173,7 @@ export const useAppointmentServices = () => {
       );
     },
     {
+      enabled,
       staleTime: 30 * 60 * 1000,
       gcTime: 60 * 60 * 1000,
       refetchOnWindowFocus: false,
@@ -134,12 +192,16 @@ export const useAppointment = (appointmentId: string) => {
   
   return useQueryData(
     ['appointment', appointmentId],
-    async () => {
-      const result = await getAppointmentById(appointmentId);
-      if (!result.success) {
-        throw new Error(result.error);
+    async (): Promise<any> => {
+      const response = await clinicApiClient.getAppointmentById(appointmentId);
+      if (!response.success) {
+        throw new Error(response.message || response.error || 'Failed to fetch appointment');
       }
-      return result.appointment;
+      const appointment =
+        response.data && typeof response.data === 'object' && 'appointment' in response.data
+          ? (response.data as { appointment?: Appointment }).appointment
+          : (response.data as Appointment | undefined);
+      return appointment as any;
     },
     {
       enabled: !!appointmentId && hasPermission(Permission.VIEW_APPOINTMENTS),
@@ -251,6 +313,7 @@ export const useProposeVideoAppointment = () => {
       patientId: string;
       doctorId: string;
       clinicId: string;
+      locationId?: string;
       duration: number;
       proposedSlots: Array<{ date: string; time: string }>;
       notes?: string;
@@ -271,7 +334,7 @@ export const useProposeVideoAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.CREATE,
       loadingMessage: 'Proposing video appointment...',
       successMessage: 'Slots proposed. Doctor will confirm one.',
-      invalidateQueries: [['appointments'], ['video-appointments']],
+      invalidateQueries: [['appointments'], ['video-appointments'], ['myAppointments']],
     }
   );
 };
@@ -514,6 +577,68 @@ export const useCompleteAppointment = () => {
     }
   );
 };
+
+/**
+ * Hook for marking an appointment as no-show
+ */
+export const useMarkAppointmentNoShow = () => {
+  const { hasPermission } = useRBAC();
+
+  return useMutationOperation<{ success: boolean }, string>(
+    async (appointmentId: string) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error("Insufficient permissions to update appointment");
+      }
+
+      const result = await updateAppointmentStatus(appointmentId, { status: "NO_SHOW" });
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      return { success: true };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: "Marking appointment as no-show...",
+      successMessage: "Appointment marked as no-show",
+      invalidateQueries: [["appointments"], ["appointment"], ["myAppointments"]],
+    }
+  );
+};
+
+/**
+ * Hook for reassigning appointment doctor
+ */
+export const useReassignAppointmentDoctor = () => {
+  const { hasPermission } = useRBAC();
+
+  return useMutationOperation<
+    { success: boolean },
+    { appointmentId: string; doctorId: string; reason?: string }
+  >(
+    async ({ appointmentId, doctorId, reason }) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error("Insufficient permissions to reassign appointment");
+      }
+
+      const result = await reassignAppointmentDoctor(appointmentId, {
+        doctorId,
+        ...(reason ? { reason } : {}),
+      });
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      return { success: true };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: "Reassigning appointment...",
+      successMessage: "Appointment reassigned successfully",
+      invalidateQueries: [["appointments"], ["appointment"], ["myAppointments"]],
+    }
+  );
+};
   
 /**
  * Hook for fetching queue (Optimized for 100K users with smart polling)
@@ -522,16 +647,19 @@ export const useQueue = (queueType: string) => {
   const { hasPermission } = useRBAC();
   
   // Memoize query key
-  const queryKey = useMemo(() => ['queue', queueType], [queueType]);
+  const queryKey = useMemo(
+    () => getQueueListQueryKey(undefined, { type: queueType }),
+    [queueType]
+  );
   
   // Memoize query function
   const queryFn = useCallback(async () => {
     // ✅ Fix: queueType is passed as filter object
     const result = await getQueue({ type: queueType }) as any;
-    if (!result?.success) {
-      throw new Error(result?.error || 'Failed to fetch queue');
+    if (!result) {
+      throw new Error('Failed to fetch queue');
     }
-    return result.queue;
+    return Array.isArray(result?.queue) ? result.queue : result;
   }, [queueType]);
   
   return useQueryData(
@@ -587,7 +715,7 @@ export const useAddToQueue = () => {
       toastId: TOAST_IDS.APPOINTMENT.CREATE,
       loadingMessage: 'Adding to queue...',
       successMessage: 'Patient added to queue successfully',
-      invalidateQueries: [['queue']],
+      invalidateQueries: [['queue'], ['queue-status']],
     }
   );
 };
@@ -614,7 +742,7 @@ export const useCallNextPatient = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Calling next patient...',
       successMessage: 'Next patient called successfully',
-      invalidateQueries: [['queue']],
+      invalidateQueries: [['queue'], ['queue-status']],
     }
   );
 };
@@ -626,7 +754,7 @@ export const useQueueStats = (locationId?: string) => {
   const { hasPermission } = useRBAC();
   
   return useQueryData(
-    ['queue-stats', locationId],
+    getQueueStatsQueryKey(locationId),
     async () => {
       if (!locationId) throw new Error('Location ID required for queue stats');
       // getQueueStats returns raw data directly (no .success/.stats wrapper)
@@ -725,21 +853,30 @@ export const useMyAppointments = (filters?: {
   const userId = session?.user?.id;
   const userRole = session?.user?.role;
   
-  return useQueryData(
+  const query = useQueryData(
     ['myAppointments', userId, userRole, filters],
-    async () => {
-      const result = await getMyAppointments(filters) as any;
-      if (!result.success) {
-        throw new Error(result.error);
+    async (): Promise<any> => {
+      const response = await clinicApiClient.getMyAppointments(filters);
+      if (!response.success) {
+        throw new Error(response.message || response.error || 'Failed to fetch appointments');
       }
-      return result;
+      const appointments = extractAppointments(response.data);
+      return {
+        success: true,
+        appointments,
+        data: {
+          appointments,
+        },
+        meta: response.meta,
+      } as any;
     },
     {
       enabled: !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 2 * 60 * 1000, // reuse recent appointment data across patient pages
       gcTime: 10 * 60 * 1000,
-      refetchOnMount: true,
-      refetchOnWindowFocus: true,
+      refetchOnMount: true, // Refetch when invalidated so payment callback navigation refreshes the list
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
@@ -748,24 +885,44 @@ export const useMyAppointments = (filters?: {
       },
     }
   );
+
+  return query;
 };
 
 /**
  * Hook for fetching doctor availability
  */
-export const useDoctorAvailability = (clinicId: string, doctorId: string, date: string, locationId?: string, appointmentType?: string) => {
+export const useDoctorAvailability = (
+  clinicId: string,
+  doctorId: string,
+  date: string,
+  locationId?: string,
+  appointmentType?: string,
+  options?: {
+    enabled?: boolean;
+  }
+) => {
   
   return useQueryData(
     ['doctorAvailability', clinicId, doctorId, date, locationId, appointmentType],
-    async () => {
-      const result = await getDoctorAvailability(clinicId, doctorId, date, locationId, appointmentType) as any;
-      if (!result.success) {
-        throw new Error(result.error);
+    async (): Promise<any> => {
+      const response = await clinicApiClient.getDoctorAvailability(
+        doctorId,
+        date,
+        locationId,
+        appointmentType
+      );
+      if (!response.success) {
+        throw new Error(response.message || response.error || 'Failed to fetch doctor availability');
       }
-      return result.availability;
+      const availability =
+        response.data && typeof response.data === 'object' && 'availability' in response.data
+          ? (response.data as { availability?: unknown }).availability
+          : response.data;
+      return availability as any;
     },
     {
-      enabled: !!doctorId && !!date, // Enabled for everyone, including guests
+      enabled: !!doctorId && !!date && (options?.enabled ?? true), // Enabled for everyone, including guests
       staleTime: 30 * 1000, // 30 seconds — availability is time-sensitive
       gcTime: 2 * 60 * 1000, // 2 minutes garbage collection
       refetchOnMount: true, // Always re-fetch when dialog opens
@@ -816,34 +973,37 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
   const queryConfig = useMemo(() => {
     const queryKey = ['appointments-enhanced', clinicId, filters];
     
-    const queryFn = async () => {
+    const queryFn = async (): Promise<any> => {
       if (!clinicId) {
         throw new Error('No clinic ID available');
       }
       
-      // ✅ Consolidated: Use filters parameter only (removed legacy clinicId parameter)
-    const result = await getAppointments({ ...filters, clinicId });
-      if (!result.success) {
+      const response = await clinicApiClient.get<unknown>(
+        API_ENDPOINTS.APPOINTMENTS.GET_ALL,
+        serializeAppointmentFilters({ ...filters, clinicId })
+      );
+      if (!response.success) {
         // ✅ Use centralized error handler
         const { ERROR_MESSAGES: MSGS } = await import('@/lib/config/config');
         
         // Handle specific error cases with better UX
-        if (result.error?.includes('Access denied') || result.error?.includes('permission')) {
+        const errorMessage = response.message || response.error || MSGS.UNKNOWN_ERROR;
+        if (errorMessage.includes('Access denied') || errorMessage.includes('permission')) {
           throw new Error(MSGS.FORBIDDEN);
         }
-        if (result.error?.includes('Network')) {
+        if (errorMessage.includes('Network')) {
           throw new Error(MSGS.NETWORK_ERROR);
         }
-        if (result.error?.includes('timeout')) {
+        if (errorMessage.includes('timeout')) {
           throw new Error(MSGS.TIMEOUT_ERROR);
         }
         
         // Sanitize and use centralized error messages
         const { sanitizeErrorMessage } = await import('@/lib/utils/error-handler');
-        const errorMessage = sanitizeErrorMessage(result.error || MSGS.UNKNOWN_ERROR);
-        throw new Error(errorMessage);
+        throw new Error(sanitizeErrorMessage(errorMessage));
       }
-      return result;
+      const appointments = extractAppointments(response.data);
+      return { success: true, appointments, data: appointments, meta: response.meta } as any;
     };
     
     return {
@@ -997,23 +1157,26 @@ export const useAppointmentStats = () => {
         throw new Error('No clinic ID available');
       }
       // ✅ Consolidated: Use filters parameter only (removed legacy clinicId parameter)
-      const result = await getAppointments({ clinicId });
-      if (!result.success) {
-        throw new Error(result.error);
+      const response = await clinicApiClient.get<unknown>(
+        API_ENDPOINTS.APPOINTMENTS.GET_ALL,
+        { clinicId }
+      );
+      if (!response.success) {
+        throw new Error(response.message || response.error || 'Failed to fetch appointments');
       }
       
-      const appointments = result.appointments || [];
+      const appointments = extractAppointments(response.data);
       const today = new Date().toDateString();
       
       return {
         totalAppointments: appointments.length,
-        todayAppointments: appointments.filter(apt => 
+        todayAppointments: appointments.filter((apt: Appointment) => 
           new Date(apt.date).toDateString() === today
         ).length,
-        completedAppointments: appointments.filter(apt => 
+        completedAppointments: appointments.filter((apt: Appointment) => 
           apt.status === 'COMPLETED'
         ).length,
-        cancelledAppointments: appointments.filter(apt => 
+        cancelledAppointments: appointments.filter((apt: Appointment) => 
           apt.status === 'CANCELLED'
         ).length,
       };
@@ -1073,11 +1236,11 @@ export const usePatientQueuePosition = (patientId: string, queueType: string) =>
     async () => {
       // ✅ Fix: Pass object to getQueue
       const result = (await getQueue({ type: queueType })) as any;
-      if (!result.success) {
-        throw new Error(result.error);
+      if (!result) {
+        throw new Error('Failed to fetch queue');
       }
       
-      const queue = (result.queue || []) as QueueItem[];
+      const queue = (Array.isArray(result?.queue) ? result.queue : result || []) as QueueItem[];
       const position = queue.findIndex((entry) => entry.patientId === patientId);
       
       return {
@@ -1100,15 +1263,15 @@ export const useDoctorQueue = (doctorId: string) => {
   const { hasPermission } = useRBAC();
   
   return useQueryData(
-    ['doctorQueue', doctorId],
+    getQueueListQueryKey(undefined, { type: 'doctor', doctorId }),
     async () => {
       // ✅ Fix: Pass object to getQueue
-      const result = (await getQueue({ type: 'doctor' })) as any;
-      if (!result.success) {
-        throw new Error(result.error);
+      const result = (await getQueue({ type: 'doctor', doctorId })) as any;
+      if (!result) {
+        throw new Error('Failed to fetch queue');
       }
       
-      const queue = (result.queue || []) as QueueItem[];
+      const queue = (Array.isArray(result?.queue) ? result.queue : result || []) as QueueItem[];
       return queue.filter((entry) => {
         return entry.appointmentId; 
       });
@@ -1160,12 +1323,16 @@ export const useCanCancelAppointment = (appointmentId: string) => {
         return { canCancel: false, reason: 'Insufficient permissions' };
       }
       
-      const result = await getAppointmentById(appointmentId);
-      if (!result.success || !result.appointment) {
+      const response = await clinicApiClient.getAppointmentById(appointmentId);
+      const appointment =
+        response.data && typeof response.data === 'object' && 'appointment' in response.data
+          ? (response.data as { appointment?: Appointment }).appointment
+          : (response.data as Appointment | undefined);
+
+      if (!response.success || !appointment) {
         return { canCancel: false, reason: 'Appointment not found' };
       }
       
-      const appointment = result.appointment;
       const now = new Date();
       const appointmentDate = new Date(`${appointment.date} ${appointment.time}`);
       const hoursDifference = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
@@ -1184,6 +1351,49 @@ export const useCanCancelAppointment = (appointmentId: string) => {
     {
       enabled: !!appointmentId,
       staleTime: 5 * 60 * 1000, // 5 minutes
+    }
+  );
+};
+
+/**
+ * Hook for assistant doctor coverage configuration
+ */
+export const useAssistantDoctorCoverage = () => {
+  return useQueryData(
+    ["assistantDoctorCoverage"],
+    async () => {
+      const result = await getAssistantDoctorCoverage();
+      if (!result.success) {
+        throw new Error(result.error || "Failed to fetch assistant doctor coverage");
+      }
+      return result.entries || [];
+    },
+    {
+      staleTime: 5 * 60 * 1000,
+    }
+  );
+};
+
+/**
+ * Hook for updating assistant doctor coverage configuration
+ */
+export const useUpdateAssistantDoctorCoverage = () => {
+  return useMutationOperation<
+    AssistantDoctorCoverageAssignment[],
+    AssistantDoctorCoverageAssignment[]
+  >(
+    async (entries) => {
+      const result = await updateAssistantDoctorCoverage(entries);
+      if (!result.success) {
+        throw new Error(result.error || "Failed to update assistant doctor coverage");
+      }
+      return result.entries || [];
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: "Saving assistant coverage...",
+      successMessage: "Assistant doctor coverage saved successfully",
+      invalidateQueries: [["assistantDoctorCoverage"]],
     }
   );
 };
@@ -1241,6 +1451,59 @@ export const useRejectVideoProposal = () => {
       loadingMessage: 'Rejecting proposal...',
       successMessage: 'Proposal rejected successfully',
       invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
+    }
+  );
+};
+
+export interface QrCheckInAppointment {
+  appointmentId?: string;
+  locationId?: string;
+  locationName?: string;
+  checkedInAt?: string;
+  queuePosition?: number;
+  totalInQueue?: number;
+  estimatedWaitTime?: number;
+  doctorId?: string;
+  doctorName?: string;
+}
+
+export interface QrCheckInSelectionCandidate {
+  id: string;
+  doctorName?: string;
+  doctor?: { name?: string; firstName?: string; lastName?: string };
+  startTime?: string;
+  time?: string;
+  type?: string;
+}
+
+export interface QrCheckInResult {
+  success: boolean;
+  appointment?: QrCheckInAppointment;
+  requiresSelection?: boolean;
+  appointments?: QrCheckInSelectionCandidate[];
+  message?: string;
+  error?: string;
+  code?: string;
+}
+
+export const useScanLocationQrAndCheckIn = () => {
+  return useMutationOperation<
+    QrCheckInResult,
+    { code: string; locationId?: string; appointmentId?: string }
+  >(
+    async (data) => {
+      const result = (await scanLocationQRAndCheckIn(data)) as QrCheckInResult;
+      if (!result.success && !result.requiresSelection) {
+        throw new Error(result.error || 'QR check-in failed');
+      }
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.CHECK_IN,
+      loadingMessage: 'Checking you in...',
+      successMessage: 'Check-in successful',
+      invalidateQueries: [['appointments'], ['queue'], ['myAppointments']],
+      showToast: false,
     }
   );
 };

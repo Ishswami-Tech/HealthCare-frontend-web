@@ -42,7 +42,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
     markAsRead,
     markAllAsRead,
     removeNotification,
-  } = useNotifications();
+  } = useNotifications(isNotificationPanelOpen);
 
   const [filter, setFilter] = useState<FilterType>("all");
   const [isMarkingAll, setIsMarkingAll] = useState(false);

@@ -722,6 +722,7 @@ export function useAuth() {
   );
   
   const changePassword = changePasswordMutation.mutate;
+  const changePasswordAsync = changePasswordMutation.mutateAsync;
   const isChangingPassword = changePasswordMutation.isPending;
 
   // Terminate all sessions mutation - ✅ Use core hook
@@ -855,11 +856,13 @@ export function useAuth() {
     loginAsync: loginMutation.mutateAsync, // ✅ Use mutateAsync for awaitable login
     register: registerMutation.mutateAsync, // ✅ Use mutateAsync so await works properly
     logout: logoutMutation.mutate,
+    logoutAsync: logoutMutation.mutateAsync,
     verifyOTP: verifyOTPMutation.mutateAsync, // ✅ Use mutateAsync for awaitable OTP verification
     requestOTP: requestOTPMutation.mutateAsync, // ✅ Use mutateAsync for awaitable OTP request
     forgotPassword,
     resetPassword,
     changePassword,
+    changePasswordAsync,
     requestMagicLink,
     verifyMagicLink,
     registerWithClinic,

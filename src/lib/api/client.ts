@@ -1025,6 +1025,7 @@ export class ClinicApiClient extends ApiClient {
     patientId: string;
     doctorId: string;
     clinicId: string;
+    locationId?: string;
     duration: number;
     proposedSlots: Array<{ date: string; time: string }>;
     notes?: string | undefined;
@@ -1059,9 +1060,15 @@ export class ClinicApiClient extends ApiClient {
     return this.post(API_ENDPOINTS.APPOINTMENTS.COMPLETE(id), data);
   }
 
-  async getDoctorAvailability(doctorId: string, date: string, locationId?: string) {
+  async getDoctorAvailability(
+    doctorId: string,
+    date: string,
+    locationId?: string,
+    appointmentType?: string
+  ) {
     const params: Record<string, string> = { date };
     if (locationId) params.locationId = locationId;
+    if (appointmentType) params.type = appointmentType;
     const url = `${API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId)}?${new URLSearchParams(params)}`;
     return this.publicRequest(url, { method: 'GET' });
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,6 @@ import {
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useTranslation } from "@/lib/i18n/context";
 import { theme } from "@/lib/utils/theme-utils";
-import { useAppointmentsStore } from "@/stores";
 import {
   normalizeAppointmentStatus,
   normalizePatientAppointment,
@@ -42,8 +41,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClinicSelectDialog } from "@/components/appointments/ClinicSelectDialog";
-import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
+
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 import { PatientPageHeader, PatientPageShell } from "@/components/patient/PatientPageShell";
 
@@ -58,22 +56,9 @@ export default function PatientDashboard() {
 
   const { clinicId } = useClinicContext();
   const patientId = user?.id || "";
-  const lastSyncedAppointmentsRef = useRef("");
-  const setScopedAppointmentsInStore = useAppointmentsStore((state) => state.setScopedAppointments);
 
   // Fetch real data using hooks with loading and error states
   const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments();
-  const appointmentsScopeKey = useMemo(
-    () => (user?.id ? `myAppointments:${user.id}:{}` : null),
-    [user?.id]
-  );
-  const storeAppointments = useAppointmentsStore((state) =>
-    appointmentsScopeKey
-      ? (state.queryBuckets[appointmentsScopeKey]?.ids || [])
-          .map((id) => state.appointments[id])
-          .filter((appointment) => appointment !== undefined)
-      : []
-  );
   const { data: medicalRecordsData } = usePatientMedicalRecords(
     clinicId || "",
     patientId
@@ -84,22 +69,6 @@ export default function PatientDashboard() {
     "active"
   );
   const { data: comprehensiveData, isPending: isPendingComprehensive } = useComprehensiveHealthRecord(patientId);
-
-  useEffect(() => {
-    const fetchedAppointments = Array.isArray(appointmentsData?.appointments)
-      ? appointmentsData.appointments
-      : [];
-    const syncKey = fetchedAppointments
-      .map((appointment: any) => `${appointment.id}:${appointment.updatedAt}:${appointment.status}`)
-      .join("|");
-
-    if (fetchedAppointments.length > 0 && syncKey !== lastSyncedAppointmentsRef.current) {
-      lastSyncedAppointmentsRef.current = syncKey;
-      if (appointmentsScopeKey) {
-        setScopedAppointmentsInStore(appointmentsScopeKey, fetchedAppointments as any);
-      }
-    }
-  }, [appointmentsData, setScopedAppointmentsInStore, appointmentsScopeKey]);
 
   // Transform real data
   const patientData = useMemo(() => {
@@ -126,12 +95,9 @@ export default function PatientDashboard() {
       }
     };
 
-    const hasResolvedAppointments = appointmentsData !== undefined;
     const rawAppointments = Array.isArray(appointmentsData?.appointments)
       ? appointmentsData.appointments
-      : hasResolvedAppointments
-        ? []
-        : storeAppointments;
+      : [];
     const appointments = Array.isArray(rawAppointments) ? rawAppointments : [];
     const activeUpcomingStatuses = new Set([
       "SCHEDULED",
@@ -259,7 +225,6 @@ export default function PatientDashboard() {
     };
   }, [
     appointmentsData,
-    storeAppointments,
     medicalRecordsData,
     vitalSignsData,
     prescriptionsData,
@@ -319,33 +284,21 @@ export default function PatientDashboard() {
               </Button>
               <Button
                 variant="outline"
-                className="flex items-center gap-2 rounded-xl border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition-all"
-                onClick={() => router.push("/video-appointments")}
+                className="flex items-center gap-2 rounded-xl border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 font-semibold transition-all"
+                onClick={() => router.push("/patient/appointments?openBooking=1")}
               >
-                <Video className="w-4 h-4" />
-                {t("appointments.bookNew")}
+                <Plus className="w-4 h-4" />
+                Book Appointment
               </Button>
-              <ClinicSelectDialog 
-                trigger={
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2 rounded-xl border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 font-semibold transition-all"
-                  >
-                    <Plus className="w-4 h-4" />
-                    {t("dashboard.bookAppointment")}
-                  </Button>
-                }
-              />
           </div>
 
-          
           {/* Real-time Queue Status */}
           <div className="animate-in fade-in slide-in-from-top-4 duration-500">
              <PatientQueueCard />
           </div>
 
           {/* Health Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             {/* Diagnosis Card */}
             {isPendingComprehensive ? (
                <div className="border rounded-lg p-4 space-y-3">
@@ -464,7 +417,7 @@ export default function PatientDashboard() {
             ) : null}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.35fr_0.95fr] gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.35fr_0.95fr] gap-4 sm:gap-6">
             {/* Dosha Balance Chart */}
             {patientData.hasDoshaData && (
             <Card className="lg:order-2 border-l-4 border-l-violet-400 shadow-sm">
@@ -591,9 +544,9 @@ export default function PatientDashboard() {
                   patientData.upcomingAppointments.map((appointment: any) => (
                     <div
                       key={appointment.id}
-                      className={`flex items-start sm:items-center justify-between gap-3 p-4 border rounded-lg border-emerald-100 hover:bg-emerald-50/40 hover:border-emerald-200 transition-colors`}
+                      className={`flex items-start sm:items-center justify-between gap-2 sm:gap-3 p-3 sm:p-4 border rounded-lg border-emerald-100 hover:bg-emerald-50/40 hover:border-emerald-200 transition-colors`}
                     >
-                      <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                      <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0 flex-1">
                         <div
                           className={`w-10 h-10 ${theme.containers.featureBlue} rounded-full flex items-center justify-center shrink-0`}
                         >
@@ -658,14 +611,14 @@ export default function PatientDashboard() {
                   ))
                   )}
 
-                  <BookAppointmentDialog
-                    trigger={
-                      <Button variant="outline" className="w-full">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Schedule New Appointment
-                      </Button>
-                    }
-                  />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => router.push("/patient/appointments?openBooking=1")}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Schedule New Appointment
+                  </Button>
                 </div>
                )}
               </CardContent>
@@ -918,17 +871,14 @@ export default function PatientDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <BookAppointmentDialog
-                  trigger={
-                    <Button
-                      variant="outline"
-                      className="h-16 flex flex-col items-center justify-center gap-2"
-                    >
-                      <Calendar className="w-5 h-5" />
-                      <span className="text-sm">Book Appointment</span>
-                    </Button>
-                  }
-                />
+                <Button
+                  variant="outline"
+                  className="h-16 flex flex-col items-center justify-center gap-2"
+                  onClick={() => router.push("/patient/appointments?openBooking=1")}
+                >
+                  <Calendar className="w-5 h-5" />
+                  <span className="text-sm">Book Appointment</span>
+                </Button>
                 <Button
                   variant="outline"
                   className="h-16 flex flex-col items-center justify-center gap-2"

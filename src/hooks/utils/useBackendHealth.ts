@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useHealthStore } from '@/stores';
 import { useHealthRealtime } from '@/hooks/realtime/useHealthRealtime';
-import { APP_CONFIG } from '@/lib/config/config';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import { StatusType } from '@/components/common/StatusIndicator';
+import { clinicApiClient } from '@/lib/api/client';
 import {
   Server,
   Database,
@@ -57,8 +58,6 @@ export function useBackendHealth() {
   const isHealthSocketConnected = useHealthStore((state) => state.isConnected);
   const realtimeHealthStatus = useHealthStore((state) => state.healthStatus);
 
-  const apiBaseUrl = useMemo(() => APP_CONFIG.API.BASE_URL, []);
-  
   // Cache for REST health data (fallback)
   const healthDataCache = useRef<{
     data: Record<string, unknown>;
@@ -212,25 +211,19 @@ export function useBackendHealth() {
     setBackendStatus((prev) => ({ ...prev, isChecking: true }));
 
     try {
-      const healthEndpoint = `${apiBaseUrl}/health`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
       const startTime = Date.now();
 
-      const response = await fetch(healthEndpoint, {
-          method: "GET",
-          signal: controller.signal,
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          mode: "cors",
+      const response = await clinicApiClient.publicRequest<any>(API_ENDPOINTS.HEALTH.DETAILED, {
+        method: "GET",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
       });
-      
-      clearTimeout(timeoutId);
-      const healthCheckResponseTime = Date.now() - startTime;
-      let parsedHealthData: any = null;
 
-      if (response.ok) {
-           parsedHealthData = await response.json();
-           healthDataCache.current = { data: parsedHealthData, timestamp: now };
+      const healthCheckResponseTime = Date.now() - startTime;
+      const parsedHealthData = response.data ?? null;
+      if (parsedHealthData) {
+        healthDataCache.current = { data: parsedHealthData, timestamp: now };
       }
 
       const mapStatus = (status?: string): StatusType => {
@@ -271,7 +264,7 @@ export function useBackendHealth() {
     } catch (err) {
       setBackendStatus(prev => ({ ...prev, isChecking: false, globalStatus: 'down' }));
     }
-  }, [apiBaseUrl, isHealthSocketConnected, shouldPoll]);
+  }, [isHealthSocketConnected, shouldPoll]);
   
   // Manage Polling State based on Socket Connection
   useEffect(() => {

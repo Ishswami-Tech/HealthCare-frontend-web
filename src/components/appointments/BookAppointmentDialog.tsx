@@ -8,6 +8,7 @@ import type {
   TreatmentType,
 } from "@/types/appointment.types";
 import { Button } from "@/components/ui/button";
+import { PaymentButton } from "@/components/payments/PaymentButton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -33,14 +34,18 @@ import {
   useAppointmentServices,
   useCreateAppointment,
   useDoctorAvailability,
+  useProposeVideoAppointment,
 } from "@/hooks/query/useAppointments";
-import { useSubscriptions } from "@/hooks/query/useBilling";
+import {
+  useSubscriptions,
+  useActiveSubscription,
+  useCheckSubscriptionCoverage,
+  useCreateInPersonAppointmentWithSubscription,
+} from "@/hooks/query/useBilling";
 import { useSendAppointmentReminder } from "@/hooks/query/useCommunication";
 import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
-import { checkSubscriptionCoverage, createInPersonAppointmentWithSubscription } from "@/lib/actions/billing.server";
-import { PaymentButton } from "@/components/payments";
 import { APP_CONFIG } from "@/lib/config/config";
 import { toast } from "sonner";
 import { theme } from "@/lib/utils/theme-utils";
@@ -123,7 +128,8 @@ function groupSlotsByPeriod(slots: string[]) {
 
 const STEPS = ["Location", "Service", "Doctor", "Date", "Slot", "Confirm"] as const;
 /** Each appointment slot is 3 minutes — 20 bookable slots per hour. */
-const APPOINTMENT_SLOT_DURATION_MINUTES = 3;
+const IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES = 3;
+const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -152,6 +158,24 @@ const formatDateIST = (date: Date) =>
     month: "2-digit",
     day: "2-digit",
   }).format(date);
+
+const isSubscriptionCurrent = (subscription?: { status?: string; endDate?: string, nextBillingDate?: string, currentPeriodEnd?: string } | null) => {
+  if (!subscription) return false;
+
+  const normalizedStatus = subscription.status?.toUpperCase();
+  if (normalizedStatus !== "ACTIVE" && normalizedStatus !== "TRIALING") {
+    return false;
+  }
+
+  // Use nextBillingDate / currentPeriodEnd as primary indicators of ongoing mathematical validity
+  const effectiveEnd = subscription.nextBillingDate || subscription.currentPeriodEnd || subscription.endDate;
+  if (!effectiveEnd) {
+    return true;
+  }
+
+  const endDate = new Date(effectiveEnd);
+  return Number.isFinite(endDate.getTime()) && endDate.getTime() >= Date.now();
+};
 
 export function BookAppointmentDialog({
   trigger,
@@ -189,48 +213,73 @@ export function BookAppointmentDialog({
   const [selectedDoctorId, setSelectedDoctorId] = useState(initialDoctorId || "");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(getTodayIST());
   const [selectedSlot, setSelectedSlot] = useState("");
+  const [selectedVideoSlots, setSelectedVideoSlots] = useState<string[]>([]);
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [urgency, setUrgency] = useState("Normal");
   const [bookedAppointmentId, setBookedAppointmentId] = useState("");
+  const [requiresVideoPayment, setRequiresVideoPayment] = useState(false);
   const [videoPaymentCompleted, setVideoPaymentCompleted] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId || "");
+  const isPrivilegedScheduler = ["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
+  const targetPatientId = isPrivilegedScheduler ? selectedPatientId : session?.user?.id || "";
+  const shouldLoadLocations = open;
+  const shouldLoadServices = open;
+  const shouldLoadDoctors = open && step >= 3 && !!activeClinicId && !!selectedLocationId;
+  const shouldLoadPatients = open && isPrivilegedScheduler && !!activeClinicId;
 
   // ─── Queries ─────────────────────────────────────────────────────────────
-  const { data: locations = [] } = useActiveLocations(activeClinicId);
-  const { data: appointmentServices = [], isPending: servicesLoading } = useAppointmentServices();
-  const { data: doctorsData, isPending: doctorsLoading } = useDoctors(activeClinicId, {
-    locationId: selectedLocationId,
+  const { data: locations = [] } = useActiveLocations(activeClinicId, {
+    enabled: shouldLoadLocations,
   });
+  const { data: appointmentServices = [], isPending: servicesLoading } = useAppointmentServices(shouldLoadServices);
+  const { data: doctorsData, isPending: doctorsLoading } = useDoctors(
+    activeClinicId,
+    {
+      locationId: selectedLocationId,
+    },
+    {
+      enabled: shouldLoadDoctors,
+    }
+  );
   // Only RECEPTIONIST needs the full patient list to select a patient.
   // Patients book for themselves — calling this admin endpoint as a PATIENT
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
   const { data: patientsData = [] } = usePatients(
-    ["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole) ? activeClinicId : "",
-    { limit: 1000, isActive: true }
+    isPrivilegedScheduler ? activeClinicId : "",
+    { limit: 1000, isActive: true },
+    { enabled: shouldLoadPatients }
   );
 
   const dateString = useMemo(() => (selectedDate ? formatDateIST(selectedDate) : ""), [selectedDate]);
+  const shouldLoadAvailability =
+    open &&
+    step >= 4 &&
+    !!activeClinicId &&
+    !!selectedDoctorId &&
+    !!dateString &&
+    !!selectedLocationId;
 
   const { data: availability, isPending: availabilityLoading, error: availabilityError } = useDoctorAvailability(
     activeClinicId,
     selectedDoctorId,
     dateString,
-    selectedLocationId
+    selectedLocationId,
+    consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
+    { enabled: shouldLoadAvailability }
   );
 
   const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment(activeClinicId);
+  const { mutateAsync: proposeVideoAppointment, isPending: isProposingVideoAppointment } = useProposeVideoAppointment();
+  const checkSubscriptionCoverageMutation = useCheckSubscriptionCoverage();
+  const createSubscriptionAppointmentMutation = useCreateInPersonAppointmentWithSubscription();
   const { mutate: sendReminder } = useSendAppointmentReminder();
-  const targetPatientId =
-    ["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole)
-      ? selectedPatientId
-      : session?.user?.id || "";
-  const { data: subscriptionsData = [] } = useSubscriptions(targetPatientId);
+  const shouldLoadSubscriptions = open && step >= 6 && !!targetPatientId;
+  const { data: subscriptionsData = [] } = useSubscriptions(targetPatientId, shouldLoadSubscriptions);
+  const { data: backendActiveSubscription } = useActiveSubscription(targetPatientId, activeClinicId, shouldLoadSubscriptions);
 
   // ─── Derived ─────────────────────────────────────────────────────────────
   const modeAppointmentType: AppointmentType =
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
-  const isPatientInPersonFlow = userRole === "PATIENT" && consultationMode === "IN_PERSON";
-
   const visibleServices = useMemo(() => {
     return (appointmentServices as AppointmentServiceDefinition[]).filter(
       (service) =>
@@ -244,26 +293,16 @@ export function BookAppointmentDialog({
     [selectedServiceId, visibleServices]
   );
 
-  const selectedVideoConsultationFee = useMemo(() => {
-    if (!selectedService) return 0;
-
-    const candidateValues = [
-      selectedService.videoConsultationFee,
-      (selectedService as any).consultationFee,
-      (selectedService as any).amount,
-      (selectedService as any).price,
-      (selectedService as any).fee,
-    ];
-
-    for (const value of candidateValues) {
-      const numericValue = Number(value);
-      if (Number.isFinite(numericValue) && numericValue > 0) {
-        return numericValue;
-      }
-    }
-
-    return 0;
-  }, [selectedService]);
+  const appointmentDurationMinutes =
+    consultationMode === "VIDEO"
+      ? VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES
+      : selectedService?.defaultDurationMinutes && selectedService.defaultDurationMinutes > 0
+        ? selectedService.defaultDurationMinutes
+        : IN_PERSON_APPOINTMENT_SLOT_DURATION_MINUTES;
+  const isPatientInPersonFlow = userRole === "PATIENT" && consultationMode === "IN_PERSON";
+  const videoPaymentAmount = Number(selectedService?.videoConsultationFee || 0);
+  const shouldCollectVideoPayment =
+    consultationMode === "VIDEO" && userRole === "PATIENT" && videoPaymentAmount > 0;
 
   const doctorsList: any[] = useMemo(() => {
     // The GET /doctors API returns User records with a nested `doctor` relation:
@@ -314,15 +353,25 @@ export function BookAppointmentDialog({
     [patientsList, selectedPatientId]
   );
 
-  const activeSubscription = useMemo(
-    () =>
-      (subscriptionsData as any[]).find(
-        (s: any) =>
-          (s.status === "ACTIVE" || s.status === "TRIALING") &&
-          (!s.clinicId || s.clinicId === activeClinicId)
-      ),
-    [subscriptionsData, activeClinicId]
-  );
+  const activeSubscription = useMemo(() => {
+    const candidates = (subscriptionsData as any[])
+      .filter(
+        (subscription: any) =>
+          isSubscriptionCurrent(subscription) &&
+          (!subscription.clinicId || subscription.clinicId === activeClinicId)
+      )
+      .sort((left: any, right: any) => {
+        const leftDate = new Date(left.updatedAt || left.createdAt || left.startDate || 0).getTime();
+        const rightDate = new Date(right.updatedAt || right.createdAt || right.startDate || 0).getTime();
+        return rightDate - leftDate;
+      });
+
+    if (isSubscriptionCurrent(backendActiveSubscription)) {
+      return backendActiveSubscription;
+    }
+
+    return candidates[0];
+  }, [subscriptionsData, activeClinicId, backendActiveSubscription]);
 
   const slots = useMemo(() => {
     if (Array.isArray((availability as any)?.availableSlots)) return (availability as any).availableSlots;
@@ -363,20 +412,28 @@ export function BookAppointmentDialog({
 
   useEffect(() => {
     if (open) {
-      setStep(( (locationId && initialConsultationMode) || initialConsultationMode === "VIDEO" ) ? 2 : (locationId ? 2 : 1));
-      setSelectedLocationId(locationId || "");
-      setConsultationMode(initialConsultationMode || "IN_PERSON");
-      setSelectedServiceId(initialServiceId || "");
-      setSelectedDoctorId(initialDoctorId || "");
-      setSelectedPatientId(initialPatientId || "");
-      setSelectedDate(getTodayIST());
-      setSelectedSlot("");
-      setChiefComplaint("");
-      setUrgency("Normal");
-      setBookedAppointmentId("");
-      setVideoPaymentCompleted(false);
+      // Only reset if we're coming back after a completed booking (step 7 = success)
+      // or if it's the very first open (step hasn't been set yet beyond initial)
+      if (step === 7) {
+        // After a completed booking, reset for a fresh booking
+        setStep(( (locationId && initialConsultationMode) || initialConsultationMode === "VIDEO" ) ? 2 : (locationId ? 2 : 1));
+        setSelectedLocationId(locationId || "");
+        setConsultationMode(initialConsultationMode || "IN_PERSON");
+        setSelectedServiceId(initialServiceId || "");
+        setSelectedDoctorId(initialDoctorId || "");
+        setSelectedPatientId(initialPatientId || "");
+        setSelectedDate(getTodayIST());
+        setSelectedSlot("");
+        setSelectedVideoSlots([]);
+        setChiefComplaint("");
+        setUrgency("Normal");
+        setBookedAppointmentId("");
+        setRequiresVideoPayment(false);
+        setVideoPaymentCompleted(false);
+      }
+      // Otherwise, keep all existing state (user resumes from where they left off)
     }
-  }, [open, locationId, initialConsultationMode, initialServiceId, initialDoctorId, initialPatientId]);
+  }, [open]);
 
   // Auto-pick first location
   useEffect(() => {
@@ -396,44 +453,104 @@ export function BookAppointmentDialog({
 
   // ─── Book appointment ─────────────────────────────────────────────────────
   const handleBook = useCallback(async () => {
-    if (!selectedService || !selectedDoctorId || !selectedDate || !selectedSlot || !targetPatientId) return;
+    if (!selectedService || !selectedDoctorId || !selectedDate || !targetPatientId) return;
 
-    const redirectToSubscriptionCheckout = (message?: string) => {
-      toast.error(
+    const patientBillingRoute = "/patient/billing";
+    const redirectToBillingTab = (
+      tab: "plans" | "subscriptions" | "payments",
+      message: string
+    ) => {
+      toast.dismiss("subscription-coverage-check");
+      toast.error(message);
+      router.push(`${patientBillingRoute}?tab=${tab}`);
+    };
+
+    const redirectToSubscriptionPlans = (message?: string) => {
+      redirectToBillingTab(
+        "plans",
         message || "You don't have an active subscription for this in-person appointment. Please subscribe to continue."
       );
-      router.push("/billing?tab=plans&intent=subscribe");
+    };
+
+    const redirectToSubscriptionResolution = (
+      message?: string,
+      tab: "subscriptions" | "payments" = "subscriptions"
+    ) => {
+      redirectToBillingTab(
+        tab,
+        message ||
+          "Your subscription cannot cover this appointment right now. Review your billing options before confirming."
+      );
     };
 
     try {
       const finalAppointmentType: AppointmentType =
         consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
+      const selectedDateString = formatDateIST(selectedDate);
+
+      if (finalAppointmentType === "VIDEO_CALL") {
+        if (selectedVideoSlots.length !== 3) {
+          toast.error("Please select exactly 3 preferred video slots.");
+          return;
+        }
+
+        const proposedAppointment = await proposeVideoAppointment({
+          patientId: targetPatientId,
+          doctorId: selectedDoctorId,
+          clinicId: activeClinicId,
+          ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
+          duration: appointmentDurationMinutes,
+          proposedSlots: selectedVideoSlots.map((time) => ({
+            date: selectedDateString,
+            time,
+          })),
+          ...(chiefComplaint ? { notes: chiefComplaint } : {}),
+        });
+
+        setBookedAppointmentId(proposedAppointment.id);
+        if (userRole === "PATIENT") {
+          queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        }
+        queryClient.invalidateQueries({ queryKey: ["appointment", proposedAppointment.id] });
+        if (shouldCollectVideoPayment) {
+          setRequiresVideoPayment(true);
+          setVideoPaymentCompleted(false);
+          setStep(7);
+          return;
+        }
+
+        onBooked?.();
+        setStep(7);
+        return;
+      }
 
       if (finalAppointmentType === "IN_PERSON" && userRole === "PATIENT" && !activeSubscription) {
-        redirectToSubscriptionCheckout(
+        redirectToSubscriptionPlans(
           "You don't have an active subscription for in-person appointments. Please subscribe to continue."
         );
         return;
       }
 
       if (finalAppointmentType === "IN_PERSON" && activeSubscription?.id) {
-        const coverageResult = await checkSubscriptionCoverage(activeSubscription.id, "IN_PERSON");
-        if (!coverageResult.success) {
-          toast.error(coverageResult.error || "Unable to validate subscription coverage.");
-          return;
-        }
+        const coverageResult = await checkSubscriptionCoverageMutation.mutateAsync({
+          subscriptionId: activeSubscription.id,
+          appointmentType: "IN_PERSON",
+        });
         const coverage = coverageResult.coverage;
         const covered =
           coverage?.covered === true ||
           coverage?.allowed === true;
         if (!covered) {
+          const requiresPayment = coverage?.requiresPayment === true;
           const reason =
             coverage?.message ||
             coverage?.reason ||
-            (coverage?.requiresPayment
+            (requiresPayment
               ? `Subscription coverage unavailable. Additional payment required: INR ${coverage?.paymentAmount || 0}`
               : "Subscription quota exhausted or inactive.");
-          redirectToSubscriptionCheckout(reason);
+          redirectToSubscriptionResolution(reason, requiresPayment ? "payments" : "subscriptions");
           return;
         }
       }
@@ -444,22 +561,18 @@ export function BookAppointmentDialog({
 
       let apptId = "";
       if (finalAppointmentType === "IN_PERSON" && userRole === "PATIENT" && activeSubscription?.id) {
-        const atomicResult = await createInPersonAppointmentWithSubscription({
+        const atomicResult = await createSubscriptionAppointmentMutation.mutateAsync({
           subscriptionId: activeSubscription.id,
           patientId: targetPatientId,
           doctorId: selectedDoctorId,
           clinicId: activeClinicId,
           locationId: selectedLocationId,
           appointmentDate: appointmentDate.toISOString(),
-          // Testing mode: keep bookings short so repeated appointment flows are easy to validate.
-          duration: APPOINTMENT_SLOT_DURATION_MINUTES,
+          duration: appointmentDurationMinutes,
           treatmentType: selectedService.treatmentType,
           priority: urgency.toUpperCase(),
           notes: chiefComplaint || selectedService.label,
         });
-        if (!atomicResult.success) {
-          throw new Error(atomicResult.error || "Failed to create subscription-based appointment");
-        }
         apptId =
           (atomicResult as any)?.appointment?.id ||
           (atomicResult as any)?.appointment?.data?.id ||
@@ -473,7 +586,7 @@ export function BookAppointmentDialog({
           time: selectedSlot,
           type: finalAppointmentType,
           treatmentType: selectedService.treatmentType,
-          duration: APPOINTMENT_SLOT_DURATION_MINUTES,
+          duration: appointmentDurationMinutes,
           notes: chiefComplaint || selectedService.label,
           priority: urgency.toUpperCase() as any,
           patientId: targetPatientId,
@@ -492,8 +605,12 @@ export function BookAppointmentDialog({
       }
 
       setBookedAppointmentId(apptId);
-      queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      if (userRole === "PATIENT") {
+        queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["appointment", apptId] });
       // Send appointment reminder via push + email + WhatsApp
       if (hasPermission(Permission.SEND_NOTIFICATIONS)) {
         sendReminder({ appointmentId: apptId, reminderType: 'all' });
@@ -510,16 +627,35 @@ export function BookAppointmentDialog({
         (lowerErrorMessage.includes("active in-person subscription coverage is required") ||
           lowerErrorMessage.includes("active subscription required") ||
           lowerErrorMessage.includes("subscription quota exhausted") ||
+          lowerErrorMessage.includes("subscription expired") ||
+          lowerErrorMessage.includes("subscription ended") ||
+          lowerErrorMessage.includes("subscription period") ||
           lowerErrorMessage.includes("subscription coverage unavailable") ||
           (lowerErrorMessage.includes("subscription") && lowerErrorMessage.includes("required")));
 
       if (shouldRedirectToSubscription) {
-        redirectToSubscriptionCheckout(
-          "You don't have an active subscription for this appointment. Please subscribe and continue to payment."
-        );
+        const noActiveSubscription =
+          !activeSubscription &&
+          (lowerErrorMessage.includes("active subscription required") ||
+            lowerErrorMessage.includes("subscription required"));
+
+        if (noActiveSubscription) {
+          redirectToSubscriptionPlans(
+            "You don't have an active subscription for this appointment. Please subscribe to continue."
+          );
+          return;
+        }
+
+        const requiresPayment =
+          lowerErrorMessage.includes("payment") ||
+          lowerErrorMessage.includes("past due") ||
+          lowerErrorMessage.includes("billing");
+
+        redirectToSubscriptionResolution(errorMessage, requiresPayment ? "payments" : "subscriptions");
         return;
       }
 
+      toast.dismiss("subscription-coverage-check");
       toast.error(errorMessage);
     }
   }, [
@@ -527,12 +663,15 @@ export function BookAppointmentDialog({
     selectedDoctorId,
     selectedDate,
     selectedSlot,
+    selectedVideoSlots,
     targetPatientId,
     chiefComplaint,
     urgency,
     activeClinicId,
     selectedLocationId,
+    appointmentDurationMinutes,
     createAppointment,
+    proposeVideoAppointment,
     onBooked,
     consultationMode,
     userRole,
@@ -550,9 +689,9 @@ export function BookAppointmentDialog({
     }
     if (step === 3) return !!selectedDoctorId;
     if (step === 4) return !!selectedDate;
-    if (step === 5) return !!selectedSlot;
+    if (step === 5) return consultationMode === "VIDEO" ? selectedVideoSlots.length === 3 : !!selectedSlot;
     return true;
-  }, [step, selectedLocationId, consultationMode, selectedServiceId, selectedDoctorId, selectedDate, selectedSlot, userRole, selectedPatientId]);
+  }, [step, selectedLocationId, consultationMode, selectedServiceId, selectedDoctorId, selectedDate, selectedSlot, selectedVideoSlots, userRole, selectedPatientId]);
 
   const TOTAL_STEPS = 6;
   const goNext = () => {
@@ -876,7 +1015,7 @@ export function BookAppointmentDialog({
             // Testing mode: allow any non-past booking date.
             return date < todayIST;
           }}
-          className="border border-border/50 shadow-sm"
+          className="border border-border/50 shadow-sm p-2 sm:p-3 mx-auto max-w-[280px] sm:max-w-xs [--cell-size:--spacing(8)] sm:[--cell-size:--spacing(9)] text-sm [&_.rdp-caption_label]:text-sm [&_.rdp-button]:text-sm"
         />
       </div>
       {selectedDate && (
@@ -896,6 +1035,147 @@ export function BookAppointmentDialog({
       { key: "evening" as const, label: "Evening", icon: <Moon className="w-4 h-4" />, range: "After 5pm", slots: slotGroups.evening },
     ];
 
+    if (consultationMode === "VIDEO") {
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl border bg-slate-50/80 dark:bg-slate-900/40 border-slate-200/80 dark:border-slate-800 px-3 py-3 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  Select 3 slots
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  15 min each. Doctor confirms one.
+                </p>
+              </div>
+              <div className="shrink-0 rounded-full bg-primary/12 text-primary px-2.5 py-1 text-[11px] font-bold border border-primary/15">
+                {selectedVideoSlots.length}/3
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+              <span className="inline-flex items-center gap-1 font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 px-2 py-1 rounded-full border border-blue-200/70 dark:border-blue-900">
+                <Video className="w-3 h-3" /> Video
+              </span>
+              <span className="inline-flex items-center gap-1 font-medium bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 px-2 py-1 rounded-full border border-violet-200/70 dark:border-violet-900">
+                <CalendarIcon className="w-3 h-3" /> {selectedDate ? format(selectedDate, "d MMM") : ""}
+              </span>
+              <span className="inline-flex items-center gap-1 font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 px-2 py-1 rounded-full border border-amber-200/70 dark:border-amber-900">
+                <Clock className="w-3 h-3" /> {appointmentDurationMinutes} min
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+              {[0, 1, 2].map((index) => {
+                const slot = selectedVideoSlots[index];
+                return (
+                  <div
+                    key={index}
+                    className={`rounded-lg border px-2 py-2 text-center sm:text-center flex items-center justify-between sm:block ${
+                      slot
+                        ? "border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/30"
+                        : "border-dashed border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-950/30"
+                    }`}
+                  >
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Slot {index + 1}
+                    </p>
+                    <p className={`mt-0 sm:mt-1 text-xs font-semibold ${slot ? "text-foreground" : "text-muted-foreground"}`}>
+                      {slot || "Not selected"}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {selectedVideoSlots.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedVideoSlots([])}
+                className="text-[11px] font-semibold text-primary hover:underline"
+              >
+                Clear selected slots
+              </button>
+            )}
+          </div>
+
+          {availabilityLoading ? (
+            <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
+              <Loader2 className="w-5 h-5 animate-spin" /> Checking video availability...
+            </div>
+          ) : effectiveSlots.length === 0 ? (
+            <div className="flex flex-col items-center py-10 text-muted-foreground text-center border border-dashed rounded-xl">
+              <Video className="w-8 h-8 mb-2 opacity-20" />
+              <p className="text-sm font-medium">
+                {consultationBlocked ? "Video consultation currently unavailable" : "No video slots available"}
+              </p>
+              <p className="text-xs mt-1 opacity-60">
+                {consultationBlocked
+                  ? (restrictions.reason || "Clinic/doctor settings currently block this consultation type")
+                  : "Try a different date or doctor"}
+              </p>
+              {availabilityError && <p className="text-xs mt-4 p-2 bg-red-500/10 rounded-md text-red-500 border border-red-500/20 max-w-[90%] text-center">Error: {(availabilityError as any).message || "Unknown error"}</p>}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {periods.map((period) =>
+                period.slots.length === 0 ? null : (
+                  <div key={period.key}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-muted-foreground">{period.icon}</span>
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{period.label}</span>
+                      <span className="text-[10px] text-muted-foreground">({period.range})</span>
+                      <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
+                        {period.slots.length} slots
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {period.slots.map((slot) => {
+                        const isSelected = selectedVideoSlots.includes(slot);
+                        const selectionLimitReached = !isSelected && selectedVideoSlots.length >= 3;
+
+                        return (
+                          <button
+                            key={slot}
+                            onClick={() => {
+                              setSelectedVideoSlots((current) => {
+                                if (current.includes(slot)) {
+                                  return current.filter((currentSlot) => currentSlot !== slot);
+                                }
+
+                                if (current.length >= 3) {
+                                  return current;
+                                }
+
+                                return [...current, slot];
+                              });
+                            }}
+                            disabled={selectionLimitReached}
+                            className={`py-2 px-2 rounded-lg border transition-all text-center flex flex-col items-center gap-0.5 ${
+                              isSelected
+                                ? "bg-emerald-500 text-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20"
+                                : selectionLimitReached
+                                  ? "bg-slate-100/80 border-slate-200 text-slate-400 dark:bg-slate-900/60 dark:border-slate-800 dark:text-slate-500 opacity-70 cursor-not-allowed"
+                                  : "bg-card border-border hover:border-primary/40 hover:bg-primary/5"
+                            }`}
+                          >
+                            <span className="text-xs font-semibold">{slot}</span>
+                            <span className={`text-[9px] font-medium ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
+                              {isSelected ? `Choice ${selectedVideoSlots.indexOf(slot) + 1}` : `${appointmentDurationMinutes} min`}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
@@ -905,7 +1185,7 @@ export function BookAppointmentDialog({
           </p>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-              <Clock className="w-3 h-3" /> {APPOINTMENT_SLOT_DURATION_MINUTES} min per slot
+              <Clock className="w-3 h-3" /> {appointmentDurationMinutes} min per slot
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
               20 slots / hour
@@ -959,7 +1239,7 @@ export function BookAppointmentDialog({
                       >
                         <span className="text-xs font-semibold">{slot}</span>
                         <span className={`text-[9px] font-medium ${selectedSlot === slot ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                          {APPOINTMENT_SLOT_DURATION_MINUTES} min
+                          {appointmentDurationMinutes} min
                         </span>
                       </button>
                     ))}
@@ -987,8 +1267,10 @@ export function BookAppointmentDialog({
           { label: "Service", value: selectedService?.label, sub: selectedService?.category },
           { label: "Doctor", value: selectedDoctor?.name, sub: selectedDoctor?.specialization || "General Physician" },
           { label: "Date", value: selectedDate ? format(selectedDate, "EEEE, d MMMM yyyy") : "" },
-          { label: "Time", value: selectedSlot },
-          { label: "Duration", value: `${APPOINTMENT_SLOT_DURATION_MINUTES} min` },
+          consultationMode === "VIDEO"
+            ? { label: "Slots", value: `${selectedVideoSlots.length} selected`, sub: selectedVideoSlots.join(", ") }
+            : { label: "Time", value: selectedSlot },
+          { label: "Duration", value: `${appointmentDurationMinutes} min${consultationMode === "VIDEO" ? " each" : ""}` },
         ].map(({ label, value, sub }) => (
           <div key={label} className="flex items-center justify-between px-4 py-3 gap-4">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider w-16 shrink-0">{label}</span>
@@ -1040,13 +1322,17 @@ export function BookAppointmentDialog({
       </div>
       <div className="text-center">
         <h3 className="text-lg font-bold">
-          {consultationMode === "VIDEO" && !videoPaymentCompleted
-            ? "Payment Required To Confirm"
+          {consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
+            ? "Complete Payment to Confirm"
+            : consultationMode === "VIDEO"
+            ? "Video Appointment Request Sent"
             : "Appointment Confirmed!"}
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
-          {consultationMode === "VIDEO" && !videoPaymentCompleted
-            ? "Your video appointment has been created. Complete payment to confirm it."
+          {consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
+            ? "Your preferred slots are saved. Complete the payment below so the request can be finalized from your side."
+            : consultationMode === "VIDEO"
+            ? "Your 3 preferred slots were sent to the doctor. One of them will be confirmed."
             : "Your appointment has been booked successfully."}
         </p>
       </div>
@@ -1055,36 +1341,44 @@ export function BookAppointmentDialog({
         <div className="flex flex-col items-center gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm">
           <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <Video className="w-4 h-4" />
-            {videoPaymentCompleted ? "Payment Received" : "Video Payment Required"}
+            {requiresVideoPayment && !videoPaymentCompleted
+              ? "Payment Required"
+              : "Video Slot Proposal Submitted"}
           </div>
           <p className="text-xs text-muted-foreground text-center">
-            {videoPaymentCompleted
-              ? "Payment is complete. Your video appointment should now move to confirmed status."
-              : "Video appointments are billed per appointment. Complete payment first, then the appointment will be confirmed."}
+            {requiresVideoPayment && !videoPaymentCompleted
+              ? "The doctor can review your selected slots after payment is completed. Once paid, you can track the request from your appointments page."
+              : "The doctor will review your selected slots and confirm one. You can track the status from your appointments page."}
           </p>
-          {!videoPaymentCompleted && selectedVideoConsultationFee > 0 ? (
-            <PaymentButton
-              appointmentId={bookedAppointmentId}
-              amount={selectedVideoConsultationFee}
-              description={selectedService?.label || "Video Consultation"}
-              className="w-full"
-              onSuccess={() => {
-                setVideoPaymentCompleted(true);
-                queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
-                queryClient.invalidateQueries({ queryKey: ["appointments"] });
-              }}
-            >
-              Pay INR {selectedVideoConsultationFee.toLocaleString("en-IN")}
-            </PaymentButton>
-          ) : !videoPaymentCompleted ? (
-            <div className="w-full rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-center text-sm text-amber-700 dark:text-amber-300">
-              Video consultation fee is not available for this service yet.
+          <div className="w-full rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-3 text-center text-sm text-blue-700 dark:text-blue-300">
+            Preferred slots: {selectedVideoSlots.join(", ")}
+          </div>
+          {requiresVideoPayment && !videoPaymentCompleted && bookedAppointmentId ? (
+            <div className="w-full rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 space-y-3">
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                  Video Consultation Fee
+                </p>
+                <p className="mt-1 text-2xl font-bold text-foreground">
+                  INR {videoPaymentAmount.toFixed(0)}
+                </p>
+              </div>
+              <PaymentButton
+                appointmentId={bookedAppointmentId}
+                appointmentType="VIDEO_CALL"
+                amount={videoPaymentAmount}
+                description={selectedService?.label || "Video consultation"}
+                className="w-full"
+                onSuccess={() => {
+                  setRequiresVideoPayment(false);
+                  setVideoPaymentCompleted(true);
+                  onBooked?.();
+                }}
+              >
+                Complete Payment
+              </PaymentButton>
             </div>
-          ) : (
-            <div className="w-full rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 p-3 text-center text-sm text-green-700 dark:text-green-300">
-              Payment completed. You can check the appointment status from your appointments page.
-            </div>
-          )}
+          ) : null}
         </div>
       ) : (
         <div className="flex flex-col gap-3 p-4 rounded-2xl border bg-card w-full max-w-sm">
@@ -1127,7 +1421,7 @@ export function BookAppointmentDialog({
           selectedService?.label,
           selectedDoctor?.name,
           selectedDate ? format(selectedDate, "d MMM") : "",
-          selectedSlot,
+          consultationMode === "VIDEO" ? `${selectedVideoSlots.length} video slots` : selectedSlot,
         ].map((v, i) => v ? (
           <span key={i} className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
             {v}
@@ -1150,22 +1444,24 @@ export function BookAppointmentDialog({
           </Button>
         )}
 
-        <Button
-          variant={isPatientInPersonFlow ? "outline" : "default"}
-          className={`w-full h-12 rounded-xl font-semibold transition-all active:scale-95 ${
-            isPatientInPersonFlow 
-              ? "border-border/50 hover:bg-accent/50" 
-              : "bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium"
-          }`}
-          onClick={() => {
-            setOpen(false);
-            if (pathname !== postBookingRoute) {
-              router.push(postBookingRoute);
-            }
-          }}
-        >
-          {postBookingLabel}
-        </Button>
+        {!(consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted) && (
+          <Button
+            variant={isPatientInPersonFlow ? "outline" : "default"}
+            className={`w-full h-12 rounded-xl font-semibold transition-all active:scale-95 ${
+              isPatientInPersonFlow 
+                ? "border-border/50 hover:bg-accent/50" 
+                : "bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium"
+            }`}
+            onClick={() => {
+              setOpen(false);
+              if (pathname !== postBookingRoute) {
+                router.push(postBookingRoute);
+              }
+            }}
+          >
+            {postBookingLabel}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -1189,7 +1485,9 @@ export function BookAppointmentDialog({
     "Select Date",
     "Select Time Slot",
     "Confirm Appointment",
-    "Booking Confirmed! 🎉",
+    consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
+      ? "Complete Payment"
+      : "Booking Confirmed! 🎉",
   ][step - 1];
 
   return (
@@ -1254,13 +1552,13 @@ export function BookAppointmentDialog({
             ) : (
               <Button
                 onClick={handleBook}
-                disabled={isBooking}
+                disabled={consultationMode === "VIDEO" ? isProposingVideoAppointment : isBooking}
                 className="h-11 px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2"
               >
-                {isBooking ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Booking...</>
+                {(consultationMode === "VIDEO" ? isProposingVideoAppointment : isBooking) ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> {consultationMode === "VIDEO" ? "Sending request..." : "Booking..."}</>
                 ) : (
-                  <><Check className="w-4 h-4" /> Confirm & Book</>
+                  <><Check className="w-4 h-4" /> {consultationMode === "VIDEO" ? "Send Video Request" : "Confirm & Book"}</>
                 )}
               </Button>
             )}

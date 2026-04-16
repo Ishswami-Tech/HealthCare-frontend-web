@@ -15,9 +15,6 @@ export {
   type AuthState 
 } from './auth.store';
 export * from './websocket.store';
-export * from './appointments.store';
-export * from './medical-records.store';
-export * from './pharmacy.store';
 export * from './notifications.store';
 export * from './health.store';
 
@@ -26,7 +23,6 @@ import { ReactNode, useEffect } from 'react';
 import { useAppStore } from './app.store';
 import { useAuthStore } from './auth.store';
 import { useWebSocketStore } from './websocket.store';
-import { useAppointmentsStore } from './appointments.store';
 import { useHealthStore } from './health.store';
 
 interface StoreProviderProps {
@@ -41,30 +37,21 @@ export function StoreProvider({ children }: StoreProviderProps) {
   return children;
 }
 
-// ✅ Consolidated: Import all stores
-import { usePharmacyStore } from './pharmacy.store';
 import { useNotificationStore } from './notifications.store';
-import { useMedicalRecordsStore } from './medical-records.store';
 
 export const getStoreState = () => ({
   app: useAppStore.getState(),
   auth: useAuthStore.getState(),
   websocket: useWebSocketStore.getState(),
-  appointments: useAppointmentsStore.getState(),
   health: useHealthStore.getState(),
-  pharmacy: usePharmacyStore.getState(),
   notifications: useNotificationStore.getState(),
-  medicalRecords: useMedicalRecordsStore.getState(),
 });
 
 export const resetAllStores = () => {
   useWebSocketStore.getState().disconnect();
   useAppStore.getState().reset();
   useAuthStore.getState().reset();
-  useAppointmentsStore.getState().reset();
-  usePharmacyStore.getState().reset();
   useNotificationStore.getState().reset();
-  useMedicalRecordsStore.getState().reset();
 };
 
 export const useStoreActions = () => ({
@@ -89,13 +76,6 @@ export const useStoreActions = () => ({
     emit: useWebSocketStore.getState().emit,
     subscribe: useWebSocketStore.getState().subscribe,
   },
-  appointments: {
-    setAppointments: useAppointmentsStore.getState().setAppointments,
-    addAppointment: useAppointmentsStore.getState().addAppointment,
-    updateAppointment: useAppointmentsStore.getState().updateAppointment,
-    setSelectedAppointment: useAppointmentsStore.getState().setSelectedAppointment,
-    setFilters: useAppointmentsStore.getState().setFilters,
-  },
 });
 
 if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
@@ -103,11 +83,8 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
     app: useAppStore,
     auth: useAuthStore,
     websocket: useWebSocketStore,
-    appointments: useAppointmentsStore,
     health: useHealthStore,
-    pharmacy: usePharmacyStore,
     notifications: useNotificationStore,
-    medicalRecords: useMedicalRecordsStore,
     getState: getStoreState,
     reset: resetAllStores,
   };

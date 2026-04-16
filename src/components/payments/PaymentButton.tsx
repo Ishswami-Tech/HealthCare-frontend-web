@@ -10,6 +10,7 @@ import {
   TOAST_IDS,
 } from "@/hooks/utils/use-toast";
 import { useQueryClient } from "@/hooks/core";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { clinicApiClient } from "@/lib/api/client";
 import { API_ENDPOINTS, APP_CONFIG } from "@/lib/config/config";
 import {
@@ -18,7 +19,18 @@ import {
   type PaymentProvider,
 } from "@/lib/payments/providers";
 import { getClinicId } from "@/lib/utils/token-manager";
-import { useMyClinic } from "@/hooks/query/useClinics";
+
+const BILLING_QUERY_KEYS = [
+  ["invoices"],
+  ["clinic-invoices"],
+  ["payments"],
+  ["clinic-payments"],
+  ["subscriptions"],
+  ["clinic-subscriptions"],
+  ["active-subscription"],
+  ["clinic-ledger"],
+  ["billing-analytics"],
+] as const;
 
 interface PaymentButtonProps {
   invoiceId?: string;
@@ -57,21 +69,22 @@ export function PaymentButton({
   children,
 }: PaymentButtonProps) {
   const queryClient = useQueryClient();
+  const { session } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const hasAutoStartedRef = useRef(false);
-  const { data: clinic } = useMyClinic();
-  const clinicSettings = clinic?.settings as Record<string, any> | undefined;
-  const rawClinicPaymentMethods = clinicSettings?.paymentSettings?.paymentMethods;
-  const clinicPaymentMethods = Array.isArray(rawClinicPaymentMethods)
-    ? rawClinicPaymentMethods
-    : [];
-  const normalizedCandidates = [
-    provider,
-    ...clinicPaymentMethods,
-    DEFAULT_PAYMENT_PROVIDER,
-  ]
-    .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
-    .map((value) => value.toLowerCase());
+  const userRole = (session?.user?.role || "").toUpperCase();
+  const normalizedCandidates = [provider, DEFAULT_PAYMENT_PROVIDER].reduce<string[]>(
+    (candidates, value) => {
+      if (typeof value === "string") {
+        const normalizedValue = value.trim().toLowerCase();
+        if (normalizedValue) {
+          candidates.push(normalizedValue);
+        }
+      }
+      return candidates;
+    },
+    []
+  );
   const resolvedProviderGuess = normalizedCandidates.find((value) =>
     isPaymentProviderEnabled(value)
   );
@@ -86,6 +99,26 @@ export function PaymentButton({
         : process.env.NODE_ENV === "production"
           ? "production"
           : "sandbox";
+
+  const invalidateSuccessfulPaymentQueries = () => {
+    BILLING_QUERY_KEYS.forEach((queryKey) => {
+      queryClient.invalidateQueries({ queryKey, exact: false });
+    });
+
+    if (appointmentId) {
+      if (userRole === "PATIENT") {
+        queryClient.invalidateQueries({ queryKey: ["myAppointments"], exact: false });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["appointments"], exact: false });
+      }
+      queryClient.invalidateQueries({ queryKey: ["appointment", appointmentId], exact: false });
+    }
+
+    if (prescriptionId) {
+      queryClient.invalidateQueries({ queryKey: ["prescriptions"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["patientPrescriptions"], exact: false });
+    }
+  };
 
   const getPaymentIntent = async () => {
     let paymentIntentUrl: string;
@@ -246,10 +279,7 @@ export function PaymentButton({
           paymentId: orderId,
           clinicId: resolvedClinicId,
         });
-        if (appointmentId) {
-          queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
-          queryClient.invalidateQueries({ queryKey: ["appointments"] });
-        }
+        invalidateSuccessfulPaymentQueries();
         showSuccessToast("Payment successful!", {
           id: TOAST_IDS.PAYMENT.SUCCESS,
         });
@@ -267,10 +297,7 @@ export function PaymentButton({
           paymentId: orderId,
           clinicId: resolvedClinicId,
         });
-        if (appointmentId) {
-          queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
-          queryClient.invalidateQueries({ queryKey: ["appointments"] });
-        }
+        invalidateSuccessfulPaymentQueries();
         showSuccessToast("Payment verified successfully!", {
           id: TOAST_IDS.PAYMENT.SUCCESS,
         });

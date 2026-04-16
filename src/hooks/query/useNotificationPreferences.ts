@@ -1,16 +1,8 @@
-/**
- * Notification Preferences Hooks
- * Dedicated hooks for managing notification preferences
- */
-
 import { useQueryData, useMutationOperation } from '../core';
-import { TOAST_IDS } from './use-toast';
+import { TOAST_IDS } from '../utils/use-toast';
 import { authenticatedApi } from '@/lib/actions/auth.server';
 import { API_ENDPOINTS } from '@/lib/config/config';
 
-/**
- * Hook to get notification preferences (current user)
- */
 export const useNotificationPreferences = () => {
   return useQueryData(
     ['notificationPreferences', 'me'],
@@ -23,9 +15,6 @@ export const useNotificationPreferences = () => {
   );
 };
 
-/**
- * Hook to get notification preferences for a user
- */
 export const useUserNotificationPreferences = (userId: string) => {
   return useQueryData(
     ['notificationPreferences', userId],
@@ -39,9 +28,6 @@ export const useUserNotificationPreferences = (userId: string) => {
   );
 };
 
-/**
- * Hook to create notification preferences
- */
 export const useCreateNotificationPreferences = () => {
   return useMutationOperation(
     async (data: {
@@ -71,9 +57,6 @@ export const useCreateNotificationPreferences = () => {
   );
 };
 
-/**
- * Hook to update notification preferences
- */
 export const useUpdateNotificationPreferences = () => {
   return useMutationOperation(
     async (data: {
@@ -92,11 +75,11 @@ export const useUpdateNotificationPreferences = () => {
       const userId = data.userId;
       const updateData = { ...data };
       delete updateData.userId;
-      
+
       const endpoint = userId
         ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId)
         : API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE('me');
-      
+
       const { data: response } = await authenticatedApi(endpoint, {
         method: 'PUT',
         body: JSON.stringify(updateData),
@@ -112,16 +95,13 @@ export const useUpdateNotificationPreferences = () => {
   );
 };
 
-/**
- * Hook to delete notification preferences
- */
 export const useDeleteNotificationPreferences = () => {
   return useMutationOperation(
     async (userId?: string) => {
       const endpoint = userId
         ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE(userId)
         : API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE('me');
-      
+
       const { data } = await authenticatedApi(endpoint, {
         method: 'DELETE',
       });
@@ -135,6 +115,3 @@ export const useDeleteNotificationPreferences = () => {
     }
   );
 };
-
-
-

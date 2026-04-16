@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
-import { pauseQueue, transferQueueEntry } from "@/lib/actions/queue.server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +16,7 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueuePermissions } from "@/hooks/utils/useRBAC";
 import { QueueProtectedComponent, ProtectedComponent } from "@/components/rbac";
-import { useQueue, useQueueStats } from "@/hooks/query/useQueue";
+import { usePauseQueue, useQueue, useQueueStats, useTransferQueueEntry } from "@/hooks/query/useQueue";
 import { useClinicContext, useActiveLocations } from "@/hooks/query/useClinics";
 import { Role } from "@/types/auth.types";
 import { QueueCategory, type CanonicalQueueEntry } from "@/types/queue.types";
@@ -279,6 +278,8 @@ export default function QueuePage() {
 
   // Mutation hooks for queue actions with React 19 useOptimistic
   const updateQueueStatusOptimistic = useOptimisticUpdateQueueStatus(clinicId);
+  const pauseQueueMutation = usePauseQueue();
+  const transferQueueEntryMutation = useTransferQueueEntry();
 
   // Transfer patient between logical queues (receptionist/clinic-admin only)
   const [transferringId, setTransferringId] = useState<string | null>(null);
@@ -291,16 +292,16 @@ export default function QueuePage() {
     async (entryId: string, targetQueue: string, treatmentType: string, label: string) => {
       setTransferringId(entryId);
       try {
-        await transferQueueEntry(entryId, targetQueue, treatmentType);
+        await transferQueueEntryMutation.mutateAsync({ entryId, targetQueue, treatmentType });
         await refetchQueue();
         showSuccessToast(`Moved to ${label}`, { id: TOAST_IDS.GLOBAL.SUCCESS });
-      } catch {
-        showErrorToast(`Failed to move patient`, { id: TOAST_IDS.GLOBAL.ERROR });
+      } catch (error) {
+        showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
       } finally {
         setTransferringId(null);
       }
     },
-    [refetchQueue]
+    [refetchQueue, transferQueueEntryMutation]
   );
 
   // Handle queue actions with optimistic updates
@@ -318,13 +319,13 @@ export default function QueuePage() {
   // Pause uses the dedicated backend endpoint, not a generic status update
   const handlePauseQueue = useCallback(async (rowDoctorId: string) => {
     try {
-      await pauseQueue(rowDoctorId);
-      refetchQueue();
+      await pauseQueueMutation.mutateAsync({ doctorId: rowDoctorId });
+      await refetchQueue();
       showSuccessToast("Queue paused", { id: TOAST_IDS.GLOBAL.SUCCESS });
-    } catch {
-      showErrorToast("Failed to pause queue", { id: TOAST_IDS.GLOBAL.ERROR });
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
     }
-  }, [refetchQueue]);
+  }, [pauseQueueMutation, refetchQueue]);
 
   // Show loading state
   if (isLoading) {

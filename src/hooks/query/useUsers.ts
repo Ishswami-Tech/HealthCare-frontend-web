@@ -1,6 +1,7 @@
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
 import { useAuth } from '../auth/useAuth';
+import { setProfileComplete } from '@/lib/actions/auth.server';
 import {
   getAllUsers,
   getUserProfile,
@@ -331,7 +332,7 @@ export const useCreateUser = () => {
       toastId: TOAST_IDS.USER.CREATE,
       loadingMessage: 'Creating user...',
       successMessage: 'User created successfully',
-      invalidateQueries: [['users']],
+      invalidateQueries: [['users'], ['patients'], ['doctors']],
     }
   );
 };
@@ -341,14 +342,50 @@ export const useCreateUser = () => {
  */
 export const useUpdateUserRole = () => {
   return useMutationOperation(
-    async ({ userId, role }: { userId: string; role: string }) => {
-      return (await updateUserRole(userId, role)) as Record<string, unknown>;
+    async ({
+      userId,
+      role,
+      clinicId,
+      locationId,
+      permissions,
+    }: {
+      userId: string;
+      role: string;
+      clinicId?: string;
+      locationId?: string;
+      permissions?: string[];
+    }) => {
+      const updatePayload: {
+        clinicId?: string;
+        locationId?: string;
+        permissions?: string[];
+      } = {};
+      if (clinicId) updatePayload.clinicId = clinicId;
+      if (locationId) updatePayload.locationId = locationId;
+      if (permissions) updatePayload.permissions = permissions;
+
+      return (await updateUserRole(userId, role, updatePayload)) as Record<string, unknown>;
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
       loadingMessage: 'Updating user role...',
       successMessage: 'User role updated successfully',
       invalidateQueries: [['users']],
+    }
+  );
+};
+
+export const useSetProfileComplete = () => {
+  return useMutationOperation(
+    async (complete: boolean) => {
+      await setProfileComplete(complete);
+      return { complete };
+    },
+    {
+      toastId: TOAST_IDS.PROFILE.COMPLETE,
+      loadingMessage: 'Finalizing profile...',
+      successMessage: 'Profile finalized successfully',
+      showToast: false,
     }
   );
 };

@@ -36,7 +36,6 @@ import {
   PatientProtectedComponent,
   MedicalRecordsRouteProtection,
 } from "@/components/rbac";
-import { useMedicalRecordsActions } from "@/stores";
 import { LoadingSpinner } from "@/components/ui/loading";
 import {
   FileText,
@@ -76,10 +75,6 @@ export default function EHRSystem() {
 
   // Clinic context
   const { clinicId } = useClinicContext();
-
-  // Zustand store actions
-  const medicalRecordsActions = useMedicalRecordsActions();
-
 
   // Fetch patients data with proper permissions using clinic-aware hook
   const {
@@ -164,9 +159,6 @@ export default function EHRSystem() {
       doctorId: recordData.doctorId,
       appointmentId: recordData.appointmentId,
     }, {
-      onSuccess: () => {
-        medicalRecordsActions.addMedicalRecord(recordData);
-      },
       onError: (error: Error) => {
         console.error("Failed to create medical record:", error);
       }

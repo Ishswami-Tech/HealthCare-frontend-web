@@ -26,6 +26,10 @@ import {
   createPayment,
   getBillingAnalytics,
   sendInvoiceViaWhatsApp,
+  generateInvoicePDF,
+  markInvoiceAsPaid,
+  checkSubscriptionCoverage,
+  createInPersonAppointmentWithSubscription,
 } from '@/lib/actions/billing.server';
 import type { PaymentProvider } from '@/lib/payments/providers';
 import type {
@@ -127,7 +131,7 @@ export function useDeleteBillingPlan() {
 
 // ============ Subscriptions Hooks ============
 
-export function useSubscriptions(userId: string) {
+export function useSubscriptions(userId: string, enabled: boolean = true) {
   return useQueryData(
     ['subscriptions', userId],
     async () => {
@@ -138,7 +142,7 @@ export function useSubscriptions(userId: string) {
       return result.subscriptions || [];
     },
     {
-      enabled: !!userId,
+      enabled: enabled && !!userId,
       staleTime: 10 * 60 * 1000, // 10 minutes (optimized for 10M users)
       gcTime: 30 * 60 * 1000, // 30 minutes
       refetchOnWindowFocus: false,
@@ -167,7 +171,7 @@ export function useClinicSubscriptions(enabled: boolean = true) {
   );
 }
 
-export function useActiveSubscription(userId: string, clinicId: string) {
+export function useActiveSubscription(userId: string, clinicId: string, enabled: boolean = true) {
   return useQueryData(
     ['active-subscription', userId, clinicId],
     async () => {
@@ -178,7 +182,7 @@ export function useActiveSubscription(userId: string, clinicId: string) {
       return result.subscription;
     },
     {
-      enabled: !!userId && !!clinicId,
+      enabled: enabled && !!userId && !!clinicId,
       staleTime: 5 * 60 * 1000, // 5 minutes (optimized for 10M users)
       gcTime: 15 * 60 * 1000, // 15 minutes
       refetchOnWindowFocus: false,
@@ -301,6 +305,24 @@ export function useCreateInvoice() {
   );
 }
 
+export function useMarkInvoiceAsPaid() {
+  return useMutationOperation(
+    async (invoiceId: string) => {
+      const result = await markInvoiceAsPaid(invoiceId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to mark invoice as paid');
+      }
+      return result.invoice;
+    },
+    {
+      toastId: 'invoice-mark-paid',
+      loadingMessage: 'Marking invoice as paid...',
+      successMessage: 'Invoice marked as paid',
+      invalidateQueries: [['invoices'], ['clinic-invoices'], ['payments'], ['clinic-payments']],
+    }
+  );
+}
+
 // ============ Payments Hooks ============
 
 export function usePayments(userId: string) {
@@ -412,6 +434,52 @@ export function useReleaseAppointmentPayout() {
   );
 }
 
+export function useCheckSubscriptionCoverage() {
+  return useMutationOperation(
+    async ({
+      subscriptionId,
+      appointmentType,
+    }: {
+      subscriptionId: string;
+      appointmentType: 'VIDEO_CALL' | 'IN_PERSON' | 'HOME_VISIT';
+    }) => {
+      const result = await checkSubscriptionCoverage(subscriptionId, appointmentType);
+      if (!result.success) {
+        throw new Error(result.error || 'Unable to validate subscription coverage');
+      }
+      return result;
+    },
+    {
+      toastId: 'subscription-coverage-check',
+      loadingMessage: 'Validating subscription coverage...',
+      successMessage: 'Subscription coverage validated',
+      showToast: false,
+      showLoading: false,
+    }
+  );
+}
+
+export function useCreateInPersonAppointmentWithSubscription() {
+  return useMutationOperation(
+    async (
+      data: Parameters<typeof createInPersonAppointmentWithSubscription>[0]
+    ) => {
+      const result = await createInPersonAppointmentWithSubscription(data);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create subscription-based appointment');
+      }
+      return result;
+    },
+    {
+      toastId: 'subscription-appointment-create',
+      loadingMessage: 'Booking appointment...',
+      successMessage: 'Appointment booked successfully',
+      invalidateQueries: [['appointments'], ['myAppointments'], ['subscriptions']],
+      showToast: false,
+    }
+  );
+}
+
 export function useReconcilePayment() {
   return useMutationOperation(
     async ({ paymentId, provider }: { paymentId: string; provider?: PaymentProvider }) => {
@@ -442,6 +510,19 @@ export function useSendInvoiceViaWhatsApp() {
       errorMessage: 'Failed to send invoice via WhatsApp',
     }
   );
+}
+
+export function useGenerateInvoicePDF() {
+  return useMutationOperation<
+    { success: boolean; pdfUrl?: string; message?: string; data?: unknown; error?: string },
+    string
+  >((invoiceId: string) => generateInvoicePDF(invoiceId), {
+    toastId: 'generate-invoice-pdf',
+    loadingMessage: 'Generating invoice PDF...',
+    successMessage: 'Invoice PDF request submitted',
+    errorMessage: 'Failed to generate invoice PDF',
+    invalidateQueries: [['invoices'], ['clinic-invoices']],
+  });
 }
 
 // ============ Analytics Hooks ============

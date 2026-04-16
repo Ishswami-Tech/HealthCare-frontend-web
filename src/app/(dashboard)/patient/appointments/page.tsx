@@ -4,10 +4,10 @@ import React, { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
-import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { theme } from "@/lib/utils/theme-utils";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   Stethoscope,
   Leaf,
@@ -68,17 +68,25 @@ const TREATMENT_CATEGORIES: TreatmentCategory[] = [
  * and a simplified overview of Ayurvedic treatments.
  */
 export default function PatientAppointments() {
+  useWebSocketQuerySync();
   const searchParams = useSearchParams();
   const queryClinicId = searchParams.get("clinicId") || undefined;
   const queryLocationId = searchParams.get("locationId") || undefined;
   const queryClinicName = searchParams.get("clinicName") || undefined;
+  const bookingMode = searchParams.get("mode");
+  const shouldOpenBooking = searchParams.get("openBooking") === "1";
+  const defaultConsultationMode =
+    bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
 
   // Clear query parameters from URL to keep it clean, without triggering a re-render
   useEffect(() => {
-    if (queryClinicId || queryLocationId || queryClinicName) {
+    if (queryClinicId || queryLocationId || queryClinicName || bookingMode || shouldOpenBooking) {
+      document
+        .getElementById("appointment-manager")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
       window.history.replaceState(null, "", window.location.pathname);
     }
-  }, [queryClinicId, queryLocationId, queryClinicName]);
+  }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, shouldOpenBooking]);
 
   return (
     <DashboardLayout title="My Appointments">
@@ -89,14 +97,6 @@ export default function PatientAppointments() {
           eyebrow="MY APPOINTMENTS"
           title="My Appointments"
           description="Book and manage your in-person and virtual health appointments."
-          actionsSlot={
-            <BookAppointmentDialog
-              {...(queryClinicId && { clinicId: queryClinicId })}
-              {...(queryLocationId && { locationId: queryLocationId })}
-              {...(queryClinicName && { clinicName: queryClinicName })}
-              defaultOpen={!!queryClinicId}
-            />
-          }
         />
 
         {/* Real-time Queue Status */}
@@ -104,8 +104,15 @@ export default function PatientAppointments() {
           <PatientQueueCard />
         </div>
 
-        {/* AppointmentManager — rendered directly, has its own internal header */}
-        <AppointmentManager hideBookButton={true} />
+        {/* Canonical booking surface */}
+        <div id="appointment-manager">
+          <AppointmentManager
+            hideBookButton={false}
+            autoOpenBookDialog={shouldOpenBooking}
+            {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
+            {...(queryClinicId && { clinicId: queryClinicId })}
+          />
+        </div>
 
         {/* Ayurveda Treatment Categories — quick-book cards */}
         <Card className="border-l-4 border-l-amber-400 shadow-sm">
@@ -124,13 +131,18 @@ export default function PatientAppointments() {
                   <Icon className={`w-8 h-8 ${iconClass} mb-3`} />
                   <h3 className="font-semibold mb-2">{title}</h3>
                   <p className={`text-sm ${theme.textColors.secondary} mb-3`}>{description}</p>
-                  <BookAppointmentDialog
-                    trigger={
-                      <Button variant="outline" size="sm" className="w-full border-emerald-200 bg-emerald-50/60 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300">
-                        Book Now
-                      </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-emerald-200 bg-emerald-50/60 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300"
+                    onClick={() =>
+                      document
+                        .getElementById("appointment-manager")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
                     }
-                  />
+                  >
+                    Use Booking Manager
+                  </Button>
                 </div>
               ))}
             </div>

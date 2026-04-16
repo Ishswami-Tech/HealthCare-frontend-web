@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { changePassword } from '@/lib/actions/auth.server';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,10 +13,9 @@ import { Role } from '@/types/auth.types';
 
 export function ChangePasswordForm() {
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, changePasswordAsync, isChangingPassword } = useAuth();
   const user = session?.user;
 
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [showPasswords, setShowPasswords] = useState({
@@ -28,7 +26,6 @@ export function ChangePasswordForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     setError('');
     setSuccess(false);
 
@@ -39,7 +36,6 @@ export function ChangePasswordForm() {
     // Client-side validation
     if (newPassword !== confirmPassword) {
       setError('New passwords do not match');
-      setLoading(false);
       return;
     }
 
@@ -47,12 +43,11 @@ export function ChangePasswordForm() {
     
     if (newPassword.length < 8) {
       setError('Password must be at least 8 characters long');
-      setLoading(false);
       return;
     }
 
     try {
-      await changePassword({
+      await changePasswordAsync({
         ...(currentPassword ? { currentPassword } : {}),
         newPassword: newPassword,
       });
@@ -68,8 +63,6 @@ export function ChangePasswordForm() {
       }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to change password');
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -84,7 +77,7 @@ export function ChangePasswordForm() {
             type={showPasswords.current ? 'text' : 'password'}
             required
             autoComplete="current-password"
-            disabled={loading}
+            disabled={isChangingPassword}
             className="pr-10"
           />
           <button
@@ -107,7 +100,7 @@ export function ChangePasswordForm() {
             required
             autoComplete="new-password"
             minLength={8}
-            disabled={loading}
+            disabled={isChangingPassword}
             className="pr-10"
           />
           <button
@@ -132,7 +125,7 @@ export function ChangePasswordForm() {
             type={showPasswords.confirm ? 'text' : 'password'}
             required
             autoComplete="new-password"
-            disabled={loading}
+            disabled={isChangingPassword}
             className="pr-10"
           />
           <button
@@ -161,8 +154,8 @@ export function ChangePasswordForm() {
         </Alert>
       )}
 
-      <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-        {loading ? (
+      <Button type="submit" disabled={isChangingPassword} className="w-full sm:w-auto">
+        {isChangingPassword ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Changing Password...

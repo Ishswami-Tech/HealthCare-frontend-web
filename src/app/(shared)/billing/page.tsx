@@ -94,11 +94,11 @@ function BillingPageContent() {
     () => (clinicPlans.length > 0 ? clinicPlans : fallbackPlans),
     [clinicPlans, fallbackPlans]
   );
+  const plansPending = clinicId ? clinicPlansPending : fallbackPlansPending;
 
   const isPending =
     isAuthPending ||
-    clinicPlansPending ||
-    fallbackPlansPending ||
+    plansPending ||
     (isAdminRole
       ? clinicSubscriptionsPending || clinicInvoicesPending || clinicPaymentsPending
       : hasUserId && (userSubscriptionsPending || userInvoicesPending || userPaymentsPending));

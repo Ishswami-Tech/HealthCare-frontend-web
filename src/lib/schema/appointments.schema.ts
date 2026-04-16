@@ -45,6 +45,7 @@ export const proposeVideoSlotsSchema = z.object({
   patientId: z.string().uuid(),
   doctorId: z.string().uuid(),
   clinicId: z.string().min(1),
+  locationId: z.string().uuid().optional(),
   duration: z.number().min(3).max(120),
   proposedSlots: z.array(z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

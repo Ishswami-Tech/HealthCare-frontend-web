@@ -36,7 +36,7 @@ export function PatientPageShell({ children, className }: PatientPageShellProps)
   return (
     <div
       className={cn(
-        "space-y-4 sm:space-y-5",
+        "space-y-3 sm:space-y-5",
         className
       )}
     >
@@ -67,14 +67,14 @@ export function PatientPageHeader({
       {/* 4 px solid top accent — brand stripe */}
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400" />
 
-      <div className="relative px-5 pt-6 pb-5 sm:px-7 sm:pt-7 sm:pb-6">
+      <div className="relative px-4 pt-5 pb-4 sm:px-7 sm:pt-7 sm:pb-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
           {/* Left: text */}
           <div className="min-w-0 space-y-1.5">
-            <span className="inline-block text-[10px] font-extrabold uppercase tracking-[0.28em] text-primary sm:text-[11px]">
+            <span className="inline-block text-[9px] font-extrabold uppercase tracking-[0.25em] text-primary sm:text-[11px]">
               {eyebrow}
             </span>
-            <h1 className="text-[1.6rem] font-bold leading-[1.2] tracking-tight text-foreground sm:text-[1.85rem] lg:text-[2rem]">
+            <h1 className="text-[1.3rem] font-bold leading-[1.2] tracking-tight text-foreground sm:text-[1.7rem] lg:text-[2rem]">
               {title}
             </h1>
             <p className="max-w-xl text-[13px] leading-[1.55] text-muted-foreground sm:text-sm sm:leading-relaxed">

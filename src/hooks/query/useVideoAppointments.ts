@@ -20,6 +20,42 @@ import {
   getConsultationStatus,
   getVideoConsultationHistory,
   getRecording,
+  listAllVideoSessions,
+  terminateVideoSession,
+  joinWaitingRoom,
+  leaveWaitingRoom,
+  getWaitingRoomQueue,
+  admitFromWaitingRoom,
+  sendChatMessage,
+  getChatMessages,
+  updateTypingIndicator,
+  createMedicalNote,
+  getMedicalNotes,
+  deleteMedicalNote,
+  createAnnotation,
+  getAnnotations,
+  deleteAnnotation,
+  pauseRecording,
+  resumeRecording,
+  setRecordingQuality,
+  manageParticipantEnhanced,
+  getTranscription,
+  getCallQuality,
+  updateQualityMetrics,
+  type WaitingRoomParticipant,
+  type ChatMessage,
+  type MedicalNote,
+  type Annotation,
+  type TranscriptionSegment,
+  type CallQualityMetrics,
+} from '@/lib/actions/video.server';
+export type {
+  WaitingRoomParticipant,
+  ChatMessage,
+  MedicalNote,
+  Annotation,
+  TranscriptionSegment,
+  CallQualityMetrics,
 } from '@/lib/actions/video.server';
 import {
   rescheduleAppointment,
@@ -911,4 +947,408 @@ export function useVideoCallControls() {
   };
 
   return { getCallControls };
+}
+
+export function useAdminVideoSessions() {
+  return useQueryData(
+    ['admin-video-sessions'],
+    async () => await listAllVideoSessions(),
+    {
+      refetchInterval: 30_000,
+    }
+  );
+}
+
+export function useTerminateVideoSession() {
+  return useMutationOperation(
+    async (sessionId: string) => {
+      const result = await terminateVideoSession(sessionId, 'Terminated by Super Admin');
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to terminate session');
+      }
+      return result;
+    },
+    {
+      toastId: 'admin-terminate-session',
+      loadingMessage: 'Terminating session...',
+      successMessage: 'Session terminated successfully',
+      invalidateQueries: [['admin-video-sessions']],
+    }
+  );
+}
+
+export function useWaitingRoomQueue(appointmentId: string, enabled: boolean = true) {
+  return useQueryData(
+    ['waiting-room-queue', appointmentId],
+    async () => {
+      const result = await getWaitingRoomQueue(appointmentId);
+      return result.queue || [];
+    },
+    {
+      enabled: enabled && !!appointmentId,
+    }
+  );
+}
+
+export function useJoinWaitingRoom() {
+  return useMutationOperation(
+    async (appointmentId: string) => await joinWaitingRoom(appointmentId),
+    {
+      toastId: TOAST_IDS.VIDEO.JOIN,
+      loadingMessage: 'Joining waiting room...',
+      successMessage: 'Joined waiting room',
+      invalidateQueries: [['waiting-room-queue']],
+      showToast: false,
+    }
+  );
+}
+
+export function useLeaveWaitingRoom() {
+  return useMutationOperation(
+    async (appointmentId: string) => {
+      const result = await leaveWaitingRoom(appointmentId);
+      if (!result.success) {
+        throw new Error('Failed to leave waiting room');
+      }
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.VIDEO.END,
+      loadingMessage: 'Leaving waiting room...',
+      successMessage: 'Left waiting room',
+      invalidateQueries: [['waiting-room-queue']],
+      showToast: false,
+    }
+  );
+}
+
+export function useAdmitFromWaitingRoom() {
+  return useMutationOperation(
+    async ({ appointmentId, userId }: { appointmentId: string; userId: string }) =>
+      await admitFromWaitingRoom(appointmentId, userId),
+    {
+      toastId: TOAST_IDS.VIDEO.JOIN,
+      loadingMessage: 'Admitting participant...',
+      successMessage: 'Participant admitted',
+      invalidateQueries: [['waiting-room-queue']],
+      showToast: false,
+    }
+  );
+}
+
+export function useVideoChatMessages(appointmentId: string) {
+  return useQueryData(
+    ['video-chat-messages', appointmentId],
+    async () => {
+      const result = await getChatMessages(appointmentId, { limit: 50 });
+      return result.messages || [];
+    },
+    {
+      enabled: !!appointmentId,
+    }
+  );
+}
+
+export function useSendVideoChatMessage() {
+  return useMutationOperation(
+    async ({
+      appointmentId,
+      message,
+    }: {
+      appointmentId: string;
+      message: string;
+    }) =>
+      await sendChatMessage(appointmentId, {
+        message,
+        messageType: 'TEXT',
+      }),
+    {
+      toastId: TOAST_IDS.VIDEO.ERROR,
+      loadingMessage: 'Sending message...',
+      successMessage: 'Message sent',
+      showToast: false,
+    }
+  );
+}
+
+export function useUpdateVideoTypingIndicator() {
+  return useMutationOperation(
+    async ({
+      appointmentId,
+      isTyping,
+    }: {
+      appointmentId: string;
+      isTyping: boolean;
+    }) => await updateTypingIndicator(appointmentId, isTyping),
+    {
+      toastId: 'video-typing-indicator',
+      loadingMessage: 'Updating typing status...',
+      successMessage: 'Typing status updated',
+      showToast: false,
+      showLoading: false,
+    }
+  );
+}
+
+export function useMedicalNotes(appointmentId: string) {
+  return useQueryData(
+    ['video-medical-notes', appointmentId],
+    async () => {
+      const result = await getMedicalNotes(appointmentId);
+      return result.notes || [];
+    },
+    {
+      enabled: !!appointmentId,
+    }
+  );
+}
+
+export function useCreateMedicalNote() {
+  return useMutationOperation(
+    async ({
+      appointmentId,
+      data,
+    }: {
+      appointmentId: string;
+      data: {
+        content: string;
+        noteType: 'GENERAL' | 'SYMPTOM' | 'DIAGNOSIS' | 'PRESCRIPTION' | 'TREATMENT';
+        title?: string;
+      };
+    }) => await createMedicalNote(appointmentId, data),
+    {
+      toastId: TOAST_IDS.GLOBAL.SUCCESS,
+      loadingMessage: 'Saving note...',
+      successMessage: 'Medical note saved',
+      invalidateQueries: [['video-medical-notes']],
+      showToast: false,
+    }
+  );
+}
+
+export function useDeleteMedicalNote() {
+  return useMutationOperation(
+    async ({
+      appointmentId,
+      noteId,
+    }: {
+      appointmentId: string;
+      noteId: string;
+    }) => {
+      const result = await deleteMedicalNote(appointmentId, noteId);
+      if (!result.success) {
+        throw new Error('Failed to delete note');
+      }
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.GLOBAL.SUCCESS,
+      loadingMessage: 'Deleting note...',
+      successMessage: 'Medical note deleted',
+      invalidateQueries: [['video-medical-notes']],
+      showToast: false,
+    }
+  );
+}
+
+export function useAnnotations(appointmentId: string) {
+  return useQueryData(
+    ['video-annotations', appointmentId],
+    async () => {
+      const result = await getAnnotations(appointmentId);
+      return result.annotations || [];
+    },
+    {
+      enabled: !!appointmentId,
+    }
+  );
+}
+
+export function useCreateAnnotation() {
+  return useMutationOperation(
+    async ({
+      appointmentId,
+      data,
+    }: {
+      appointmentId: string;
+      data: {
+        annotationType: 'DRAWING' | 'TEXT' | 'ARROW' | 'HIGHLIGHT' | 'SHAPE';
+        data: Record<string, unknown>;
+        position?: { x: number; y: number; width: number; height: number };
+        color?: string;
+        thickness?: number;
+      };
+    }) => await createAnnotation(appointmentId, data),
+    {
+      toastId: TOAST_IDS.GLOBAL.SUCCESS,
+      loadingMessage: 'Saving annotation...',
+      successMessage: 'Annotation saved',
+      invalidateQueries: [['video-annotations']],
+      showToast: false,
+    }
+  );
+}
+
+export function useDeleteAnnotation() {
+  return useMutationOperation(
+    async ({
+      appointmentId,
+      annotationId,
+    }: {
+      appointmentId: string;
+      annotationId: string;
+    }) => {
+      const result = await deleteAnnotation(appointmentId, annotationId);
+      if (!result.success) {
+        throw new Error('Failed to delete annotation');
+      }
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.GLOBAL.SUCCESS,
+      loadingMessage: 'Deleting annotation...',
+      successMessage: 'Annotation deleted',
+      invalidateQueries: [['video-annotations']],
+      showToast: false,
+    }
+  );
+}
+
+export function usePauseVideoRecording() {
+  return useMutationOperation(
+    async (appointmentId: string) => {
+      const result = await pauseRecording(appointmentId);
+      if (!result.success) {
+        throw new Error('Failed to pause recording');
+      }
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.VIDEO.END,
+      loadingMessage: 'Pausing recording...',
+      successMessage: 'Recording paused',
+      showToast: false,
+    }
+  );
+}
+
+export function useResumeVideoRecording() {
+  return useMutationOperation(
+    async (appointmentId: string) => {
+      const result = await resumeRecording(appointmentId);
+      if (!result.success) {
+        throw new Error('Failed to resume recording');
+      }
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.VIDEO.JOIN,
+      loadingMessage: 'Resuming recording...',
+      successMessage: 'Recording resumed',
+      showToast: false,
+    }
+  );
+}
+
+export function useSetVideoRecordingQuality() {
+  return useMutationOperation(
+    async ({
+      appointmentId,
+      quality,
+    }: {
+      appointmentId: string;
+      quality: 'low' | 'medium' | 'high' | 'ultra';
+    }) => {
+      const result = await setRecordingQuality(appointmentId, quality);
+      if (!result.success) {
+        throw new Error('Failed to update recording quality');
+      }
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.VIDEO.JOIN,
+      loadingMessage: 'Updating recording quality...',
+      successMessage: 'Recording quality updated',
+      showToast: false,
+    }
+  );
+}
+
+export function useManageVideoParticipantEnhanced() {
+  return useMutationOperation(
+    async ({
+      appointmentId,
+      participantId,
+      action,
+    }: {
+      appointmentId: string;
+      participantId: string;
+      action:
+        | 'mute'
+        | 'unmute'
+        | 'remove'
+        | 'promote'
+        | 'demote'
+        | 'disable_video'
+        | 'enable_video'
+        | 'grant_screen_share'
+        | 'revoke_screen_share';
+    }) => {
+      const result = await manageParticipantEnhanced(appointmentId, {
+        participantId,
+        action,
+      });
+      if (!result.success) {
+        throw new Error(`Failed to ${action} participant`);
+      }
+      return result;
+    },
+    {
+      toastId: TOAST_IDS.VIDEO.JOIN,
+      loadingMessage: 'Updating participant...',
+      successMessage: 'Participant action completed',
+      showToast: false,
+    }
+  );
+}
+
+export function useCallTranscription(appointmentId: string) {
+  return useQueryData(
+    ['video-transcription', appointmentId],
+    async () => {
+      const result = await getTranscription(appointmentId);
+      return 'segments' in result ? result.segments : [];
+    },
+    {
+      enabled: !!appointmentId,
+    }
+  );
+}
+
+export function useCallQuality(appointmentId: string) {
+  return useQueryData(
+    ['video-call-quality', appointmentId],
+    async () => await getCallQuality(appointmentId),
+    {
+      enabled: !!appointmentId,
+    }
+  );
+}
+
+export function useUpdateCallQualityMetrics() {
+  return useMutationOperation(
+    async ({
+      appointmentId,
+      metrics,
+    }: {
+      appointmentId: string;
+      metrics: CallQualityMetrics;
+    }) => await updateQualityMetrics(appointmentId, metrics),
+    {
+      toastId: TOAST_IDS.VIDEO.ERROR,
+      loadingMessage: 'Reporting quality issue...',
+      successMessage: 'Issue reported',
+      showToast: false,
+    }
+  );
 }

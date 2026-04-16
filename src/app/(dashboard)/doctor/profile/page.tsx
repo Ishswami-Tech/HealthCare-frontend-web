@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Role } from "@/types/auth.types";
-import { getUserProfile, updateUserProfile } from "@/lib/actions/users.server";
-import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { useUserProfile, useUpdateUserProfile } from "@/hooks/query/useUsers";
+import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,8 +36,8 @@ import {
 export default function DoctorProfile() {
   const { session } = useAuth();
   const user = session?.user;
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const { data: userProfile, isPending: isLoading } = useUserProfile();
+  const updateProfileMutation = useUpdateUserProfile();
 
   // Profile data
   const [profileData, setProfileData] = useState({
@@ -135,43 +135,30 @@ export default function DoctorProfile() {
 
   // Fetch profile on mount
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      try {
-        setIsLoading(true);
-        const data = (await getUserProfile()) as Record<string, unknown> | null;
-        if (data) {
-          setProfileData(prev => ({
-            ...prev,
-            personalInfo: {
-              firstName: (data.firstName as string) || prev.personalInfo.firstName,
-              lastName: (data.lastName as string) || prev.personalInfo.lastName,
-              email: (data.email as string) || prev.personalInfo.email,
-              phone: (data.phone as string) || prev.personalInfo.phone,
-              dateOfBirth: (data.dateOfBirth as string) || prev.personalInfo.dateOfBirth,
-              gender: (data.gender as string) || prev.personalInfo.gender,
-              address: (data.address as string) || prev.personalInfo.address,
-              city: (data.city as string) || prev.personalInfo.city,
-              state: (data.state as string) || prev.personalInfo.state,
-              country: (data.country as string) || prev.personalInfo.country,
-              zipCode: (data.zipCode as string) || prev.personalInfo.zipCode,
-            },
-          }));
-        }
-      } catch (err) {
-        showErrorToast(err instanceof Error ? err.message : "Failed to load profile", { id: TOAST_IDS.GLOBAL.ERROR });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchProfile();
-  }, [user]);
+    if (!userProfile) return;
+    const data = userProfile as Record<string, unknown>;
+    setProfileData(prev => ({
+      ...prev,
+      personalInfo: {
+        firstName: (data.firstName as string) || prev.personalInfo.firstName,
+        lastName: (data.lastName as string) || prev.personalInfo.lastName,
+        email: (data.email as string) || prev.personalInfo.email,
+        phone: (data.phone as string) || prev.personalInfo.phone,
+        dateOfBirth: (data.dateOfBirth as string) || prev.personalInfo.dateOfBirth,
+        gender: (data.gender as string) || prev.personalInfo.gender,
+        address: (data.address as string) || prev.personalInfo.address,
+        city: (data.city as string) || prev.personalInfo.city,
+        state: (data.state as string) || prev.personalInfo.state,
+        country: (data.country as string) || prev.personalInfo.country,
+        zipCode: (data.zipCode as string) || prev.personalInfo.zipCode,
+      },
+    }));
+  }, [userProfile]);
 
   const handleSaveProfile = async () => {
     try {
-      setIsSaving(true);
       const { personalInfo } = profileData;
-      const result = await updateUserProfile({
+      const result = await updateProfileMutation.mutateAsync({
         firstName: personalInfo.firstName,
         lastName: personalInfo.lastName,
         phone: personalInfo.phone,
@@ -183,15 +170,11 @@ export default function DoctorProfile() {
         country: personalInfo.country,
         zipCode: personalInfo.zipCode,
       });
-      if (result.success) {
-        showSuccessToast("Profile saved successfully", { id: TOAST_IDS.GLOBAL.SUCCESS });
-      } else {
+      if (!result.success) {
         showErrorToast(result.error || "Failed to save", { id: TOAST_IDS.GLOBAL.ERROR });
       }
     } catch (err) {
       showErrorToast(err instanceof Error ? err.message : "Failed to save profile", { id: TOAST_IDS.GLOBAL.ERROR });
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -203,9 +186,9 @@ export default function DoctorProfile() {
             <Button
               className="flex items-center gap-2"
               onClick={handleSaveProfile}
-              disabled={isSaving || isLoading}
+              disabled={updateProfileMutation.isPending || isLoading}
             >
-              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {updateProfileMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Changes
             </Button>
           </div>
@@ -671,4 +654,3 @@ export default function DoctorProfile() {
     
   );
 }
-

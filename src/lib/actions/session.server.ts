@@ -1,10 +1,7 @@
 'use server';
 
-import { getServerSession } from './auth.server';
-import { APP_CONFIG } from '@/lib/config/config';
+import { authenticatedApi, getServerSession } from './auth.server';
 import { logger } from '@/lib/utils/logger';
-
-const API_URL = APP_CONFIG.API.BASE_URL;
 
 interface Session {
   id: string;
@@ -22,20 +19,11 @@ export async function getActiveSessions(): Promise<Session[]> {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_URL}/auth/sessions`, {
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
+    const { data } = await authenticatedApi<{ data?: Session[] }>('/auth/sessions', {
+      method: 'GET',
       cache: 'no-store',
+      omitClinicId: true,
     });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(error.message || 'Failed to fetch sessions');
-    }
-
-    const data = await response.json();
     logger.info('[getActiveSessions] Fetched sessions', { component: 'sessions', action: 'fetch' });
     return data.data || [];
   } catch (error) {
@@ -51,18 +39,10 @@ export async function revokeSession(sessionId: string): Promise<void> {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${API_URL}/user/sessions/${sessionId}`, {
+    await authenticatedApi(`/user/sessions/${sessionId}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
+      omitClinicId: true,
     });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(error.message || 'Failed to revoke session');
-    }
 
     logger.info('[revokeSession] Session revoked successfully', { component: 'sessions', action: 'revoke' });
   } catch (error) {
