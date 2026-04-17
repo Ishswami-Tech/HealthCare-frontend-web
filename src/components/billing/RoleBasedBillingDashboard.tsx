@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Plus, CreditCard, FileText, Wallet, BarChart3, Info, AlertCircle, LayoutDashboard, Search, MessageCircle } from "lucide-react";
-import { PatientPageHeader } from "@/components/patient/PatientPageShell";
+import { DashboardPageHeader as PatientPageHeader } from "@/components/dashboard/DashboardPageShell";
 import { InvoiceForm } from "./InvoiceForm";
 import { PaymentHistory } from "./PaymentHistory";
 import { PatientBillingAnalytics } from "./PatientBillingAnalytics";

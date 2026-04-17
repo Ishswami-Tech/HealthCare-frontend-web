@@ -19,7 +19,10 @@ import {
   Sun,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { PatientPageShell, PatientPageHeader } from "@/components/patient/PatientPageShell";
+import {
+  DashboardPageHeader as PatientPageHeader,
+  DashboardPageShell as PatientPageShell,
+} from "@/components/dashboard/DashboardPageShell";
 
 interface TreatmentCategory {
   icon: React.ComponentType<{ className?: string }>;

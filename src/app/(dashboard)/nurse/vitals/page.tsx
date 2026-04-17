@@ -33,6 +33,8 @@ import {
   useUpdateNursePatientRecord,
 } from "@/hooks/query/useNurse";
 import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { usePatientStore } from "@/stores";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 interface VitalsFormData {
   patientId: string;
@@ -66,6 +68,7 @@ export default function NurseVitals() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<VitalsFormData>(EMPTY_FORM);
   const [formError, setFormError] = useState("");
+  const patientsList = usePatientStore((state) => state.collections.nurse) as any[];
 
   // Auto-open form when navigated from patients page with patientId
   useEffect(() => {
@@ -82,16 +85,13 @@ export default function NurseVitals() {
   const nurseId = user?.id;
 
   const { data: vitalsData, isPending } = useNursePatientVitals(nurseId);
-  const { data: patientsData } = useNursePatients({ ...(nurseId ? { nurseId } : {}) });
+  useNursePatients({ ...(nurseId ? { nurseId } : {}) });
   const createMutation = useCreateNursePatientRecord();
   const updateMutation = useUpdateNursePatientRecord();
 
   useWebSocketQuerySync([["nursePatientVitals", nurseId]]);
 
   const vitalsRecords = vitalsData?.vitals || [];
-  const patientsList: any[] = Array.isArray(patientsData?.patients)
-    ? patientsData.patients
-    : [];
 
   const filteredRecords = vitalsRecords.filter((record: any) =>
     record.patientName?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -167,11 +167,17 @@ export default function NurseVitals() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Vitals Monitoring</h1>
-        <p className="text-gray-600">Record and track patient vital signs</p>
-      </div>
+    <DashboardPageShell>
+      <DashboardPageHeader
+        eyebrow="Nurse Vitals"
+        title="Vitals Monitoring"
+        description="Record and review patient vital signs using the same dashboard structure as the clinical role pages."
+        meta={
+          <span className="text-sm font-medium text-muted-foreground">
+            {vitalsRecords.length} recorded entries
+          </span>
+        }
+      />
 
       <Card>
         <CardContent className="pt-6">
@@ -430,6 +436,6 @@ export default function NurseVitals() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </DashboardPageShell>
   );
 }

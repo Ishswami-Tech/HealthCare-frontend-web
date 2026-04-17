@@ -15,31 +15,28 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useClinicContext } from "@/hooks/query/useClinics";
 import { useTherapistAppointments, useTherapistClients } from "@/hooks/query/useTherapist";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { usePatientStore } from "@/stores";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 export default function TherapistDashboard() {
   useAuth();
   const { user } = useAuth();
-  const { clinicId } = useClinicContext();
-
-  // Fetch real data using hooks
-  const { data: appointmentsData, isPending: isPendingAppointments } = useTherapistAppointments(clinicId);
-  const { data: clientsData, isPending: isPendingClients } = useTherapistClients(clinicId);
-
-  // Enable real-time WebSocket sync
-  useWebSocketQuerySync();
-
-  // Extract therapist ID from user
+  const clientsArray = usePatientStore((state) => state.collections.therapist);
   const therapistId = useMemo(() => {
     return user?.id || "";
   }, [user?.id]);
 
+  // Fetch real data using hooks
+  const { data: appointmentsData, isPending: isPendingAppointments } = useTherapistAppointments(therapistId);
+  const { isPending: isPendingClients } = useTherapistClients(therapistId);
+
+  // Enable real-time WebSocket sync
+  useWebSocketQuerySync();
+
   // Calculate stats from real data
   const appointmentsArray = appointmentsData?.appointments || [];
-  const clientsArray = clientsData?.clients || [];
-
   const stats = useMemo(() => {
     const today = new Date().toDateString();
     const todayAppointments = appointmentsArray.filter(
@@ -112,14 +109,17 @@ export default function TherapistDashboard() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Therapist Dashboard</h1>
-        <p className="text-gray-600">
-          Welcome back! Here's your overview for today.
-        </p>
-      </div>
+    <DashboardPageShell>
+      <DashboardPageHeader
+        eyebrow="Therapist"
+        title="Therapist Dashboard"
+        description="Review sessions, client activity, and care progress from a unified therapist workspace."
+        meta={
+          <span className="text-sm font-medium text-muted-foreground">
+            {stats.totalPatients} active clients
+          </span>
+        }
+      />
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -326,6 +326,6 @@ export default function TherapistDashboard() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </DashboardPageShell>
   );
 }

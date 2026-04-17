@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 
 import { useAuth } from "@/hooks/auth/useAuth";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { 
   UserCheck,
   Save,
@@ -180,26 +181,30 @@ export default function DoctorProfile() {
 
   return (
     
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Doctor Profile</h1>
-            <Button
-              className="flex items-center gap-2"
-              onClick={handleSaveProfile}
-              disabled={updateProfileMutation.isPending || isLoading}
-            >
-              {updateProfileMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save Changes
-            </Button>
-          </div>
+        <DashboardPageShell>
+          <DashboardPageHeader
+            eyebrow="Doctor Profile"
+            title="Doctor Profile"
+            description="Keep your clinical identity, consultation settings, availability, and public profile details up to date."
+            actionsSlot={
+              <Button
+                className="flex items-center gap-2"
+                onClick={handleSaveProfile}
+                disabled={updateProfileMutation.isPending || isLoading}
+              >
+                {updateProfileMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save Changes
+              </Button>
+            }
+          />
 
           {/* Profile Overview */}
-          <Card>
+          <Card className="border-l-4 border-l-emerald-400 shadow-sm">
             <CardContent className="p-6">
-              <div className="flex items-center gap-6">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
                 <div className="relative">
-                  <div className="w-24 h-24 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-800 font-semibold text-3xl">
+                  <div className="w-24 h-24 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center dark:from-blue-950 dark:to-purple-950">
+                    <span className="text-blue-800 font-semibold text-3xl dark:text-blue-200">
                       {profileData.personalInfo.firstName.charAt(0)}
                     </span>
                   </div>
@@ -214,7 +219,7 @@ export default function DoctorProfile() {
                   <h2 className="text-2xl font-bold">
                     Dr. {profileData.personalInfo.firstName} {profileData.personalInfo.lastName}
                   </h2>
-                  <div className="flex items-center gap-4 mt-2 text-gray-600">
+                  <div className="flex flex-wrap items-center gap-4 mt-2 text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Stethoscope className="w-4 h-4" />
                       {profileData.professionalInfo.specializations[0]}
@@ -238,11 +243,11 @@ export default function DoctorProfile() {
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
                       <div className="text-2xl font-bold text-blue-600">{stats.certifications}</div>
-                      <div className="text-sm text-gray-600">Certifications</div>
+                      <div className="text-sm text-muted-foreground">Certifications</div>
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-green-600">{stats.languagesSpoken}</div>
-                      <div className="text-sm text-gray-600">Languages</div>
+                      <div className="text-sm text-muted-foreground">Languages</div>
                     </div>
                   </div>
                 </div>
@@ -650,7 +655,7 @@ export default function DoctorProfile() {
               </div>
             </TabsContent>
           </Tabs>
-        </div>
+        </DashboardPageShell>
     
   );
 }

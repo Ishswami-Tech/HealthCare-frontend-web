@@ -10,6 +10,7 @@ import { useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
 import { useRealTimeAppointments, useRealTimeQueueStatus } from "@/hooks/realtime/useRealTimeQueries";
 import { cn } from "@/lib/utils";
 import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import {
   Settings,
   Clock,
@@ -131,45 +132,38 @@ export default function ClinicAdminDashboard() {
   }
 
   return (
-    <div className="p-4 sm:p-8 space-y-8 bg-transparent min-h-screen">
-      {/* Premium Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary/10 rounded-2xl">
-              <Activity className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50 drop-shadow-sm">
-                Control Hub
-              </h1>
-              <p className="text-muted-foreground font-medium flex items-center gap-2">
-                <span className="text-primary font-bold">{currentClinic?.name}</span>
-                <span className="w-1 h-1 bg-neutral-300 rounded-full" />
-                Live operational status
-              </p>
-            </div>
+    <DashboardPageShell className="min-h-screen bg-transparent p-4 sm:p-8 sm:space-y-8">
+      <DashboardPageHeader
+        eyebrow="Clinic Admin"
+        title="Control Hub"
+        description="Monitor clinic operations, live queue health, and medicine-desk readiness across the active location."
+        meta={
+          <span className="text-sm font-medium text-muted-foreground">
+            <span className="font-semibold text-primary">{currentClinic?.name || "Clinic"}</span>
+            {" - "}
+            Live operational status
+          </span>
+        }
+        actionsSlot={
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => refetchStats()}
+              className="h-10 px-4 font-bold flex items-center gap-2"
+            >
+              <RefreshCcw className="w-4 h-4" />
+              Sync Data
+            </Button>
+            <Button asChild className="h-10 px-6 font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-2 rounded-xl">
+              <Link href="/clinic-admin/schedule">
+                <Plus className="w-4 h-4" />
+                Manage Schedule
+              </Link>
+            </Button>
           </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-neutral-900 p-1.5 rounded-2xl shadow-sm ring-1 ring-neutral-200 dark:ring-neutral-800">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => refetchStats()}
-            className="h-10 px-4 font-bold flex items-center gap-2"
-          >
-            <RefreshCcw className="w-4 h-4" />
-            Sync Data
-          </Button>
-          <Button asChild className="h-10 px-6 font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-2 rounded-xl">
-            <Link href="/clinic-admin/schedule">
-              <Plus className="w-4 h-4" />
-              Manage Schedule
-            </Link>
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Impact Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -525,6 +519,6 @@ export default function ClinicAdminDashboard() {
           </Card>
         )}
       </div>
-    </div>
+    </DashboardPageShell>
   );
 }

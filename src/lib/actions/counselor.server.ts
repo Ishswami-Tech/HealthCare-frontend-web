@@ -52,7 +52,7 @@ export async function getCounselorAppointments(
  * Get counselor clients — proxied through GET /patients/clinic/:clinicId?doctorId=counselorId
  */
 export async function getCounselorClients(
-  counselorId?: string,
+  _counselorId?: string,
   filters?: {
     search?: string;
     status?: string;
@@ -62,13 +62,10 @@ export async function getCounselorClients(
     clientId?: string;
   }
 ): Promise<{ clients: CounselorClient[] }> {
-  if (!counselorId) return { clients: [] };
-
   const clinicId = await getClinicId();
   if (!clinicId) return { clients: [] };
 
   const params = new URLSearchParams();
-  params.append('doctorId', counselorId);
   if (filters?.search) params.append('search', filters.search);
   if (filters?.status) params.append('status', filters.status);
   if (typeof filters?.limit === 'number') params.append('limit', filters.limit.toString());
@@ -122,7 +119,7 @@ export async function updateCounselorAppointment(
   const { data } = await authenticatedApi<{ appointment: CounselorAppointment } | CounselorAppointment>(
     `/appointments/${appointmentId}`,
     {
-      method: 'PATCH',
+      method: 'PUT',
       body: JSON.stringify(updates),
     }
   );

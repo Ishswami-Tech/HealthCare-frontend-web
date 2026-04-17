@@ -31,6 +31,7 @@ import { useClinicContext } from "@/hooks/query/useClinics";
 import { usePatients, useCreatePatient } from "@/hooks/query/usePatients";
 import { useCreateUser } from "@/hooks/query/useUsers";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { usePatientStore } from "@/stores";
 import {
   Calendar,
   Users,
@@ -110,7 +111,9 @@ export default function ReceptionistPatients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showNewPatientDialog, setShowNewPatientDialog] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const patients = usePatientStore((state) => state.collections.clinic);
+  const selectedPatient = usePatientStore((state) => state.selectedPatient);
+  const setSelectedPatient = usePatientStore((state) => state.setSelectedPatient);
 
   // New patient form state
   const [newPatient, setNewPatient] = useState({
@@ -129,7 +132,7 @@ export default function ReceptionistPatients() {
   });
 
   // Fetch real patient data
-  const { data: patientsData } = usePatients(
+  usePatients(
     clinicId || "",
     {
       ...(statusFilter !== "all" && { isActive: statusFilter === "active" }),
@@ -142,14 +145,6 @@ export default function ReceptionistPatients() {
   // Create patient mutation
   const createPatientMutation = useCreatePatient();
   const createUserMutation = useCreateUser();
-
-  // Extract patients array from response
-  const patients = useMemo(() => {
-    if (!patientsData) return [];
-    return Array.isArray(patientsData)
-      ? patientsData
-      : (patientsData as any).patients || [];
-  }, [patientsData]);
 
   // Calculate age from dateOfBirth if needed
   const patientsWithAge = useMemo(() => {

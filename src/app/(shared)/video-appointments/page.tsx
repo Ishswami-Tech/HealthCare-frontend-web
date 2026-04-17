@@ -74,6 +74,18 @@ import {
   isJoinableVideoAppointment,
 } from "@/components/video/VideoAppointmentsList";
 
+const isAwaitingDoctorConfirmation = (appointment: any) => {
+  const status = String(appointment?.status || "").toUpperCase();
+  const confirmedSlotIndex = appointment?.confirmedSlotIndex;
+  const hasConfirmedSlot =
+    confirmedSlotIndex !== null &&
+    confirmedSlotIndex !== undefined &&
+    !Number.isNaN(Number(confirmedSlotIndex));
+
+  if (status === "AWAITING_SLOT_CONFIRMATION") return true;
+  return status === "SCHEDULED" && !hasConfirmedSlot;
+};
+
 export default function VideoAppointmentsPage() {
   const { session } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
@@ -155,20 +167,22 @@ export default function VideoAppointmentsPage() {
 
 
 
-  // Appointments with AWAITING_SLOT_CONFIRMATION (for doctor to confirm)
+  // Appointments pending doctor slot confirmation (new + legacy statuses)
   const { data: appointmentsApi } = useAppointments({
     type: "VIDEO_CALL",
-    status: "AWAITING_SLOT_CONFIRMATION",
+    status: ["SCHEDULED", "AWAITING_SLOT_CONFIRMATION"],
     limit: 50,
     omitClinicId: true,
   });
-  const awaitingConfirmation = Array.isArray((appointmentsApi as any)?.appointments)
-    ? (appointmentsApi as any).appointments
-    : Array.isArray((appointmentsApi as any)?.data)
-    ? (appointmentsApi as any).data
-    : [];
+  const awaitingConfirmation = (
+    Array.isArray((appointmentsApi as any)?.appointments)
+      ? (appointmentsApi as any).appointments
+      : Array.isArray((appointmentsApi as any)?.data)
+      ? (appointmentsApi as any).data
+      : []
+  ).filter((apt: any) => isAwaitingDoctorConfirmation(apt));
 
-  // Patient's proposed appointments (awaiting slot confirmation + payment)
+  // Patient's proposed appointments (awaiting doctor slot confirmation + payment)
   const { data: myAppointmentsData } = useMyAppointments();
   const { data: appointmentServicesData = [] } = useAppointmentServices();
   const appointmentServices = Array.isArray(appointmentServicesData)
@@ -180,7 +194,7 @@ export default function VideoAppointmentsPage() {
       : [];
     return list.filter(
       (apt: any) =>
-        String(apt.status) === "AWAITING_SLOT_CONFIRMATION" &&
+        isAwaitingDoctorConfirmation(apt) &&
         String(apt.type) === "VIDEO_CALL"
     );
   }, [myAppointmentsData]);

@@ -1,7 +1,10 @@
 "use client";
 
 import { VideoAppointmentsList } from "@/components/video/VideoAppointmentsList";
-import { PatientPageHeader, PatientPageShell } from "@/components/patient/PatientPageShell";
+import {
+  DashboardPageHeader as PatientPageHeader,
+  DashboardPageShell as PatientPageShell,
+} from "@/components/dashboard/DashboardPageShell";
 import { useAuth } from "@/hooks/auth/useAuth";
 
 export default function PatientVideoPage() {

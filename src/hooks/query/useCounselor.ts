@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
 import {
@@ -8,6 +9,7 @@ import {
   deleteCounselorAppointment,
   updateCounselorClientSession,
 } from '@/lib/actions/counselor.server';
+import { usePatientStore } from '@/stores';
 import type { CounselorAppointment, CounselorClient, CounselorSession } from '@/types/medical-records.types';
 
 /**
@@ -47,7 +49,9 @@ export const useCounselorClients = (counselorId?: string, filters?: {
   offset?: number | undefined;
   clientId?: string | undefined;
 }) => {
-  return useQueryData(
+  const setCollection = usePatientStore((state) => state.setCollection);
+
+  const query = useQueryData(
     ['counselorClients', counselorId, filters],
     async () => {
       const cleanedFilters = filters
@@ -63,9 +67,21 @@ export const useCounselorClients = (counselorId?: string, filters?: {
       return await getCounselorClients(counselorId || '', cleanedFilters);
     },
     {
-      enabled: !!counselorId,
+      enabled: true,
     }
   );
+
+  useEffect(() => {
+    const normalizedClients = Array.isArray((query.data as any)?.clients)
+      ? (query.data as any).clients
+      : Array.isArray(query.data)
+        ? query.data
+        : [];
+
+    setCollection('counselor', normalizedClients);
+  }, [query.data, setCollection]);
+
+  return query;
 };
 
 /**

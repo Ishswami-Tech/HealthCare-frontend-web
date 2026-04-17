@@ -16,6 +16,7 @@ import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import {
   createAppointment,
+  getMyAppointments,
   getAppointmentServiceCatalog,
   updateAppointment,
   updateAppointmentStatus, // Consolidated status update
@@ -29,6 +30,7 @@ import {
   reassignAppointmentDoctor,
   getAssistantDoctorCoverage,
   updateAssistantDoctorCoverage,
+  checkInAppointment,
   scanLocationQRAndCheckIn,
 } from '@/lib/actions/appointments.server';
 import {
@@ -491,7 +493,7 @@ export const useCheckInAppointment = () => {
         throw new Error('Insufficient permissions to check in appointment');
       }
       
-      const result = await updateAppointmentStatus(appointmentId, { status: 'CONFIRMED' });
+      const result = await checkInAppointment(appointmentId);
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -545,6 +547,8 @@ export const useCompleteAppointment = () => {
         diagnosis?: string;
         prescription?: string;
         notes?: string;
+        treatmentPlan?: string;
+        medications?: string[];
         followUpDate?: string;
         followUpNotes?: string;
       }
@@ -555,6 +559,8 @@ export const useCompleteAppointment = () => {
         diagnosis?: string;
         prescription?: string;
         notes?: string;
+        treatmentPlan?: string;
+        medications?: string[];
         followUpDate?: string;
         followUpNotes?: string;
       }
@@ -573,7 +579,14 @@ export const useCompleteAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.COMPLETE,
       loadingMessage: 'Completing appointment...',
       successMessage: 'Appointment completed successfully',
-      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
+      invalidateQueries: [
+        ['appointments'],
+        ['appointment'],
+        ['myAppointments'],
+        ['prescriptions'],
+        ['patient-prescriptions'],
+        ['medical-records'],
+      ],
     }
   );
 };
@@ -856,18 +869,21 @@ export const useMyAppointments = (filters?: {
   const query = useQueryData(
     ['myAppointments', userId, userRole, filters],
     async (): Promise<any> => {
-      const response = await clinicApiClient.getMyAppointments(filters);
-      if (!response.success) {
-        throw new Error(response.message || response.error || 'Failed to fetch appointments');
+      // Use server action path so appointmentDate -> date/time normalization
+      // stays consistent with the rest of appointment surfaces.
+      const result = await getMyAppointments(filters);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch appointments');
       }
-      const appointments = extractAppointments(response.data);
+      const successfulResult = result as any;
+      const appointments = extractAppointments(successfulResult.appointments ?? successfulResult.data);
       return {
         success: true,
         appointments,
         data: {
           appointments,
         },
-        meta: response.meta,
+        meta: successfulResult.meta,
       } as any;
     },
     {

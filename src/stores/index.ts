@@ -17,6 +17,7 @@ export {
 export * from './websocket.store';
 export * from './notifications.store';
 export * from './health.store';
+export * from './patients.store';
 
 // Store provider for SSR compatibility
 import { ReactNode, useEffect } from 'react';
@@ -24,6 +25,7 @@ import { useAppStore } from './app.store';
 import { useAuthStore } from './auth.store';
 import { useWebSocketStore } from './websocket.store';
 import { useHealthStore } from './health.store';
+import { usePatientStore } from './patients.store';
 
 interface StoreProviderProps {
   children: ReactNode;
@@ -45,6 +47,7 @@ export const getStoreState = () => ({
   websocket: useWebSocketStore.getState(),
   health: useHealthStore.getState(),
   notifications: useNotificationStore.getState(),
+  patients: usePatientStore.getState(),
 });
 
 export const resetAllStores = () => {
@@ -52,6 +55,7 @@ export const resetAllStores = () => {
   useAppStore.getState().reset();
   useAuthStore.getState().reset();
   useNotificationStore.getState().reset();
+  usePatientStore.getState().reset();
 };
 
 export const useStoreActions = () => ({
@@ -85,6 +89,7 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
     websocket: useWebSocketStore,
     health: useHealthStore,
     notifications: useNotificationStore,
+    patients: usePatientStore,
     getState: getStoreState,
     reset: resetAllStores,
   };

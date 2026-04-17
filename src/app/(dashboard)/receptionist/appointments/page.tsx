@@ -49,6 +49,7 @@ import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
 import { useCallNextPatient as useQueueCallNextPatient } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { getQueuePositionLabel, resolveQueueDisplayLabel } from "@/lib/queue/queue-adapter";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 type ViewAppointment = {
   id: string;
@@ -472,29 +473,29 @@ export default function ReceptionistAppointmentsPage() {
   ];
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Reception Queue Workspace</h1>
-          <p className="text-muted-foreground">
-            Unified workspace for appointment management and doctor queue flow.
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button asChild variant="outline">
-            <Link href="/receptionist/check-in">
-              <QrCode className="w-4 h-4 mr-2" />
-              QR Check-In
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="#appointment-manager">
-              <Calendar className="w-4 h-4 mr-2" />
-              New Appointment
-            </Link>
-          </Button>
-        </div>
-      </div>
+    <DashboardPageShell className="p-4 md:p-6">
+      <DashboardPageHeader
+        eyebrow="Reception Appointments"
+        title="Reception Queue Workspace"
+        description="Unified workspace for appointment management, queue flow, and doctor reassignment."
+        meta={<span className="text-sm font-medium text-muted-foreground">Showing {filteredAppointments.length} of {appointments.length} appointments</span>}
+        actionsSlot={
+          <>
+            <Button asChild variant="outline">
+              <Link href="/receptionist/check-in">
+                <QrCode className="w-4 h-4 mr-2" />
+                QR Check-In
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="#appointment-manager">
+                <Calendar className="w-4 h-4 mr-2" />
+                New Appointment
+              </Link>
+            </Button>
+          </>
+        }
+      />
 
       <div id="appointment-manager">
         <AppointmentManager
@@ -762,6 +763,6 @@ export default function ReceptionistAppointmentsPage() {
           ) : null}
         </DialogContent>
       </Dialog>
-    </div>
+    </DashboardPageShell>
   );
 }

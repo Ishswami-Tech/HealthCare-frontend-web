@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
 import { useCurrentClinicId } from './useClinics';
@@ -7,6 +7,7 @@ import {
   createNursePatientRecord,
   updateNursePatientRecord,
 } from '@/lib/actions/nurse.server';
+import { usePatientStore } from '@/stores';
 import type { NursePatientRecord, PatientVitals } from '@/types/medical-records.types';
 
 /**
@@ -21,6 +22,7 @@ export const useNursePatients = (filters?: {
   omitClinicId?: boolean;
 }) => {
   const clinicId = useCurrentClinicId();
+  const setCollection = usePatientStore((state) => state.setCollection);
   
   const queryKey = useMemo(
     () => ['nursePatients', clinicId, filters],
@@ -32,13 +34,23 @@ export const useNursePatients = (filters?: {
     return result || { patients: [] };
   }, [filters]);
 
-  return useQueryData(
+  const query = useQueryData(
     queryKey,
     queryFn,
     {
       enabled: !!clinicId || !!filters?.omitClinicId,
     }
   );
+
+  useEffect(() => {
+    const normalizedPatients = Array.isArray(query.data?.patients)
+      ? query.data.patients
+      : [];
+
+    setCollection('nurse', normalizedPatients);
+  }, [query.data, setCollection]);
+
+  return query;
 };
 
 /**

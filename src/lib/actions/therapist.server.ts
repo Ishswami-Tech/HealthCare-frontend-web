@@ -81,7 +81,7 @@ export async function getAppointmentsByPatientId(
  * Get all clients for a therapist — proxied through GET /patients/clinic/:clinicId?doctorId=therapistId
  */
 export async function getClients(
-  therapistId?: string,
+  _therapistId?: string,
   filters?: {
     search?: string;
     status?: string;
@@ -90,13 +90,10 @@ export async function getClients(
     offset?: number;
   }
 ): Promise<{ clients: TherapistPatient[] }> {
-  if (!therapistId) return { clients: [] };
-
   const clinicId = await getClinicId();
   if (!clinicId) return { clients: [] };
 
   const params = new URLSearchParams();
-  params.append('doctorId', therapistId);
   if (filters?.search) params.append('search', filters.search);
   if (filters?.status) params.append('status', filters.status);
   if (typeof filters?.limit === 'number') params.append('limit', filters.limit.toString());
@@ -162,7 +159,7 @@ export async function updateAppointment(
   const { data } = await authenticatedApi<{ appointment: TherapistAppointment } | TherapistAppointment>(
     `/appointments/${appointmentId}`,
     {
-      method: 'PATCH',
+      method: 'PUT',
       body: JSON.stringify(updates),
     }
   );

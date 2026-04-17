@@ -74,7 +74,7 @@ export async function updateNursePatientRecord(
   updates: Partial<NursePatientRecord | PatientVitals>
 ): Promise<{ record: NursePatientRecord }> {
   try {
-    const response = await api.patch<{ record: NursePatientRecord }>(
+    const response = await api.put<{ record: NursePatientRecord }>(
       `/ehr/vitals/${recordId}`,
       updates
     );

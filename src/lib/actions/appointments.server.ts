@@ -379,7 +379,17 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
  */
 export async function getMyAppointments(filters?: any) {
   try {
-    const queryParams = filters ? new URLSearchParams(filters).toString() : '';
+    const normalizedFilters = {
+      page: 1,
+      limit: 100,
+      ...(filters || {}),
+    };
+    const queryInput = Object.fromEntries(
+      Object.entries(normalizedFilters)
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .map(([key, value]) => [key, String(value)])
+    ) as Record<string, string>;
+    const queryParams = new URLSearchParams(queryInput).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS;
     
     const { data } = await authenticatedApi<{

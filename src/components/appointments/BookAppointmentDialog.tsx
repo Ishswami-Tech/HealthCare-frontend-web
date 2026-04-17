@@ -20,6 +20,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -270,8 +271,18 @@ export function BookAppointmentDialog({
 
   const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment(activeClinicId);
   const { mutateAsync: proposeVideoAppointment, isPending: isProposingVideoAppointment } = useProposeVideoAppointment();
-  const checkSubscriptionCoverageMutation = useCheckSubscriptionCoverage();
-  const createSubscriptionAppointmentMutation = useCreateInPersonAppointmentWithSubscription();
+  const {
+    mutateAsync: checkSubscriptionCoverage,
+    isPending: isCheckingSubscriptionCoverage,
+  } = useCheckSubscriptionCoverage();
+  const {
+    mutateAsync: createSubscriptionAppointment,
+    isPending: isCreatingSubscriptionAppointment,
+  } = useCreateInPersonAppointmentWithSubscription();
+  const isCreatingInPersonAppointment =
+    isBooking ||
+    isCheckingSubscriptionCoverage ||
+    isCreatingSubscriptionAppointment;
   const { mutate: sendReminder } = useSendAppointmentReminder();
   const shouldLoadSubscriptions = open && step >= 6 && !!targetPatientId;
   const { data: subscriptionsData = [] } = useSubscriptions(targetPatientId, shouldLoadSubscriptions);
@@ -508,11 +519,10 @@ export function BookAppointmentDialog({
         });
 
         setBookedAppointmentId(proposedAppointment.id);
-        if (userRole === "PATIENT") {
-          queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
-        } else {
-          queryClient.invalidateQueries({ queryKey: ["appointments"] });
-        }
+        queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+        queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
+        queryClient.invalidateQueries({ queryKey: ["appointmentStats"] });
         queryClient.invalidateQueries({ queryKey: ["appointment", proposedAppointment.id] });
         if (shouldCollectVideoPayment) {
           setRequiresVideoPayment(true);
@@ -534,7 +544,7 @@ export function BookAppointmentDialog({
       }
 
       if (finalAppointmentType === "IN_PERSON" && activeSubscription?.id) {
-        const coverageResult = await checkSubscriptionCoverageMutation.mutateAsync({
+        const coverageResult = await checkSubscriptionCoverage({
           subscriptionId: activeSubscription.id,
           appointmentType: "IN_PERSON",
         });
@@ -561,7 +571,7 @@ export function BookAppointmentDialog({
 
       let apptId = "";
       if (finalAppointmentType === "IN_PERSON" && userRole === "PATIENT" && activeSubscription?.id) {
-        const atomicResult = await createSubscriptionAppointmentMutation.mutateAsync({
+        const atomicResult = await createSubscriptionAppointment({
           subscriptionId: activeSubscription.id,
           patientId: targetPatientId,
           doctorId: selectedDoctorId,
@@ -605,11 +615,10 @@ export function BookAppointmentDialog({
       }
 
       setBookedAppointmentId(apptId);
-      if (userRole === "PATIENT") {
-        queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["appointments"] });
-      }
+      queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
+      queryClient.invalidateQueries({ queryKey: ["appointmentStats"] });
       queryClient.invalidateQueries({ queryKey: ["appointment", apptId] });
       // Send appointment reminder via push + email + WhatsApp
       if (hasPermission(Permission.SEND_NOTIFICATIONS)) {
@@ -672,6 +681,10 @@ export function BookAppointmentDialog({
     appointmentDurationMinutes,
     createAppointment,
     proposeVideoAppointment,
+    checkSubscriptionCoverage,
+    createSubscriptionAppointment,
+    hasPermission,
+    sendReminder,
     onBooked,
     consultationMode,
     userRole,
@@ -1513,6 +1526,9 @@ export function BookAppointmentDialog({
         <div className="px-4 sm:px-5 pt-4 pb-3 border-b shrink-0">
           <DialogHeader className="text-left w-full min-w-0">
             <DialogTitle className="text-base sm:text-lg font-bold truncate">{stepTitle}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Book an in-person or video appointment by selecting location, service, doctor, date, and slot.
+            </DialogDescription>
           </DialogHeader>
 
           {/* Step bar — hide on success screen */}
@@ -1552,10 +1568,10 @@ export function BookAppointmentDialog({
             ) : (
               <Button
                 onClick={handleBook}
-                disabled={consultationMode === "VIDEO" ? isProposingVideoAppointment : isBooking}
+                disabled={consultationMode === "VIDEO" ? isProposingVideoAppointment : isCreatingInPersonAppointment}
                 className="h-11 px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2"
               >
-                {(consultationMode === "VIDEO" ? isProposingVideoAppointment : isBooking) ? (
+                {(consultationMode === "VIDEO" ? isProposingVideoAppointment : isCreatingInPersonAppointment) ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> {consultationMode === "VIDEO" ? "Sending request..." : "Booking..."}</>
                 ) : (
                   <><Check className="w-4 h-4" /> {consultationMode === "VIDEO" ? "Send Video Request" : "Confirm & Book"}</>

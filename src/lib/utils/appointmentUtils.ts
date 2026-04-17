@@ -98,6 +98,12 @@ export function isVideoAppointmentPaymentCompleted(appointment: any): boolean {
     return true;
   }
 
+  const paymentStatus = getAppointmentPaymentStatus(appointment);
+
+  return paymentStatus === 'COMPLETED' || paymentStatus === 'SUCCESS' || paymentStatus === 'PAID';
+}
+
+export function getAppointmentPaymentStatus(appointment: any): string {
   const paymentStatus = String(
     appointment?.payment?.status ||
       appointment?.paymentStatus ||
@@ -105,9 +111,32 @@ export function isVideoAppointmentPaymentCompleted(appointment: any): boolean {
       appointment?.invoice?.paymentStatus ||
       appointment?.invoice?.status ||
       ''
-  ).toUpperCase();
+  )
+    .trim()
+    .replace(/[\s-]+/g, '_')
+    .toUpperCase();
 
-  return paymentStatus === 'COMPLETED' || paymentStatus === 'SUCCESS' || paymentStatus === 'PAID';
+  if (!paymentStatus) {
+    return 'N_A';
+  }
+
+  switch (paymentStatus) {
+    case 'SUCCESS':
+    case 'COMPLETED':
+      return 'PAID';
+    case 'OPEN':
+    case 'PROCESSING':
+    case 'CREATED':
+    case 'AWAITING_PAYMENT':
+      return 'PENDING';
+    default:
+      return paymentStatus;
+  }
+}
+
+export function isAppointmentAwaitingPayment(appointment: any): boolean {
+  const paymentStatus = getAppointmentPaymentStatus(appointment);
+  return paymentStatus === 'PENDING' || paymentStatus === 'OVERDUE';
 }
 
 export function getAppointmentDateTimeValue(appointment: any): Date | null {
@@ -156,6 +185,18 @@ export function getAppointmentDoctorName(appointment: any): string {
       appointment?.doctor?.user?.lastName || appointment?.doctor?.lastName || ''
     }`.trim() ||
     'Unknown Doctor'
+  );
+}
+
+export function getAppointmentPatientName(appointment: any): string {
+  return (
+    appointment?.patientName ||
+    appointment?.patient?.user?.name ||
+    appointment?.patient?.name ||
+    `${appointment?.patient?.user?.firstName || appointment?.patient?.firstName || ""} ${
+      appointment?.patient?.user?.lastName || appointment?.patient?.lastName || ""
+    }`.trim() ||
+    "Unknown Patient"
   );
 }
 
@@ -256,6 +297,31 @@ export function getAppointmentStatusDisplayName(status: string): string {
     NO_SHOW: 'No Show',
   };
   return statusNames[normalizedStatus] || normalizedStatus;
+}
+
+export function isAwaitingDoctorSlotConfirmation(appointment: any): boolean {
+  const status = String(appointment?.status || '').toUpperCase();
+  if (status === 'AWAITING_SLOT_CONFIRMATION') return true;
+
+  const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
+  if (type !== 'VIDEO_CALL') return false;
+
+  const hasProposedSlots =
+    Array.isArray(appointment?.proposedSlots) && appointment.proposedSlots.length > 0;
+  const confirmedSlotIndex = appointment?.confirmedSlotIndex;
+  const hasConfirmedSlot =
+    confirmedSlotIndex !== null &&
+    confirmedSlotIndex !== undefined &&
+    !Number.isNaN(Number(confirmedSlotIndex));
+
+  return status === 'SCHEDULED' && hasProposedSlots && !hasConfirmedSlot;
+}
+
+export function getAppointmentStatusBadgeLabel(appointment: any): string {
+  if (isAwaitingDoctorSlotConfirmation(appointment)) {
+    return 'Scheduled (Awaiting Doctor Confirmation)';
+  }
+  return getAppointmentStatusDisplayName(String(appointment?.status || ''));
 }
 
 // Theme-aware status colors

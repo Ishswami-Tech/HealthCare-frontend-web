@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,9 +26,14 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
-import { getDisplayAppointmentDuration } from "@/lib/utils/appointmentUtils";
+import {
+  getAppointmentPaymentStatus,
+  getDisplayAppointmentDuration,
+  isAppointmentAwaitingPayment,
+} from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
   Play,
@@ -83,7 +88,25 @@ interface TransformedAppointment {
   } | null;
   checkedInAt: string | null;
   queuePosition: number | null;
+  paymentStatus: string;
+  paymentPending: boolean;
 }
+
+const getPaymentBadgeClasses = (paymentStatus: string) => {
+  switch (paymentStatus) {
+    case "PAID":
+      return "bg-emerald-100 text-emerald-800";
+    case "PENDING":
+    case "OVERDUE":
+      return "bg-amber-100 text-amber-800";
+    case "FAILED":
+    case "VOID":
+    case "UNCOLLECTIBLE":
+      return "bg-rose-100 text-rose-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
 
 export default function DoctorAppointments() {
   const { session } = useAuth();
@@ -119,6 +142,7 @@ export default function DoctorAppointments() {
 
     return apps.map((app: any): TransformedAppointment => {
       const displayDuration = getDisplayAppointmentDuration(app);
+      const paymentStatus = getAppointmentPaymentStatus(app);
 
       return {
         id: app.id,
@@ -144,6 +168,8 @@ export default function DoctorAppointments() {
         vitalSigns: app.vitalSigns || null,
         checkedInAt: app.checkedInAt ? new Date(app.checkedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
         queuePosition: app.queuePosition || null,
+        paymentStatus,
+        paymentPending: isAppointmentAwaitingPayment(app),
       };
     });
   }, [appointmentsData]);
@@ -235,18 +261,21 @@ export default function DoctorAppointments() {
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
         </div>
       ) : (
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">My Appointments</h1>
-            <WebSocketStatusIndicator />
-          </div>
-          <div className="text-sm text-gray-600">
-            Today • {new Date().toLocaleDateString()}
-          </div>
+        <DashboardPageShell>
+          <DashboardPageHeader
+            eyebrow="Doctor Appointments"
+            title="My Appointments"
+            description={`Today is ${new Date().toLocaleDateString("en-IN", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}. Review every scheduled, video, in-person, completed, and cancelled appointment in one place.`}
+            actionsSlot={<WebSocketStatusIndicator />}
+          />
 
           {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+            <Card className="border-l-4 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
                 <CheckCircle className="h-4 w-4 text-green-600" />
@@ -258,7 +287,7 @@ export default function DoctorAppointments() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">In Progress</CardTitle>
                 <Play className="h-4 w-4 text-blue-600" />
@@ -270,7 +299,7 @@ export default function DoctorAppointments() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
                 <Clock className="h-4 w-4 text-gray-600" />
@@ -282,14 +311,18 @@ export default function DoctorAppointments() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-violet-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Today</CardTitle>
                 <Calendar className="h-4 w-4 text-purple-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-600">
-                  {appointments.length}
+                  {
+                    appointments.filter((a: TransformedAppointment) =>
+                      a.appointmentDate === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+                    ).length
+                  }
                 </div>
               </CardContent>
             </Card>
@@ -342,7 +375,7 @@ export default function DoctorAppointments() {
                       <div>
                         <h3 className="text-lg font-semibold">{appointment.patientName}</h3>
                         <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span>{appointment.patientAge} years • {appointment.patientGender}</span>
+                          <span>{appointment.patientAge} years - {appointment.patientGender}</span>
                           <span>{appointment.type}</span>
                           <span>{appointment.duration}</span>
                         </div>
@@ -355,6 +388,13 @@ export default function DoctorAppointments() {
                             </span>
                           )}
                         </div>
+                        {appointment.type === "VIDEO_CALL" && (
+                          <div className="mt-2">
+                            <Badge className={getPaymentBadgeClasses(appointment.paymentStatus)}>
+                              Payment {appointment.paymentStatus.replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -383,8 +423,9 @@ export default function DoctorAppointments() {
                           <Button 
                             size="sm" 
                             onClick={() => startConsultation(appointment.id)}
-                            disabled={startAppointmentMutation.isPending}
+                            disabled={startAppointmentMutation.isPending || (appointment.type === "VIDEO_CALL" && appointment.paymentPending)}
                             className="flex items-center gap-1"
+                            title={appointment.type === "VIDEO_CALL" && appointment.paymentPending ? "Video appointment is waiting for patient payment" : undefined}
                           >
                             {startAppointmentMutation.isPending ? (
                               <>
@@ -399,6 +440,13 @@ export default function DoctorAppointments() {
                             )}
                           </Button>
                         )}
+                        {appointment.status === APPOINTMENT_STATUS.CONFIRMED &&
+                          appointment.type === "VIDEO_CALL" &&
+                          appointment.paymentPending && (
+                            <Badge className="bg-amber-100 text-amber-800">
+                              Awaiting Payment
+                            </Badge>
+                          )}
                         
                         {appointment.status === APPOINTMENT_STATUS.IN_PROGRESS && (
                           <>
@@ -407,6 +455,9 @@ export default function DoctorAppointments() {
                               size="sm"
                               className="flex items-center gap-1"
                               onClick={() => {
+                                if (appointment.type === "VIDEO_CALL" && appointment.paymentPending) {
+                                  return;
+                                }
                                 const videoAppt: VideoAppointment = {
                                   id: appointment.id,
                                   appointmentId: appointment.id,
@@ -422,6 +473,7 @@ export default function DoctorAppointments() {
                                 setVideoRoomAppointment(videoAppt);
                                 setIsVideoRoomOpen(true);
                               }}
+                              disabled={appointment.type === "VIDEO_CALL" && appointment.paymentPending}
                             >
                               <Video className="w-3 h-3" />
                               Video
@@ -512,6 +564,15 @@ export default function DoctorAppointments() {
                           <h4 className="font-semibold mb-2">Chief Complaint</h4>
                           <p className="text-sm text-gray-700">{selectedAppointment.chiefComplaint}</p>
                         </div>
+
+                        {selectedAppointment.type === "VIDEO_CALL" && (
+                          <div>
+                            <h4 className="font-semibold mb-2">Payment Status</h4>
+                            <Badge className={getPaymentBadgeClasses(selectedAppointment.paymentStatus)}>
+                              {selectedAppointment.paymentStatus.replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                        )}
 
                         <div>
                           <h4 className="font-semibold mb-2">Medical History</h4>
@@ -695,8 +756,9 @@ export default function DoctorAppointments() {
               </DialogContent>
             </Dialog>
           )}
-        </div>
+        </DashboardPageShell>
       )}
     </>
   );
 }
+

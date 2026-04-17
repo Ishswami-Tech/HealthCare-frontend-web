@@ -22,12 +22,16 @@ export async function getPatients(clinicId: string, filters?: {
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined) {
+        if (key === 'doctorId') {
+          return;
+        }
         params.append(key, value.toString());
       }
     });
   }
 
   // Backend: GET /patients/clinic/:clinicId
+  // Doctor scoping is resolved from the authenticated request user in the backend controller.
   const endpoint = `/patients/clinic/${clinicId}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint);
   return data;

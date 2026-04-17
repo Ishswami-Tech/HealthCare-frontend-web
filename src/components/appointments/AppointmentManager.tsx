@@ -42,6 +42,7 @@ import { BookAppointmentDialog } from "@/components/appointments/BookAppointment
 import { cn } from "@/lib/utils";
 import {
   formatDateInIST,
+  getAppointmentStatusBadgeLabel,
   getAppointmentDateTimeValue,
   getDisplayAppointmentDuration,
   isVideoAppointmentPaymentCompleted,
@@ -379,6 +380,7 @@ export default function AppointmentManager({
 
   const AppointmentCard = ({ apt }: { apt: AppointmentWithRelations }) => {
     const cfg = (STATUS_CONFIG[apt.status] ?? STATUS_CONFIG["SCHEDULED"]) as { label: string; color: string; dot: string; bg: string };
+    const statusLabel = getAppointmentStatusBadgeLabel((apt as any).raw || apt);
     const isExpanded = expandedCard === apt.id;
     const appointmentDateTime = getAppointmentDateTimeValue(apt);
     const normalizedAppointment = normalizePatientAppointment(apt);
@@ -448,7 +450,7 @@ export default function AppointmentManager({
               {/* Status badge */}
               <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold shadow-sm ${cfg.color}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                {cfg.label}
+                {statusLabel}
               </span>
               <ChevronDown className={`w-4 h-4 opacity-40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
             </div>
@@ -577,7 +579,17 @@ export default function AppointmentManager({
                 )}
                 {apt.type === "VIDEO_CALL" &&
                   isVideoAppointmentPaymentCompleted(apt) &&
-                  (apt as any).raw?.status === "AWAITING_SLOT_CONFIRMATION" && (
+                  (
+                    (apt as any).raw?.status === "AWAITING_SLOT_CONFIRMATION" ||
+                    (
+                      String((apt as any).raw?.status || "").toUpperCase() === "SCHEDULED" &&
+                      (
+                        (apt as any).raw?.confirmedSlotIndex === null ||
+                        (apt as any).raw?.confirmedSlotIndex === undefined ||
+                        Number.isNaN(Number((apt as any).raw?.confirmedSlotIndex))
+                      )
+                    )
+                  ) && (
                     <Button
                       variant="outline"
                       className="h-10 px-6 rounded-lg border-amber-200 bg-amber-50 text-amber-700 text-sm pointer-events-none flex-1"

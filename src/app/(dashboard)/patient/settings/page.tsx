@@ -52,7 +52,10 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/config/routes";
-import { PatientPageShell, PatientPageHeader } from "@/components/patient/PatientPageShell";
+import {
+  DashboardPageHeader as PatientPageHeader,
+  DashboardPageShell as PatientPageShell,
+} from "@/components/dashboard/DashboardPageShell";
 import { cn } from "@/lib/utils";
 
 export default function PatientSettings() {

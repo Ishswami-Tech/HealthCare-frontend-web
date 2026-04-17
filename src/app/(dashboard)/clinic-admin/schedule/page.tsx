@@ -42,6 +42,7 @@ import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-t
 export default function ClinicAdminSchedule() {
   useAuth();
   const { clinicId } = useClinicContext();
+  const scheduleWritesSupported = false;
 
   // Fetch real doctors data
   const { data: doctorsData, isPending: isPendingDoctors } = useDoctors(
@@ -228,6 +229,13 @@ export default function ClinicAdminSchedule() {
   };
 
   const handleSaveSchedule = async () => {
+    if (!scheduleWritesSupported) {
+      showErrorToast("Schedule updates are not supported by the backend yet", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
+      return;
+    }
+
     if (!selectedDoctor || !selectedDoctorId) {
       showErrorToast("Please select a doctor", {
         id: TOAST_IDS.GLOBAL.ERROR,
@@ -304,7 +312,7 @@ export default function ClinicAdminSchedule() {
               <Button
                 className="flex items-center gap-2"
                 onClick={handleSaveSchedule}
-                disabled={updateScheduleMutation.isPending || !selectedDoctor}
+                disabled={!scheduleWritesSupported || updateScheduleMutation.isPending || !selectedDoctor}
               >
                 {updateScheduleMutation.isPending ? (
                   <>
@@ -320,6 +328,17 @@ export default function ClinicAdminSchedule() {
               </Button>
             </div>
           </div>
+
+          {!scheduleWritesSupported && (
+            <Card className="border-amber-200 bg-amber-50">
+              <CardContent className="flex items-start gap-3 p-4 text-amber-900">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="text-sm">
+                  Doctor schedule editing is disabled because the current backend only exposes doctor availability read routes.
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Tabs defaultValue="doctor-schedules" className="space-y-6">
             <TabsList className="grid w-full grid-cols-3">

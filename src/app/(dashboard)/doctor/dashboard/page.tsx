@@ -9,10 +9,19 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { AppointmentWithRelations, AppointmentStatus } from "@/types/appointment.types";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { getDisplayAppointmentDuration } from "@/lib/utils/appointmentUtils";
+import {
+  getAppointmentDateTimeValue,
+  getAppointmentPaymentStatus,
+  getAppointmentPatientName,
+  getDisplayAppointmentDuration,
+  isAppointmentAwaitingPayment,
+} from "@/lib/utils/appointmentUtils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
+import { theme } from "@/lib/utils/theme-utils";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+
 import {
   Activity,
   Calendar,
@@ -26,7 +35,9 @@ import {
   Video,
   Loader2,
   Search,
+  Pill,
 } from "lucide-react";
+import { QuickPrescriptionModal } from "@/components/doctor/QuickPrescriptionModal";
 
 // Interface for the transformed appointment object
 interface TransformedAppointment {
@@ -39,8 +50,48 @@ interface TransformedAppointment {
   duration: string;
   notes: string;
   isVideo: boolean;
+  priority: string;
   patientId: string;
+  paymentStatus: string;
+  paymentPending: boolean;
+  proposedSlots?: { date: string; time: string }[];
+  confirmedSlotIndex?: number | null;
 }
+
+const isAwaitingDoctorVideoConfirmation = (appointment: {
+  status?: string;
+  type?: string;
+  proposedSlots?: Array<{ date: string; time: string }>;
+  confirmedSlotIndex?: number | null;
+}) => {
+  const status = String(appointment.status || "").toUpperCase();
+  if (status === "AWAITING_SLOT_CONFIRMATION") return true;
+  if (String(appointment.type || "").toUpperCase() !== "VIDEO_CALL") return false;
+
+  const hasProposedSlots = Array.isArray(appointment.proposedSlots) && appointment.proposedSlots.length > 0;
+  const hasConfirmedSlot =
+    appointment.confirmedSlotIndex !== null &&
+    appointment.confirmedSlotIndex !== undefined &&
+    !Number.isNaN(Number(appointment.confirmedSlotIndex));
+
+  return status === "SCHEDULED" && hasProposedSlots && !hasConfirmedSlot;
+};
+
+const getPaymentBadgeClasses = (paymentStatus: string) => {
+  switch (paymentStatus) {
+    case "PAID":
+      return "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300";
+    case "PENDING":
+    case "OVERDUE":
+      return "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300";
+    case "FAILED":
+    case "VOID":
+    case "UNCOLLECTIBLE":
+      return "bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300";
+    default:
+      return "bg-muted border-border text-muted-foreground";
+  }
+};
 
 export default function DoctorDashboard() {
   const router = useRouter();
@@ -49,20 +100,20 @@ export default function DoctorDashboard() {
   const clinicId = user?.clinicId;
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
+  const [activePatient, setActivePatient] = useState<{ id: string; name: string } | null>(null);
+  const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null);
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
-
-  // IST date for server-side filtering
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
   // Fetch real data using existing hooks and server actions
   const { data: appointments, isPending: isAppointmentsPending, error: appointmentsError } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
     ...(user?.id ? { doctorId: user.id } : {}),
-    date: today,
     limit: 100,
   });
+  
   const startAppointmentMutation = useStartAppointment();
   const completeAppointmentMutation = useCompleteAppointment();
 
@@ -77,38 +128,54 @@ export default function DoctorDashboard() {
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     return appointmentsArray
       .filter((apt: AppointmentWithRelations) => {
-        const aptDate = apt.date || (apt as unknown as Record<string, unknown>).appointmentDate?.toString().split("T")?.[0] || "";
+        const dateTime = getAppointmentDateTimeValue(apt);
+        const aptDate =
+          (dateTime
+            ? dateTime.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+            : "") ||
+          apt.date ||
+          (apt as unknown as Record<string, unknown>).appointmentDate?.toString().split("T")?.[0] ||
+          "";
         return aptDate === todayStr;
       })
       .sort(
         (a: AppointmentWithRelations, b: AppointmentWithRelations) =>
-          (a.time || "").localeCompare(b.time || "", undefined, { numeric: true })
+          (getAppointmentDateTimeValue(a)?.getTime() ?? 0) - (getAppointmentDateTimeValue(b)?.getTime() ?? 0)
       )
       .map((apt: AppointmentWithRelations): TransformedAppointment => {
-        const patientName =
-          `${apt.patient?.firstName || ""} ${apt.patient?.lastName || ""}`.trim() ||
-          "Unknown Patient";
+        const patientName = getAppointmentPatientName(apt);
         const displayDuration = getDisplayAppointmentDuration(apt);
-        const statusLabels: Partial<Record<AppointmentStatus, string>> = {
-          IN_PROGRESS: "In Progress",
-          SCHEDULED: "Scheduled",
-          CONFIRMED: "Confirmed",
-          AWAITING_SLOT_CONFIRMATION: "Awaiting Confirmation",
-          COMPLETED: "Completed",
-          CANCELLED: "Cancelled",
-          NO_SHOW: "No Show",
-        };
+        const paymentStatus = getAppointmentPaymentStatus(apt);
+        
+        let displayStatus = apt.status as string;
+        if (isAwaitingDoctorVideoConfirmation(apt as any)) {
+          displayStatus = "SCHEDULED (AWAITING DOCTOR CONFIRMATION)";
+        }
+        else if (apt.status === "IN_PROGRESS") displayStatus = "IN PROGRESS";
+
         return {
           id: apt.id,
           patientName,
           patientId: apt.patientId,
-          time: apt.time || "",
-          status: statusLabels[apt.status] || apt.status,
+          time:
+            apt.time ||
+            (getAppointmentDateTimeValue(apt)?.toLocaleTimeString("en-IN", {
+              timeZone: "Asia/Kolkata",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            }) ?? ""),
+          status: displayStatus.replace(/_/g, " "),
           statusEnum: apt.status,
           type: apt.type || "Consultation",
           duration: `${displayDuration || 30} min`,
           notes: apt.notes || "",
           isVideo: apt.type === "VIDEO_CALL",
+          priority: (apt as any).priority || "NORMAL",
+          paymentStatus,
+          paymentPending: isAppointmentAwaitingPayment(apt),
+          proposedSlots: (apt as any).proposedSlots,
+          confirmedSlotIndex: (apt as any).confirmedSlotIndex,
         };
       });
   }, [appointmentsArray]);
@@ -123,7 +190,9 @@ export default function DoctorDashboard() {
   const activeTreatmentQueue = useMemo(
     () =>
       filteredAppointments.filter(
-        (apt: TransformedAppointment) => apt.statusEnum === "CONFIRMED" || apt.statusEnum === "IN_PROGRESS"
+        (apt: TransformedAppointment) =>
+          (apt.statusEnum === "CONFIRMED" || apt.statusEnum === "IN_PROGRESS") &&
+          (!apt.isVideo || apt.statusEnum === "IN_PROGRESS" || !apt.paymentPending)
       ),
     [filteredAppointments]
   );
@@ -131,7 +200,14 @@ export default function DoctorDashboard() {
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     const todayApts = appointmentsArray.filter((apt: AppointmentWithRelations) => {
-      const aptDate = apt.date || (apt as unknown as Record<string, unknown>).appointmentDate?.toString().split("T")?.[0] || "";
+      const dateTime = getAppointmentDateTimeValue(apt);
+      const aptDate =
+        (dateTime
+          ? dateTime.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+          : "") ||
+        apt.date ||
+        (apt as unknown as Record<string, unknown>).appointmentDate?.toString().split("T")?.[0] ||
+        "";
       return aptDate === todayStr;
     });
 
@@ -140,14 +216,25 @@ export default function DoctorDashboard() {
       checkedInPatients: todayApts.filter((apt: AppointmentWithRelations) => apt.status === "CONFIRMED").length,
       completedToday: todayApts.filter((apt: AppointmentWithRelations) => apt.status === "COMPLETED").length,
       totalPatients: new Set(appointmentsArray.map((apt: AppointmentWithRelations) => apt.patientId)).size,
+      awaitingPayments: todayApts.filter(
+        (apt: AppointmentWithRelations) =>
+          String(apt.type).toUpperCase() === "VIDEO_CALL" && isAppointmentAwaitingPayment(apt)
+      ).length,
       nextAppointment: todaysAppointments.find(
         (a: TransformedAppointment) =>
           a.statusEnum === "SCHEDULED" ||
           a.statusEnum === "CONFIRMED" ||
-          a.statusEnum === "IN_PROGRESS"
-      )?.time || "-",
+          a.statusEnum === "IN_PROGRESS" ||
+          isAwaitingDoctorVideoConfirmation(a)
+      ),
     };
   }, [appointmentsArray, todaysAppointments]);
+
+  const openPrescription = (apt: TransformedAppointment) => {
+    setActivePatient({ id: apt.patientId, name: apt.patientName });
+    setActiveAppointmentId(apt.id);
+    setIsPrescriptionModalOpen(true);
+  };
 
   const columns: ColumnDef<TransformedAppointment>[] = [
     {
@@ -155,12 +242,38 @@ export default function DoctorDashboard() {
       header: "Patient",
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
-            <Users className="w-4 h-4 text-blue-600" />
+          <div className={`w-9 h-9 ${row.original.isVideo ? 'bg-indigo-100/80 text-indigo-600' : 'bg-blue-100/80 text-blue-600'} rounded-full flex items-center justify-center shrink-0`}>
+            {row.original.isVideo ? <Video className="w-4 h-4" /> : <Users className="w-4 h-4" />}
           </div>
           <div>
-            <div className="font-semibold leading-none mb-1">{row.original.patientName}</div>
-            <div className="text-xs text-muted-foreground">{row.original.type} • {row.original.duration}</div>
+            <div className={`font-semibold leading-none mb-1 flex items-center gap-2 ${theme.textColors.heading}`}>
+              {row.original.patientName}
+              {row.original.priority === "URGENT" && (
+                <Badge variant="destructive" className="h-4 px-1.5 text-[8px] animate-pulse ring-2 ring-destructive/20 font-black">
+                  URGENT
+                </Badge>
+              )}
+            </div>
+            <div className={`text-xs ${theme.textColors.tertiary} flex items-center gap-1`}>
+              {row.original.type} • {row.original.duration}
+              {isAwaitingDoctorVideoConfirmation(row.original) && row.original.proposedSlots?.[0] && (
+                <span className="text-amber-600 font-medium ml-1">
+                  (Prop: {row.original.proposedSlots[0].time})
+                </span>
+              )}
+            </div>
+            {row.original.isVideo && (
+              <div className="mt-1">
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-semibold uppercase tracking-wider ${getPaymentBadgeClasses(
+                    row.original.paymentStatus
+                  )}`}
+                >
+                  Payment {row.original.paymentStatus.replace(/_/g, " ")}
+                </Badge>
+              </div>
+            )}
           </div>
         </div>
       ),
@@ -169,22 +282,25 @@ export default function DoctorDashboard() {
       accessorKey: "time",
       header: "Time",
       cell: ({ row }) => (
-        <div className="text-sm font-medium">{row.original.time}</div>
+        <div className={`text-sm font-semibold tracking-tight ${theme.textColors.primary}`}>
+          {row.original.time}
+        </div>
       ),
     },
     {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => {
-        const colors: Record<string, string> = {
-          "In Progress": "bg-blue-100 text-blue-800",
-          "Confirmed": "bg-green-100 text-green-800",
-          "Scheduled": "bg-slate-100 text-slate-800",
-          "Completed": "bg-emerald-100 text-emerald-800",
-        };
+        const stat = row.original.statusEnum;
+        let colorClasses = "bg-muted border-border text-muted-foreground";
+        if (stat === "IN_PROGRESS") colorClasses = "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300";
+        else if (stat === "CONFIRMED") colorClasses = "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300";
+        else if (stat === "COMPLETED") colorClasses = "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300";
+        else if (isAwaitingDoctorVideoConfirmation(row.original)) colorClasses = "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300";
+        
         return (
-          <Badge variant="secondary" className={`${colors[row.original.status] || "bg-slate-100"} border-none text-[10px]`}>
-            {row.original.status.toUpperCase()}
+          <Badge variant="outline" className={`font-semibold text-[10px] uppercase tracking-wider ${colorClasses}`}>
+            {row.original.status}
           </Badge>
         );
       },
@@ -194,19 +310,21 @@ export default function DoctorDashboard() {
       header: "Actions",
       cell: ({ row }) => {
         const appointment = row.original;
+        const paymentReady = !appointment.isVideo || !appointment.paymentPending;
         return (
           <div className="flex gap-2">
             {appointment.statusEnum === "CONFIRMED" && (
               <Button
                 size="sm"
-                className="h-8 gap-1.5"
-                disabled={startAppointmentMutation.isPending}
+                className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                disabled={startAppointmentMutation.isPending || !paymentReady}
                 onClick={async () => {
                   await startAppointmentMutation.mutateAsync(appointment.id);
                   if (appointment.isVideo) {
                     router.push("/doctor/video");
                   }
                 }}
+                title={!paymentReady ? "Video appointment is waiting for patient payment" : undefined}
               >
                 {startAppointmentMutation.isPending ? (
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -216,35 +334,55 @@ export default function DoctorDashboard() {
                 Start
               </Button>
             )}
-            {appointment.statusEnum === "IN_PROGRESS" && (
-              <Button
-                size="sm"
-                variant="default"
-                className="h-8 gap-1.5 bg-green-600 hover:bg-green-700"
-                disabled={completeAppointmentMutation.isPending}
-                onClick={() =>
-                  completeAppointmentMutation.mutateAsync({
-                    id: appointment.id,
-                    data: {},
-                  })
-                }
+            {appointment.statusEnum === "CONFIRMED" && appointment.isVideo && appointment.paymentPending && (
+              <Badge
+                variant="outline"
+                className="h-8 rounded-md border-amber-200 bg-amber-50 px-2 text-[10px] font-semibold uppercase tracking-wider text-amber-700"
               >
-                {completeAppointmentMutation.isPending ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-3 h-3" />
-                )}
-                Complete
+                Awaiting Payment
+              </Badge>
+            )}
+            {appointment.statusEnum === "IN_PROGRESS" && (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 shadow-sm"
+                  onClick={() => openPrescription(appointment)}
+                >
+                  <Pill className="w-3 h-3" />
+                  Prescribe
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm border-none"
+                  disabled={completeAppointmentMutation.isPending}
+                  onClick={() =>
+                    completeAppointmentMutation.mutateAsync({
+                      id: appointment.id,
+                      data: {},
+                    })
+                  }
+                >
+                  {completeAppointmentMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-3 h-3" />
+                  )}
+                  Complete
+                </Button>
+              </div>
+            )}
+            {appointment.statusEnum !== "IN_PROGRESS" && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="h-8 border-border bg-card text-muted-foreground shadow-sm hover:text-foreground"
+                onClick={() => router.push(`/doctor/patients/${appointment.patientId}`)}
+              >
+                EHR
               </Button>
             )}
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="h-8"
-              onClick={() => router.push(`/doctor/patients/${appointment.patientId}`)}
-            >
-              EHR
-            </Button>
           </div>
         );
       },
@@ -253,183 +391,304 @@ export default function DoctorDashboard() {
 
   if (isAppointmentsPending && appointmentsArray.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin" />
+          <p className="text-emerald-700 font-medium">Loading your clinical workspace...</p>
+        </div>
       </div>
     );
   }
 
   if (appointmentsError && appointmentsArray.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-sm text-muted-foreground">
-        Error loading appointments: {appointmentsError.message}
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h3 className="text-xl font-bold text-foreground mb-2">Workspace Connection Issue</h3>
+        <p className="text-muted-foreground max-w-sm mb-6">We could not load your appointments. Please check your connection and try again.</p>
+        <Button onClick={() => window.location.reload()} variant="outline">Refresh Workspace</Button>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Welcome, Dr. {user?.name?.split(' ')[0] || "Doctor"}
-          </h1>
-          <p className="text-muted-foreground">
-            Today is{" "}
-            {new Date().toLocaleDateString("en-IN", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
-        </div>
-        <div className="text-left md:text-right p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-          <div className="text-xs font-semibold uppercase tracking-wider text-emerald-600 mb-1">Next Appointment</div>
-          <div className="text-2xl font-bold text-emerald-700">
-            {stats.nextAppointment}
-          </div>
-        </div>
-      </div>
+    <DashboardPageShell>
+      <DashboardPageHeader
+        eyebrow="Doctor Dashboard"
+        title={`Welcome, Dr. ${user?.name?.split(" ")[0] || "Doctor"}`}
+        description={`Today is ${new Date().toLocaleDateString("en-IN", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+        })}. Manage appointments, video visits, and clinical prescriptions from one workspace.`}
+        meta={
+          <Badge
+            variant="outline"
+            className="rounded-full border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"
+          >
+            <Activity className="mr-1 inline-block h-3 w-3" />
+            Active Shift
+          </Badge>
+        }
+        actions={[
+          {
+            label: "Video Visits",
+            href: "/doctor/video",
+            icon: <Video className="h-4 w-4" />,
+          },
+          {
+            label: "Patient Directory",
+            href: "/doctor/patients",
+            icon: <Users className="h-4 w-4" />,
+          },
+        ]}
+      />
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today&apos;s Appointments</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.todayAppointments}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600 font-medium">{stats.checkedInPatients}</span> confirmed and waiting
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.completedToday}</div>
-            <p className="text-xs text-muted-foreground">Consultations finished</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalPatients}</div>
-            <p className="text-xs text-muted-foreground">Unique patients seen</p>
-          </CardContent>
-        </Card>
-
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Treatment Queue Table */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-blue-600" />
-              Active Treatment Queue
-            </CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search today's queue..."
-                className="pl-8 h-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+      <Card className="border-l-4 border-l-emerald-400 shadow-sm">
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-600">
+              <Clock className="h-5 w-5" />
             </div>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={columns}
-              data={activeTreatmentQueue}
-              pageSize={5}
-              emptyMessage="No patients currently in treatment queue"
-            />
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions & Satisfaction */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start h-11"
-                onClick={() => router.push("/doctor/video")}
-              >
-                <Video className="w-4 h-4 mr-2 text-blue-600" />
-                Start Video Consultation
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start h-11"
-                onClick={() => router.push("/doctor/appointments")}
-              >
-                <FileText className="w-4 h-4 mr-2 text-green-600" />
-                Manage Appointments
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start h-11"
-                onClick={() => router.push("/doctor/patients")}
-              >
-                <Users className="w-4 h-4 mr-2 text-emerald-600" />
-                View Patient Directory
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Appointment Progress</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-green-600">
-                {stats.completedToday}/{stats.todayAppointments}
+            <div className="min-w-0">
+              <div className="text-xs font-bold uppercase tracking-wider text-emerald-600">
+                Next Appointment
               </div>
-              <p className="text-sm text-muted-foreground mt-1">Completed of today's appointments</p>
-              <div className="mt-4 w-full bg-slate-200 rounded-full h-2">
-                <div
-                  className="bg-green-500 h-2 rounded-full transition-all"
-                  style={{ width: stats.todayAppointments > 0 ? `${Math.round((stats.completedToday / stats.todayAppointments) * 100)}%` : '0%' }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Scheduled Today Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-slate-500" />
-            Full Schedule (Today)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            columns={columns}
-            data={filteredAppointments}
-            pageSize={10}
-            emptyMessage="No appointments scheduled for today"
-          />
+              {stats.nextAppointment ? (
+                <>
+                  <div className="truncate text-lg font-bold tracking-tight text-foreground">
+                    {stats.nextAppointment.patientName}
+                  </div>
+                  <div className="text-xs font-medium text-muted-foreground">
+                    {stats.nextAppointment.time || "Time TBD"} · {stats.nextAppointment.type}
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm font-medium text-muted-foreground">
+                  No upcoming appointment for today
+                </div>
+              )}
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full rounded-xl border-emerald-200 bg-emerald-50 font-semibold text-emerald-700 hover:bg-emerald-100 sm:w-auto"
+            onClick={() => router.push("/doctor/appointments")}
+          >
+            <Calendar className="mr-2 h-4 w-4" />
+            Open Appointment Manager
+          </Button>
         </CardContent>
       </Card>
-    </div>
+
+      {/* Primary Metrics Grid */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-5">
+        <Card className="border-l-4 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-100/80 flex items-center justify-center text-blue-600">
+                <Calendar className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-3xl font-bold tracking-tight text-foreground">{stats.todayAppointments}</h3>
+              <p className="text-sm font-medium text-muted-foreground">Scheduled Today</p>
+            </div>
+            <div className="mt-4 text-xs font-medium text-blue-700 bg-blue-50 py-1.5 px-3 rounded-md inline-block">
+              {stats.checkedInPatients} Confirmed & Waiting
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100/80 flex items-center justify-center text-emerald-600">
+                <CheckCircle className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-3xl font-bold tracking-tight text-foreground">{stats.completedToday}</h3>
+              <p className="text-sm font-medium text-muted-foreground">Consultations Finished</p>
+            </div>
+            <div className="mt-4 w-full bg-muted rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-out"
+                style={{ width: stats.todayAppointments > 0 ? `${(stats.completedToday / stats.todayAppointments) * 100}%` : '0%' }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-indigo-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100/80 flex items-center justify-center text-indigo-600">
+                <Users className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-3xl font-bold tracking-tight text-foreground">{stats.totalPatients}</h3>
+              <p className="text-sm font-medium text-muted-foreground">Unique Patients</p>
+            </div>
+            <div className="mt-4 text-xs font-medium text-indigo-700 bg-indigo-50 py-1.5 px-3 rounded-md inline-block">
+              Across lifetime records
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-100/80 flex items-center justify-center text-amber-600">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-3xl font-bold tracking-tight text-foreground">{stats.awaitingPayments}</h3>
+              <p className="text-sm font-medium text-muted-foreground">Video Payments Pending</p>
+            </div>
+            <div className="mt-4 text-xs font-medium text-amber-700 bg-amber-50 py-1.5 px-3 rounded-md inline-block">
+              Start is unlocked after payment confirmation
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="relative overflow-hidden border-l-4 border-l-emerald-500 bg-gradient-to-br from-emerald-600 to-emerald-800 text-white shadow-sm transition-shadow duration-300 hover:shadow-lg">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Stethoscope className="w-24 h-24" />
+          </div>
+          <CardContent className="p-6 relative z-10 h-full flex flex-col justify-between">
+            <div className="space-y-2">
+              <h3 className="font-semibold text-emerald-50 text-lg">Quick Access</h3>
+              <p className="text-sm text-emerald-100/80 leading-relaxed">Need to access full patient history or jump into a video call? Access your tools quickly below.</p>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <Button size="sm" variant="secondary" className="bg-white/10 hover:bg-white/20 text-white border-0 flex-1" onClick={() => router.push("/doctor/video")}>
+                <Video className="w-4 h-4 mr-2" />
+                Video
+              </Button>
+              <Button size="sm" variant="secondary" className="bg-white/10 hover:bg-white/20 text-white border-0 flex-1" onClick={() => router.push("/doctor/patients")}>
+                <Users className="w-4 h-4 mr-2" />
+                Directory
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-4">
+        {/* Active Treatment Queue Table - Dominant Column */}
+        <div className="lg:col-span-3 space-y-6">
+          <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
+            <CardHeader className="flex flex-col items-start justify-between gap-4 border-b border-border bg-muted/40 px-4 pb-4 pt-5 sm:flex-row sm:items-center sm:px-6">
+              <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                  <Activity className="w-4 h-4" />
+                </div>
+                Active Clinical Queue
+              </CardTitle>
+              <div className="relative w-full sm:w-72 mt-4 sm:mt-0">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Find patient or type..."
+                  className="pl-9 h-9 bg-background border-border transition-all focus:ring-emerald-500/20"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-4">
+              <DataTable
+                columns={columns}
+                data={activeTreatmentQueue}
+                pageSize={10}
+                emptyMessage="No active consultations in the queue right now."
+              />
+            </CardContent>
+          </Card>
+
+          {/* Scheduled Today Table */}
+          <Card className="overflow-hidden border-l-4 border-l-blue-400 shadow-sm">
+            <CardHeader className="border-b border-border bg-muted/40 pb-4 pt-5 px-6">
+              <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
+                <Calendar className="w-5 h-5 text-muted-foreground" />
+                Full Schedule List
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 opacity-90 transition-opacity hover:opacity-100 sm:p-4">
+              <DataTable
+                columns={columns}
+                data={filteredAppointments}
+                pageSize={10}
+                emptyMessage="Your schedule is clear for today."
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar Actions */}
+        <div className="space-y-6">
+          <Card className="overflow-hidden border-l-4 border-l-slate-400 shadow-sm">
+            <div className="bg-muted/40 border-b border-border p-4">
+              <h3 className="font-bold text-foreground flex items-center gap-2">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+                Workspace Tools
+              </h3>
+            </div>
+            <CardContent className="p-4 space-y-3">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-12 border-border text-muted-foreground hover:bg-muted hover:text-foreground group"
+                onClick={() => router.push("/doctor/appointments")}
+              >
+                <div className="w-8 h-8 rounded bg-muted flex items-center justify-center mr-3 transition-colors group-hover:bg-muted/80">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                </div>
+                Master Calendar
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start h-12 border-border text-muted-foreground hover:bg-muted hover:text-foreground group"
+                onClick={() => router.push("/doctor/patients")}
+              >
+                <div className="w-8 h-8 rounded bg-muted flex items-center justify-center mr-3 transition-colors group-hover:bg-muted/80">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                </div>
+                Patient Directory
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="relative overflow-hidden border-l-4 border-l-amber-400 bg-amber-50 shadow-sm dark:bg-amber-950/30">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-amber-100 rounded-bl-[100px] -z-0 dark:bg-amber-900/40" />
+            <div className="p-5 relative z-10">
+              <h3 className="font-bold text-amber-900 flex items-center gap-2 mb-2 dark:text-amber-100">
+                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-300" />
+                Clinical Notice
+              </h3>
+              <p className="text-sm text-amber-800/80 leading-relaxed dark:text-amber-100/80">
+                Doctors only record diagnosis and prescribed medicines here. Video consultations wait for patient payment confirmation, while medicine payment, packing, and dispatch are handled by the medicine desk.
+              </p>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      <QuickPrescriptionModal
+        isOpen={isPrescriptionModalOpen}
+        onClose={() => setIsPrescriptionModalOpen(false)}
+        appointmentId={activeAppointmentId || ""}
+        patientId={activePatient?.id || ""}
+        patientName={activePatient?.name || ""}
+        doctorId={user?.id || ""}
+      />
+    </DashboardPageShell>
   );
 }

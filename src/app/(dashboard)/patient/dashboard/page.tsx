@@ -43,7 +43,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
-import { PatientPageHeader, PatientPageShell } from "@/components/patient/PatientPageShell";
+import {
+  DashboardPageHeader as PatientPageHeader,
+  DashboardPageShell as PatientPageShell,
+} from "@/components/dashboard/DashboardPageShell";
 
 export default function PatientDashboard() {
   const { session } = useAuth();

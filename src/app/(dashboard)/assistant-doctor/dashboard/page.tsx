@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useQueue } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import {
   Calendar,
   Users,
@@ -32,6 +33,12 @@ export default function AssistantDoctorDashboard() {
   useWebSocketQuerySync();
 
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  }, []);
 
   const { data: appointmentsResult, isPending: appointmentsPending } = useAppointments(
     clinicId
@@ -100,31 +107,23 @@ export default function AssistantDoctorDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Good{" "}
-            {new Date().getHours() < 12
-              ? "morning"
-              : new Date().getHours() < 17
-              ? "afternoon"
-              : "evening"}
-            {user?.name ? `, Dr. ${user.name.split(" ")[0]}` : ""}
-          </h1>
-          <p className="text-muted-foreground">Assistant Doctor · {today}</p>
-        </div>
-        <Button
-          className="gap-2"
-          onClick={() => router.push("/assistant-doctor/appointments")}
-        >
-          <Calendar className="w-4 h-4" />
-          View All Appointments
-        </Button>
-      </div>
+    <DashboardPageShell className="p-6">
+      <DashboardPageHeader
+        eyebrow="Assistant Doctor"
+        title={`${greeting}${user?.name ? `, Dr. ${user.name.split(" ")[0]}` : ""}`}
+        description="Monitor your assigned queue, today’s appointments, and quick clinical actions from one place."
+        meta={<span className="text-sm font-medium text-muted-foreground">{today}</span>}
+        actionsSlot={
+          <Button
+            className="gap-2"
+            onClick={() => router.push("/assistant-doctor/appointments")}
+          >
+            <Calendar className="w-4 h-4" />
+            View All Appointments
+          </Button>
+        }
+      />
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="border-slate-100 shadow-sm">
           <CardHeader className="pb-2">
@@ -184,7 +183,6 @@ export default function AssistantDoctorDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's Appointments */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -242,7 +240,7 @@ export default function AssistantDoctorDashboard() {
                         <div>
                           <p className="text-sm font-medium">{patientName}</p>
                           <p className="text-xs text-muted-foreground">
-                            {time} · {String(type).replace(/_/g, " ")}
+                            {time} - {String(type).replace(/_/g, " ")}
                           </p>
                         </div>
                       </div>
@@ -275,7 +273,6 @@ export default function AssistantDoctorDashboard() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
@@ -359,6 +356,6 @@ export default function AssistantDoctorDashboard() {
           </Card>
         </div>
       </div>
-    </div>
+    </DashboardPageShell>
   );
 }

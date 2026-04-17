@@ -21,7 +21,10 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { theme } from "@/lib/utils/theme-utils";
 import { PageLoading, ErrorState } from "@/components/ui/loading";
 import { PasswordChangeModal, DataExportModal } from "@/components/patient/PatientModals";
-import { PatientPageShell, PatientPageHeader } from "@/components/patient/PatientPageShell";
+import {
+  DashboardPageHeader as PatientPageHeader,
+  DashboardPageShell as PatientPageShell,
+} from "@/components/dashboard/DashboardPageShell";
 import { useEffect } from "react";
 import { useUserProfile, useUpdateUserProfile } from "@/hooks/query/useUsers";
 import { 

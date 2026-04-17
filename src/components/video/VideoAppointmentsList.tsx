@@ -89,6 +89,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   getAppointmentDateTimeValue,
+  getAppointmentStatusBadgeLabel,
   getAppointmentDoctorName,
   formatDateInIST,
   formatTimeInIST,
@@ -397,6 +398,12 @@ export function VideoAppointmentsList({
   const AppointmentCard = ({ appointment }: { appointment: VideoAppointment }) => {
     const cfg: { label: string; color: string; dot: string; bg: string } =
       STATUS_CONFIG[appointment.status] ?? DEFAULT_STATUS_CONFIG;
+    const statusLabel = getAppointmentStatusBadgeLabel({
+      status: (appointment as any).rawStatus || appointment.status,
+      type: "VIDEO_CALL",
+      proposedSlots: (appointment as any).proposedSlots,
+      confirmedSlotIndex: (appointment as any).confirmedSlotIndex,
+    });
     const isExpanded = expandedCard === (appointment.id || appointment.appointmentId);
     const doctorName = (appointment as any).doctorName || `Consultation ${appointment.appointmentId || appointment.id}`;
     
@@ -424,7 +431,7 @@ export function VideoAppointmentsList({
                <div className="flex items-center gap-2">
                  <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider", cfg.bg, cfg.color)}>
                    <span className={cn("w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full", cfg.dot)} />
-                   {cfg.label}
+                   {statusLabel}
                  </span>
                  <ChevronDown className={cn("w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground transition-transform duration-300", isExpanded && "rotate-180")} />
                </div>
@@ -463,7 +470,18 @@ export function VideoAppointmentsList({
                             Pay ₹{getVideoPaymentAmount(appointment, appointmentServices)}
                           </PaymentButton>
                         )}
-                        {(appointment as any).paymentCompleted !== false && (appointment as any).rawStatus === 'AWAITING_SLOT_CONFIRMATION' && (
+                        {(appointment as any).paymentCompleted !== false &&
+                          (
+                            (appointment as any).rawStatus === 'AWAITING_SLOT_CONFIRMATION' ||
+                            (
+                              String((appointment as any).rawStatus || '').toUpperCase() === 'SCHEDULED' &&
+                              (
+                                (appointment as any).confirmedSlotIndex === null ||
+                                (appointment as any).confirmedSlotIndex === undefined ||
+                                Number.isNaN(Number((appointment as any).confirmedSlotIndex))
+                              )
+                            )
+                          ) && (
                           <Button variant="outline" className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm border-amber-200 bg-amber-50 text-amber-700 pointer-events-none" disabled>
                             <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5" />
                             Awaiting Doctor Confirmation

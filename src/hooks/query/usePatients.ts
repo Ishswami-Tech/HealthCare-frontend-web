@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
 import {
@@ -20,6 +21,7 @@ import {
   getPatientCarePlan,
   updatePatientCarePlan
 } from '@/lib/actions/patients.server';
+import { usePatientStore } from '@/stores';
 
 // ===== PATIENTS QUERY HOOKS =====
 
@@ -38,11 +40,28 @@ export const usePatients = (clinicId: string, filters?: {
 }, options?: {
   enabled?: boolean;
 }) => {
-  return useQueryData(['patients', clinicId, filters], async () => {
+  const setCollection = usePatientStore((state) => state.setCollection);
+
+  const query = useQueryData(['patients', clinicId, filters], async () => {
     return await getPatients(clinicId, filters);
   }, {
     enabled: !!clinicId && (options?.enabled ?? true),
   });
+
+  useEffect(() => {
+    if (!clinicId) {
+      setCollection('clinic', []);
+      return;
+    }
+
+    const normalizedPatients = Array.isArray(query.data)
+      ? query.data
+      : (query.data as any)?.patients || (query.data as any)?.data || [];
+
+    setCollection('clinic', Array.isArray(normalizedPatients) ? normalizedPatients : []);
+  }, [clinicId, query.data, setCollection]);
+
+  return query;
 };
 
 /**

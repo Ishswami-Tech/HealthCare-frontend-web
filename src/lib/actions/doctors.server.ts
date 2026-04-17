@@ -3,6 +3,10 @@
 import { authenticatedApi } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 
+function unsupportedDoctorRoute(feature: string): never {
+  throw new Error(`Unsupported doctor backend route: ${feature}`);
+}
+
 // ===== DOCTORS MANAGEMENT ACTIONS =====
 
 /**
@@ -81,21 +85,17 @@ export async function updateDoctor(doctorId: string, updates: {
   isActive?: boolean;
   clinicId?: string;
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.UPDATE(doctorId), {
-    method: 'PATCH',
-    body: JSON.stringify(updates),
-  });
-  return data;
+  void doctorId;
+  void updates;
+  return unsupportedDoctorRoute('PATCH /doctors/:id');
 }
 
 /**
  * Delete doctor
  */
 export async function deleteDoctor(doctorId: string) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.DELETE(doctorId), {
-    method: 'DELETE',
-  });
-  return data;
+  void doctorId;
+  return unsupportedDoctorRoute('DELETE /doctors/:id');
 }
 
 /**
@@ -122,12 +122,9 @@ export async function updateDoctorSchedule(doctorId: string, schedule: {
   endTime: string;
   isAvailable: boolean;
 }[]) {
-  // Backend: PUT /appointments/doctor/:doctorId/availability
-  const { data } = await authenticatedApi(`/appointments/doctor/${doctorId}/availability`, {
-    method: 'PUT',
-    body: JSON.stringify({ schedule }),
-  });
-  return data;
+  void doctorId;
+  void schedule;
+  return unsupportedDoctorRoute('PUT /appointments/doctor/:doctorId/availability');
 }
 
 
@@ -143,11 +140,9 @@ export async function updateDoctorAvailability(doctorId: string, availabilityDat
     isAvailable: boolean;
   }[];
 }) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.AVAILABILITY.UPDATE(doctorId), {
-    method: 'PUT',
-    body: JSON.stringify(availabilityData),
-  });
-  return data;
+  void doctorId;
+  void availabilityData;
+  return unsupportedDoctorRoute('PUT /appointments/doctor/:doctorId/availability');
 }
 
 /**
@@ -173,10 +168,11 @@ export async function getDoctorAppointments(doctorId: string, filters?: {
 }
 
 /**
- * Get doctor patients
+ * Get doctor patients for the active authenticated doctor in a clinic
  */
-export async function getDoctorPatients(clinicId: string, doctorId: string, filters?: {
+export async function getDoctorPatients(clinicId: string, filters?: {
   search?: string;
+  gender?: string;
   limit?: number;
 }) {
   const params = new URLSearchParams();
@@ -186,8 +182,8 @@ export async function getDoctorPatients(clinicId: string, doctorId: string, filt
     });
   }
 
-  // Backend: GET /patients/clinic/:clinicId?doctorId=X
-  params.append('doctorId', doctorId);
+  // Backend: GET /patients/clinic/:clinicId
+  // Doctor scoping is derived from the authenticated request user.
   const endpoint = `/patients/clinic/${clinicId}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data } = await authenticatedApi(endpoint, {
     headers: { 'X-Clinic-ID': clinicId },
@@ -199,16 +195,18 @@ export async function getDoctorPatients(clinicId: string, doctorId: string, filt
  * Get doctor statistics
  */
 export async function getDoctorStats(_doctorId: string, _period?: 'day' | 'week' | 'month' | 'year') {
-  // Backend has no /doctors/:id/stats endpoint
-  return null;
+  void _doctorId;
+  void _period;
+  return unsupportedDoctorRoute('GET /doctors/:id/stats');
 }
 
 /**
  * Get doctor reviews
  */
 export async function getDoctorReviews(_doctorId: string, _limit: number = 10) {
-  // Backend has no /doctors/:id/reviews endpoint
-  return null;
+  void _doctorId;
+  void _limit;
+  return unsupportedDoctorRoute('GET /doctors/:id/reviews');
 }
 
 /**
@@ -220,16 +218,16 @@ export async function addDoctorReview(_doctorId: string, _reviewData: {
   comment?: string;
   appointmentId?: string;
 }) {
-  // Backend has no /doctors/:id/reviews endpoint
-  return null;
+  void _doctorId;
+  void _reviewData;
+  return unsupportedDoctorRoute('POST /doctors/:id/reviews');
 }
 
 /**
  * Get doctor specializations
  */
 export async function getDoctorSpecializations() {
-  const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.SPECIALIZATIONS, {});
-  return data;
+  return unsupportedDoctorRoute('GET /doctors/specializations');
 }
 
 /**
@@ -242,15 +240,9 @@ export async function searchDoctors(query: string, filters?: {
   availability?: string;
   limit?: number;
 }) {
-  const params = new URLSearchParams({ q: query });
-  if (filters) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, String(value));
-    });
-  }
-  
-  const { data } = await authenticatedApi(`${API_ENDPOINTS.DOCTORS.SEARCH}?${params.toString()}`, {});
-  return data;
+  void query;
+  void filters;
+  return unsupportedDoctorRoute('GET /doctors/search');
 }
 
 /**
@@ -260,8 +252,9 @@ export async function getDoctorPerformanceMetrics(_doctorId: string, _filters?: 
   startDate?: string;
   endDate?: string;
 }) {
-  // Backend has no /doctors/:id/performance endpoint
-  return null;
+  void _doctorId;
+  void _filters;
+  return unsupportedDoctorRoute('GET /doctors/:id/performance');
 }
 
 /**
@@ -274,12 +267,9 @@ export async function updateDoctorProfile(doctorId: string, profileData: {
   languages?: string[];
   profilePicture?: string;
 }) {
-  // Backend: PATCH /doctors/:id (profile fields included in main update)
-  const { data } = await authenticatedApi(`/doctors/${doctorId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(profileData),
-  });
-  return data;
+  void doctorId;
+  void profileData;
+  return unsupportedDoctorRoute('PATCH /doctors/:id/profile');
 }
 
 /**
@@ -290,8 +280,9 @@ export async function getDoctorEarnings(_doctorId: string, _filters?: {
   endDate?: string;
   period?: 'day' | 'week' | 'month' | 'year';
 }) {
-  // Backend has no /doctors/:id/earnings endpoint
-  return null;
+  void _doctorId;
+  void _filters;
+  return unsupportedDoctorRoute('GET /doctors/:id/earnings');
 }
 
 /**
@@ -304,6 +295,6 @@ export async function exportDoctorData(_filters: {
   startDate?: string;
   endDate?: string;
 }) {
-  // Backend has no doctors export endpoint
-  return null;
+  void _filters;
+  return unsupportedDoctorRoute('POST /doctors/export');
 }

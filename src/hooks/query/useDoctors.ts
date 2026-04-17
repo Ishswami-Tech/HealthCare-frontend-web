@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from 'react';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
 import {
@@ -24,6 +25,7 @@ import {
   exportDoctorData
 } from '@/lib/actions/doctors.server';
 import { getDoctorAvailability } from '@/lib/actions/appointments.server';
+import { usePatientStore } from '@/stores';
 import { useCurrentClinicId } from './useClinics';
 
 // ===== DOCTORS QUERY HOOKS =====
@@ -103,17 +105,37 @@ export const useDoctorAppointments = (doctorId: string, filters?: {
 };
 
 /**
- * Hook to get doctor patients
+ * Hook to get patients for the active authenticated doctor in a clinic
  */
-export const useDoctorPatients = (doctorId: string, filters?: {
+export const useDoctorPatients = (clinicId: string, filters?: {
   search?: string;
+  gender?: string;
   limit?: number;
+}, options?: {
+  enabled?: boolean;
 }) => {
-  return useQueryData(['doctorPatients', doctorId, filters], async () => {
-    return await getDoctorPatients(doctorId, JSON.stringify(filters || {}));
+  const setCollection = usePatientStore((state) => state.setCollection);
+
+  const query = useQueryData(['doctorPatients', clinicId, filters], async () => {
+    return await getDoctorPatients(clinicId, filters);
   }, {
-    enabled: !!doctorId,
+    enabled: !!clinicId && (options?.enabled ?? true),
   });
+
+  useEffect(() => {
+    if (!clinicId) {
+      setCollection('doctor', []);
+      return;
+    }
+
+    const normalizedPatients = Array.isArray(query.data)
+      ? query.data
+      : (query.data as any)?.patients || (query.data as any)?.data || [];
+
+    setCollection('doctor', Array.isArray(normalizedPatients) ? normalizedPatients : []);
+  }, [clinicId, query.data, setCollection]);
+
+  return query;
 };
 
 /**

@@ -18,7 +18,10 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { PatientPageShell, PatientPageHeader } from "@/components/patient/PatientPageShell";
+import {
+  DashboardPageHeader as PatientPageHeader,
+  DashboardPageShell as PatientPageShell,
+} from "@/components/dashboard/DashboardPageShell";
 import {
   showErrorToast,
   showInfoToast,

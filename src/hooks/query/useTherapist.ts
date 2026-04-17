@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
 import type { TherapistAppointment, TherapistPatient, TherapistSession } from '@/types/medical-records.types';
@@ -11,6 +12,7 @@ import {
   getClientsByTherapistId,
   updateClientSession,
 } from '@/lib/actions/therapist.server';
+import { usePatientStore } from '@/stores';
 
 // ===== THERAPIST QUERY HOOKS =====
 
@@ -76,7 +78,9 @@ export const useTherapistClients = (therapistId?: string, filters?: {
   limit?: number | undefined;
   offset?: number | undefined;
 }) => {
-  return useQueryData(
+  const setCollection = usePatientStore((state) => state.setCollection);
+
+  const query = useQueryData(
     ['therapistClients', therapistId, filters],
     async () => {
       const cleanedFilters = filters
@@ -91,9 +95,21 @@ export const useTherapistClients = (therapistId?: string, filters?: {
       return await getClients(therapistId || '', cleanedFilters);
     },
     {
-      enabled: !!therapistId,
+      enabled: true,
     }
   );
+
+  useEffect(() => {
+    const normalizedClients = Array.isArray((query.data as any)?.clients)
+      ? (query.data as any).clients
+      : Array.isArray(query.data)
+        ? query.data
+        : [];
+
+    setCollection('therapist', normalizedClients);
+  }, [query.data, setCollection]);
+
+  return query;
 };
 
 /**

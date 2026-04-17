@@ -17,21 +17,22 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useNursePatients } from "@/hooks/query/useNurse";
 import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { usePatientStore } from "@/stores";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 export default function NursePatients() {
   const { user } = useAuth();
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const patients = usePatientStore((state) => state.collections.nurse);
 
   const nurseId = user?.id;
 
-  const { data: patientsData, isPending } = useNursePatients({ nurseId } as any);
+  const { isPending } = useNursePatients({ nurseId } as any);
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync([['nursePatients', nurseId]]);
-
-  const patients = patientsData?.patients || [];
 
   const filteredPatients = patients.filter((patient: any) => {
     return (
@@ -62,11 +63,17 @@ export default function NursePatients() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Patient Care</h1>
-        <p className="text-gray-600">Manage patient care and monitoring</p>
-      </div>
+    <DashboardPageShell>
+      <DashboardPageHeader
+        eyebrow="Nurse Patients"
+        title="Patient Care"
+        description="Manage assigned patients, review care status, and jump into vitals or bedside workflows."
+        meta={
+          <span className="text-sm font-medium text-muted-foreground">
+            Total: {patients.length} patients
+          </span>
+        }
+      />
 
       <Card>
         <CardContent className="pt-6">
@@ -156,6 +163,6 @@ export default function NursePatients() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </DashboardPageShell>
   );
 }

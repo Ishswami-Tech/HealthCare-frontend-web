@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCounselorAppointments } from "@/hooks/query/useCounselor";
 import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 export default function CounselorDashboard() {
   const { session } = useAuth();
@@ -76,13 +77,17 @@ export default function CounselorDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Counselor Dashboard</h1>
-        <p className="text-gray-600">
-          Welcome back! Here's your counseling overview.
-        </p>
-      </div>
+    <DashboardPageShell>
+      <DashboardPageHeader
+        eyebrow="Counselor"
+        title="Counselor Dashboard"
+        description="Track counseling sessions, client volume, and daily completion metrics from one workspace."
+        meta={
+          <span className="text-sm font-medium text-muted-foreground">
+            {stats.totalClients} total clients
+          </span>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -220,6 +225,6 @@ export default function CounselorDashboard() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </DashboardPageShell>
   );
 }

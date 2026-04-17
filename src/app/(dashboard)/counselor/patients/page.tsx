@@ -15,6 +15,8 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCounselorClients } from "@/hooks/query/useCounselor";
 import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { usePatientStore } from "@/stores";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 export default function CounselorPatients() {
   const { session } = useAuth();
@@ -22,15 +24,14 @@ export default function CounselorPatients() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const clients = usePatientStore((state) => state.collections.counselor);
 
   const counselorId = user?.id;
 
-  const { data: clientsData, isPending } = useCounselorClients(counselorId);
+  const { isPending } = useCounselorClients(counselorId);
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync([['counselorClients', counselorId]]);
-
-  const clients = clientsData?.clients || [];
 
   const filteredClients = clients.filter((client: any) => {
     const matchesStatus =
@@ -62,11 +63,17 @@ export default function CounselorPatients() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Clients</h1>
-        <p className="text-gray-600">Manage client records and counseling progress</p>
-      </div>
+    <DashboardPageShell>
+      <DashboardPageHeader
+        eyebrow="Counselor Clients"
+        title="Clients"
+        description="Review counseling clients, filter active caseloads, and manage follow-up context."
+        meta={
+          <span className="text-sm font-medium text-muted-foreground">
+            Total: {clients.length} clients
+          </span>
+        }
+      />
 
       <Card>
         <CardContent className="pt-6">
@@ -166,6 +173,6 @@ export default function CounselorPatients() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </DashboardPageShell>
   );
 }

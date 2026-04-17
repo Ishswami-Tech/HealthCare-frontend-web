@@ -11,6 +11,7 @@ import {
   shouldHandleErrorGlobally,
   TOAST_IDS,
 } from "@/hooks/utils/use-toast";
+import { isSessionInvalidError, triggerClientAuthRecovery } from "@/lib/utils/auth-recovery";
 
 interface ApiError extends Error {
   response?: {
@@ -79,14 +80,13 @@ export default function QueryProvider({
 
               // ✅ Use centralized error handler
               // Handle auth errors globally
-              if (apiError?.response?.status === 401) {
+              if (isSessionInvalidError(apiError)) {
                 showErrorToast(ERROR_MESSAGES.SESSION_EXPIRED, {
                   id: TOAST_IDS.GLOBAL.ERROR,
                 });
-                // Use router instead of window.location for better UX
                 setTimeout(() => {
-                  window.location.href = ROUTES.LOGIN;
-                }, 1000);
+                  triggerClientAuthRecovery();
+                }, 800);
                 return;
               }
 

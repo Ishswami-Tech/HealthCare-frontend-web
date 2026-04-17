@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Role } from "@/types/auth.types";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,8 +21,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { usePatients } from "@/hooks/query/usePatients";
+import { useAppointments } from "@/hooks/query/useAppointments";
+import { useDoctorPatients } from "@/hooks/query/useDoctors";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { usePatientStore } from "@/stores";
 import {
   Calendar,
   Users,
@@ -39,42 +41,95 @@ import {
 } from "lucide-react";
 
 export default function DoctorPatients() {
-  useAuth();
+  const { session } = useAuth();
   const { clinicId } = useClinicContext();
+  const doctorId = session?.user?.id || "";
   const [searchTerm, setSearchTerm] = useState("");
   const [genderFilter, setGenderFilter] = useState("all");
   const [ageFilter, setAgeFilter] = useState("all");
-  const [drawerPatient, setDrawerPatient] = useState<any>(null);
+  const patients = usePatientStore((state) => state.collections.doctor);
+  const drawerPatient = usePatientStore((state) => state.selectedPatient);
+  const setSelectedPatient = usePatientStore((state) => state.setSelectedPatient);
 
   // Fetch real patient data
-  const { data: patientsData, isPending: isPendingPatients } = usePatients(
+  const { isPending: isPendingPatients } = useDoctorPatients(
     clinicId || "",
     {
       search: searchTerm,
       ...(genderFilter !== "all" && { gender: genderFilter }),
+    },
+    {
+      enabled: !!clinicId,
     }
   );
+  const { data: appointmentsData } = useAppointments({
+    ...(clinicId ? { clinicId } : {}),
+    ...(doctorId ? { doctorId } : {}),
+    limit: 300,
+  });
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
+  const patientsWithProfile = useMemo(() => {
+    return patients.map((patient: any) => {
+      const resolvedName =
+        patient.name ||
+        patient.user?.name ||
+        `${patient.firstName || patient.user?.firstName || ""} ${patient.lastName || patient.user?.lastName || ""}`.trim() ||
+        patient.email ||
+        patient.user?.email ||
+        "Unknown Patient";
+      const dateOfBirth = patient.dateOfBirth || patient.user?.dateOfBirth;
+      let age = patient.age;
 
-  // Extract patients array from response
-  const patients = useMemo(() => {
-    if (!patientsData) return [];
-    return Array.isArray(patientsData)
-      ? patientsData
-      : (patientsData as any).patients || [];
-  }, [patientsData]);
+      if (!age && dateOfBirth) {
+        const birthDate = new Date(dateOfBirth);
+        if (!Number.isNaN(birthDate.getTime())) {
+          const today = new Date();
+          const years = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+          age =
+            monthDiff < 0 ||
+            (monthDiff === 0 && today.getDate() < birthDate.getDate())
+              ? years - 1
+              : years;
+        }
+      }
 
-  const filteredPatients = patients.filter((patient: any) => {
+      return {
+        ...patient,
+        name: resolvedName,
+        firstName: patient.firstName || patient.user?.firstName || "",
+        lastName: patient.lastName || patient.user?.lastName || "",
+        email: patient.email || patient.user?.email || "",
+        phone: patient.phone || patient.user?.phone || "",
+        gender: patient.gender || patient.user?.gender || "",
+        dateOfBirth,
+        age,
+        address: patient.address || patient.user?.address || "",
+      };
+    });
+  }, [patients]);
+  const appointments = useMemo(() => {
+    if (!appointmentsData) return [];
+    return Array.isArray(appointmentsData)
+      ? appointmentsData
+      : (appointmentsData as any).appointments || [];
+  }, [appointmentsData]);
+
+  const filteredPatients = patientsWithProfile.filter((patient: any) => {
     const name = patient.name || `${patient.firstName || ""} ${patient.lastName || ""}`.trim() || "";
+    const patientPhone = patient.phone || "";
+    const patientEmail = patient.email || "";
     const matchesSearch =
       name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patientPhone.includes(searchTerm) ||
+      patientEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (patient.chiefComplaints || []).some((complaint: string) =>
         String(complaint).toLowerCase().includes(searchTerm.toLowerCase())
       );
     const matchesGender =
-      genderFilter === "all" || patient.gender.toLowerCase() === genderFilter;
+      genderFilter === "all" || String(patient.gender || "").toLowerCase() === genderFilter;
     const matchesAge =
       ageFilter === "all" ||
       (ageFilter === "young" && patient.age < 30) ||
@@ -83,6 +138,46 @@ export default function DoctorPatients() {
 
     return matchesSearch && matchesGender && matchesAge;
   });
+  const stats = useMemo(() => {
+    const now = new Date();
+    const weekEnd = new Date(now);
+    weekEnd.setDate(now.getDate() + 7);
+
+    const upcomingAppointments = appointments.filter((appointment: any) => {
+      const dateValue = appointment.startTime || appointment.appointmentDate || (appointment.date && appointment.time ? `${appointment.date}T${appointment.time}` : appointment.date);
+      const parsed = dateValue ? new Date(dateValue) : null;
+      return (
+        parsed &&
+        !Number.isNaN(parsed.getTime()) &&
+        parsed >= now &&
+        parsed <= weekEnd &&
+        ["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes(String(appointment.status || "").toUpperCase())
+      );
+    }).length;
+
+    const followUps = appointments.filter((appointment: any) => {
+      const followUpDate = appointment.followUpDate ? new Date(appointment.followUpDate) : null;
+      return followUpDate && !Number.isNaN(followUpDate.getTime()) && followUpDate >= now && followUpDate <= weekEnd;
+    }).length;
+
+    const repeatPatients = appointments.reduce((acc: Map<string, number>, appointment: any) => {
+      const patientId = String(appointment.patientId || "");
+      if (!patientId) return acc;
+      acc.set(patientId, (acc.get(patientId) || 0) + 1);
+      return acc;
+    }, new Map<string, number>());
+
+    const improvedPatients = Array.from(repeatPatients.values() as Iterable<number>).filter((count) => count > 1).length;
+    const recoveryRate = patientsWithProfile.length > 0
+      ? Math.round((improvedPatients / patientsWithProfile.length) * 100)
+      : 0;
+
+    return {
+      upcomingAppointments,
+      followUps,
+      recoveryRate,
+    };
+  }, [appointments, patientsWithProfile.length]);
 
 
   if (isPendingPatients) {
@@ -97,19 +192,21 @@ export default function DoctorPatients() {
 
   return (
     
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">My Patients</h1>
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
-                Total: {patients.length} patients
-              </div>
-            </div>
-          </div>
+        <DashboardPageShell>
+          <DashboardPageHeader
+            eyebrow="Doctor Patients"
+            title="My Patients"
+            description="Review patient records, EHR summaries, contact details, and follow-up context from a shared clinical workspace."
+            meta={
+              <span className="text-sm font-medium text-muted-foreground">
+                Total: {patientsWithProfile.length} patients
+              </span>
+            }
+          />
 
           {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+            <Card className="border-l-4 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Total Patients
@@ -117,25 +214,25 @@ export default function DoctorPatients() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{patients.length}</div>
+                <div className="text-2xl font-bold">{patientsWithProfile.length}</div>
                 <p className="text-xs text-muted-foreground">Under your care</p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">This Week</CardTitle>
                 <Calendar className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">12</div>
+                <div className="text-2xl font-bold text-blue-600">{stats.upcomingAppointments}</div>
                 <p className="text-xs text-muted-foreground">
                   Appointments scheduled
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Follow-ups
@@ -143,12 +240,12 @@ export default function DoctorPatients() {
                 <Clock className="h-4 w-4 text-orange-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-600">5</div>
+                <div className="text-2xl font-bold text-orange-600">{stats.followUps}</div>
                 <p className="text-xs text-muted-foreground">Due this week</p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-green-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Recovery Rate
@@ -156,7 +253,7 @@ export default function DoctorPatients() {
                 <TrendingUp className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">92%</div>
+                <div className="text-2xl font-bold text-green-600">{stats.recoveryRate}%</div>
                 <p className="text-xs text-muted-foreground">
                   Patient improvement
                 </p>
@@ -232,7 +329,7 @@ export default function DoctorPatients() {
                           {patient.age && (
                             <span>
                               {patient.age} years{" "}
-                              {patient.gender ? `• ${patient.gender}` : ""}
+                              {patient.gender ? `- ${patient.gender}` : ""}
                             </span>
                           )}
                           {patient.phone && (
@@ -283,7 +380,7 @@ export default function DoctorPatients() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setDrawerPatient(patient)}
+                          onClick={() => setSelectedPatient(patient)}
                         >
                           <Eye className="w-4 h-4 mr-1" />
                           View EHR
@@ -318,7 +415,7 @@ export default function DoctorPatients() {
           {/* EHR Drawer */}
           <Drawer
             open={!!drawerPatient}
-            onOpenChange={(open) => !open && setDrawerPatient(null)}
+            onOpenChange={(open) => !open && setSelectedPatient(null)}
           >
             <DrawerContent className="max-w-4xl mx-auto max-h-[90vh] overflow-y-auto">
               {drawerPatient && (
@@ -328,7 +425,7 @@ export default function DoctorPatients() {
               )}
             </DrawerContent>
           </Drawer>
-        </div>
+        </DashboardPageShell>
     
   );
 }
@@ -343,7 +440,10 @@ function EhrDrawerContent({
     useComprehensiveHealthRecord(patientUserId || "") as { data: any; isPending: boolean };
 
   const patientName =
+    patient?.name ||
     `${patient?.firstName || ""} ${patient?.lastName || ""}`.trim() ||
+    patient?.user?.name ||
+    `${patient?.user?.firstName || ""} ${patient?.user?.lastName || ""}`.trim() ||
     "Unknown Patient";
 
   return (

@@ -66,10 +66,10 @@ export function DataTable<TData, TValue>({
   const rangeEnd = data.length === 0 ? 0 : pageIndex * pageSize + currentPageRows;
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("min-w-0 space-y-4", className)}>
       {toolbar}
-      <div className="overflow-x-auto rounded-md border">
-        <Table>
+      <div className="w-full overflow-x-auto rounded-xl border border-border bg-card">
+        <Table className="min-w-[720px]">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -105,11 +105,11 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
+      <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
           Showing {rangeStart}-{rangeEnd} of {data.length} row(s)
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"

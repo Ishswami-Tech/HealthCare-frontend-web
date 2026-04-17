@@ -22,6 +22,8 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { usePatientStore } from "@/stores";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 export default function NurseDashboard() {
   const { session } = useAuth();
@@ -30,8 +32,9 @@ export default function NurseDashboard() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const patients = usePatientStore((state) => state.collections.nurse);
 
-  const { data: patientsData, isPending: isPatientsPending } = useNursePatients({
+  const { isPending: isPatientsPending } = useNursePatients({
     nurseId,
     search: searchTerm,
     status: statusFilter === "all" ? undefined : statusFilter,
@@ -39,8 +42,6 @@ export default function NurseDashboard() {
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync([['nursePatients', user?.clinicId]]);
-
-  const patients = patientsData?.patients || [];
 
   const stats = useMemo(() => {
     const todayDate = new Date().toISOString().split('T')[0];
@@ -136,13 +137,17 @@ export default function NurseDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Nurse Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome back, {user?.name || "Nurse"}! Here's your patient care overview.
-        </p>
-      </div>
+    <DashboardPageShell>
+      <DashboardPageHeader
+        eyebrow="Nurse"
+        title="Nurse Dashboard"
+        description={`Welcome back, ${user?.name || "Nurse"}. Review patient coverage, vitals activity, and care priorities from one dashboard.`}
+        meta={
+          <span className="text-sm font-medium text-muted-foreground">
+            {stats.activePatients} assigned patients
+          </span>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -265,6 +270,6 @@ export default function NurseDashboard() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </DashboardPageShell>
   );
 }

@@ -18,6 +18,7 @@ import {
   dismissToast,
 } from "@/hooks/utils/use-toast";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
+import { isSessionInvalidError, triggerClientAuthRecovery } from "@/lib/utils/auth-recovery";
 
 
 export interface MutationOperationOptions<TData, TVariables, TError = Error> {
@@ -98,9 +99,14 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
         });
       }
 
+      // ✅ Always clear a loading toast for this operation, even when success
+      // and error toasts are intentionally suppressed.
+      if (showLoading || showToast) {
+        dismissToast(toastId);
+      }
+
       // ✅ Handle success toast
       if (showToast) {
-        dismissToast(toastId);
         showSuccessToast(successMessage, { id: toastId });
       }
 
@@ -109,17 +115,21 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
         onSuccess(data, variables);
       }
     },
-    [toastId, successMessage, invalidateQueries, showToast, onSuccess]
+    [toastId, successMessage, invalidateQueries, showToast, showLoading, onSuccess]
   );
 
   const handleError = useCallback(
     (error: TError, variables: TVariables) => {
       // ✅ Consistent error handling
-      if (showToast) {
+      if (showLoading || showToast) {
         dismissToast(toastId);
       }
 
       sanitizeErrorMessage(error);
+      if (isSessionInvalidError(error)) {
+        triggerClientAuthRecovery();
+        return;
+      }
       // const finalErrorMessage =
       //   errorMessage || sanitizedError || ERROR_MESSAGES.UNKNOWN_ERROR;
 
@@ -134,7 +144,7 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
         onError(error, variables);
       }
     },
-    [toastId, errorMessage, showToast, onError]
+    [toastId, errorMessage, showToast, showLoading, onError]
   );
 
   const mutation = useMutation<TData, TError, TVariables>({

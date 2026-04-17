@@ -15,6 +15,8 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTherapistClients, useUpdateTherapistClientSession } from "@/hooks/query/useTherapist";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { usePatientStore } from "@/stores";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 export default function TherapistPatients() {
   useAuth();
@@ -26,9 +28,10 @@ export default function TherapistPatients() {
   // State for filters and search
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const clients = usePatientStore((state) => state.collections.therapist);
 
   // Fetch real data using hook
-  const { data: clientsData, isPending: isPending } = useTherapistClients(therapistId, {
+  const { isPending: isPending } = useTherapistClients(therapistId, {
     search: searchQuery || undefined,
     status: filterStatus !== "all" ? filterStatus : undefined,
   });
@@ -38,9 +41,6 @@ export default function TherapistPatients() {
 
   // Mutation
   const updateSessionMutation = useUpdateTherapistClientSession();
-
-  // Extract clients array from response
-  const clients = clientsData?.clients || [];
 
   const safeDate = (value: unknown): Date | null => {
     if (typeof value !== "string" || !value) return null;
@@ -70,14 +70,17 @@ export default function TherapistPatients() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Clients</h1>
-        <p className="text-gray-600">
-          Manage your patient records and therapy progress
-        </p>
-      </div>
+    <DashboardPageShell>
+      <DashboardPageHeader
+        eyebrow="Therapist Clients"
+        title="Clients"
+        description="Manage therapy client records, session history, and progress from a shared clinical view."
+        meta={
+          <span className="text-sm font-medium text-muted-foreground">
+            Total: {clients.length} clients
+          </span>
+        }
+      />
 
       {/* Search and Filter */}
       <Card>
@@ -211,6 +214,6 @@ export default function TherapistPatients() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </DashboardPageShell>
   );
 }

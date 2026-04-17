@@ -294,7 +294,7 @@ export default function FinanceBillingDashboard() {
                           onClick={(e) => {
                             e.stopPropagation();
                             window.open(
-                              `/api/billing/invoices/${inv.id}/download`,
+                              `/billing/invoices/${inv.id}/download`,
                               "_blank",
                               "noopener,noreferrer"
                             );

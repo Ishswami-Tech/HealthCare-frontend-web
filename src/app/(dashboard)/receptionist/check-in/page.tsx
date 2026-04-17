@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments, useCheckInAppointment } from "@/hooks/query/useAppointments";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 interface AppointmentListItem {
   id: string;
@@ -327,22 +328,23 @@ export default function ReceptionistCheckInPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <UserCheck className="h-7 w-7" />
-          Patient Arrival Confirmation
-        </h1>
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-500 bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-100 dark:border-slate-700 shadow-sm">
-          <Calendar className="h-4 w-4 text-emerald-500" />
-          {new Date().toLocaleDateString("en-IN", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </div>
-      </div>
+    <DashboardPageShell className="p-6">
+      <DashboardPageHeader
+        eyebrow="Reception Check-In"
+        title="Patient Arrival Confirmation"
+        description="Confirm today’s in-person arrivals and move ready patients into the consultation flow."
+        meta={
+          <span className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Calendar className="h-4 w-4 text-emerald-500" />
+            {new Date().toLocaleDateString("en-IN", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </span>
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -370,6 +372,6 @@ export default function ReceptionistCheckInPage() {
           />
         </CardContent>
       </Card>
-    </div>
+    </DashboardPageShell>
   );
 }
