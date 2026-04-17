@@ -259,33 +259,10 @@ export const SUPPORTED_LANGUAGES = [
 
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 
-// ===== APPOINTMENT REFERENCE =====
+// ✅ Consolidated: Import types from their respective type files (single source of truth)
+import type { Appointment } from './appointment.types';
+import type { Patient } from './patient.types';
 
-export interface Appointment {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  clinicId: string;
-  appointmentDate: string;
-  startTime: string;
-  endTime: string;
-  status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
-  type: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'ROUTINE_CHECKUP';
-  reason?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ===== PATIENT REFERENCE =====
-
-export interface Patient {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  dateOfBirth: string;
-  gender: 'MALE' | 'FEMALE' | 'OTHER';
-}
+// Re-export for convenience
+export type { Appointment, Patient };
 

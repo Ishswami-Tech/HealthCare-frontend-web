@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -244,20 +244,20 @@ export function QuickStats({ stats, className }: QuickStatsProps) {
   );
 }
 
-// Dashboard header component
-interface DashboardHeaderProps {
+// Dashboard header card component
+interface DashboardHeaderCardProps {
   title: string;
   subtitle?: string;
   actions?: React.ReactNode;
   className?: string;
 }
 
-export function DashboardHeader({ 
+export function DashboardHeaderCard({ 
   title, 
   subtitle, 
   actions, 
   className 
-}: DashboardHeaderProps) {
+}: DashboardHeaderCardProps) {
   return (
     <div className={cn('flex items-center justify-between', className)}>
       <div>

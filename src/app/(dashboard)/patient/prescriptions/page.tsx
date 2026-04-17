@@ -1,879 +1,662 @@
 "use client";
-import React, { useState } from "react";
-import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { useMemo, useState } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { theme } from "@/lib/theme-utils";
 import {
-  Activity,
-  Calendar,
-  FileText,
-  Pill,
-  User,
-  LogOut,
-  Search,
-  Filter,
-  Download,
-  RefreshCw,
-  ShoppingCart,
-  Clock,
-  CheckCircle,
+  DashboardPageHeader as PatientPageHeader,
+  DashboardPageShell as PatientPageShell,
+} from "@/components/dashboard/DashboardPageShell";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmptyState, ErrorState, PageLoading } from "@/components/ui/loading";
+import { PaymentButton } from "@/components/payments/PaymentButton";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { usePrescriptions } from "@/hooks/query/usePharmacy";
+import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
+import { theme } from "@/lib/utils/theme-utils";
+import type {
+  Prescription as PharmacyPrescription,
+  PrescriptionMedication,
+} from "@/types/pharmacy.types";
+import {
   Bell,
+  Clock,
+  Download,
+  FileText,
+  Filter,
   Leaf,
-  Package,
-  Truck,
-  CreditCard,
   MapPin,
-  Phone,
-  Star,
-  Eye,
+  Package,
+  Pill,
+  Search,
+  ShoppingCart,
 } from "lucide-react";
+
+type DisplayMedication = {
+  name: string;
+  dosage: string;
+  duration: string;
+  remaining: string;
+  instructions?: string;
+  category: string;
+  description?: string;
+};
+
+type DisplayPrescription = {
+  id: string;
+  date: string;
+  doctor: string;
+  status: string;
+  queueCategory?: string;
+  queueStatus?: "PENDING" | "DISPENSED" | "CANCELLED";
+  queuePosition?: number | null;
+  activeQueueEntry?: boolean;
+  medications: DisplayMedication[];
+  totalCost: number;
+  paidAmount: number;
+  pendingAmount: number;
+  paymentStatus: "PENDING" | "PARTIAL" | "PAID";
+  notes?: string;
+  validUntil?: string | null;
+};
+
+type PrescriptionMedicationResponse = PrescriptionMedication & {
+  medicineName?: string;
+  medicine?: (PrescriptionMedication["medicine"] & { properties?: string }) | undefined;
+};
+
+type PrescriptionResponseItem = PharmacyPrescription & {
+  items?: PrescriptionMedicationResponse[];
+  medications: PrescriptionMedicationResponse[];
+};
+
+function normalizePrescriptionStatus(status?: string) {
+  const value = String(status || "PENDING").toUpperCase();
+  if (value === "FILLED" || value === "DISPENSED") {
+    return "DISPENSED";
+  }
+  if (value === "CANCELLED") return "CANCELLED";
+  if (value === "COMPLETED") return "COMPLETED";
+  return "PENDING";
+}
+
+function normalizePrescription(raw: PrescriptionResponseItem): DisplayPrescription {
+  const medicationItems = Array.isArray(raw.medications)
+    ? raw.medications
+    : Array.isArray(raw.items)
+      ? raw.items
+      : [];
+  const queueEntry = normalizeQueueEntry(raw);
+
+  const medications: DisplayMedication[] = medicationItems.map((item: PrescriptionMedicationResponse) => ({
+    name: item.medicine?.name || item.medicineName || "Medicine",
+    dosage: item.dosage || "As prescribed",
+    duration: item.duration || "Follow doctor instructions",
+    remaining:
+      item.isDispensed === false
+        ? "Pending dispense"
+        : item.dispensedQuantity
+          ? `${item.dispensedQuantity}/${item.quantity || item.dispensedQuantity} dispensed`
+          : item.quantity
+            ? `${item.quantity} units`
+            : "As prescribed",
+    category: item.medicine?.category || item.medicine?.type || "Prescription",
+    ...(item.instructions ? { instructions: item.instructions } : {}),
+    ...(item.medicine?.description || item.medicine?.properties
+      ? { description: item.medicine?.description || item.medicine?.properties }
+      : {}),
+  }));
+
+  const doctorName =
+    `${raw.doctor?.firstName || ""} ${raw.doctor?.lastName || ""}`.trim() ||
+    raw.doctorName ||
+    "Assigned Doctor";
+
+  return {
+    id: raw.prescriptionNumber || raw.id,
+    date: raw.prescribedAt || raw.createdAt || raw.updatedAt || new Date().toISOString(),
+    doctor: doctorName,
+    status: normalizePrescriptionStatus(raw.status),
+    queueCategory: queueEntry.queueCategory,
+    ...(raw.queueStatus ? { queueStatus: raw.queueStatus } : {}),
+    queuePosition: queueEntry.position > 0 ? queueEntry.position : null,
+    activeQueueEntry: Boolean(raw.activeQueueEntry ?? queueEntry.position > 0),
+    medications,
+    totalCost: Number(raw.totalAmount || 0),
+    paidAmount: Number(raw.paidAmount || 0),
+    pendingAmount: Number(raw.pendingAmount || 0),
+    paymentStatus: String(raw.paymentStatus || "PENDING").toUpperCase() as
+      | "PENDING"
+      | "PARTIAL"
+      | "PAID",
+    ...(raw.notes ? { notes: raw.notes } : {}),
+    validUntil: raw.validUntil || null,
+  };
+}
+
+function getStatusColor(status: string) {
+  switch (status.toUpperCase()) {
+    case "DISPENSED":
+      return theme.badges.green;
+    case "PENDING":
+      return theme.badges.yellow;
+    case "COMPLETED":
+      return theme.badges.gray;
+    case "CANCELLED":
+      return theme.badges.red;
+    default:
+      return theme.badges.gray;
+  }
+}
 
 export default function PatientPrescriptions() {
   const { session } = useAuth();
   const user = session?.user;
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-
-  // Mock prescription data
-  const prescriptions = [
-    {
-      id: "RX001",
-      date: "2024-01-15",
-      doctor: "Dr. Priya Sharma",
-      status: "Active",
-      medications: [
-        {
-          name: "Triphala Churna",
-          dosage: "1 tsp twice daily",
-          duration: "30 days",
-          remaining: "22 days",
-          instructions: "Take with warm water 30 min before meals",
-          benefits: "Digestive health, detoxification",
-          category: "Herbal Powder",
-        },
-        {
-          name: "Ashwagandha Capsules",
-          dosage: "2 capsules at bedtime",
-          duration: "60 days",
-          remaining: "52 days",
-          instructions: "Take with warm milk for better absorption",
-          benefits: "Stress reduction, improved sleep",
-          category: "Herbal Supplement",
-        },
-        {
-          name: "Brahmi Ghrita",
-          dosage: "5 drops in each nostril",
-          duration: "21 days",
-          remaining: "14 days",
-          instructions: "Use during morning pranayama practice",
-          benefits: "Mental clarity, memory enhancement",
-          category: "Medicated Oil",
-        },
-      ],
-      totalCost: 2850,
-      notes:
-        "Continue yoga and meditation. Avoid cold foods and late night meals.",
-      nextRefill: "2024-02-01",
-      refillsRemaining: 2,
-    },
-    {
-      id: "RX002",
-      date: "2024-01-08",
-      doctor: "Dr. Amit Singh",
-      status: "Completed",
-      medications: [
-        {
-          name: "Saraswatarishta",
-          dosage: "15ml twice daily",
-          duration: "45 days",
-          remaining: "0 days",
-          instructions: "Take after meals with equal amount of water",
-          benefits: "Mental strength, nervous system support",
-          category: "Herbal Tonic",
-        },
-        {
-          name: "Jatamansi Churna",
-          dosage: "1/2 tsp with honey",
-          duration: "30 days",
-          remaining: "0 days",
-          instructions: "Take at bedtime for better sleep",
-          benefits: "Calming, sleep quality improvement",
-          category: "Herbal Powder",
-        },
-      ],
-      totalCost: 1680,
-      notes:
-        "Treatment completed successfully. Continue lifestyle recommendations.",
-      nextRefill: null,
-      refillsRemaining: 0,
-    },
-    {
-      id: "RX003",
-      date: "2024-01-20",
-      doctor: "Dr. Priya Sharma",
-      status: "Pending",
-      medications: [
-        {
-          name: "Mahasudarshan Churna",
-          dosage: "1 tsp with warm water",
-          duration: "14 days",
-          remaining: "14 days",
-          instructions: "Take on empty stomach in morning",
-          benefits: "Immunity boost, fever management",
-          category: "Herbal Medicine",
-        },
-        {
-          name: "Yashtimadhu Churna",
-          dosage: "1/2 tsp with milk",
-          duration: "21 days",
-          remaining: "21 days",
-          instructions: "Take before bedtime",
-          benefits: "Respiratory health, soothing effect",
-          category: "Herbal Powder",
-        },
-      ],
-      totalCost: 980,
-      notes: "New prescription for seasonal immunity support.",
-      nextRefill: "2024-02-10",
-      refillsRemaining: 1,
-    },
-  ];
-
-  // Mock pharmacy data
-  const nearbyPharmacies = [
-    {
-      id: "PH001",
-      name: "Ayurveda Plus Pharmacy",
-      address: "123 Health Street, Mumbai, MH 400001",
-      distance: "0.8 km",
-      rating: 4.7,
-      reviews: 234,
-      phone: "+91 9876543210",
-      deliveryTime: "30-45 mins",
-      deliveryFee: 50,
-      inStock: true,
-    },
-    {
-      id: "PH002",
-      name: "Herbal Care Center",
-      address: "456 Wellness Road, Mumbai, MH 400002",
-      distance: "1.2 km",
-      rating: 4.5,
-      reviews: 189,
-      phone: "+91 9876543211",
-      deliveryTime: "45-60 mins",
-      deliveryFee: 30,
-      inStock: true,
-    },
-    {
-      id: "PH003",
-      name: "Traditional Medicines Store",
-      address: "789 Ayurveda Lane, Mumbai, MH 400003",
-      distance: "2.1 km",
-      rating: 4.6,
-      reviews: 156,
-      phone: "+91 9876543212",
-      deliveryTime: "60-75 mins",
-      deliveryFee: 40,
-      inStock: false,
-    },
-  ];
-
-  // Mock dosage reminders
-  const dosageReminders = [
-    {
-      id: "1",
-      medication: "Triphala Churna",
-      time: "08:00 AM",
-      dosage: "1 tsp",
-      status: "Completed",
-      date: "Today",
-    },
-    {
-      id: "2",
-      medication: "Ashwagandha Capsules",
-      time: "10:00 PM",
-      dosage: "2 capsules",
-      status: "Pending",
-      date: "Today",
-    },
-    {
-      id: "3",
-      medication: "Brahmi Ghrita",
-      time: "06:30 AM",
-      dosage: "5 drops each nostril",
-      status: "Completed",
-      date: "Today",
-    },
-    {
-      id: "4",
-      medication: "Triphala Churna",
-      time: "08:00 PM",
-      dosage: "1 tsp",
-      status: "Upcoming",
-      date: "Today",
-    },
-  ];
-
-  const filteredPrescriptions = prescriptions.filter((prescription) => {
-    const matchesSearch =
-      prescription.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prescription.doctor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prescription.medications.some((med) =>
-        med.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    const matchesStatus =
-      statusFilter === "all" ||
-      prescription.status.toLowerCase() === statusFilter;
-
-    return matchesSearch && matchesStatus;
+  const {
+    data: prescriptionsData = [],
+    isPending: isLoading,
+    error,
+  } = usePrescriptions(user?.clinicId || "", {
+    ...(user?.id ? { patientId: user.id } : {}),
+    enabled: !!user?.clinicId && !!user?.id,
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "active":
-        return theme.badges.green;
-      case "pending":
-        return theme.badges.yellow;
-      case "completed":
-        return theme.badges.gray;
-      case "expired":
-        return theme.badges.red;
-      default:
-        return theme.badges.gray;
-    }
-  };
+  const prescriptions = Array.isArray(prescriptionsData)
+    ? (prescriptionsData as PrescriptionResponseItem[])
+    : Array.isArray((prescriptionsData as { prescriptions?: PrescriptionResponseItem[] })?.prescriptions)
+      ? ((prescriptionsData as { prescriptions?: PrescriptionResponseItem[] }).prescriptions ?? [])
+      : [];
 
-  const getReminderStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "completed":
-        return theme.badges.green;
-      case "pending":
-        return theme.badges.yellow;
-      case "upcoming":
-        return theme.badges.blue;
-      case "missed":
-        return theme.badges.red;
-      default:
-        return theme.badges.gray;
-    }
-  };
+  const displayPrescriptions = useMemo(
+    () => prescriptions.map(normalizePrescription),
+    [prescriptions]
+  );
 
-  const handleRefillRequest = (prescriptionId: string) => {
-    console.log("Requesting refill for prescription:", prescriptionId);
-  };
+  const filteredPrescriptions = useMemo(
+    () =>
+      displayPrescriptions.filter((prescription) => {
+        const matchesSearch =
+          !searchTerm ||
+          prescription.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          prescription.doctor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          prescription.medications.some((medication) =>
+            medication.name.toLowerCase().includes(searchTerm.toLowerCase())
+          );
 
-  const handleOrderFromPharmacy = (
-    pharmacyId: string,
-    prescriptionId: string
-  ) => {
-    console.log(
-      "Ordering from pharmacy:",
-      pharmacyId,
-      "prescription:",
-      prescriptionId
+        const matchesStatus =
+          statusFilter === "all" || prescription.status.toLowerCase() === statusFilter;
+
+        return matchesSearch && matchesStatus;
+      }),
+    [displayPrescriptions, searchTerm, statusFilter]
+  );
+
+  const medicationPlan = useMemo(
+    () =>
+      displayPrescriptions.flatMap((prescription) =>
+        prescription.medications.map((medication, index) => ({
+          id: `${prescription.id}-${index}`,
+          prescriptionId: prescription.id,
+          doctor: prescription.doctor,
+          status: prescription.status,
+          date: prescription.date,
+          ...medication,
+        }))
+      ),
+    [displayPrescriptions]
+  );
+
+  const medicineDeskQueue = useMemo(
+    () =>
+      displayPrescriptions
+        .filter((prescription) => prescription.activeQueueEntry)
+        .sort(
+          (left, right) => Number(left.queuePosition || 0) - Number(right.queuePosition || 0)
+        ),
+    [displayPrescriptions]
+  );
+
+  if (error) {
+    return (
+      <ErrorState
+        title="Unable to load prescriptions"
+        message="We couldn't fetch your prescriptions. Please try again."
+        onRetry={() => window.location.reload()}
+      />
     );
-  };
+  }
 
-  const sidebarLinks = getRoutesByRole(Role.PATIENT).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("medical-records") ? (
-      <FileText className="w-5 h-5" />
-    ) : route.path.includes("prescriptions") ? (
-      <Pill className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <User className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
+  if (isLoading) {
+    return <PageLoading text="Loading your prescriptions..." />;
+  }
 
   return (
-    <DashboardLayout title="Prescriptions" allowedRole={Role.PATIENT}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name || `${user?.firstName} ${user?.lastName}` || "Patient",
-          avatarUrl: user?.profilePicture || "/avatar.png",
-        }}
-      >
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">My Prescriptions</h1>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4" />
-                Refill Request
-              </Button>
-              <Button className="flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4" />
-                Order Medicine
-              </Button>
-            </div>
-          </div>
+    <PatientPageShell>
+      <PatientPageHeader
+        eyebrow="Prescriptions & Billing"
+        title="My prescriptions"
+        description="Track active medicines, review doctor instructions, and complete prescription payments from one consistent patient-friendly surface."
+        actions={[
+          {
+            label: "Refill unavailable",
+            icon: <Bell className="h-4 w-4" />,
+            variant: "outline",
+            disabled: true,
+          },
+          {
+            label: "Ordering unavailable",
+            icon: <ShoppingCart className="h-4 w-4" />,
+            disabled: true,
+          },
+        ]}
+      />
 
-          <Tabs defaultValue="prescriptions" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="prescriptions">
-                Current Prescriptions
-              </TabsTrigger>
-              <TabsTrigger value="reminders">Dosage Reminders</TabsTrigger>
-              <TabsTrigger value="pharmacy">Nearby Pharmacies</TabsTrigger>
-              <TabsTrigger value="history">Order History</TabsTrigger>
-            </TabsList>
+      <Tabs defaultValue="prescriptions" className="space-y-6">
+        <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
+          <TabsTrigger value="prescriptions" className="text-xs sm:text-sm px-3 sm:px-4">Current Prescriptions</TabsTrigger>
+          <TabsTrigger value="plan" className="text-xs sm:text-sm px-3 sm:px-4">Medication Plan</TabsTrigger>
+          <TabsTrigger value="pharmacy" className="text-xs sm:text-sm px-3 sm:px-4">Medicine Queue</TabsTrigger>
+          <TabsTrigger value="history" className="text-xs sm:text-sm px-3 sm:px-4">Prescription History</TabsTrigger>
+        </TabsList>
 
-            <TabsContent value="prescriptions">
-              <div className="space-y-4">
-                {/* Search and Filter */}
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <div className="relative flex-1">
-                        <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${theme.textColors.muted}`} />
-                        <Input
-                          placeholder="Search prescriptions or medications..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-3 py-2 border rounded-lg"
-                        aria-label="Filter prescriptions by status"
-                      >
-                        <option value="all">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="pending">Pending</option>
-                        <option value="completed">Completed</option>
-                      </select>
-                      <Button variant="outline">
-                        <Filter className="w-4 h-4 mr-2" />
-                        Filter
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Prescriptions List */}
-                <div className="space-y-6">
-                  {filteredPrescriptions.map((prescription) => (
-                    <Card key={prescription.id}>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-lg font-semibold">
-                              Prescription #{prescription.id}
-                            </h3>
-                            <p className={`text-sm ${theme.textColors.secondary}`}>
-                              Prescribed by {prescription.doctor} •{" "}
-                              {new Date(prescription.date).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              className={getStatusColor(prescription.status)}
-                            >
-                              {prescription.status}
-                            </Badge>
-                            <Button variant="outline" size="sm">
-                              <Download className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {/* Medications */}
-                          <div>
-                            <h4 className="font-medium mb-3">
-                              Prescribed Medicines:
-                            </h4>
-                            <div className="grid gap-3">
-                              {prescription.medications.map(
-                                (medication, index) => (
-                                  <div
-                                    key={index}
-                                    className={`p-4 ${theme.containers.featureGreen} rounded-lg border ${theme.borders.green}`}
-                                  >
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex items-start gap-3">
-                                        <Leaf className={`w-5 h-5 ${theme.iconColors.green} mt-1`} />
-                                        <div className="flex-1">
-                                          <h5 className={`font-semibold ${theme.textColors.success}`}>
-                                            {medication.name}
-                                          </h5>
-                                          <p className={`text-sm ${theme.textColors.success} mb-1`}>
-                                            {medication.dosage} •{" "}
-                                            {medication.duration}
-                                          </p>
-                                          <p className={`text-xs ${theme.iconColors.green} mb-2`}>
-                                            {medication.instructions}
-                                          </p>
-                                          <div className="flex items-center gap-4 text-xs">
-                                            <Badge
-                                              variant="outline"
-                                              className={theme.badges.green}
-                                            >
-                                              {medication.category}
-                                            </Badge>
-                                            <span className={theme.iconColors.green}>
-                                              Benefits: {medication.benefits}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="text-right">
-                                        <p className={`text-sm font-medium ${theme.textColors.success}`}>
-                                          {medication.remaining} remaining
-                                        </p>
-                                        {parseInt(medication.remaining) <= 5 &&
-                                          parseInt(medication.remaining) >
-                                            0 && (
-                                            <Badge
-                                              variant="outline"
-                                              className={`${theme.badges.yellow} mt-1`}
-                                            >
-                                              Low Stock
-                                            </Badge>
-                                          )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Instructions and Notes */}
-                          {prescription.notes && (
-                            <div className={`p-3 ${theme.containers.featureBlue} border ${theme.borders.blue} rounded-lg`}>
-                              <h5 className={`font-medium ${theme.textColors.info} mb-1`}>
-                                Doctor&apos;s Instructions:
-                              </h5>
-                              <p className={`text-sm ${theme.textColors.info}`}>
-                                {prescription.notes}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Prescription Summary */}
-                          <div className={`flex items-center justify-between p-4 ${theme.backgrounds.secondary} rounded-lg`}>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <span className={theme.textColors.secondary}>
-                                  Total Cost:
-                                </span>
-                                <span className={`font-semibold ml-2 ${theme.textColors.heading}`}>
-                                  ₹{prescription.totalCost}
-                                </span>
-                              </div>
-                              <div>
-                                <span className={theme.textColors.secondary}>
-                                  Refills Remaining:
-                                </span>
-                                <span className={`font-semibold ml-2 ${theme.textColors.heading}`}>
-                                  {prescription.refillsRemaining}
-                                </span>
-                              </div>
-                              {prescription.nextRefill && (
-                                <div className="col-span-2">
-                                  <span className={theme.textColors.secondary}>
-                                    Next Refill Due:
-                                  </span>
-                                  <span className={`font-semibold ml-2 ${theme.textColors.heading}`}>
-                                    {new Date(
-                                      prescription.nextRefill
-                                    ).toLocaleDateString()}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex gap-2">
-                              {prescription.status === "Active" &&
-                                prescription.refillsRemaining > 0 && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      handleRefillRequest(prescription.id)
-                                    }
-                                  >
-                                    <RefreshCw className="w-4 h-4 mr-1" />
-                                    Refill
-                                  </Button>
-                                )}
-                              <Button variant="outline" size="sm">
-                                <ShoppingCart className="w-4 h-4 mr-1" />
-                                Order
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+        <TabsContent value="prescriptions" className="space-y-4">
+          <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
+            <CardContent className="p-4">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${theme.textColors.muted}`} />
+                  <Input
+                    placeholder="Search prescriptions..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="h-11 rounded-xl pl-10"
+                  />
                 </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="reminders">
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="w-5 h-5" />
-                      Today&apos;s Dosage Schedule
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {dosageReminders.map((reminder) => (
-                        <div
-                          key={reminder.id}
-                          className="flex items-center justify-between p-4 border rounded-lg"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 ${theme.containers.featureBlue} rounded-full flex items-center justify-center`}>
-                              <Clock className={`w-6 h-6 ${theme.iconColors.blue}`} />
-                            </div>
-                            <div>
-                              <h4 className={`font-semibold ${theme.textColors.heading}`}>
-                                {reminder.medication}
-                              </h4>
-                              <p className={`text-sm ${theme.textColors.secondary}`}>
-                                {reminder.dosage}
-                              </p>
-                              <p className={`text-xs ${theme.textColors.tertiary}`}>
-                                {reminder.time}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Badge
-                              className={getReminderStatusColor(
-                                reminder.status
-                              )}
-                            >
-                              {reminder.status}
-                            </Badge>
-                            {reminder.status === "Pending" && (
-                              <Button size="sm">
-                                <CheckCircle className="w-4 h-4 mr-1" />
-                                Mark Taken
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Reminder Settings</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label className="font-medium">
-                            Push Notifications
-                          </Label>
-                          <p className={`text-sm ${theme.textColors.secondary}`}>
-                            Get notified when it&apos;s time to take your
-                            medicine
-                          </p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          defaultChecked
-                          className="rounded"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label className="font-medium">SMS Reminders</Label>
-                          <p className={`text-sm ${theme.textColors.secondary}`}>
-                            Receive SMS alerts for important medications
-                          </p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          defaultChecked
-                          className="rounded"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label className="font-medium">Smart Reminders</Label>
-                          <p className={`text-sm ${theme.textColors.secondary}`}>
-                            Adjust reminder timing based on your routine
-                          </p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          className="rounded"
-                          aria-label="Enable smart reminders"
-                          title="Toggle smart reminders for medication timing"
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="pharmacy">
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MapPin className="w-5 h-5" />
-                      Nearby Ayurvedic Pharmacies
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4">
-                      {nearbyPharmacies.map((pharmacy) => (
-                        <div
-                          key={pharmacy.id}
-                          className={`p-4 border rounded-lg ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h3 className="font-semibold">
-                                  {pharmacy.name}
-                                </h3>
-                                {!pharmacy.inStock && (
-                                  <Badge
-                                    variant="outline"
-                                    className={theme.badges.red}
-                                  >
-                                    Limited Stock
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className={`space-y-1 text-sm ${theme.textColors.secondary}`}>
-                                <div className="flex items-center gap-2">
-                                  <MapPin className="w-3 h-3" />
-                                  <span>{pharmacy.address}</span>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <div className="flex items-center gap-1">
-                                    <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                                    <span>{pharmacy.rating}</span>
-                                    <span className={theme.textColors.muted}>
-                                      ({pharmacy.reviews} reviews)
-                                    </span>
-                                  </div>
-                                  <span>{pharmacy.distance} away</span>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <div className="flex items-center gap-1">
-                                    <Truck className="w-3 h-3" />
-                                    <span>
-                                      Delivery: {pharmacy.deliveryTime}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <CreditCard className="w-3 h-3" />
-                                    <span>Fee: ₹{pharmacy.deliveryFee}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex flex-col gap-2 ml-4">
-                              <Button
-                                size="sm"
-                                disabled={!pharmacy.inStock}
-                                onClick={() =>
-                                  handleOrderFromPharmacy(pharmacy.id, "RX001")
-                                }
-                              >
-                                <ShoppingCart className="w-4 h-4 mr-1" />
-                                Order Now
-                              </Button>
-                              <Button variant="outline" size="sm">
-                                <Phone className="w-4 h-4 mr-1" />
-                                Call
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="history">
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="w-5 h-5" />
-                      Order History
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {/* Mock order history */}
-                      <div className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <h3 className="font-semibold">Order #ORD12345</h3>
-                            <p className={`text-sm ${theme.textColors.secondary}`}>
-                              Ayurveda Plus Pharmacy • Jan 20, 2024
-                            </p>
-                          </div>
-                          <Badge className="bg-green-100 text-green-800">
-                            Delivered
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <span className={theme.textColors.secondary}>Items:</span>
-                            <span className="ml-2">
-                              Triphala Churna, Ashwagandha
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Total:</span>
-                            <span className="ml-2 font-semibold">₹1,450</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Delivered:</span>
-                            <span className="ml-2">Jan 21, 2024</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 mt-3">
-                          <Button variant="outline" size="sm">
-                            <Eye className="w-3 h-3 mr-1" />
-                            View Details
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <RefreshCw className="w-3 h-3 mr-1" />
-                            Reorder
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Download className="w-3 h-3 mr-1" />
-                            Invoice
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <h3 className="font-semibold">Order #ORD12344</h3>
-                            <p className={`text-sm ${theme.textColors.secondary}`}>
-                              Herbal Care Center • Jan 15, 2024
-                            </p>
-                          </div>
-                          <Badge className={theme.badges.blue}>
-                            In Transit
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <span className={theme.textColors.secondary}>Items:</span>
-                            <span className="ml-2">
-                              Brahmi Ghrita, Saraswatarishta
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Total:</span>
-                            <span className="ml-2 font-semibold">₹980</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Expected:</span>
-                            <span className="ml-2">Jan 22, 2024</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 mt-3">
-                          <Button variant="outline" size="sm">
-                            <Truck className="w-3 h-3 mr-1" />
-                            Track Order
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Phone className="w-3 h-3 mr-1" />
-                            Contact Pharmacy
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <RefreshCw className="w-6 h-6" />
-                  <span className="text-sm">Request Refill</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <ShoppingCart className="w-6 h-6" />
-                  <span className="text-sm">Order Medicine</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <Bell className="w-6 h-6" />
-                  <span className="text-sm">Set Reminder</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col items-center justify-center gap-2"
-                >
-                  <Download className="w-6 h-6" />
-                  <span className="text-sm">Download Prescription</span>
-                </Button>
+                <div className="flex gap-2">
+                  <Select
+                    value={statusFilter}
+                    onValueChange={setStatusFilter}
+                  >
+                    <SelectTrigger className="h-11 flex-1 sm:min-w-[180px] rounded-xl">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="dispensed">Dispensed</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" className="h-11 rounded-xl px-3 sm:px-4">
+                    <Filter className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Filter</span>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
-        </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+
+          {filteredPrescriptions.length === 0 ? (
+            <EmptyState
+              title="No prescriptions found"
+              description={
+                searchTerm || statusFilter !== "all"
+                  ? "No prescriptions match your current filters."
+                  : "You don't have any prescriptions yet."
+              }
+              icon={Pill}
+            />
+          ) : (
+            <div className="space-y-6">
+              {filteredPrescriptions.map((prescription) => (
+                <Card key={prescription.id} className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
+                  <CardHeader>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="space-y-1">
+                        <h3 className="text-base sm:text-lg font-semibold">Prescription #{prescription.id}</h3>
+                        <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
+                          Prescribed by {prescription.doctor} • {new Date(prescription.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between sm:justify-end gap-2">
+                        <Badge className={`${getStatusColor(prescription.status)} text-[10px] sm:text-xs`}>
+                          {prescription.status}
+                        </Badge>
+                        <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-lg sm:h-9 sm:w-auto sm:px-3 sm:rounded-xl" disabled>
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h4 className="font-medium mb-3">Medicines</h4>
+                      <div className="grid gap-3">
+                        {prescription.medications.map((medication, index) => (
+                          <div
+                            key={`${prescription.id}-${index}`}
+                            className={`p-3 sm:p-4 ${theme.containers.featureGreen} rounded-lg border ${theme.borders.green}`}
+                          >
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="flex items-start gap-3">
+                                <Leaf className={`w-4 h-4 sm:w-5 sm:h-5 ${theme.iconColors.green} mt-1`} />
+                                <div className="space-y-1">
+                                  <h5 className={`text-sm sm:text-base font-semibold ${theme.textColors.success}`}>{medication.name}</h5>
+                                  <p className={`text-xs sm:text-sm ${theme.textColors.success}`}>
+                                    {medication.dosage} • {medication.duration}
+                                  </p>
+                                  {medication.instructions ? (
+                                    <p className={`text-[10px] sm:text-xs ${theme.iconColors.green}`}>
+                                      {medication.instructions}
+                                    </p>
+                                  ) : null}
+                                  <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs pt-1">
+                                    <Badge variant="outline" className={`${theme.badges.green} px-1.5 py-0`}>
+                                      {medication.category}
+                                    </Badge>
+                                    {medication.description ? (
+                                      <span className={theme.iconColors.green}>{medication.description}</span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-[10px] sm:text-sm font-medium sm:text-right">
+                                <p className={theme.textColors.success}>{medication.remaining}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {prescription.notes ? (
+                      <div className={`p-3 ${theme.containers.featureBlue} border ${theme.borders.blue} rounded-lg`}>
+                        <h5 className={`font-medium ${theme.textColors.info} mb-1`}>
+                          Doctor&apos;s Instructions
+                        </h5>
+                        <p className={`text-sm ${theme.textColors.info}`}>{prescription.notes}</p>
+                      </div>
+                    ) : null}
+
+                    <div className={`flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between p-3 sm:p-4 ${theme.backgrounds.secondary} rounded-xl`}>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
+                        <div>
+                          <span className={theme.textColors.secondary}>Total Cost:</span>
+                          <span className={`font-semibold ml-1 sm:ml-2 ${theme.textColors.heading}`}>
+                            ₹{prescription.totalCost}
+                          </span>
+                        </div>
+                        <div>
+                          <span className={theme.textColors.secondary}>Payment:</span>
+                          <span className={`font-semibold ml-1 sm:ml-2 ${theme.textColors.heading}`}>
+                            {prescription.paymentStatus}
+                          </span>
+                        </div>
+                        <div>
+                          <span className={theme.textColors.secondary}>Valid Until:</span>
+                          <span className={`font-semibold ml-1 sm:ml-2 ${theme.textColors.heading}`}>
+                            {prescription.validUntil
+                              ? new Date(prescription.validUntil).toLocaleDateString()
+                              : "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" className="flex-1 sm:flex-initial h-9 sm:h-auto rounded-xl" disabled>
+                          <Bell className="w-4 h-4 mr-1" />
+                          <span className="text-xs sm:text-sm">Refill</span>
+                        </Button>
+                        {prescription.pendingAmount > 0 ? (
+                          <PaymentButton
+                            prescriptionId={prescription.id}
+                            amount={prescription.pendingAmount}
+                            className="flex-1 sm:flex-initial rounded-xl bg-emerald-600 hover:bg-emerald-700 h-9 sm:h-auto"
+                          >
+                            <ShoppingCart className="w-4 h-4 mr-1" />
+                            <span className="text-xs sm:text-sm">Pay ₹{prescription.pendingAmount.toLocaleString()}</span>
+                          </PaymentButton>
+                        ) : (
+                          <Button variant="outline" size="sm" className="flex-1 sm:flex-initial h-9 sm:h-auto rounded-xl" disabled>
+                            <Package className="w-4 h-4 mr-1" />
+                            <span className="text-xs sm:text-sm">Ready</span>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {prescription.pendingAmount > 0 ? (
+                      <p className={`text-sm ${theme.textColors.secondary}`}>
+                        Medicines will be handed over only after the prescription payment is received.
+                      </p>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="plan" className="space-y-4">
+          <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="w-5 h-5" />
+                Current Medication Plan
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {medicationPlan.length === 0 ? (
+                <EmptyState
+                  title="No medication plan available"
+                  description="Your issued prescription medicines will appear here once a doctor prescribes them."
+                  icon={Bell}
+                />
+              ) : (
+                <div className="space-y-4">
+                  {medicationPlan.map((entry) => (
+                    <div key={entry.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 p-3 sm:p-4 sm:flex-row sm:items-center sm:justify-between dark:border-border/60">
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className={`w-10 h-10 sm:w-12 sm:h-12 ${theme.containers.featureBlue} rounded-full flex items-center justify-center`}>
+                          <Clock className={`w-5 h-5 sm:w-6 sm:h-6 ${theme.iconColors.blue}`} />
+                        </div>
+                        <div>
+                          <h4 className={`text-sm sm:text-base font-semibold ${theme.textColors.heading}`}>{entry.name}</h4>
+                          <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>{entry.dosage}</p>
+                          <p className={`text-[10px] sm:text-xs ${theme.textColors.tertiary}`}>{entry.duration}</p>
+                          <p className={`text-[10px] sm:text-xs ${theme.textColors.tertiary}`}>{entry.instructions || "Follow doctor instructions"}</p>
+                        </div>
+                      </div>
+                      <Badge className={`${getStatusColor(entry.status)} text-[10px] sm:text-xs w-fit`}>{entry.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
+            <CardHeader>
+              <CardTitle>Reminder Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Medication Reminders</p>
+                  <p className={`text-sm ${theme.textColors.secondary}`}>
+                    Automated reminder delivery is not configured for this clinic yet.
+                  </p>
+                </div>
+                <input type="checkbox" disabled className="rounded" />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">SMS Alerts</p>
+                  <p className={`text-sm ${theme.textColors.secondary}`}>
+                    SMS refill or reminder alerts are not connected yet.
+                  </p>
+                </div>
+                <input type="checkbox" disabled className="rounded" />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pharmacy">
+          <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="w-5 h-5" />
+                Medicine Desk Queue
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {medicineDeskQueue.length === 0 ? (
+                <EmptyState
+                  title="No active medicine desk queue"
+                  description="When a prescription needs payment or handover, it will appear here with live medicine desk status."
+                  icon={ShoppingCart}
+                />
+              ) : (
+                <div className="space-y-4">
+                  {medicineDeskQueue.map((prescription) => (
+                    <div key={prescription.id} className="rounded-2xl border border-border/70 p-3 sm:p-4 dark:border-border/60">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="space-y-1">
+                          <h3 className="text-sm sm:text-base font-semibold">Prescription #{prescription.id}</h3>
+                          <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
+                            {prescription.doctor} • {new Date(prescription.date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
+                          <Badge className={`${getStatusColor(prescription.status)} text-[10px] sm:text-xs`}>
+                            {prescription.pendingAmount > 0
+                              ? "Awaiting Payment"
+                              : "Pending Handover"}
+                          </Badge>
+                          {prescription.queuePosition ? (
+                            <Badge variant="outline" className="text-[10px] sm:text-xs">
+                              {getQueuePositionLabel({ position: prescription.queuePosition ?? 0 })}
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
+                        <div>
+                          <span className={theme.textColors.secondary}>Lane:</span>
+                          <span className="ml-1 sm:ml-2 font-medium">
+                            {prescription.queueCategory || "MEDICINE_DESK"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className={theme.textColors.secondary}>Pending:</span>
+                          <span className="ml-1 sm:ml-2 font-medium">
+                            ₹{prescription.pendingAmount.toLocaleString()}
+                          </span>
+                        </div>
+                        <div>
+                          <span className={theme.textColors.secondary}>Payment:</span>
+                          <span className="ml-1 sm:ml-2 font-medium">{prescription.paymentStatus}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {prescription.pendingAmount > 0 ? (
+                          <PaymentButton
+                            prescriptionId={prescription.id}
+                            amount={prescription.pendingAmount}
+                            className="rounded-xl bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto h-10 sm:h-auto"
+                          >
+                            <ShoppingCart className="mr-1 h-4 w-4" />
+                            Pay ₹{prescription.pendingAmount.toLocaleString()}
+                          </PaymentButton>
+                        ) : (
+                          <Button variant="outline" size="sm" className="rounded-xl w-full sm:w-auto h-10 sm:h-auto" disabled>
+                            <Package className="mr-1 h-4 w-4" />
+                            Waiting for handover
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history">
+          <Card className="rounded-3xl border-border/70 shadow-sm dark:border-border/60">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                Prescription History
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-4">
+              {displayPrescriptions.length === 0 ? (
+                <EmptyState
+                  title="No prescription history"
+                  description="Past and current prescriptions will appear here once they are created by your doctor."
+                  icon={FileText}
+                />
+              ) : (
+                <div className="space-y-4">
+                  {displayPrescriptions.map((prescription) => (
+                    <div key={prescription.id} className="p-3 sm:p-4 border rounded-xl">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
+                        <div className="space-y-1">
+                          <h3 className="text-sm sm:text-base font-semibold">Prescription #{prescription.id}</h3>
+                          <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
+                            {prescription.doctor} • {new Date(prescription.date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Badge className={`${getStatusColor(prescription.status)} text-[10px] sm:text-xs w-fit`}>
+                          {prescription.status}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs sm:text-sm">
+                        <div>
+                          <span className={theme.textColors.secondary}>Medicines:</span>
+                          <span className="ml-2">
+                            {prescription.medications.map((medication) => medication.name).join(", ")}
+                          </span>
+                        </div>
+                        <div>
+                          <span className={theme.textColors.secondary}>Amount:</span>
+                          <span className="ml-2 font-semibold">₹{prescription.totalCost}</span>
+                        </div>
+                        <div>
+                          <span className={theme.textColors.secondary}>Valid Until:</span>
+                          <span className="ml-2">
+                            {prescription.validUntil
+                              ? new Date(prescription.validUntil).toLocaleDateString()
+                              : "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </PatientPageShell>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +35,7 @@ export interface QueueItem {
   checkedInAt?: string;
   startedAt?: string;
   estimatedDuration: number;
-  status: "waiting" | "in-progress" | "completed" | "checked-in";
+  status: "waiting" | "in-progress" | "completed" | "confirmed";
   priority?: "normal" | "high" | "urgent";
   notes?: string;
 }
@@ -69,7 +69,7 @@ export default function TherapyQueuePanel({
         return "bg-yellow-100 text-yellow-800";
       case "in-progress":
         return "bg-blue-100 text-blue-800";
-      case "checked-in":
+      case "confirmed":
         return "bg-green-100 text-green-800";
       case "completed":
         return "bg-gray-100 text-gray-800";
@@ -97,7 +97,7 @@ export default function TherapyQueuePanel({
         return <Clock className="w-4 h-4" />;
       case "in-progress":
         return <Play className="w-4 h-4" />;
-      case "checked-in":
+      case "confirmed":
         return <UserCheck className="w-4 h-4" />;
       case "completed":
         return <CheckCircle className="w-4 h-4" />;
@@ -325,7 +325,7 @@ export default function TherapyQueuePanel({
                 const statusOrder = {
                   "in-progress": 4,
                   waiting: 3,
-                  "checked-in": 2,
+                  confirmed: 2,
                   completed: 1,
                 };
 

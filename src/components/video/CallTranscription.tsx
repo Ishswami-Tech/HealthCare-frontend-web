@@ -1,25 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Mic,
-  MicOff,
   Download,
   Search,
   User,
-  Loader2,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+// import { useAuth } from "@/hooks/auth/useAuth";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
-  getTranscription,
+  useCallTranscription,
   type TranscriptionSegment,
-} from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+} from "@/hooks/query";
+import { showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 
@@ -32,36 +30,21 @@ export function CallTranscription({
   appointmentId,
   className,
 }: CallTranscriptionProps) {
-  const { user } = useAuth();
-  const { toast } = useToast();
   const [transcription, setTranscription] = useState<TranscriptionSegment[]>([]);
-  const [fullText, setFullText] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const {
+    data: transcriptionSegments = [],
+    isPending: isLoading,
+  } = useCallTranscription(appointmentId);
 
   const { subscribeToTranscription, isConnected } = useVideoAppointmentWebSocket();
 
-  // Load existing transcription
   useEffect(() => {
-    const loadTranscription = async () => {
-      try {
-        const result = await getTranscription(appointmentId);
-        if (result) {
-          if ('segments' in result) {
-            setTranscription(result.segments);
-            if ('fullText' in result) {
-              setFullText(result.fullText);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load transcription:", error);
-      }
-    };
-
-    loadTranscription();
-  }, [appointmentId]);
+    setTranscription(transcriptionSegments);
+  }, [transcriptionSegments]);
 
   // Subscribe to real-time transcription
   useEffect(() => {
@@ -71,14 +54,14 @@ export function CallTranscription({
       if (data.appointmentId === appointmentId) {
         if (data.action === "transcription_started") {
           setIsTranscribing(true);
-          toast({
-            title: "Transcription Started",
+          showInfoToast("Transcription started", {
+            id: TOAST_IDS.VIDEO.JOIN,
             description: "Call is now being transcribed",
           });
         } else if (data.action === "transcription_stopped") {
           setIsTranscribing(false);
-          toast({
-            title: "Transcription Stopped",
+          showInfoToast("Transcription stopped", {
+            id: TOAST_IDS.VIDEO.END,
             description: "Transcription has been stopped",
           });
         } else if (data.action === "transcription_segment") {
@@ -88,7 +71,6 @@ export function CallTranscription({
             if (prev.some((s) => s.id === segment.id)) return prev;
             return [...prev, segment].sort((a, b) => a.startTime - b.startTime);
           });
-          setFullText((prev) => `${prev} ${segment.text}`.trim());
 
           // Auto-scroll to bottom
           setTimeout(() => {
@@ -102,11 +84,12 @@ export function CallTranscription({
     });
 
     return unsubscribe;
-  }, [isConnected, appointmentId, subscribeToTranscription, toast]);
+  }, [isConnected, appointmentId, subscribeToTranscription]);
 
   // Transcription is created automatically by backend when segments are received
 
   const handleDownload = () => {
+    setIsDownloading(true);
     const content = transcription
       .map(
         (seg) =>
@@ -123,6 +106,7 @@ export function CallTranscription({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    setIsDownloading(false);
   };
 
   const formatTime = (seconds: number) => {
@@ -141,18 +125,32 @@ export function CallTranscription({
     <Card className={className}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Call Transcription</CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-lg">Call Transcription</CardTitle>
+            {isTranscribing && (
+              <Badge variant="default" className="bg-red-500 animate-pulse">
+                <Mic className="h-3 w-3 mr-1" />
+                Recording
+              </Badge>
+            )}
+          </div>
           <div className="flex gap-2">
             {transcription.length > 0 && (
-              <Button size="sm" variant="outline" onClick={handleDownload}>
+              <Button size="sm" variant="outline" onClick={handleDownload} disabled={isDownloading}>
                 <Download className="h-4 w-4 mr-2" />
-                Download
+                {isDownloading ? "Downloading..." : "Download"}
               </Button>
             )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-0 flex flex-col h-[400px]">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-muted-foreground">Loading transcription...</p>
+          </div>
+        ) : (
+          <>
         {/* Search */}
         {transcription.length > 0 && (
           <div className="px-4 pt-4 pb-2">
@@ -208,9 +206,9 @@ export function CallTranscription({
             </div>
           )}
         </ScrollArea>
-
+          </>
+        )}
       </CardContent>
     </Card>
   );
 }
-

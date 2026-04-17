@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
+import Link from "next/link";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,43 +25,95 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
-import { usePatients, useCreatePatient } from "@/hooks/usePatients";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { usePatients, useCreatePatient } from "@/hooks/query/usePatients";
+import { useCreateUser } from "@/hooks/query/useUsers";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { usePatientStore } from "@/stores";
 import {
-  Activity,
   Calendar,
   Users,
-  UserCheck,
-  LogOut,
   Search,
-  Plus,
+  Eye,
   Phone,
   Mail,
   MapPin,
-  Edit,
-  Eye,
+  Loader2,
+  Plus,
   UserPlus,
-  Clock,
   AlertCircle,
   Heart,
-  Pill,
-  Calendar as CalendarIcon,
-  Loader2,
+  UserCheck,
+  ClipboardList,
+  Shield,
+  Activity,
+  ArrowRight,
+  User,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+
+interface PatientTableRow {
+  id: string;
+  patient: any;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  ageLabel: string;
+  genderLabel: string;
+  statusLabel: string;
+  visitsLabel: string;
+  registeredLabel: string;
+  lastVisitLabel: string;
+  nextAppointmentLabel: string;
+}
+
+function createTemporaryPatientPassword(phone: string): string {
+  const digits = phone.replace(/\D/g, "").slice(-4) || "1234";
+  return `Temp@${digits}Aa`;
+}
+
+function normalizePatientGender(
+  gender: string
+): "MALE" | "FEMALE" | "OTHER" | undefined {
+  const normalized = gender.trim().toUpperCase();
+  if (normalized === "MALE" || normalized === "FEMALE" || normalized === "OTHER") {
+    return normalized;
+  }
+  return undefined;
+}
+
+function extractCreatedUserId(result: unknown): string | undefined {
+  if (!result || typeof result !== "object") {
+    return undefined;
+  }
+
+  const record = result as Record<string, unknown>;
+  if (typeof record.id === "string") {
+    return record.id;
+  }
+
+  if (record.data && typeof record.data === "object") {
+    const nested = record.data as Record<string, unknown>;
+    if (typeof nested.id === "string") {
+      return nested.id;
+    }
+  }
+
+  return undefined;
+}
 
 export default function ReceptionistPatients() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showNewPatientDialog, setShowNewPatientDialog] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const patients = usePatientStore((state) => state.collections.clinic);
+  const selectedPatient = usePatientStore((state) => state.selectedPatient);
+  const setSelectedPatient = usePatientStore((state) => state.setSelectedPatient);
 
   // New patient form state
   const [newPatient, setNewPatient] = useState({
@@ -69,7 +122,7 @@ export default function ReceptionistPatients() {
     phone: "",
     email: "",
     dateOfBirth: "",
-    gender: "",
+    gender: "" as any,
     address: "",
     emergencyContact: "",
     emergencyPhone: "",
@@ -79,31 +132,29 @@ export default function ReceptionistPatients() {
   });
 
   // Fetch real patient data
-  const { data: patientsData, isLoading: isLoadingPatients } = usePatients(
+  usePatients(
     clinicId || "",
     {
-      search: searchTerm || undefined,
-      isActive: statusFilter === "all" ? undefined : statusFilter === "active",
+      ...(statusFilter !== "all" && { isActive: statusFilter === "active" }),
     }
   );
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync(["patients", clinicId]);
+  useWebSocketQuerySync();
 
   // Create patient mutation
   const createPatientMutation = useCreatePatient();
-
-  // Extract patients array from response
-  const patients = useMemo(() => {
-    if (!patientsData) return [];
-    return Array.isArray(patientsData)
-      ? patientsData
-      : patientsData.patients || [];
-  }, [patientsData]);
+  const createUserMutation = useCreateUser();
 
   // Calculate age from dateOfBirth if needed
   const patientsWithAge = useMemo(() => {
     return patients.map((patient: any) => {
+      const resolvedName =
+        patient.name ||
+        patient.user?.name ||
+        `${patient.firstName || patient.user?.firstName || ""} ${patient.lastName || patient.user?.lastName || ""}`.trim() ||
+        patient.email ||
+        "Unknown Patient";
       if (!patient.age && patient.dateOfBirth) {
         const birthDate = new Date(patient.dateOfBirth);
         const today = new Date();
@@ -116,27 +167,25 @@ export default function ReceptionistPatients() {
             (monthDiff === 0 && today.getDate() < birthDate.getDate())
               ? age - 1
               : age,
-          name:
-            patient.name ||
-            `${patient.firstName || ""} ${patient.lastName || ""}`.trim(),
+          name: resolvedName,
         };
       }
       return {
         ...patient,
-        name:
-          patient.name ||
-          `${patient.firstName || ""} ${patient.lastName || ""}`.trim(),
+        name: resolvedName,
       };
     });
   }, [patients]);
 
   const filteredPatients = useMemo(() => {
     return patientsWithAge.filter((patient: any) => {
+      const patientPhone = patient.phone || patient.user?.phone || "";
+      const patientEmail = patient.email || patient.user?.email || "";
       const matchesSearch =
         !searchTerm ||
         patient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.phone?.includes(searchTerm) ||
-        patient.email?.toLowerCase().includes(searchTerm.toLowerCase());
+        patientPhone.includes(searchTerm) ||
+        patientEmail.toLowerCase().includes(searchTerm.toLowerCase());
       const patientStatus = patient.isActive ? "active" : "inactive";
       const matchesStatus =
         statusFilter === "all" || patientStatus === statusFilter;
@@ -145,34 +194,198 @@ export default function ReceptionistPatients() {
     });
   }, [patientsWithAge, searchTerm, statusFilter]);
 
+  const patientTableRows = useMemo<PatientTableRow[]>(
+    () =>
+      filteredPatients.map((patient: any) => ({
+        id: patient.id,
+        patient,
+        name: patient.name || "Unknown Patient",
+        address: patient.address || "Address not available",
+        phone: patient.phone || patient.user?.phone || "N/A",
+        email: patient.email || patient.user?.email || "N/A",
+        ageLabel: patient.age ? `${patient.age} years` : "Age N/A",
+        genderLabel: patient.gender || "Gender N/A",
+        statusLabel: patient.isActive !== false ? "Active" : "Inactive",
+        visitsLabel:
+          patient.totalVisits !== undefined ? String(patient.totalVisits) : "N/A",
+        registeredLabel: patient.createdAt
+          ? new Date(patient.createdAt).toLocaleDateString()
+          : "N/A",
+        lastVisitLabel: patient.lastVisit
+          ? new Date(patient.lastVisit).toLocaleDateString()
+          : "N/A",
+        nextAppointmentLabel: patient.nextAppointment
+          ? new Date(patient.nextAppointment).toLocaleDateString()
+          : "N/A",
+      })),
+    [filteredPatients]
+  );
+
+  const patientColumns = useMemo<ColumnDef<PatientTableRow>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Patient",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-blue-100 to-green-100">
+              <span className="font-semibold text-blue-800">
+                {row.original.name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <div className="font-semibold">{row.original.name}</div>
+              <div className="line-clamp-1 text-xs text-muted-foreground">
+                {row.original.address}
+              </div>
+            </div>
+          </div>
+        ),
+      },
+      { accessorKey: "phone", header: "Phone" },
+      {
+        accessorKey: "email",
+        header: "Email",
+        cell: ({ row }) => <div className="break-all text-sm">{row.original.email}</div>,
+      },
+      {
+        accessorKey: "ageLabel",
+        header: "Profile",
+        cell: ({ row }) => (
+          <div className="text-sm">
+            <div>{row.original.ageLabel}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{row.original.genderLabel}</div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "statusLabel",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge className={getStatusColor(row.original.statusLabel)}>{row.original.statusLabel}</Badge>
+        ),
+      },
+      { accessorKey: "visitsLabel", header: "Visits" },
+      { accessorKey: "registeredLabel", header: "Registered" },
+      { accessorKey: "lastVisitLabel", header: "Last Visit" },
+      { accessorKey: "nextAppointmentLabel", header: "Next" },
+      {
+        id: "actions",
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedPatient(row.original.patient)}
+            >
+              <Eye className="mr-1 h-4 w-4" />
+              View
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/receptionist/appointments#appointment-manager">
+                <Calendar className="mr-1 h-4 w-4" />
+                Book
+              </Link>
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [clinicId]
+  );
+
   const handleNewPatientSubmit = async () => {
     if (!clinicId) {
-      toast.error("Clinic ID is required");
+      showErrorToast("Clinic ID is required", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
+      return;
+    }
+
+    const trimmedFirstName = newPatient.firstName.trim();
+    const trimmedLastName = newPatient.lastName.trim();
+    const trimmedPhone = newPatient.phone.trim();
+
+    if (!trimmedFirstName || !trimmedLastName || !trimmedPhone) {
+      showErrorToast("First name, last name, and phone number are required", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       return;
     }
 
     try {
-      await createPatientMutation.mutateAsync({
+      const gender = normalizePatientGender(newPatient.gender);
+      const allergies = newPatient.allergies
+        ? newPatient.allergies
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean)
+        : [];
+      const medicalHistory = [
+        newPatient.medicalHistory.trim(),
+        newPatient.currentMedications.trim()
+          ? `Current medications: ${newPatient.currentMedications.trim()}`
+          : "",
+      ].filter(Boolean);
+      const temporaryPassword = createTemporaryPatientPassword(newPatient.phone);
+      const emergencyContact =
+        newPatient.emergencyContact.trim() && newPatient.emergencyPhone.trim()
+          ? {
+              name: newPatient.emergencyContact.trim(),
+              relationship: "Emergency Contact",
+              phone: newPatient.emergencyPhone.trim(),
+            }
+          : undefined;
+
+      const createdUser = await createUserMutation.mutateAsync({
+        email:
+          newPatient.email.trim() ||
+          `patient.${newPatient.phone.replace(/\D/g, "")}@placeholder.local`,
+        password: temporaryPassword,
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        phone: trimmedPhone,
+        role: Role.PATIENT,
         clinicId,
-        firstName: newPatient.firstName,
-        lastName: newPatient.lastName,
-        phone: newPatient.phone,
-        email: newPatient.email,
-        dateOfBirth: newPatient.dateOfBirth || undefined,
-        gender: newPatient.gender || undefined,
-        address: newPatient.address || undefined,
+        ...(gender ? { gender } : {}),
+        ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
+        ...(newPatient.address.trim() ? { address: newPatient.address.trim() } : {}),
+        ...(medicalHistory.length > 0 ? { medicalConditions: medicalHistory } : {}),
+        ...(emergencyContact ? { emergencyContact } : {}),
       });
 
-      toast.success("Patient created successfully");
+      const userId = extractCreatedUserId(createdUser);
+      if (!userId) {
+        throw new Error("Created patient user is missing an ID");
+      }
+
+      await createPatientMutation.mutateAsync({
+        userId,
+        ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
+        ...(gender ? { gender } : {}),
+        ...(allergies.length > 0 ? { allergies } : {}),
+        ...(medicalHistory.length > 0 ? { medicalHistory } : {}),
+        ...(emergencyContact ? { emergencyContact } : {}),
+      });
+
+      showSuccessToast(
+        `Patient created successfully. Temporary password: ${temporaryPassword}`,
+        {
+          id: TOAST_IDS.GLOBAL.SUCCESS,
+        }
+      );
       setShowNewPatientDialog(false);
-      // Reset form
+      setSelectedPatient(null);
+      setSearchTerm("");
+      setStatusFilter("all");
       setNewPatient({
         firstName: "",
         lastName: "",
         phone: "",
         email: "",
         dateOfBirth: "",
-        gender: "",
+        gender: "" as any,
         address: "",
         emergencyContact: "",
         emergencyPhone: "",
@@ -181,7 +394,12 @@ export default function ReceptionistPatients() {
         currentMedications: "",
       });
     } catch (error) {
-      toast.error("Failed to create patient");
+      showErrorToast(
+        error instanceof Error ? error.message : "Failed to create patient",
+        {
+          id: TOAST_IDS.GLOBAL.ERROR,
+        }
+      );
       console.error(error);
     }
   };
@@ -199,54 +417,10 @@ export default function ReceptionistPatients() {
     }
   };
 
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case "Paid":
-        return "bg-green-100 text-green-800";
-      case "Pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "Overdue":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
 
-  const sidebarLinks = getRoutesByRole(Role.RECEPTIONIST).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <UserCheck className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
 
   return (
-    <DashboardLayout title="Patient Management" allowedRole={Role.RECEPTIONIST}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Receptionist",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Patient Management</h1>
@@ -260,222 +434,239 @@ export default function ReceptionistPatients() {
                   Add New Patient
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Register New Patient</DialogTitle>
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl bg-white backdrop-blur-xl">
+                <DialogHeader className="p-6 pb-4 bg-white border-b border-slate-100 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl font-bold text-slate-900 leading-tight">Register New Patient</DialogTitle>
+                      <p className="text-sm text-slate-500 font-medium">Complete the form below to create a new medical record</p>
+                    </div>
+                  </div>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="firstName">First Name *</Label>
-                      <Input
-                        id="firstName"
-                        value={newPatient.firstName}
-                        onChange={(e) =>
-                          setNewPatient({
-                            ...newPatient,
-                            firstName: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName">Last Name *</Label>
-                      <Input
-                        id="lastName"
-                        value={newPatient.lastName}
-                        onChange={(e) =>
-                          setNewPatient({
-                            ...newPatient,
-                            lastName: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="phone">Phone Number *</Label>
-                      <Input
-                        id="phone"
-                        value={newPatient.phone}
-                        onChange={(e) =>
-                          setNewPatient({
-                            ...newPatient,
-                            phone: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="email">Email Address</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={newPatient.email}
-                        onChange={(e) =>
-                          setNewPatient({
-                            ...newPatient,
-                            email: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
+                <div className="flex-1 overflow-y-auto p-6 pt-2">
+                  <div className="space-y-6">
+                    {/* Identity & Contact Section */}
+                    <section className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md group/section">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg group-hover/section:bg-emerald-100 transition-colors">
+                          <Shield className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Personal Information</h3>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="firstName" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                            First Name <span className="text-emerald-500">*</span>
+                          </Label>
+                          <Input
+                            id="firstName"
+                            placeholder="e.g. John"
+                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                            value={newPatient.firstName}
+                            onChange={(e) => setNewPatient({ ...newPatient, firstName: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="lastName" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                            Last Name <span className="text-emerald-500">*</span>
+                          </Label>
+                          <Input
+                            id="lastName"
+                            placeholder="e.g. Doe"
+                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                            value={newPatient.lastName}
+                            onChange={(e) => setNewPatient({ ...newPatient, lastName: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="phone" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                            Phone Number <span className="text-emerald-500">*</span>
+                          </Label>
+                          <div className="relative group/input">
+                            <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within/input:text-emerald-500 transition-colors" />
+                            <Input
+                              id="phone"
+                              placeholder="+1 (555) 000-0000"
+                              className="pl-10 bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                              value={newPatient.phone}
+                              onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="email" className="text-sm font-semibold text-slate-700">Email Address</Label>
+                          <div className="relative group/input">
+                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within/input:text-emerald-500 transition-colors" />
+                            <Input
+                              id="email"
+                              type="email"
+                              placeholder="john.doe@example.com"
+                              className="pl-10 bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                              value={newPatient.email}
+                              onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="dateOfBirth" className="text-sm font-semibold text-slate-700">Date of Birth</Label>
+                          <Input
+                            id="dateOfBirth"
+                            type="date"
+                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                            value={newPatient.dateOfBirth}
+                            onChange={(e) => setNewPatient({ ...newPatient, dateOfBirth: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="gender" className="text-sm font-semibold text-slate-700">Gender</Label>
+                          <Select
+                            value={newPatient.gender}
+                            onValueChange={(value) => setNewPatient({ ...newPatient, gender: value })}
+                          >
+                            <SelectTrigger className="bg-slate-50 border-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11">
+                              <SelectValue placeholder="Select gender" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-100 shadow-xl">
+                              <SelectItem value="Male" className="focus:bg-emerald-50 focus:text-emerald-700">Male</SelectItem>
+                              <SelectItem value="Female" className="focus:bg-emerald-50 focus:text-emerald-700">Female</SelectItem>
+                              <SelectItem value="Other" className="focus:bg-emerald-50 focus:text-emerald-700">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </section>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                      <Input
-                        id="dateOfBirth"
-                        type="date"
-                        value={newPatient.dateOfBirth}
-                        onChange={(e) =>
-                          setNewPatient({
-                            ...newPatient,
-                            dateOfBirth: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="gender">Gender</Label>
-                      <Select
-                        value={newPatient.gender}
-                        onValueChange={(value) =>
-                          setNewPatient({ ...newPatient, gender: value })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Male">Male</SelectItem>
-                          <SelectItem value="Female">Female</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                    {/* Address Section */}
+                    <section className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md group/section">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="p-1.5 bg-sky-50 text-sky-600 rounded-lg group-hover/section:bg-sky-100 transition-colors">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Location</h3>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="address" className="text-sm font-semibold text-slate-700">Full Home Address</Label>
+                        <Textarea
+                          id="address"
+                          placeholder="Street, City, State, ZIP..."
+                          className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all rounded-xl min-h-[80px] p-4 resize-none"
+                          value={newPatient.address}
+                          onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}
+                        />
+                      </div>
+                    </section>
 
-                  <div>
-                    <Label htmlFor="address">Address</Label>
-                    <Textarea
-                      id="address"
-                      value={newPatient.address}
-                      onChange={(e) =>
-                        setNewPatient({
-                          ...newPatient,
-                          address: e.target.value,
-                        })
-                      }
-                      rows={2}
-                    />
-                  </div>
+                    {/* Emergency Contact Section */}
+                    <section className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md group/section">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="p-1.5 bg-rose-50 text-rose-600 rounded-lg group-hover/section:bg-rose-100 transition-colors">
+                          <AlertCircle className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Emergency Details</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="emergencyContact" className="text-sm font-semibold text-slate-700">Contact Name</Label>
+                          <Input
+                            id="emergencyContact"
+                            placeholder="Name (Relationship)"
+                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-xl h-11"
+                            value={newPatient.emergencyContact}
+                            onChange={(e) => setNewPatient({ ...newPatient, emergencyContact: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="emergencyPhone" className="text-sm font-semibold text-slate-700">Contact Phone</Label>
+                          <Input
+                            id="emergencyPhone"
+                            placeholder="+1 (555) 000-0000"
+                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-xl h-11"
+                            value={newPatient.emergencyPhone}
+                            onChange={(e) => setNewPatient({ ...newPatient, emergencyPhone: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </section>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="emergencyContact">
-                        Emergency Contact
-                      </Label>
-                      <Input
-                        id="emergencyContact"
-                        value={newPatient.emergencyContact}
-                        onChange={(e) =>
-                          setNewPatient({
-                            ...newPatient,
-                            emergencyContact: e.target.value,
-                          })
-                        }
-                        placeholder="Name (Relationship)"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="emergencyPhone">Emergency Phone</Label>
-                      <Input
-                        id="emergencyPhone"
-                        value={newPatient.emergencyPhone}
-                        onChange={(e) =>
-                          setNewPatient({
-                            ...newPatient,
-                            emergencyPhone: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
+                    {/* Medical Profile Section */}
+                    <section className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md group/section">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg group-hover/section:bg-amber-100 transition-colors">
+                          <ClipboardList className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Medical profile</h3>
+                      </div>
+                      <div className="space-y-6">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="medicalHistory" className="text-sm font-semibold text-slate-700">Past Observations / History</Label>
+                          <Textarea
+                            id="medicalHistory"
+                            placeholder="Document any known conditions, allergies, or past surgeries..."
+                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all rounded-xl min-h-[100px] p-4 resize-none"
+                            value={newPatient.medicalHistory}
+                            onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="allergies" className="text-sm font-semibold text-slate-700">Known Allergies</Label>
+                          <Input
+                            id="allergies"
+                            placeholder="Food, drug, or other allergies..."
+                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                            value={newPatient.allergies}
+                            onChange={(e) => setNewPatient({ ...newPatient, allergies: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="currentMedications" className="text-sm font-semibold text-slate-700">Current Medications</Label>
+                          <Textarea
+                            id="currentMedications"
+                            placeholder="List current medications with dosage..."
+                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl min-h-[80px] p-4 resize-none"
+                            value={newPatient.currentMedications}
+                            onChange={(e) => setNewPatient({ ...newPatient, currentMedications: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </section>
                   </div>
+                </div>
 
-                  <div>
-                    <Label htmlFor="medicalHistory">Medical History</Label>
-                    <Textarea
-                      id="medicalHistory"
-                      value={newPatient.medicalHistory}
-                      onChange={(e) =>
-                        setNewPatient({
-                          ...newPatient,
-                          medicalHistory: e.target.value,
-                        })
-                      }
-                      placeholder="Any existing medical conditions..."
-                      rows={2}
-                    />
+                <div className="p-6 bg-white border-t border-slate-100 flex items-center justify-between gap-4 shrink-0">
+                  <div className="text-[11px] text-slate-400 font-medium">
+                    <span className="text-emerald-500">*</span> Required medical fields
                   </div>
-
-                  <div>
-                    <Label htmlFor="allergies">Known Allergies</Label>
-                    <Input
-                      id="allergies"
-                      value={newPatient.allergies}
-                      onChange={(e) =>
-                        setNewPatient({
-                          ...newPatient,
-                          allergies: e.target.value,
-                        })
-                      }
-                      placeholder="Food, drug, or other allergies..."
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="currentMedications">
-                      Current Medications
-                    </Label>
-                    <Textarea
-                      id="currentMedications"
-                      value={newPatient.currentMedications}
-                      onChange={(e) =>
-                        setNewPatient({
-                          ...newPatient,
-                          currentMedications: e.target.value,
-                        })
-                      }
-                      placeholder="List current medications with dosage..."
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-4">
+                  <div className="flex items-center gap-3">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => setShowNewPatientDialog(false)}
+                      className="rounded-xl hover:bg-slate-100 text-slate-600"
                     >
                       Cancel
                     </Button>
-                    <Button
+                    <Button 
                       onClick={handleNewPatientSubmit}
-                      disabled={createPatientMutation.isPending}
+                      disabled={createPatientMutation.isPending || createUserMutation.isPending}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 px-8 rounded-xl h-11 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
                     >
-                      {createPatientMutation.isPending ? (
+                      {createPatientMutation.isPending || createUserMutation.isPending ? (
                         <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Creating...
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Registering...
                         </>
                       ) : (
-                        "Register Patient"
+                        <>
+                          Create Patient Profile
+                          <ArrowRight className="w-4 h-4 ml-1 opacity-60" />
+                        </>
                       )}
                     </Button>
                   </div>
@@ -584,12 +775,26 @@ export default function ReceptionistPatients() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="mt-3 text-sm text-muted-foreground">
+                Showing {filteredPatients.length} of {patientsWithAge.length} patients
+              </div>
             </CardContent>
           </Card>
 
           {/* Patients List */}
-          <div className="grid gap-4">
-            {filteredPatients.map((patient) => (
+          <Card>
+            <CardContent className="p-4">
+              <DataTable
+                columns={patientColumns}
+                data={patientTableRows}
+                emptyMessage="No patients found"
+                pageSize={12}
+              />
+            </CardContent>
+          </Card>
+
+          <div className="hidden grid gap-4">
+            {filteredPatients.map((patient: any) => (
               <Card
                 key={patient.id}
                 className="hover:shadow-md transition-shadow"
@@ -597,7 +802,7 @@ export default function ReceptionistPatients() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
+                      <div className="w-16 h-16 bg-linear-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center">
                         <span className="text-blue-800 font-semibold text-xl">
                           {patient.name.charAt(0)}
                         </span>
@@ -720,18 +925,18 @@ export default function ReceptionistPatients() {
                                         {selectedPatient.gender}
                                       </div>
                                     )}
-                                    {selectedPatient.phone && (
-                                      <div>
-                                        <strong>Phone:</strong>{" "}
-                                        {selectedPatient.phone}
-                                      </div>
-                                    )}
-                                    {selectedPatient.email && (
-                                      <div>
-                                        <strong>Email:</strong>{" "}
-                                        {selectedPatient.email}
-                                      </div>
-                                    )}
+                                      {(selectedPatient.phone || selectedPatient.user?.phone) && (
+                                        <div>
+                                          <strong>Phone:</strong>{" "}
+                                          {selectedPatient.phone || selectedPatient.user?.phone}
+                                        </div>
+                                      )}
+                                      {(selectedPatient.email || selectedPatient.user?.email) && (
+                                        <div>
+                                          <strong>Email:</strong>{" "}
+                                          {selectedPatient.email || selectedPatient.user?.email}
+                                        </div>
+                                      )}
                                     {selectedPatient.createdAt && (
                                       <div>
                                         <strong>Registration:</strong>{" "}
@@ -835,14 +1040,11 @@ export default function ReceptionistPatients() {
                           </DialogContent>
                         </Dialog>
 
-                        <Button variant="outline" size="sm">
-                          <Edit className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-
-                        <Button size="sm">
-                          <CalendarIcon className="w-4 h-4 mr-1" />
-                          Book
+                        <Button asChild size="sm">
+                          <Link href="/receptionist/appointments#appointment-manager">
+                            <Calendar className="w-4 h-4 mr-1" />
+                            Book
+                          </Link>
                         </Button>
                       </div>
                     </div>
@@ -865,8 +1067,111 @@ export default function ReceptionistPatients() {
               </CardContent>
             </Card>
           )}
+
+          <Dialog
+            open={!!selectedPatient}
+            onOpenChange={(open) => {
+              if (!open) setSelectedPatient(null);
+            }}
+          >
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  Patient Details: {selectedPatient?.name}
+                </DialogTitle>
+              </DialogHeader>
+              {selectedPatient && (
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">
+                        Personal Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <strong>Full Name:</strong>{" "}
+                        {selectedPatient.name ||
+                          `${selectedPatient.firstName || ""} ${
+                            selectedPatient.lastName || ""
+                          }`.trim()}
+                      </div>
+                      <div>
+                        <strong>Phone:</strong> {selectedPatient.phone || selectedPatient.user?.phone || "N/A"}
+                      </div>
+                      <div>
+                        <strong>Email:</strong> {selectedPatient.email || selectedPatient.user?.email || "N/A"}
+                      </div>
+                      <div>
+                        <strong>Age:</strong>{" "}
+                        {selectedPatient.age ? `${selectedPatient.age} years` : "N/A"}
+                      </div>
+                      <div>
+                        <strong>Gender:</strong> {selectedPatient.gender || "N/A"}
+                      </div>
+                      <div>
+                        <strong>Registration:</strong>{" "}
+                        {selectedPatient.createdAt
+                          ? new Date(selectedPatient.createdAt).toLocaleDateString()
+                          : "N/A"}
+                      </div>
+                      <div className="md:col-span-2">
+                        <strong>Address:</strong> {selectedPatient.address || "N/A"}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Heart className="w-5 h-5" />
+                        Medical Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4 text-sm">
+                      <div>
+                        <strong>Blood Group:</strong> {selectedPatient.bloodGroup || "N/A"}
+                      </div>
+                      <div>
+                        <strong>Allergies:</strong>{" "}
+                        {Array.isArray(selectedPatient.allergies)
+                          ? selectedPatient.allergies.join(", ")
+                          : selectedPatient.allergies || "N/A"}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">
+                        Status Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <strong>Status:</strong>{" "}
+                        <Badge
+                          className={getStatusColor(
+                            selectedPatient.isActive !== false ? "Active" : "Inactive"
+                          )}
+                          variant="outline"
+                        >
+                          {selectedPatient.isActive !== false ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                      <div>
+                        <strong>Total Visits:</strong>{" "}
+                        {selectedPatient.totalVisits !== undefined
+                          ? selectedPatient.totalVisits
+                          : "N/A"}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+    
   );
 }

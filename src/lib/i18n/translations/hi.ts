@@ -53,6 +53,41 @@ export const hi: TranslationKeys = {
     months: 'महीने',
     days: 'दिन',
   },
+  sidebar: {
+    dashboard: 'डैशबोर्ड',
+    appointments: 'अपॉइंटमेंट',
+    patients: 'मरीज़',
+    doctors: 'डॉक्टर',
+    prescriptions: 'प्रिस्क्रिप्शन',
+    pharmacy: 'फार्मेसी',
+    reports: 'रिपोर्ट',
+    analytics: 'एनालिटिक्स',
+    settings: 'सेटिंग्स',
+    profile: 'प्रोफ़ाइल',
+    logout: 'लॉगआउट',
+    clinics: 'क्लिनिक',
+    staff: 'स्टाफ',
+    queue: 'कतार',
+    ehr: 'मेडिकल रिकॉर्ड',
+    billing: 'बिलिंग',
+    inventory: 'इन्वेंटरी',
+  },
+  dashboard: {
+    welcomeBack: 'वापस स्वागत है',
+    overview: 'आज आपके स्वास्थ्य के बारे में क्या हो रहा है।',
+    bookAppointment: 'अपॉइंटमेंट बुक करें',
+  },
+  healthcare: {
+    diagnosis: 'प्राथमिक निदान',
+    treatment: 'वर्तमान उपचार',
+  },
+  patients: {
+    personalInfo: 'व्यक्तिगत जानकारी',
+  },
+  appointments: {
+    upcoming: 'आगामी अपॉइंटमेंट',
+    bookNew: 'नया बुक करें',
+  },
   navigation: {
     logo: 'श्री',
     clinicName: 'श्री विश्वमूर्ति आयुर्वेदालय',
@@ -1975,7 +2010,15 @@ export const hi: TranslationKeys = {
       },
       mentalClarity: {
         title: 'मानसिक स्पष्टता',
-        description: 'समग्र उपचार के माध्यम से संज्ञानात्मक कार्य और मानसिक शांति में सुधार'
+        description: 'समग्र उपचार के माध्यम से बेहतर फोकस और मानसिक कल्याण'
+      },
+      longTermResults: {
+        title: 'दीर्घकालिक परिणाम',
+        description: 'स्थायी स्वास्थ्य सुधार और स्थायी कल्याण'
+      },
+      provenEfficacy: {
+        title: 'सिद्ध प्रभावकारिता',
+        description: 'सिद्ध प्रभावशीलता के साथ समय-परीक्षित पारंपरिक तरीके'
       }
     },
     processGallery: {

@@ -53,6 +53,41 @@ export const en: TranslationKeys = {
     months: 'months',
     days: 'days',
   },
+  sidebar: {
+    dashboard: 'Dashboard',
+    appointments: 'Appointments',
+    patients: 'Patients',
+    doctors: 'Doctors',
+    prescriptions: 'Prescriptions',
+    pharmacy: 'Pharmacy',
+    reports: 'Reports',
+    analytics: 'Analytics',
+    settings: 'Settings',
+    profile: 'Profile',
+    logout: 'Logout',
+    clinics: 'Clinics',
+    staff: 'Staff',
+    queue: 'Queue',
+    ehr: 'Medical Records',
+    billing: 'Billing',
+    inventory: 'Inventory',
+  },
+  dashboard: {
+    welcomeBack: 'Welcome Back',
+    overview: 'Here is what is happening with your health today.',
+    bookAppointment: 'Book Appointment',
+  },
+  healthcare: {
+    diagnosis: 'Primary Diagnosis',
+    treatment: 'Current Treatment',
+  },
+  patients: {
+    personalInfo: 'Personal Information',
+  },
+  appointments: {
+    upcoming: 'Upcoming Appointment',
+    bookNew: 'Book New',
+  },
   navigation: {
     logo: 'Shri',
     clinicName: 'Shri Vishwamurti Ayurvedalay',
@@ -1974,7 +2009,15 @@ export const en: TranslationKeys = {
       },
       mentalClarity: {
         title: 'Mental Clarity',
-        description: 'Enhancing cognitive function and mental peace through holistic healing'
+        description: 'Improved focus and mental wellness through holistic treatment'
+      },
+      longTermResults: {
+        title: 'Long-term Results',
+        description: 'Sustainable health improvements and lasting wellness'
+      },
+      provenEfficacy: {
+        title: 'Proven Efficacy',
+        description: 'Time-tested traditional methods with proven effectiveness'
       }
     },
     processGallery: {

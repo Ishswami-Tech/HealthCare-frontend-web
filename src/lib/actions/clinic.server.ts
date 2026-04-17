@@ -3,82 +3,17 @@
 
 'use server';
 
-import { revalidatePath, revalidateTag } from 'next/cache';
-import { z } from 'zod';
-import { cookies } from 'next/headers';
-import { clinicApiClient } from '@/lib/api/client';
-import { auditLog } from '@/lib/audit';
-import { validateClinicAccess } from '@/lib/auth/permissions';
+import { revalidatePath } from 'next/cache';
+
+import { authenticatedApi, getServerSession, getClientInfo, revalidateCache } from './auth.server';
+import { auditLog } from '@/lib/utils/audit';
+import { validateClinicAccess } from '@/lib/config/permissions';
+import { logger } from '@/lib/utils/logger';
+import { API_ENDPOINTS } from '@/lib/config/config';
 import type { Clinic, ClinicLocation, CreateClinicData, UpdateClinicData } from '@/types/clinic.types';
 
 // ✅ Input Validation Schemas
-const createClinicSchema = z.object({
-  name: z.string().min(2).max(100),
-  address: z.string().min(5).max(200),
-  phone: z.string().regex(/^\+?[1-9]\d{9,14}$/),
-  email: z.string().email(),
-  subdomain: z.string().min(3).max(50).regex(/^[a-z0-9-]+$/),
-  mainLocation: z.object({
-    name: z.string().min(2).max(100),
-    address: z.string().min(5).max(200),
-    city: z.string().min(2).max(50),
-    state: z.string().min(2).max(50),
-    country: z.string().min(2).max(50),
-    zipCode: z.string().regex(/^\d{5}(-\d{4})?$/),
-    phone: z.string().regex(/^\+?[1-9]\d{9,14}$/),
-    email: z.string().email(),
-    timezone: z.string(),
-  }),
-  clinicAdminIdentifier: z.string().email().optional(),
-  logo: z.string().url().optional(),
-  website: z.string().url().optional(),
-  description: z.string().max(500).optional(),
-  timezone: z.string().optional(),
-  currency: z.string().optional(),
-  language: z.string().optional(),
-});
-
-const updateClinicSchema = z.object({
-  name: z.string().min(2).max(100).optional(),
-  address: z.string().min(5).max(200).optional(),
-  phone: z.string().regex(/^\+?[1-9]\d{9,14}$/).optional(),
-  email: z.string().email().optional(),
-  logo: z.string().url().optional(),
-  website: z.string().url().optional(),
-  description: z.string().max(500).optional(),
-  timezone: z.string().optional(),
-  currency: z.string().optional(),
-  language: z.string().optional(),
-  isActive: z.boolean().optional(),
-});
-
-// ✅ Helper Functions
-async function getSessionData() {
-  const cookieStore = await cookies();
-  const sessionId = cookieStore.get('session_id')?.value;
-  const userId = cookieStore.get('user_id')?.value;
-  const clinicId = cookieStore.get('clinic_id')?.value;
-
-  if (!sessionId || !userId) {
-    throw new Error('Unauthorized: Please log in again');
-  }
-
-  return { sessionId, userId, clinicId };
-}
-
-async function getClientIP(): Promise<string> {
-  const { headers } = await import('next/headers');
-  const headersList = await headers();
-  return headersList.get('x-forwarded-for') || 
-         headersList.get('x-real-ip') || 
-         'unknown';
-}
-
-async function getUserAgent(): Promise<string> {
-  const { headers } = await import('next/headers');
-  const headersList = await headers();
-  return headersList.get('user-agent') || 'unknown';
-}
+import { createClinicSchema, updateClinicSchema } from '@/lib/schema/clinic.schema';
 
 // ✅ Clinic Management Server Actions
 
@@ -87,15 +22,16 @@ async function getUserAgent(): Promise<string> {
  */
 export async function createClinic(data: CreateClinicData): Promise<{ success: boolean; clinic?: Clinic; error?: string }> {
   try {
-    // Validate input
     const validatedData = createClinicSchema.parse(data);
 
-    // Get session data
-    const { sessionId, userId } = await getSessionData();
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+    const { user, session_id: sessionId } = session;
+    const userId = user.id;
 
-    // Validate permissions
     const hasAccess = await validateClinicAccess(userId, 'clinics.create');
     if (!hasAccess) {
+      const { ipAddress, userAgent } = await getClientInfo();
       await auditLog({
         userId,
         action: 'CREATE_CLINIC_DENIED',
@@ -103,22 +39,16 @@ export async function createClinic(data: CreateClinicData): Promise<{ success: b
         resourceId: 'new',
         result: 'FAILURE',
         riskLevel: 'MEDIUM',
-        ipAddress: await getClientIP(),
-        userAgent: await getUserAgent(),
+        ipAddress,
+        userAgent,
         sessionId
       });
-      
       return { success: false, error: 'Access denied: Insufficient permissions' };
     }
 
-    // Create clinic via API - match the expected API client signature
     const apiData = {
-      name: validatedData.name,
-      address: validatedData.address,
-      phone: validatedData.phone,
-      email: validatedData.email,
-      subdomain: validatedData.subdomain,
-      mainLocation: validatedData.mainLocation,
+      ...validatedData,
+      type: 'GENERAL',
       clinicAdminIdentifier: validatedData.clinicAdminIdentifier || '',
       logo: validatedData.logo || '',
       website: validatedData.website || '',
@@ -128,153 +58,81 @@ export async function createClinic(data: CreateClinicData): Promise<{ success: b
       language: validatedData.language || 'en',
     };
 
-    const response = await clinicApiClient.createClinic(apiData);
+    const response = await authenticatedApi<Clinic>(API_ENDPOINTS.CLINICS.CREATE, {
+      method: 'POST',
+      body: JSON.stringify(apiData)
+    });
 
-    if (!response.success || !response.data) {
-      return { success: false, error: 'Failed to create clinic' };
-    }
-
-    // Audit log successful creation
+    const { ipAddress, userAgent } = await getClientInfo();
     await auditLog({
       userId,
       action: 'CLINIC_CREATED',
       resource: 'CLINIC',
-      resourceId: (response.data as any).id,
+      resourceId: response.data.id,
       result: 'SUCCESS',
       riskLevel: 'LOW',
-      ipAddress: await getClientIP(),
-      userAgent: await getUserAgent(),
+      ipAddress,
+      userAgent,
       sessionId,
       metadata: {
-        clinicName: (response.data as any).name,
-        clinicSubdomain: (response.data as any).subdomain
+        clinicName: response.data.name,
+        clinicSubdomain: response.data.subdomain
       }
     });
 
-    // Revalidate cache
     revalidatePath('/dashboard/clinics');
-    revalidateTag('clinics');
+    revalidateCache('clinics');
     
-    return { success: true, clinic: response.data as Clinic };
+    return { success: true, clinic: response.data };
     
   } catch (error) {
-    console.error('Failed to create clinic:', error);
-    
-    if (error instanceof z.ZodError) {
-      return { 
-        success: false, 
-        error: `Validation error: ${error.errors[0]?.message}` 
-      };
-    }
-    
-    return { 
-      success: false, 
-      error: 'An unexpected error occurred while creating the clinic' 
-    };
+    logger.error('Failed to create clinic', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred' };
   }
 }
 
 /**
- * Get all clinics (with pagination)
+ * Get all clinics
  */
-export async function getClinics(filters?: {
-  page?: number;
-  limit?: number;
-  search?: string;
-  status?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-}): Promise<{ success: boolean; clinics?: Clinic[]; meta?: any; error?: string }> {
+export async function getClinics(filters?: any) {
   try {
-    const { userId } = await getSessionData();
-
-    // Validate permissions
-    const hasAccess = await validateClinicAccess(userId, 'clinics.read');
-    if (!hasAccess) {
-      return { success: false, error: 'Access denied: Insufficient permissions' };
-    }
-
-    // Get clinics via API
-    const response = await clinicApiClient.getClinics(filters);
-
-    if (!response.success) {
-      return { success: false, error: 'Failed to fetch clinics' };
-    }
-
-    return { 
-      success: true, 
-      clinics: response.data as Clinic[] || [], 
-      meta: response.meta 
-    };
+    const session = await getServerSession();
+    if (!session?.user) return [];
     
+    const queryParams = filters ? new URLSearchParams(filters).toString() : '';
+    const endpoint = queryParams ? `${API_ENDPOINTS.CLINICS.GET_ALL}?${queryParams}` : API_ENDPOINTS.CLINICS.GET_ALL;
+    
+    const { data } = await authenticatedApi<Clinic[]>(endpoint, {});
+    return data || [];
   } catch (error) {
-    console.error('Failed to get clinics:', error);
-    return { 
-      success: false, 
-      error: 'An unexpected error occurred while fetching clinics' 
-    };
+    logger.error('Failed to get clinics', error instanceof Error ? error : new Error(String(error)));
+    return [];
   }
 }
 
 /**
  * Get clinic by ID
  */
-export async function getClinicById(id: string): Promise<{ success: boolean; clinic?: Clinic; error?: string }> {
+export async function getClinicById(id: string) {
   try {
-    const { userId } = await getSessionData();
-
-    // Validate permissions
-    const hasAccess = await validateClinicAccess(userId, 'clinics.read');
-    if (!hasAccess) {
-      return { success: false, error: 'Access denied: Insufficient permissions' };
-    }
-
-    // Get clinic via API
-    const response = await clinicApiClient.getClinicById(id);
-
-    if (!response.success || !response.data) {
-      return { success: false, error: 'Clinic not found' };
-    }
-
-    return { success: true, clinic: response.data as Clinic };
-    
+    const { data } = await authenticatedApi<Clinic>(API_ENDPOINTS.CLINICS.GET_BY_ID(id), {});
+    return data;
   } catch (error) {
-    console.error('Failed to get clinic:', error);
-    return { 
-      success: false, 
-      error: 'An unexpected error occurred while fetching the clinic' 
-    };
+    logger.error('Failed to get clinic by ID', error instanceof Error ? error : new Error(String(error)));
+    return null;
   }
 }
 
 /**
- * Get clinic by app name (subdomain)
+ * Get clinic by app name
  */
-export async function getClinicByAppName(appName: string): Promise<{ success: boolean; clinic?: Clinic; error?: string }> {
+export async function getClinicByAppName(appName: string) {
   try {
-    const { userId } = await getSessionData();
-
-    // Validate permissions
-    const hasAccess = await validateClinicAccess(userId, 'clinics.read');
-    if (!hasAccess) {
-      return { success: false, error: 'Access denied: Insufficient permissions' };
-    }
-
-    // Get clinic via API
-    const response = await clinicApiClient.getClinicByAppName(appName);
-
-    if (!response.success || !response.data) {
-      return { success: false, error: 'Clinic not found' };
-    }
-
-    return { success: true, clinic: response.data as Clinic };
-    
+    const { data } = await authenticatedApi<Clinic>(API_ENDPOINTS.CLINICS.GET_BY_APP_NAME(appName), {});
+    return data;
   } catch (error) {
-    console.error('Failed to get clinic by app name:', error);
-    return { 
-      success: false, 
-      error: 'An unexpected error occurred while fetching the clinic' 
-    };
+    logger.error('Failed to get clinic by app name', error instanceof Error ? error : new Error(String(error)));
+    return null;
   }
 }
 
@@ -283,15 +141,16 @@ export async function getClinicByAppName(appName: string): Promise<{ success: bo
  */
 export async function updateClinic(id: string, data: UpdateClinicData): Promise<{ success: boolean; clinic?: Clinic; error?: string }> {
   try {
-    // Validate input
     const validatedData = updateClinicSchema.parse(data);
 
-    // Get session data
-    const { sessionId, userId } = await getSessionData();
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+    const { user, session_id: sessionId } = session;
+    const userId = user.id;
 
-    // Validate permissions
     const hasAccess = await validateClinicAccess(userId, 'clinics.update');
     if (!hasAccess) {
+      const { ipAddress, userAgent } = await getClientInfo();
       await auditLog({
         userId,
         action: 'UPDATE_CLINIC_DENIED',
@@ -299,41 +158,19 @@ export async function updateClinic(id: string, data: UpdateClinicData): Promise<
         resourceId: id,
         result: 'FAILURE',
         riskLevel: 'MEDIUM',
-        ipAddress: await getClientIP(),
-        userAgent: await getUserAgent(),
+        ipAddress,
+        userAgent,
         sessionId
       });
-      
-      return { success: false, error: 'Access denied: Insufficient permissions' };
+      return { success: false, error: 'Access denied' };
     }
 
-    // Convert validated data to match API client signature
-    const apiData: any = {
-      name: validatedData.name || '',
-      address: validatedData.address || '',
-      phone: validatedData.phone || '',
-      email: validatedData.email || '',
-      logo: validatedData.logo || '',
-      website: validatedData.website || '',
-      description: validatedData.description || '',
-      timezone: validatedData.timezone || '',
-      currency: validatedData.currency || '',
-      language: validatedData.language || '',
-    };
+    const response = await authenticatedApi<Clinic>(API_ENDPOINTS.CLINICS.UPDATE(id), {
+      method: 'PATCH',
+      body: JSON.stringify(validatedData)
+    });
 
-    // Only add isActive if it's defined
-    if (validatedData.isActive !== undefined) {
-      apiData.isActive = validatedData.isActive;
-    }
-
-    // Update clinic via API
-    const response = await clinicApiClient.updateClinic(id, apiData);
-
-    if (!response.success || !response.data) {
-      return { success: false, error: 'Failed to update clinic' };
-    }
-
-    // Audit log successful update
+    const { ipAddress, userAgent } = await getClientInfo();
     await auditLog({
       userId,
       action: 'CLINIC_UPDATED',
@@ -341,35 +178,19 @@ export async function updateClinic(id: string, data: UpdateClinicData): Promise<
       resourceId: id,
       result: 'SUCCESS',
       riskLevel: 'LOW',
-      ipAddress: await getClientIP(),
-      userAgent: await getUserAgent(),
+      ipAddress,
+      userAgent,
       sessionId,
-      metadata: {
-        updatedFields: Object.keys(validatedData)
-      }
+      metadata: { updatedFields: Object.keys(validatedData) }
     });
 
-    // Revalidate cache
-    revalidatePath('/dashboard/clinics');
     revalidatePath(`/dashboard/clinics/${id}`);
-    revalidateTag('clinics');
+    revalidateCache('clinics');
     
-    return { success: true, clinic: response.data as Clinic };
-    
+    return { success: true, clinic: response.data };
   } catch (error) {
-    console.error('Failed to update clinic:', error);
-    
-    if (error instanceof z.ZodError) {
-      return { 
-        success: false, 
-        error: `Validation error: ${error.errors[0]?.message}` 
-      };
-    }
-    
-    return { 
-      success: false, 
-      error: 'An unexpected error occurred while updating the clinic' 
-    };
+    logger.error('Failed to update clinic', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred' };
   }
 }
 
@@ -378,35 +199,17 @@ export async function updateClinic(id: string, data: UpdateClinicData): Promise<
  */
 export async function deleteClinic(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    // Get session data
-    const { sessionId, userId } = await getSessionData();
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+    const { user, session_id: sessionId } = session;
+    const userId = user.id;
 
-    // Validate permissions
     const hasAccess = await validateClinicAccess(userId, 'clinics.delete');
-    if (!hasAccess) {
-      await auditLog({
-        userId,
-        action: 'DELETE_CLINIC_DENIED',
-        resource: 'CLINIC',
-        resourceId: id,
-        result: 'FAILURE',
-        riskLevel: 'HIGH',
-        ipAddress: await getClientIP(),
-        userAgent: await getUserAgent(),
-        sessionId
-      });
-      
-      return { success: false, error: 'Access denied: Insufficient permissions' };
-    }
+    if (!hasAccess) return { success: false, error: 'Access denied' };
 
-    // Delete clinic via API
-    const response = await clinicApiClient.deleteClinic(id);
+    await authenticatedApi(API_ENDPOINTS.CLINICS.DELETE(id), { method: 'DELETE' });
 
-    if (!response.success) {
-      return { success: false, error: 'Failed to delete clinic' };
-    }
-
-    // Audit log successful deletion
+    const { ipAddress, userAgent } = await getClientInfo();
     await auditLog({
       userId,
       action: 'CLINIC_DELETED',
@@ -414,23 +217,18 @@ export async function deleteClinic(id: string): Promise<{ success: boolean; erro
       resourceId: id,
       result: 'SUCCESS',
       riskLevel: 'HIGH',
-      ipAddress: await getClientIP(),
-      userAgent: await getUserAgent(),
+      ipAddress,
+      userAgent,
       sessionId
     });
 
-    // Revalidate cache
     revalidatePath('/dashboard/clinics');
-    revalidateTag('clinics');
+    revalidateCache('clinics');
     
     return { success: true };
-    
   } catch (error) {
-    console.error('Failed to delete clinic:', error);
-    return { 
-      success: false, 
-      error: 'An unexpected error occurred while deleting the clinic' 
-    };
+    logger.error('Failed to delete clinic', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred' };
   }
 }
 
@@ -439,118 +237,69 @@ export async function deleteClinic(id: string): Promise<{ success: boolean; erro
 /**
  * Create clinic location
  */
-export async function createClinicLocation(clinicId: string, data: {
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  country: string;
-  zipCode: string;
-  phone: string;
-  email: string;
-  timezone: string;
-  isActive?: boolean;
-}): Promise<{ success: boolean; location?: ClinicLocation; error?: string }> {
+export async function createClinicLocation(clinicId: string, data: any): Promise<{ success: boolean; location?: ClinicLocation; error?: string }> {
   try {
-    const { sessionId, userId } = await getSessionData();
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+    const { user, session_id: sessionId } = session;
+    const userId = user.id;
 
-    // Validate permissions
-    const hasAccess = await validateClinicAccess(userId, 'clinics.update');
-    if (!hasAccess) {
-      return { success: false, error: 'Access denied: Insufficient permissions' };
-    }
+    const response = await authenticatedApi<ClinicLocation>(API_ENDPOINTS.CLINIC_LOCATIONS.CREATE(clinicId), {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
 
-    // Create location via API
-    const response = await clinicApiClient.post(API_ENDPOINTS.CLINIC_LOCATIONS.CREATE(clinicId), data);
-
-    if (!response.success || !response.data) {
-      return { success: false, error: 'Failed to create clinic location' };
-    }
-
-    // Audit log
+    const { ipAddress, userAgent } = await getClientInfo();
     await auditLog({
       userId,
       action: 'CLINIC_LOCATION_CREATED',
       resource: 'CLINIC_LOCATION',
-      resourceId: (response.data as any).id,
+      resourceId: response.data.id,
       result: 'SUCCESS',
       riskLevel: 'LOW',
-      ipAddress: await getClientIP(),
-      userAgent: await getUserAgent(),
+      ipAddress,
+      userAgent,
       sessionId,
-      metadata: {
-        clinicId,
-        locationName: (response.data as any).name
-      }
+      metadata: { clinicId, locationName: response.data.name }
     });
 
-    // Revalidate cache
-    revalidatePath(`/dashboard/clinics/${clinicId}/locations`);
-    revalidateTag('clinic-locations');
-    
-    return { success: true, location: response.data as ClinicLocation };
-    
+    revalidateCache('clinic-locations');
+    return { success: true, location: response.data };
   } catch (error) {
-    console.error('Failed to create clinic location:', error);
-    return { 
-      success: false, 
-      error: 'An unexpected error occurred while creating the clinic location' 
-    };
+    logger.error('Failed to create clinic location', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred' };
   }
 }
 
 /**
  * Get clinic locations
  */
-export async function getClinicLocations(clinicId: string): Promise<{ success: boolean; locations?: ClinicLocation[]; error?: string }> {
+export async function getClinicLocations(clinicId: string) {
   try {
-    const { userId } = await getSessionData();
-
-    // Validate permissions
-    const hasAccess = await validateClinicAccess(userId, 'clinics.read');
-    if (!hasAccess) {
-      return { success: false, error: 'Access denied: Insufficient permissions' };
-    }
-
-    // Get locations via API
-    const response = await clinicApiClient.get(API_ENDPOINTS.CLINIC_LOCATIONS.GET_ALL(clinicId));
-
-    if (!response.success) {
-      return { success: false, error: 'Failed to fetch clinic locations' };
-    }
-
-    return { success: true, locations: response.data as ClinicLocation[] || [] };
-    
+    const { data } = await authenticatedApi<ClinicLocation[]>(API_ENDPOINTS.CLINIC_LOCATIONS.GET_ALL(clinicId), {});
+    return data || [];
   } catch (error) {
-    console.error('Failed to get clinic locations:', error);
-    return { 
-      success: false, 
-      error: 'An unexpected error occurred while fetching clinic locations' 
-    };
+    logger.error('Failed to get clinic locations', error instanceof Error ? error : new Error(String(error)));
+    return [];
   }
 }
 
 /**
  * Update clinic location
  */
-export async function updateClinicLocation(clinicId: string, locationId: string, data: Partial<ClinicLocation>): Promise<{ success: boolean; location?: ClinicLocation; error?: string }> {
+export async function updateClinicLocation(clinicId: string, locationId: string, data: Partial<ClinicLocation>) {
   try {
-    const { sessionId, userId } = await getSessionData();
+    const session = await getServerSession();
+    if (!session?.user) return null;
+    const { user, session_id: sessionId } = session;
+    const userId = user.id;
 
-    // Validate permissions
-    const hasAccess = await validateClinicAccess(userId, 'clinics.update');
-    if (!hasAccess) {
-      return { success: false, error: 'Access denied: Insufficient permissions' };
-    }
+    const response = await authenticatedApi<ClinicLocation>(API_ENDPOINTS.CLINIC_LOCATIONS.UPDATE(clinicId, locationId), {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
 
-    // Update location via API
-    const response = await clinicApiClient.put(API_ENDPOINTS.CLINIC_LOCATIONS.UPDATE(clinicId, locationId), data);
-
-    if (!response.success || !response.data) {
-      return { success: false, error: 'Failed to update clinic location' };
-    }
-
-    // Audit log
+    const { ipAddress, userAgent } = await getClientInfo();
     await auditLog({
       userId,
       action: 'CLINIC_LOCATION_UPDATED',
@@ -558,51 +307,33 @@ export async function updateClinicLocation(clinicId: string, locationId: string,
       resourceId: locationId,
       result: 'SUCCESS',
       riskLevel: 'LOW',
-      ipAddress: await getClientIP(),
-      userAgent: await getUserAgent(),
+      ipAddress,
+      userAgent,
       sessionId,
-      metadata: {
-        clinicId,
-        updatedFields: Object.keys(data)
-      }
+      metadata: { clinicId, updatedFields: Object.keys(data) }
     });
 
-    // Revalidate cache
-    revalidatePath(`/dashboard/clinics/${clinicId}/locations`);
-    revalidateTag('clinic-locations');
-    
-    return { success: true, location: response.data as ClinicLocation };
-    
+    revalidateCache('clinic-locations');
+    return response.data;
   } catch (error) {
-    console.error('Failed to update clinic location:', error);
-    return { 
-      success: false, 
-      error: 'An unexpected error occurred while updating the clinic location' 
-    };
+    logger.error('Failed to update clinic location', error instanceof Error ? error : new Error(String(error)));
+    return null;
   }
 }
 
 /**
  * Delete clinic location
  */
-export async function deleteClinicLocation(clinicId: string, locationId: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteClinicLocation(clinicId: string, locationId: string) {
   try {
-    const { sessionId, userId } = await getSessionData();
+    const session = await getServerSession();
+    if (!session?.user) return false;
+    const { user, session_id: sessionId } = session;
+    const userId = user.id;
 
-    // Validate permissions
-    const hasAccess = await validateClinicAccess(userId, 'clinics.delete');
-    if (!hasAccess) {
-      return { success: false, error: 'Access denied: Insufficient permissions' };
-    }
+    await authenticatedApi(API_ENDPOINTS.CLINIC_LOCATIONS.DELETE(clinicId, locationId), { method: 'DELETE' });
 
-    // Delete location via API
-    const response = await clinicApiClient.delete(API_ENDPOINTS.CLINIC_LOCATIONS.DELETE(clinicId, locationId));
-
-    if (!response.success) {
-      return { success: false, error: 'Failed to delete clinic location' };
-    }
-
-    // Audit log
+    const { ipAddress, userAgent } = await getClientInfo();
     await auditLog({
       userId,
       action: 'CLINIC_LOCATION_DELETED',
@@ -610,26 +341,17 @@ export async function deleteClinicLocation(clinicId: string, locationId: string)
       resourceId: locationId,
       result: 'SUCCESS',
       riskLevel: 'MEDIUM',
-      ipAddress: await getClientIP(),
-      userAgent: await getUserAgent(),
+      ipAddress,
+      userAgent,
       sessionId,
-      metadata: {
-        clinicId
-      }
+      metadata: { clinicId }
     });
 
-    // Revalidate cache
-    revalidatePath(`/dashboard/clinics/${clinicId}/locations`);
-    revalidateTag('clinic-locations');
-    
-    return { success: true };
-    
+    revalidateCache('clinic-locations');
+    return true;
   } catch (error) {
-    console.error('Failed to delete clinic location:', error);
-    return { 
-      success: false, 
-      error: 'An unexpected error occurred while deleting the clinic location' 
-    };
+    logger.error('Failed to delete clinic location', error instanceof Error ? error : new Error(String(error)));
+    return false;
   }
 }
 
@@ -638,124 +360,80 @@ export async function deleteClinicLocation(clinicId: string, locationId: string)
 /**
  * Get health status
  */
-export async function getHealthStatus(): Promise<{ success: boolean; status?: any; error?: string }> {
+export async function getHealthStatus() {
   try {
-    const response = await clinicApiClient.getHealthStatus();
-
-    if (!response.success) {
-      return { success: false, error: 'Health check failed' };
-    }
-
-    return { success: true, status: response.data };
-    
+    const { data } = await authenticatedApi(API_ENDPOINTS.HEALTH.STATUS, {});
+    return data;
   } catch (error) {
-    console.error('Health check failed:', error);
-    return { 
-      success: false, 
-      error: 'Health check failed' 
-    };
+    logger.error('Health check failed', error instanceof Error ? error : new Error(String(error)));
+    return null;
   }
 }
 
 /**
  * Get health ready status
  */
-export async function getHealthReady(): Promise<{ success: boolean; status?: any; error?: string }> {
+export async function getHealthReady() {
   try {
-    // Use real API health check endpoint (public endpoint, no auth required)
-    const { API_ENDPOINTS, APP_CONFIG } = await import('../config/config');
-    const response = await fetch(`${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.HEALTH.READY}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Health check failed: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    return { success: true, status: data };
-    
+    const { data } = await authenticatedApi(API_ENDPOINTS.HEALTH.READY, {});
+    return data;
   } catch (error) {
-    console.error('Health ready check failed:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Health ready check failed' 
-    };
+    logger.error('Health ready check failed', error instanceof Error ? error : new Error(String(error)));
+    return null;
   }
 }
 
 /**
  * Get health live status
  */
-export async function getHealthLive(): Promise<{ success: boolean; status?: unknown; error?: string }> {
+export async function getHealthLive() {
   try {
-    const response = await clinicApiClient.getApiStatus();
-
-    if (!response.success) {
-      return { success: false, error: 'Health live check failed' };
-    }
-
-    return { success: true, status: response.data };
-    
+    const { data } = await authenticatedApi(API_ENDPOINTS.HEALTH.LIVE, {});
+    return data;
   } catch (error) {
-    console.error('Health live check failed:', error);
-    return { 
-      success: false, 
-      error: 'Health live check failed' 
-    };
+    logger.error('Health live check failed', error instanceof Error ? error : new Error(String(error)));
+    return null;
   }
 }
 
 /**
- * Get all clinics (missing function)
+ * Assign Clinic Admin
  */
-export async function getAllClinics(params?: {
-  page?: number;
-  limit?: number;
-  search?: string;
-}): Promise<{ 
-  success: boolean; 
-  clinics?: Clinic[]; 
-  meta?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  };
-  error?: string;
-}> {
+export async function assignClinicAdmin(data: { userId: string; clinicId: string }) {
   try {
-    const { userId } = await getSessionData();
-
-    // Validate permissions
-    const hasAccess = await validateClinicAccess(userId, 'clinics.read');
-    if (!hasAccess) {
-      return { success: false, error: 'Access denied: Insufficient permissions' };
-    }
-
-    // Get all clinics via API client
-    const response = await clinicApiClient.getClinics(params);
-
-    if (!response.success) {
-      return { success: false, error: 'Failed to fetch clinics' };
-    }
-
-    return { 
-      success: true, 
-      clinics: (response.data as Clinic[]) || [], 
-      meta: response.meta 
-    };
-    
+    const { data: result } = await authenticatedApi('/clinics/admin', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    return { success: true, data: result };
   } catch (error) {
-    console.error('Failed to get all clinics:', error);
-    return { 
-      success: false, 
-      error: 'An unexpected error occurred while fetching clinics' 
-    };
+    logger.error('Failed to assign clinic admin', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Unexpected error' };
+  }
+}
+
+/**
+ * Get Clinic Doctors
+ */
+export async function getClinicDoctors(clinicId: string) {
+  try {
+    const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId), {});
+    return { success: true, doctors: data };
+  } catch (error) {
+    logger.error('Failed to get clinic doctors', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Unexpected error' };
+  }
+}
+
+/**
+ * Get Clinic Staff
+ */
+export async function getClinicStaff(clinicId: string) {
+  try {
+    const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_CLINIC(clinicId), {});
+    return { success: true, staff: data };
+  } catch (error) {
+    logger.error('Failed to get clinic staff', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Unexpected error' };
   }
 }

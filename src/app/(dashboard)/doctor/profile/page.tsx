@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import { useUserProfile, useUpdateUserProfile } from "@/hooks/query/useUsers";
+import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,67 +19,60 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
+
+import { useAuth } from "@/hooks/auth/useAuth";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { 
-  Activity,
-  Calendar, 
-  Users,
   UserCheck,
-  LogOut,
   Save,
   Star,
   Award,
   Clock,
   Camera,
   Edit,
-  Stethoscope
+  Stethoscope,
+  Loader2,
 } from "lucide-react";
 
 export default function DoctorProfile() {
   const { session } = useAuth();
   const user = session?.user;
+  const { data: userProfile, isPending: isLoading } = useUserProfile();
+  const updateProfileMutation = useUpdateUserProfile();
 
-  // Mock profile data
+  // Profile data
   const [profileData, setProfileData] = useState({
     personalInfo: {
-      firstName: user?.firstName || "Priya",
-      lastName: user?.lastName || "Sharma",
-      email: user?.email || "dr.priya.sharma@ayurvedacenter.com",
-      phone: "+91 9876543210",
-      dateOfBirth: "1985-03-15",
-      gender: "Female",
-      address: "123 Medical District, Mumbai, MH 400001",
-      city: "Mumbai",
-      state: "Maharashtra",
-      country: "India",
-      zipCode: "400001"
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      email: user?.email || "",
+      phone: "",
+      dateOfBirth: "",
+      gender: "",
+      address: "",
+      city: "",
+      state: "",
+      country: "",
+      zipCode: ""
     },
     professionalInfo: {
-      medicalLicense: "MH123456",
-      specializations: ["Panchakarma", "Nadi Pariksha", "Ayurvedic Medicine"],
-      experience: "12 years",
-      education: [
-        { degree: "BAMS", institution: "KLE University", year: "2012" },
-        { degree: "MD Panchakarma", institution: "MUHS", year: "2015" }
-      ],
-      certifications: [
-        "Board Certified Ayurvedic Physician",
-        "Panchakarma Specialist Certification",
-        "Yoga Therapy Certification"
-      ],
-      languagesSpoken: ["English", "Hindi", "Marathi", "Sanskrit"],
-      clinicAffiliations: ["Ayurveda Wellness Center", "Holistic Health Institute"]
+      medicalLicense: "",
+      specializations: [] as string[],
+      experience: "",
+      education: [] as { degree: string; institution: string; year: string }[],
+      certifications: [] as string[],
+      languagesSpoken: [] as string[],
+      clinicAffiliations: [] as string[]
     },
     consultationSettings: {
-      consultationFee: "500",
-      followUpFee: "300",
-      onlineConsultation: true,
-      videoConsultation: true,
+      consultationFee: "",
+      followUpFee: "",
+      onlineConsultation: false,
+      videoConsultation: false,
       homeVisits: false,
-      emergencyConsultation: true,
+      emergencyConsultation: false,
       consultationDuration: "30",
-      maxPatientsPerDay: "20",
+      maxPatientsPerDay: "",
       bookingAdvanceDays: "30"
     },
     availability: {
@@ -101,35 +94,14 @@ export default function DoctorProfile() {
     }
   });
 
-  const [stats] = useState({
-    totalPatients: 324,
-    consultationsCompleted: 1248,
-    averageRating: 4.8,
-    totalReviews: 89,
-    yearsOfExperience: 12,
-    specializations: 3
-  });
+  // Stats derived from real profile data loaded via useEffect
+  const stats = {
+    specializations: profileData.professionalInfo.specializations.length,
+    certifications: profileData.professionalInfo.certifications.length,
+    languagesSpoken: profileData.professionalInfo.languagesSpoken.length,
+  };
 
-  const [recentReviews] = useState([
-    {
-      patientName: "Rajesh K.",
-      rating: 5,
-      review: "Excellent doctor with deep knowledge of Ayurveda. The Panchakarma treatment helped me tremendously.",
-      date: "2024-01-10"
-    },
-    {
-      patientName: "Meera S.",
-      rating: 5,
-      review: "Very thorough consultation. Dr. Sharma explained everything clearly and the treatment plan is working well.",
-      date: "2024-01-08"
-    },
-    {
-      patientName: "Anil P.",
-      rating: 4,
-      review: "Professional and caring approach. Nadi Pariksha was very insightful.",
-      date: "2024-01-05"
-    }
-  ]);
+  const recentReviews: { patientName: string; rating: number; review: string; date: string }[] = [];
 
   const updatePersonalInfo = (field: string, value: string) => {
     setProfileData(prev => ({
@@ -162,50 +134,77 @@ export default function DoctorProfile() {
     }));
   };
 
+  // Fetch profile on mount
+  useEffect(() => {
+    if (!userProfile) return;
+    const data = userProfile as Record<string, unknown>;
+    setProfileData(prev => ({
+      ...prev,
+      personalInfo: {
+        firstName: (data.firstName as string) || prev.personalInfo.firstName,
+        lastName: (data.lastName as string) || prev.personalInfo.lastName,
+        email: (data.email as string) || prev.personalInfo.email,
+        phone: (data.phone as string) || prev.personalInfo.phone,
+        dateOfBirth: (data.dateOfBirth as string) || prev.personalInfo.dateOfBirth,
+        gender: (data.gender as string) || prev.personalInfo.gender,
+        address: (data.address as string) || prev.personalInfo.address,
+        city: (data.city as string) || prev.personalInfo.city,
+        state: (data.state as string) || prev.personalInfo.state,
+        country: (data.country as string) || prev.personalInfo.country,
+        zipCode: (data.zipCode as string) || prev.personalInfo.zipCode,
+      },
+    }));
+  }, [userProfile]);
 
-
-  const sidebarLinks = getRoutesByRole(Role.DOCTOR).map(route => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes('dashboard') ? <Activity className="w-5 h-5" /> :
-          route.path.includes('appointments') ? <Calendar className="w-5 h-5" /> :
-          route.path.includes('patients') ? <Users className="w-5 h-5" /> :
-          route.path.includes('profile') ? <UserCheck className="w-5 h-5" /> :
-          <Stethoscope className="w-5 h-5" />
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />
-  });
+  const handleSaveProfile = async () => {
+    try {
+      const { personalInfo } = profileData;
+      const result = await updateProfileMutation.mutateAsync({
+        firstName: personalInfo.firstName,
+        lastName: personalInfo.lastName,
+        phone: personalInfo.phone,
+        dateOfBirth: personalInfo.dateOfBirth,
+        gender: personalInfo.gender?.toUpperCase(),
+        address: personalInfo.address,
+        city: personalInfo.city,
+        state: personalInfo.state,
+        country: personalInfo.country,
+        zipCode: personalInfo.zipCode,
+      });
+      if (!result.success) {
+        showErrorToast(result.error || "Failed to save", { id: TOAST_IDS.GLOBAL.ERROR });
+      }
+    } catch (err) {
+      showErrorToast(err instanceof Error ? err.message : "Failed to save profile", { id: TOAST_IDS.GLOBAL.ERROR });
+    }
+  };
 
   return (
-    <DashboardLayout title="Doctor Profile" allowedRole={Role.DOCTOR}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{ 
-          name: user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png" 
-        }}
-      >
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Doctor Profile</h1>
-            <Button className="flex items-center gap-2">
-              <Save className="w-4 h-4" />
-              Save Changes
-            </Button>
-          </div>
+    
+        <DashboardPageShell>
+          <DashboardPageHeader
+            eyebrow="Doctor Profile"
+            title="Doctor Profile"
+            description="Keep your clinical identity, consultation settings, availability, and public profile details up to date."
+            actionsSlot={
+              <Button
+                className="flex items-center gap-2"
+                onClick={handleSaveProfile}
+                disabled={updateProfileMutation.isPending || isLoading}
+              >
+                {updateProfileMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save Changes
+              </Button>
+            }
+          />
 
           {/* Profile Overview */}
-          <Card>
+          <Card className="border-l-4 border-l-emerald-400 shadow-sm">
             <CardContent className="p-6">
-              <div className="flex items-center gap-6">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
                 <div className="relative">
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-800 font-semibold text-3xl">
+                  <div className="w-24 h-24 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center dark:from-blue-950 dark:to-purple-950">
+                    <span className="text-blue-800 font-semibold text-3xl dark:text-blue-200">
                       {profileData.personalInfo.firstName.charAt(0)}
                     </span>
                   </div>
@@ -220,7 +219,7 @@ export default function DoctorProfile() {
                   <h2 className="text-2xl font-bold">
                     Dr. {profileData.personalInfo.firstName} {profileData.personalInfo.lastName}
                   </h2>
-                  <div className="flex items-center gap-4 mt-2 text-gray-600">
+                  <div className="flex flex-wrap items-center gap-4 mt-2 text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Stethoscope className="w-4 h-4" />
                       {profileData.professionalInfo.specializations[0]}
@@ -230,8 +229,8 @@ export default function DoctorProfile() {
                       {profileData.professionalInfo.experience} experience
                     </span>
                     <span className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-yellow-500" />
-                      {stats.averageRating}/5.0
+                      <Stethoscope className="w-4 h-4" />
+                      {stats.specializations} specialization{stats.specializations !== 1 ? 's' : ''}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
@@ -243,12 +242,12 @@ export default function DoctorProfile() {
                 <div className="text-right">
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
-                      <div className="text-2xl font-bold text-blue-600">{stats.totalPatients}</div>
-                      <div className="text-sm text-gray-600">Patients</div>
+                      <div className="text-2xl font-bold text-blue-600">{stats.certifications}</div>
+                      <div className="text-sm text-muted-foreground">Certifications</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-green-600">{stats.consultationsCompleted}</div>
-                      <div className="text-sm text-gray-600">Consultations</div>
+                      <div className="text-2xl font-bold text-green-600">{stats.languagesSpoken}</div>
+                      <div className="text-sm text-muted-foreground">Languages</div>
                     </div>
                   </div>
                 </div>
@@ -616,27 +615,9 @@ export default function DoctorProfile() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="text-center">
-                        <div className="text-4xl font-bold text-yellow-600">{stats.averageRating}</div>
-                        <div className="flex justify-center mt-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star 
-                              key={i} 
-                              className={`w-5 h-5 ${i < Math.floor(stats.averageRating) ? 'text-yellow-500 fill-current' : 'text-gray-300'}`} 
-                            />
-                          ))}
-                        </div>
-                        <div className="text-sm text-gray-600 mt-1">Overall Rating</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-4xl font-bold text-blue-600">{stats.totalReviews}</div>
-                        <div className="text-sm text-gray-600">Total Reviews</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-4xl font-bold text-green-600">96%</div>
-                        <div className="text-sm text-gray-600">Recommendation Rate</div>
-                      </div>
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Star className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">Rating data not yet available</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -674,9 +655,7 @@ export default function DoctorProfile() {
               </div>
             </TabsContent>
           </Tabs>
-        </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+        </DashboardPageShell>
+    
   );
 }
-

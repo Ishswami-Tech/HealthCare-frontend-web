@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,28 +14,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
+
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinicContext } from "@/hooks/query/useClinics";
 import {
   useDashboardAnalytics,
   useAppointmentAnalytics,
   usePatientAnalytics,
   useRevenueAnalytics,
   useQueueAnalytics,
-} from "@/hooks/useAnalytics";
+} from "@/hooks/query/useAnalytics";
 import {
-  Activity,
-  Calendar,
-  FileText,
-  Pill,
-  User,
-  Users,
-  Building2,
-  Settings,
-  LogOut,
-  TrendingUp,
-  TrendingDown,
   BarChart3,
   LineChart,
   Download,
@@ -44,13 +32,20 @@ import {
   Eye,
   CheckCircle,
   AlertTriangle,
-  Stethoscope,
+  Users,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
   DollarSign,
-  Zap,
-  Globe,
-  Smartphone,
-  MapPin,
   Star,
+  Building2,
+  Zap,
+  MapPin,
+  Stethoscope,
+  Smartphone,
+  Globe,
+  Activity,
+  FileText,
 } from "lucide-react";
 
 export default function AnalyticsDashboard() {
@@ -260,64 +255,9 @@ export default function AnalyticsDashboard() {
   };
 
 
-  const sidebarLinks = getRoutesByRole(userRole).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("medical-records") ? (
-      <FileText className="w-5 h-5" />
-    ) : route.path.includes("prescriptions") ? (
-      <Pill className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <User className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("staff") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("schedule") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  // Add Analytics link to sidebar
-  sidebarLinks.push({
-    label: "Analytics",
-    href: "/analytics",
-    path: "/analytics",
-    icon: <BarChart3 className="w-5 h-5" />,
-  });
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/auth/login",
-    path: "/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
-
   return (
-    <DashboardLayout title="Analytics Dashboard" allowedRole={userRole}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Administrator",
-          ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-        }}
-      >
-        <div className="p-6 space-y-6">
+    
+      <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
@@ -1231,7 +1171,6 @@ export default function AnalyticsDashboard() {
             </>
           )}
         </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+    
   );
 }

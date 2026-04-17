@@ -1,20 +1,26 @@
 "use client";
 
+/**
+ * ✅ App Provider
+ * Root provider stack for the application
+ * NO loading overlay - uses inline loading states
+ */
+
 import { ThemeProvider } from "next-themes";
-import { LoadingOverlayProvider } from "@/app/providers/LoadingOverlayContext";
-import { GlobalLoadingOverlayListener } from "@/app/providers/GlobalLoadingOverlayListener";
 import QueryProvider from "@/app/providers/QueryProvider";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { ReactNode, Suspense } from "react";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { LoadingSpinner } from "@/components/ui/loading";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LanguageProvider } from "@/lib/i18n/context";
-import { WebSocketProvider } from "@/components/websocket/WebSocketProvider";
+import { WebSocketProvider } from "@/app/providers/WebSocketProvider";
 import { StoreProvider } from "@/stores";
-import { PushNotificationProvider } from "@/components/push-notifications/PushNotificationProvider";
-import { GlobalHealthStatusProvider } from "@/components/common/GlobalHealthStatusProvider";
-import { HealthStatusProvider } from "@/components/common/HealthStatusProvider";
+import { PushNotificationProvider } from "@/app/providers/PushNotificationProvider";
+import { HealthStatusProvider } from "@/app/providers/HealthStatusProvider";
+import { ERROR_MESSAGES } from "@/lib/config/config";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 
 function ErrorFallback({
   error,
@@ -33,8 +39,7 @@ function ErrorFallback({
           Application Error
         </h1>
         <p className="text-gray-600 mb-6">
-          Something went wrong in the application. Please try refreshing the
-          page.
+          {error ? sanitizeErrorMessage(error) : ERROR_MESSAGES.UNKNOWN_ERROR}
         </p>
         <Button onClick={resetErrorBoundary} className="w-full">
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -57,16 +62,8 @@ function ErrorFallback({
 
 function AppProviderFallback() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">
-          Initializing Application...
-        </h2>
-        <p className="text-gray-600">
-          Please wait while we set up your experience
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-blue-950/20 dark:via-background dark:to-indigo-950/20 flex items-center justify-center">
+      <LoadingSpinner size="lg" text="Initializing..." center />
     </div>
   );
 }
@@ -76,7 +73,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <ErrorBoundary
       fallback={ErrorFallback}
       onError={(error, errorInfo) => {
-        // Log error to monitoring service in production
         console.error("App Provider Error:", error, errorInfo);
       }}
     >
@@ -89,33 +85,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         >
           <LanguageProvider>
             <StoreProvider>
-              <LoadingOverlayProvider>
-                <QueryProvider>
-                  <WebSocketProvider
-                    autoConnect={true}
-                    enableRetry={true}
-                    enableErrorBoundary={true}
-                  >
-                    <PushNotificationProvider>
-                      <HealthStatusProvider />
-                      <GlobalLoadingOverlayListener />
-                      {children}
-                      <GlobalHealthStatusProvider />
-                      <Toaster
-                        richColors
-                        position="top-right"
-                        expand={false}
-                        visibleToasts={4}
-                        closeButton
-                        toastOptions={{
-                          duration: 4000,
-                          className: "text-sm",
-                        }}
-                      />
-                    </PushNotificationProvider>
-                  </WebSocketProvider>
-                </QueryProvider>
-              </LoadingOverlayProvider>
+              <QueryProvider>
+                <WebSocketProvider
+                  autoConnect={true}
+                  enableRetry={true}
+                  enableErrorBoundary={true}
+                >
+                  <PushNotificationProvider>
+                    <HealthStatusProvider />
+                    {children}
+                    <Toaster
+                      richColors
+                      position="top-right"
+                      expand={false}
+                      visibleToasts={4}
+                      closeButton
+                      toastOptions={{
+                        duration: 4000,
+                        className: "text-sm",
+                      }}
+                    />
+                  </PushNotificationProvider>
+                </WebSocketProvider>
+              </QueryProvider>
             </StoreProvider>
           </LanguageProvider>
         </ThemeProvider>

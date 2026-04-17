@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -90,7 +90,7 @@ const HeroSection = () => {
             {/* Enhanced Main Headline with Responsive Typography */}
             <ScrollReveal direction="up">
               <div className="space-y-4 mt-8 sm:space-y-5 lg:space-y-6 mb-8 sm:mb-10 lg:mb-12 text-center lg:text-left">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.1] tracking-tight">
+                <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.1]">
                   <div className="block text-slate-900 dark:text-slate-100 mb-2 sm:mb-3">
                     {t("hero.title1")}
                   </div>
@@ -367,7 +367,7 @@ const HeroSection = () => {
                     {t("hero.noSideEffects")}
                   </span>
                 </div>
-                <div className="glass interactive flex items-center space-x-2 px-3 py-2 rounded-full text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700">
+                <div className="glass interactive flex items-center space-x-2 px-3 py-2 rounded-full text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700">
                   <div className="status-dot online" />
                   <span className="text-xs font-medium">
                     {t("hero.provenResults")}
@@ -424,10 +424,10 @@ const HeroSection = () => {
                     </div>
                   </div>
                   <div className="glass card-hover group text-center p-2 sm:p-3 rounded-lg medical-red">
-                    <div className="text-base sm:text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent mb-0.5">
+                    <div className="text-base sm:text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent mb-0.5">
                       4.9★
                     </div>
-                    <div className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                    <div className="text-xs font-medium text-blue-700 dark:text-blue-300">
                       Patient Rating
                     </div>
                   </div>
@@ -449,7 +449,7 @@ const HeroSection = () => {
               <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
             </div>
 
-            <div className="absolute bottom-1/4 -right-1 sm:-right-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white p-1.5 sm:p-2 rounded-full shadow-lg animate-pulse delay-500 hover:scale-110 transition-transform duration-300">
+            <div className="absolute bottom-1/4 -right-1 sm:-right-2 bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-1.5 sm:p-2 rounded-full shadow-lg animate-pulse delay-500 hover:scale-110 transition-transform duration-300">
               <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
             </div>
           </div>

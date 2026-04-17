@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,26 +14,21 @@ import {
 import {
   Pen,
   Type,
-  ArrowRight,
   Highlighter,
   Square,
-  Circle,
   Trash2,
-  Save,
-  X,
   Undo,
   Redo,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
-  createAnnotation,
-  updateAnnotation,
-  getAnnotations,
-  deleteAnnotation,
+  useAnnotations,
+  useCreateAnnotation,
+  useDeleteAnnotation,
   type Annotation,
-} from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+} from "@/hooks/query";
+import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 interface ScreenAnnotationProps {
   appointmentId: string;
@@ -50,7 +45,6 @@ export function ScreenAnnotation({
   onAnnotationChange,
 }: ScreenAnnotationProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -62,25 +56,18 @@ export function ScreenAnnotation({
   );
   const [history, setHistory] = useState<Annotation[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [deletingAnnotationId, setDeletingAnnotationId] = useState<string | null>(null);
 
   const { subscribeToAnnotations, isConnected } = useVideoAppointmentWebSocket();
+  const { data: fetchedAnnotations = [] } = useAnnotations(appointmentId);
+  const createAnnotationMutation = useCreateAnnotation();
+  const deleteAnnotationMutation = useDeleteAnnotation();
+  const isSavingAnnotation = createAnnotationMutation.isPending;
 
-  // Load annotations
   useEffect(() => {
-    const loadAnnotations = async () => {
-      try {
-        const result = await getAnnotations(appointmentId);
-        if (result && result.annotations) {
-          setAnnotations(result.annotations);
-          drawAnnotations(result.annotations);
-        }
-      } catch (error) {
-        console.error("Failed to load annotations:", error);
-      }
-    };
-
-    loadAnnotations();
-  }, [appointmentId]);
+    setAnnotations(fetchedAnnotations);
+    drawAnnotations(fetchedAnnotations);
+  }, [fetchedAnnotations]);
 
   // Subscribe to real-time annotation updates
   useEffect(() => {
@@ -122,58 +109,67 @@ export function ScreenAnnotation({
   const drawAnnotation = (annotation: Annotation) => {
     if (!ctx || !canvas) return;
 
-    ctx.strokeStyle = annotation.data.color || currentColor;
-    ctx.fillStyle = annotation.data.color || currentColor;
+    const color = (typeof annotation.data.color === 'string' ? annotation.data.color : annotation.color) || currentColor;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
     ctx.lineWidth = 2;
 
-    switch (annotation.type) {
-      case "drawing":
-        if (annotation.data.points && annotation.data.points.length > 1) {
+    switch (annotation.annotationType) {
+      case "DRAWING":
+        const drawingPoints = annotation.data.points as Array<{ x: number; y: number }> | undefined;
+        if (drawingPoints && Array.isArray(drawingPoints) && drawingPoints.length > 1 && drawingPoints[0]) {
           ctx.beginPath();
-          ctx.moveTo(annotation.data.points[0].x, annotation.data.points[0].y);
-          annotation.data.points.forEach((point) => {
+          ctx.moveTo(drawingPoints[0].x, drawingPoints[0].y);
+          drawingPoints.forEach((point) => {
             ctx.lineTo(point.x, point.y);
           });
           ctx.stroke();
         }
         break;
-      case "text":
-        if (annotation.data.text) {
+      case "TEXT":
+        const textData = annotation.data.text as string | undefined;
+        const textX = (annotation.data.x as number | undefined) ?? annotation.position?.x ?? 0;
+        const textY = (annotation.data.y as number | undefined) ?? annotation.position?.y ?? 0;
+        if (textData) {
           ctx.font = "16px Arial";
-          ctx.fillText(
-            annotation.data.text,
-            annotation.data.x,
-            annotation.data.y
-          );
+          ctx.fillText(textData, textX, textY);
         }
         break;
-      case "shape":
-        if (annotation.data.shape === "rectangle" && annotation.data.width && annotation.data.height) {
-          ctx.strokeRect(
-            annotation.data.x,
-            annotation.data.y,
-            annotation.data.width,
-            annotation.data.height
-          );
-        } else if (annotation.data.shape === "circle" && annotation.data.width) {
+      case "SHAPE":
+        const shapeData = annotation.data.shape as string | undefined;
+        const shapeX = (annotation.data.x as number | undefined) ?? annotation.position?.x ?? 0;
+        const shapeY = (annotation.data.y as number | undefined) ?? annotation.position?.y ?? 0;
+        const shapeWidth = (annotation.data.width as number | undefined) ?? annotation.position?.width ?? 0;
+        const shapeHeight = (annotation.data.height as number | undefined) ?? annotation.position?.height ?? 0;
+        
+        if (shapeData === "rectangle" && shapeWidth && shapeHeight) {
+          ctx.strokeRect(shapeX, shapeY, shapeWidth, shapeHeight);
+        } else if (shapeData === "circle" && shapeWidth) {
           ctx.beginPath();
           ctx.arc(
-            annotation.data.x + annotation.data.width / 2,
-            annotation.data.y + annotation.data.width / 2,
-            annotation.data.width / 2,
+            shapeX + shapeWidth / 2,
+            shapeY + shapeWidth / 2,
+            shapeWidth / 2,
             0,
             2 * Math.PI
           );
           ctx.stroke();
-        } else if (annotation.data.shape === "line" && annotation.data.points) {
-          ctx.beginPath();
-          ctx.moveTo(annotation.data.points[0].x, annotation.data.points[0].y);
-          ctx.lineTo(
-            annotation.data.points[1]?.x || annotation.data.x,
-            annotation.data.points[1]?.y || annotation.data.y
-          );
-          ctx.stroke();
+        } else if (shapeData === "line") {
+          const linePoints = annotation.data.points as Array<{ x: number; y: number }> | undefined;
+          if (linePoints && Array.isArray(linePoints) && linePoints.length >= 2 && linePoints[0]) {
+            ctx.beginPath();
+            ctx.moveTo(linePoints[0].x, linePoints[0].y);
+            ctx.lineTo(
+              linePoints[1]?.x ?? shapeX,
+              linePoints[1]?.y ?? shapeY
+            );
+            ctx.stroke();
+          }
         }
+        break;
+      case "ARROW":
+      case "HIGHLIGHT":
+        // Similar handling for arrow and highlight
         break;
     }
   };
@@ -278,60 +274,77 @@ export function ScreenAnnotation({
     data: Annotation["data"];
   }) => {
     try {
-      const result = await createAnnotation(appointmentId, {
+      const annotationData: {
+        annotationType: 'DRAWING' | 'TEXT' | 'ARROW' | 'HIGHLIGHT' | 'SHAPE';
+        data: Record<string, unknown>;
+        color?: string;
+        thickness?: number;
+      } = {
         annotationType: data.type.toUpperCase() as 'DRAWING' | 'TEXT' | 'ARROW' | 'HIGHLIGHT' | 'SHAPE',
         data: data.data as Record<string, unknown>,
-        color: data.data.color,
         thickness: 2,
+      };
+      if (typeof data.data.color === 'string') {
+        annotationData.color = data.data.color;
+      }
+      const result = await createAnnotationMutation.mutateAsync({
+        appointmentId,
+        data: annotationData,
       });
       if (result) {
         saveToHistory();
-        toast({
-          title: "Annotation Created",
+        showSuccessToast("Annotation created", {
+          id: TOAST_IDS.GLOBAL.SUCCESS,
           description: "Annotation has been saved",
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create annotation",
-        variant: "destructive",
-      });
+      showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
     }
   };
 
   const handleDeleteAnnotation = async (annotationId: string) => {
+    setDeletingAnnotationId(annotationId);
     try {
-      const result = await deleteAnnotation(appointmentId, annotationId);
+      const result = await deleteAnnotationMutation.mutateAsync({
+        appointmentId,
+        annotationId,
+      });
       if (result && result.success) {
         saveToHistory();
-        toast({
-          title: "Annotation Deleted",
+        showSuccessToast("Annotation deleted", {
+          id: TOAST_IDS.GLOBAL.SUCCESS,
           description: "Annotation has been deleted",
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete annotation",
-        variant: "destructive",
-      });
+      showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
+    } finally {
+      setDeletingAnnotationId(null);
     }
   };
 
   const handleUndo = () => {
     if (historyIndex > 0) {
-      setHistoryIndex((prev) => prev - 1);
-      setAnnotations(history[historyIndex - 1]);
-      redrawAll();
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      const previousState = history[newIndex];
+      if (previousState) {
+        setAnnotations(previousState);
+        redrawAll();
+      }
     }
   };
 
   const handleRedo = () => {
     if (historyIndex < history.length - 1) {
-      setHistoryIndex((prev) => prev + 1);
-      setAnnotations(history[historyIndex + 1]);
-      redrawAll();
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      const nextState = history[newIndex];
+      if (nextState) {
+        setAnnotations(nextState);
+        redrawAll();
+      }
     }
   };
 
@@ -352,37 +365,41 @@ export function ScreenAnnotation({
       <CardContent className="space-y-4">
         {/* Toolbar */}
         <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            size="sm"
-            variant={currentTool === "drawing" ? "default" : "outline"}
-            onClick={() => setCurrentTool("drawing")}
-          >
+            <Button
+              size="sm"
+              variant={currentTool === "drawing" ? "default" : "outline"}
+              onClick={() => setCurrentTool("drawing")}
+              disabled={isSavingAnnotation}
+            >
             <Pen className="h-4 w-4" />
           </Button>
-          <Button
-            size="sm"
-            variant={currentTool === "text" ? "default" : "outline"}
-            onClick={() => setCurrentTool("text")}
-          >
+            <Button
+              size="sm"
+              variant={currentTool === "text" ? "default" : "outline"}
+              onClick={() => setCurrentTool("text")}
+              disabled={isSavingAnnotation}
+            >
             <Type className="h-4 w-4" />
           </Button>
-          <Button
-            size="sm"
-            variant={currentTool === "shape" ? "default" : "outline"}
-            onClick={() => setCurrentTool("shape")}
-          >
+            <Button
+              size="sm"
+              variant={currentTool === "shape" ? "default" : "outline"}
+              onClick={() => setCurrentTool("shape")}
+              disabled={isSavingAnnotation}
+            >
             <Square className="h-4 w-4" />
           </Button>
-          <Button
-            size="sm"
-            variant={currentTool === "highlight" ? "default" : "outline"}
-            onClick={() => setCurrentTool("highlight")}
-          >
+            <Button
+              size="sm"
+              variant={currentTool === "highlight" ? "default" : "outline"}
+              onClick={() => setCurrentTool("highlight")}
+              disabled={isSavingAnnotation}
+            >
             <Highlighter className="h-4 w-4" />
           </Button>
 
           {currentTool === "shape" && (
-            <Select value={currentShape} onValueChange={(v) => setCurrentShape(v as ShapeType)}>
+            <Select value={currentShape} onValueChange={(v) => setCurrentShape(v as ShapeType)} disabled={isSavingAnnotation}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -402,20 +419,21 @@ export function ScreenAnnotation({
                   currentColor === color ? "border-primary" : "border-transparent"
                 }`}
                 style={{ backgroundColor: color }}
-                onClick={() => setCurrentColor(color)}
-              />
+                  disabled={isSavingAnnotation}
+                  onClick={() => setCurrentColor(color)}
+                />
             ))}
           </div>
 
           <div className="flex gap-1 ml-auto">
-            <Button size="sm" variant="outline" onClick={handleUndo} disabled={historyIndex <= 0}>
+            <Button size="sm" variant="outline" onClick={handleUndo} disabled={historyIndex <= 0 || isSavingAnnotation}>
               <Undo className="h-4 w-4" />
             </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={handleRedo}
-              disabled={historyIndex >= history.length - 1}
+              disabled={historyIndex >= history.length - 1 || isSavingAnnotation}
             >
               <Redo className="h-4 w-4" />
             </Button>
@@ -457,6 +475,7 @@ export function ScreenAnnotation({
                       size="sm"
                       variant="ghost"
                       onClick={() => handleDeleteAnnotation(annotation.id)}
+                      disabled={deletingAnnotationId === annotation.id}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -470,4 +489,3 @@ export function ScreenAnnotation({
     </Card>
   );
 }
-

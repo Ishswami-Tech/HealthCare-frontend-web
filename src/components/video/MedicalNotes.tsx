@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,15 +15,15 @@ import {
 } from "@/components/ui/select";
 import { FileText, Plus, Edit, Trash2, Save, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/hooks/useAuth";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
-  createMedicalNote,
-  getMedicalNotes,
-  deleteMedicalNote,
+  useCreateMedicalNote,
+  useDeleteMedicalNote,
+  useMedicalNotes,
   type MedicalNote,
-} from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+} from "@/hooks/query";
+import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { format } from "date-fns";
 
 interface MedicalNotesProps {
@@ -33,11 +33,10 @@ interface MedicalNotesProps {
 
 export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [notes, setNotes] = useState<MedicalNote[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [newNote, setNewNote] = useState({
     content: "",
     noteType: "GENERAL" as
@@ -50,24 +49,14 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
   });
   const { subscribeToMedicalNotes, isConnected } =
     useVideoAppointmentWebSocket();
+  const { data: fetchedNotes = [], isPending: isLoading } = useMedicalNotes(appointmentId);
+  const createMedicalNoteMutation = useCreateMedicalNote();
+  const deleteMedicalNoteMutation = useDeleteMedicalNote();
+  const isSaving = createMedicalNoteMutation.isPending;
 
-  // Load notes
   useEffect(() => {
-    const loadNotes = async () => {
-      try {
-        const result = await getMedicalNotes(appointmentId);
-        if (result && result.notes) {
-          setNotes(result.notes);
-        }
-      } catch (error) {
-        console.error("Failed to load medical notes:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadNotes();
-  }, [appointmentId]);
+    setNotes(fetchedNotes);
+  }, [fetchedNotes]);
 
   // Subscribe to real-time note updates
   useEffect(() => {
@@ -97,25 +86,24 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
     if (!newNote.content.trim()) return;
 
     try {
-      const result = await createMedicalNote(appointmentId, {
-        content: newNote.content,
-        noteType: newNote.noteType,
-        title: newNote.title,
+      const result = await createMedicalNoteMutation.mutateAsync({
+        appointmentId,
+        data: {
+          content: newNote.content,
+          noteType: newNote.noteType,
+          title: newNote.title,
+        },
       });
       if (result) {
         setNewNote({ content: "", noteType: "GENERAL", title: "" });
         setIsCreating(false);
-        toast({
-          title: "Note Created",
+        showSuccessToast("Note created", {
+          id: TOAST_IDS.GLOBAL.SUCCESS,
           description: "Medical note has been saved",
         });
       }
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to create note",
-        variant: "destructive",
-      });
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
     }
   };
 
@@ -126,36 +114,33 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
 
       // Backend doesn't support update, show error message
       setEditingId(null);
-      toast({
-        title: "Update Not Supported",
+      showInfoToast("Update not supported", {
+        id: TOAST_IDS.GLOBAL.INFO,
         description: "Please delete and create a new note to update.",
-        variant: "destructive",
       });
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to update note",
-        variant: "destructive",
-      });
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
     }
   };
 
   const handleDeleteNote = async (noteId: string) => {
+    setDeletingNoteId(noteId);
     try {
-      const result = await deleteMedicalNote(appointmentId, noteId);
+      const result = await deleteMedicalNoteMutation.mutateAsync({
+        appointmentId,
+        noteId,
+      });
       if (result && result.success) {
         setNotes((prev) => prev.filter((n) => n.id !== noteId));
-        toast({
-          title: "Note Deleted",
+        showSuccessToast("Note deleted", {
+          id: TOAST_IDS.GLOBAL.SUCCESS,
           description: "Medical note has been deleted",
         });
       }
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to delete note",
-        variant: "destructive",
-      });
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
+    } finally {
+      setDeletingNoteId(null);
     }
   };
 
@@ -248,13 +233,14 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
                     />
 
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={handleCreateNote}>
+                      <Button size="sm" onClick={handleCreateNote} disabled={isSaving}>
                         <Save className="h-4 w-4 mr-2" />
-                        Save
+                        {isSaving ? "Saving..." : "Save"}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
+                        disabled={isSaving}
                         onClick={() => {
                           setIsCreating(false);
                           setNewNote({
@@ -313,6 +299,7 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
                               size="sm"
                               variant="ghost"
                               onClick={() => setEditingId(note.id)}
+                              disabled={deletingNoteId === note.id}
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
@@ -320,6 +307,7 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
                               size="sm"
                               variant="ghost"
                               onClick={() => handleDeleteNote(note.id)}
+                              disabled={deletingNoteId === note.id}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>

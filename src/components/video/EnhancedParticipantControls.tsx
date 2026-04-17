@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   MoreVertical,
   Mic,
@@ -24,10 +23,10 @@ import {
   MonitorOff,
   Loader2,
 } from "lucide-react";
-import { useRBAC } from "@/hooks/useRBAC";
+import { useRBAC } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
-import { manageParticipantEnhanced } from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+import { useManageVideoParticipantEnhanced } from "@/hooks/query";
+import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import type { ParticipantInfo } from "@/lib/video/openvidu";
 
 interface EnhancedParticipantControlsProps {
@@ -44,8 +43,8 @@ export function EnhancedParticipantControls({
   onActionComplete,
 }: EnhancedParticipantControlsProps) {
   const { hasPermission } = useRBAC();
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const manageParticipantMutation = useManageVideoParticipantEnhanced();
+  const isLoading = manageParticipantMutation.isPending;
 
   const canManage = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
   const isSelf = participant.userId === currentUserId;
@@ -57,16 +56,21 @@ export function EnhancedParticipantControls({
   const handleAction = async (
     action: "mute" | "unmute" | "remove" | "promote" | "demote" | "disable_video" | "enable_video" | "grant_screen_share" | "revoke_screen_share"
   ) => {
-    setIsLoading(true);
     try {
-      const result = await manageParticipantEnhanced(appointmentId, {
-        participantId: participant.userId,
+      const participantId = participant.userId || participant.connectionId;
+      if (!participantId) {
+        showErrorToast("Participant ID is missing", { id: TOAST_IDS.VIDEO.ERROR });
+        return;
+      }
+      const result = await manageParticipantMutation.mutateAsync({
+        appointmentId,
+        participantId,
         action,
       });
 
       if (result.success) {
-        toast({
-          title: "Action Completed",
+        showSuccessToast("Participant action completed", {
+          id: TOAST_IDS.VIDEO.JOIN,
           description: `Participant ${action} action completed`,
         });
         if (onActionComplete) {
@@ -74,13 +78,7 @@ export function EnhancedParticipantControls({
         }
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: `Failed to ${action} participant`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      showErrorToast(`Failed to ${action} participant`, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 

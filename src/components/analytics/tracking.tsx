@@ -30,7 +30,8 @@ export const GoogleAnalytics: React.FC<GAProps> = ({ measurementId }) => {
     document.head.appendChild(script1);
 
     const script2 = document.createElement('script');
-    script2.innerHTML = `
+    // ✅ SECURITY: Use textContent for safe script injection (innerHTML is safe here but textContent is better practice)
+    const scriptContent = `
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
@@ -39,6 +40,7 @@ export const GoogleAnalytics: React.FC<GAProps> = ({ measurementId }) => {
         page_location: window.location.href,
       });
     `;
+    script2.textContent = scriptContent;
     document.head.appendChild(script2);
 
     return () => {
@@ -94,7 +96,8 @@ interface HeatmapProps {
 export const Hotjar: React.FC<HeatmapProps> = ({ siteId }) => {
   useEffect(() => {
     const script = document.createElement('script');
-    script.innerHTML = `
+    // ✅ SECURITY: Use textContent for safe script injection
+    const scriptContent = `
       (function(h,o,t,j,a,r){
         h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
         h._hjSettings={hjid:${siteId},hjsv:6};
@@ -104,6 +107,7 @@ export const Hotjar: React.FC<HeatmapProps> = ({ siteId }) => {
         a.appendChild(r);
       })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
     `;
+    script.textContent = scriptContent;
     document.head.appendChild(script);
 
     return () => {

@@ -1,4 +1,6 @@
-// ===== MEDICAL RECORD TYPES =====
+import { Appointment } from './appointment.types';
+import { Patient } from './patient.types';
+import { User } from './auth.types';
 
 export interface MedicalRecord {
   id: string;
@@ -143,12 +145,13 @@ export interface LabResult {
   result: string;
   normalRange?: string;
   unit?: string;
-  status: 'NORMAL' | 'ABNORMAL' | 'CRITICAL' | 'PENDING';
+  status: 'NORMAL' | 'ABNORMAL' | 'CRITICAL' | 'PENDING' | 'completed' | 'pending' | 'in_progress' | string;
   orderedBy: string;
   performedAt: string;
   reportedAt: string;
   labName?: string;
   labTechnician?: string;
+  labTechnicianId?: string;
   notes?: string;
   attachments?: string[];
   isCritical: boolean;
@@ -165,6 +168,215 @@ export interface LabResult {
     firstName: string;
     lastName: string;
     specialization: string;
+  };
+}
+
+// ===== ROLE-SPECIFIC DASHBOARD TYPES (compatibility) =====
+
+export interface CounselorSession {
+  id: string;
+  counselorId: string;
+  clientId: string;
+  sessionDate?: string;
+  notes?: string;
+  nextSessionDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  // Compatibility with medical history
+  userId?: string;
+  type?: string;
+  title?: string;
+  description?: string;
+  date?: string;
+}
+
+export interface CounselorAppointment extends Partial<Appointment> {
+  id?: string;
+  counselorId?: string; // Maps to doctorId
+  clientId?: string;   // Maps to patientId
+  patientId?: string;
+  doctorId?: string;
+  status?: any;
+  date: string;
+  time: string;
+  duration: number;
+}
+
+export interface CounselorClient extends Partial<Patient> {
+  id: string;
+  counselorId?: string;
+  patientId?: string;
+  firstName?: string;
+  lastName?: string;
+  status?: string;
+  condition?: string;
+  user?: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+export interface NursePatientRecord {
+  id?: string;
+  nurseId?: string;
+  patientId: string;
+  status?: string;
+  notes?: string;
+  vitals?: PatientVitals[];
+}
+
+export interface PatientVitals {
+  id?: string;
+  nurseId?: string;
+  patientId: string;
+  bloodPressure?: string;
+  heartRate?: number;
+  temperature?: number;
+  respiratoryRate?: number;
+  oxygenSaturation?: number;
+  recordedAt?: string;
+}
+
+export interface PatientMedicalHistoryEntry {
+  id: string;
+  type: string;
+  status: string;
+  date: string;
+  doctor: string;
+  diagnosis?: string;
+  treatment?: string;
+  notes?: string;
+}
+
+export interface PatientPrescriptionEntry {
+  id: string;
+  date: string;
+  doctor: string;
+  status: string;
+  instructions?: string;
+  medications: Array<{
+    name: string;
+    dosage: string;
+    duration: string;
+  }>;
+}
+
+export interface PatientLabReportEntry {
+  id: string;
+  testName: string;
+  date: string;
+  doctor: string;
+  status: string;
+  results: Array<{
+    parameter: string;
+    value: string;
+    normalRange?: string;
+    status: string;
+  }>;
+}
+
+export interface PatientVitalEntry {
+  date: string;
+  bp: string;
+  hr: string;
+  weight: string;
+  bmi: string | number;
+}
+
+export interface PatientAllergyEntry {
+  id?: string;
+  allergen: string;
+  severity: string;
+  reaction?: string;
+  onsetDate?: string;
+  diagnosedDate?: string;
+  status?: string;
+}
+
+export interface ComprehensiveHealthRecord {
+  medicalHistory: PatientMedicalHistoryEntry[];
+  prescriptions: PatientPrescriptionEntry[];
+  labReports: PatientLabReportEntry[];
+  vitals: PatientVitalEntry[];
+}
+
+export interface Prescription {
+  id?: string;
+  doctorId?: string;
+  patientId: string;
+  medications?: Array<{
+    name: string;
+    dosage?: string;
+    frequency?: string;
+    duration?: string;
+  }>;
+  notes?: string;
+  status?: string;
+  createdAt?: string;
+}
+
+export interface SupportRequest {
+  id?: string;
+  staffId?: string;
+  supportStaffId?: string;
+  patientId?: string;
+  type?: string;
+  priority?: string;
+  status?: string;
+  title?: string;
+  description?: string;
+  createdAt?: string;
+}
+
+export interface TherapistSession {
+  id: string;
+  therapistId: string;
+  clientId: string;
+  sessionDate?: string;
+  notes?: string;
+  nextSessionDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  // Compatibility with medical history
+  userId?: string;
+  type?: string;
+  title?: string;
+  description?: string;
+  date?: string;
+}
+
+export interface TherapistAppointment extends Partial<Appointment> {
+  id: string;
+  therapistId?: string; // Maps to doctorId
+  clientId?: string;   // Maps to patientId
+  patientId?: string;
+  doctorId?: string;
+  patientName: string;
+  status: any;
+  type: any;
+  duration: number;
+  date: string;
+  time: string;
+}
+
+export interface TherapistPatient extends Partial<Patient> {
+  id: string;
+  therapistId?: string;
+  patientId?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  status: string;
+  condition?: string;
+  sessionsCompleted?: number;
+  lastVisit: string;
+  user?: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
   };
 }
 
@@ -413,4 +625,3 @@ export interface CreateLabResultData {
   notes?: string;
   isCritical?: boolean;
 }
-

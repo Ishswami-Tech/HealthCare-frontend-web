@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
-  Building2,
-  Users,
-  Settings as SettingsIcon,
-  Activity,
-  LogOut,
   Save,
   Bell,
   Shield,
@@ -27,8 +19,7 @@ import {
 } from "lucide-react";
 
 export default function SuperAdminSettings() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
 
   // Mock settings state - in real app, fetch with server action
   const [systemSettings, setSystemSettings] = useState({
@@ -74,41 +65,9 @@ export default function SuperAdminSettings() {
     setNotificationSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  const sidebarLinks = getRoutesByRole(Role.SUPER_ADMIN).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <SettingsIcon className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/auth/login",
-    path: "/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
 
   return (
-    <DashboardLayout title="System Settings" allowedRole={Role.SUPER_ADMIN}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Super Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">System Settings</h1>
@@ -541,7 +500,6 @@ export default function SuperAdminSettings() {
             </TabsContent>
           </Tabs>
         </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+    
   );
 }

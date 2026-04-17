@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { baseSEO } from '@/lib/seo';
+import { baseSEO } from '@/lib/config/seo';
 
 export default function robots(): MetadataRoute.Robots {
   const baseUrl = baseSEO.siteUrl;

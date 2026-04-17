@@ -37,6 +37,11 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  /* Base surface scale — use for page-canvas/shell/divider hierarchy */
+  --color-base-100: var(--base-100);
+  --color-base-200: var(--base-200);
+  --color-base-300: var(--base-300);
+
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
@@ -64,123 +69,136 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.1591 0 0);
-  --card: oklch(0.9791 0 0);
-  --card-foreground: oklch(0.1591 0 0);
-  --popover: oklch(0.9791 0 0);
-  --popover-foreground: oklch(0.1591 0 0);
-  --primary: oklch(0.4684 0.0958 167.151);
+  --background: oklch(0.982 0.008 150);      /* Ultra-light emerald canvas — cards float above */
+  --foreground: oklch(0.15 0 0);
+  --card: oklch(1 0 0);                      /* Pure White cards — pop off canvas */
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(1 0 0);                   /* Pure White popovers */
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.62 0.16 150);           /* Emerald Green */
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.9551 0 0);
-  --secondary-foreground: oklch(0.1591 0 0);
-  --muted: oklch(0.9551 0 0);
-  --muted-foreground: oklch(0.5897 0 0);
-  --accent: oklch(0.9249 0 0);
-  --accent-foreground: oklch(0.1591 0 0);
-  --destructive: oklch(0.5771 0.2152 27.325);
+  --secondary: oklch(0.975 0.005 150);       /* Very light emerald tint */
+  --secondary-foreground: oklch(0.2 0 0);
+  --muted: oklch(0.975 0.005 150);           /* Very light emerald tint */
+  --muted-foreground: oklch(0.55 0 0);
+  --accent: oklch(0.975 0.005 150);
+  --accent-foreground: oklch(0.2 0 0);
+  --destructive: oklch(0.57 0.2 27);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9067 0 0);
-  --input: oklch(0.9551 0 0);
-  --ring: oklch(0.4684 0.0958 167.151);
-  --chart-1: oklch(0.4684 0.0958 167.151);
-  --chart-2: oklch(0.6731 0.1624 144.2083);
-  --chart-3: oklch(0.7536 0.1626 130.5022);
-  --chart-4: oklch(0.8555 0.1766 114.846);
-  --chart-5: oklch(0.9285 0.1803 102.4974);
-  --sidebar: oklch(0.4684 0.0958 167.151);
-  --sidebar-foreground: oklch(1 0 0);
-  --sidebar-primary: oklch(1 0 0);
-  --sidebar-primary-foreground: oklch(0.4684 0.0958 167.151);
-  --sidebar-accent: oklch(0.684 0.144 154.999);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0.6731 0.1624 144.2083);
-  --sidebar-ring: oklch(1 0 0);
+  --border: oklch(0.90 0.005 150);           /* Faintly emerald-tinted border */
+  --input: oklch(0.92 0.004 150);
+  --ring: oklch(0.62 0.16 150);              /* Emerald focus ring */
+  --chart-1: oklch(0.45 0.15 260);
+  --chart-2: oklch(0.65 0.15 200);
+  --chart-3: oklch(0.75 0.15 150);
+  --chart-4: oklch(0.85 0.15 100);
+  --chart-5: oklch(0.90 0.15 50);
+  --sidebar: oklch(0.978 0.007 150);
+  --sidebar-foreground: oklch(0.15 0 0);
+  --sidebar-primary: oklch(0.2 0 0);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.96 0 0);
+  --sidebar-accent-foreground: oklch(0.2 0 0);
+  --sidebar-border: oklch(0.92 0 0);
+  --sidebar-ring: oklch(0.62 0.16 150);
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     Liberation Mono, Courier New, monospace;
   --radius: 0.75rem;
+
+  /* Base surface scale for page-canvas / shell / divider hierarchy */
+  --base-100: oklch(0.984 0 0);   /* near-white — card surface */
+  --base-200: oklch(0.948 0 0);   /* page canvas — visibly grey vs card */
+  --base-300: oklch(0.908 0 0);   /* dividers / strong border */
+
+  /* Shadows — increased from 5% to 10-12% for light mode visibility */
   --shadow-x: 0px;
   --shadow-y: 4px;
   --shadow-blur: 10px;
   --shadow-spread: 0px;
-  --shadow-opacity: 0.05;
+  --shadow-opacity: 0.10;
   --shadow-color: #000000;
-  --shadow-2xs: 0px 4px 10px 0px hsl(0 0% 0% / 0.03);
-  --shadow-xs: 0px 4px 10px 0px hsl(0 0% 0% / 0.03);
-  --shadow-sm: 0px 4px 10px 0px hsl(0 0% 0% / 0.05),
-    0px 1px 2px -1px hsl(0 0% 0% / 0.05);
-  --shadow: 0px 4px 10px 0px hsl(0 0% 0% / 0.05),
-    0px 1px 2px -1px hsl(0 0% 0% / 0.05);
-  --shadow-md: 0px 4px 10px 0px hsl(0 0% 0% / 0.05),
-    0px 2px 4px -1px hsl(0 0% 0% / 0.05);
-  --shadow-lg: 0px 4px 10px 0px hsl(0 0% 0% / 0.05),
-    0px 4px 6px -1px hsl(0 0% 0% / 0.05);
-  --shadow-xl: 0px 4px 10px 0px hsl(0 0% 0% / 0.05),
-    0px 8px 10px -1px hsl(0 0% 0% / 0.05);
-  --shadow-2xl: 0px 4px 10px 0px hsl(0 0% 0% / 0.13);
+  --shadow-2xs: 0px 1px 4px 0px hsl(0 0% 0% / 0.06);
+  --shadow-xs: 0px 2px 6px 0px hsl(0 0% 0% / 0.07);
+  --shadow-sm: 0px 1px 3px 0px hsl(0 0% 0% / 0.10),
+    0px 2px 8px -1px hsl(0 0% 0% / 0.07);
+  --shadow: 0px 2px 8px 0px hsl(0 0% 0% / 0.10),
+    0px 4px 12px -2px hsl(0 0% 0% / 0.08);
+  --shadow-md: 0px 4px 14px -2px hsl(0 0% 0% / 0.12),
+    0px 2px 6px -2px hsl(0 0% 0% / 0.08);
+  --shadow-lg: 0px 8px 20px -4px hsl(0 0% 0% / 0.12),
+    0px 4px 8px -4px hsl(0 0% 0% / 0.08);
+  --shadow-xl: 0px 12px 28px -6px hsl(0 0% 0% / 0.12),
+    0px 6px 12px -6px hsl(0 0% 0% / 0.08);
+  --shadow-2xl: 0px 20px 40px -8px hsl(0 0% 0% / 0.16);
   --tracking-normal: 0px;
   --spacing: 0.25rem;
 }
 
 .dark {
-  --background: oklch(0.1591 0 0);
-  --foreground: oklch(0.9067 0 0);
-  --card: oklch(0.2178 0 0);
-  --card-foreground: oklch(0.9067 0 0);
-  --popover: oklch(0.2178 0 0);
-  --popover-foreground: oklch(0.9067 0 0);
-  --primary: oklch(0.4684 0.0958 167.151);
+  --background: oklch(0.12 0 0);            /* Deep premium slate */
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.15 0 0);                   /* Slightly elevated slate */
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.15 0 0);               /* Slightly elevated slate */
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.62 0.16 150);           /* Emerald Green — consistent branding */
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.2931 0 0);
-  --secondary-foreground: oklch(0.9067 0 0);
-  --muted: oklch(0.2931 0 0);
-  --muted-foreground: oklch(0.7155 0 0);
-  --accent: oklch(0.3485 0 0);
-  --accent-foreground: oklch(0.9067 0 0);
-  --destructive: oklch(0.6368 0.2078 25.3313);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.3485 0 0);
-  --input: oklch(0.2931 0 0);
-  --ring: oklch(0.4684 0.0958 167.151);
-  --chart-1: oklch(0.4684 0.0958 167.151);
-  --chart-2: oklch(0.6731 0.1624 144.2083);
-  --chart-3: oklch(0.7536 0.1626 130.5022);
-  --chart-4: oklch(0.8555 0.1766 114.846);
-  --chart-5: oklch(0.9285 0.1803 102.4974);
-  --sidebar: oklch(0.4684 0.0958 167.151);
-  --sidebar-foreground: oklch(1 0 0);
-  --sidebar-primary: oklch(1 0 0);
-  --sidebar-primary-foreground: oklch(0.4684 0.0958 167.151);
-  --sidebar-accent: oklch(0.684 0.144 154.999);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0.6731 0.1624 144.2083);
-  --sidebar-ring: oklch(1 0 0);
+  --secondary: oklch(0.2 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.2 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+  --accent: oklch(0.25 0 0);
+  --accent-foreground: oklch(0.95 0 0);
+  --destructive: oklch(0.65 0.2 25);
+  --destructive-foreground: oklch(0.12 0 0);
+  --border: oklch(0.25 0 0);
+  --input: oklch(0.2 0 0);
+  --ring: oklch(0.62 0.16 150);              /* Emerald focus ring */
+  --chart-1: oklch(0.65 0.15 260);
+  --chart-2: oklch(0.65 0.15 200);
+  --chart-3: oklch(0.75 0.15 150);
+  --chart-4: oklch(0.85 0.15 100);
+  --chart-5: oklch(0.90 0.15 50);
+  --sidebar: oklch(0.14 0 0);
+  --sidebar-foreground: oklch(0.95 0 0);
+  --sidebar-primary: oklch(0.62 0.16 150);
+  --sidebar-primary-foreground: oklch(0.12 0 0);
+  --sidebar-accent: oklch(0.2 0 0);
+  --sidebar-accent-foreground: oklch(0.95 0 0);
+  --sidebar-border: oklch(0.2 0 0);
+  --sidebar-ring: oklch(0.62 0.16 150);
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     Liberation Mono, Courier New, monospace;
   --radius: 0.75rem;
+
+  /* Base surface scale — dark mode */
+  --base-100: oklch(0.220 0 0);   /* elevated card surface */
+  --base-200: oklch(0.178 0 0);   /* page canvas */
+  --base-300: oklch(0.148 0 0);   /* deep / strong dividers */
+
   --shadow-x: 0px;
   --shadow-y: 4px;
   --shadow-blur: 10px;
   --shadow-spread: 0px;
-  --shadow-opacity: 0.2;
+  --shadow-opacity: 0.35;
   --shadow-color: #000000;
-  --shadow-2xs: 0px 4px 10px 0px hsl(0 0% 0% / 0.1);
-  --shadow-xs: 0px 4px 10px 0px hsl(0 0% 0% / 0.1);
-  --shadow-sm: 0px 4px 10px 0px hsl(0 0% 0% / 0.2),
-    0px 1px 2px -1px hsl(0 0% 0% / 0.2);
-  --shadow: 0px 4px 10px 0px hsl(0 0% 0% / 0.2),
-    0px 1px 2px -1px hsl(0 0% 0% / 0.2);
-  --shadow-md: 0px 4px 10px 0px hsl(0 0% 0% / 0.2),
-    0px 2px 4px -1px hsl(0 0% 0% / 0.2);
-  --shadow-lg: 0px 4px 10px 0px hsl(0 0% 0% / 0.2),
-    0px 4px 6px -1px hsl(0 0% 0% / 0.2);
-  --shadow-xl: 0px 4px 10px 0px hsl(0 0% 0% / 0.2),
-    0px 8px 10px -1px hsl(0 0% 0% / 0.2);
-  --shadow-2xl: 0px 4px 10px 0px hsl(0 0% 0% / 0.5);
+  --shadow-2xs: 0px 1px 4px 0px hsl(0 0% 0% / 0.25);
+  --shadow-xs: 0px 2px 6px 0px hsl(0 0% 0% / 0.30);
+  --shadow-sm: 0px 1px 3px 0px hsl(0 0% 0% / 0.35),
+    0px 2px 8px -1px hsl(0 0% 0% / 0.30);
+  --shadow: 0px 2px 8px 0px hsl(0 0% 0% / 0.35),
+    0px 4px 12px -2px hsl(0 0% 0% / 0.30);
+  --shadow-md: 0px 4px 14px -2px hsl(0 0% 0% / 0.40),
+    0px 2px 6px -2px hsl(0 0% 0% / 0.30);
+  --shadow-lg: 0px 8px 20px -4px hsl(0 0% 0% / 0.45),
+    0px 4px 8px -4px hsl(0 0% 0% / 0.30);
+  --shadow-xl: 0px 12px 28px -6px hsl(0 0% 0% / 0.50),
+    0px 6px 12px -6px hsl(0 0% 0% / 0.35);
+  --shadow-2xl: 0px 20px 40px -8px hsl(0 0% 0% / 0.60);
 }
 
 @layer base {
@@ -1281,3 +1299,195 @@ html {
     @apply block;
   }
 }
+
+/* ============================================================================
+   REACT PHONE NUMBER INPUT CUSTOMIZATION
+   ============================================================================ */
+.PhoneInput {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+.PhoneInputCountry {
+  margin-right: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.PhoneInputCountrySelect {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.PhoneInputInput {
+  flex: 1 !important;
+  min-width: 0 !important;
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  height: 100% !important;
+  padding: 0 !important;
+}
+
+/* Force remove outline in all states */
+.PhoneInputInput:focus,
+.PhoneInputInput:focus-visible,
+.PhoneInputInput:hover {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.phone-input-container:focus-within {
+  @apply ring-2 ring-ring ring-offset-2 ring-offset-background border-transparent;
+}
+
+.PhoneInputCountryIcon {
+  width: 1.5em;
+  height: 1em;
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.PhoneInputCountryIcon--border {
+  /* background-color: rgba(0, 0, 0, 0.1); */
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.1), inset 0px 0px 0px 1px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================================
+   PHONE INPUT OVERRIDES
+   ============================================================================ */
+
+/* Custom overrides for react-phone-number-input to fix styling issues */
+
+/* Remove all borders and outlines from the phone number input field */
+.PhoneInputInput,
+input[type="tel"].PhoneInputInput {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  pointer-events: auto !important;
+  z-index: 1 !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+/* Remove borders in all states */
+.PhoneInputInput:focus,
+.PhoneInputInput:focus-visible,
+.PhoneInputInput:hover,
+.PhoneInputInput:active,
+input[type="tel"].PhoneInputInput:focus,
+input[type="tel"].PhoneInputInput:focus-visible,
+input[type="tel"].PhoneInputInput:hover,
+input[type="tel"].PhoneInputInput:active {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Ensure the container handles focus styling, not the input */
+.phone-input-container .PhoneInputInput {
+  border: 0 !important;
+  outline: 0 !important;
+  cursor: text !important;
+}
+
+/* ============================================================================
+   PASSWORD INPUT OVERRIDES
+   ============================================================================ */
+
+/* Hide browser-provided password reveal and search icons in password fields */
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none !important;
+}
+
+/* Hide Chrome/Edge password eye icon */
+input[type="password"]::-webkit-credentials-auto-fill-button:hover,
+input[type="password"]::-webkit-credentials-auto-fill-button:active {
+  display: none !important;
+}
+
+/* Hide browser-provided search/magnifying glass icon in autofill */
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-strong-password-auto-fill-button {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* ============================================================================
+   HTML5-QR CODE SCANNER STYLES
+   ============================================================================ */
+
+/* Ensure the html5-qrcode video element displays properly within the container */
+#qr-video-region video,
+#qr-video-region > video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 0 !important;
+}
+
+/* Handle the html5-qrcode library's default video element styling */
+html5-qrcode video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+/* Hide ALL html5-qrcode standard overlays (shadows, lines, brackets) */
+#qr-video-region canvas,
+#qr-shaded-region,
+.qr-canvas,
+.qr-shaded-region {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+#qr-video-region canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 0 !important;
+}
+
+/* Ensure the QR scanner container has proper dimensions */
+[id^="qr-video-region"],
+[id*="qr-video-region"] {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Override any default html5-qrcode styles that might interfere */
+html5-qrcode {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+}
+
+/* Ensure the scanner region fills its container */
+#qr-video-region > * {
+  width: 100% !important;
+  height: 100% !important;
+  position: absolute !important;
+  inset: 0 !important;
+}
+

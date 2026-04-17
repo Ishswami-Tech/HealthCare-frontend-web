@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,31 +13,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { useUsers } from "@/hooks/useUsers";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useUsers } from "@/hooks/query/useUsers";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { Loader2 } from "lucide-react";
 import {
-  Building2,
   Users,
-  Settings,
-  Activity,
-  LogOut,
   Plus,
   Search,
-  UserCheck,
-  UserX,
   Edit,
   Trash2,
+  UserCheck,
+  UserX,
   Mail,
   Phone,
 } from "lucide-react";
 
 export default function SuperAdminUsers() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -98,6 +90,7 @@ export default function SuperAdminUsers() {
       case Role.CLINIC_ADMIN:
         return "bg-purple-100 text-purple-800";
       case Role.DOCTOR:
+      case Role.ASSISTANT_DOCTOR:
         return "bg-blue-100 text-blue-800";
       case Role.RECEPTIONIST:
         return "bg-green-100 text-green-800";
@@ -108,64 +101,19 @@ export default function SuperAdminUsers() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.SUPER_ADMIN).map((route) => {
-    let icon = <Activity className="w-5 h-5" />;
-    if (route.path.includes("dashboard")) {
-      icon = <Activity className="w-5 h-5" />;
-    } else if (route.path.includes("clinics")) {
-      icon = <Building2 className="w-5 h-5" />;
-    } else if (route.path.includes("users")) {
-      icon = <Users className="w-5 h-5" />;
-    } else if (route.path.includes("settings")) {
-      icon = <Settings className="w-5 h-5" />;
-    }
-    return {
-      ...route,
-      href: route.path,
-      icon,
-    };
-  });
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/auth/login",
-    path: "/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
 
   if (isLoadingUsers) {
     return (
-      <DashboardLayout title="User Management" allowedRole={Role.SUPER_ADMIN}>
-        <GlobalSidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name ||
-              `${user?.firstName} ${user?.lastName}` ||
-              "Super Admin",
-            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-          }}
-        >
+      
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout title="User Management" allowedRole={Role.SUPER_ADMIN}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Super Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">User Management</h1>
@@ -202,7 +150,7 @@ export default function SuperAdminUsers() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {users.filter((u) => u.role === Role.DOCTOR).length}
+                  {users.filter((u: any) => u.role === Role.DOCTOR || u.role === Role.ASSISTANT_DOCTOR).length}
                 </div>
               </CardContent>
             </Card>
@@ -214,7 +162,7 @@ export default function SuperAdminUsers() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-600">
-                  {users.filter((u) => u.role === Role.CLINIC_ADMIN).length}
+                  {users.filter((u: any) => u.role === Role.CLINIC_ADMIN).length}
                 </div>
               </CardContent>
             </Card>
@@ -226,7 +174,7 @@ export default function SuperAdminUsers() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {users.filter((u) => u.role === Role.PATIENT).length}
+                  {users.filter((u: any) => u.role === Role.PATIENT).length}
                 </div>
               </CardContent>
             </Card>
@@ -238,7 +186,7 @@ export default function SuperAdminUsers() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {users.filter((u) => u.status === "Active").length}
+                  {users.filter((u: any) => u.status === "Active").length}
                 </div>
               </CardContent>
             </Card>
@@ -267,6 +215,7 @@ export default function SuperAdminUsers() {
                   <SelectContent>
                     <SelectItem value="all">All Roles</SelectItem>
                     <SelectItem value={Role.DOCTOR}>Doctors</SelectItem>
+                    <SelectItem value={Role.ASSISTANT_DOCTOR}>Assistant Doctors</SelectItem>
                     <SelectItem value={Role.CLINIC_ADMIN}>
                       Clinic Admins
                     </SelectItem>
@@ -292,7 +241,7 @@ export default function SuperAdminUsers() {
 
           {/* Users List */}
           <div className="grid gap-4">
-            {filteredUsers.map((user) => (
+            {filteredUsers.map((user: any) => (
               <Card key={user.id}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -385,7 +334,6 @@ export default function SuperAdminUsers() {
             </Card>
           )}
         </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+    
   );
 }

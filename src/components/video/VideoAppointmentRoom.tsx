@@ -3,7 +3,7 @@
 // ✅ Video Appointment Room Component with WebSocket Integration
 // This component provides a complete video appointment interface using OpenVidu with real-time WebSocket updates
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,6 @@ import {
   WifiOff,
   Pen,
   Mic as MicIcon,
-  Activity,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VideoChat } from "./VideoChat";
@@ -42,14 +41,15 @@ import { ScreenAnnotation } from "./ScreenAnnotation";
 import { CallTranscription } from "./CallTranscription";
 import { EnhancedRecordingControls } from "./EnhancedRecordingControls";
 import { EnhancedParticipantControls } from "./EnhancedParticipantControls";
+import { UserVideoComponent } from "./UserVideoComponent";
 import {
   useVideoCall,
   useVideoCallControls,
-} from "@/hooks/useVideoAppointments";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import type { VideoAppointment } from "@/hooks/useVideoAppointments";
+} from "@/hooks/query/useVideoAppointments";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import type { OpenViduAPI } from "@/lib/video/openvidu";
 import type { ParticipantInfo } from "@/lib/video/openvidu";
 
@@ -65,11 +65,12 @@ export function VideoAppointmentRoom({
   onLeaveRoom,
 }: VideoAppointmentRoomProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const {
     startCall,
     endCall,
     isInCall,
+    publisher,
+    subscribers,
   } = useVideoCall();
   const { getCallControls } = useVideoCallControls();
   const {
@@ -88,7 +89,7 @@ export function VideoAppointmentRoom({
     isConnected,
   } = useVideoAppointmentWebSocket();
 
-  const videoContainerRef = useRef<HTMLDivElement>(null);
+  // const videoContainerRef = useRef<HTMLDivElement>(null); // No longer needed
   const [call, setCall] = useState<OpenViduAPI | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -99,9 +100,13 @@ export function VideoAppointmentRoom({
   const [callDuration, setCallDuration] = useState(0);
   
   // Role-based access
-  const isDoctor = user?.role === 'DOCTOR';
+  const isDoctor = user?.role === 'DOCTOR' || user?.role === 'ASSISTANT_DOCTOR';
   const isPatient = user?.role === 'PATIENT';
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'CLINIC_ADMIN';
+  // canRecord: only doctors and admins can initiate recordings
+  const canRecord = isDoctor || isAdmin;
+  // canEndForAll: doctors and admins can end the session for everyone; patients only leave
+  const canEndForAll = isDoctor || isAdmin;
 
   // ✅ Subscribe to WebSocket events
   useEffect(() => {
@@ -111,20 +116,30 @@ export function VideoAppointmentRoom({
     const unsubscribeParticipants = subscribeToParticipantEvents((data) => {
       if (data.appointmentId === appointment.appointmentId) {
         if (data.action === "participant_joined" && data.participant) {
-          const participant = data.participant;
-          setParticipants((prev) => [...prev, participant]);
-          toast({
-            title: "Participant Joined",
-            description: `${participant.displayName} joined the call`,
+          const participantData = data.participant;
+          const participant: ParticipantInfo = {
+            connectionId: participantData.userId || '',
+            data: JSON.stringify(participantData),
+            role: participantData.role || 'participant',
+            userId: participantData.userId,
+            displayName: participantData.displayName,
+          };
+          setParticipants((prev) => {
+            if (prev.some(p => p.userId === participant.userId)) return prev;
+            return [...prev, participant];
+          });
+          showInfoToast("Participant joined", {
+            id: TOAST_IDS.VIDEO.JOIN,
+            description: `${participantData.displayName} joined the call`,
           });
         } else if (data.action === "participant_left" && data.participant) {
-          const participant = data.participant;
+          const participantData = data.participant;
           setParticipants((prev) =>
-            prev.filter((p) => p.userId !== participant.userId)
+            prev.filter((p) => (p.userId || p.connectionId) !== participantData.userId)
           );
-          toast({
-            title: "Participant Left",
-            description: `${participant.displayName} left the call`,
+          showInfoToast("Participant left", {
+            id: TOAST_IDS.VIDEO.END,
+            description: `${participantData.displayName} left the call`,
           });
         }
       }
@@ -135,14 +150,14 @@ export function VideoAppointmentRoom({
       if (data.appointmentId === appointment.appointmentId) {
         if (data.action === "recording_started") {
           setIsRecording(true);
-          toast({
-            title: "Recording Started",
+          showSuccessToast("Recording started", {
+            id: TOAST_IDS.VIDEO.JOIN,
             description: "Video recording has started",
           });
         } else if (data.action === "recording_stopped") {
           setIsRecording(false);
-          toast({
-            title: "Recording Stopped",
+          showInfoToast("Recording stopped", {
+            id: TOAST_IDS.VIDEO.END,
             description: "Video recording has stopped",
           });
         }
@@ -218,7 +233,6 @@ export function VideoAppointmentRoom({
     subscribeToCallQuality,
     subscribeToAnnotations,
     subscribeToTranscription,
-    toast,
   ]);
 
   // ✅ Start video call
@@ -233,30 +247,21 @@ export function VideoAppointmentRoom({
         role: user?.role || "patient",
       };
 
-      // Start call with container
-      const videoCall = await startCall(appointment, userInfo, videoContainerRef.current || undefined);
+      // Start call without container - React handles rendering
+      const videoCall = await startCall(appointment, userInfo);
       setCall(videoCall);
 
       // Send WebSocket event for participant joined
       sendParticipantJoined(appointment.appointmentId, {
-        userId: userInfo.userId,
-        displayName: userInfo.displayName,
-        role: userInfo.role,
-        timestamp: new Date().toISOString(),
+        userId: userInfo.userId || user?.id || '',
+        displayName: userInfo.displayName || user?.name || 'User',
+        role: userInfo.role || user?.role || 'patient',
       });
 
-      toast({
-        title: "Connected",
-        description: "Successfully connected to video appointment",
-      });
+      showSuccessToast("Connected to video appointment", { id: TOAST_IDS.VIDEO.JOIN });
     } catch (error) {
-      toast({
-        title: "Connection Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to connect to video call",
-        variant: "destructive",
+      showErrorToast(error instanceof Error ? error.message : "Failed to connect to video call", {
+        id: TOAST_IDS.VIDEO.ERROR,
       });
     } finally {
       setIsConnecting(false);
@@ -276,23 +281,15 @@ export function VideoAppointmentRoom({
         userId: user?.id || "",
         displayName: user?.name || "Unknown User",
         role: user?.role || "patient",
-        timestamp: new Date().toISOString(),
       });
 
       if (onEndCall) {
         onEndCall();
       }
 
-      toast({
-        title: "Call Ended",
-        description: "Video appointment has been ended",
-      });
+      showSuccessToast("Call ended", { id: TOAST_IDS.VIDEO.END });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to end video call",
-        variant: "destructive",
-      });
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 
@@ -484,44 +481,61 @@ export function VideoAppointmentRoom({
         </div>
       </div>
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex overflow-hidden">
         {/* Main Video Area */}
-        <div className="flex-1 flex flex-col">
-          {/* Video Container */}
-          <div className="flex-1 relative bg-black">
-            <div
-              ref={videoContainerRef}
-              className="w-full h-full"
-              id="openvidu-container"
-            />
-
-            {/* Connection Status */}
+        <div className="flex-1 flex flex-col bg-black relative">
+          
+          {/* Dynamic Video Grid */}
+          <div className="flex-1 p-4 overflow-hidden">
+             {isInCall() ? (
+                <div className={`grid gap-4 w-full h-full ${
+                  subscribers.length === 0 ? 'grid-cols-1' : 
+                  subscribers.length === 1 ? 'grid-cols-2' : 
+                  'grid-cols-2 md:grid-cols-3'
+                }`}>
+                  {/* Local User (Publisher) */}
+                  {publisher && (
+                    <div className="relative rounded-lg overflow-hidden border-2 border-green-500/50">
+                      <UserVideoComponent streamManager={publisher} isLocal={true} />
+                    </div>
+                  )}
+                  
+                  {/* Remote Users (Subscribers) */}
+                  {subscribers.map((sub: any) => (
+                    <div key={sub.stream.streamId} className="relative rounded-lg overflow-hidden border border-gray-700">
+                      <UserVideoComponent streamManager={sub} isLocal={false} />
+                    </div>
+                  ))}
+                </div>
+             ) : (
+                /* No Call State */
+                !isConnecting && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center text-white">
+                      <Phone className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                      <h2 className="text-2xl font-semibold mb-2">Ready to Join</h2>
+                      <p className="text-gray-400 mb-6">
+                        Click the button below to start your video appointment
+                      </p>
+                      <Button
+                        onClick={handleStartCall}
+                        size="lg"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Phone className="h-5 w-5 mr-2" />
+                        Start Video Call
+                      </Button>
+                    </div>
+                  </div>
+                )
+             )}
+             
+            {/* Connection Status Overlay */}
             {isConnecting && (
-              <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center">
                 <div className="text-center text-white">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                   <p>Connecting to video call...</p>
-                </div>
-              </div>
-            )}
-
-            {/* No Call State */}
-            {!isInCall() && !isConnecting && (
-              <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
-                <div className="text-center text-white">
-                  <Phone className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                  <h2 className="text-2xl font-semibold mb-2">Ready to Join</h2>
-                  <p className="text-gray-400 mb-6">
-                    Click the button below to start your video appointment
-                  </p>
-                  <Button
-                    onClick={handleStartCall}
-                    size="lg"
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Phone className="h-5 w-5 mr-2" />
-                    Start Video Call
-                  </Button>
                 </div>
               </div>
             )}
@@ -529,7 +543,7 @@ export function VideoAppointmentRoom({
 
           {/* Control Bar */}
           {isInCall() && (
-            <div className="bg-white border-t px-6 py-4">
+            <div className="bg-white border-t px-6 py-4 absolute bottom-0 left-0 right-0 z-50">
               <div className="flex items-center justify-center space-x-4">
                 {/* Audio Control */}
                 <Button
@@ -569,34 +583,38 @@ export function VideoAppointmentRoom({
                   <Monitor className="h-5 w-5" />
                 </Button>
 
-                {/* Recording with Enhanced Controls - Only for doctors/admins */}
-                {isRecording && (isDoctor || isAdmin) && (
+                {/* Recording — doctors/admins only */}
+                {canRecord && isRecording && (
                   <EnhancedRecordingControls
                     appointmentId={appointment.appointmentId}
                     isRecording={isRecording}
                     onRecordingChange={setIsRecording}
                   />
                 )}
-                {!isRecording && (
+                {canRecord && !isRecording && (
                   <Button
                     variant="outline"
                     size="lg"
                     onClick={toggleRecording}
                     className="rounded-full w-12 h-12 p-0"
+                    title="Start recording"
                   >
                     <CircleDot className="h-5 w-5" />
                   </Button>
                 )}
 
-                {/* Raise Hand */}
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={raiseHand}
-                  className="rounded-full w-12 h-12 p-0"
-                >
-                  <Hand className="h-5 w-5" />
-                </Button>
+                {/* Raise Hand — patients and assistants */}
+                {!isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={raiseHand}
+                    className="rounded-full w-12 h-12 p-0"
+                    title="Raise hand"
+                  >
+                    <Hand className="h-5 w-5" />
+                  </Button>
+                )}
 
                 {/* Call Quality Indicator - Always visible */}
                 <CallQualityIndicator
@@ -604,15 +622,31 @@ export function VideoAppointmentRoom({
                   showDetails={true}
                 />
 
-                {/* End Call */}
-                <Button
-                  variant="destructive"
-                  size="lg"
-                  onClick={handleEndCall}
-                  className="rounded-full w-12 h-12 p-0"
-                >
-                  <PhoneOff className="h-5 w-5" />
-                </Button>
+                {/* End Call (for all) — doctors/admins only */}
+                {canEndForAll && (
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    onClick={handleEndCall}
+                    className="rounded-full w-12 h-12 p-0"
+                    title="End session for all"
+                  >
+                    <PhoneOff className="h-5 w-5" />
+                  </Button>
+                )}
+
+                {/* Leave Room — patients and non-doctor staff */}
+                {!canEndForAll && (
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    onClick={handleLeaveRoom}
+                    className="rounded-full w-12 h-12 p-0"
+                    title="Leave session"
+                  >
+                    <PhoneOff className="h-5 w-5" />
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -626,10 +660,13 @@ export function VideoAppointmentRoom({
                 <MessageSquare className="h-4 w-4 mr-1" />
                 Chat
               </TabsTrigger>
-              <TabsTrigger value="notes" className="flex-1">
-                <FileText className="h-4 w-4 mr-1" />
-                Notes
-              </TabsTrigger>
+              {/* Medical notes visible to doctors/admins only */}
+              {(isDoctor || isAdmin) && (
+                <TabsTrigger value="notes" className="flex-1">
+                  <FileText className="h-4 w-4 mr-1" />
+                  Notes
+                </TabsTrigger>
+              )}
               <TabsTrigger value="participants" className="flex-1">
                 <Users className="h-4 w-4 mr-1" />
                 People
@@ -640,9 +677,11 @@ export function VideoAppointmentRoom({
               <VideoChat appointmentId={appointment.appointmentId} className="h-full border-0 rounded-none" />
             </TabsContent>
 
-            <TabsContent value="notes" className="flex-1 m-0 p-0 overflow-hidden">
-              <MedicalNotes appointmentId={appointment.appointmentId} className="h-full border-0 rounded-none" />
-            </TabsContent>
+            {(isDoctor || isAdmin) && (
+              <TabsContent value="notes" className="flex-1 m-0 p-0 overflow-hidden">
+                <MedicalNotes appointmentId={appointment.appointmentId} className="h-full border-0 rounded-none" />
+              </TabsContent>
+            )}
 
             <TabsContent value="participants" className="flex-1 m-0 p-4 overflow-auto">
               {/* Appointment Info */}
@@ -654,14 +693,17 @@ export function VideoAppointmentRoom({
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 text-gray-500" />
                     <span className="text-sm text-gray-600">
-                      {new Date(appointment.startTime).toLocaleDateString()}
+                      {new Date(appointment.startTime).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" })}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Clock className="h-4 w-4 text-gray-500" />
                     <span className="text-sm text-gray-600">
-                      {new Date(appointment.startTime).toLocaleTimeString()} -{" "}
-                      {new Date(appointment.endTime).toLocaleTimeString()}
+                      {new Date(appointment.startTime).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}
+                      {" — "}
+                      {appointment.endTime
+                        ? new Date(appointment.endTime).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })
+                        : "—"}
                     </span>
                   </div>
                   <Separator />
@@ -761,7 +803,7 @@ export function VideoAppointmentRoom({
                           className="border-0"
                         />
                       ) : (
-                        <div className="text-center text-gray-500 py-8">
+                      <div className="text-center text-gray-500 py-8">
                           <Pen className="h-8 w-8 mx-auto mb-2" />
                           <p className="text-sm">Start screen sharing to enable annotation</p>
                         </div>

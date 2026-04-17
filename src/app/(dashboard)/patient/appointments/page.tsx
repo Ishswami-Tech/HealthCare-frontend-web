@@ -1,689 +1,253 @@
 "use client";
 
-import React, { useState } from "react";
-import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import React, { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
 import AppointmentManager from "@/components/appointments/AppointmentManager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { theme } from "@/lib/theme-utils";
-import { 
-  Activity,
-  Calendar, 
-  FileText,
-  Pill,
-  User,
-  LogOut,
-  Plus,
-  Video,
-  MapPin,
-  Clock,
-  CreditCard,
+import { theme } from "@/lib/utils/theme-utils";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import {
+  Stethoscope,
   Leaf,
-  Sun,
-  Waves,
   Flame,
   Heart,
-  Brain,
   Droplets,
+  Waves,
   Wind,
-  CheckCircle,
-  Info
+  Sun,
 } from "lucide-react";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import {
+  DashboardPageHeader as PatientPageHeader,
+  DashboardPageShell as PatientPageShell,
+} from "@/components/dashboard/DashboardPageShell";
 
+interface TreatmentCategory {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  containerClass: string;
+  iconClass: string;
+}
+
+const TREATMENT_CATEGORIES: TreatmentCategory[] = [
+  {
+    icon: Stethoscope,
+    title: "Consultations",
+    description: "General health assessment and follow-ups",
+    containerClass: theme.containers.featureBlue,
+    iconClass: theme.iconColors.blue,
+  },
+  {
+    icon: Droplets,
+    title: "Panchakarma",
+    description: "Detox and rejuvenation therapies",
+    containerClass: theme.containers.featureGreen,
+    iconClass: theme.iconColors.emerald,
+  },
+  {
+    icon: Heart,
+    title: "Diagnosis",
+    description: "Nadi Pariksha and dosha analysis",
+    containerClass: theme.containers.featureBlue,
+    iconClass: theme.iconColors.blue,
+  },
+  {
+    icon: Flame,
+    title: "Specialized",
+    description: "Agnikarma, Viddhakarma procedures",
+    containerClass: theme.containers.featureGreen,
+    iconClass: theme.iconColors.emerald,
+  },
+];
+
+/**
+ * Patient Appointments Page.
+ *
+ * This page serves as a central hub for patients to manage their health journey.
+ * It provides categorized appointment booking, real-time queue status,
+ * and a simplified overview of Ayurvedic treatments.
+ */
 export default function PatientAppointments() {
-  const { session } = useAuth();
-  const user = session?.user;
-  const [showBookingDialog, setShowBookingDialog] = useState(false);
-  const [selectedConsultationType, setSelectedConsultationType] = useState("");
-  const [isVideoConsultation, setIsVideoConsultation] = useState(false);
-  const [bookingForm, setBookingForm] = useState({
-    doctorId: "",
-    consultationType: "",
-    date: "",
-    time: "",
-    isOnline: false,
-    duration: 30,
-    chiefComplaint: "",
-    symptoms: "",
-    urgency: "Normal",
-    preferredLanguage: "English"
-  });
+  useWebSocketQuerySync();
+  const searchParams = useSearchParams();
+  const queryClinicId = searchParams.get("clinicId") || undefined;
+  const queryLocationId = searchParams.get("locationId") || undefined;
+  const queryClinicName = searchParams.get("clinicName") || undefined;
+  const bookingMode = searchParams.get("mode");
+  const shouldOpenBooking = searchParams.get("openBooking") === "1";
+  const defaultConsultationMode =
+    bookingMode?.toUpperCase() === "VIDEO" ? "VIDEO" : undefined;
 
-  // Ayurveda-specific consultation types with descriptions and durations
-  const ayurvedaConsultationTypes = [
-    {
-      id: "general_consultation",
-      name: "General Consultation",
-      description: "Comprehensive health assessment and treatment planning",
-      duration: 30,
-      price: 500,
-      icon: <Activity className="w-5 h-5" />,
-      color: theme.badges.blue,
-      videoAvailable: true,
-      category: "Consultation"
-    },
-    {
-      id: "nadi_pariksha",
-      name: "Nadi Pariksha",
-      description: "Traditional pulse diagnosis to assess dosha imbalances",
-      duration: 45,
-      price: 800,
-      icon: <Heart className="w-5 h-5" />,
-      color: theme.badges.red,
-      videoAvailable: false,
-      category: "Diagnosis"
-    },
-    {
-      id: "dosha_analysis",
-      name: "Dosha Analysis",
-      description: "Comprehensive constitutional analysis and lifestyle recommendations",
-      duration: 60,
-      price: 1000,
-      icon: <Leaf className="w-5 h-5" />,
-      color: theme.badges.green,
-      videoAvailable: true,
-      category: "Analysis"
-    },
-    {
-      id: "panchakarma",
-      name: "Panchakarma Therapy",
-      description: "Detoxification and rejuvenation treatment sessions",
-      duration: 90,
-      price: 2000,
-      icon: <Droplets className="w-5 h-5" />,
-      color: theme.badges.cyan,
-      videoAvailable: false,
-      category: "Therapy"
-    },
-    {
-      id: "shirodhara",
-      name: "Shirodhara",
-      description: "Medicated oil pouring therapy for stress and nervous disorders",
-      duration: 60,
-      price: 1500,
-      icon: <Waves className="w-5 h-5" />,
-      color: theme.badges.indigo,
-      videoAvailable: false,
-      category: "Therapy"
-    },
-    {
-      id: "abhyanga",
-      name: "Abhyanga Massage",
-      description: "Full body therapeutic oil massage for rejuvenation",
-      duration: 75,
-      price: 1200,
-      icon: <Wind className="w-5 h-5" />,
-      color: theme.badges.purple,
-      videoAvailable: false,
-      category: "Therapy"
-    },
-    {
-      id: "viddhakarma",
-      name: "Viddhakarma",
-      description: "Minor surgical procedures using traditional Ayurvedic methods",
-      duration: 45,
-      price: 1800,
-      icon: <Activity className="w-5 h-5" />,
-      color: theme.badges.orange,
-      videoAvailable: false,
-      category: "Surgery"
-    },
-    {
-      id: "agnikarma",
-      name: "Agnikarma",
-      description: "Therapeutic cauterization for chronic pain and joint disorders",
-      duration: 30,
-      price: 1500,
-      icon: <Flame className="w-5 h-5" />,
-      color: theme.badges.red,
-      videoAvailable: false,
-      category: "Surgery"
-    },
-    {
-      id: "lifestyle_counseling",
-      name: "Lifestyle Counseling",
-      description: "Personalized diet, exercise and daily routine recommendations",
-      duration: 45,
-      price: 600,
-      icon: <Brain className="w-5 h-5" />,
-      color: theme.badges.emerald,
-      videoAvailable: true,
-      category: "Counseling"
-    },
-    {
-      id: "follow_up",
-      name: "Follow-up Consultation",
-      description: "Progress review and treatment adjustments",
-      duration: 20,
-      price: 300,
-      icon: <CheckCircle className="w-5 h-5" />,
-      color: theme.badges.gray,
-      videoAvailable: true,
-      category: "Consultation"
+  // Clear query parameters from URL to keep it clean, without triggering a re-render
+  useEffect(() => {
+    if (queryClinicId || queryLocationId || queryClinicName || bookingMode || shouldOpenBooking) {
+      document
+        .getElementById("appointment-manager")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.history.replaceState(null, "", window.location.pathname);
     }
-  ];
-
-  const selectedType = ayurvedaConsultationTypes.find(type => type.id === selectedConsultationType);
-
-  const handleConsultationTypeSelect = (typeId: string) => {
-    const type = ayurvedaConsultationTypes.find(t => t.id === typeId);
-    setSelectedConsultationType(typeId);
-    setBookingForm(prev => ({
-      ...prev,
-      consultationType: typeId,
-      duration: type?.duration || 30
-    }));
-    
-    // If video is not available for this type, disable video consultation
-    if (type && !type.videoAvailable) {
-      setIsVideoConsultation(false);
-      setBookingForm(prev => ({ ...prev, isOnline: false }));
-    }
-  };
-
-  const handleVideoToggle = (checked: boolean) => {
-    setIsVideoConsultation(checked);
-    setBookingForm(prev => ({ ...prev, isOnline: checked }));
-  };
-
-  const handleBookAppointment = () => {
-    console.log("Booking appointment:", bookingForm);
-    // Here you would call the booking API
-    setShowBookingDialog(false);
-  };
-
-
-
-  const sidebarLinks = getRoutesByRole(Role.PATIENT).map(route => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes('dashboard') ? <Activity className="w-5 h-5" /> :
-          route.path.includes('appointments') ? <Calendar className="w-5 h-5" /> :
-          route.path.includes('medical-records') ? <FileText className="w-5 h-5" /> :
-          route.path.includes('prescriptions') ? <Pill className="w-5 h-5" /> :
-          route.path.includes('profile') ? <User className="w-5 h-5" /> :
-          <Activity className="w-5 h-5" />
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />
-  });
+  }, [queryClinicId, queryLocationId, queryClinicName, bookingMode, shouldOpenBooking]);
 
   return (
-    <DashboardLayout title="Patient Appointments" allowedRole={Role.PATIENT}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{ 
-          name: user?.name || `${user?.firstName} ${user?.lastName}` || "Patient",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png" 
-        }}
-      >
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">My Appointments</h1>
-            <Dialog open={showBookingDialog} onOpenChange={setShowBookingDialog}>
-              <DialogTrigger asChild>
-                <Button className="flex items-center gap-2">
-                  <Plus className="w-4 h-4" />
-                  Book New Appointment
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Book Ayurvedic Consultation</DialogTitle>
-                </DialogHeader>
-                
-                <Tabs defaultValue="consultation-types" className="space-y-4">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="consultation-types">Select Treatment</TabsTrigger>
-                    <TabsTrigger value="appointment-details">Appointment Details</TabsTrigger>
-                    <TabsTrigger value="payment-summary">Payment Summary</TabsTrigger>
-                  </TabsList>
+    <DashboardLayout title="My Appointments">
+      <PatientPageShell>
 
-                  <TabsContent value="consultation-types">
-                    <div className="space-y-4">
-                      <div className={`text-sm ${theme.textColors.secondary} mb-4`}>
-                        Choose the type of Ayurvedic consultation or treatment you need:
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {ayurvedaConsultationTypes.map((type) => (
-                          <div
-                            key={type.id}
-                            className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
-                              selectedConsultationType === type.id 
-                                ? `${theme.borders.blue} ${theme.containers.featureBlue}` 
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => handleConsultationTypeSelect(type.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                handleConsultationTypeSelect(type.id);
-                              }
-                            }}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className={`p-2 rounded-lg ${type.color}`}>
-                                {type.icon}
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between mb-2">
-                                  <h3 className="font-semibold">{type.name}</h3>
-                                  <Badge variant="outline">{type.category}</Badge>
-                                </div>
-                                <p className={`text-sm ${theme.textColors.secondary} mb-3`}>{type.description}</p>
-                                <div className="flex items-center justify-between text-sm">
-                                  <div className="flex items-center gap-4">
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="w-3 h-3" />
-                                      {type.duration} min
-                                    </span>
-                                    {type.videoAvailable && (
-                                      <span className={`flex items-center gap-1 ${theme.iconColors.green}`}>
-                                        <Video className="w-3 h-3" />
-                                        Video available
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className={`font-semibold ${theme.iconColors.blue}`}>₹{type.price}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </TabsContent>
+        {/* Page Header — matches screenshot: eyebrow + title + Book CTA */}
+        <PatientPageHeader
+          eyebrow="MY APPOINTMENTS"
+          title="My Appointments"
+          description="Book and manage your in-person and virtual health appointments."
+        />
 
-                  <TabsContent value="appointment-details">
-                    <div className="space-y-6">
-                      {selectedType && (
-                        <div className={`p-4 ${theme.containers.featureBlue} rounded-lg`}>
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className={`p-2 rounded-lg ${selectedType.color}`}>
-                              {selectedType.icon}
-                            </div>
-                            <div>
-                              <h3 className="font-semibold">{selectedType.name}</h3>
-                              <p className={`text-sm ${theme.textColors.secondary}`}>
-                                {selectedType.duration} minutes • ₹{selectedType.price}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="date">Preferred Date</Label>
-                          <Input
-                            id="date"
-                            type="date"
-                            min={new Date().toISOString().split('T')[0]}
-                            value={bookingForm.date}
-                            onChange={(e) => setBookingForm(prev => ({ ...prev, date: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="time">Preferred Time</Label>
-                          <Select onValueChange={(value) => setBookingForm(prev => ({ ...prev, time: value }))}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select time" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="09:00">09:00 AM</SelectItem>
-                              <SelectItem value="10:00">10:00 AM</SelectItem>
-                              <SelectItem value="11:00">11:00 AM</SelectItem>
-                              <SelectItem value="14:00">02:00 PM</SelectItem>
-                              <SelectItem value="15:00">03:00 PM</SelectItem>
-                              <SelectItem value="16:00">04:00 PM</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      {selectedType?.videoAvailable && (
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between p-4 border rounded-lg">
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <Video className="w-4 h-4" />
-                                <Label>Video Consultation</Label>
-                              </div>
-                              <p className={`text-sm ${theme.textColors.secondary}`}>
-                                Consult from the comfort of your home
-                              </p>
-                            </div>
-                            <Switch
-                              checked={isVideoConsultation}
-                              onCheckedChange={handleVideoToggle}
-                            />
-                          </div>
-                          
-                          {isVideoConsultation && (
-                            <div className={`p-4 ${theme.containers.featureGreen} border ${theme.borders.green} rounded-lg`}>
-                              <div className="flex items-start gap-2">
-                                <Info className={`w-4 h-4 ${theme.iconColors.green} mt-0.5`} />
-                                <div className={`text-sm ${theme.textColors.success}`}>
-                                  <p className="font-medium mb-1">Video Consultation Benefits:</p>
-                                  <ul className="list-disc list-inside space-y-1">
-                                    <li>No travel required</li>
-                                    <li>Same quality consultation</li>
-                                    <li>Secure & private</li>
-                                    <li>Digital prescription provided</li>
-                                  </ul>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="urgency">Urgency Level</Label>
-                          <Select onValueChange={(value) => setBookingForm(prev => ({ ...prev, urgency: value }))}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select urgency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Low">Low - Routine consultation</SelectItem>
-                              <SelectItem value="Normal">Normal - Standard appointment</SelectItem>
-                              <SelectItem value="High">High - Need consultation soon</SelectItem>
-                              <SelectItem value="Urgent">Urgent - Within 24 hours</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="language">Preferred Language</Label>
-                          <Select onValueChange={(value) => setBookingForm(prev => ({ ...prev, preferredLanguage: value }))}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select language" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="English">English</SelectItem>
-                              <SelectItem value="Hindi">Hindi</SelectItem>
-                              <SelectItem value="Marathi">Marathi</SelectItem>
-                              <SelectItem value="Tamil">Tamil</SelectItem>
-                              <SelectItem value="Telugu">Telugu</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="chiefComplaint">Chief Complaint</Label>
-                        <Input
-                          id="chiefComplaint"
-                          value={bookingForm.chiefComplaint}
-                          onChange={(e) => setBookingForm(prev => ({ ...prev, chiefComplaint: e.target.value }))}
-                          placeholder="Brief description of your main concern"
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="symptoms">Detailed Symptoms & Medical History</Label>
-                        <Textarea
-                          id="symptoms"
-                          value={bookingForm.symptoms}
-                          onChange={(e) => setBookingForm(prev => ({ ...prev, symptoms: e.target.value }))}
-                          placeholder="Describe your symptoms, duration, any previous treatments, current medications, etc."
-                          rows={4}
-                        />
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="payment-summary">
-                    <div className="space-y-6">
-                      {selectedType && (
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-semibold">Booking Summary</h3>
-                          
-                          <div className="p-4 border rounded-lg space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span>Treatment:</span>
-                              <span className="font-medium">{selectedType.name}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>Duration:</span>
-                              <span>{selectedType.duration} minutes</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>Consultation Type:</span>
-                              <div className="flex items-center gap-2">
-                                {isVideoConsultation ? (
-                                  <>
-                                    <Video className="w-4 h-4" />
-                                    <span>Video Consultation</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <MapPin className="w-4 h-4" />
-                                    <span>In-Person Visit</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>Date & Time:</span>
-                              <span>{bookingForm.date} at {bookingForm.time}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>Urgency:</span>
-                              <Badge variant="outline">{bookingForm.urgency}</Badge>
-                            </div>
-                          </div>
-
-                          <div className={`p-4 ${theme.backgrounds.secondary} rounded-lg space-y-2`}>
-                            <div className="flex items-center justify-between">
-                              <span>Consultation Fee:</span>
-                              <span>₹{selectedType.price}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>Platform Fee:</span>
-                              <span>₹50</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>GST (18%):</span>
-                              <span>₹{Math.round((selectedType.price + 50) * 0.18)}</span>
-                            </div>
-                            <div className="border-t pt-2 flex items-center justify-between font-semibold text-lg">
-                              <span>Total Amount:</span>
-                              <span>₹{selectedType.price + 50 + Math.round((selectedType.price + 50) * 0.18)}</span>
-                            </div>
-                          </div>
-
-                          <div className="space-y-3">
-                            <h4 className="font-medium">Payment Method</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              <div className={`p-3 border rounded-lg cursor-pointer ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}>
-                                <div className="flex items-center gap-2">
-                                  <CreditCard className="w-4 h-4" />
-                                  <span>Credit/Debit Card</span>
-                                </div>
-                              </div>
-                              <div className={`p-3 border rounded-lg cursor-pointer ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}>
-                                <div className="flex items-center gap-2">
-                                  <Droplets className="w-4 h-4" />
-                                  <span>UPI</span>
-                                </div>
-                              </div>
-                              <div className={`p-3 border rounded-lg cursor-pointer ${theme.borders.primary} hover:bg-gray-50 dark:hover:bg-gray-800/50`}>
-                                <div className="flex items-center gap-2">
-                                  <Activity className="w-4 h-4" />
-                                  <span>Net Banking</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-3">
-                            <Button variant="outline" className="flex-1" onClick={() => setShowBookingDialog(false)}>
-                              Cancel
-                            </Button>
-                            <Button className="flex-1" onClick={handleBookAppointment}>
-                              Confirm & Pay
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          {/* Existing AppointmentManager Component */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Current Appointments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AppointmentManager />
-            </CardContent>
-          </Card>
-
-          {/* Ayurveda Treatment Categories */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Leaf className="w-5 h-5" />
-                Ayurvedic Treatment Categories
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-                  <Activity className={`w-8 h-8 ${theme.iconColors.blue} mb-3`} />
-                  <h3 className="font-semibold mb-2">Consultations</h3>
-                  <p className={`text-sm ${theme.textColors.secondary} mb-3`}>General health assessment and follow-ups</p>
-                  <Button variant="outline" size="sm" className="w-full">
-                    Book Now
-                  </Button>
-                </div>
-
-                <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
-                  <Droplets className={`w-8 h-8 ${theme.iconColors.green} mb-3`} />
-                  <h3 className="font-semibold mb-2">Panchakarma</h3>
-                  <p className={`text-sm ${theme.textColors.secondary} mb-3`}>Detox and rejuvenation therapies</p>
-                  <Button variant="outline" size="sm" className="w-full">
-                    Book Now
-                  </Button>
-                </div>
-
-                <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
-                  <Heart className={`w-8 h-8 ${theme.iconColors.purple} mb-3`} />
-                  <h3 className="font-semibold mb-2">Diagnosis</h3>
-                  <p className={`text-sm ${theme.textColors.secondary} mb-3`}>Nadi Pariksha and dosha analysis</p>
-                  <Button variant="outline" size="sm" className="w-full">
-                    Book Now
-                  </Button>
-                </div>
-
-                <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
-                  <Flame className={`w-8 h-8 ${theme.iconColors.orange} mb-3`} />
-                  <h3 className="font-semibold mb-2">Specialized</h3>
-                  <p className={`text-sm ${theme.textColors.secondary} mb-3`}>Agnikarma, Viddhakarma procedures</p>
-                  <Button variant="outline" size="sm" className="w-full">
-                    Book Now
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Treatment Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Understanding Ayurvedic Treatments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-lg">Traditional Therapies</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <Droplets className={`w-5 h-5 ${theme.iconColors.cyan} mt-0.5`} />
-                      <div>
-                        <h5 className="font-medium">Panchakarma</h5>
-                        <p className={`text-sm ${theme.textColors.secondary}`}>Five-action detoxification process including Vamana, Virechana, Basti, Nasya, and Raktamokshana</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Waves className={`w-5 h-5 ${theme.iconColors.indigo} mt-0.5`} />
-                      <div>
-                        <h5 className="font-medium">Shirodhara</h5>
-                        <p className={`text-sm ${theme.textColors.secondary}`}>Continuous pouring of medicated oils on forehead for stress relief and mental clarity</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Wind className={`w-5 h-5 ${theme.iconColors.purple} mt-0.5`} />
-                      <div>
-                        <h5 className="font-medium">Abhyanga</h5>
-                        <p className={`text-sm ${theme.textColors.secondary}`}>Full-body therapeutic massage with warm herbal oils to improve circulation and flexibility</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-lg">Diagnostic Methods</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <Heart className={`w-5 h-5 ${theme.iconColors.red} mt-0.5`} />
-                      <div>
-                        <h5 className="font-medium">Nadi Pariksha</h5>
-                        <p className={`text-sm ${theme.textColors.secondary}`}>Pulse diagnosis to assess dosha imbalances and overall health status</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Leaf className={`w-5 h-5 ${theme.iconColors.green} mt-0.5`} />
-                      <div>
-                        <h5 className="font-medium">Prakriti Analysis</h5>
-                        <p className={`text-sm ${theme.textColors.secondary}`}>Constitutional assessment to determine individual body type and treatment approach</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Sun className={`w-5 h-5 ${theme.iconColors.yellow} mt-0.5`} />
-                      <div>
-                        <h5 className="font-medium">Vikriti Assessment</h5>
-                        <p className={`text-sm ${theme.textColors.secondary}`}>Current health imbalances and deviation from natural constitution</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Real-time Queue Status */}
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+          <PatientQueueCard />
         </div>
-      </GlobalSidebar>
+
+        {/* Canonical booking surface */}
+        <div id="appointment-manager">
+          <AppointmentManager
+            hideBookButton={false}
+            autoOpenBookDialog={shouldOpenBooking}
+            {...(defaultConsultationMode ? { defaultConsultationMode } : {})}
+            {...(queryClinicId && { clinicId: queryClinicId })}
+          />
+        </div>
+
+        {/* Ayurveda Treatment Categories — quick-book cards */}
+        <Card className="border-l-4 border-l-amber-400 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center">
+                <Leaf className="w-4 h-4 text-amber-600" />
+              </div>
+              Ayurvedic Treatment Categories
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {TREATMENT_CATEGORIES.map(({ icon: Icon, title, description, containerClass, iconClass }) => (
+                <div key={title} className={`p-4 rounded-xl border ${containerClass} transition-all hover:shadow-md`}>
+                  <Icon className={`w-8 h-8 ${iconClass} mb-3`} />
+                  <h3 className="font-semibold mb-2">{title}</h3>
+                  <p className={`text-sm ${theme.textColors.secondary} mb-3`}>{description}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-emerald-200 bg-emerald-50/60 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300"
+                    onClick={() =>
+                      document
+                        .getElementById("appointment-manager")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }
+                  >
+                    Use Booking Manager
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Treatment Information */}
+        <Card className="border-l-4 border-l-blue-400 shadow-sm">
+          <CardHeader>
+            <CardTitle>
+              Understanding Ayurvedic Treatments
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg">Traditional Therapies</h4>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Droplets
+                      className={`w-5 h-5 ${theme.iconColors.cyan} mt-0.5`}
+                    />
+                    <div>
+                      <h5 className="font-medium">Panchakarma</h5>
+                      <p className={`text-sm ${theme.textColors.secondary}`}>
+                        Five-action detoxification process including Vamana,
+                        Virechana, Basti, Nasya, and Raktamokshana
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Waves
+                      className={`w-5 h-5 ${theme.iconColors.cyan} mt-0.5`}
+                    />
+                    <div>
+                      <h5 className="font-medium">Shirodhara</h5>
+                      <p className={`text-sm ${theme.textColors.secondary}`}>
+                        Continuous pouring of medicated oils on forehead for
+                        stress relief and mental clarity
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Wind
+                      className={`w-5 h-5 ${theme.iconColors.blue} mt-0.5`}
+                    />
+                    <div>
+                      <h5 className="font-medium">Abhyanga</h5>
+                      <p className={`text-sm ${theme.textColors.secondary}`}>
+                        Full-body therapeutic massage with warm herbal oils to
+                        improve circulation and flexibility
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg">Diagnostic Methods</h4>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Heart
+                      className={`w-5 h-5 ${theme.iconColors.red} mt-0.5`}
+                    />
+                    <div>
+                      <h5 className="font-medium">Nadi Pariksha</h5>
+                      <p className={`text-sm ${theme.textColors.secondary}`}>
+                        Pulse diagnosis to assess dosha imbalances and overall
+                        health status
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Leaf
+                      className={`w-5 h-5 ${theme.iconColors.green} mt-0.5`}
+                    />
+                    <div>
+                      <h5 className="font-medium">Prakriti Analysis</h5>
+                      <p className={`text-sm ${theme.textColors.secondary}`}>
+                        Constitutional assessment to determine individual body
+                        type and treatment approach
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Sun
+                      className={`w-5 h-5 ${theme.iconColors.yellow} mt-0.5`}
+                    />
+                    <div>
+                      <h5 className="font-medium">Vikriti Assessment</h5>
+                      <p className={`text-sm ${theme.textColors.secondary}`}>
+                        Current health imbalances and deviation from natural
+                        constitution
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </PatientPageShell>
     </DashboardLayout>
   );
 }
-

@@ -53,6 +53,41 @@ export const mr: TranslationKeys = {
     months: 'महिने',
     days: 'दिवस',
   },
+  sidebar: {
+    dashboard: 'डॅशबोर्ड',
+    appointments: 'अपॉइंटमेंट',
+    patients: 'रुग्ण',
+    doctors: 'डॉक्टर',
+    prescriptions: 'प्रिस्क्रिप्शन',
+    pharmacy: 'फार्मसी',
+    reports: 'अहवाल',
+    analytics: 'अॅनालिटिक्स',
+    settings: 'सेटिंग्ज',
+    profile: 'प्रोफाईल',
+    logout: 'लॉगआउट',
+    clinics: 'क्लिनिक',
+    staff: 'स्टाफ',
+    queue: 'रांग',
+    ehr: 'मेडिकल रेकॉर्ड',
+    billing: 'बिलिंग',
+    inventory: 'इन्व्हेंटरी',
+  },
+  dashboard: {
+    welcomeBack: 'पुन्हा स्वागत आहे',
+    overview: 'आज तुमच्या आरोग्याबद्दल काय घडत आहे.',
+    bookAppointment: 'अपॉइंटमेंट बुक करा',
+  },
+  healthcare: {
+    diagnosis: 'प्राथमिक निदान',
+    treatment: 'सध्याचे उपचार',
+  },
+  patients: {
+    personalInfo: 'वैयक्तिक माहिती',
+  },
+  appointments: {
+    upcoming: 'येणारी अपॉइंटमेंट',
+    bookNew: 'नवीन बुक करा',
+  },
   navigation: {
     logo: 'श्री',
     clinicName: 'श्री विश्वमूर्ति आयुर्वेदालय',
@@ -1963,26 +1998,19 @@ export const mr: TranslationKeys = {
       subtitle: 'नैसर्गिक उपचाराद्वारे समग्र आरोग्य आणि कल्याण',
       detoxification: {
         title: 'नैसर्गिक विषहरण',
-        description: 'शरीरातून विषारी पदार्थांचे सुरक्षित आणि प्रभावी निर्मूलन',
-        benefit1: 'यकृत आणि मूत्रपिंडाच्या कार्यक्षमतेत सुधारणा',
-        benefit2: 'रक्त शुद्धीकरण आणि रक्ताभिसरणात वाढ',
-        benefit3: 'त्वचेच्या गुणवत्ता आणि चमकीत सुधारणा'
+        description: 'शरीरातून विषारी पदार्थांचे सुरक्षित आणि प्रभावी निर्मूलन. यकृत आणि मूत्रपिंडाच्या कार्यक्षमतेत सुधारणा, रक्त शुद्धीकरण आणि रक्ताभिसरणात वाढ, त्वचेच्या गुणवत्ता आणि चमकीत सुधारणा'
+      },
+      rejuvenation: {
+        title: 'पुनरुज्जीवन',
+        description: 'शरीर आणि मनाचे संपूर्ण पुनरुज्जीवन आणि नूतनीकरण'
       },
       immunity: {
         title: 'रोगप्रतिकारक शक्ती मजबूती',
         description: 'नैसर्गिक रोगप्रतिकारक शक्ती वाढवून रोग प्रतिकारक्षमता वाढवणे'
       },
-      stressRelief: {
-        title: 'ताणातून मुक्ती',
-        description: 'खोल विश्रांती आणि मानसिक शांतीद्वारे ताण कमी करणे'
-      },
-      digestiveHealth: {
-        title: 'पचन आरोग्य',
-        description: 'पचनसंस्था मजबूत करून पोषक तत्वांच्या शोषणात सुधारणा'
-      },
-      naturalHealing: {
-        title: 'नैसर्गिक उपचार',
-        description: 'केवळ नैसर्गिक घटक वापरून सुरक्षित आणि प्रभावी उपचार'
+      mentalClarity: {
+        title: 'मानसिक स्पष्टता',
+        description: 'मानसिक स्पष्टता, एकाग्रता आणि भावनिक संतुलन सुधारणा'
       },
       longTermResults: {
         title: 'दीर्घकालीन परिणाम',
@@ -2100,26 +2128,6 @@ export const mr: TranslationKeys = {
           'वनस्पती पूरक',
           'अनुवर्ती काळजी'
         ]
-      }
-    },
-    benefits: {
-      title: 'पंचकर्म फायदे',
-      subtitle: 'शरीर, मन आणि आत्म्याचे पूर्ण परिवर्तन',
-      detoxification: {
-        title: 'खोल विषबाधा दूर करणे',
-        description: 'सर्व शरीर ऊतकांमधून जमा झालेले विषारी पदार्थ काढते'
-      },
-      rejuvenation: {
-        title: 'पेशी कायाकल्प',
-        description: 'पेशी पुनर्जनन आणि वृद्धत्वरोधी प्रक्रियांना उत्तेजित करते'
-      },
-      immunity: {
-        title: 'सुधारित रोगप्रतिकारक शक्ती',
-        description: 'रोगप्रतिकारक प्रणाली आणि रोग प्रतिकारक शक्ती मजबूत करते'
-      },
-      mentalClarity: {
-        title: 'मानसिक स्पष्टता',
-        description: 'संज्ञानात्मक कार्य आणि भावनिक कल्याण सुधारते'
       }
     },
     conditions: {

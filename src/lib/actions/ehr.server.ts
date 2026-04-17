@@ -1,6 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
+import { isApiError } from '@/lib/utils/error-handler';
 import { API_ENDPOINTS } from '../config/config';
 
 // ===== COMPREHENSIVE HEALTH RECORD =====
@@ -9,8 +10,17 @@ import { API_ENDPOINTS } from '../config/config';
  * Get comprehensive health record for a user
  */
 export async function getComprehensiveHealthRecord(userId: string) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.EHR.COMPREHENSIVE(userId));
-  return data;
+  try {
+    const { data } = await authenticatedApi(API_ENDPOINTS.EHR.COMPREHENSIVE(userId));
+    return data;
+  } catch (error: unknown) {
+    // If it's the profile incomplete error, return null or an empty default state
+    if (isApiError(error) && error.statusCode === 403 && error.code === 'Profile Incomplete') {
+      return null;
+    }
+    // Re-throw other unexpected errors
+    throw error;
+  }
 }
 
 // ===== MEDICAL HISTORY =====
@@ -18,6 +28,10 @@ export async function getComprehensiveHealthRecord(userId: string) {
 /**
  * Create medical history record
  */
+// ... imports
+
+// ===== MEDICAL HISTORY =====
+
 export async function createMedicalHistory(createDto: {
   userId: string;
   condition: string;
@@ -28,9 +42,17 @@ export async function createMedicalHistory(createDto: {
   status?: string;
   notes?: string;
 }) {
+  const payload = {
+    userId: createDto.userId,
+    condition: createDto.condition,
+    notes: createDto.notes,
+    date: createDto.startDate || new Date().toISOString().split('T')[0], // Map startDate to date
+    clinicId: undefined // Let backend handle or extract from context if needed
+  };
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICAL_HISTORY.CREATE, {
     method: 'POST',
-    body: JSON.stringify(createDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -46,7 +68,7 @@ export async function getMedicalHistory(userId: string) {
 /**
  * Update medical history record
  */
-export async function updateMedicalHistory(id: string, updateDto: {
+export async function updateMedicalHistory(id: string, updates: {
   condition?: string;
   diagnosis?: string;
   treatment?: string;
@@ -55,9 +77,16 @@ export async function updateMedicalHistory(id: string, updateDto: {
   status?: string;
   notes?: string;
 }) {
+  // Map frontend DTO to backend structure if needed
+  const payload = {
+    ...updates,
+    date: updates.startDate, 
+    // clinicId, userId - typically not modifiable or taken from context
+  };
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICAL_HISTORY.UPDATE(id), {
     method: 'PUT',
-    body: JSON.stringify(updateDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -74,9 +103,6 @@ export async function deleteMedicalHistory(id: string) {
 
 // ===== LAB REPORTS =====
 
-/**
- * Create lab report
- */
 export async function createLabReport(createDto: {
   userId: string;
   testName: string;
@@ -88,9 +114,21 @@ export async function createLabReport(createDto: {
   doctorId?: string;
   appointmentId?: string;
 }) {
+  const payload = {
+    userId: createDto.userId,
+    testName: createDto.testName,
+    date: createDto.testDate, // MAP to date
+    result: JSON.stringify(createDto.results), // MAP to string
+    normalRange: createDto.normalRange ? JSON.stringify(createDto.normalRange) : undefined, // MAP to string
+    status: createDto.status,
+    notes: createDto.notes,
+    doctorId: createDto.doctorId,
+    appointmentId: createDto.appointmentId
+  };
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.LAB_REPORTS.CREATE, {
     method: 'POST',
-    body: JSON.stringify(createDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -106,7 +144,7 @@ export async function getLabReports(userId: string) {
 /**
  * Update lab report
  */
-export async function updateLabReport(id: string, updateDto: {
+export async function updateLabReport(id: string, updates: {
   testName?: string;
   testDate?: string;
   results?: Record<string, any>;
@@ -114,9 +152,14 @@ export async function updateLabReport(id: string, updateDto: {
   status?: string;
   notes?: string;
 }) {
+  const payload: any = { ...updates };
+  if (updates.testDate) payload.date = updates.testDate;
+  if (updates.results) payload.result = JSON.stringify(updates.results);
+  if (updates.normalRange) payload.normalRange = JSON.stringify(updates.normalRange);
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.LAB_REPORTS.UPDATE(id), {
     method: 'PUT',
-    body: JSON.stringify(updateDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -133,9 +176,6 @@ export async function deleteLabReport(id: string) {
 
 // ===== RADIOLOGY REPORTS =====
 
-/**
- * Create radiology report
- */
 export async function createRadiologyReport(createDto: {
   userId: string;
   studyType: string;
@@ -147,9 +187,21 @@ export async function createRadiologyReport(createDto: {
   doctorId?: string;
   appointmentId?: string;
 }) {
+  const payload = {
+    userId: createDto.userId,
+    imageType: createDto.studyType, // MAP
+    date: createDto.studyDate, // MAP
+    findings: createDto.findings || '',
+    conclusion: createDto.impression || '', // MAP
+    recommendations: createDto.recommendations,
+    images: createDto.images,
+    doctorId: createDto.doctorId,
+    appointmentId: createDto.appointmentId
+  };
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.RADIOLOGY_REPORTS.CREATE, {
     method: 'POST',
-    body: JSON.stringify(createDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -165,7 +217,7 @@ export async function getRadiologyReports(userId: string) {
 /**
  * Update radiology report
  */
-export async function updateRadiologyReport(id: string, updateDto: {
+export async function updateRadiologyReport(id: string, updates: {
   studyType?: string;
   studyDate?: string;
   findings?: string;
@@ -173,9 +225,14 @@ export async function updateRadiologyReport(id: string, updateDto: {
   recommendations?: string;
   images?: string[];
 }) {
+  const payload: any = { ...updates };
+  if (updates.studyType) payload.imageType = updates.studyType;
+  if (updates.studyDate) payload.date = updates.studyDate;
+  if (updates.impression) payload.conclusion = updates.impression;
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.RADIOLOGY_REPORTS.UPDATE(id), {
     method: 'PUT',
-    body: JSON.stringify(updateDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -192,9 +249,6 @@ export async function deleteRadiologyReport(id: string) {
 
 // ===== SURGICAL RECORDS =====
 
-/**
- * Create surgical record
- */
 export async function createSurgicalRecord(createDto: {
   userId: string;
   procedureName: string;
@@ -206,9 +260,21 @@ export async function createSurgicalRecord(createDto: {
   notes?: string;
   doctorId?: string;
 }) {
+  const payload = {
+    userId: createDto.userId,
+    surgeryName: createDto.procedureName, // MAP
+    date: createDto.procedureDate, // MAP
+    surgeon: createDto.surgeon || 'Unknown',
+    anesthesia: createDto.anesthesia,
+    complications: createDto.complications,
+    outcome: createDto.outcome,
+    notes: createDto.notes,
+    doctorId: createDto.doctorId
+  };
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.SURGICAL_RECORDS.CREATE, {
     method: 'POST',
-    body: JSON.stringify(createDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -224,7 +290,7 @@ export async function getSurgicalRecords(userId: string) {
 /**
  * Update surgical record
  */
-export async function updateSurgicalRecord(id: string, updateDto: {
+export async function updateSurgicalRecord(id: string, updates: {
   procedureName?: string;
   procedureDate?: string;
   surgeon?: string;
@@ -233,9 +299,13 @@ export async function updateSurgicalRecord(id: string, updateDto: {
   outcome?: string;
   notes?: string;
 }) {
+  const payload: any = { ...updates };
+  if (updates.procedureName) payload.surgeryName = updates.procedureName;
+  if (updates.procedureDate) payload.date = updates.procedureDate;
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.SURGICAL_RECORDS.UPDATE(id), {
     method: 'PUT',
-    body: JSON.stringify(updateDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -252,9 +322,6 @@ export async function deleteSurgicalRecord(id: string) {
 
 // ===== VITALS =====
 
-/**
- * Create vital record
- */
 export async function createVital(createDto: {
   userId: string;
   type: string;
@@ -264,9 +331,19 @@ export async function createVital(createDto: {
   recordedBy?: string;
   notes?: string;
 }) {
+  const payload = {
+    userId: createDto.userId,
+    type: createDto.type,
+    value: String(createDto.value), // MAP to string
+    recordedAt: createDto.recordedAt,
+    unit: createDto.unit,
+    recordedBy: createDto.recordedBy,
+    notes: createDto.notes
+  };
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.VITALS.CREATE, {
     method: 'POST',
-    body: JSON.stringify(createDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -282,16 +359,20 @@ export async function getVitals(userId: string, type?: string) {
 /**
  * Update vital record
  */
-export async function updateVital(id: string, updateDto: {
+export async function updateVital(id: string, updates: {
   type?: string;
   value?: number;
   unit?: string;
   recordedAt?: string;
+  recordedBy?: string;
   notes?: string;
 }) {
+  const payload: any = { ...updates };
+  if (updates.value !== undefined) payload.value = String(updates.value);
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.VITALS.UPDATE(id), {
     method: 'PUT',
-    body: JSON.stringify(updateDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -308,9 +389,6 @@ export async function deleteVital(id: string) {
 
 // ===== ALLERGIES =====
 
-/**
- * Create allergy record
- */
 export async function createAllergy(createDto: {
   userId: string;
   allergen: string;
@@ -320,9 +398,19 @@ export async function createAllergy(createDto: {
   status?: 'active' | 'resolved';
   notes?: string;
 }) {
+  const payload = {
+    userId: createDto.userId,
+    allergen: createDto.allergen,
+    severity: createDto.severity || 'mild',
+    reaction: createDto.reaction || 'None',
+    diagnosedDate: createDto.onsetDate || new Date().toISOString().split('T')[0], // MAP
+    status: createDto.status,
+    notes: createDto.notes
+  };
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.ALLERGIES.CREATE, {
     method: 'POST',
-    body: JSON.stringify(createDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -338,7 +426,7 @@ export async function getAllergies(userId: string) {
 /**
  * Update allergy record
  */
-export async function updateAllergy(id: string, updateDto: {
+export async function updateAllergy(id: string, updates: {
   allergen?: string;
   severity?: 'mild' | 'moderate' | 'severe';
   reaction?: string;
@@ -346,9 +434,12 @@ export async function updateAllergy(id: string, updateDto: {
   status?: 'active' | 'resolved';
   notes?: string;
 }) {
+  const payload: any = { ...updates };
+  if (updates.onsetDate) payload.diagnosedDate = updates.onsetDate;
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.ALLERGIES.UPDATE(id), {
     method: 'PUT',
-    body: JSON.stringify(updateDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -365,9 +456,6 @@ export async function deleteAllergy(id: string) {
 
 // ===== MEDICATIONS =====
 
-/**
- * Create medication record
- */
 export async function createMedication(createDto: {
   userId: string;
   medicationName: string;
@@ -380,9 +468,21 @@ export async function createMedication(createDto: {
   status?: 'active' | 'completed' | 'discontinued';
   notes?: string;
 }) {
+  const payload = {
+    userId: createDto.userId,
+    name: createDto.medicationName, // MAP
+    dosage: createDto.dosage,
+    frequency: createDto.frequency,
+    startDate: createDto.startDate,
+    endDate: createDto.endDate,
+    prescribedBy: createDto.prescribedBy || 'Unknown', // Required in DTO
+    instructions: createDto.instructions || createDto.notes, // Map notes to instructions if avail
+    status: createDto.status
+  };
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICATIONS.CREATE, {
     method: 'POST',
-    body: JSON.stringify(createDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -398,19 +498,24 @@ export async function getMedications(userId: string, activeOnly?: boolean) {
 /**
  * Update medication record
  */
-export async function updateMedication(id: string, updateDto: {
+export async function updateMedication(id: string, updates: {
   medicationName?: string;
   dosage?: string;
   frequency?: string;
   startDate?: string;
   endDate?: string;
+  prescribedBy?: string;
   instructions?: string;
   status?: 'active' | 'completed' | 'discontinued';
   notes?: string;
 }) {
+  const payload: any = { ...updates };
+  if (updates.medicationName) payload.name = updates.medicationName;
+  if (updates.notes) payload.instructions = updates.notes; // Map notes to instructions if provided
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.MEDICATIONS.UPDATE(id), {
     method: 'PUT',
-    body: JSON.stringify(updateDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }
@@ -427,9 +532,6 @@ export async function deleteMedication(id: string) {
 
 // ===== IMMUNIZATIONS =====
 
-/**
- * Create immunization record
- */
 export async function createImmunization(createDto: {
   userId: string;
   vaccineName: string;
@@ -440,9 +542,20 @@ export async function createImmunization(createDto: {
   nextDueDate?: string;
   notes?: string;
 }) {
+  const payload = {
+    userId: createDto.userId,
+    vaccineName: createDto.vaccineName,
+    dateAdministered: createDto.vaccineDate, // MAP
+    nextDueDate: createDto.nextDueDate,
+    batchNumber: createDto.lotNumber, // MAP
+    administrator: createDto.administeredBy, // MAP
+    manufacturer: createDto.manufacturer,
+    notes: createDto.notes
+  };
+
   const { data } = await authenticatedApi(API_ENDPOINTS.EHR.IMMUNIZATIONS.CREATE, {
     method: 'POST',
-    body: JSON.stringify(createDto),
+    body: JSON.stringify(payload),
   });
   return data;
 }

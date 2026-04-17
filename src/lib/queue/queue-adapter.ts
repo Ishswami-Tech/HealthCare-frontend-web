@@ -1,0 +1,220 @@
+/**
+ * Shared Queue Adapter
+ * @module @/lib/queue/queue-adapter
+ * @description Centralized queue normalization for all queue lanes (doctor and medicine desk)
+ */
+
+import { QueueCategory, type CanonicalQueueEntry } from '@/types/queue.types';
+
+type QueueLabelSource = {
+  serviceBucket?: string | null;
+  queueCategory?: string | null;
+  treatmentType?: string | null;
+};
+
+type ServiceCatalogEntry = {
+  label?: string;
+  serviceBucket?: string;
+  queueCategory?: string;
+};
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+export function toTitleCase(value: string): string {
+  return value
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map(segment => segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
+ * Normalize raw queue entry data to canonical format
+ * Used by receptionist, clinic-admin, doctor, pharmacist, and patient dashboards
+ */
+export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
+  const metadata = asRecord(raw?.metadata);
+  const position =
+    typeof raw.position === 'number'
+      ? raw.position
+      : typeof raw.queuePosition === 'number'
+        ? raw.queuePosition
+        : 0;
+
+  return {
+    entryId: raw.entryId || raw.id || '',
+    queueCategory: raw.queueCategory || raw.queueLane || QueueCategory.DOCTOR_CONSULTATION,
+    queueOwnerId: raw.queueOwnerId || raw.doctorId || raw.pharmacyId || 'medicine-desk',
+    clinicId: raw.clinicId || '',
+    locationId: raw.locationId,
+    appointmentId: raw.appointmentId || raw.id || '',
+    patientId: raw.patientId || raw.patient?.id || '',
+    patientName: raw.patientName || raw.patient?.name || raw.patient?.user?.name || 'Unknown Patient',
+    doctorName: raw.doctorName || raw.doctor?.name || raw.doctor?.user?.name || '',
+    primaryDoctorId:
+      raw.primaryDoctorId ||
+      (typeof metadata['primaryDoctorId'] === 'string' ? metadata['primaryDoctorId'] : undefined),
+    assignedDoctorId:
+      raw.assignedDoctorId ||
+      raw.doctorId ||
+      (typeof metadata['assignedDoctorId'] === 'string'
+        ? metadata['assignedDoctorId']
+        : undefined),
+    position,
+    totalInQueue: typeof raw.totalInQueue === 'number' ? raw.totalInQueue : 0,
+    status: raw.status || 'WAITING',
+    serviceBucket: raw.serviceBucket,
+    treatmentType: raw.treatmentType,
+    estimatedWaitTime: raw.estimatedWaitTime,
+    estimatedDuration: raw.estimatedDuration,
+    paymentStatus: raw.paymentStatus,
+    waitingForPayment:
+      typeof raw.waitingForPayment === 'boolean'
+        ? raw.waitingForPayment
+        : raw.paymentStatus === 'PENDING',
+    readyForHandover:
+      typeof raw.readyForHandover === 'boolean'
+        ? raw.readyForHandover
+        : raw.paymentStatus === 'PAID',
+    // Projection fields
+    paused: typeof raw.paused === 'boolean' ? raw.paused : false,
+    ...(raw.tokenNumber != null ? { tokenNumber: String(raw.tokenNumber) } : {}),
+    ...(raw.scheduledDate != null ? { scheduledDate: raw.scheduledDate as string } : {}),
+    ...(raw.startedAt != null ? { startedAt: raw.startedAt as string } : {}),
+    ...(raw.completedAt != null ? { completedAt: raw.completedAt as string } : {}),
+  };
+}
+
+/**
+ * Get normalized status label for display
+ */
+export function getQueueStatusLabel(entry: CanonicalQueueEntry): string {
+  const statusMap: Record<string, string> = {
+    WAITING: 'Queued',
+    CONFIRMED: 'Queued',
+    IN_PROGRESS: 'In Progress',
+    COMPLETED: 'Completed',
+    READY: 'Ready',
+    PAID: 'Paid',
+    PENDING: 'Pending',
+    WAITING_FOR_PAYMENT: 'Awaiting Payment',
+    CANCELLED: 'Cancelled',
+    NO_SHOW: 'No Show',
+  };
+  return statusMap[entry.status] || entry.status;
+}
+
+/**
+ * Get normalized status color class for display
+ */
+export function getQueueStatusColor(status: string): string {
+  const colorMap: Record<string, string> = {
+    WAITING: 'text-emerald-700 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300',
+    IN_PROGRESS: 'text-blue-700 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300',
+    COMPLETED: 'text-violet-700 bg-violet-100 dark:bg-violet-900/30 dark:text-violet-300',
+    READY: 'text-emerald-700 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300',
+    PAID: 'text-emerald-700 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300',
+    PENDING: 'text-amber-700 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300',
+    WAITING_FOR_PAYMENT: 'text-amber-700 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300',
+    CANCELLED: 'text-rose-700 bg-rose-100 dark:bg-rose-900/30 dark:text-rose-300',
+    NO_SHOW: 'text-red-700 bg-red-100 dark:bg-red-900/30 dark:text-red-300',
+  };
+  return colorMap[status] || 'text-slate-700 bg-slate-100 dark:bg-slate-900/30 dark:text-slate-300';
+}
+
+/**
+ * Normalize array of queue entries
+ */
+export function normalizeQueueEntries(rawArray: any[]): CanonicalQueueEntry[] {
+  if (!Array.isArray(rawArray)) {
+    return [];
+  }
+  return rawArray.map(normalizeQueueEntry);
+}
+
+export function resolveQueueDisplayLabel(
+  raw: QueueLabelSource,
+  serviceCatalogMap?: Map<string, ServiceCatalogEntry>
+): string {
+  const treatmentType = String(raw.treatmentType || '').toUpperCase();
+  const service = treatmentType ? serviceCatalogMap?.get(treatmentType) : undefined;
+
+  if (service?.serviceBucket) {
+    return toTitleCase(service.serviceBucket);
+  }
+
+  if (service?.label) {
+    return service.label;
+  }
+
+  if (typeof raw.serviceBucket === 'string' && raw.serviceBucket) {
+    return toTitleCase(raw.serviceBucket);
+  }
+
+  if (typeof raw.queueCategory === 'string' && raw.queueCategory) {
+    return toTitleCase(raw.queueCategory);
+  }
+
+  if (typeof raw.treatmentType === 'string' && raw.treatmentType) {
+    return toTitleCase(raw.treatmentType);
+  }
+
+  return 'General Consultation';
+}
+
+export function getQueuePositionLabel(entry: Pick<CanonicalQueueEntry, 'position'>): string {
+  return entry.position > 0 ? `Queue #${entry.position}` : 'Pending';
+}
+
+/**
+ * Filter queue entries by category
+ */
+export function filterQueueByCategory(
+  entries: CanonicalQueueEntry[],
+  category: QueueCategory
+): CanonicalQueueEntry[] {
+  return entries.filter(entry => entry.queueCategory === category);
+}
+
+/**
+ * Filter queue entries by status
+ */
+export function filterQueueByStatus(
+  entries: CanonicalQueueEntry[],
+  status: string | string[]
+): CanonicalQueueEntry[] {
+  const statusFilter = Array.isArray(status) ? status : [status];
+  return entries.filter(entry => statusFilter.includes(entry.status));
+}
+
+/**
+ * Sort queue entries by position
+ */
+export function sortQueueByPosition(entries: CanonicalQueueEntry[]): CanonicalQueueEntry[] {
+  return [...entries].sort((a, b) => a.position - b.position);
+}
+
+/**
+ * Get queue statistics
+ */
+export function getQueueStats(entries: CanonicalQueueEntry[]) {
+  const total = entries.length;
+  const waiting = entries.filter(e => e.status === 'WAITING').length;
+  const inProgress = entries.filter(e => e.status === 'IN_PROGRESS').length;
+  const completed = entries.filter(e => e.status === 'COMPLETED').length;
+  const ready = entries.filter(e => e.status === 'READY' || e.status === 'PAID').length;
+  const waitingForPayment = entries.filter(e => e.waitingForPayment).length;
+
+  return {
+    total,
+    waiting,
+    inProgress,
+    completed,
+    ready,
+    waitingForPayment,
+  };
+}

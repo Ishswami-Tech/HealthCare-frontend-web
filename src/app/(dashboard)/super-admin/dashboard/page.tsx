@@ -1,31 +1,23 @@
 "use client";
 
-import React from "react";
-import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinics } from "@/hooks/useClinics";
-import { useUsers } from "@/hooks/useUsers";
-import { useAppointments } from "@/hooks/useAppointments";
-import { useRevenueAnalytics } from "@/hooks/useAnalytics";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinics } from "@/hooks/query/useClinics";
+import { useUsers } from "@/hooks/query/useUsers";
+import { useAppointments } from "@/hooks/query/useAppointments";
+import { useRevenueAnalytics } from "@/hooks/query/useAnalytics";
 import {
+  TrendingUp,
   Building2,
   Users,
   Calendar,
   Settings,
-  TrendingUp,
-  Activity,
-  Shield,
-  LogOut,
 } from "lucide-react";
 
 export default function SuperAdminDashboard() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
 
   // Fetch real data using existing hooks and server actions
   const { data: clinics } = useClinics();
@@ -34,15 +26,15 @@ export default function SuperAdminDashboard() {
   const { data: revenueData } = useRevenueAnalytics({ period: "month" });
 
   // Calculate real stats from fetched data
-  const clinicsArray = clinics?.clinics || [];
-  const usersArray = Array.isArray(users) ? users : users?.users || [];
-  const appointments = appointmentsData?.appointments || [];
-  const revenue = revenueData?.totalRevenue || revenueData?.monthlyRevenue || 0;
+  const clinicsArray = (clinics as any)?.clinics || [];
+  const usersArray = Array.isArray(users) ? users : (users as any)?.users || [];
+  const appointments = (appointmentsData as any)?.appointments || [];
+  const revenue = (revenueData as any)?.totalRevenue || (revenueData as any)?.monthlyRevenue || 0;
 
   const stats = {
     totalClinics: clinicsArray.length || 0,
     totalUsers: usersArray.length || 0,
-    totalAppointments: appointmentsData?.total || appointments.length || 0,
+    totalAppointments: (appointmentsData as any)?.total || appointments.length || 0,
     monthlyRevenue: revenue || 0,
     activePatients:
       usersArray.filter(
@@ -56,71 +48,20 @@ export default function SuperAdminDashboard() {
           user.role === "DOCTOR" ||
           user.roles?.some((r: any) => r.name === "DOCTOR")
       ).length || 0,
-    systemHealth: "Excellent", // TODO: Add system health monitoring
-    avgSatisfaction: revenueData?.avgSatisfaction || 4.6, // TODO: Add satisfaction metrics
+    systemHealth: clinicsArray.length > 0 ? "LIVE" : "LIMITED",
+    avgSatisfaction:
+      typeof (revenueData as any)?.avgSatisfaction === "number"
+        ? (revenueData as any).avgSatisfaction
+        : null,
   };
 
-  const recentActivities = [
-    {
-      type: "clinic",
-      message: "New clinic registered: Ayurveda Center Mumbai",
-      time: "2 hours ago",
-    },
-    {
-      type: "user",
-      message: "5 new doctors onboarded this week",
-      time: "1 day ago",
-    },
-    {
-      type: "system",
-      message: "System maintenance completed successfully",
-      time: "2 days ago",
-    },
-  ];
-
-  const sidebarLinks = getRoutesByRole(Role.SUPER_ADMIN).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <Shield className="w-5 h-5" />
-    ),
-  }));
-
-  // Add logout link
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
 
   return (
-    <DashboardLayout
-      title="Super Admin Dashboard"
-      allowedRole={Role.SUPER_ADMIN}
-    >
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Super Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
-            <Badge variant="outline" className="bg-green-50 text-green-700">
+            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
               System Status: {stats.systemHealth}
             </Badge>
           </div>
@@ -136,9 +77,7 @@ export default function SuperAdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.totalClinics}</div>
-                <p className="text-xs text-muted-foreground">
-                  +2 from last month
-                </p>
+                <p className="text-xs text-muted-foreground">Live clinic count</p>
               </CardContent>
             </Card>
 
@@ -151,9 +90,7 @@ export default function SuperAdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                <p className="text-xs text-muted-foreground">
-                  +25 from last month
-                </p>
+                <p className="text-xs text-muted-foreground">Live user count</p>
               </CardContent>
             </Card>
 
@@ -168,9 +105,7 @@ export default function SuperAdminDashboard() {
                 <div className="text-2xl font-bold">
                   {stats.totalAppointments}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  +180 from last month
-                </p>
+                <p className="text-xs text-muted-foreground">Live appointment volume</p>
               </CardContent>
             </Card>
 
@@ -185,9 +120,7 @@ export default function SuperAdminDashboard() {
                 <div className="text-2xl font-bold">
                   ₹{stats.monthlyRevenue.toLocaleString()}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  +12% from last month
-                </p>
+                <p className="text-xs text-muted-foreground">Current analytics total</p>
               </CardContent>
             </Card>
           </div>
@@ -228,10 +161,12 @@ export default function SuperAdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-purple-600">
-                  {stats.avgSatisfaction}/5.0
+                  {stats.avgSatisfaction !== null ? `${stats.avgSatisfaction}/5.0` : "N/A"}
                 </div>
                 <p className="text-sm text-gray-600">
-                  Average patient satisfaction
+                  {stats.avgSatisfaction !== null
+                    ? "Average patient satisfaction"
+                    : "Satisfaction data is not yet wired system-wide"}
                 </p>
               </CardContent>
             </Card>
@@ -243,26 +178,8 @@ export default function SuperAdminDashboard() {
               <CardTitle>Recent System Activities</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentActivities.map((activity, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className="flex-shrink-0">
-                      {activity.type === "clinic" && (
-                        <Building2 className="w-4 h-4 text-blue-600" />
-                      )}
-                      {activity.type === "user" && (
-                        <Users className="w-4 h-4 text-green-600" />
-                      )}
-                      {activity.type === "system" && (
-                        <Settings className="w-4 h-4 text-purple-600" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{activity.message}</p>
-                      <p className="text-xs text-gray-600">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                System activity feed is not yet connected to a backend audit stream on this dashboard.
               </div>
             </CardContent>
           </Card>
@@ -306,7 +223,6 @@ export default function SuperAdminDashboard() {
             </CardContent>
           </Card>
         </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+    
   );
 }

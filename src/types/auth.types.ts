@@ -1,12 +1,20 @@
-import { z } from 'zod';
+// Note: Zod schemas moved to @/lib/schema/auth.schema.ts
 
-// Define Role as both enum and type for backward compatibility
+// ✅ Consolidated: Role enum - single source of truth
 export enum Role {
   SUPER_ADMIN = 'SUPER_ADMIN',
   CLINIC_ADMIN = 'CLINIC_ADMIN',
   DOCTOR = 'DOCTOR',
+  ASSISTANT_DOCTOR = 'ASSISTANT_DOCTOR',
   RECEPTIONIST = 'RECEPTIONIST',
   PHARMACIST = 'PHARMACIST',
+  THERAPIST = 'THERAPIST',
+  LAB_TECHNICIAN = 'LAB_TECHNICIAN',
+  SUPPORT_STAFF = 'SUPPORT_STAFF',
+  NURSE = 'NURSE',
+  FINANCE_BILLING = 'FINANCE_BILLING',
+  CLINIC_LOCATION_HEAD = 'CLINIC_LOCATION_HEAD',
+  COUNSELOR = 'COUNSELOR',
   PATIENT = 'PATIENT'
 }
 
@@ -28,11 +36,8 @@ export interface LoginData {
   otp?: string;
 }
 
-export interface RegisterData {
-  email: string;
-  password: string;
+export interface RegisterData extends RegisterFormData {
   name?: string;
-  role?: Role;
 }
 
 export interface OTPData {
@@ -58,12 +63,13 @@ export interface ChangePasswordData {
 
 export interface AuthResponse {
   user: User;
-  access_token: string;
-  refresh_token: string;
-  session_id: string;
+  access_token?: string;
+  refresh_token?: string;
+  session_id?: string;
   message?: string;
   redirectUrl?: string;
   isNewUser?: boolean;
+  requiresVerification?: boolean;
 }
 
 export interface Session {
@@ -103,14 +109,23 @@ export interface RegisterFormData {
   firstName: string;
   lastName: string;
   role?: Role;
-  clinicId?: string;
-  appName?: string;
+  clinicId?: string | undefined;
+  appName?: string | undefined;
+  // Optional fields that may be provided during registration
+  phone?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  address?: string;
+  age?: number; // Frontend-only field, will be converted to dateOfBirth
 }
 
 export interface OTPFormData {
-  email: string;
+  identifier: string;
   otp: string;
   rememberMe?: boolean;
+  isRegistration?: boolean;
+  firstName?: string;
+  lastName?: string;
 }
 
 // User Types
@@ -118,15 +133,20 @@ export interface User {
   id: string;
   email: string;
   role: Role | string;
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  isVerified?: boolean;
-  profileComplete?: boolean;
-  profilePicture?: string;
-  googleId?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  firstName?: string | undefined;
+  lastName?: string | undefined;
+  name?: string | undefined;
+  isVerified?: boolean | undefined;
+  profileComplete?: boolean | undefined;
+  profilePicture?: string | undefined;
+  googleId?: string | undefined;
+  phone?: string | undefined;
+  clinicId?: string | undefined;
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
+  dateOfBirth?: string | null | undefined;
+  gender?: string | undefined;
+  address?: string | undefined;
 }
 
 export interface UserProfile extends User {
@@ -137,69 +157,12 @@ export interface UserProfile extends User {
   profilePicture?: string;
   medicalConditions?: string[];
 }
-
-// Validation Schemas
-export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
-  rememberMe: z.boolean().optional().default(false),
-});
-
-// Helper function to safely use Role enum with Zod
-const createRoleEnum = () => {
-  return z.enum([
-    Role.SUPER_ADMIN,
-    Role.CLINIC_ADMIN,
-    Role.DOCTOR,
-    Role.RECEPTIONIST,
-    Role.PATIENT
-  ] as [string, ...string[]]);
-};
-
-export const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
-  confirmPassword: z.string(),
-  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
-  role: createRoleEnum().optional(),
-  terms: z.boolean().refine((val) => val === true, {
-    message: 'You must accept the terms and conditions',
-  }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ['confirmPassword'],
-});
-
-export const otpSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  otp: z.string().length(6, 'OTP must be 6 digits'),
-  rememberMe: z.boolean().optional().default(false),
-});
-
-export const forgotPasswordSchema = z.object({
-  email: z.string().email('Invalid email address'),
-});
-
-export const resetPasswordSchema = z.object({
-  token: z.string(),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
-  confirmPassword: z.string(),
-}).refine(data => data.password === data.confirmPassword, {
-  message: 'Passwords must match',
-  path: ['confirmPassword'],
-});
+// ============================================================================
+// ZOD SCHEMAS - MOVED TO @/lib/schema/auth.schema.ts
+// ============================================================================
+// ✅ All Zod validation schemas are now consolidated in:
+//    import { loginSchema, registerSchema, ... } from '@/lib/schema'
+// ============================================================================
 
 export interface ClinicLocation {
   id: string;
@@ -226,10 +189,8 @@ export interface ForgotPasswordFormData {
   email: string;
 }
 
-export interface RegisterData extends RegisterFormData {
-  clinicId: string;
-  appName: string;
-}
+// RegisterData is now consolidated above using the extended RegisterFormData
+
 
 export interface GoogleLoginResponse {
   user: {
@@ -273,4 +234,72 @@ export interface SessionError {
 export interface MessageResponse {
   message: string;
   success?: boolean;
-} 
+}
+
+// ============================================================================
+// FORM DATA TYPES
+// These types are used for form validation with Zod schemas from @/lib/schema
+// ============================================================================
+
+export interface ForgotPasswordFormData {
+  email: string;
+}
+
+export interface ResetPasswordFormData {
+  token: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface ChangePasswordFormData {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface ChangePasswordData {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface PasswordLoginFormData {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+}
+
+export interface OtpRequestFormData {
+  identifier: string;
+  isRegistration?: boolean;
+}
+
+export interface OtpVerifyFormData {
+  identifier: string;
+  otp: string;
+  rememberMe?: boolean;
+  isRegistration?: boolean;
+  firstName?: string;
+  lastName?: string;
+}
+
+export interface ProfileCompletionFormData {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  dateOfBirth: string;
+  gender: 'male' | 'female' | 'other';
+  address: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  emergencyContactRelationship: string;
+  specialization?: string;
+  experience?: string;
+  clinicName?: string;
+  clinicAddress?: string;
+}
+
+export interface ProfileData extends Omit<ProfileCompletionFormData, 'emergencyContact'> {
+  profileComplete: boolean;
+  emergencyContact: string;
+}
+ 

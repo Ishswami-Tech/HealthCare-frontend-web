@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,21 +10,17 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Send,
   Paperclip,
-  Image as ImageIcon,
-  FileText,
-  X,
-  Smile,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
-  sendChatMessage,
-  getChatMessages,
-  updateTypingIndicator,
+  useSendVideoChatMessage,
+  useUpdateVideoTypingIndicator,
+  useVideoChatMessages,
   type ChatMessage,
-} from "@/lib/actions/video-enhanced.server";
-import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
+} from "@/hooks/query";
+import { formatTimeInIST } from "@/lib/utils/appointmentUtils";
+import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 interface VideoChatProps {
   appointmentId: string;
@@ -33,36 +29,26 @@ interface VideoChatProps {
 
 export function VideoChat({ appointmentId, className }: VideoChatProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
+  const [typingUsers] = useState<Set<string>>(new Set());
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const {
+    data: chatMessages = [],
+    isPending: isLoading,
+  } = useVideoChatMessages(appointmentId);
+  const sendChatMessageMutation = useSendVideoChatMessage();
+  const typingIndicatorMutation = useUpdateVideoTypingIndicator();
 
-  const { subscribeToChatMessages, sendChatMessage: sendChatMessageWS, sendTypingIndicator, isConnected } =
+  const { subscribeToChatMessages, sendChatMessage: sendChatMessageWS, isConnected } =
     useVideoAppointmentWebSocket();
 
-  // Load initial messages
   useEffect(() => {
-    const loadMessages = async () => {
-      try {
-        const result = await getChatMessages(appointmentId, { limit: 50 });
-        if (result && result.messages) {
-          setMessages(result.messages);
-        }
-      } catch (error) {
-        console.error("Failed to load chat messages:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadMessages();
-  }, [appointmentId]);
+    setMessages(chatMessages);
+  }, [chatMessages]);
 
   // Subscribe to real-time chat messages
   useEffect(() => {
@@ -94,7 +80,10 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
   const handleTyping = () => {
     if (!isTyping) {
       setIsTyping(true);
-      updateTypingIndicator(appointmentId, true).catch(console.error);
+      void typingIndicatorMutation.mutateAsync({
+        appointmentId,
+        isTyping: true,
+      });
     }
 
     // Clear existing timeout
@@ -105,7 +94,10 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
     // Set timeout to stop typing indicator
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      updateTypingIndicator(appointmentId, false).catch(console.error);
+      void typingIndicatorMutation.mutateAsync({
+        appointmentId,
+        isTyping: false,
+      });
     }, 3000);
   };
 
@@ -118,33 +110,23 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
       sendChatMessageWS(appointmentId, newMessage.trim());
 
       // Also send via API for persistence
-      const result = await sendChatMessage(appointmentId, {
+      const result = await sendChatMessageMutation.mutateAsync({
+        appointmentId,
         message: newMessage.trim(),
-        messageType: 'TEXT',
       });
 
       if (result) {
         setNewMessage("");
         setIsTyping(false);
-        updateTypingIndicator(appointmentId, false).catch(console.error);
+        void typingIndicatorMutation.mutateAsync({
+          appointmentId,
+          isTyping: false,
+        });
         inputRef.current?.focus();
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      });
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
-  };
-
-  // Handle file attachment (placeholder)
-  const handleFileAttach = () => {
-    // TODO: Implement file upload
-    toast({
-      title: "Coming Soon",
-      description: "File attachment feature will be available soon",
-    });
   };
 
   const getInitials = (name: string) => {
@@ -188,7 +170,7 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                   >
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="text-xs">
-                        {getInitials(message.userName)}
+                        {getInitials(message.user?.name || message.userId || 'U')}
                       </AvatarFallback>
                     </Avatar>
                     <div
@@ -199,7 +181,11 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium">{message.user?.name || 'Unknown'}</span>
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(message.createdAt), "HH:mm")}
+                          {formatTimeInIST(new Date(message.createdAt), {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: false,
+                          })}
                         </span>
                       </div>
                       <div
@@ -247,14 +233,6 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
         {/* Input Area */}
         <div className="border-t p-3">
           <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9"
-              onClick={handleFileAttach}
-            >
-              <Paperclip className="h-4 w-4" />
-            </Button>
             <Input
               ref={inputRef}
               value={newMessage}
@@ -265,18 +243,18 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSendMessage();
+                  void handleSendMessage();
                 }
               }}
               placeholder="Type a message..."
               className="flex-1"
-              disabled={!isConnected}
+              disabled={!isConnected || sendChatMessageMutation.isPending}
             />
             <Button
-              onClick={handleSendMessage}
+              onClick={() => void handleSendMessage()}
               size="icon"
               className="h-9 w-9"
-              disabled={!newMessage.trim() || !isConnected}
+              disabled={!newMessage.trim() || !isConnected || sendChatMessageMutation.isPending}
             >
               <Send className="h-4 w-4" />
             </Button>
@@ -286,9 +264,11 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
               Reconnecting to chat...
             </p>
           )}
+          <p className="text-xs text-muted-foreground mt-1">
+            File attachments are not available in this build.
+          </p>
         </div>
       </CardContent>
     </Card>
   );
 }
-

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,18 +13,18 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useRBAC } from "@/hooks/useRBAC";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useRBAC } from "@/hooks/utils/useRBAC";
 import { Permission } from "@/types/rbac.types";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
-  joinWaitingRoom,
-  leaveWaitingRoom,
-  getWaitingRoomQueue,
-  admitFromWaitingRoom,
+  useAdmitFromWaitingRoom,
+  useJoinWaitingRoom,
+  useLeaveWaitingRoom,
+  useWaitingRoomQueue,
   type WaitingRoomParticipant,
-} from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+} from "@/hooks/query";
+import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { formatDistanceToNow } from "date-fns";
 
 interface WaitingRoomProps {
@@ -40,64 +40,65 @@ export function WaitingRoom({
 }: WaitingRoomProps) {
   const { user } = useAuth();
   const { hasPermission } = useRBAC();
-  const { toast } = useToast();
   const [isInWaitingRoom, setIsInWaitingRoom] = useState(false);
   const [position, setPosition] = useState<number | null>(null);
   const [estimatedWaitTime, setEstimatedWaitTime] = useState<number | null>(
     null
   );
   const [queue, setQueue] = useState<WaitingRoomParticipant[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [joinedAt, setJoinedAt] = useState<Date | null>(null);
 
   const isDoctor = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
   const { subscribeToWaitingRoom, isConnected } = useVideoAppointmentWebSocket();
+  const {
+    data: waitingRoomQueue = [],
+    isPending: isLoadingQueue,
+  } = useWaitingRoomQueue(appointmentId, isDoctor);
+  const joinWaitingRoomMutation = useJoinWaitingRoom();
+  const leaveWaitingRoomMutation = useLeaveWaitingRoom();
+  const admitFromWaitingRoomMutation = useAdmitFromWaitingRoom();
+  const isLoading =
+    joinWaitingRoomMutation.isPending ||
+    leaveWaitingRoomMutation.isPending ||
+    admitFromWaitingRoomMutation.isPending;
 
-  // Load queue if doctor
   useEffect(() => {
     if (isDoctor) {
-      const loadQueue = async () => {
-        try {
-      const result = await getWaitingRoomQueue(appointmentId);
-      if (result && result.queue) {
-        setQueue(result.queue);
-      }
-        } catch (error) {
-          console.error("Failed to load waiting room queue:", error);
-        }
-      };
-
-      loadQueue();
-      // Only load once, WebSocket handles real-time updates
-      loadQueue();
+      setQueue(waitingRoomQueue);
     }
-  }, [appointmentId, isDoctor]);
+  }, [isDoctor, waitingRoomQueue]);
 
   // Subscribe to waiting room events
   useEffect(() => {
     if (!isConnected) return;
 
-    const unsubscribe = subscribeToWaitingRoom((data) => {
-      if (data.appointmentId === appointmentId) {
-        if (data.action === "waiting_room_joined") {
+    const unsubscribe = subscribeToWaitingRoom((data: unknown) => {
+      const eventData = data as {
+        appointmentId: string;
+        action: string;
+        participant?: WaitingRoomParticipant;
+        token?: string;
+      };
+      if (eventData.appointmentId === appointmentId) {
+        if (eventData.action === "waiting_room_joined") {
           setQueue((prev) => {
-            const participant = data.participant as unknown as WaitingRoomParticipant;
-            if (prev.some((p) => p.userId === participant.userId)) return prev;
+            const participant = eventData.participant;
+            if (!participant || prev.some((p) => p.userId === participant.userId)) return prev;
             return [...prev, participant];
           });
-        } else if (data.action === "waiting_room_left") {
+        } else if (eventData.action === "waiting_room_left") {
           setQueue((prev) =>
-            prev.filter((p) => p.userId !== (data.participant?.userId || ""))
+            prev.filter((p) => p.userId !== (eventData.participant?.userId || ""))
           );
-        } else if (data.action === "waiting_room_admitted") {
-          if (data.participant?.userId === user?.id) {
+        } else if (eventData.action === "waiting_room_admitted") {
+          if (eventData.participant?.userId === user?.id) {
             setIsInWaitingRoom(false);
-            if (data.token && onAdmitted) {
-              onAdmitted(data.token as string);
+            if (eventData.token && onAdmitted) {
+              onAdmitted(eventData.token);
             }
           }
           setQueue((prev) =>
-            prev.filter((p) => p.userId !== (data.participant?.userId || ""))
+            prev.filter((p) => p.userId !== (eventData.participant?.userId || ""))
           );
         }
       }
@@ -112,73 +113,57 @@ export function WaitingRoom({
   // No need for setInterval here
 
   const handleJoinWaitingRoom = async () => {
-    setIsLoading(true);
     try {
-      const result = await joinWaitingRoom(appointmentId);
-      if (result && result.success) {
+      const result = await joinWaitingRoomMutation.mutateAsync(appointmentId);
+      if (result) {
         setIsInWaitingRoom(true);
         setPosition(result.position || 0);
         setEstimatedWaitTime(result.estimatedWaitTime || null);
         setJoinedAt(new Date());
-        toast({
-          title: "Joined Waiting Room",
-          description: `You are in queue. Position: ${result.position || 0}`,
+        showSuccessToast("Joined waiting room", {
+          id: TOAST_IDS.VIDEO.JOIN,
+          description: `You are in queue. Position: ${(result.position ?? 0) + 1}`,
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to join waiting room",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 
   const handleLeaveWaitingRoom = async () => {
-    setIsLoading(true);
     try {
-      const result = await leaveWaitingRoom(appointmentId);
+      const result = await leaveWaitingRoomMutation.mutateAsync(appointmentId);
       if (result && result.success) {
         setIsInWaitingRoom(false);
         setPosition(null);
         setEstimatedWaitTime(null);
         setJoinedAt(null);
-        toast({
-          title: "Left Waiting Room",
+        showSuccessToast("Left waiting room", {
+          id: TOAST_IDS.VIDEO.END,
           description: "You have left the waiting room",
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to leave waiting room",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 
   const handleAdmit = async (userId: string) => {
     try {
-      const result = await admitFromWaitingRoom(appointmentId, userId);
-      if (result && result.success) {
-        toast({
-          title: "Participant Admitted",
+      const result = await admitFromWaitingRoomMutation.mutateAsync({
+        appointmentId,
+        userId,
+      });
+      if (result) {
+        showSuccessToast("Participant admitted", {
+          id: TOAST_IDS.VIDEO.JOIN,
           description: "Participant has been admitted to the consultation",
         });
-        if (result.token && onAdmitted) {
-          onAdmitted(result.token);
-        }
+        // Note: admitFromWaitingRoom doesn't return token in current implementation
+        // Token would come from WebSocket event instead
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to admit participant",
-        variant: "destructive",
-      });
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 
@@ -202,14 +187,19 @@ export function WaitingRoom({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {queue.length === 0 ? (
+          {isLoadingQueue ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin opacity-50" />
+              <p>Loading waiting room...</p>
+            </div>
+          ) : queue.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No one in waiting room</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {queue.map((participant, index) => (
+              {queue.map((participant) => (
                 <div
                   key={participant.userId}
                   className="flex items-center justify-between p-3 border rounded-lg"
@@ -330,4 +320,3 @@ export function WaitingRoom({
     </Card>
   );
 }
-

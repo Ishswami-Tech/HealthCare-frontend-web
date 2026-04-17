@@ -7,7 +7,7 @@ export interface BillingPlan {
   description?: string;
   price: number;
   currency: string;
-  billingCycle: 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+  billingCycle: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
   appointmentsIncluded?: number;
   isUnlimitedAppointments: boolean;
   appointmentTypes?: string[];
@@ -24,13 +24,26 @@ export interface Subscription {
   clinicId: string;
   planId: string;
   plan?: BillingPlan;
-  status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PENDING';
+  status:
+    | 'ACTIVE'
+    | 'PAST_DUE'
+    | 'CANCELLED'
+    | 'INCOMPLETE'
+    | 'INCOMPLETE_EXPIRED'
+    | 'TRIALING'
+    | 'PAUSED';
   startDate: string;
   endDate?: string;
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
   nextBillingDate?: string;
+  cancelledAt?: string;
+  cancelAtPeriodEnd?: boolean;
   autoRenew: boolean;
   appointmentsUsed: number;
   appointmentsLimit?: number;
+  appointmentsRemaining?: number;
+  remainingVisits?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,11 +56,12 @@ export interface Invoice {
   invoiceNumber: string;
   amount: number;
   currency: string;
-  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+  status: 'DRAFT' | 'OPEN' | 'PAID' | 'VOID' | 'UNCOLLECTIBLE' | 'OVERDUE';
   dueDate: string;
   paidDate?: string;
   items: InvoiceItem[];
   pdfUrl?: string;
+  patientName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -68,12 +82,58 @@ export interface Payment {
   subscriptionId?: string;
   amount: number;
   currency: string;
-  method: 'CASH' | 'CARD' | 'UPI' | 'NET_BANKING' | 'WALLET' | 'CHEQUE';
+  method: 'CASH' | 'CARD' | 'UPI' | 'NET_BANKING' | 'WALLET' | 'INSURANCE';
   status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
   transactionId?: string;
   paymentDate?: string;
   createdAt: string;
   updatedAt: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface LedgerSummary {
+  totalCollections: number;
+  totalDoctorPayable: number;
+  totalPlatformRevenue: number;
+  totalRefunded: number;
+  totalPayoutReleased: number;
+  pendingPayouts: number;
+  byRevenueModel: {
+    APPOINTMENT: number;
+    SUBSCRIPTION: number;
+    OTHER: number;
+  };
+  byAppointmentType: {
+    VIDEO_CALL: number;
+    IN_PERSON: number;
+    HOME_VISIT: number;
+    OTHER: number;
+  };
+}
+
+export interface LedgerPaymentRow {
+  paymentId: string;
+  appointmentId: string | null;
+  userId: string | null;
+  amount: number;
+  status: string;
+  refundAmount: number;
+  createdAt: string;
+  updatedAt: string;
+  payoutState: string;
+  payoutDoctorId: string | null;
+  payoutDoctorShareAmount: number;
+  payoutPlatformFeeAmount: number;
+  payoutReference: string | null;
+  revenueModel: string;
+  appointmentType: string | null;
+  provider: string | null;
+  ledgerEntries: Array<Record<string, unknown>>;
+}
+
+export interface ClinicLedgerResponse {
+  payments: LedgerPaymentRow[];
+  summary: LedgerSummary;
 }
 
 export interface BillingAnalytics {
@@ -102,9 +162,10 @@ export interface CreateBillingPlanData {
   description?: string;
   price: number;
   currency?: string;
-  billingCycle: 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+  billingCycle: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
   appointmentsIncluded?: number;
   isUnlimitedAppointments?: boolean;
+  isActive?: boolean;
   appointmentTypes?: string[];
   features?: string[];
   clinicId?: string;
@@ -115,6 +176,11 @@ export interface CreateSubscriptionData {
   clinicId: string;
   planId: string;
   autoRenew?: boolean;
+  startDate?: string;
+  endDate?: string;
+  trialStart?: string;
+  trialEnd?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreateInvoiceData {
@@ -124,7 +190,8 @@ export interface CreateInvoiceData {
   amount: number;
   currency?: string;
   dueDate: string;
-  items: InvoiceItem[];
+  lineItems?: Record<string, unknown>;
+  items?: InvoiceItem[];
 }
 
 export interface CreatePaymentData {

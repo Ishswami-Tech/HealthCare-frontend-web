@@ -1,0 +1,957 @@
+# Healthcare Frontend - Enterprise Cursor Rules
+# Version: 2.1.0 | Next.js 16 + React 19 + TypeScript 5
+# Based on actual codebase patterns
+
+## 🏥 PROJECT CONTEXT
+
+This is a **HIPAA-compliant, multi-tenant healthcare management system** for Ayurveda clinics.
+Every line of code impacts patient safety, data security, and clinical workflow efficiency.
+
+### Technology Stack (FROM package.json)
+- **Framework**: Next.js 16.1.1 with App Router + Turbopack
+- **React**: 19.2.x with Server Components
+- **TypeScript**: 5.x with strict mode
+- **State Management**: TanStack Query v5.90+ | Zustand v5.0.9 with immer
+- **Forms**: React Hook Form v7.70 + Zod v4.3.5
+- **UI Components**: shadcn/ui + Radix UI + Tailwind CSS v4
+- **Internationalization**: next-intl v4.7
+- **Real-time**: Socket.IO v4.8.3 + Firebase v12.7
+- **Video**: OpenVidu Browser v2.32.1
+- **Toast**: Sonner v2.0.7
+- **Animations**: Framer Motion v12.24
+
+### User Roles
+- SUPER_ADMIN, CLINIC_ADMIN, DOCTOR, RECEPTIONIST, PHARMACIST, PATIENT
+
+---
+
+## 🎯 CORE PRINCIPLES (BASED ON YOUR CODE)
+
+### SOLID Principles - As Implemented
+
+```typescript
+// S - Single Responsibility (from useAuth.ts pattern)
+// Each hook handles ONE domain: useAuth for auth, useRBAC for permissions
+
+// ✅ Your pattern - Separate hooks for each domain
+export function useAuth() { /* auth only */ }
+export function useRBAC() { /* permissions only */ }
+export function usePatientPermissions() { /* patient perms only */ }
+
+// O - Open/Closed (from button.tsx variants)
+// Extend via variants, not modification
+const buttonVariants = cva("...", {
+  variants: {
+    variant: {
+      default: "...",
+      medical: "bg-gradient-to-r from-emerald-600 to-teal-700...",
+      emergency: "bg-gradient-to-r from-red-600 to-red-700 animate-pulse...",
+      ayurveda: "bg-gradient-to-r from-orange-500 to-red-600...",
+    },
+  },
+});
+
+// D - Dependency Inversion (from your hooks)
+// Depend on abstractions (hooks), not implementations
+function PatientList() {
+  const { user } = useAuth();           // Abstraction
+  const { canViewPatients } = usePatientPermissions(); // Abstraction
+}
+```
+
+### DRY Principle - Your Patterns
+
+```typescript
+// ✅ Your useQueryData pattern (hooks/core/useQueryData.ts)
+export const useQueryData = <TData = unknown, TError = Error>(
+  queryKey: QueryKey,
+  queryFn: (() => Promise<TData>) | (() => TData),
+  options?: Omit<UseQueryOptions<TData, TError, TData>, 'queryKey' | 'queryFn'>
+) => {
+  const defaultOptions = queryClientConfig.defaultOptions?.queries || {};
+  
+  const { data, isPending, isFetched, isFetching, error, refetch } = useQuery<TData, TError>({
+    queryKey,
+    queryFn: queryFn as any,
+    ...defaultOptions,
+    ...options,
+  });
+
+  return { data, isPending, isFetched, isFetching, error, refetch };
+};
+
+// ✅ Your useMutationData pattern (hooks/core/useMutationData.ts)
+export const useMutationData = <TData = unknown, TVariables = unknown>(
+  mutationKey: MutationKey,
+  mutationFn: (variables: TVariables) => Promise<ApiResponse<TData>>,
+  queryKey?: string | string[],
+  onSuccess?: (data: ApiResponse<TData>) => void
+) => {
+  const client = useQueryClient();
+  const defaultOptions = queryClientConfig.defaultOptions?.mutations || {};
+
+  const { mutate, isPending } = useMutation<ApiResponse<TData>, Error, TVariables>({
+    mutationKey,
+    mutationFn,
+    ...defaultOptions,
+    onSuccess(data) {
+      if (onSuccess) onSuccess(data);
+      else toast(data.status === 200 ? 'Success' : 'Error', { ... });
+    },
+    onSettled: async () => {
+      if (queryKey) {
+        const key = Array.isArray(queryKey) ? queryKey : [queryKey];
+        await client.invalidateQueries({ queryKey: key });
+      }
+    },
+  });
+
+  return { mutate, isPending };
+};
+
+// ✅ Your query keys factory (hooks/query/config.ts)
+export const queryKeys = {
+  appointments: {
+    all: ['appointments'] as const,
+    lists: () => [...queryKeys.appointments.all, 'list'] as const,
+    list: (filters: Record<string, unknown>) => [...queryKeys.appointments.lists(), filters] as const,
+    details: () => [...queryKeys.appointments.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.appointments.details(), id] as const,
+  },
+  // ... similar patterns for billing, ehr, video, queue, users
+};
+```
+
+---
+
+## 📁 PROJECT STRUCTURE (YOUR ACTUAL STRUCTURE)
+
+```
+src/
+├── app/
+│   ├── (auth)/auth/           # Login, register, forgot-password, verify-otp
+│   ├── (dashboard)/           # Role-based dashboards
+│   │   ├── clinic-admin/
+│   │   ├── doctor/
+│   │   ├── patient/
+│   │   ├── pharmacist/
+│   │   ├── receptionist/
+│   │   └── super-admin/
+│   ├── (public)/ayurveda/     # Public Ayurveda pages
+│   ├── (shared)/              # Cross-role features
+│   │   ├── analytics/
+│   │   ├── appointments/
+│   │   ├── billing/
+│   │   ├── ehr/
+│   │   ├── pharmacy/
+│   │   ├── queue/
+│   │   └── video-appointments/
+│   └── providers/             # AppProvider, QueryProvider, WebSocketProvider
+├── components/
+│   ├── ui/                    # shadcn/ui (button, card, input, etc.)
+│   ├── global/GlobalSidebar/
+│   ├── admin/
+│   ├── appointments/
+│   ├── ayurveda/
+│   ├── dashboard/
+│   ├── video/
+│   └── ErrorBoundary.tsx
+├── hooks/
+│   ├── auth/useAuth.ts        # Authentication (825 lines)
+│   ├── core/                  # useQueryData, useMutationData, useOptimisticMutation
+│   ├── query/                 # Domain queries + config.ts
+│   ├── realtime/              # WebSocket, FCM, health realtime
+│   └── utils/                 # useRBAC, use-toast, useZodForm
+├── lib/
+│   ├── actions/               # Server actions (*.server.ts)
+│   ├── api/client.ts
+│   ├── config/                # routes, permissions, sidebarLinks, firebase
+│   ├── i18n/
+│   ├── schema/
+│   └── utils/                 # audit, error-handler, logger
+├── stores/                    # Zustand with immer + persist
+│   ├── app.store.ts           # Main store (417 lines)
+│   ├── appointments.store.ts
+│   ├── health.store.ts
+│   └── notifications.store.ts
+└── types/                     # TypeScript definitions
+```
+
+---
+
+## ✅ CODING STANDARDS (YOUR PATTERNS)
+
+### Import Order (FROM YOUR CODE)
+```typescript
+// 1. React & Next.js
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+// 2. External libraries
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { toast } from 'sonner';
+
+// 3. Internal hooks
+import { useAuth } from '@/hooks/auth/useAuth';
+import { useRBAC } from '@/hooks/utils/useRBAC';
+import { showSuccessToast, showErrorToast, TOAST_IDS } from '@/hooks/utils/use-toast';
+
+// 4. Components
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+
+// 5. Utils & config
+import { cn } from '@/lib/utils';
+import { ERROR_MESSAGES } from '@/lib/config/config';
+
+// 6. Types (use 'type' imports)
+import type { User, Role } from '@/types/auth.types';
+```
+
+### TanStack Query Configuration (YOUR config.ts)
+```typescript
+// ✅ Your cache time constants
+export const CACHE_TIMES = {
+  SHORT: 30 * 1000,        // 30 seconds
+  MEDIUM: 5 * 60 * 1000,   // 5 minutes
+  LONG: 30 * 60 * 1000,    // 30 minutes
+  VERY_LONG: 60 * 60 * 1000, // 1 hour
+  STATIC: 24 * 60 * 60 * 1000, // 24 hours
+};
+
+export const GC_TIMES = {
+  SHORT: 5 * 60 * 1000,
+  MEDIUM: 15 * 60 * 1000,
+  LONG: 60 * 60 * 1000,
+  VERY_LONG: 4 * 60 * 60 * 1000,
+  STATIC: 24 * 60 * 60 * 1000,
+};
+
+// ✅ Your query client config (optimized for 10M+ users)
+export const queryClientConfig: QueryClientConfig = {
+  defaultOptions: {
+    queries: {
+      staleTime: CACHE_TIMES.MEDIUM,
+      gcTime: GC_TIMES.MEDIUM,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,      // CRITICAL: Prevents blocking navigation
+      refetchOnReconnect: true,
+      retry: (failureCount, error: any) => {
+        if (error?.statusCode >= 400 && error?.statusCode < 500) return false;
+        return failureCount < 2;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      networkMode: 'online',
+    },
+    mutations: {
+      retry: 1,
+      retryDelay: 1000,
+      networkMode: 'online',
+    },
+  },
+};
+```
+
+### Zustand Store Pattern (YOUR app.store.ts)
+```typescript
+// ✅ Your store pattern with immer + persist + devtools
+import { create } from "zustand";
+import { devtools, persist } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
+
+export const useAppStore = create<AppState>()(
+  devtools(
+    persist(
+      immer((set) => ({
+        // Initial state
+        user: null,
+        isAuthenticated: false,
+        currentClinic: null,
+        theme: 'system' as const,
+        language: 'en',
+        sidebarOpen: false,
+        overlay: { show: false, variant: 'default' },
+
+        // Actions using immer for immutable updates
+        setUser: (user) => set((state) => {
+          state.user = user;
+          state.isAuthenticated = !!user;
+        }),
+
+        setOverlay: (config) => set((state) => {
+          state.overlay = { ...state.overlay, ...config };
+        }),
+
+        clearOverlay: () => set((state) => {
+          state.overlay = { show: false, variant: 'default' };
+        }),
+      })),
+      {
+        name: 'healthcare-app-store',
+        partialize: (state) => ({
+          user: state.user,
+          theme: state.theme,
+          language: state.language,
+          sidebarOpen: state.sidebarOpen,
+        }),
+      }
+    ),
+    { name: 'healthcare-app-store', enabled: process.env.NODE_ENV === 'development' }
+  )
+);
+
+// ✅ Selectors for performance
+export const useUser = () => useAppStore(state => state.user);
+export const useIsAuthenticated = () => useAppStore(state => state.isAuthenticated);
+export const useCurrentClinic = () => useAppStore(state => state.currentClinic);
+```
+
+### Auth Hook Pattern (YOUR useAuth.ts)
+```typescript
+// ✅ Your auth hook pattern
+export function useAuth() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // Session query with proper config
+  const { data: session, isLoading } = useQuery<SessionData | null>({
+    queryKey: ['session'],
+    queryFn: async () => {
+      const result = await getServerSession();
+      if (result?.access_token && isTokenExpiringSoon(result.access_token)) {
+        const refreshed = await refreshToken();
+        return refreshed ?? null;
+      }
+      return result;
+    },
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    staleTime: 10000,
+    gcTime: 60000,
+    retry: (failureCount, error) => !isAuthError(error) && failureCount < 1,
+  });
+
+  // Mutations with proper error handling
+  const loginMutation = useMutation({
+    mutationFn: loginAction,
+    onSuccess: (data) => {
+      queryClient.setQueryData(['session'], data);
+      const dashboardPath = getDashboardByRole(data.user.role as Role);
+      router.push(data.user.profileComplete ? dashboardPath : '/profile-completion');
+    },
+    // Let component handle errors to prevent duplicate toasts
+  });
+
+  return {
+    session,
+    isLoading,
+    isAuthenticated: !!session?.user,
+    user: session?.user,
+    login: loginMutation.mutate,
+    isLoggingIn: loginMutation.isPending,
+    // ... other methods
+  };
+}
+```
+
+### RBAC Pattern (YOUR useRBAC.ts)
+```typescript
+// ✅ Your RBAC implementation
+export const useRBAC = (): PermissionCheck => {
+  const { user } = useAuth();
+  
+  const userRole = user?.role as Role;
+  const userPermissions = useMemo(() => {
+    if (!userRole || !ROLE_PERMISSIONS[userRole]) return [];
+    return ROLE_PERMISSIONS[userRole];
+  }, [userRole]);
+
+  const hasPermission = (permission: Permission): boolean => {
+    if (!user || !userRole) return false;
+    return userPermissions.includes(permission);
+  };
+
+  const canAccess = (resource: string, action: string): boolean => {
+    const key = `${resource}:${action}`;
+    const requiredPermission = resourceActionMap[key];
+    return requiredPermission ? hasPermission(requiredPermission) : false;
+  };
+
+  return { hasPermission, hasAnyPermission, hasAllPermissions, canAccess };
+};
+
+// ✅ Domain-specific permission hooks
+export const usePatientPermissions = () => {
+  const rbac = useRBAC();
+  return {
+    canViewPatients: rbac.hasPermission(Permission.VIEW_PATIENTS),
+    canCreatePatients: rbac.hasPermission(Permission.CREATE_PATIENTS),
+    canUpdatePatients: rbac.hasPermission(Permission.UPDATE_PATIENTS),
+    canDeletePatients: rbac.hasPermission(Permission.DELETE_PATIENTS),
+  };
+};
+```
+
+### Server Actions Pattern (YOUR patients.server.ts)
+```typescript
+// ✅ Your server action pattern
+'use server';
+
+import { authenticatedApi } from './auth.server';
+import { API_ENDPOINTS } from '../config/config';
+
+export async function getPatients(clinicId: string, filters?: {
+  search?: string;
+  gender?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined) params.append(key, value.toString());
+    });
+  }
+
+  const endpoint = `${API_ENDPOINTS.PATIENTS.GET_CLINIC_PATIENTS(clinicId)}${params.toString() ? `?${params}` : ''}`;
+  const { data } = await authenticatedApi(endpoint);
+  return data;
+}
+```
+
+### Toast Pattern (YOUR use-toast.ts)
+```typescript
+// ✅ Your centralized toast pattern
+import { toast } from 'sonner';
+
+export const TOAST_IDS = {
+  AUTH: {
+    LOGIN: 'auth-login',
+    LOGOUT: 'auth-logout',
+    OTP: 'auth-otp',
+    SOCIAL_LOGIN: 'auth-social',
+    FORGOT_PASSWORD: 'auth-forgot',
+    RESET_PASSWORD: 'auth-reset',
+  },
+  GLOBAL: {
+    ERROR: 'global-error',
+    SUCCESS: 'global-success',
+  },
+};
+
+export function showSuccessToast(message: string, options?: { id?: string }) {
+  toast.success(message, { id: options?.id });
+}
+
+export function showErrorToast(error: unknown, options?: { id?: string }) {
+  const message = error instanceof Error ? error.message : String(error);
+  toast.error(message, { id: options?.id });
+}
+
+export function showLoadingToast(message: string, id: string) {
+  toast.loading(message, { id });
+}
+
+export function dismissToast(id: string) {
+  toast.dismiss(id);
+}
+```
+
+### Button Component Pattern (YOUR button.tsx)
+```typescript
+// ✅ Your optimized button with React.memo
+const Button = React.memo(React.forwardRef<
+  HTMLButtonElement,
+  ButtonProps & {
+    loading?: boolean;
+    loadingText?: string;
+  }
+>(function Button({ className, variant, size, glow, asChild, loading, loadingText, children, disabled, ...props }, ref) {
+  const Comp = asChild ? Slot : "button";
+  
+  const computedClassName = React.useMemo(
+    () => cn(buttonVariants({ variant, size, glow, className })),
+    [variant, size, glow, className]
+  );
+
+  return (
+    <Comp
+      ref={ref}
+      data-slot="button"
+      className={computedClassName}
+      disabled={disabled || loading}
+      {...props}
+    >
+      {loading && <LoadingSpinner />}
+      {loading ? loadingText || "Loading..." : children}
+    </Comp>
+  );
+}));
+```
+
+### Input Component with CVA Variants (YOUR input.tsx)
+```typescript
+// ✅ Your input variants pattern
+const inputVariants = cva(
+  "flex w-full min-w-0 border bg-transparent text-base shadow-xs transition-all outline-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "border-input rounded-md px-3 py-1 h-9",
+        medical: "border-emerald-200 bg-emerald-50/30 rounded-xl px-4 py-3 h-12 focus-visible:border-emerald-500",
+        floating: "border-border/50 rounded-xl px-3 pt-6 pb-2 h-auto",
+        mobile: "rounded-xl px-4 py-4 h-12 text-base",
+      },
+      inputSize: { sm: "h-8", default: "h-9", lg: "h-10", xl: "h-12" },
+    },
+    defaultVariants: { variant: "default", inputSize: "default" },
+  }
+);
+
+// ✅ Usage
+<Input variant="medical" inputSize="lg" placeholder="Patient name" />
+```
+
+### useZodForm Hook Pattern (YOUR useZodForm.ts)
+```typescript
+// ✅ Your form integration pattern
+const useZodForm = <T extends z.ZodType>(
+  schema: T,
+  mutation: UseMutateFunction<unknown, unknown, z.infer<T>>,
+  defaultValues?: DefaultValues<z.infer<T>>
+) => {
+  const form = useForm<z.infer<T>>({
+    resolver: zodResolver(schema),
+    defaultValues,
+    mode: "onChange",
+  });
+
+  const onFormSubmit = form.handleSubmit(async (values) => {
+    await Promise.resolve(mutation(values));
+  });
+
+  return { ...form, onFormSubmit };
+};
+
+// ✅ Usage
+const { register, errors, onFormSubmit } = useZodForm(patientSchema, mutate);
+```
+
+---
+
+## 🔐 SECURITY PATTERNS (YOUR IMPLEMENTATION)
+
+### Authentication Flow
+```typescript
+// ✅ Token refresh pattern (from useAuth.ts)
+function isTokenExpiringSoon(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1] || ''));
+    const expiryTime = payload.exp * 1000;
+    const timeUntilExpiry = expiryTime - Date.now();
+    return timeUntilExpiry < TOKEN_REFRESH_THRESHOLD; // 5 minutes
+  } catch {
+    return true;
+  }
+}
+
+// ✅ Session validation in queries
+const { data: session } = useQuery({
+  queryKey: ['session'],
+  queryFn: async () => {
+    const result = await getServerSession();
+    if (result?.access_token && isTokenExpiringSoon(result.access_token)) {
+      return await refreshToken() ?? null;
+    }
+    return result;
+  },
+});
+```
+
+### Permission Guards
+```typescript
+// ✅ Use permission hooks before actions
+function PatientActions({ patientId }: { patientId: string }) {
+  const { canUpdatePatients, canDeletePatients } = usePatientPermissions();
+  
+  return (
+    <div className="flex gap-2">
+      {canUpdatePatients && <EditButton patientId={patientId} />}
+      {canDeletePatients && <DeleteButton patientId={patientId} />}
+    </div>
+  );
+}
+```
+
+---
+
+## 🚀 REACT 19 OPTIMISTIC UPDATES (YOUR PATTERN)
+
+### useOptimisticMutation Hook
+```typescript
+// ✅ Your pattern from hooks/core/useOptimisticMutation.ts
+import { useOptimistic, useTransition } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+export function useOptimisticMutation<TData, TVariables>(options: {
+  queryKey: string[];
+  mutationFn: (variables: TVariables) => Promise<TData>;
+  optimisticUpdate: (current: TData[], variables: TVariables) => TData[];
+}) {
+  const queryClient = useQueryClient();
+  const [isPending, startTransition] = useTransition();
+  
+  const currentData = queryClient.getQueryData<TData[]>(options.queryKey) || [];
+  const [optimisticData, addOptimistic] = useOptimistic(
+    currentData,
+    (state, variables: TVariables) => options.optimisticUpdate(state, variables)
+  );
+  
+  const mutation = useMutation({
+    mutationFn: options.mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: options.queryKey });
+      startTransition(() => addOptimistic(variables));
+      return { previous: currentData };
+    },
+    onError: (_, __, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(options.queryKey, context.previous);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: options.queryKey });
+    },
+  });
+  
+  return { optimisticData, addOptimistic, mutation, isPending };
+}
+```
+
+### Usage in Appointment Hook
+```typescript
+// ✅ Your pattern from useAppointments.ts
+export const useCreateAppointment = (clinicId?: string) => {
+  const { toast } = useToast();
+  const { hasPermission } = useRBAC();
+  
+  const { mutation, optimisticData, isPending } = useOptimisticMutation({
+    queryKey: ['appointments', clinicId],
+    mutationFn: async (data: CreateAppointmentData) => {
+      if (!hasPermission(Permission.CREATE_APPOINTMENTS)) {
+        throw new Error('Insufficient permissions');
+      }
+      return createAppointment(data);
+    },
+    optimisticUpdate: (current, variables) => [
+      ...current,
+      { ...variables, id: `temp-${Date.now()}`, tempId: true },
+    ],
+    mutationOptions: {
+      onSuccess: () => toast({ title: 'Success', id: TOAST_IDS.APPOINTMENT.CREATE }),
+      onError: (error) => toast({ 
+        title: 'Error',
+        description: sanitizeErrorMessage(error),
+        variant: 'destructive',
+        id: TOAST_IDS.APPOINTMENT.CREATE,
+      }),
+    },
+  });
+  
+  return { mutate: mutation.mutate, optimisticData, isPending };
+};
+```
+
+---
+
+## 🛡️ CENTRALIZED ERROR HANDLING (YOUR PATTERN)
+
+### Error Handler Utility
+```typescript
+// ✅ Your pattern from lib/utils/error-handler.ts
+import { ERROR_MESSAGES } from '@/lib/config/config';
+
+/** Check if error contains technical details that should be hidden */
+export function isTechnicalError(message: string): boolean {
+  const patterns = [/\/api\//i, /Cannot POST|GET/i, /ECONNREFUSED/i];
+  return patterns.some(p => p.test(message));
+}
+
+/** Map HTTP status to user-friendly message */
+export function getErrorMessageForStatus(status: number): string {
+  switch (status) {
+    case 400: return ERROR_MESSAGES.VALIDATION_ERROR;
+    case 401: return ERROR_MESSAGES.UNAUTHORIZED;
+    case 403: return ERROR_MESSAGES.FORBIDDEN;
+    case 404: return ERROR_MESSAGES.SERVICE_UNAVAILABLE;
+    case 500: return ERROR_MESSAGES.SERVER_ERROR;
+    default: return ERROR_MESSAGES.TRY_AGAIN;
+  }
+}
+
+/** Sanitize API error to user-friendly message */
+export function sanitizeErrorMessage(error: unknown): string {
+  let message = error instanceof Error ? error.message : String(error);
+  return isTechnicalError(message) ? ERROR_MESSAGES.TRY_AGAIN : message;
+}
+```
+
+### Usage Pattern
+```typescript
+// ✅ ALWAYS use sanitizeErrorMessage for user-facing errors
+import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
+
+const mutation = useMutation({
+  mutationFn: updatePatient,
+  onError: (error) => {
+    logger.error('Update failed', error, { component: 'usePatients' });
+    toast({
+      title: 'Error',
+      description: sanitizeErrorMessage(error), // ✅ Sanitized
+      variant: 'destructive',
+    });
+  },
+});
+```
+
+---
+
+## 📊 LOGGER PATTERN (YOUR CODE)
+
+```typescript
+// ✅ Your pattern from lib/utils/logger.ts
+export const logger = {
+  // Standard methods
+  error: (message: string, error?: Error, context?: Record<string, unknown>) => {
+    console.error(`[ERROR] ${message}`, { error, ...context });
+  },
+  warn: (message: string, context?: Record<string, unknown>) => {
+    console.warn(`[WARN] ${message}`, context);
+  },
+  info: (message: string, context?: Record<string, unknown>) => {
+    console.info(`[INFO] ${message}`, context);
+  },
+  debug: (message: string, context?: Record<string, unknown>) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`[DEBUG] ${message}`, context);
+    }
+  },
+  
+  // ✅ Healthcare-specific methods
+  appointment: (action: string, appointmentId: string, context?: Record<string, unknown>) => {
+    logger.info(`Appointment ${action}`, { ...context, component: 'appointments', appointmentId });
+  },
+  patient: (action: string, patientId: string, context?: Record<string, unknown>) => {
+    logger.info(`Patient ${action}`, { ...context, component: 'patients', patientId });
+  },
+  auth: (action: string, context?: Record<string, unknown>) => {
+    logger.info(`Authentication ${action}`, { ...context, component: 'auth' });
+  },
+  api: (method: string, endpoint: string, status?: number, context?: Record<string, unknown>) => {
+    const level = status && status >= 400 ? 'error' : 'info';
+    logger[level](`API ${method} ${endpoint}`, { ...context, component: 'api', method, endpoint, status });
+  },
+};
+
+// ✅ Usage
+logger.error('Failed to create appointment', error, { component: 'useAppointments' });
+logger.appointment('created', appointmentId, { userId: user.id });
+logger.auth('login-success', { userId, method: 'email' });
+```
+
+---
+
+## ⚙️ APP_CONFIG PATTERN (YOUR CODE)
+
+```typescript
+// ✅ Your central config from lib/config/config.ts
+import { APP_CONFIG } from '@/lib/config/config';
+
+// API settings
+const timeout = APP_CONFIG.API.TIMEOUT.REQUEST;      // 30000
+const pageSize = APP_CONFIG.API.PAGINATION.DEFAULT_PAGE_SIZE; // 20
+
+// Feature flags
+if (APP_CONFIG.FEATURES.VIDEO_CALLS) { /* enable video */ }
+if (APP_CONFIG.FEATURES.NOTIFICATIONS) { /* enable push */ }
+
+// Environment checks
+if (APP_CONFIG.IS_DEVELOPMENT) { /* dev-only code */ }
+if (APP_CONFIG.IS_PRODUCTION) { /* prod-only code */ }
+
+// WebSocket
+const wsUrl = APP_CONFIG.WEBSOCKET.URL;
+const wsTimeout = APP_CONFIG.WEBSOCKET.TIMEOUT;
+```
+
+---
+
+## ⚡ PERFORMANCE PATTERNS (YOUR CODE)
+
+### Query Optimization
+```typescript
+// ✅ Your pagination constants
+export const PAGINATION = {
+  DEFAULT_PAGE_SIZE: 20,
+  MAX_PAGE_SIZE: 100,
+  LARGE_LIST_PAGE_SIZE: 50,
+  SMALL_LIST_PAGE_SIZE: 10,
+};
+
+// ✅ Your debounce configuration
+export const DEBOUNCE_CONFIG = {
+  SEARCH: 300,
+  FILTER: 500,
+  SCROLL: 100,
+};
+
+// ✅ Your virtual scroll configuration
+export const VIRTUAL_SCROLL_CONFIG = {
+  DEFAULT_ITEM_HEIGHT: 80,
+  OVERSCAN: 5,
+  CONTAINER_HEIGHT: 600,
+};
+```
+
+### Component Optimization
+```typescript
+// ✅ React.memo for expensive components (from button.tsx)
+const Button = React.memo(React.forwardRef(...));
+
+// ✅ useMemo for computed values
+const computedClassName = React.useMemo(
+  () => cn(buttonVariants({ variant, size, glow, className })),
+  [variant, size, glow, className]
+);
+
+// ✅ useCallback for stable references
+const handleEdit = useCallback(async () => {
+  if (!canEdit || isActionPending) return;
+  await onEdit?.(patient);
+}, [patient, onEdit, canEdit, isActionPending]);
+```
+
+---
+
+## 🚫 ANTI-PATTERNS (NEVER DO)
+
+```typescript
+// ❌ Using 'any' type
+const data: any = response;
+
+// ❌ Direct toast.error in hook (let component handle)
+// Your useAuth.ts correctly does:
+onError: (_error: Error) => {
+  // Don't show toast here - let component handle it
+}
+
+// ❌ Missing query invalidation after mutation
+// Your useMutationData correctly does:
+onSettled: async () => {
+  if (queryKey) {
+    await client.invalidateQueries({ queryKey: key });
+  }
+}
+
+// ❌ Hardcoded strings (use constants)
+// ✅ Use ERROR_MESSAGES, TOAST_IDS from config
+
+// ❌ Direct window.location in SPA
+// ✅ Use router.push() from next/navigation
+
+// ❌ Missing permission checks
+// ✅ Always use useRBAC or domain permission hooks
+```
+
+---
+
+## 📋 CHECKLIST
+
+### Before Every PR
+- [ ] Uses `useQueryData` / `useMutationData` wrappers
+- [ ] Uses `queryKeys` factory for cache keys
+- [ ] Permission checks with `useRBAC` or domain hooks
+- [ ] Toast IDs from `TOAST_IDS` constants
+- [ ] Error messages from `ERROR_MESSAGES`
+- [ ] Zustand store updates use immer pattern
+- [ ] Button uses `loading` prop, not custom spinner
+- [ ] Forms use Zod + React Hook Form
+
+### Query Best Practices
+- [ ] `staleTime` and `gcTime` from `CACHE_TIMES` / `GC_TIMES`
+- [ ] `refetchOnMount: false` for auth-sensitive queries
+- [ ] Proper retry logic (no retry on 4xx)
+- [ ] Query invalidation in `onSettled`
+
+---
+
+## 📚 QUICK REFERENCE
+
+### File Naming
+- Components: `PascalCase.tsx`
+- Hooks: `useXxx.ts` or `use-xxx.ts`
+- Stores: `xxx.store.ts`
+- Server Actions: `xxx.server.ts`
+- Types: `xxx.types.ts`
+
+### Key Imports
+```typescript
+// Hooks
+import { useAuth } from '@/hooks/auth/useAuth';
+import { useRBAC, usePatientPermissions } from '@/hooks/utils/useRBAC';
+import { useQueryData } from '@/hooks/core/useQueryData';
+import { useMutationData } from '@/hooks/core/useMutationData';
+import { useOptimisticMutation } from '@/hooks/core/useOptimisticMutation';
+
+// Config
+import { queryKeys, CACHE_TIMES, GC_TIMES, PAGINATION } from '@/hooks/query/config';
+import { ERROR_MESSAGES } from '@/lib/config/config';
+import { showSuccessToast, showErrorToast, TOAST_IDS } from '@/hooks/utils/use-toast';
+
+// Utils
+import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
+import { logger } from '@/lib/utils/logger';
+import { cn } from '@/lib/utils';
+
+// Store
+import { useAppStore, useUser, useCurrentClinic } from '@/stores/app.store';
+```
+
+### Common Patterns Quick Reference
+```typescript
+// ✅ Query with permission check
+const { data } = useQuery({
+  queryKey: ['appointments', clinicId],
+  queryFn: () => getAppointments(clinicId),
+  enabled: !!clinicId && hasPermission(Permission.VIEW_APPOINTMENTS),
+  staleTime: CACHE_TIMES.MEDIUM,
+  gcTime: GC_TIMES.MEDIUM,
+});
+
+// ✅ Mutation with error handling
+const mutation = useMutation({
+  mutationFn: createAppointment,
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    showSuccessToast('Appointment created', TOAST_IDS.APPOINTMENT.CREATE);
+  },
+  onError: (error) => {
+    logger.error('Create failed', error, { component: 'useAppointments' });
+    showErrorToast(sanitizeErrorMessage(error), TOAST_IDS.APPOINTMENT.CREATE);
+  },
+});
+
+// ✅ Component with RBAC
+function ProtectedAction({ children }: { children: ReactNode }) {
+  const { canUpdatePatients } = usePatientPermissions();
+  if (!canUpdatePatients) return null;
+  return <>{children}</>;
+}
+```
+
+---
+
+**Remember**: This is a healthcare application optimized for 10M+ users. Follow these patterns to ensure patient safety, data security, performance, and code consistency.

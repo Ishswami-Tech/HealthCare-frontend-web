@@ -1,125 +1,75 @@
-import { NextConfig } from 'next';
-import createNextIntlPlugin from 'next-intl/plugin';
+import type { NextConfig } from 'next';
 
-const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+const isProduction = process.env.NODE_ENV === 'production';
+const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+const appOrigin = (() => {
+  if (!appUrl) return '';
+  try {
+    return new URL(appUrl).host;
+  } catch {
+    return '';
+  }
+})();
 
-const config: NextConfig = {
-  // Enable React strict mode for better development experience
+const configuredServerActionOrigins = (
+  process.env.NEXT_SERVER_ACTION_ALLOWED_ORIGINS || ''
+)
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+const serverActionOrigins = [...new Set([appOrigin, 'localhost:3000', ...configuredServerActionOrigins])];
+
+const nextConfig: NextConfig = {
+  /* =====================================================
+   * Core
+   * ===================================================== */
   reactStrictMode: true,
-  
-  // ✅ Performance Optimizations for 10M+ Users
-  // Compress output for faster loading
   compress: true,
-  
-  // Enable experimental features for better performance
+  output: 'standalone',
+
+  /* =====================================================
+   * Turbopack (disabled for Tailwind CSS v4 compatibility)
+   * ===================================================== */
+  turbopack: {
+   
+  },
+
+  /* =====================================================
+   * Experimental (safe + useful)
+   * ===================================================== */
   experimental: {
-    // Optimize package imports
     optimizePackageImports: [
       '@tanstack/react-query',
       'lucide-react',
       'date-fns',
       'sonner',
     ],
-  },
-  
-  // ✅ Production optimizations
-  productionBrowserSourceMaps: false, // Disable source maps in production for smaller bundles
-  
-  // ✅ Output configuration
-  output: 'standalone', // Optimize for Docker deployment
-  
-  // ✅ Webpack optimizations for 10M users
-  webpack: (config, { dev, isServer }) => {
-    // Existing webpack config
-    if (dev) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-      };
-    }
-    
-    // ✅ Additional optimizations for 10M users (production only)
-    if (!dev && !isServer) {
-      // Optimize chunk splitting
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            default: false,
-            vendors: false,
-            // Vendor chunk for large libraries
-            vendor: {
-              name: 'vendor',
-              chunks: 'all',
-              test: /node_modules/,
-              priority: 20,
-            },
-            // Common chunk for shared code
-            common: {
-              name: 'common',
-              minChunks: 2,
-              chunks: 'all',
-              priority: 10,
-              reuseExistingChunk: true,
-            },
-            // React Query chunk
-            reactQuery: {
-              name: 'react-query',
-              test: /[\\/]node_modules[\\/]@tanstack[\\/]react-query/,
-              chunks: 'all',
-              priority: 30,
-            },
-            // UI components chunk
-            ui: {
-              name: 'ui-components',
-              test: /[\\/]src[\\/]components[\\/]ui/,
-              chunks: 'all',
-              priority: 25,
-            },
-          },
-        },
-      };
-    }
-    
-    return config;
+    serverActions: {
+      allowedOrigins: serverActionOrigins,
+    },
   },
 
-  // Configure image domains for Next.js Image component
+  /* =====================================================
+   * Images (unchanged functionality)
+   * ===================================================== */
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'storage.googleapis.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'lh3.googleusercontent.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'platform-lookaside.fbsbx.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'graph.facebook.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'api.ishswami.in',
-      },
-      {
-        protocol: 'https',
-        hostname: 'ishswami.in',
-      },
-      {
-        protocol: 'http',
-        hostname: 'localhost',
-      },
+      { protocol: 'https', hostname: 'storage.googleapis.com' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: 'platform-lookaside.fbsbx.com' },
+      { protocol: 'https', hostname: 'graph.facebook.com' },
+      { protocol: 'https', hostname: 'api.ishswami.in' },
+      { protocol: 'https', hostname: 'backend-service-v1.ishswami.in' },
+      { protocol: 'https', hostname: 'ishswami.in' },
+      { protocol: 'https', hostname: 'ui-avatars.com' },
+      { protocol: 'http', hostname: 'localhost' },
     ],
   },
 
-  // Configure environment variables
+  /* =====================================================
+   * Environment Variables (build-time only)
+   * ===================================================== */
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
@@ -127,46 +77,37 @@ const config: NextConfig = {
     NEXT_PUBLIC_APPLE_CLIENT_ID: process.env.NEXT_PUBLIC_APPLE_CLIENT_ID,
   },
 
-  // Configure headers for security
+  /* =====================================================
+   * Security Headers (frontend-appropriate)
+   * ===================================================== */
   async headers() {
     return [
       {
         source: '/(.*)',
         headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            value: 'camera=(self), microphone=(self), geolocation=()',
           },
           {
             key: 'Strict-Transport-Security',
             value: 'max-age=31536000; includeSubDomains',
           },
-        ],
-      },
-      {
-        source: '/api/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT' },
-          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
-        ],
+          {
+            key: 'Content-Security-Policy',
+            value: "form-action 'self' https://*.cashfree.com https://sandbox.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;"
+          }
+        ].filter((header) => header.key !== 'Strict-Transport-Security' || isProduction),
       },
     ];
   },
 
+  /* =====================================================
+   * API Rewrite (proxy only, no CORS)
+   * ===================================================== */
   async rewrites() {
     return [
       {
@@ -176,12 +117,12 @@ const config: NextConfig = {
     ];
   },
 
-
-  // TypeScript configuration for build
+  /* =====================================================
+   * TypeScript (do NOT hide errors)
+   * ===================================================== */
   typescript: {
-    // Disable TypeScript error checking for auth-disabled build
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 };
 
-export default withNextIntl(config);
+export default nextConfig;

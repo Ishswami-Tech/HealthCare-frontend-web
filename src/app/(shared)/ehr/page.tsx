@@ -1,76 +1,74 @@
 "use client";
 
-import React, { useState } from "react";
-import { Role } from "@/types/auth.types";
+import { useMemo, useState } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
+
 import { Permission } from "@/types/rbac.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
+
+
 import {
   usePatientLabResults,
   useSearchPatients,
-} from "@/hooks/usePatients";
+} from "@/hooks/query/usePatients";
 import {
   useClinicContext,
   useClinicPatients,
-} from "@/hooks/useClinic";
+} from "@/hooks/query/useClinics";
 import {
   usePatientMedicalRecords,
-} from "@/hooks/usePatients";
+} from "@/hooks/query/usePatients";
 import {
   useCreateMedicalRecord,
-} from "@/hooks/useMedicalRecords";
-import { usePatientPermissions } from "@/hooks/useRBAC";
+} from "@/hooks/query/useMedicalRecords";
+import {
+  useClinicCriticalAlerts,
+} from "@/hooks/query/useEHRClinic";
+import { usePatientPermissions } from "@/hooks/utils/useRBAC";
 import {
   ProtectedComponent,
   PatientProtectedComponent,
   MedicalRecordsRouteProtection,
 } from "@/components/rbac";
-import { useMedicalRecordsActions } from "@/stores";
+import { LoadingSpinner } from "@/components/ui/loading";
 import {
-  Activity,
-  Calendar,
   FileText,
-  Pill,
-  User,
   Users,
-  Building2,
-  Settings,
-  LogOut,
   Search,
   Filter,
+  User,
+  Clipboard,
+  Bell,
   Plus,
   Eye,
   Edit,
   Download,
   Upload,
-  Clipboard,
   AlertTriangle,
-  CheckCircle,
   Clock,
   TrendingUp,
   Database,
   Shield,
+  CheckCircle,
+  Settings,
   Zap,
-  Bell,
 } from "lucide-react";
 
 export default function EHRSystem() {
-  const { session } = useAuth();
-  const user = session?.user;
+
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(
     null
   );
 
-  // Determine user role and setup appropriate sidebar
-  const userRole = (user?.role as Role) || Role.DOCTOR;
+
 
   // RBAC permissions
   const patientPermissions = usePatientPermissions();
@@ -78,25 +76,27 @@ export default function EHRSystem() {
   // Clinic context
   const { clinicId } = useClinicContext();
 
-  // Zustand store actions
-  const medicalRecordsActions = useMedicalRecordsActions();
-
   // Fetch patients data with proper permissions using clinic-aware hook
   const {
     data: patients,
     isPending: patientsLoading,
     error: patientsError,
     refetch: refetchPatients,
-  } = useClinicPatients({
-    search: searchTerm,
-    limit: 50,
-  });
+  } = useClinicPatients(clinicId || "");
 
   // Fetch medical records for selected patient
   const { data: medicalRecords } =
     usePatientMedicalRecords(clinicId || "", selectedPatientId || "", {
       enabled: !!clinicId && !!selectedPatientId,
     });
+
+
+
+  // Fetch clinic critical alerts
+  const { data: criticalAlertsData } = useClinicCriticalAlerts(clinicId || "", {
+    resolved: false,
+    limit: 10,
+  });
 
   // Fetch vital signs for selected patient
   // const { data: vitalSigns } = usePatientVitalSigns(
@@ -140,7 +140,7 @@ export default function EHRSystem() {
       query,
       filters: { limit: 20 },
     }, {
-      onError: (error) => {
+      onError: (error: Error) => {
         console.error("Failed to search patients:", error);
       }
     });
@@ -159,10 +159,7 @@ export default function EHRSystem() {
       doctorId: recordData.doctorId,
       appointmentId: recordData.appointmentId,
     }, {
-      onSuccess: () => {
-        medicalRecordsActions.addMedicalRecord(recordData);
-      },
-      onError: (error) => {
+      onError: (error: Error) => {
         console.error("Failed to create medical record:", error);
       }
     });
@@ -189,24 +186,28 @@ export default function EHRSystem() {
       nextAppointment: patient.nextAppointment || "Not scheduled",
     })) : [];
 
-  const criticalAlerts = [
-    {
-      id: "A001",
-      patient: "Amit Singh",
-      type: "Lab Result",
-      message: "HbA1c levels elevated (9.2%) - Requires immediate attention",
-      severity: "High",
-      timestamp: "2 hours ago",
-    },
-    {
-      id: "A002",
-      patient: "Maya Patel",
-      type: "Vitals",
-      message: "Blood pressure reading 180/110 - Emergency range",
-      severity: "Critical",
-      timestamp: "4 hours ago",
-    },
-  ];
+  // Use critical alerts from API, fallback to empty array if not available
+  const criticalAlerts = Array.isArray(criticalAlertsData) 
+    ? criticalAlertsData.map((alert: any) => ({
+        id: alert.id || `A${String(alert.id || Math.random()).padStart(3, '0')}`,
+        patient: alert.patientName || alert.patient?.name || "Unknown Patient",
+        type: alert.type || alert.alertType || "Alert",
+        message: alert.message || alert.description || "Critical alert requires attention",
+        severity: alert.severity || alert.priority || "High",
+        timestamp: alert.createdAt 
+          ? new Date(alert.createdAt).toLocaleString() 
+          : alert.timestamp || "Recently",
+      }))
+    : [];
+
+  const patientRecordRows = useMemo(
+    () =>
+      recentPatients.map((patient) => ({
+        ...patient,
+        ageLabel: String(patient.age),
+      })),
+    [recentPatients]
+  );
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -238,77 +239,64 @@ export default function EHRSystem() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(userRole).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("medical-records") ? (
-      <FileText className="w-5 h-5" />
-    ) : route.path.includes("prescriptions") ? (
-      <Pill className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <User className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("staff") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("schedule") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
+  const patientRecordColumns = useMemo<ColumnDef<(typeof patientRecordRows)[number]>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Patient",
+        cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
+      },
+      { accessorKey: "id", header: "ID" },
+      { accessorKey: "ageLabel", header: "Age" },
+      { accessorKey: "condition", header: "Condition" },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge className={getStatusColor(row.original.status)}>{row.original.status}</Badge>
+        ),
+      },
+      { accessorKey: "lastVisit", header: "Last Visit" },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex gap-2">
+            <PatientProtectedComponent action="view">
+              <Button variant="outline" size="sm" onClick={() => setSelectedPatientId(row.original.id)}>
+                <Eye className="h-3 w-3" />
+              </Button>
+            </PatientProtectedComponent>
+            <PatientProtectedComponent action="update">
+              <Button variant="outline" size="sm" onClick={() => setSelectedPatientId(row.original.id)}>
+                <Edit className="h-3 w-3" />
+              </Button>
+            </PatientProtectedComponent>
+          </div>
+        ),
+      },
+    ],
+    [setSelectedPatientId]
+  );
 
-  // Add EHR link to sidebar
-  sidebarLinks.push({
-    label: "EHR System",
-    href: "/ehr",
-    path: "/ehr",
-    icon: <Database className="w-5 h-5" />,
-  });
 
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/auth/login",
-    path: "/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
 
 
   // Show loading state
   if (patientsLoading) {
     return (
-      <DashboardLayout
-        title="Electronic Health Records"
-        requiredPermission={Permission.VIEW_MEDICAL_RECORDS}
-        showPermissionWarnings={true}
-      >
+      
         <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading EHR system...</p>
-          </div>
+          <LoadingSpinner size="lg" color="primary" text="Loading EHR system..." />
         </div>
-      </DashboardLayout>
+      
     );
   }
 
   // Show error state
   if (patientsError) {
     return (
-      <DashboardLayout
-        title="Electronic Health Records"
-        requiredPermission={Permission.VIEW_MEDICAL_RECORDS}
-      >
+      
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <p className="text-red-600">
@@ -319,32 +307,17 @@ export default function EHRSystem() {
             </Button>
           </div>
         </div>
-      </DashboardLayout>
+      
     );
   }
 
   return (
     <MedicalRecordsRouteProtection>
-      <DashboardLayout
-        title="Electronic Health Records"
-        requiredPermission={Permission.VIEW_MEDICAL_RECORDS}
-        showPermissionWarnings={true}
-        customUnauthorizedMessage="You need medical records access to view the EHR system."
-      >
-        <GlobalSidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name ||
-              `${user?.firstName} ${user?.lastName}` ||
-              "Healthcare Professional",
-            ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-          }}
-        >
-          <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold">
+      
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">
                   Electronic Health Records
                 </h1>
                 <p className="text-gray-600">
@@ -452,7 +425,7 @@ export default function EHRSystem() {
             </div>
 
             <Tabs defaultValue="overview" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="patients">Patient Records</TabsTrigger>
                 <TabsTrigger value="alerts">Critical Alerts</TabsTrigger>
@@ -670,105 +643,12 @@ export default function EHRSystem() {
                         </Button>
                       </div>
 
-                      <div className="border rounded-lg overflow-hidden">
-                        <table className="w-full">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Patient
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                ID
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Age
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Condition
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Status
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Last Visit
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-medium">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {recentPatients.map((patient) => (
-                              <tr
-                                key={patient.id}
-                                className="border-t hover:bg-gray-50"
-                              >
-                                <td className="px-4 py-3 font-medium">
-                                  {patient.name}
-                                </td>
-                                <td className="px-4 py-3 text-gray-600">
-                                  {patient.id}
-                                </td>
-                                <td className="px-4 py-3 text-gray-600">
-                                  {patient.age}
-                                </td>
-                                <td className="px-4 py-3 text-gray-600">
-                                  {patient.condition}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <Badge
-                                    className={getStatusColor(patient.status)}
-                                  >
-                                    {patient.status}
-                                  </Badge>
-                                </td>
-                                <td className="px-4 py-3 text-gray-600">
-                                  {patient.lastVisit}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div className="flex gap-2">
-                                    <PatientProtectedComponent action="view">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                          setSelectedPatientId(patient.id)
-                                        }
-                                      >
-                                        <Eye className="w-3 h-3" />
-                                      </Button>
-                                    </PatientProtectedComponent>
-
-                                    <PatientProtectedComponent action="update">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                          setSelectedPatientId(patient.id);
-                                        }}
-                                      >
-                                        <Edit className="w-3 h-3" />
-                                      </Button>
-                                    </PatientProtectedComponent>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>Showing 3 of 1,248 patients</span>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            Previous
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            Next
-                          </Button>
-                        </div>
-                      </div>
+                      <DataTable
+                        columns={patientRecordColumns}
+                        data={patientRecordRows}
+                        emptyMessage="No patient records found"
+                        pageSize={10}
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -835,7 +715,6 @@ export default function EHRSystem() {
                                   size="sm"
                                   onClick={() => {
                                     // Handle resolve alert
-                                    console.log("Resolving alert:", alert.id);
                                   }}
                                 >
                                   <CheckCircle className="w-3 h-3 mr-1" />
@@ -1014,8 +893,7 @@ export default function EHRSystem() {
               </TabsContent>
             </Tabs>
           </div>
-        </GlobalSidebar>
-      </DashboardLayout>
+      
     </MedicalRecordsRouteProtection>
   );
 }

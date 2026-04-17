@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { useTranslation } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,7 +24,7 @@ import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
 import { SectionSkeleton } from "@/lib/dynamic-imports";
-import { getIconColorScheme } from "@/lib/color-palette";
+import { getIconColorScheme } from "@/lib/config/color-palette";
 
 export default function AboutPage() {
   const { t } = useTranslation();

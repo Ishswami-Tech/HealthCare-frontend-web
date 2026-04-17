@@ -1,7 +1,11 @@
 // ✅ API Client for Healthcare Frontend - Backend Integration
 // This file provides a comprehensive API client that integrates with the backend clinic app
 
-import { APP_CONFIG, API_ENDPOINTS, HTTP_STATUS, ERROR_CODES } from '@/lib/config/config';
+import { APP_CONFIG, API_ENDPOINTS, HTTP_STATUS, ERROR_CODES, ERROR_MESSAGES } from '@/lib/config/config';
+import { sanitizeErrorMessage, handleApiError } from '@/lib/utils/error-handler';
+import { logger } from '@/lib/utils/logger';
+import { trackApiCall } from '@/lib/utils/metrics';
+import { checkApiRateLimit, getClientIdentifier } from '@/lib/utils/security';
 import type { 
   ApiResponse, 
   PaginationParams, 
@@ -9,6 +13,10 @@ import type {
   ErrorResponse, 
   ApiClientConfig 
 } from '@/lib/config/config';
+
+import { fetchWithAbort, TimeoutError } from '@/lib/utils/fetch-with-abort';
+import { getAccessToken, getSessionId, getClinicId } from '@/lib/utils/token-manager';
+import { useAuthStore } from '@/stores/auth.store';
 
 // ✅ Custom Error Classes
 export class ApiError extends Error {
@@ -50,13 +58,6 @@ export class NetworkError extends ApiError {
   }
 }
 
-export class TimeoutError extends ApiError {
-  constructor(message: string = 'Request timeout') {
-    super(message, 408, ERROR_CODES.TIMEOUT_ERROR);
-    this.name = 'TimeoutError';
-  }
-}
-
 // ✅ Request ID Generator
 function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -80,7 +81,10 @@ async function getDefaultHeaders(): Promise<Record<string, string>> {
 
 // ✅ Authentication Headers Generator
 // Requires authentication unless explicitly marked as public
-async function getAuthHeaders(requireAuth: boolean = true): Promise<Record<string, string>> {
+async function getAuthHeaders(
+  requireAuth: boolean = true,
+  includeClinicId: boolean = true
+): Promise<Record<string, string>> {
   // Support both server-side (cookies) and client-side (localStorage)
   let accessToken: string | undefined;
   let sessionId: string | undefined;
@@ -98,19 +102,45 @@ async function getAuthHeaders(requireAuth: boolean = true): Promise<Record<strin
       // If cookies() is not available, fall back to empty values
     }
   } else {
-    // Client-side: use localStorage
-    accessToken = localStorage.getItem('access_token') || undefined;
-    sessionId = localStorage.getItem('session_id') || undefined;
-    clinicId = localStorage.getItem('clinic_id') || undefined;
+    // Client-side: use token-manager
+    accessToken = (await getAccessToken()) || undefined;
+    sessionId = (await getSessionId()) || undefined;
+    clinicId = (await getClinicId()) || undefined;
   }
 
-  // ✅ Enforce authentication unless explicitly disabled
-  if (requireAuth && !accessToken) {
-    throw new ApiError(
-      'Authentication required. Please log in to continue.',
-      HTTP_STATUS.UNAUTHORIZED,
-      ERROR_CODES.AUTH_TOKEN_INVALID
-    );
+  // ✅ Fallback to APP_CONFIG.CLINIC.ID if clinic ID is not in cookies/localStorage
+  // This ensures clinic ID is always set from environment variable or config default
+  if (!clinicId) {
+    clinicId = APP_CONFIG.CLINIC.ID;
+  }
+
+  // ✅ Enforce authentication for server-side requests only.
+  // Client-side requests rely on same-site httpOnly cookies.
+  if (requireAuth && !accessToken && typeof window === 'undefined') {
+    // If on server and we have a refresh token, we might be able to refresh. 
+    // But getAuthHeaders is usually called before the request.
+    // We'll let the request fail with 401 -> retry logic will handle refresh.
+    // But if we throw here, we never make the request.
+    // So if we have a refresh token, we should perhaps skip this throw?
+    // Let's check for refresh token.
+    let hasRefreshToken = false;
+    if (typeof window === 'undefined') {
+       try {
+        const { cookies } = await import('next/headers');
+        const cookieStore = await cookies();
+        hasRefreshToken = !!cookieStore.get('refresh_token')?.value;
+       } catch {}
+    }
+
+    if (!hasRefreshToken) {
+        throw new ApiError(
+        'Authentication required. Please log in to continue.',
+        HTTP_STATUS.UNAUTHORIZED,
+        ERROR_CODES.AUTH_TOKEN_INVALID
+        );
+    }
+    // If we have refresh token, we proceed. The request will likely fail with 401 (or 403?) 
+    // cause we send no/expired access token, then retry logic will refresh.
   }
 
   const headers = await getDefaultHeaders();
@@ -123,7 +153,8 @@ async function getAuthHeaders(requireAuth: boolean = true): Promise<Record<strin
     headers['X-Session-ID'] = sessionId;
   }
 
-  if (clinicId) {
+  // ✅ Include clinic ID only when the caller opts into tenant scoping.
+  if (includeClinicId && clinicId) {
     headers['X-Clinic-ID'] = clinicId;
   }
 
@@ -202,11 +233,14 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   
   // Handle error responses
   if (!response.ok) {
+    // ✅ Use centralized error handler to sanitize error messages
+    const userFriendlyMessage = await handleApiError(response, data);
+    
     const errorResponse: ErrorResponse = {
       success: false,
-      error: data?.error || 'Unknown error',
+      error: data?.error || ERROR_CODES.SYSTEM_ERROR,
       code: data?.code || ERROR_CODES.SYSTEM_ERROR,
-      message: data?.message || `HTTP ${response.status}`,
+      message: userFriendlyMessage, // Use sanitized user-friendly message
       statusCode: response.status,
       timestamp: new Date().toISOString(),
       path: response.url,
@@ -235,6 +269,9 @@ interface RequestCache {
     promise: Promise<any>;
   };
 }
+
+// ✅ Active Refresh Promises for Deduplication (Keyed by Session ID)
+const activeRefreshPromises = new Map<string, Promise<any>>();
 
 // ✅ Base API Client Class (Optimized for 10M+ users)
 export class ApiClient {
@@ -294,7 +331,12 @@ export class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
+    // ✅ Add API prefix if this is ClinicApiClient and endpoint doesn't already include it
+    const apiPrefix = (this as any).API_PREFIX || '';
+    const prefixedEndpoint = apiPrefix && !endpoint.startsWith(apiPrefix) 
+      ? `${apiPrefix}${endpoint}` 
+      : endpoint;
+    const url = `${this.baseURL}${prefixedEndpoint}`;
     const method = (options.method || 'GET').toUpperCase();
     const cacheKey = this.getCacheKey(endpoint, options);
     
@@ -324,16 +366,31 @@ export class ApiClient {
   }
   
   // ✅ Execute Request with Connection Pooling Optimization (10M users)
-  private async executeRequest<T>(
+  protected async executeRequest<T>(
     url: string,
     options: RequestInit = {},
     requireAuth: boolean = true
   ): Promise<ApiResponse<T>> {
+    // ✅ Rate Limiting Check (Client-side)
+    if (typeof window !== 'undefined') {
+      const clientId = getClientIdentifier();
+      const rateLimit = checkApiRateLimit(`${clientId}:${url}`);
+      if (!rateLimit.allowed) {
+        logger.warn('Client-side rate limit exceeded', { url, clientId });
+        throw new ApiError('Rate limit exceeded. Please try again later.', 429, ERROR_CODES.RATE_LIMIT_EXCEEDED);
+      }
+    }
+
+    const startTime = Date.now();
+    logger.debug('API Request Starting', { url, options });
+
     // ✅ Authentication is required for all API calls (unless explicitly public)
     // Check if this is a public endpoint (auth endpoints, health checks, etc.)
     const isPublicEndpoint = url.includes('/auth/') || url.includes('/health');
     const shouldRequireAuth = requireAuth && !isPublicEndpoint;
-    const headers = await getAuthHeaders(shouldRequireAuth);
+    const includeClinicId =
+      (options as RequestInit & { omitClinicId?: boolean }).omitClinicId !== true;
+    const headers = await getAuthHeaders(shouldRequireAuth, includeClinicId);
     
     const config: RequestInit = {
       method: 'GET',
@@ -350,71 +407,233 @@ export class ApiClient {
     }
 
     // Add timeout with AbortController
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-    config.signal = controller.signal;
-
+    // fetchWithAbort handles the abort controller internally
+    
     try {
       const response = await retryRequest(async () => {
-        const res = await fetch(url, config);
-        clearTimeout(timeoutId);
+        // Use fetchWithAbort for timeout support
+        const res = await fetchWithAbort(url, {
+           ...config,
+           timeout: this.timeout
+        });
+        
+        if (res.status === HTTP_STATUS.UNAUTHORIZED && shouldRequireAuth) {
+           // Attempt refresh
+           await this.performTokenRefresh();
+           // Retry request with new headers
+           const newHeaders = await getAuthHeaders(shouldRequireAuth, includeClinicId);
+           // Update headers in config
+           const newConfig = { 
+               ...config, 
+               headers: { ...newHeaders, ...options.headers } as HeadersInit,
+               timeout: this.timeout
+           };
+           return fetchWithAbort(url, newConfig);
+        }
+
         return res;
       });
 
-      return await handleResponse<T>(response);
-    } catch (error) {
-      clearTimeout(timeoutId);
+      const result = await handleResponse<T>(response);
       
+      // ✅ Track Metrics & Log Success
+      const duration = Date.now() - startTime;
+      trackApiCall(url, config.method || 'GET', response.status, duration, undefined, undefined, undefined);
+      logger.debug('API Request Success', { url, status: response.status, duration });
+
+      return result;
+    } catch (error) {
       if (error instanceof ApiError) {
         throw error;
       }
       
+      // FetchTimeoutError is already a subclass of Error, check name or instance if we imported it
+      // but here we just need to catch it.
+      // Actually fetchWithAbort throws FetchTimeoutError.
+      // Let's check if we can just rethrow it wrapped or as is.
+      // Client expects TimeoutError (from client.ts) which inherits ApiError.
+      // We should probably convert FetchTimeoutError to client.ts TimeoutError or make them compatible.
+      // For now, let's just handle the error message.
+      
+      if ((error as any).name === 'FetchTimeoutError' || (error as any).name === 'TimeoutError') {
+          // If it's already our TimeoutError (imported), rethrow
+          // If it's FetchTimeoutError, wrap it
+          throw new TimeoutError(ERROR_MESSAGES.TIMEOUT_ERROR);
+      }
+      
       if ((error as any).name === 'AbortError') {
-        throw new TimeoutError();
+        throw new TimeoutError(ERROR_MESSAGES.TIMEOUT_ERROR);
       }
       
       if (error instanceof TypeError && (error as Error).message.includes('fetch')) {
-        throw new NetworkError();
+        throw new NetworkError(ERROR_MESSAGES.NETWORK_ERROR);
       }
       
+      // ✅ Use centralized error handler
+      const errorMessage = sanitizeErrorMessage(
+        error instanceof Error ? error : new Error(String(error))
+      );
+      
+      // ✅ Track Metrics & Log Error
+      const duration = Date.now() - startTime;
+      trackApiCall(url, config.method || 'GET', 500, duration, errorMessage);
+      logger.error('API Request Failed', { url, error: errorMessage, duration });
+
       throw new ApiError(
-        error instanceof Error ? (error as Error).message : 'Unknown error occurred',
+        errorMessage,
         500,
         ERROR_CODES.SYSTEM_ERROR
       );
     }
   }
 
-  // ✅ HTTP Method Helpers
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
-    const url = params ? `${endpoint}?${new URLSearchParams(params)}` : endpoint;
-    return this.request<T>(url);
+  // ✅ Token Refresh Logic
+  private async performTokenRefresh(): Promise<void> {
+    let refreshToken: string | undefined;
+    let sessionId: string | undefined;
+
+    // Get tokens context
+    if (typeof window === 'undefined') {
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      refreshToken = cookieStore.get('refresh_token')?.value;
+      sessionId = cookieStore.get('session_id')?.value;
+    }
+
+    if (!refreshToken && typeof window === 'undefined') {
+      throw new Error('No refresh token available');
+    }
+
+    // Use session ID for deduplication, or 'default' for client-side single user
+    const refreshKey = sessionId || 'default';
+    
+    // Check if refresh is already in progress
+    if (activeRefreshPromises.has(refreshKey)) {
+      await activeRefreshPromises.get(refreshKey);
+      return;
+    }
+
+    const refreshPromise = (async () => {
+      try {
+        // Call refresh endpoint directly (bypassing executeRequest to avoid infinite loop)
+        const response = await fetch(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionId ? { 'X-Session-ID': sessionId } : {})
+          },
+          credentials: this.withCredentials ? 'include' : 'omit',
+          body: JSON.stringify(refreshToken ? { refreshToken } : {})
+        });
+
+        if (!response.ok) {
+          throw new Error('Token refresh failed');
+        }
+
+        const data = await response.json();
+        const tokens = data.data || data;
+
+        // Update session with new tokens
+        await this.updateSession(tokens);
+      } catch (error) {
+        // If refresh fails, clear session and throw
+        await this.clearAuthSession();
+        
+        // Throw proper ApiError to stop unintended retries
+        if (!(error instanceof ApiError)) {
+          throw new ApiError(
+            'Session expired. Please log in again.',
+            HTTP_STATUS.UNAUTHORIZED,
+            ERROR_CODES.AUTH_TOKEN_INVALID
+          );
+        }
+        throw error;
+      } finally {
+        activeRefreshPromises.delete(refreshKey);
+      }
+    })();
+
+    activeRefreshPromises.set(refreshKey, refreshPromise);
+    await refreshPromise;
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  // ✅ Session Management Implementation
+  private async updateSession(data: any) {
+    const accessToken = data.access_token || data.accessToken;
+    const refreshToken = data.refresh_token || data.refreshToken;
+    const sessionId = data.session_id || data.sessionId;
+    const user = data.user;
+    
+    if (typeof window === 'undefined') {
+       // Server-side: Update cookies
+       const { cookies } = await import('next/headers');
+       const cookieStore = await cookies();
+       const isProduction = process.env.NODE_ENV === 'production';
+       const cookieOptions = {
+         httpOnly: true,
+         secure: isProduction,
+         sameSite: 'lax' as const,
+         path: '/'
+       };
+
+       if (accessToken) cookieStore.set('access_token', accessToken, { ...cookieOptions, maxAge: 900 }); // 15m
+       if (refreshToken) cookieStore.set('refresh_token', refreshToken, { ...cookieOptions, maxAge: 604800 }); // 7d
+       if (sessionId) cookieStore.set('session_id', sessionId, { ...cookieOptions, maxAge: 604800 });
+       if (user?.role) cookieStore.set('user_role', user.role, { ...cookieOptions, maxAge: 604800 });
+       if (user?.clinicId) cookieStore.set('clinic_id', user.clinicId, { ...cookieOptions, maxAge: 604800 });
+
+    }
+  }
+
+  private async clearAuthSession() {
+     if (typeof window === 'undefined') {
+       const { cookies } = await import('next/headers');
+       const cookieStore = await cookies();
+       cookieStore.delete('access_token');
+       cookieStore.delete('refresh_token');
+       cookieStore.delete('session_id');
+       cookieStore.delete('user_role');
+    }
+
+    if (typeof window !== 'undefined') {
+      useAuthStore.getState().clearAuth();
+    }
+  }
+
+  // ✅ HTTP Method Helpers
+  async get<T>(endpoint: string, params?: Record<string, any>, options?: RequestInit): Promise<ApiResponse<T>> {
+    const url = params ? `${endpoint}?${new URLSearchParams(params)}` : endpoint;
+    return this.request<T>(url, options);
+  }
+
+  async post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : null,
+      ...options,
     });
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: data ? JSON.stringify(data) : null,
+      ...options,
     });
   }
 
-  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async patch<T>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PATCH',
       body: data ? JSON.stringify(data) : null,
+      ...options,
     });
   }
 
-  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+  async delete<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'DELETE',
+      ...options,
     });
   }
 
@@ -423,12 +642,17 @@ export class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
+    // ✅ Add API prefix if this is ClinicApiClient and endpoint doesn't already include it
+    const apiPrefix = (this as any).API_PREFIX || '';
+    const prefixedEndpoint = apiPrefix && !endpoint.startsWith(apiPrefix) 
+      ? `${apiPrefix}${endpoint}` 
+      : endpoint;
+    const url = `${this.baseURL}${prefixedEndpoint}`;
     return this.executeRequest<T>(url, options, false); // false = don't require auth
   }
 
   // ✅ File Upload Helper
-  async upload<T>(endpoint: string, file: File, additionalData?: Record<string, any>): Promise<ApiResponse<T>> {
+  async upload<T>(endpoint: string, file: File, additionalData?: Record<string, any>, options?: RequestInit): Promise<ApiResponse<T>> {
     const formData = new FormData();
     formData.append('file', file);
     
@@ -445,13 +669,15 @@ export class ApiClient {
       method: 'POST',
       headers: headers as HeadersInit,
       body: formData,
+      ...options,
     });
   }
 
   // ✅ Paginated Request Helper
   async getPaginated<T>(
     endpoint: string,
-    params?: PaginationParams
+    params?: PaginationParams,
+    options?: RequestInit
   ): Promise<PaginatedResponse<T>> {
     const queryParams: Record<string, any> = {
       page: params?.page || 1,
@@ -465,7 +691,7 @@ export class ApiClient {
       queryParams.search = params.search;
     }
 
-    const response = await this.get<PaginatedResponse<T>>(endpoint, queryParams);
+    const response = await this.get<PaginatedResponse<T>>(endpoint, queryParams, options);
     return response.data as PaginatedResponse<T>;
   }
 }
@@ -473,6 +699,7 @@ export class ApiClient {
 // ✅ Clinic API Client (Optimized for 100K users)
 export class ClinicApiClient extends ApiClient {
   private static instance: ClinicApiClient;
+  // Note: API_PREFIX is handled by base ApiClient class
 
   constructor() {
     super({
@@ -490,25 +717,40 @@ export class ClinicApiClient extends ApiClient {
     return ClinicApiClient.instance;
   }
 
-  // ✅ Batch Request Helper for High Load
+  // ✅ Batch Request Helper (Integrated with centralized RequestBatcher)
   async batchRequest<T>(requests: Array<{ endpoint: string; options?: RequestInit }>): Promise<Array<ApiResponse<T>>> {
-    const batchPromises = requests.map(({ endpoint, options }) => 
-      this.request<T>(endpoint, options).catch(error => ({ error, success: false }))
+    const { requestBatcher } = await import('@/lib/config/request-batcher');
+    
+    // Process requests through the batcher
+    const promises = requests.map(({ endpoint, options }) => 
+      requestBatcher.batchRequest<ApiResponse<T>>(
+        `${this['baseURL']}${endpoint}`, 
+        options || {},
+        (url, opt) => this.executeRequest<T>(url, opt)
+      ).catch(error => ({ 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error),
+        statusCode: 500
+      } as ApiResponse<T>))
     );
     
-    return Promise.all(batchPromises) as Promise<Array<ApiResponse<T>>>;
+    return Promise.all(promises);
   }
 
   // ✅ Authentication Methods (Enhanced to match backend)
+  // ✅ clinicId is sent via X-Clinic-ID header automatically - never in body
   async login(credentials: { 
     email: string; 
     password: string; 
-    clinicId?: string;
     rememberMe?: boolean; 
   }) {
-    return this.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
+    return this.publicRequest(API_ENDPOINTS.AUTH.LOGIN, {
+      method: 'POST',
+      body: JSON.stringify(credentials)
+    });
   }
 
+  // ✅ clinicId is sent via X-Clinic-ID header automatically - never in body
   async register(data: {
     email: string;
     password: string;
@@ -519,9 +761,11 @@ export class ClinicApiClient extends ApiClient {
     gender?: string;
     address?: string;
     role?: string;
-    clinicId?: string;
   }) {
-    return this.post(API_ENDPOINTS.AUTH.REGISTER, data);
+    return this.publicRequest(API_ENDPOINTS.AUTH.REGISTER, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
   }
 
   async refreshToken(refreshTokenDto?: { refreshToken?: string }) {
@@ -532,24 +776,78 @@ export class ClinicApiClient extends ApiClient {
     return this.post(API_ENDPOINTS.AUTH.LOGOUT, logoutDto);
   }
 
-  async requestOTP(requestDto: { contact: string; clinicId?: string }) {
-    return this.post(API_ENDPOINTS.AUTH.REQUEST_OTP, requestDto);
+  async requestOTP(requestDto: { identifier?: string; contact?: string; clinicId?: string; isRegistration?: boolean }) {
+    const identifier = requestDto.identifier || requestDto.contact;
+    return this.publicRequest(API_ENDPOINTS.AUTH.REQUEST_OTP, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...requestDto,
+        identifier,
+      })
+    });
   }
 
-  async verifyOTP(data: { contact: string; otp: string; rememberMe?: boolean; clinicId?: string }) {
-    return this.post(API_ENDPOINTS.AUTH.VERIFY_OTP, data);
+  async verifyOTP(data: {
+    identifier?: string;
+    contact?: string;
+    otp: string;
+    rememberMe?: boolean;
+    clinicId?: string;
+    isRegistration?: boolean;
+    firstName?: string;
+    lastName?: string;
+  }) {
+    const identifier = data.identifier || data.contact;
+    return this.publicRequest(API_ENDPOINTS.AUTH.VERIFY_OTP, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...data,
+        identifier,
+      })
+    });
   }
 
   async forgotPassword(requestDto: { email: string }) {
-    return this.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, requestDto);
+    return this.publicRequest(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, {
+      method: 'POST',
+      body: JSON.stringify(requestDto)
+    });
   }
 
   async resetPassword(data: { token: string; password: string }) {
-    return this.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, data);
+    return this.publicRequest(API_ENDPOINTS.AUTH.RESET_PASSWORD, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
   }
 
   async changePassword(data: { currentPassword: string; newPassword: string }) {
-    return this.post(API_ENDPOINTS.AUTH.LOGIN, data); // Note: Backend may use different endpoint
+    return this.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, data);
+  }
+
+  async verifyEmail(token: string) {
+    return this.post(API_ENDPOINTS.AUTH.VERIFY_EMAIL, { token });
+  }
+
+  async socialLogin(data: { provider: string; token: string; clinicId?: string }) {
+    let endpoint = '';
+    switch (data.provider) {
+      case 'google':
+        endpoint = API_ENDPOINTS.AUTH.GOOGLE_LOGIN;
+        break;
+      case 'facebook':
+        endpoint = API_ENDPOINTS.AUTH.FACEBOOK_LOGIN;
+        break;
+      case 'apple':
+        endpoint = API_ENDPOINTS.AUTH.APPLE_LOGIN;
+        break;
+      default:
+        throw new Error('Invalid provider');
+    }
+    return this.publicRequest(endpoint, {
+      method: 'POST',
+      body: JSON.stringify({ token: data.token, clinicId: data.clinicId })
+    });
   }
 
   async getProfile() {
@@ -558,19 +856,19 @@ export class ClinicApiClient extends ApiClient {
 
   async getUserSessions(userId?: string) {
     if (userId) {
-      return this.get(API_ENDPOINTS.USERS.SESSIONS(userId));
+      return this.get(API_ENDPOINTS.USERS.SESSIONS.GET_ALL, { userId });
     }
     // Fallback to profile endpoint if no userId provided
     return this.get(API_ENDPOINTS.USERS.PROFILE);
   }
 
   // ✅ Clinic Management Methods
-  async getClinics(params?: PaginationParams) {
-    return this.getPaginated(API_ENDPOINTS.CLINICS.GET_ALL, params);
+  async getClinics(params?: PaginationParams, options?: RequestInit) {
+    return this.getPaginated(API_ENDPOINTS.CLINICS.GET_ALL, params, options);
   }
 
-  async getClinicById(id: string) {
-    return this.get(API_ENDPOINTS.CLINICS.GET_BY_ID(id));
+  async getClinicById(id: string, options?: RequestInit) {
+    return this.get(API_ENDPOINTS.CLINICS.GET_BY_ID(id), undefined, options);
   }
 
   async getClinicByAppName(appName: string) {
@@ -578,6 +876,7 @@ export class ClinicApiClient extends ApiClient {
   }
 
   // ✅ Clinic Methods
+
   async createClinic(data: {
     name: string;
     address: string;
@@ -602,8 +901,8 @@ export class ClinicApiClient extends ApiClient {
     timezone: string;
     currency: string;
     language: string;
-  }) {
-    return this.post(API_ENDPOINTS.CLINICS.CREATE, data);
+  }, options?: RequestInit) {
+    return this.post(API_ENDPOINTS.CLINICS.CREATE, data, options);
   }
 
   async updateClinic(id: string, data: {
@@ -618,12 +917,12 @@ export class ClinicApiClient extends ApiClient {
     currency?: string;
     language?: string;
     isActive?: boolean;
-  }) {
-    return this.put(API_ENDPOINTS.CLINICS.UPDATE(id), data);
+  }, options?: RequestInit) {
+    return this.put(API_ENDPOINTS.CLINICS.UPDATE(id), data, options);
   }
 
-  async deleteClinic(id: string) {
-    return this.delete(API_ENDPOINTS.CLINICS.DELETE(id));
+  async deleteClinic(id: string, options?: RequestInit) {
+    return this.delete(API_ENDPOINTS.CLINICS.DELETE(id), options);
   }
 
   // ✅ Appointments Methods (Enhanced to match backend)
@@ -632,6 +931,8 @@ export class ClinicApiClient extends ApiClient {
     doctorId?: string;
     status?: string;
     date?: string;
+    startDate?: string;
+    endDate?: string;
     locationId?: string;
     page?: number;
     limit?: number;
@@ -645,7 +946,7 @@ export class ClinicApiClient extends ApiClient {
     page?: number;
     limit?: number;
   }) {
-    return this.get(API_ENDPOINTS.APPOINTMENTS.GET_ALL, params);
+    return this.get(API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS, params);
   }
 
   async getAppointmentById(id: string) {
@@ -655,44 +956,95 @@ export class ClinicApiClient extends ApiClient {
   async createAppointment(data: {
     patientId: string;
     doctorId: string;
-    date: string;
-    time: string;
+    appointmentDate: string;
     duration: number;
     type: string;
-    notes?: string;
-    clinicId?: string;
-    locationId?: string;
-    symptoms?: string[];
-    priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+    notes?: string | undefined;
+    clinicId?: string | undefined;
+    locationId?: string | undefined;
+    symptoms?: string[] | undefined;
+    priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | undefined;
   }) {
     return this.post(API_ENDPOINTS.APPOINTMENTS.CREATE, data);
   }
 
   async updateAppointment(id: string, data: {
-    date?: string;
-    time?: string;
-    duration?: number;
-    type?: string;
-    notes?: string;
-    status?: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
-    symptoms?: string[];
-    diagnosis?: string;
-    prescription?: string;
-    followUpDate?: string;
+    appointmentDate?: string | undefined;
+    duration?: number | undefined;
+    type?: string | undefined;
+    notes?: string | undefined;
+    status?: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | undefined;
+    symptoms?: string[] | undefined;
+    diagnosis?: string | undefined;
+    prescription?: string | undefined;
+    followUpDate?: string | undefined;
   }) {
     return this.put(API_ENDPOINTS.APPOINTMENTS.UPDATE(id), data);
   }
 
   async cancelAppointment(id: string) {
-    return this.delete(API_ENDPOINTS.APPOINTMENTS.CANCEL(id));
+    return this.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(id), { status: 'CANCELLED' });
+  }
+
+  /**
+   * Update appointment status (Consolidated method)
+   * Replaces checkIn, start, complete, cancel, etc.
+   */
+  async updateAppointmentStatus(id: string, data: {
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'CONFIRMED' | 'NO_SHOW' | 'SCHEDULED' | 'PENDING';
+    reason?: string;
+    notes?: string;
+    // Check-in specific
+    locationId?: string;
+    qrCode?: string;
+    checkInMethod?: string;
+    coordinates?: { lat: number; lng: number };
+    // Consultation specific
+    consultationType?: string;
+    // Completion specific
+    diagnosis?: string;
+    treatmentPlan?: string;
+    prescription?: string;
+    followUpRequired?: boolean;
+    followUpDate?: string;
+    followUpType?: string;
+    followUpInstructions?: string;
+    followUpPriority?: string;
+    medications?: any[];
+    tests?: any[];
+    restrictions?: string[];
+  }) {
+    return this.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(id), data);
   }
 
   async confirmAppointment(id: string) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.CONFIRM(id));
+    return this.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(id), { status: 'CONFIRMED' });
+  }
+
+  async proposeVideoAppointment(data: {
+    patientId: string;
+    doctorId: string;
+    clinicId: string;
+    locationId?: string;
+    duration: number;
+    proposedSlots: Array<{ date: string; time: string }>;
+    notes?: string | undefined;
+  }) {
+    return this.post(API_ENDPOINTS.APPOINTMENTS.VIDEO_PROPOSE, data);
+  }
+
+  async confirmVideoSlot(appointmentId: string, confirmedSlotIndex: number) {
+    return this.post(API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_SLOT(appointmentId), {
+      confirmedSlotIndex,
+    });
   }
 
   async checkInAppointment(id: string) {
     return this.post(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id));
+  }
+
+  async scanLocationQRAndCheckIn(data: { qrCode: string; locationId?: string }) {
+    return this.post(API_ENDPOINTS.APPOINTMENTS.SCAN_QR, data);
   }
 
   async startAppointment(id: string) {
@@ -708,8 +1060,17 @@ export class ClinicApiClient extends ApiClient {
     return this.post(API_ENDPOINTS.APPOINTMENTS.COMPLETE(id), data);
   }
 
-  async getDoctorAvailability(doctorId: string, date: string) {
-    return this.get(API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId), { date });
+  async getDoctorAvailability(
+    doctorId: string,
+    date: string,
+    locationId?: string,
+    appointmentType?: string
+  ) {
+    const params: Record<string, string> = { date };
+    if (locationId) params.locationId = locationId;
+    if (appointmentType) params.type = appointmentType;
+    const url = `${API_ENDPOINTS.APPOINTMENTS.DOCTOR_AVAILABILITY(doctorId)}?${new URLSearchParams(params)}`;
+    return this.publicRequest(url, { method: 'GET' });
   }
 
   async getUserUpcomingAppointments(userId: string) {
@@ -718,7 +1079,7 @@ export class ClinicApiClient extends ApiClient {
 
   // ✅ Queue Management Methods
   async getQueue(queueType: string) {
-    return this.get(API_ENDPOINTS.APPOINTMENTS.QUEUE.GET(queueType));
+    return this.get(API_ENDPOINTS.QUEUE.GET, { type: queueType });
   }
 
   async addToQueue(data: {
@@ -727,15 +1088,15 @@ export class ClinicApiClient extends ApiClient {
     queueType: string;
     priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
   }) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.QUEUE.ADD, data);
+    return this.post(API_ENDPOINTS.QUEUE.ADD, data);
   }
 
-  async callNextPatient(queueType: string) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.QUEUE.CALL_NEXT(queueType));
+  async callNextPatient(doctorId: string, appointmentId: string) {
+    return this.post(API_ENDPOINTS.QUEUE.CALL_NEXT, { doctorId, appointmentId });
   }
 
-  async getQueueStats() {
-    return this.get(API_ENDPOINTS.APPOINTMENTS.QUEUE.STATS);
+  async getQueueStats(locationId: string) {
+    return this.get(API_ENDPOINTS.QUEUE.STATS, { locationId });
   }
 
   // ✅ User Management Methods (Match Backend Users Controller)
@@ -765,19 +1126,19 @@ export class ClinicApiClient extends ApiClient {
   }
 
   async getPatients() {
-    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('patient'));
+    return this.get(API_ENDPOINTS.PATIENTS.GET_ALL);
   }
 
   async getDoctors() {
-    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('doctors'));
+    return this.get(API_ENDPOINTS.DOCTORS.GET_ALL);
   }
 
   async getReceptionists() {
-    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('receptionists'));
+    return this.get(API_ENDPOINTS.STAFF.GET_ALL, { role: 'RECEPTIONIST' });
   }
 
   async getClinicAdmins() {
-    return this.get(API_ENDPOINTS.USERS.GET_BY_ROLE('clinic-admins'));
+    return this.get(API_ENDPOINTS.STAFF.GET_ALL, { role: 'CLINIC_ADMIN' });
   }
 
   async updateUserRole(id: string, data: { role: string; clinicId?: string }) {
@@ -785,6 +1146,19 @@ export class ClinicApiClient extends ApiClient {
   }
 
   // ✅ Health Check Methods (Enhanced to match backend)
+  async getHealthDetailed() {
+    return this.get(API_ENDPOINTS.HEALTH.DETAILED);
+  }
+
+  // ✅ Clinic Enhancements Methods
+  async getClinicStats(id: string) {
+    return this.get(API_ENDPOINTS.CLINICS.STATS(id));
+  }
+
+  async getClinicOperatingHours(id: string) {
+    return this.get(API_ENDPOINTS.CLINICS.OPERATING_HOURS(id));
+  }
+
   async getHealthStatus() {
     return this.get(API_ENDPOINTS.HEALTH.BASE);
   }
@@ -803,7 +1177,7 @@ export class ClinicApiClient extends ApiClient {
 
   // ✅ Test Context Endpoint (from appointments controller)
   async testAppointmentContext() {
-    return this.get(`${API_ENDPOINTS.APPOINTMENTS.BASE}/test/context`);
+    return this.get(API_ENDPOINTS.APPOINTMENTS.TEST_CONTEXT);
   }
 
   // ✅ Utility Methods
@@ -834,8 +1208,8 @@ export async function getAuthenticatedApiClient(): Promise<ClinicApiClient> {
   return ClinicApiClient.getInstance();
 }
 
-// ✅ Preload Critical Connections for 100K Users
+// ✅ Preload// Initialize connection check for clinic service
 if (typeof window !== 'undefined') {
-  // Warm up connection pool on client load
-  clinicApiClient.ping().catch(() => {});
+  // Pre-fetch health status to warm up connection
+  ClinicApiClient.getInstance().ping().catch(() => {});
 }

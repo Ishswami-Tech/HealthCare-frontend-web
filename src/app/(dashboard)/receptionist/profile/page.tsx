@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,14 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { 
+
+import { useAuth } from "@/hooks/auth/useAuth";
+import {
   Activity,
-  Calendar, 
-  Users,
   UserCheck,
-  LogOut,
   Save,
   Camera,
   Clock,
@@ -41,42 +36,41 @@ export default function ReceptionistProfile() {
   const { session } = useAuth();
   const user = session?.user;
 
-  // Mock profile data
   const [profileData, setProfileData] = useState({
     personalInfo: {
-      firstName: user?.firstName || "Maya",
-      lastName: user?.lastName || "Patel",
-      email: user?.email || "maya.patel@ayurvedacenter.com",
-      phone: "+91 9876543210",
-      dateOfBirth: "1992-08-22",
-      gender: "Female",
-      address: "456 Reception Lane, Mumbai, MH 400002",
-      city: "Mumbai",
-      state: "Maharashtra",
-      country: "India",
-      zipCode: "400002",
-      emergencyContact: "Raj Patel (Spouse)",
-      emergencyPhone: "+91 9876543211"
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      email: user?.email || "",
+      phone: "",
+      dateOfBirth: "",
+      gender: "",
+      address: "",
+      city: "",
+      state: "",
+      country: "",
+      zipCode: "",
+      emergencyContact: "",
+      emergencyPhone: ""
     },
     workInfo: {
-      employeeId: "RCP001",
-      department: "Reception & Patient Services",
-      position: "Senior Receptionist",
-      joiningDate: "2022-03-15",
-      workSchedule: "Full-time",
-      supervisor: "Dr. Priya Sharma (Clinic Admin)",
-      workLocation: "Ayurveda Wellness Center",
-      experience: "2+ years",
-      skills: ["Patient Communication", "Appointment Scheduling", "Insurance Processing", "Multi-language Support"]
+      employeeId: "",
+      department: "",
+      position: "",
+      joiningDate: "",
+      workSchedule: "",
+      supervisor: "",
+      workLocation: "",
+      experience: "",
+      skills: [] as string[]
     },
     systemAccess: {
-      canScheduleAppointments: true,
-      canEditPatientInfo: true,
-      canProcessPayments: true,
+      canScheduleAppointments: false,
+      canEditPatientInfo: false,
+      canProcessPayments: false,
       canAccessReports: false,
       canManageInventory: false,
-      systemRole: "Receptionist",
-      lastLogin: "2024-01-15T09:30:00Z"
+      systemRole: user?.role || "Receptionist",
+      lastLogin: ""
     },
     preferences: {
       language: "English",
@@ -93,18 +87,6 @@ export default function ReceptionistProfile() {
       systemUpdates: false,
       reminderNotifications: true
     },
-    performance: {
-      patientsProcessedToday: 24,
-      appointmentsScheduled: 18,
-      callsHandled: 32,
-      averageResponseTime: "2.5 minutes",
-      customerSatisfactionRating: 4.7,
-      monthlyStats: {
-        totalPatients: 642,
-        totalAppointments: 428,
-        totalCalls: 856
-      }
-    }
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -132,32 +114,8 @@ export default function ReceptionistProfile() {
     }));
   };
 
-  const sidebarLinks = getRoutesByRole(Role.RECEPTIONIST).map(route => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes('dashboard') ? <Activity className="w-5 h-5" /> :
-          route.path.includes('appointments') ? <Calendar className="w-5 h-5" /> :
-          route.path.includes('patients') ? <Users className="w-5 h-5" /> :
-          route.path.includes('profile') ? <UserCheck className="w-5 h-5" /> :
-          <Activity className="w-5 h-5" />
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />
-  });
-
   return (
-    <DashboardLayout title="Receptionist Profile" allowedRole={Role.RECEPTIONIST}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{ 
-          name: user?.name || `${user?.firstName} ${user?.lastName}` || "Receptionist",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png" 
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">My Profile</h1>
@@ -172,7 +130,7 @@ export default function ReceptionistProfile() {
             <CardContent className="p-6">
               <div className="flex items-center gap-6">
                 <div className="relative">
-                  <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center">
+                  <div className="w-24 h-24 bg-linear-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center">
                     <span className="text-green-800 font-semibold text-3xl">
                       {profileData.personalInfo.firstName.charAt(0)}
                     </span>
@@ -198,8 +156,8 @@ export default function ReceptionistProfile() {
                       {profileData.workInfo.experience}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-yellow-500" />
-                      {profileData.performance.customerSatisfactionRating}/5.0
+                      <Clock className="w-4 h-4" />
+                      {profileData.workInfo.experience || "—"}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
@@ -214,12 +172,12 @@ export default function ReceptionistProfile() {
                 <div className="text-right">
                   <div className="grid grid-cols-1 gap-4 text-center">
                     <div>
-                      <div className="text-2xl font-bold text-blue-600">{profileData.performance.patientsProcessedToday}</div>
-                      <div className="text-sm text-gray-600">Patients Today</div>
+                      <div className="text-sm text-gray-600 font-medium">{profileData.workInfo.department || "—"}</div>
+                      <div className="text-xs text-gray-500">Department</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-green-600">{profileData.performance.appointmentsScheduled}</div>
-                      <div className="text-sm text-gray-600">Appointments</div>
+                      <div className="text-sm text-gray-600 font-medium">{profileData.workInfo.workLocation || "—"}</div>
+                      <div className="text-xs text-gray-500">Location</div>
                     </div>
                   </div>
                 </div>
@@ -474,80 +432,15 @@ export default function ReceptionistProfile() {
             </TabsContent>
 
             <TabsContent value="performance">
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5" />
-                      Today's Performance
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-blue-600">{profileData.performance.patientsProcessedToday}</div>
-                        <div className="text-sm text-gray-600">Patients Processed</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-green-600">{profileData.performance.appointmentsScheduled}</div>
-                        <div className="text-sm text-gray-600">Appointments Scheduled</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-purple-600">{profileData.performance.callsHandled}</div>
-                        <div className="text-sm text-gray-600">Calls Handled</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-orange-600">{profileData.performance.averageResponseTime}</div>
-                        <div className="text-sm text-gray-600">Avg Response Time</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Monthly Statistics</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="text-center p-4 bg-blue-50 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">{profileData.performance.monthlyStats.totalPatients}</div>
-                        <div className="text-sm text-gray-600">Total Patients</div>
-                      </div>
-                      <div className="text-center p-4 bg-green-50 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">{profileData.performance.monthlyStats.totalAppointments}</div>
-                        <div className="text-sm text-gray-600">Total Appointments</div>
-                      </div>
-                      <div className="text-center p-4 bg-purple-50 rounded-lg">
-                        <div className="text-2xl font-bold text-purple-600">{profileData.performance.monthlyStats.totalCalls}</div>
-                        <div className="text-sm text-gray-600">Total Calls</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Customer Satisfaction</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-4">
-                      <div className="text-4xl font-bold text-yellow-600">{profileData.performance.customerSatisfactionRating}</div>
-                      <div>
-                        <div className="flex">
-                          {[...Array(5)].map((_, i) => (
-                            <Star 
-                              key={i} 
-                              className={`w-5 h-5 ${i < Math.floor(profileData.performance.customerSatisfactionRating) ? 'text-yellow-500 fill-current' : 'text-gray-300'}`} 
-                            />
-                          ))}
-                        </div>
-                        <div className="text-sm text-gray-600">Based on patient feedback</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center py-12 text-muted-foreground">
+                    <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                    <p className="font-medium">Performance analytics not yet available</p>
+                    <p className="text-sm mt-1">Stats will appear here once the analytics backend is configured.</p>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="preferences">
@@ -770,8 +663,7 @@ export default function ReceptionistProfile() {
             </TabsContent>
           </Tabs>
         </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+    
   );
 }
 

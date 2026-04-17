@@ -6,7 +6,7 @@ export interface QueueItem {
   patientId: string;
   doctorId?: string;
   appointmentId?: string;
-  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | 'EMERGENCY';
   status: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'CALLED';
   position: number;
@@ -20,7 +20,7 @@ export interface QueueItem {
   notes?: string;
   createdAt: string;
   updatedAt: string;
-  
+
   // Relations
   patient?: {
     id: string;
@@ -83,7 +83,7 @@ export interface QueueStats {
 export interface QueueConfiguration {
   id: string;
   clinicId: string;
-  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   isActive: boolean;
   maxCapacity?: number;
   estimatedServiceTime: number; // in minutes
@@ -112,7 +112,7 @@ export interface QueueConfiguration {
 // ===== QUEUE FILTERS =====
 
 export interface QueueFilters {
-  queueType?: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  queueType?: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   status?: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'CALLED';
   priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | 'EMERGENCY';
   doctorId?: string;
@@ -132,7 +132,7 @@ export interface AddToQueueData {
   patientId: string;
   doctorId?: string;
   appointmentId?: string;
-  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | 'EMERGENCY';
   notes?: string;
 }
@@ -144,13 +144,13 @@ export interface UpdateQueueStatusData {
 }
 
 export interface CallNextPatientData {
-  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  queueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   doctorId?: string;
 }
 
 export interface TransferQueueItemData {
   queueItemId: string;
-  newQueueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION';
+  newQueueType: 'CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT';
   newDoctorId?: string;
   reason?: string;
 }
@@ -161,14 +161,14 @@ export interface QueueNotification {
   id: string;
   queueItemId: string;
   patientId: string;
-  type: 'POSITION_UPDATE' | 'CALLED' | 'READY' | 'DELAYED' | 'CANCELLED';
+  type: 'POSITION_UPDATE' | 'CANCELLED' | 'READY' | 'DELAYED' | 'CANCELLED';
   message: string;
   channels: ('SMS' | 'EMAIL' | 'PUSH' | 'DISPLAY')[];
   sentAt?: string;
   deliveredAt?: string;
   status: 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED';
   createdAt: string;
-  
+
   // Relations
   queueItem?: QueueItem;
   patient?: {
@@ -186,7 +186,7 @@ export interface QueueDisplay {
   id: string;
   clinicId: string;
   name: string;
-  queueTypes: ('CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION')[];
+  queueTypes: ('CONSULTATION' | 'FOLLOW_UP' | 'EMERGENCY' | 'PHARMACY' | 'LAB' | 'REGISTRATION' | 'IN_PERSON' | 'VIDEO_CALL' | 'HOME_VISIT')[];
   displaySettings: {
     layout: 'LIST' | 'GRID' | 'TICKER';
     theme: 'LIGHT' | 'DARK' | 'CUSTOM';
@@ -219,7 +219,7 @@ export interface QueueAnalytics {
   queueEfficiency: number; // percentage
   noShowRate: number; // percentage
   cancellationRate: number; // percentage
-  
+
   // By queue type
   byQueueType: {
     queueType: string;
@@ -227,7 +227,7 @@ export interface QueueAnalytics {
     averageWaitTime: number;
     averageServiceTime: number;
   }[];
-  
+
   // By doctor
   byDoctor: {
     doctorId: string;
@@ -249,7 +249,7 @@ export interface QueueReport {
   data: QueueAnalytics[];
   generatedAt: string;
   generatedBy: string;
-  
+
   // Relations
   clinic?: {
     id: string;
@@ -293,3 +293,84 @@ export interface QueueSettings {
   updatedBy: string;
 }
 
+// ===== CANONICAL QUEUE TYPES =====
+// Unified queue contract for all queue lanes (doctor, medicine desk, therapy)
+
+/**
+ * Canonical queue entry - unified contract for all queue lanes
+ */
+export interface CanonicalQueueEntry {
+  entryId: string;
+  queueCategory: QueueCategory;
+  queueOwnerId: string;
+  clinicId: string;
+  locationId?: string;
+  appointmentId: string;
+  patientId: string;
+  patientName?: string;
+  doctorName?: string;
+  primaryDoctorId?: string;
+  assignedDoctorId?: string;
+  position: number;
+  totalInQueue: number;
+  status: string;
+  serviceBucket?: string;
+  treatmentType?: string;
+  estimatedWaitTime?: number;
+  estimatedDuration?: number;
+  paymentStatus?: string;
+  waitingForPayment?: boolean;
+  readyForHandover?: boolean;
+  // Projection fields from QueueProjectionEntry
+  paused?: boolean;
+  tokenNumber?: string;
+  scheduledDate?: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+/**
+ * Queue category enum
+ */
+export enum QueueCategory {
+  DOCTOR_CONSULTATION = 'DOCTOR_CONSULTATION',
+  MEDICINE_DESK = 'MEDICINE_DESK',
+  THERAPY_PROCEDURE = 'THERAPY_PROCEDURE',
+}
+
+/**
+ * Canonical queue statistics
+ */
+export interface CanonicalQueueStats {
+  total: number;
+  waiting: number;
+  inProgress: number;
+  completed: number;
+  ready: number;
+  waitingForPayment: number;
+}
+
+/**
+ * Doctor backlog entry for dashboard display
+ */
+export interface DoctorBacklogEntry {
+  doctorId: string;
+  doctorName: string;
+  scheduled: number;
+  confirmed: number;
+  inProgress: number;
+  total: number;
+  nextPatient?: string;
+}
+
+/**
+ * Medicine desk queue entry
+ */
+export interface MedicineDeskQueueEntry {
+  id: string;
+  patientName: string;
+  queuePosition: number | null;
+  paymentStatus: 'PENDING' | 'PAID' | 'DISPENSED';
+  pendingAmount: number;
+  readyForHandover: boolean;
+}

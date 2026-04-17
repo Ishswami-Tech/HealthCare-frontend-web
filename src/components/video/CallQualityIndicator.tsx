@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Wifi,
@@ -10,13 +10,13 @@ import {
   SignalMedium,
   SignalHigh,
 } from "lucide-react";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
-  getCallQuality,
-  updateQualityMetrics,
+  useCallQuality,
+  useUpdateCallQualityMetrics,
   type CallQualityMetrics,
-} from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+} from "@/hooks/query";
+import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
   Tooltip,
   TooltipContent,
@@ -35,35 +35,16 @@ export function CallQualityIndicator({
   className,
   showDetails = false,
 }: CallQualityIndicatorProps) {
-  const { toast } = useToast();
   const [quality, setQuality] = useState<CallQualityMetrics | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: callQuality, isPending: isLoading } = useCallQuality(appointmentId);
+  const updateCallQualityMutation = useUpdateCallQualityMetrics();
+  const isReportingIssue = updateCallQualityMutation.isPending;
   const { subscribeToCallQuality, isConnected } =
     useVideoAppointmentWebSocket();
 
-  // Load initial quality metrics (only once, WebSocket handles updates)
   useEffect(() => {
-    let mounted = true;
-    const loadQuality = async () => {
-      try {
-        const result = await getCallQuality(appointmentId);
-        if (mounted && result) {
-          setQuality(result);
-        }
-      } catch (error) {
-        console.error("Failed to load call quality:", error);
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadQuality();
-    return () => {
-      mounted = false;
-    };
-  }, [appointmentId]);
+    setQuality(callQuality ?? null);
+  }, [callQuality]);
 
   // Subscribe to real-time quality updates
   useEffect(() => {
@@ -145,39 +126,39 @@ export function CallQualityIndicator({
   const QualityIcon = qualityStatus.icon;
   const qualityVariant =
     "variant" in qualityStatus ? qualityStatus.variant : "outline";
+  const fallbackMetrics: CallQualityMetrics = {
+    consultationId: appointmentId,
+    userId: "",
+    timestamp: new Date().toISOString(),
+    network: {
+      latency: 0,
+      jitter: 0,
+      packetLoss: 0,
+      bandwidth: 0,
+      connectionQuality: "poor",
+    },
+    audio: { bitrate: 0, codec: "", quality: "poor" },
+    video: {
+      bitrate: 0,
+      resolution: "",
+      framerate: 0,
+      codec: "",
+      quality: "poor",
+    },
+  };
 
   const handleReportIssue = async () => {
     try {
-      await updateQualityMetrics(
+      await updateCallQualityMutation.mutateAsync({
         appointmentId,
-        quality || {
-          network: {
-            latency: 0,
-            jitter: 0,
-            packetLoss: 0,
-            bandwidth: 0,
-            connectionQuality: "poor",
-          },
-          audio: { bitrate: 0, codec: "", quality: "poor" },
-          video: {
-            bitrate: 0,
-            resolution: "",
-            framerate: 0,
-            codec: "",
-            quality: "poor",
-          },
-        }
-      );
-      toast({
-        title: "Issue Reported",
+        metrics: quality || fallbackMetrics,
+      });
+      showSuccessToast("Issue reported", {
+        id: TOAST_IDS.VIDEO.ERROR,
         description: "Your quality issue has been reported",
       });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to report issue",
-        variant: "destructive",
-      });
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 
@@ -224,9 +205,10 @@ export function CallQualityIndicator({
       {quality.network.connectionQuality === "poor" && (
         <button
           onClick={handleReportIssue}
+          disabled={isReportingIssue}
           className="text-xs text-primary hover:underline mt-2"
         >
-          Report Issue
+          {isReportingIssue ? "Reporting..." : "Report Issue"}
         </button>
       )}
     </div>

@@ -139,12 +139,10 @@ export const useAccessibilitySafe = () => {
 export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
   className,
 }) => {
-  // Add error boundary for accessibility context
-  let accessibilityContext;
-  try {
-    accessibilityContext = useAccessibility();
-  } catch (error) {
-    // If accessibility context is not available, render a fallback
+  const accessibilityContext = useAccessibilitySafe();
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  if (!accessibilityContext) {
     console.warn("AccessibilityProvider not found, rendering fallback toolbar");
     return (
       <Button
@@ -173,8 +171,6 @@ export const AccessibilityToolbar: React.FC<{ className?: string }> = ({
     announce,
     resetSettings,
   } = accessibilityContext;
-
-  const [isOpen, setIsOpen] = React.useState(false);
 
   return (
     <>

@@ -2,6 +2,8 @@
 // This module provides video appointment functionality using OpenVidu
 
 import { OpenVidu, Session, Publisher, Subscriber, Stream, ConnectionEvent, StreamEvent, PublisherProperties, StreamManagerEvent } from 'openvidu-browser';
+import type { Role } from '@/types/auth.types';
+import type { AppointmentStatus } from '@/types/appointment.types';
 
 export interface OpenViduConfig {
   openviduServerUrl: string;
@@ -10,7 +12,7 @@ export interface OpenViduConfig {
   userInfo: {
     displayName: string;
     email: string;
-    role: 'doctor' | 'patient' | 'admin';
+    role: Role | 'admin';
   };
   options?: {
     videoSource?: string | MediaStreamTrack | boolean;
@@ -29,7 +31,7 @@ export interface VideoAppointmentData {
   patientId: string;
   startTime: string;
   endTime: string;
-  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+  status: AppointmentStatus | 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
   sessionId?: string;
   recordingUrl?: string;
   notes?: string;
@@ -39,6 +41,8 @@ export interface ParticipantInfo {
   connectionId: string;
   data: string;
   role: string;
+  userId?: string;
+  displayName?: string;
 }
 
 // ✅ OpenVidu API Integration
@@ -47,9 +51,6 @@ export class OpenViduAPI {
   private publisher: Publisher | null = null;
   private subscribers: Map<string, Subscriber> = new Map();
   private config: OpenViduConfig;
-  private videoContainer: HTMLElement | null = null;
-  private localVideoElement: HTMLVideoElement | null = null;
-  private remoteVideoElements: Map<string, HTMLVideoElement> = new Map();
   private openvidu: OpenVidu;
 
   constructor(config: OpenViduConfig) {
@@ -58,12 +59,8 @@ export class OpenViduAPI {
   }
 
   // ✅ Initialize OpenVidu Session
-  async initialize(container?: HTMLElement): Promise<void> {
+  async initialize(): Promise<void> {
     try {
-      if (container) {
-        this.videoContainer = container;
-      }
-
       // Create session with OpenVidu instance
       this.session = this.openvidu.initSession();
       
@@ -158,20 +155,6 @@ export class OpenViduAPI {
 
     this.publisher = await this.openvidu.initPublisher(undefined, publisherOptions);
 
-    // Create local video element
-    if (this.videoContainer && this.publisher) {
-      this.localVideoElement = document.createElement('video');
-      this.localVideoElement.id = 'openvidu-local-video';
-      this.localVideoElement.autoplay = true;
-      this.localVideoElement.muted = true; // Mute local video to avoid echo
-      this.localVideoElement.style.width = '100%';
-      this.localVideoElement.style.height = '100%';
-      this.localVideoElement.style.objectFit = 'cover';
-      
-      this.videoContainer.appendChild(this.localVideoElement);
-      this.publisher.addVideoElement(this.localVideoElement);
-    }
-
     // Set up publisher event listeners
     if (this.publisher) {
       this.publisher.on('streamAudioVolumeChange', (event: StreamManagerEvent) => {
@@ -186,52 +169,14 @@ export class OpenViduAPI {
 
     const subscriber = this.session.subscribe(stream, undefined);
     this.subscribers.set(stream.streamId, subscriber);
-
-    // Create remote video element
-    if (this.videoContainer) {
-      const remoteVideoElement = document.createElement('video');
-      remoteVideoElement.id = `openvidu-remote-video-${stream.streamId}`;
-      remoteVideoElement.autoplay = true;
-      remoteVideoElement.style.width = '100%';
-      remoteVideoElement.style.height = '100%';
-      remoteVideoElement.style.objectFit = 'cover';
-      
-      // Create a container for remote videos
-      let remoteContainer = this.videoContainer.querySelector('.remote-videos-container') as HTMLElement;
-      if (!remoteContainer) {
-        remoteContainer = document.createElement('div');
-        remoteContainer.className = 'remote-videos-container';
-        remoteContainer.style.display = 'grid';
-        remoteContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
-        remoteContainer.style.gap = '10px';
-        remoteContainer.style.width = '100%';
-        remoteContainer.style.height = '100%';
-        this.videoContainer.appendChild(remoteContainer);
-      }
-
-      const videoWrapper = document.createElement('div');
-      videoWrapper.className = 'remote-video-wrapper';
-      videoWrapper.style.position = 'relative';
-      videoWrapper.appendChild(remoteVideoElement);
-      remoteContainer.appendChild(videoWrapper);
-
-      this.remoteVideoElements.set(stream.streamId, remoteVideoElement);
-      subscriber.addVideoElement(remoteVideoElement);
-    }
   }
 
   // ✅ Handle Stream Destroyed (Remote Participant Left)
   private handleStreamDestroyed(stream: Stream): void {
     const subscriber = this.subscribers.get(stream.streamId);
     if (subscriber && this.session) {
-      this.session.unsubscribe(subscriber);
+      // this.session.unsubscribe(subscriber); // OpenVidu handles this automatically on streamDestroyed
       this.subscribers.delete(stream.streamId);
-    }
-
-    const videoElement = this.remoteVideoElements.get(stream.streamId);
-    if (videoElement && videoElement.parentElement) {
-      videoElement.parentElement.remove();
-      this.remoteVideoElements.delete(stream.streamId);
     }
   }
 
@@ -263,10 +208,6 @@ export class OpenViduAPI {
         publishAudio: false,
         publishVideo: true,
       });
-
-      if (this.localVideoElement && this.publisher) {
-        this.publisher.addVideoElement(this.localVideoElement);
-      }
 
       if (this.publisher) {
         await this.session.publish(this.publisher);
@@ -333,6 +274,16 @@ export class OpenViduAPI {
     return this.publisher ? !this.publisher.stream.videoActive : false;
   }
 
+  // ✅ Get Publisher
+  getPublisher(): Publisher | null {
+    return this.publisher;
+  }
+
+  // ✅ Get Subscribers
+  getSubscribers(): Subscriber[] {
+    return Array.from(this.subscribers.values());
+  }
+
   // ✅ End Call
   async endCall(): Promise<void> {
     await this.dispose();
@@ -340,18 +291,6 @@ export class OpenViduAPI {
 
   // ✅ Cleanup
   private cleanup(): void {
-    // Remove all video elements
-    if (this.localVideoElement && this.localVideoElement.parentElement) {
-      this.localVideoElement.parentElement.remove();
-    }
-
-    this.remoteVideoElements.forEach((element) => {
-      if (element.parentElement) {
-        element.parentElement.remove();
-      }
-    });
-
-    this.remoteVideoElements.clear();
     this.subscribers.clear();
   }
 
@@ -375,6 +314,7 @@ export class OpenViduAPI {
   }
 }
 
+
 // ✅ Video Appointment Service
 export class VideoAppointmentService {
   private static instance: VideoAppointmentService;
@@ -396,7 +336,7 @@ export class VideoAppointmentService {
       userId: string;
       displayName: string;
       email: string;
-      role: 'doctor' | 'patient' | 'admin';
+      role: Role | 'admin';
     },
     token: string,
     openviduServerUrl: string

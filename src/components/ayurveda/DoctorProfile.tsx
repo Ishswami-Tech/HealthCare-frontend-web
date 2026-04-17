@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -199,7 +198,13 @@ const DoctorProfile = () => {
                     <Phone className="w-4 h-4 mr-2" />
                     Call Now
                   </Button>
-                  <Button variant="outline" className="w-full">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      window.location.href = "/patient/appointments";
+                    }}
+                  >
                     <Calendar className="w-4 h-4 mr-2" />
                     Book Appointment
                   </Button>

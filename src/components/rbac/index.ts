@@ -1,3 +1,6 @@
+// ✅ RBAC Components - Role-Based Access Control components
+// Barrel export for all RBAC components
+
 // Protected Components
 export {
   ProtectedComponent,
@@ -26,3 +29,6 @@ export {
   DoctorRouteProtection,
   StaffRouteProtection,
 } from './ProtectedRoute';
+
+// Specialized Components - These components don't exist in SpecializedComponents.tsx
+// They can be created using ProtectedComponent with role checks if needed

@@ -15,20 +15,19 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  CircleDot,
   Pause,
   Play,
-  Square,
   Settings,
   Loader2,
 } from "lucide-react";
-import { useVideoAppointmentWebSocket } from "@/hooks/useVideoAppointmentSocketIO";
+import { Badge } from "@/components/ui/badge";
+import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import {
-  pauseRecording,
-  resumeRecording,
-  setRecordingQuality,
-} from "@/lib/actions/video-enhanced.server";
-import { useToast } from "@/hooks/use-toast";
+  usePauseVideoRecording,
+  useResumeVideoRecording,
+  useSetVideoRecordingQuality,
+} from "@/hooks/query";
+import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 interface EnhancedRecordingControlsProps {
   appointmentId: string;
@@ -39,14 +38,18 @@ interface EnhancedRecordingControlsProps {
 export function EnhancedRecordingControls({
   appointmentId,
   isRecording,
-  onRecordingChange,
 }: EnhancedRecordingControlsProps) {
-  const { toast } = useToast();
   const [isPaused, setIsPaused] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [quality, setQuality] = useState<"low" | "medium" | "high" | "ultra">("high");
 
   const { subscribeToRecordingEvents, isConnected } = useVideoAppointmentWebSocket();
+  const pauseRecordingMutation = usePauseVideoRecording();
+  const resumeRecordingMutation = useResumeVideoRecording();
+  const setRecordingQualityMutation = useSetVideoRecordingQuality();
+  const isLoading =
+    pauseRecordingMutation.isPending ||
+    resumeRecordingMutation.isPending ||
+    setRecordingQualityMutation.isPending;
 
   // Subscribe to recording pause/resume events
   React.useEffect(() => {
@@ -66,68 +69,50 @@ export function EnhancedRecordingControls({
   }, [isConnected, appointmentId, subscribeToRecordingEvents]);
 
   const handlePause = async () => {
-    setIsLoading(true);
     try {
-      const result = await pauseRecording(appointmentId);
+      const result = await pauseRecordingMutation.mutateAsync(appointmentId);
       if (result.success) {
         setIsPaused(true);
-        toast({
-          title: "Recording Paused",
+        showSuccessToast("Recording paused", {
+          id: TOAST_IDS.VIDEO.END,
           description: "Recording has been paused",
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to pause recording",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 
   const handleResume = async () => {
-    setIsLoading(true);
     try {
-      const result = await resumeRecording(appointmentId);
+      const result = await resumeRecordingMutation.mutateAsync(appointmentId);
       if (result.success) {
         setIsPaused(false);
-        toast({
-          title: "Recording Resumed",
+        showSuccessToast("Recording resumed", {
+          id: TOAST_IDS.VIDEO.JOIN,
           description: "Recording has been resumed",
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to resume recording",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 
   const handleQualityChange = async (newQuality: "low" | "medium" | "high" | "ultra") => {
-    setIsLoading(true);
     try {
-      const result = await setRecordingQuality(appointmentId, newQuality);
+      const result = await setRecordingQualityMutation.mutateAsync({
+        appointmentId,
+        quality: newQuality,
+      });
       if (result.success) {
         setQuality(newQuality);
-        toast({
-          title: "Quality Updated",
+        showSuccessToast("Recording quality updated", {
+          id: TOAST_IDS.VIDEO.JOIN,
           description: `Recording quality set to ${newQuality}`,
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update recording quality",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 
@@ -179,7 +164,7 @@ export function EnhancedRecordingControls({
         <PopoverContent className="w-48">
           <div className="space-y-2">
             <p className="text-sm font-medium mb-2">Recording Quality</p>
-            <Select value={quality} onValueChange={(v) => handleQualityChange(v as typeof quality)}>
+            <Select value={quality} onValueChange={(v) => void handleQualityChange(v as typeof quality)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

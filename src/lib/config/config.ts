@@ -1,5 +1,5 @@
-/**
- * 🎯 CENTRAL CONFIGURATION - SINGLE SOURCE OF TRUTH
+﻿/**
+ * ðŸŽ¯ CENTRAL CONFIGURATION - SINGLE SOURCE OF TRUTH
  * 
  * This is the ONLY configuration file used throughout the entire application.
  * Use this for: UI components, hooks, actions, API clients, WebSocket, and everything else.
@@ -50,6 +50,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_API_URL: z.string().optional(),
   NEXT_PUBLIC_API_BASE_URL: z.string().optional(),
   NEXT_PUBLIC_API_VERSION: z.string().default('v1'),
+  NEXT_PUBLIC_API_PREFIX: z.string().optional(),  // âœ… API prefix (e.g., /api/v1)
   NEXT_PUBLIC_CLINIC_API_URL: z.string().optional(),
   NEXT_PUBLIC_FASHION_API_URL: z.string().optional(),
   
@@ -60,7 +61,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_WS_MAX_RECONNECT_ATTEMPTS: z.string().optional(),
   
   // Authentication Configuration
-  NEXT_PUBLIC_AUTH_ENABLED: z.string().transform(val => val === 'true').default('true'),
+  NEXT_PUBLIC_AUTH_ENABLED: z.string().optional().transform(val => val === 'true'),
   NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string().optional(),
   NEXT_PUBLIC_FACEBOOK_APP_ID: z.string().optional(),
   NEXT_PUBLIC_APPLE_CLIENT_ID: z.string().optional(),
@@ -75,7 +76,7 @@ const envSchema = z.object({
   
   // Third-party API Keys
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().optional(),
-  NEXT_PUBLIC_RAZORPAY_KEY: z.string().optional(),
+  NEXT_PUBLIC_CASHFREE_APP_ID: z.string().optional(),
   
   // Firebase Configuration
   NEXT_PUBLIC_FIREBASE_API_KEY: z.string().optional(),
@@ -88,23 +89,30 @@ const envSchema = z.object({
   
   // Video Configuration
   NEXT_PUBLIC_OPENVIDU_SERVER_URL: z.string().optional(),
+  NEXT_PUBLIC_JITSI_DOMAIN: z.string().optional(),
+  NEXT_PUBLIC_JITSI_BASE_URL: z.string().optional(),
+  NEXT_PUBLIC_JITSI_WS_URL: z.string().optional(),
+  
+  // App Domain Configuration
+  NEXT_PUBLIC_MAIN_DOMAIN: z.string().optional(),
+  NEXT_PUBLIC_FRONTEND_DOMAIN: z.string().optional(),
   
   // Feature Flags
-  NEXT_PUBLIC_ENABLE_REAL_TIME: z.string().transform(val => val === 'true').default('true'),
-  NEXT_PUBLIC_ENABLE_VIDEO_CALLS: z.string().transform(val => val === 'true').default('true'),
-  NEXT_PUBLIC_ENABLE_NOTIFICATIONS: z.string().transform(val => val === 'true').default('true'),
-  NEXT_PUBLIC_ENABLE_ANALYTICS: z.string().transform(val => val === 'true').default('false'),
-  NEXT_PUBLIC_ENABLE_HTTPS: z.string().transform(val => val === 'true').default('false'),
-  NEXT_PUBLIC_ENABLE_CORS: z.string().transform(val => val === 'true').default('true'),
+  NEXT_PUBLIC_ENABLE_REAL_TIME: z.string().default('true').transform(val => val === 'true'),
+  NEXT_PUBLIC_ENABLE_VIDEO_CALLS: z.string().default('true').transform(val => val === 'true'),
+  NEXT_PUBLIC_ENABLE_NOTIFICATIONS: z.string().default('true').transform(val => val === 'true'),
+  NEXT_PUBLIC_ENABLE_ANALYTICS: z.string().default('false').transform(val => val === 'true'),
+  NEXT_PUBLIC_ENABLE_HTTPS: z.string().default('false').transform(val => val === 'true'),
+  NEXT_PUBLIC_ENABLE_CORS: z.string().default('true').transform(val => val === 'true'),
   
   // Debug & Monitoring
-  NEXT_PUBLIC_DEBUG_BACKEND_STATUS: z.string().transform(val => val === 'true').default('false'),
+  NEXT_PUBLIC_DEBUG_BACKEND_STATUS: z.string().default('false').transform(val => val === 'true'),
   NEXT_PUBLIC_HEALTH_CHECK_INTERVAL: z.string().optional(),
   NEXT_PUBLIC_BACKEND_URL: z.string().optional(),
   
   // Logging
   NEXT_PUBLIC_LOG_LEVEL: z.string().default('info'),
-  NEXT_PUBLIC_ENABLE_CONSOLE_LOGS: z.string().transform(val => val === 'true').default('false'),
+  NEXT_PUBLIC_ENABLE_CONSOLE_LOGS: z.string().default('false').transform(val => val === 'true'),
 });
 
 // Parse and validate environment variables
@@ -114,27 +122,37 @@ export const env = envSchema.parse(process.env);
 // ENVIRONMENT-SPECIFIC DEFAULTS
 // ============================================================================
 
+// âš ï¸ SECURITY: No hardcoded URLs - all URLs must come from environment variables
+// This prevents exposing internal infrastructure details in the codebase
 const envDefaults = {
   development: {
-    apiUrl: 'http://localhost:8088',
-    websocketUrl: 'ws://localhost:8088/socket.io',
-    appUrl: 'http://localhost:3000',
+    // Development defaults - fallback to localhost only if env vars are not set
+    // This prevents "Invalid URL" errors during SSR when env vars aren't loaded yet
+    // In production, env vars MUST be set (no fallbacks)
+    apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8088',
+    // âœ… FIX: Socket.IO expects base HTTP URL, not ws:// with /socket.io
+    // Socket.IO automatically handles protocol upgrade and path
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8088',
+    appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     enableDebug: true,
     enableAnalytics: false,
     logLevel: 'debug' as const,
   },
   staging: {
-    apiUrl: 'https://staging-api.ishswami.in',
-    websocketUrl: 'wss://staging-api.ishswami.in/socket.io',
-    appUrl: 'https://staging.ishswami.in',
+    // Staging - all URLs must come from env vars
+    apiUrl: process.env.NEXT_PUBLIC_API_URL || '',
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || '',
+    appUrl: process.env.NEXT_PUBLIC_APP_URL || '',
     enableDebug: true,
     enableAnalytics: true,
     logLevel: 'info' as const,
   },
   production: {
-    apiUrl: 'https://api.ishswami.in',
-    websocketUrl: 'wss://api.ishswami.in/socket.io',
-    appUrl: 'https://ishswami.in',
+    // âš ï¸ SECURITY: All URLs MUST be provided via environment variables
+    // No hardcoded URLs - prevents accidental exposure and allows flexible deployment
+    apiUrl: process.env.NEXT_PUBLIC_API_URL,
+    websocketUrl: process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL,
+    appUrl: process.env.NEXT_PUBLIC_APP_URL,
     enableDebug: false,
     enableAnalytics: true,
     logLevel: 'error' as const,
@@ -160,9 +178,15 @@ export const APP_CONFIG = {
   // API CONFIGURATION
   // ============================================
   API: {
-    BASE_URL: env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
-    CLINIC_URL: env.NEXT_PUBLIC_CLINIC_API_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
-    FASHION_URL: env.NEXT_PUBLIC_FASHION_API_URL || 'http://localhost:4002/api/v1',
+    // âœ… API prefix is now configurable via environment variable
+    PREFIX: env.NEXT_PUBLIC_API_PREFIX || '/api/v1',
+    // Raw backend URL without prefix (for health checks, etc.)
+    RAW_URL: env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
+    // Backend uses /api/v1 prefix for all API endpoints (see HealthCareBackend/src/main.ts line 768)
+    BASE_URL: `${env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl}${env.NEXT_PUBLIC_API_PREFIX || '/api/v1'}`,
+    CLINIC_URL: `${env.NEXT_PUBLIC_CLINIC_API_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl}${env.NEXT_PUBLIC_API_PREFIX || '/api/v1'}`,
+    // Health endpoint is excluded from /api/v1 prefix (public endpoint)
+    HEALTH_BASE_URL: env.NEXT_PUBLIC_API_BASE_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
     VERSION: env.NEXT_PUBLIC_API_VERSION,
     TIMEOUT: {
       REQUEST: 30000,
@@ -211,7 +235,7 @@ export const APP_CONFIG = {
   // AUTHENTICATION CONFIGURATION
   // ============================================
   AUTH: {
-    ENABLED: env.NEXT_PUBLIC_AUTH_ENABLED,
+    ENABLED: env.NEXT_PUBLIC_AUTH_ENABLED ?? true,
     GOOGLE_CLIENT_ID: env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
     FACEBOOK_APP_ID: env.NEXT_PUBLIC_FACEBOOK_APP_ID || '',
     APPLE_CLIENT_ID: env.NEXT_PUBLIC_APPLE_CLIENT_ID || '',
@@ -221,7 +245,8 @@ export const APP_CONFIG = {
   // CLINIC CONFIGURATION
   // ============================================
   CLINIC: {
-    ID: env.NEXT_PUBLIC_CLINIC_ID || 'CL0002',
+    // âœ… Trim clinic ID to prevent whitespace issues
+    ID: env.NEXT_PUBLIC_CLINIC_ID?.trim() || 'CL0002',
     APP_NAME: env.NEXT_PUBLIC_APP_NAME || 'Healthcare',
   },
   
@@ -238,7 +263,7 @@ export const APP_CONFIG = {
   // ============================================
   SERVICES: {
     GOOGLE_MAPS_API_KEY: env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-    RAZORPAY_KEY: env.NEXT_PUBLIC_RAZORPAY_KEY || '',
+    CASHFREE_APP_ID: env.NEXT_PUBLIC_CASHFREE_APP_ID || '',
   },
   
   // ============================================
@@ -255,10 +280,17 @@ export const APP_CONFIG = {
   },
   
   // ============================================
-  // VIDEO CONFIGURATION (OpenVidu)
+  // VIDEO CONFIGURATION (OpenVidu + Jitsi)
   // ============================================
   VIDEO: {
-    OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || 'https://localhost:4443',
+    // âš ï¸ SECURITY: Video server URLs must come from environment variables
+    OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || '',
+    // Jitsi Configuration (Fallback Video Provider)
+    JITSI: {
+      DOMAIN: env.NEXT_PUBLIC_JITSI_DOMAIN || '',
+      BASE_URL: env.NEXT_PUBLIC_JITSI_BASE_URL || '',
+      WS_URL: env.NEXT_PUBLIC_JITSI_WS_URL || '',
+    },
   },
   
   // ============================================
@@ -278,7 +310,7 @@ export const APP_CONFIG = {
   // DEBUG & MONITORING
   // ============================================
   DEBUG: {
-    BACKEND_STATUS: env.NEXT_PUBLIC_DEBUG_BACKEND_STATUS,
+    BACKEND_STATUS: env.NEXT_PUBLIC_DEBUG_BACKEND_STATUS ?? false,
     HEALTH_CHECK_INTERVAL: parseInt(env.NEXT_PUBLIC_HEALTH_CHECK_INTERVAL || '15000', 10),
     BACKEND_URL: env.NEXT_PUBLIC_BACKEND_URL || env.NEXT_PUBLIC_API_URL || currentEnvDefaults.apiUrl,
   },
@@ -288,7 +320,7 @@ export const APP_CONFIG = {
   // ============================================
   LOGGING: {
     LEVEL: (env.NEXT_PUBLIC_LOG_LEVEL || currentEnvDefaults.logLevel) as 'debug' | 'info' | 'warn' | 'error',
-    ENABLE_CONSOLE: env.NEXT_PUBLIC_ENABLE_CONSOLE_LOGS || isDevelopment,
+    ENABLE_CONSOLE: env.NEXT_PUBLIC_ENABLE_CONSOLE_LOGS ?? isDevelopment,
   },
 } as const;
 
@@ -298,24 +330,29 @@ export const APP_CONFIG = {
 
 export const API_ENDPOINTS = {
   // Authentication Endpoints
+  
   AUTH: {
     BASE: '/auth',
-    LOGIN: '/auth/login',
-    REGISTER: '/auth/register',
+    // âœ… Backend endpoints (verified)
+    LOGIN: '/auth/login',                    // POST /auth/login
+    REGISTER: '/auth/register',              // POST /auth/register
+    REFRESH: '/auth/refresh',                // POST /auth/refresh
+    LOGOUT: '/auth/logout',                  // POST /auth/logout
+    FORGOT_PASSWORD: '/auth/forgot-password', // POST /auth/forgot-password
+    RESET_PASSWORD: '/auth/reset-password',  // POST /auth/reset-password
+    CHANGE_PASSWORD: '/auth/change-password', // POST /auth/change-password
+    REQUEST_OTP: '/auth/request-otp',        // POST /auth/request-otp
+    VERIFY_OTP: '/auth/verify-otp',           // POST /auth/verify-otp
+    SESSIONS: '/auth/sessions',              // GET /auth/sessions âœ… Added
+    GOOGLE_LOGIN: '/auth/google',            // POST /auth/google
+    // Additional endpoints (frontend-specific or future)
     REGISTER_WITH_CLINIC: '/auth/register-with-clinic',
-    REFRESH: '/auth/refresh',
-    LOGOUT: '/auth/logout',
-    VERIFY_OTP: '/auth/verify-otp',
-    REQUEST_OTP: '/auth/request-otp',
     CHECK_OTP_STATUS: '/auth/check-otp-status',
     INVALIDATE_OTP: '/auth/invalidate-otp',
     MAGIC_LINK: '/auth/magic-link',
     VERIFY_MAGIC_LINK: '/auth/verify-magic-link',
-    FORGOT_PASSWORD: '/auth/forgot-password',
-    RESET_PASSWORD: '/auth/reset-password',
-    CHANGE_PASSWORD: '/auth/change-password',
     VERIFY_EMAIL: '/auth/verify-email',
-    GOOGLE_LOGIN: '/auth/google',
+    RESEND_VERIFICATION: '/auth/resend-verification',
     FACEBOOK_LOGIN: '/auth/facebook',
     APPLE_LOGIN: '/auth/apple',
   },
@@ -330,6 +367,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/clinics/${id}`,
     DELETE: (id: string) => `/clinics/${id}`,
     STATS: (id: string) => `/clinics/${id}/stats`,
+    OPERATING_HOURS: (id: string) => `/clinics/${id}/operating-hours`,
     ANALYTICS: (id: string) => `/clinics/${id}/analytics`,
     SETTINGS: (id: string) => `/clinics/${id}/settings`,
   },
@@ -351,29 +389,41 @@ export const API_ENDPOINTS = {
     BASE: '/appointments',
     CREATE: '/appointments',
     GET_ALL: '/appointments',
+    SERVICES: '/appointments/services/catalog',
+    MY_APPOINTMENTS: '/appointments/my-appointments', // Patient-specific endpoint
     GET_BY_TENANT: (tenantId: string) => `/appointments/tenant/${tenantId}`,
     GET_BY_ID: (id: string) => `/appointments/${id}`,
     UPDATE: (id: string) => `/appointments/${id}`,
+    REASSIGN_DOCTOR: (id: string) => `/appointments/${id}/reassign-doctor`,
+    REASSIGNMENT_CANDIDATES: (id: string) => `/appointments/${id}/reassignment-candidates`,
+    ASSISTANT_COVERAGE: '/appointments/assistant-coverage',
     DELETE: (id: string) => `/appointments/${id}`,
-    CANCEL: (id: string) => `/appointments/${id}/cancel`,
-    CONFIRM: (id: string) => `/appointments/${id}/confirm`,
+    CANCEL: (id: string) => `/appointments/${id}/status`,
+    CONFIRM: (id: string) => `/appointments/${id}/status`,
+    STATUS: (id: string) => `/appointments/${id}/status`, // Consolidated endpoint
+    VIDEO_PROPOSE: '/appointments/video/propose',
+    VIDEO_REJECT_PROPOSAL: (id: string) => `/appointments/${id}/video/reject`,
+    VIDEO_CONFIRM_SLOT: (id: string) => `/appointments/${id}/video/confirm-slot`,
     CHECK_IN: (id: string) => `/appointments/${id}/check-in`,
-    START: (id: string) => `/appointments/${id}/start`,
+    SCAN_QR: '/appointments/check-in/scan-qr',
+    START: (id: string) => `/appointments/${id}/start-consultation`,
     COMPLETE: (id: string) => `/appointments/${id}/complete`,
     RESCHEDULE: (id: string) => `/appointments/${id}/reschedule`,
     DOCTOR_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     UPDATE_AVAILABILITY: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
+    // Deprecated compatibility alias for queue callers that still reference
+    // APPOINTMENTS.QUEUE. All queue flows now resolve to the standalone /queue/* API.
     QUEUE: {
-      GET: (queueType: string) => `/appointments/queue/${queueType}`,
-      ADD: '/appointments/queue/add',
-      REMOVE: (queueId: string) => `/appointments/queue/${queueId}`,
-      CALL_NEXT: (queueType: string) => `/appointments/queue/${queueType}/call-next`,
-      REORDER: (queueType: string) => `/appointments/queue/${queueType}/reorder`,
-      STATS: '/appointments/queue/stats',
-      ANALYTICS: '/appointments/queue/analytics',
+      GET: (_queueType: string) => `/queue`,
+      ADD: '/queue/add',
+      REMOVE: (queueId: string) => `/queue/${queueId}`,
+      CALL_NEXT: (_queueType: string) => '/queue/call-next',
+      REORDER: (_queueType: string) => '/queue/reorder',
+      STATS: '/queue/stats',
+      ANALYTICS: '/queue/analytics',
     },
     QR: {
-      GENERATE: (appointmentId: string) => `/appointments/${appointmentId}/qr`,
+      GENERATE: (locationId: string) => `/appointments/locations/${locationId}/qr-code`,
       VERIFY: '/appointments/verify-qr',
     },
     NOTIFICATIONS: {
@@ -382,16 +432,19 @@ export const API_ENDPOINTS = {
       MARK_READ: (notificationId: string) => `/appointments/notifications/${notificationId}/read`,
     },
     ANALYTICS: '/appointments/analytics/wait-times',
+    UPCOMING: '/appointments/upcoming',
+    TEST_CONTEXT: '/appointments/test/context',
   },
   
   // Queue Endpoints (Standalone queue management)
   QUEUE: {
     BASE: '/queue',
     GET: '/queue',
+    GET_BY_TYPE: (queueType: string) => `/queue/${queueType}`,
     STATS: '/queue/stats',
     UPDATE_STATUS: (patientId: string) => `/queue/${patientId}/status`,
     CALL_NEXT: '/queue/call-next',
-    ADD: '/queue',
+    ADD: '/queue/add',
     REMOVE: (queueId: string) => `/queue/${queueId}`,
     REORDER: '/queue/reorder',
     HISTORY: '/queue/history',
@@ -416,6 +469,7 @@ export const API_ENDPOINTS = {
       UPDATE: (alertId: string) => `/queue/alerts/${alertId}`,
       DELETE: (alertId: string) => `/queue/alerts/${alertId}`,
     },
+    TRANSFER: (entryId: string) => `/queue/${entryId}/transfer`,
   },
   
   // Pharmacy Endpoints
@@ -430,9 +484,16 @@ export const API_ENDPOINTS = {
     },
     PRESCRIPTIONS: {
       GET: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
-      CREATE: (clinicId: string) => `/clinics/${clinicId}/prescriptions`,
+      LIST: '/pharmacy/prescriptions',
+      QUEUE: '/pharmacy/prescriptions/queue',
+      GET_BY_PATIENT: (userId: string) => `/pharmacy/prescriptions/patient/${userId}`,
+      CREATE: '/pharmacy/prescriptions',
       UPDATE_STATUS: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/status`,
       DISPENSE: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/dispense`,
+      PAYMENT_SUMMARY: (prescriptionId: string) =>
+        `/pharmacy/prescriptions/${prescriptionId}/payment-summary`,
+      PROCESS_PAYMENT: (prescriptionId: string) =>
+        `/pharmacy/prescriptions/${prescriptionId}/process-payment`,
     },
     INVENTORY: {
       UPDATE: (clinicId: string, medicineId: string) => `/clinics/${clinicId}/pharmacy/inventory/${medicineId}`,
@@ -450,6 +511,7 @@ export const API_ENDPOINTS = {
   // Patients Endpoints
   PATIENTS: {
     BASE: '/patients',
+    GET_ALL: '/patients',
     GET_CLINIC_PATIENTS: (clinicId: string) => `/clinics/${clinicId}/patients`,
     GET_BY_ID: (clinicId: string, patientId: string) => `/clinics/${clinicId}/patients/${patientId}`,
     CREATE: '/patients',
@@ -481,6 +543,7 @@ export const API_ENDPOINTS = {
   // Doctors Endpoints
   DOCTORS: {
     BASE: '/doctors',
+    GET_ALL: '/doctors',
     GET_CLINIC_DOCTORS: (clinicId: string) => `/clinics/${clinicId}/doctors`,
     GET_BY_ID: (doctorId: string) => `/doctors/${doctorId}`,
     CREATE: '/doctors',
@@ -491,8 +554,8 @@ export const API_ENDPOINTS = {
       UPDATE: (doctorId: string) => `/doctors/${doctorId}/schedule`,
     },
     AVAILABILITY: {
-      GET: (doctorId: string) => `/doctors/${doctorId}/availability`,
-      UPDATE: (doctorId: string) => `/doctors/${doctorId}/availability`,
+      GET: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
+      UPDATE: (doctorId: string) => `/appointments/doctor/${doctorId}/availability`,
     },
     APPOINTMENTS: (doctorId: string) => `/doctors/${doctorId}/appointments`,
     PATIENTS: (clinicId: string, doctorId: string) => `/clinics/${clinicId}/doctors/${doctorId}/patients`,
@@ -510,8 +573,18 @@ export const API_ENDPOINTS = {
     EARNINGS: (doctorId: string) => `/doctors/${doctorId}/earnings`,
     EXPORT: '/doctors/export',
   },
+
+  // Staff Endpoints
+  STAFF: {
+    BASE: '/staff',
+    GET_ALL: '/staff',
+    GET_BY_ID: (id: string) => `/staff/${id}`,
+    CREATE: '/staff',
+    UPDATE: (id: string) => `/staff/${id}`,
+    DELETE: (id: string) => `/staff/${id}`,
+  },
   
-  // Users Endpoints (Backend uses /user, not /users)
+  // Users Endpoints (Updated to /users for naming consistency)
   USERS: {
     BASE: '/user',
     PROFILE: '/user/profile',
@@ -519,25 +592,38 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/user/${id}`,
     DELETE: (id: string) => `/user/${id}`,
     GET_ALL: '/user/all',
-    GET_BY_ROLE: (role: string) => `/user/role/${role}`,
-    GET_BY_CLINIC: (clinicId: string) => `/user/clinic/${clinicId}`,
+    CREATE: '/user',
+    GET_BY_ROLE: {
+      PATIENT: '/user/role/patient',
+      DOCTORS: '/user/role/doctors',
+      RECEPTIONISTS: '/user/role/receptionists',
+      CLINIC_ADMINS: '/user/role/clinic-admins',
+    },
+    GET_BY_CLINIC: (clinicId: string) => `/clinics/${clinicId}/staff`,
+    UPDATE_ROLE: (id: string) => `/user/${id}/role`,
+    CHANGE_LOCATION: (id: string) => `/user/${id}/change-location`,
     SEARCH: '/user/search',
     STATS: '/user/stats',
     BULK_UPDATE: '/user/bulk-update',
     EXPORT: '/user/export',
-    CHANGE_PASSWORD: (id: string) => `/user/${id}/password`,
-    TOGGLE_VERIFICATION: (id: string) => `/user/${id}/verification`,
-    ACTIVITY_LOGS: (id: string) => `/user/${id}/activity`,
-    SESSIONS: (id: string) => `/user/${id}/sessions`,
-    TERMINATE_SESSION: (id: string, sessionId: string) => `/user/${id}/sessions/${sessionId}`,
+    CHANGE_PASSWORD: (id: string) => `/user/${id}/change-password`,
+    TOGGLE_VERIFICATION: (id: string) => `/user/${id}/toggle-verification`,
+    ACTIVITY_LOGS: (id: string) => `/user/${id}/activity-logs`,
+    TERMINATE_SESSION: (sessionId: string) => `/user/sessions/${sessionId}`,
+    SESSIONS: {
+      GET_ALL: '/user/sessions',
+      REVOKE: (sessionId: string) => `/user/sessions/${sessionId}`,
+      REVOKE_ALL: '/user/sessions/revoke-all',
+    },
   },
   
-  // Health Check Endpoints
+  // Health Check Endpoints (Public, no /api/v1 prefix)
   HEALTH: {
     BASE: '/health',
+    DETAILED: '/health?detailed=true',
     STATUS: '/health/status',
     READY: '/health/ready',
-    LIVE: '/health/live',
+    LIVE: '/health/status',
   },
   
   // Billing Endpoints
@@ -555,16 +641,18 @@ export const API_ENDPOINTS = {
       CREATE: '/billing/subscriptions',
       GET_BY_ID: (id: string) => `/billing/subscriptions/${id}`,
       GET_USER_SUBSCRIPTIONS: (userId: string) => `/billing/subscriptions/user/${userId}`,
+      GET_CLINIC_SUBSCRIPTIONS: '/billing/subscriptions/clinic',
       GET_ACTIVE: (userId: string) => `/billing/subscriptions/user/${userId}/active`,
       UPDATE: (id: string) => `/billing/subscriptions/${id}`,
       CANCEL: (id: string) => `/billing/subscriptions/${id}/cancel`,
       RENEW: (id: string) => `/billing/subscriptions/${id}/renew`,
       USAGE_STATS: (id: string) => `/billing/subscriptions/${id}/usage-stats`,
       RESET_QUOTA: (id: string) => `/billing/subscriptions/${id}/reset-quota`,
-      CAN_BOOK: (id: string) => `/billing/subscriptions/${id}/can-book-appointment`,
-      CHECK_COVERAGE: (id: string) => `/billing/subscriptions/${id}/check-coverage`,
+      CHECK_COVERAGE: (id: string) => `/billing/subscriptions/${id}/coverage`,
       BOOK_APPOINTMENT: (subscriptionId: string, appointmentId: string) => 
         `/billing/subscriptions/${subscriptionId}/book-appointment/${appointmentId}`,
+      BOOK_INPERSON: (subscriptionId: string) =>
+        `/billing/subscriptions/${subscriptionId}/book-inperson`,
       PROCESS_PAYMENT: (id: string) => `/billing/subscriptions/${id}/process-payment`,
     },
     INVOICES: {
@@ -572,7 +660,9 @@ export const API_ENDPOINTS = {
       CREATE: '/billing/invoices',
       GET_BY_ID: (id: string) => `/billing/invoices/${id}`,
       GET_USER_INVOICES: (userId: string) => `/billing/invoices/user/${userId}`,
+      GET_CLINIC_INVOICES: '/billing/invoices/clinic',
       UPDATE: (id: string) => `/billing/invoices/${id}`,
+      PROCESS_PAYMENT: (id: string) => `/billing/invoices/${id}/process-payment`,
       MARK_PAID: (id: string) => `/billing/invoices/${id}/mark-paid`,
       GENERATE_PDF: (id: string) => `/billing/invoices/${id}/generate-pdf`,
       SEND_WHATSAPP: (id: string) => `/billing/invoices/${id}/send-whatsapp`,
@@ -583,12 +673,19 @@ export const API_ENDPOINTS = {
       CREATE: '/billing/payments',
       GET_BY_ID: (id: string) => `/billing/payments/${id}`,
       GET_USER_PAYMENTS: (userId: string) => `/billing/payments/user/${userId}`,
+      GET_CLINIC_PAYMENTS: '/billing/payments/clinic',
+      GET_LEDGER: '/billing/payments/ledger',
       UPDATE: (id: string) => `/billing/payments/${id}`,
-      CALLBACK: '/billing/payments/callback',
+      // Backend PaymentController: POST /payments/callback
+      CALLBACK: '/payments/callback',
+      PAYMENT_CALLBACK: '/payments/callback',
       REFUND: (id: string) => `/billing/payments/${id}/refund`,
+      RECONCILE: (id: string) => `/billing/payments/${id}/reconcile`,
     },
     APPOINTMENT_PAYMENTS: {
       PROCESS_PAYMENT: (id: string) => `/billing/appointments/${id}/process-payment`,
+      PAYOUT_STATUS: (id: string) => `/billing/appointments/${id}/payout-status`,
+      RELEASE_PAYOUT: (id: string) => `/billing/appointments/${id}/release-payout`,
     },
     ANALYTICS: {
       REVENUE: '/billing/analytics/revenue',
@@ -674,18 +771,6 @@ export const API_ENDPOINTS = {
       SHARE_IMAGE: (appointmentId: string) => `/video/consultation/${appointmentId}/share-image`,
     },
     HISTORY: '/video/history',
-    // Video Appointments Management
-    APPOINTMENTS: {
-      BASE: '/video-appointments',
-      CREATE: '/video-appointments',
-      GET_ALL: (clinicId: string) => `/clinics/${clinicId}/video-appointments`,
-      GET_BY_ID: (id: string) => `/video-appointments/${id}`,
-      UPDATE: (appointmentId: string) => `/video-appointments/${appointmentId}`,
-      DELETE: (appointmentId: string) => `/video-appointments/${appointmentId}`,
-      JOIN: (appointmentId: string) => `/video-appointments/${appointmentId}/join`,
-      END: (appointmentId: string) => `/video-appointments/${appointmentId}/end`,
-      RECORDING: (appointmentId: string) => `/video-appointments/${appointmentId}/recording`,
-    },
     RECORDING: {
       START: '/video/recording/start',
       STOP: '/video/recording/stop',
@@ -696,7 +781,7 @@ export const API_ENDPOINTS = {
       GET: (appointmentId: string) => `/video/participants/${appointmentId}`,
     },
     ANALYTICS: (appointmentId: string) => `/video/analytics/${appointmentId}`,
-    HEALTH: '/video/health',
+    HEALTH: '/health',
     // Phase 1 & 2 Features - Backend uses consultationId
     CHAT: {
       SEND: '/video/chat/send',
@@ -735,6 +820,11 @@ export const API_ENDPOINTS = {
       PAUSE: (appointmentId: string) => `/video/recording/${appointmentId}/pause`,
       RESUME: (appointmentId: string) => `/video/recording/${appointmentId}/resume`,
       SET_QUALITY: (appointmentId: string) => `/video/recording/${appointmentId}/quality`,
+    },
+    // Super Admin monitoring & control
+    ADMIN: {
+      LIST_SESSIONS: '/video/admin/sessions',
+      TERMINATE_SESSION: (sessionId: string) => `/video/admin/sessions/${sessionId}/terminate`,
     },
   },
   
@@ -781,6 +871,7 @@ export const API_ENDPOINTS = {
       },
     },
     STATS: '/communication/stats',
+    ANALYTICS: '/communication/analytics',
     HEALTH: '/communication/health',
     TEST: '/communication/test',
   },
@@ -794,6 +885,131 @@ export const API_ENDPOINTS = {
     UPDATE: (userId: string) => `/notification-preferences/${userId}`,
     DELETE: (userId: string) => `/notification-preferences/${userId}`,
   },
+  
+  // Email Unsubscribe Endpoints (Backend-only - no frontend integration needed)
+  // Backend handles unsubscribe directly via /api/v1/email/unsubscribe?token=...
+  // Frontend integration not required - backend returns JSON response
+  // EMAIL_UNSUBSCRIBE: {
+  //   BASE: '/email/unsubscribe',
+  //   UNSUBSCRIBE: (token: string) => `/email/unsubscribe/${token}`,
+  //   VERIFY: (token: string) => `/email/unsubscribe/verify/${token}`,
+  //   PROCESS: (token: string) => `/email/unsubscribe/${token}`,
+  // },
+  
+  // EHR Clinic Endpoints (Clinic-wide EHR features)
+  EHR_CLINIC: {
+    BASE: '/ehr/clinic',
+    COMPREHENSIVE: (userId: string) => `/ehr/clinic/comprehensive/${userId}`,
+    PATIENT_RECORDS: (clinicId: string) => `/ehr/clinic/${clinicId}/patients/records`,
+    ANALYTICS: (clinicId: string) => `/ehr/clinic/${clinicId}/analytics`,
+    PATIENT_SUMMARY: (clinicId: string) => `/ehr/clinic/${clinicId}/patients/summary`,
+    SEARCH: (clinicId: string) => `/ehr/clinic/${clinicId}/search`,
+    CRITICAL_ALERTS: (clinicId: string) => `/ehr/clinic/${clinicId}/alerts/critical`,
+  },
+  
+  // Plugin Endpoints (Optional - Admin-only tool for plugin monitoring/management)
+  // Note: Plugins are automatically used by the appointment system - these endpoints
+  // are only for admin monitoring, configuration, and manual execution.
+  // Frontend integration is optional since plugins work automatically.
+  // PLUGINS: {
+  //   BASE: '/api/appointments/plugins',
+  //   INFO: '/api/appointments/plugins/info',
+  //   BY_DOMAIN: (domain: string) => `/api/appointments/plugins/domain/${domain}`,
+  //   DOMAIN_FEATURES: (domain: string) => `/api/appointments/plugins/domain/${domain}/features`,
+  //   EXECUTE: '/api/appointments/plugins/execute',
+  //   EXECUTE_BATCH: '/api/appointments/plugins/execute-batch',
+  //   HEALTH: '/api/appointments/plugins/health',
+  //   HEALTH_METRICS: '/api/appointments/plugins/health/metrics',
+  //   HEALTH_DOMAIN: (domain: string) => `/api/appointments/plugins/health/domain/${domain}`,
+  //   HEALTH_ALERTS: '/api/appointments/plugins/health/alerts',
+  //   CONFIG: '/api/appointments/plugins/config',
+  //   CONFIG_BY_NAME: (pluginName: string) => `/api/appointments/plugins/config/${pluginName}`,
+  //   UPDATE_CONFIG: (pluginName: string) => `/api/appointments/plugins/config/${pluginName}`,
+  // },
+  
+  // Medical Records Endpoints
+  MEDICAL_RECORDS: {
+    BASE: '/medical-records',
+    GET_BY_PATIENT: (patientId: string) => `/medical-records/patient/${patientId}`,
+    CREATE: '/medical-records',
+    UPDATE: (recordId: string) => `/medical-records/${recordId}`,
+    DELETE: (recordId: string) => `/medical-records/${recordId}`,
+    GET_BY_ID: (recordId: string) => `/medical-records/${recordId}`,
+    UPLOAD: (recordId: string) => `/medical-records/${recordId}/upload`,
+    TEMPLATES: {
+      GET: '/medical-records/templates',
+      CREATE: '/medical-records/templates',
+    },
+  },
+  
+  // Prescriptions Endpoints (align with pharmacy backend)
+  PRESCRIPTIONS: {
+    BASE: '/pharmacy/prescriptions',
+    GET_BY_PATIENT: (patientId: string) => `/pharmacy/prescriptions/patient/${patientId}`,
+    CREATE: '/pharmacy/prescriptions',
+    UPDATE: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/status`,
+    GET_BY_ID: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
+    GENERATE_PDF: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/pdf`,
+  },
+  
+  // Medicines Endpoints
+  MEDICINES: {
+    BASE: '/medicines',
+    GET_ALL: '/medicines',
+    CREATE: '/medicines',
+    UPDATE: (medicineId: string) => `/medicines/${medicineId}`,
+    DELETE: (medicineId: string) => `/medicines/${medicineId}`,
+    SEARCH: '/medicines/search',
+    INTERACTIONS: '/medicines/interactions',
+    INVENTORY: {
+      GET: '/medicines/inventory',
+      UPDATE: (medicineId: string) => `/medicines/${medicineId}/inventory`,
+    },
+  },
+  
+  // Analytics Endpoints
+  ANALYTICS: {
+    BASE: '/analytics',
+    DASHBOARD: '/analytics/dashboard',
+    APPOINTMENTS: '/analytics/appointments',
+    PATIENTS: '/analytics/patients',
+    REVENUE: '/analytics/revenue',
+    DOCTORS_PERFORMANCE: '/analytics/doctors/performance',
+    CLINICS_PERFORMANCE: '/analytics/clinics/performance',
+    SERVICES_UTILIZATION: '/analytics/services/utilization',
+    WAIT_TIMES: '/analytics/wait-times',
+    SATISFACTION: '/analytics/satisfaction',
+    QUEUE: '/analytics/queue',
+    EXPORT: '/analytics/export',
+    CUSTOM: '/analytics/custom',
+    CUSTOM_QUERIES: {
+      CREATE: '/analytics/custom-queries',
+      GET_ALL: '/analytics/custom-queries',
+    },
+  },
+  
+  // Reports Endpoints
+  REPORTS: {
+    BASE: '/reports',
+    APPOINTMENTS: '/reports/appointments',
+    PATIENTS: '/reports/patients',
+    REVENUE: '/reports/revenue',
+    DOCTORS_PERFORMANCE: '/reports/doctors/performance',
+    CLINICS_SUMMARY: '/reports/clinics/summary',
+    HISTORY: '/reports/history',
+    DOWNLOAD: (reportId: string) => `/reports/${reportId}/download`,
+    DELETE: (reportId: string) => `/reports/${reportId}`,
+  },
+  
+  // Clinic Communication Endpoints
+  CLINIC_COMMUNICATION: {
+    BASE: (clinicId: string) => `/clinics/${clinicId}/communication`,
+    GET: (clinicId: string) => `/clinics/${clinicId}/communication`,
+    CREATE: (clinicId: string) => `/clinics/${clinicId}/communication`,
+    UPDATE: (clinicId: string, id: string) => `/clinics/${clinicId}/communication/${id}`,
+    DELETE: (clinicId: string, id: string) => `/clinics/${clinicId}/communication/${id}`,
+    TEST: (clinicId: string) => `/clinics/${clinicId}/communication/test`,
+  },
 } as const;
 
 // ============================================================================
@@ -803,6 +1019,14 @@ export const API_ENDPOINTS = {
 // You can import from either '@/lib/config/config' or '@/lib/config/constants'
 
 export { HTTP_STATUS, ERROR_CODES } from './constants';
+
+// ============================================================================
+// ERROR MESSAGES (User-Facing)
+// ============================================================================
+// Re-exported from error-messages.ts for convenience
+
+export { ERROR_MESSAGES } from './error-messages';
+export * from './constants';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -891,7 +1115,11 @@ export interface ApiClientConfig {
 // ============================================================================
 
 function validateEnvironment(): void {
-  const requiredVars = ['NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_API_VERSION'];
+  // âš ï¸ SECURITY: In production, all URLs must be set via environment variables
+  // No hardcoded URLs allowed to prevent security issues
+  // Note: NEXT_PUBLIC_API_VERSION has a default value ('v1') in the schema, so it's not required
+  const requiredVars: string[] = ['NEXT_PUBLIC_API_URL'];
+  
   const missingVars: string[] = [];
 
   for (const varName of requiredVars) {
@@ -900,33 +1128,95 @@ function validateEnvironment(): void {
     }
   }
 
-  if (missingVars.length > 0) {
-    console.warn(
-      `⚠️  Missing required environment variables: ${missingVars.join(', ')}\n` +
-      `Current environment: ${currentEnvironment}\n` +
-      `Please check your .env file.`
-    );
+  // In production, also require WebSocket URL (check both NEXT_PUBLIC_WEBSOCKET_URL and NEXT_PUBLIC_WS_URL)
+  if (isProduction) {
+    const hasWebSocketUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL;
+    if (!hasWebSocketUrl) {
+      missingVars.push('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL');
+    }
   }
 
+  if (missingVars.length > 0) {
+    const errorMessage = `âš ï¸  Missing required environment variables: ${missingVars.join(', ')}\n` +
+      `Current environment: ${currentEnvironment}\n` +
+      `Please check your .env file.`;
+    
+    if (isProduction) {
+      // In production, throw error to prevent deployment with missing config
+      throw new Error(errorMessage);
+    } else {
+      console.warn(errorMessage);
+    }
+  }
+
+  // Validate API URL format
+  // âš ï¸ SECURITY: Only validate if URL is provided (not empty)
   const apiUrl = env.NEXT_PUBLIC_API_URL || APP_CONFIG.API.BASE_URL;
-  if (apiUrl) {
+  if (apiUrl && apiUrl.trim() !== '') {
     try {
       new URL(apiUrl);
     } catch {
-      console.error(
-        `❌ Invalid API URL format: ${apiUrl}\n` +
-        `Please provide a valid URL (e.g., http://localhost:8088 or https://api.example.com)`
-      );
+      const errorMessage = `âŒ Invalid API URL format: ${apiUrl}\n` +
+        `Please provide a valid URL via NEXT_PUBLIC_API_URL environment variable`;
+      
+      if (isProduction) {
+        throw new Error(errorMessage);
+      } else {
+        console.error(errorMessage);
+      }
+    }
+  } else if (isProduction) {
+    throw new Error('NEXT_PUBLIC_API_URL must be set in production environment');
+  } else if (isDevelopment && !apiUrl) {
+    // In development, warn but don't fail - allow localhost defaults
+    console.warn('âš ï¸  NEXT_PUBLIC_API_URL not set. Using development defaults.');
+  }
+
+  // Validate WebSocket URL format in production
+  if (isProduction) {
+    const wsUrl = env.NEXT_PUBLIC_WEBSOCKET_URL || env.NEXT_PUBLIC_WS_URL || APP_CONFIG.WEBSOCKET.URL;
+    if (wsUrl && wsUrl.trim() !== '') {
+      try {
+        new URL(wsUrl);
+      } catch {
+        throw new Error(
+          `âŒ Invalid WebSocket URL format: ${wsUrl}\n` +
+          `Please provide a valid URL via NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL environment variable`
+        );
+      }
+    } else {
+      throw new Error('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL must be set in production environment');
     }
   }
 }
 
+// âœ… Singleton flag to prevent multiple logs - use global to persist across module reloads
+// Initialize the flag if it doesn't exist
+if (typeof global !== 'undefined') {
+  if (!(global as any).__hasLoggedEnvironment) {
+    (global as any).__hasLoggedEnvironment = false;
+  }
+}
+
 function logEnvironmentInfo(): void {
-  if (isProduction && !APP_CONFIG.FEATURES.DEBUG) {
-    return;
+  // âœ… Only log once per process to prevent duplicate logs
+  // Use global flag to persist across Next.js hot reloads and module re-executions
+  if (typeof global === 'undefined') {
+    return; // Can't log on client-side
+  }
+  
+  if ((global as any).__hasLoggedEnvironment) {
+    return; // Already logged
   }
 
-  console.warn('🌍 Environment Configuration:', {
+  if (isProduction && !APP_CONFIG.FEATURES.DEBUG) {
+    return; // Don't log in production unless debug is enabled
+  }
+
+  // Set flag BEFORE logging to prevent race conditions
+  (global as any).__hasLoggedEnvironment = true;
+  
+  console.warn('ðŸŒ Environment Configuration:', {
     environment: currentEnvironment,
     apiUrl: APP_CONFIG.API.BASE_URL,
     websocketUrl: APP_CONFIG.WEBSOCKET.URL,
@@ -945,7 +1235,23 @@ if (typeof window === 'undefined') {
 }
 
 // ============================================================================
+// ROUTING CONFIGURATION (Re-exported for convenience)
+// ============================================================================
+// ============================================================================
+// WEBSOCKET EXPORTS
+// ============================================================================
+// âœ… WebSocket exports moved to @/lib/config/websocket to prevent circular dependencies
+// Import directly: import { WebSocketManager } from '@/lib/config/websocket'
+
+// ============================================================================
 // DEFAULT EXPORT
 // ============================================================================
+
+export const HealthcareErrorsService = {
+  logError(operation: string, error: unknown) {
+    if (isProduction && !APP_CONFIG.FEATURES.DEBUG) return;
+    console.error(`[HealthcareErrorsService] ${operation}`, error);
+  },
+};
 
 export default APP_CONFIG;

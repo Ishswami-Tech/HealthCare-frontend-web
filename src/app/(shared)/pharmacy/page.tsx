@@ -1,46 +1,35 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
+
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useMedicines,
   usePrescriptions,
   useInventory,
   usePharmacyStats,
-} from "@/hooks/usePharmacy";
-import { useClinicContext } from "@/hooks/useClinic";
-import { usePharmacyPermissions } from "@/hooks/useRBAC";
+} from "@/hooks/query/usePharmacy";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { usePharmacyPermissions } from "@/hooks/utils/useRBAC";
 import {
   Pill,
   Search,
   Plus,
   AlertTriangle,
   CheckCircle,
-  TrendingUp,
   Package,
   Droplets,
   Leaf,
   Sun,
   Moon,
-  LogOut,
-  Activity,
-  Calendar,
-  FileText,
-  Users,
-  Building2,
-  Settings,
-  Filter,
-  User,
   ShoppingCart,
   Eye,
   Edit,
@@ -48,9 +37,13 @@ import {
   Download,
   MapPin,
   Star,
+  Filter,
+  Building2,
   Clock,
   Phone,
   BarChart3,
+  TrendingUp,
+  Settings,
   CreditCard,
 } from "lucide-react";
 
@@ -132,28 +125,21 @@ export default function PharmacySystem() {
   // Show loading state
   if (medicinesLoading) {
     return (
-      <DashboardLayout
-        title="Pharmacy Management System"
-        requiredPermission={Permission.VIEW_PATIENTS}
-        showPermissionWarnings={true}
-      >
+      
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading pharmacy system...</p>
           </div>
         </div>
-      </DashboardLayout>
+      
     );
   }
 
   // Show error state
   if (medicinesError) {
     return (
-      <DashboardLayout
-        title="Pharmacy Management System"
-        requiredPermission={Permission.VIEW_PATIENTS}
-      >
+      
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <p className="text-red-600">
@@ -164,7 +150,7 @@ export default function PharmacySystem() {
             </Button>
           </div>
         </div>
-      </DashboardLayout>
+      
     );
   }
 
@@ -358,64 +344,9 @@ export default function PharmacySystem() {
     }
   };
 
-  const sidebarLinks = getRoutesByRole(userRole).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("appointments") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("patients") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("medical-records") ? (
-      <FileText className="w-5 h-5" />
-    ) : route.path.includes("prescriptions") ? (
-      <Pill className="w-5 h-5" />
-    ) : route.path.includes("profile") ? (
-      <User className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("staff") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("schedule") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  // Add Pharmacy link to sidebar
-  sidebarLinks.push({
-    label: "Pharmacy System",
-    href: "/pharmacy",
-    path: "/pharmacy",
-    icon: <Pill className="w-5 h-5" />,
-  });
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/auth/login",
-    path: "/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
-
   return (
-    <DashboardLayout title="Pharmacy Management" allowedRole={userRole}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Healthcare Professional",
-          ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-        }}
-      >
-        <div className="p-6 space-y-6">
+    
+      <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">Pharmacy Management System</h1>
@@ -497,7 +428,7 @@ export default function PharmacySystem() {
           </div>
 
           <Tabs defaultValue="inventory" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="inventory">Medicine Inventory</TabsTrigger>
               <TabsTrigger value="orders">Orders</TabsTrigger>
               <TabsTrigger value="pharmacies">Partner Pharmacies</TabsTrigger>
@@ -658,7 +589,7 @@ export default function PharmacySystem() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentOrders.map((order) => (
+                    {recentOrders.map((order: any) => (
                       <div key={order.id} className="p-4 border rounded-lg">
                         <div className="flex items-start justify-between mb-3">
                           <div>
@@ -684,7 +615,7 @@ export default function PharmacySystem() {
                           <div>
                             <p className="text-sm font-medium">Items:</p>
                             <div className="flex flex-wrap gap-2 mt-1">
-                              {order.items.map((item, index) => (
+                              {order.items.map((item: string, index: number) => (
                                 <Badge
                                   key={index}
                                   variant="outline"
@@ -765,7 +696,7 @@ export default function PharmacySystem() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {nearbyPharmacies.map((pharmacy) => (
+                    {nearbyPharmacies.map((pharmacy: any) => (
                       <div
                         key={pharmacy.id}
                         className="p-4 border rounded-lg hover:bg-gray-50"
@@ -816,7 +747,7 @@ export default function PharmacySystem() {
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {pharmacy.specialties.map(
-                                  (specialty, index) => (
+                                  (specialty: string, index: number) => (
                                     <Badge
                                       key={index}
                                       variant="outline"
@@ -1056,7 +987,6 @@ export default function PharmacySystem() {
             </TabsContent>
           </Tabs>
         </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+    
   );
 }

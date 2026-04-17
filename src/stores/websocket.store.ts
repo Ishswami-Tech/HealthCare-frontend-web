@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { io, Socket } from "socket.io-client";
+import { APP_CONFIG } from "@/lib/config/config";
 
 export interface WebSocketState {
   socket: Socket | null;
@@ -72,7 +73,22 @@ export const useWebSocketStore = create<WebSocketState>()(
         set({ connectionStatus: 'connecting', error: null });
 
         try {
-          const fullUrl = namespace ? `${url}${namespace}` : url;
+          // ✅ FIX: Normalize Socket.IO URL
+          // Socket.IO expects base HTTP/HTTPS URL, not ws:// or wss://
+          // It automatically handles protocol upgrade and /socket.io path
+          let normalizedUrl = url.trim();
+          
+          // Remove /socket.io if present (Socket.IO adds it automatically)
+          normalizedUrl = normalizedUrl.replace(/\/socket\.io\/?$/, '');
+          
+          // Convert ws:// to http:// and wss:// to https://
+          normalizedUrl = normalizedUrl.replace(/^ws:\/\//, 'http://');
+          normalizedUrl = normalizedUrl.replace(/^wss:\/\//, 'https://');
+          
+          // Add namespace if provided (Socket.IO namespaces start with /)
+          const fullUrl = namespace ? `${normalizedUrl}${namespace}` : normalizedUrl;
+          
+          console.debug('🔌 Connecting to Socket.IO:', fullUrl);
           
           const socket = io(fullUrl, {
             auth: {
@@ -89,7 +105,6 @@ export const useWebSocketStore = create<WebSocketState>()(
             reconnectionAttempts,
             reconnectionDelay,
             reconnectionDelayMax: 5000,
-            maxReconnectionAttempts: reconnectionAttempts,
             timeout: 20000,
             forceNew: true,
           });
@@ -118,8 +133,14 @@ export const useWebSocketStore = create<WebSocketState>()(
             });
           });
 
-          socket.on('connect_error', (error) => {
-            console.error('🔥 WebSocket connection error:', error);
+          socket.on('connect_error', (error: Error & { type?: string; description?: string; context?: unknown }) => {
+            console.error('🔥 Socket.IO connection error:', {
+              message: error.message,
+              type: error.type,
+              description: error.description,
+              context: error.context,
+              url: fullUrl,
+            });
             set((state) => ({
               connectionStatus: 'error',
               error: error.message || 'Connection failed',
@@ -144,7 +165,7 @@ export const useWebSocketStore = create<WebSocketState>()(
             }));
           });
 
-          socket.on('reconnect_attempt', (attemptNumber) => {
+          socket.on('reconnect_attempt', (_attemptNumber) => {
             // WebSocket reconnection attempt
             set({
               connectionStatus: 'reconnecting',
@@ -266,7 +287,11 @@ export const useQueueWebSocket = () => {
   const store = useWebSocketStore();
   
   const connectToQueue = (options: ConnectionOptions) => {
-    const url = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:3000';
+    // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
+    const url = APP_CONFIG.WEBSOCKET.URL;
+    if (!url) {
+      throw new Error('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL must be set in environment variables');
+    }
     store.connect(url, {
       ...options,
       namespace: '/queue-status',
@@ -283,7 +308,11 @@ export const useAppointmentWebSocket = () => {
   const store = useWebSocketStore();
   
   const connectToAppointments = (options: ConnectionOptions) => {
-    const url = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:3000';
+    // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
+    const url = APP_CONFIG.WEBSOCKET.URL;
+    if (!url) {
+      throw new Error('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL must be set in environment variables');
+    }
     store.connect(url, {
       ...options,
       namespace: '/appointments',
@@ -296,5 +325,4 @@ export const useAppointmentWebSocket = () => {
   };
 };
 
-// Export types
-export type { ConnectionOptions };
+// ConnectionOptions is already exported above, no need to re-export

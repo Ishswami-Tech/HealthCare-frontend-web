@@ -3,8 +3,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
-import { toast } from "sonner";
-import { queryClientConfig } from "@/lib/query/query-config";
+import { queryClientConfig } from "@/hooks/query/config";
+import { ERROR_MESSAGES } from "@/lib/config/config";
+import { ROUTES } from "@/lib/config/routes";
+import {
+  showErrorToast,
+  shouldHandleErrorGlobally,
+  TOAST_IDS,
+} from "@/hooks/utils/use-toast";
+import { isSessionInvalidError, triggerClientAuthRecovery } from "@/lib/utils/auth-recovery";
 
 interface ApiError extends Error {
   response?: {
@@ -64,35 +71,50 @@ export default function QueryProvider({
             onError: (error) => {
               const apiError = error as ApiError;
 
-              // Handle auth errors globally
-              if (apiError?.response?.status === 401) {
-                toast.error("Session expired. Please login again.");
-                // Use router instead of window.location for better UX
-                setTimeout(() => {
-                  window.location.href = "/auth/login";
-                }, 1000);
+              // ✅ Skip showing toast if error should be handled by component
+              if (!shouldHandleErrorGlobally(apiError)) {
+                // Component-level error handling will show the toast
+                // Don't show duplicate toast from QueryProvider
                 return;
               }
 
-              // Handle other common errors
+              // ✅ Use centralized error handler
+              // Handle auth errors globally
+              if (isSessionInvalidError(apiError)) {
+                showErrorToast(ERROR_MESSAGES.SESSION_EXPIRED, {
+                  id: TOAST_IDS.GLOBAL.ERROR,
+                });
+                setTimeout(() => {
+                  triggerClientAuthRecovery();
+                }, 800);
+                return;
+              }
+
+              // Handle other common errors with centralized messages
               if (apiError?.response?.status === 403) {
-                toast.error(
-                  "You don't have permission to perform this action."
-                );
+                showErrorToast(ERROR_MESSAGES.FORBIDDEN, {
+                  id: TOAST_IDS.GLOBAL.ERROR,
+                });
                 return;
               }
 
               if (apiError?.response?.status === 429) {
-                toast.error("Too many requests. Please try again later.");
+                showErrorToast("Too many requests. Please try again later.", {
+                  id: TOAST_IDS.GLOBAL.ERROR,
+                });
                 return;
               }
 
-              // Generic error message
-              const errorMessage =
+              // ✅ Sanitize and use centralized error messages
+              showErrorToast(
                 apiError?.response?.data?.message ||
-                apiError?.message ||
-                "An unexpected error occurred";
-              toast.error(errorMessage);
+                  apiError?.message ||
+                  apiError ||
+                  ERROR_MESSAGES.UNKNOWN_ERROR,
+                {
+                  id: TOAST_IDS.GLOBAL.ERROR,
+                }
+              );
             },
           },
         },

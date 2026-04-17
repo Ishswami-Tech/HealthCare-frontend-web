@@ -1,20 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { useInventory, useMedicines } from "@/hooks/usePharmacy";
-import { useClinicContext } from "@/hooks/useClinic";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useInventory } from "@/hooks/query/usePharmacy";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { 
   Package,
   AlertTriangle,
@@ -28,8 +24,7 @@ import {
 } from "lucide-react";
 
 export default function InventoryPage() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -41,13 +36,12 @@ export default function InventoryPage() {
   const { clinicId } = useClinicContext();
 
   // Fetch real inventory data
-  const { data: inventoryData = [], isLoading: inventoryLoading } = useInventory(clinicId || "", {
-    search: searchTerm,
+  const { data: inventoryData = [], isPending: inventoryPending } = useInventory(clinicId || "", {
     limit: 100,
   });
 
   // Transform inventory data
-  const inventoryItems = inventoryData.map((item: any) => ({
+  const inventoryItems = (inventoryData as any[]).map((item: any) => ({
     id: item.id || item.medicineId,
     name: item.name || item.medicineName,
     category: item.category || item.medicineCategory || "General",
@@ -182,17 +176,13 @@ export default function InventoryPage() {
 
   // Calculate summary stats
   const totalItems = inventoryItems.length;
-  const lowStockItems = inventoryItems.filter(item => item.status === 'low' || item.status === 'critical').length;
-  const expiringItems = inventoryItems.filter(item => isExpiringSoon(item.expiryDate)).length;
-  const totalValue = inventoryItems.reduce((sum, item) => sum + (item.currentStock * item.costPerUnit), 0);
+  const lowStockItems = inventoryItems.filter((item: any) => item.status === 'low' || item.status === 'critical').length;
+  const expiringItems = inventoryItems.filter((item: any) => isExpiringSoon(item.expiryDate)).length;
+  const totalValue = inventoryItems.reduce((sum: number, item: any) => sum + (item.currentStock * item.costPerUnit), 0);
 
-  const sidebarLinks = getRoutesByRole(Role.PHARMACIST).map((route) => ({
-    ...route,
-    href: route.path,
-  }));
 
   // Filter inventory items
-  const filteredInventory = inventoryItems.filter((item) => {
+  const filteredInventory = inventoryItems.filter((item: any) => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !filterCategory || item.category === filterCategory;
     const matchesStatus = !filterStatus || item.status === filterStatus;
@@ -200,42 +190,21 @@ export default function InventoryPage() {
   });
 
   // Show loading state
-  if (inventoryLoading) {
+  if (inventoryPending) {
     return (
-      <DashboardLayout
-        title="Inventory Management"
-        allowedRole={Role.PHARMACIST}
-      >
-        <GlobalSidebar
-          links={sidebarLinks}
-          user={{
-            name: user?.name || `${user?.firstName} ${user?.lastName}` || "Pharmacist",
-            ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-          }}
-        >
+      
           <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">
               <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading inventory...</p>
             </div>
           </div>
-        </GlobalSidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout
-      title="Inventory Management"
-      allowedRole={Role.PHARMACIST}
-    >
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{
-          name: user?.name || `${user?.firstName} ${user?.lastName}` || "Pharmacist",
-          ...(user?.profilePicture && { avatarUrl: user.profilePicture }),
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -243,7 +212,6 @@ export default function InventoryPage() {
               <p className="text-gray-600">Monitor and manage medicine inventory</p>
             </div>
             <div className="flex items-center gap-2">
-              <WebSocketStatusIndicator />
               <Button variant="outline" className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" />
                 Reports
@@ -356,12 +324,11 @@ export default function InventoryPage() {
 
           {/* Inventory Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredInventory.map((item) => (
+            {filteredInventory.map((item: any) => (
               <InventoryCard key={item.id} item={item} />
             ))}
           </div>
         </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+    
   );
 }

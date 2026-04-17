@@ -1,15 +1,12 @@
-"use client";
+﻿"use client";
 
-import React, { useState, useMemo } from "react";
-import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -17,23 +14,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
-import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/useAppointments";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
-import { toast } from "sonner";
-import { 
-  Activity,
-  Calendar, 
-  Users,
-  UserCheck,
-  LogOut,
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { VideoAppointmentRoom } from "@/components/video/VideoAppointmentRoom";
+import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import {
+  getAppointmentPaymentStatus,
+  getDisplayAppointmentDuration,
+  isAppointmentAwaitingPayment,
+} from "@/lib/utils/appointmentUtils";
+import {
+  Calendar,
   Play,
   CheckCircle,
   Clock,
-  Stethoscope,
   FileText,
   Video,
   Phone,
@@ -42,23 +47,85 @@ import {
   Eye,
   Loader2
 } from "lucide-react";
+import type { AppointmentStatus } from "@/types/appointment.types";
+
+// Appointment status constants - must match backend enum values
+const APPOINTMENT_STATUS = {
+  ALL: 'ALL',
+  IN_PROGRESS: 'IN_PROGRESS',
+  SCHEDULED: 'SCHEDULED',
+  CONFIRMED: 'CONFIRMED',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  NO_SHOW: 'NO_SHOW',
+} as const;
+
+// Interface for the transformed appointment object
+interface TransformedAppointment {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  patientName: string;
+  patientAge: number | null;
+  patientGender: string;
+  time: string;
+  status: AppointmentStatus;
+  type: string;
+  duration: string;
+  appointmentDate: string;
+  patientPhone: string;
+  patientEmail: string;
+  chiefComplaint: string;
+  medicalHistory: string[] | string;
+  allergies: string[] | string;
+  currentMedications: string[] | string;
+  vitalSigns: {
+    bp?: string;
+    pulse?: string;
+    temperature?: string;
+    weight?: string;
+  } | null;
+  checkedInAt: string | null;
+  queuePosition: number | null;
+  paymentStatus: string;
+  paymentPending: boolean;
+}
+
+const getPaymentBadgeClasses = (paymentStatus: string) => {
+  switch (paymentStatus) {
+    case "PAID":
+      return "bg-emerald-100 text-emerald-800";
+    case "PENDING":
+    case "OVERDUE":
+      return "bg-amber-100 text-amber-800";
+    case "FAILED":
+    case "VOID":
+    case "UNCOLLECTIBLE":
+      return "bg-rose-100 text-rose-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
 
 export default function DoctorAppointments() {
   const { session } = useAuth();
   const user = session?.user;
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("checked_in");
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [statusFilter, setStatusFilter] = useState<AppointmentStatus | string>(APPOINTMENT_STATUS.ALL);
+  const [selectedAppointment, setSelectedAppointment] = useState<TransformedAppointment | null>(null);
   const [consultationNotes, setConsultationNotes] = useState("");
   const [prescription, setPrescription] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
+  const [videoRoomAppointment, setVideoRoomAppointment] = useState<VideoAppointment | null>(null);
+  const [isVideoRoomOpen, setIsVideoRoomOpen] = useState(false);
 
   // Fetch real appointment data
   const appointmentsQuery = useAppointments({
-    clinicId: clinicId || undefined,
-    doctorId: user?.id || undefined,
-    status: statusFilter === "all" ? undefined : statusFilter,
+    ...(clinicId ? { clinicId } : {}),
+    ...(user?.id ? { doctorId: user.id } : {}),
+    ...(statusFilter !== APPOINTMENT_STATUS.ALL && { status: statusFilter as AppointmentStatus }),
     limit: 100,
   });
 
@@ -66,93 +133,82 @@ export default function DoctorAppointments() {
   const isLoadingAppointments = appointmentsQuery.isPending;
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync(["appointments", clinicId, user?.id]);
+  useWebSocketQuerySync();
 
   // Transform appointments data
   const appointments = useMemo(() => {
     if (!appointmentsData) return [];
     const apps = Array.isArray(appointmentsData) ? appointmentsData : appointmentsData.appointments || [];
-    
-    return apps.map((app: any) => ({
-      id: app.id,
-      patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
-      patientAge: app.patient?.age || app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null,
-      patientGender: app.patient?.gender || "Unknown",
-      time: app.startTime ? new Date(app.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "TBD",
-      status: app.status || "Scheduled",
-      type: app.type || app.appointmentType || "Consultation",
-      duration: app.duration || "30 min",
-      appointmentDate: app.startTime ? new Date(app.startTime).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-      patientPhone: app.patient?.phone || "",
-      patientEmail: app.patient?.email || "",
-      chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
-      medicalHistory: app.patient?.medicalHistory || [],
-      allergies: app.patient?.allergies || [],
-      currentMedications: app.patient?.currentMedications || [],
-      vitalSigns: app.vitalSigns || null,
-      checkedInAt: app.checkedInAt ? new Date(app.checkedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
-      queuePosition: app.queuePosition || null,
-    }));
+
+    return apps.map((app: any): TransformedAppointment => {
+      const displayDuration = getDisplayAppointmentDuration(app);
+      const paymentStatus = getAppointmentPaymentStatus(app);
+
+      return {
+        id: app.id,
+        appointmentId: app.id,
+        patientId: app.patientId || app.patient?.id || app.patient?.userId || "",
+        doctorId: app.doctorId || app.doctor?.id || app.doctor?.userId || "",
+        patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
+        patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
+        patientGender: app.patient?.gender || "Unknown",
+        time: app.startTime ? new Date(app.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "TBD",
+        status: (app.status || "SCHEDULED") as AppointmentStatus,
+        type: app.type || app.appointmentType || "Consultation",
+        duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
+        appointmentDate: app.startTime
+          ? new Date(app.startTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+          : new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
+        patientPhone: app.patient?.phone || "",
+        patientEmail: app.patient?.email || "",
+        chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
+        medicalHistory: app.patient?.medicalHistory || [],
+        allergies: app.patient?.allergies || [],
+        currentMedications: app.patient?.currentMedications || [],
+        vitalSigns: app.vitalSigns || null,
+        checkedInAt: app.checkedInAt ? new Date(app.checkedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
+        queuePosition: app.queuePosition || null,
+        paymentStatus,
+        paymentPending: isAppointmentAwaitingPayment(app),
+      };
+    });
   }, [appointmentsData]);
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((app: any) => {
+    return appointments.filter((app: TransformedAppointment) => {
       const matchesSearch =
         !searchTerm ||
         app.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.chiefComplaint?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const statusKey = app.status?.toLowerCase().replace(" ", "_") || "";
-      const matchesStatus = statusFilter === "all" || statusKey === statusFilter;
-      
+
+      const matchesStatus = statusFilter === APPOINTMENT_STATUS.ALL || app.status === statusFilter;
+
       return matchesSearch && matchesStatus;
     });
   }, [appointments, searchTerm, statusFilter]);
 
-  const sidebarLinks = getRoutesByRole(Role.DOCTOR).map(route => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes('dashboard') ? <Activity className="w-5 h-5" /> :
-          route.path.includes('appointments') ? <Calendar className="w-5 h-5" /> :
-          route.path.includes('patients') ? <Users className="w-5 h-5" /> :
-          route.path.includes('profile') ? <UserCheck className="w-5 h-5" /> :
-          <Stethoscope className="w-5 h-5" />
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />
-  });
-
-  if (isLoadingAppointments) {
-    return (
-      <DashboardLayout title="Doctor Appointments" allowedRole={Role.DOCTOR}>
-        <GlobalSidebar
-          links={sidebarLinks}
-          user={{ 
-            name: user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
-            avatarUrl: (user as any)?.profilePicture || "/avatar.png" 
-          }}
-        >
-          <div className="p-6 flex items-center justify-center min-h-[400px]">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          </div>
-        </GlobalSidebar>
-      </DashboardLayout>
-    );
-  }
-
   const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'in progress': return 'bg-blue-100 text-blue-800';
-      case 'checked in': return 'bg-green-100 text-green-800'; 
-      case 'scheduled': return 'bg-gray-100 text-gray-800';
-      case 'completed': return 'bg-purple-100 text-purple-800';
+    switch (status) {
+      case APPOINTMENT_STATUS.IN_PROGRESS: return 'bg-blue-100 text-blue-800';
+      case APPOINTMENT_STATUS.CONFIRMED: return 'bg-green-100 text-green-800';
+      case APPOINTMENT_STATUS.SCHEDULED: return 'bg-gray-100 text-gray-800';
+      case APPOINTMENT_STATUS.COMPLETED: return 'bg-purple-100 text-purple-800';
+      case APPOINTMENT_STATUS.CANCELLED: case APPOINTMENT_STATUS.NO_SHOW: return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      [APPOINTMENT_STATUS.IN_PROGRESS]: 'In Progress',
+      [APPOINTMENT_STATUS.SCHEDULED]: 'Scheduled',
+      [APPOINTMENT_STATUS.CONFIRMED]: 'Confirmed',
+      [APPOINTMENT_STATUS.COMPLETED]: 'Completed',
+      [APPOINTMENT_STATUS.CANCELLED]: 'Cancelled',
+      [APPOINTMENT_STATUS.NO_SHOW]: 'No Show',
+    };
+    return labels[status] || status;
   };
 
   // Mutations for appointment actions
@@ -162,11 +218,14 @@ export default function DoctorAppointments() {
   const startConsultation = async (appointmentId: string) => {
     try {
       await startAppointmentMutation.mutateAsync(appointmentId);
-      toast.success("Consultation started successfully");
-      // Refetch appointments to update UI
+      showSuccessToast("Consultation started successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
       appointmentsQuery.refetch();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to start consultation");
+    } catch (error: unknown) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to start consultation", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
     }
   };
 
@@ -180,83 +239,90 @@ export default function DoctorAppointments() {
         id: appointmentId,
         data: data || {},
       });
-      toast.success("Consultation completed successfully");
-      // Clear form fields
+      showSuccessToast("Consultation completed successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
       setDiagnosis("");
       setPrescription("");
       setConsultationNotes("");
       setSelectedAppointment(null);
-      // Refetch appointments to update UI
       appointmentsQuery.refetch();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to complete consultation");
+    } catch (error: unknown) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to complete consultation", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
     }
   };
 
   return (
-    <DashboardLayout title="Doctor Appointments" allowedRole={Role.DOCTOR}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{ 
-          name: user?.name || `${user?.firstName} ${user?.lastName}` || "Doctor",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png" 
-        }}
-      >
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">My Appointments</h1>
-            <WebSocketStatusIndicator />
-          </div>
-          <div className="text-sm text-gray-600">
-            Today • {new Date().toLocaleDateString()}
-          </div>
+    <>
+      {isLoadingAppointments ? (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      ) : (
+        <DashboardPageShell>
+          <DashboardPageHeader
+            eyebrow="Doctor Appointments"
+            title="My Appointments"
+            description={`Today is ${new Date().toLocaleDateString("en-IN", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}. Review every scheduled, video, in-person, completed, and cancelled appointment in one place.`}
+            actionsSlot={<WebSocketStatusIndicator />}
+          />
 
           {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+            <Card className="border-l-4 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Checked In</CardTitle>
+                <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
                 <CheckCircle className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {appointments.filter(a => a.status === 'Checked In').length}
+                  {appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.CONFIRMED).length}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-blue-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">In Progress</CardTitle>
                 <Play className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {appointments.filter(a => a.status === 'In Progress').length}
+                  {appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.IN_PROGRESS).length}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-amber-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
                 <Clock className="h-4 w-4 text-gray-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-gray-600">
-                  {appointments.filter(a => a.status === 'Scheduled').length}
+                  {appointments.filter((a: TransformedAppointment) => a.status === APPOINTMENT_STATUS.SCHEDULED || a.status === APPOINTMENT_STATUS.CONFIRMED).length}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-4 border-l-violet-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Today</CardTitle>
                 <Calendar className="h-4 w-4 text-purple-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-600">
-                  {appointments.length}
+                  {
+                    appointments.filter((a: TransformedAppointment) =>
+                      a.appointmentDate === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+                    ).length
+                  }
                 </div>
               </CardContent>
             </Card>
@@ -283,11 +349,11 @@ export default function DoctorAppointments() {
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="checked_in">Checked In</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="ALL">All Status</SelectItem>
+                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -296,20 +362,20 @@ export default function DoctorAppointments() {
 
           {/* Appointments List */}
           <div className="grid gap-4">
-            {filteredAppointments.map((appointment) => (
+            {filteredAppointments.map((appointment: TransformedAppointment) => (
               <Card key={appointment.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+                      <div className="w-12 h-12 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
                         <span className="text-blue-800 font-semibold text-lg">
-                          {appointment.patientName.charAt(0)}
+                          {appointment.patientName?.charAt(0) || "?"}
                         </span>
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold">{appointment.patientName}</h3>
                         <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span>{appointment.patientAge} years • {appointment.patientGender}</span>
+                          <span>{appointment.patientAge} years - {appointment.patientGender}</span>
                           <span>{appointment.type}</span>
                           <span>{appointment.duration}</span>
                         </div>
@@ -322,13 +388,20 @@ export default function DoctorAppointments() {
                             </span>
                           )}
                         </div>
+                        {appointment.type === "VIDEO_CALL" && (
+                          <div className="mt-2">
+                            <Badge className={getPaymentBadgeClasses(appointment.paymentStatus)}>
+                              Payment {appointment.paymentStatus.replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                        )}
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <Badge className={getStatusColor(appointment.status)}>
-                          {appointment.status}
+                          {getStatusLabel(appointment.status)}
                         </Badge>
                         {appointment.queuePosition && (
                           <div className="text-xs text-gray-500 mt-1">
@@ -346,12 +419,13 @@ export default function DoctorAppointments() {
                           <Eye className="w-4 h-4" />
                         </Button>
                         
-                        {appointment.status === 'Checked In' && (
+                        {appointment.status === APPOINTMENT_STATUS.CONFIRMED && (
                           <Button 
                             size="sm" 
                             onClick={() => startConsultation(appointment.id)}
-                            disabled={startAppointmentMutation.isPending}
+                            disabled={startAppointmentMutation.isPending || (appointment.type === "VIDEO_CALL" && appointment.paymentPending)}
                             className="flex items-center gap-1"
+                            title={appointment.type === "VIDEO_CALL" && appointment.paymentPending ? "Video appointment is waiting for patient payment" : undefined}
                           >
                             {startAppointmentMutation.isPending ? (
                               <>
@@ -366,13 +440,40 @@ export default function DoctorAppointments() {
                             )}
                           </Button>
                         )}
+                        {appointment.status === APPOINTMENT_STATUS.CONFIRMED &&
+                          appointment.type === "VIDEO_CALL" &&
+                          appointment.paymentPending && (
+                            <Badge className="bg-amber-100 text-amber-800">
+                              Awaiting Payment
+                            </Badge>
+                          )}
                         
-                        {appointment.status === 'In Progress' && (
+                        {appointment.status === APPOINTMENT_STATUS.IN_PROGRESS && (
                           <>
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               className="flex items-center gap-1"
+                              onClick={() => {
+                                if (appointment.type === "VIDEO_CALL" && appointment.paymentPending) {
+                                  return;
+                                }
+                                const videoAppt: VideoAppointment = {
+                                  id: appointment.id,
+                                  appointmentId: appointment.id,
+                                  roomName: `room-${appointment.id}`,
+                                  doctorId: appointment.doctorId || user?.id || "",
+                                  patientId: appointment.patientId || "",
+                                  startTime: new Date().toISOString(),
+                                  endTime: new Date().toISOString(),
+                                  status: "in-progress",
+                                  createdAt: new Date().toISOString(),
+                                  updatedAt: new Date().toISOString(),
+                                };
+                                setVideoRoomAppointment(videoAppt);
+                                setIsVideoRoomOpen(true);
+                              }}
+                              disabled={appointment.type === "VIDEO_CALL" && appointment.paymentPending}
                             >
                               <Video className="w-3 h-3" />
                               Video
@@ -464,9 +565,22 @@ export default function DoctorAppointments() {
                           <p className="text-sm text-gray-700">{selectedAppointment.chiefComplaint}</p>
                         </div>
 
+                        {selectedAppointment.type === "VIDEO_CALL" && (
+                          <div>
+                            <h4 className="font-semibold mb-2">Payment Status</h4>
+                            <Badge className={getPaymentBadgeClasses(selectedAppointment.paymentStatus)}>
+                              {selectedAppointment.paymentStatus.replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                        )}
+
                         <div>
                           <h4 className="font-semibold mb-2">Medical History</h4>
-                          <p className="text-sm text-gray-700">{selectedAppointment.medicalHistory}</p>
+                          <p className="text-sm text-gray-700">
+                            {Array.isArray(selectedAppointment.medicalHistory)
+                              ? selectedAppointment.medicalHistory.join(", ") || "None"
+                              : selectedAppointment.medicalHistory || "None"}
+                          </p>
                         </div>
                       </div>
 
@@ -475,22 +589,30 @@ export default function DoctorAppointments() {
                           <div>
                             <h4 className="font-semibold mb-2">Vital Signs</h4>
                             <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div>BP: {selectedAppointment.vitalSigns.bp}</div>
-                              <div>Pulse: {selectedAppointment.vitalSigns.pulse}</div>
-                              <div>Temp: {selectedAppointment.vitalSigns.temperature}</div>
-                              <div>Weight: {selectedAppointment.vitalSigns.weight}</div>
+                              <div>BP: {selectedAppointment.vitalSigns.bp ?? "-"}</div>
+                              <div>Pulse: {selectedAppointment.vitalSigns.pulse ?? "-"}</div>
+                              <div>Temp: {selectedAppointment.vitalSigns.temperature ?? "-"}</div>
+                              <div>Weight: {selectedAppointment.vitalSigns.weight ?? "-"}</div>
                             </div>
                           </div>
                         )}
 
                         <div>
                           <h4 className="font-semibold mb-2">Allergies</h4>
-                          <p className="text-sm text-gray-700">{selectedAppointment.allergies}</p>
+                          <p className="text-sm text-gray-700">
+                            {Array.isArray(selectedAppointment.allergies)
+                              ? selectedAppointment.allergies.join(", ") || "None"
+                              : selectedAppointment.allergies || "None"}
+                          </p>
                         </div>
 
                         <div>
                           <h4 className="font-semibold mb-2">Current Medications</h4>
-                          <p className="text-sm text-gray-700">{selectedAppointment.currentMedications}</p>
+                          <p className="text-sm text-gray-700">
+                            {Array.isArray(selectedAppointment.currentMedications)
+                              ? selectedAppointment.currentMedications.join(", ") || "None"
+                              : selectedAppointment.currentMedications || "None"}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -572,7 +694,9 @@ export default function DoctorAppointments() {
                           className="w-full"
                           onClick={() => {
                             // Save prescription as draft (could be a separate mutation)
-                            toast.info("Prescription saved as draft");
+                            showInfoToast("Prescription saved as draft", {
+                              id: TOAST_IDS.GLOBAL.INFO,
+                            });
                           }}
                         >
                           Save as Draft
@@ -609,9 +733,32 @@ export default function DoctorAppointments() {
               </CardContent>
             </Card>
           )}
-        </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+
+          {/* Video Consultation Dialog */}
+          {videoRoomAppointment && (
+            <Dialog open={isVideoRoomOpen} onOpenChange={setIsVideoRoomOpen}>
+              <DialogContent className="max-w-7xl w-full h-[90vh] p-0">
+                <DialogHeader className="sr-only">
+                  <DialogTitle>Video Consultation - {videoRoomAppointment.appointmentId}</DialogTitle>
+                </DialogHeader>
+                <VideoAppointmentRoom
+                  appointment={videoRoomAppointment}
+                  onEndCall={() => {
+                    setIsVideoRoomOpen(false);
+                    setVideoRoomAppointment(null);
+                    appointmentsQuery.refetch();
+                  }}
+                  onLeaveRoom={() => {
+                    setIsVideoRoomOpen(false);
+                    setVideoRoomAppointment(null);
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
+        </DashboardPageShell>
+      )}
+    </>
   );
 }
 

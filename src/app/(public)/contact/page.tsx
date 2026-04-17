@@ -36,15 +36,18 @@ import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
 import { SectionSkeleton } from "@/lib/dynamic-imports";
-import { getIconColorScheme } from "@/lib/color-palette";
-import { toast } from "sonner";
+import { getIconColorScheme } from "@/lib/config/color-palette";
 import {
   useSubmitContactForm,
   useSubmitConsultationBooking,
-} from "@/hooks/useNotifications";
+} from "@/hooks/query/useCommunication";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 
 export default function ContactPage() {
   const { t } = useTranslation();
+  const submitContactFormMutation = useSubmitContactForm();
+  const submitConsultationBookingMutation = useSubmitConsultationBooking();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -52,7 +55,6 @@ export default function ContactPage() {
     condition: "",
     message: "",
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [bookingData, setBookingData] = useState({
     name: "",
@@ -97,24 +99,27 @@ export default function ContactPage() {
 
     // Validation
     if (!formData.name.trim()) {
-      toast.error(
-        t("contact.form.validation.nameRequired") || "Name is required"
+      showErrorToast(
+        t("contact.form.validation.nameRequired") || "Name is required",
+        { id: TOAST_IDS.CONTACT.SUBMIT }
       );
       return;
     }
 
     if (!validateEmail(formData.email)) {
-      toast.error(
+      showErrorToast(
         t("contact.form.validation.emailInvalid") ||
-          "Please enter a valid email address"
+          "Please enter a valid email address",
+        { id: TOAST_IDS.CONTACT.SUBMIT }
       );
       return;
     }
 
     if (!validatePhone(formData.phone)) {
-      toast.error(
+      showErrorToast(
         t("contact.form.validation.phoneInvalid") ||
-          "Please enter a valid phone number"
+          "Please enter a valid phone number",
+        { id: TOAST_IDS.CONTACT.SUBMIT }
       );
       return;
     }
@@ -125,7 +130,7 @@ export default function ContactPage() {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        condition: formData.condition || undefined,
+        ...(formData.condition && { condition: formData.condition }),
         message: formData.message,
         type: "contact",
       },
@@ -140,9 +145,11 @@ export default function ContactPage() {
             message: "",
           });
 
-          toast.success(
+          // ✅ Use centralized toast manager
+          showSuccessToast(
             t("contact.form.success.title") || "Message Sent Successfully!",
             {
+              id: TOAST_IDS.CONTACT.SUBMIT,
               description:
                 t("contact.form.success.description") ||
                 "We'll get back to you soon.",
@@ -150,15 +157,12 @@ export default function ContactPage() {
           );
         },
         onError: (error: any) => {
-          toast.error(
-            t("contact.form.error.title") || "Failed to send message",
-            {
-              description:
-                error?.message ||
-                t("contact.form.error.description") ||
-                "Please try again later.",
-            }
-          );
+          // ✅ Use centralized error handler
+          showErrorToast(sanitizeErrorMessage(error) || "Failed to send message", {
+            id: TOAST_IDS.CONTACT.SUBMIT,
+            description:
+              t("contact.form.error.title") || "Failed to send message",
+          });
         },
       }
     );
@@ -172,17 +176,19 @@ export default function ContactPage() {
     e.preventDefault();
 
     if (!bookingData.name.trim() || !bookingData.phone.trim()) {
-      toast.error(
+      showErrorToast(
         t("contact.booking.validation.required") ||
-          "Name and phone number are required"
+          "Name and phone number are required",
+        { id: TOAST_IDS.CONTACT.SUBMIT }
       );
       return;
     }
 
     if (!validatePhone(bookingData.phone)) {
-      toast.error(
+      showErrorToast(
         t("contact.form.validation.phoneInvalid") ||
-          "Please enter a valid phone number"
+          "Please enter a valid phone number",
+        { id: TOAST_IDS.CONTACT.SUBMIT }
       );
       return;
     }
@@ -192,9 +198,9 @@ export default function ContactPage() {
       {
         name: bookingData.name,
         phone: bookingData.phone,
-        preferredDate: bookingData.preferredDate || undefined,
-        preferredTime: bookingData.preferredTime || undefined,
-        reason: bookingData.reason || undefined,
+        ...(bookingData.preferredDate && { preferredDate: bookingData.preferredDate }),
+        ...(bookingData.preferredTime && { preferredTime: bookingData.preferredTime }),
+        ...(bookingData.reason && { reason: bookingData.reason }),
       },
       {
         onSuccess: () => {
@@ -209,9 +215,10 @@ export default function ContactPage() {
 
           setIsBookingDialogOpen(false);
 
-          toast.success(
+          showSuccessToast(
             t("contact.booking.success.title") || "Consultation Requested!",
             {
+              id: TOAST_IDS.CONTACT.SUBMIT,
               description:
                 t("contact.booking.success.description") ||
                 "We'll contact you soon to confirm your appointment.",
@@ -219,10 +226,11 @@ export default function ContactPage() {
           );
         },
         onError: (error: any) => {
-          toast.error(
+          showErrorToast(
             t("contact.booking.error.title") ||
               "Failed to request consultation",
             {
+              id: TOAST_IDS.CONTACT.SUBMIT,
               description:
                 error?.message ||
                 t("contact.booking.error.description") ||

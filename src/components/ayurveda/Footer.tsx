@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +18,8 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/context";
+
+import { MinimalStatusIndicator } from "@/components/common/MinimalStatusIndicator";
 
 const Footer = () => {
   const { t } = useTranslation();
@@ -168,7 +169,7 @@ const Footer = () => {
                   key={condition}
                   className="text-muted-foreground flex items-center space-x-2"
                 >
-                  <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+                  <CheckCircle className="w-4 h-4 text-primary shrink-0" />
                   <span>{condition}</span>
                 </li>
               ))}
@@ -183,7 +184,7 @@ const Footer = () => {
 
             <div className="space-y-4">
               <div className="flex items-start space-x-3">
-                <MapPin className="w-5 h-5 text-primary flex-shrink-0 mt-1" />
+                <MapPin className="w-5 h-5 text-primary shrink-0 mt-1" />
                 <div>
                   <p className="text-muted-foreground">{t("clinic.address")}</p>
                 </div>
@@ -199,14 +200,13 @@ const Footer = () => {
                 </div>
               </div>
 
-              {/* Email removed from footer */}
-              {/* <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3">
                 <Mail className="w-5 h-5 text-primary" />
                 <p className="text-muted-foreground">{t("clinic.email")}</p>
-              </div> */}
+              </div>
 
               <div className="flex items-start space-x-3">
-                <Clock className="w-5 h-5 text-primary flex-shrink-0 mt-1" />
+                <Clock className="w-5 h-5 text-primary shrink-0 mt-1" />
                 <div>
                   <p className="text-muted-foreground">
                     {t("clinic.mondayToFriday")}
@@ -260,15 +260,16 @@ const Footer = () => {
                 {t("footer.disclaimer")}
               </Link>
               <Link
-                href="/sitemap"
+                href="/sitemap.xml"
                 className="text-muted-foreground hover:text-primary"
               >
                 {t("footer.sitemap")}
               </Link>
             </div>
 
-            <div className="text-muted-foreground text-sm">
-              भारतात ❤️ सह बनवले
+            <div className="text-muted-foreground text-sm flex items-center gap-4">
+              <span>भारतात ❤️ सह बनवले</span>
+              <MinimalStatusIndicator />
             </div>
           </div>
         </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -243,7 +242,12 @@ const DoctorExpertise = () => {
                   ))}
                 </div>
                 <div className="mt-6">
-                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+                  <Button
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                    onClick={() => {
+                      window.location.href = "/patient/appointments";
+                    }}
+                  >
                     <Calendar className="w-4 h-4 mr-2" />
                     Book Appointment
                   </Button>

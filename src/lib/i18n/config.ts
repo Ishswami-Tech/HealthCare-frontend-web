@@ -1,3 +1,10 @@
+/**
+ * ✅ Consolidated i18n Configuration
+ * Follows DRY, SOLID, KISS principles
+ * Single source of truth for all i18n configuration
+ * Replaces src/i18n (next-intl) with custom implementation
+ */
+
 export const SUPPORTED_LANGUAGES = {
   en: {
     code: 'en',
@@ -25,8 +32,34 @@ export const SUPPORTED_LANGUAGES = {
 export type SupportedLanguage = keyof typeof SUPPORTED_LANGUAGES;
 export const DEFAULT_LANGUAGE: SupportedLanguage = 'en';
 
-export const LANGUAGE_COOKIE_NAME = 'ayurveda-language';
+// ✅ Consolidated cookie and storage keys
+export const LANGUAGE_COOKIE_NAME = 'locale'; // Changed from 'ayurveda-language' to match next-intl convention
 export const LANGUAGE_STORAGE_KEY = 'ayurveda-preferred-language';
+
+// ✅ Locale type alias for compatibility
+export type Locale = SupportedLanguage;
+export const locales = Object.keys(SUPPORTED_LANGUAGES) as Locale[];
+export const defaultLocale: Locale = DEFAULT_LANGUAGE;
+
+// ✅ Locale names and flags (for compatibility with next-intl migration)
+export const localeNames: Record<Locale, string> = {
+  en: 'English',
+  hi: 'हिंदी',
+  mr: 'मराठी'
+};
+
+export const localeFlags: Record<Locale, string> = {
+  en: '🇺🇸',
+  hi: '🇮🇳',
+  mr: '🇮🇳'
+};
+
+// ✅ Locale directions
+export const localeDirections: Record<Locale, 'ltr' | 'rtl'> = {
+  en: 'ltr',
+  hi: 'ltr',
+  mr: 'ltr'
+};
 
 // Language detection priority
 export const LANGUAGE_DETECTION_ORDER = [
@@ -89,6 +122,41 @@ export interface TranslationKeys {
     treatments: string;
     months: string;
     days: string;
+  };
+  sidebar: {
+    dashboard: string;
+    appointments: string;
+    patients: string;
+    doctors: string;
+    prescriptions: string;
+    pharmacy: string;
+    reports: string;
+    analytics: string;
+    settings: string;
+    profile: string;
+    logout: string;
+    clinics: string;
+    staff: string;
+    queue: string;
+    ehr: string;
+    billing: string;
+    inventory: string;
+  };
+  dashboard: {
+    welcomeBack: string;
+    overview: string;
+    bookAppointment: string;
+  };
+  healthcare: {
+    diagnosis: string;
+    treatment: string;
+  };
+  patients: {
+    personalInfo: string;
+  };
+  appointments: {
+    upcoming: string;
+    bookNew: string;
   };
   navigation: {
     logo: string;
@@ -1983,6 +2051,14 @@ export interface TranslationKeys {
         description: string;
       };
       mentalClarity: {
+        title: string;
+        description: string;
+      };
+      longTermResults: {
+        title: string;
+        description: string;
+      };
+      provenEfficacy: {
         title: string;
         description: string;
       };

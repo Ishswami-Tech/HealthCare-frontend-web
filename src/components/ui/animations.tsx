@@ -356,6 +356,14 @@ const FlipCard: React.FC<FlipCardProps> = ({
     <div 
       className={cn("relative w-full h-full cursor-pointer", className)}
       onClick={onFlip}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && onFlip) {
+          event.preventDefault();
+          onFlip();
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       <motion.div
         initial={false}

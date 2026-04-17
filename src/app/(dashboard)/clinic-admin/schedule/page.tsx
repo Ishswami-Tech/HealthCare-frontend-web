@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,22 +16,18 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
+
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinicContext } from "@/hooks/query/useClinics";
 import {
   useDoctors,
   useDoctorSchedule,
   useUpdateDoctorSchedule,
-} from "@/hooks/useDoctors";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+} from "@/hooks/query/useDoctors";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
-  Activity,
-  Users,
   Calendar,
-  Settings,
-  LogOut,
   Plus,
   Trash2,
   Save,
@@ -43,26 +37,26 @@ import {
   Stethoscope,
   Loader2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 export default function ClinicAdminSchedule() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const { clinicId } = useClinicContext();
+  const scheduleWritesSupported = false;
 
   // Fetch real doctors data
-  const { data: doctorsData, isLoading: isLoadingDoctors } = useDoctors(
+  const { data: doctorsData, isPending: isPendingDoctors } = useDoctors(
     clinicId || "",
     {}
   );
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync(["doctors", clinicId]);
+  useWebSocketQuerySync();
 
   // Fetch schedule for selected doctor
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
-  const { data: scheduleData, isLoading: isLoadingSchedule } =
-    useDoctorSchedule(selectedDoctorId || "", undefined);
+  const { data: scheduleData } =
+    useDoctorSchedule(clinicId || "", selectedDoctorId || "", undefined);
 
   // Update schedule mutation
   const updateScheduleMutation = useUpdateDoctorSchedule();
@@ -70,7 +64,7 @@ export default function ClinicAdminSchedule() {
   // Transform doctors data to schedule format
   const doctors = useMemo(() => {
     if (!doctorsData) return [];
-    return Array.isArray(doctorsData) ? doctorsData : doctorsData.doctors || [];
+    return Array.isArray(doctorsData) ? doctorsData : (doctorsData as any).doctors || [];
   }, [doctorsData]);
 
   // Transform schedule data
@@ -81,7 +75,7 @@ export default function ClinicAdminSchedule() {
       const doctorSchedule =
         scheduleData && selectedDoctorId === doctor.id ? scheduleData : null;
       const schedules =
-        doctorSchedule?.schedules || doctorSchedule?.weeklySchedule || [];
+        (doctorSchedule as any)?.schedules || (doctorSchedule as any)?.weeklySchedule || [];
 
       // Default schedule structure if none exists
       const defaultSchedule = [
@@ -90,49 +84,49 @@ export default function ClinicAdminSchedule() {
           startTime: "09:00",
           endTime: "17:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Tuesday",
           startTime: "09:00",
           endTime: "17:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Wednesday",
           startTime: "09:00",
           endTime: "17:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Thursday",
           startTime: "09:00",
           endTime: "17:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Friday",
           startTime: "09:00",
           endTime: "17:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Saturday",
           startTime: "09:00",
           endTime: "13:00",
           available: true,
-          slotDuration: 30,
+          slotDuration: 3,
         },
         {
           day: "Sunday",
           startTime: "",
           endTime: "",
           available: false,
-          slotDuration: 30,
+          slotDuration: 3,
         },
       ];
 
@@ -175,11 +169,42 @@ export default function ClinicAdminSchedule() {
     title: "",
     type: "Public Holiday",
   });
+  const scheduleConflicts = useMemo(() => {
+    return localSchedules.flatMap((doctor: any) =>
+      (doctor.schedules || []).flatMap((schedule: any) => {
+        if (!schedule.available) return [];
+
+        if (!schedule.startTime || !schedule.endTime) {
+          return [
+            {
+              id: `${doctor.id}-${schedule.day}-missing-hours`,
+              severity: "high" as const,
+              title: "Missing Schedule Hours",
+              message: `${doctor.doctorName} is marked available on ${schedule.day} but start or end time is missing.`,
+            },
+          ];
+        }
+
+        if (schedule.startTime >= schedule.endTime) {
+          return [
+            {
+              id: `${doctor.id}-${schedule.day}-invalid-range`,
+              severity: "high" as const,
+              title: "Invalid Time Range",
+              message: `${doctor.doctorName} has an invalid time range on ${schedule.day}. End time must be after start time.`,
+            },
+          ];
+        }
+
+        return [];
+      })
+    );
+  }, [localSchedules]);
 
   const updateSchedule = (dayIndex: number, field: string, value: any) => {
     if (!selectedDoctor) return;
 
-    const updatedSchedules = localSchedules.map((doctor) => {
+    const updatedSchedules = localSchedules.map((doctor: any) => {
       if (doctor.id === selectedDoctor.id) {
         const updatedDoctor = { ...doctor };
         const currentSchedule = updatedDoctor.schedules[dayIndex];
@@ -199,13 +224,22 @@ export default function ClinicAdminSchedule() {
     });
     setLocalSchedules(updatedSchedules);
     setSelectedDoctor(
-      updatedSchedules.find((d) => d.id === selectedDoctor.id)!
+      updatedSchedules.find((d: any) => d.id === selectedDoctor.id)!
     );
   };
 
   const handleSaveSchedule = async () => {
+    if (!scheduleWritesSupported) {
+      showErrorToast("Schedule updates are not supported by the backend yet", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
+      return;
+    }
+
     if (!selectedDoctor || !selectedDoctorId) {
-      toast.error("Please select a doctor");
+      showErrorToast("Please select a doctor", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       return;
     }
 
@@ -225,14 +259,18 @@ export default function ClinicAdminSchedule() {
         isAvailable: sched.available,
       }));
 
-      await updateScheduleMutation.mutateAsync({
+      await updateScheduleMutation.mutate({
         doctorId: selectedDoctorId,
         schedule: scheduleToSave,
       });
 
-      toast.success("Schedule updated successfully");
+      showSuccessToast("Schedule updated successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
     } catch (error) {
-      toast.error("Failed to update schedule");
+      showErrorToast("Failed to update schedule", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       console.error(error);
     }
   };
@@ -251,71 +289,21 @@ export default function ClinicAdminSchedule() {
   };
 
   const removeHoliday = (id: string) => {
-    setHolidays(holidays.filter((h) => h.id !== id));
+    setHolidays(holidays.filter((h: any) => h.id !== id));
   };
 
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("staff") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("schedule") ? (
-      <Calendar className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
-
-  if (isLoadingDoctors) {
+  if (isPendingDoctors) {
     return (
-      <DashboardLayout
-        title="Schedule Management"
-        allowedRole={Role.CLINIC_ADMIN}
-      >
-        <GlobalSidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name ||
-              `${user?.firstName} ${user?.lastName}` ||
-              "Clinic Admin",
-            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-          }}
-        >
+      
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout
-      title="Schedule Management"
-      allowedRole={Role.CLINIC_ADMIN}
-    >
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Clinic Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Schedule Management</h1>
@@ -324,7 +312,7 @@ export default function ClinicAdminSchedule() {
               <Button
                 className="flex items-center gap-2"
                 onClick={handleSaveSchedule}
-                disabled={updateScheduleMutation.isPending || !selectedDoctor}
+                disabled={!scheduleWritesSupported || updateScheduleMutation.isPending || !selectedDoctor}
               >
                 {updateScheduleMutation.isPending ? (
                   <>
@@ -340,6 +328,17 @@ export default function ClinicAdminSchedule() {
               </Button>
             </div>
           </div>
+
+          {!scheduleWritesSupported && (
+            <Card className="border-amber-200 bg-amber-50">
+              <CardContent className="flex items-start gap-3 p-4 text-amber-900">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="text-sm">
+                  Doctor schedule editing is disabled because the current backend only exposes doctor availability read routes.
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Tabs defaultValue="doctor-schedules" className="space-y-6">
             <TabsList className="grid w-full grid-cols-3">
@@ -375,7 +374,7 @@ export default function ClinicAdminSchedule() {
                       value={selectedDoctor?.id || ""}
                       onValueChange={(value) => {
                         const doctor = localSchedules.find(
-                          (d) => d.id === value
+                          (d: any) => d.id === value
                         );
                         setSelectedDoctor(doctor || null);
                         setSelectedDoctorId(value);
@@ -385,7 +384,7 @@ export default function ClinicAdminSchedule() {
                         <SelectValue placeholder="Select a doctor" />
                       </SelectTrigger>
                       <SelectContent>
-                        {localSchedules.map((doctor) => (
+                        {localSchedules.map((doctor: any) => (
                           <SelectItem key={doctor.id} value={doctor.id}>
                             {doctor.doctorName} - {doctor.specialization}
                           </SelectItem>
@@ -406,7 +405,7 @@ export default function ClinicAdminSchedule() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {selectedDoctor?.schedules?.map((schedule, index) => (
+                      {selectedDoctor?.schedules?.map((schedule: any, index: number) => (
                         <div
                           key={index}
                           className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center p-4 border rounded-lg"
@@ -479,8 +478,11 @@ export default function ClinicAdminSchedule() {
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="15">15 min</SelectItem>
-                                    <SelectItem value="30">30 min</SelectItem>
+                                    <SelectItem value="3">3 min (20/hr)</SelectItem>
+                                    <SelectItem value="5">5 min (12/hr)</SelectItem>
+                                    <SelectItem value="10">10 min (6/hr)</SelectItem>
+                                    <SelectItem value="15">15 min (4/hr)</SelectItem>
+                                    <SelectItem value="30">30 min (2/hr)</SelectItem>
                                     <SelectItem value="45">45 min</SelectItem>
                                     <SelectItem value="60">60 min</SelectItem>
                                   </SelectContent>
@@ -536,7 +538,7 @@ export default function ClinicAdminSchedule() {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between p-3 border rounded-lg">
                           <span>General Consultation</span>
-                          <Badge>30 min</Badge>
+                          <Badge>3 min</Badge>
                         </div>
                         <div className="flex items-center justify-between p-3 border rounded-lg">
                           <span>Nadi Pariksha</span>
@@ -644,7 +646,7 @@ export default function ClinicAdminSchedule() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {holidays.map((holiday) => (
+                      {holidays.map((holiday: any) => (
                         <div
                           key={holiday.id}
                           className="flex items-center justify-between p-4 border rounded-lg"
@@ -699,62 +701,65 @@ export default function ClinicAdminSchedule() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {/* Mock conflicts */}
-                      <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                        <div className="flex-1">
-                          <h3 className="font-medium text-yellow-800">
-                            Overlapping Appointments
+                      {scheduleConflicts.length > 0 ? (
+                        scheduleConflicts.map((conflict: {
+                          id: string;
+                          severity: "high";
+                          title: string;
+                          message: string;
+                        }) => {
+                          const isHighSeverity = conflict.severity === "high";
+                          return (
+                            <div
+                              key={conflict.id}
+                              className={`flex items-start gap-3 p-4 rounded-lg border ${
+                                isHighSeverity
+                                  ? "bg-red-50 border-red-200"
+                                  : "bg-yellow-50 border-yellow-200"
+                              }`}
+                            >
+                              <AlertCircle
+                                className={`w-5 h-5 mt-0.5 ${
+                                  isHighSeverity ? "text-red-600" : "text-yellow-600"
+                                }`}
+                              />
+                              <div className="flex-1">
+                                <h3
+                                  className={`font-medium ${
+                                    isHighSeverity ? "text-red-800" : "text-yellow-800"
+                                  }`}
+                                >
+                                  {conflict.title}
+                                </h3>
+                                <p
+                                  className={`text-sm ${
+                                    isHighSeverity ? "text-red-700" : "text-yellow-700"
+                                  }`}
+                                >
+                                  {conflict.message}
+                                </p>
+                                <p
+                                  className={`text-xs mt-1 ${
+                                    isHighSeverity ? "text-red-600" : "text-yellow-600"
+                                  }`}
+                                >
+                                  Update the doctor schedule and save to resolve.
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-8">
+                          <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold text-green-800">
+                            All Clear!
                           </h3>
-                          <p className="text-sm text-yellow-700">
-                            Dr. Rajesh Kumar has overlapping appointments on
-                            Monday at 2:00 PM
-                          </p>
-                          <p className="text-xs text-yellow-600 mt-1">
-                            Detected 2 hours ago
+                          <p className="text-green-700">
+                            No schedule configuration conflicts detected.
                           </p>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-yellow-700 border-yellow-300"
-                        >
-                          Resolve
-                        </Button>
-                      </div>
-
-                      <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
-                        <div className="flex-1">
-                          <h3 className="font-medium text-red-800">
-                            Doctor Unavailable
-                          </h3>
-                          <p className="text-sm text-red-700">
-                            Dr. Priya Sharma scheduled during declared holiday
-                            (Holi)
-                          </p>
-                          <p className="text-xs text-red-600 mt-1">
-                            Detected 1 day ago
-                          </p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-700 border-red-300"
-                        >
-                          Resolve
-                        </Button>
-                      </div>
-
-                      <div className="text-center py-8">
-                        <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-green-800">
-                          All Clear!
-                        </h3>
-                        <p className="text-green-700">
-                          No additional conflicts detected
-                        </p>
-                      </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -762,7 +767,6 @@ export default function ClinicAdminSchedule() {
             </TabsContent>
           </Tabs>
         </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+    
   );
 }

@@ -177,6 +177,8 @@ function MobileCardStack<T>({
         {items.map((_, index) => (
           <button
             key={index}
+            aria-label={`Go to slide ${index + 1}`}
+            title={`Go to slide ${index + 1}`}
             onClick={() => setCurrentIndex(index)}
             className={cn(
               "w-2 h-2 rounded-full transition-colors",
@@ -470,7 +472,10 @@ const MobileStatsGrid: React.FC<MobileStatsGridProps> = ({ stats, className }) =
             )}
           </div>
           <div>
-            <p className="text-2xl font-bold" style={{ color: stat.color }}>
+            <p 
+              className="text-2xl font-bold"
+              {...(stat.color ? { style: { color: stat.color } as React.CSSProperties } : {})}
+            >
               {stat.value}
             </p>
             <p className="text-xs text-muted-foreground mt-1 leading-tight">

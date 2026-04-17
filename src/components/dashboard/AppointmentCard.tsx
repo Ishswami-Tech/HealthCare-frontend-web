@@ -1,11 +1,11 @@
 "use client";
 
-import React, { memo } from "react";
+import { memo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils/index";
 import {
   Calendar,
   Clock,
@@ -18,7 +18,12 @@ import {
   AlertCircle,
   FileText,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslation } from "@/lib/i18n/context";
+import { 
+  getAppointmentStatusColor, 
+  formatAppointmentDate, 
+  formatAppointmentTime 
+} from "@/lib/utils/appointmentUtils";
 
 interface AppointmentCardProps {
   appointment: {
@@ -57,22 +62,7 @@ function AppointmentCardComponent({
   onJoin,
   className,
 }: AppointmentCardProps) {
-  const t = useTranslations();
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "scheduled":
-        return "bg-primary/10 text-primary border-primary/20";
-      case "completed":
-        return "bg-primary/10 text-primary border-primary/20";
-      case "cancelled":
-        return "bg-destructive/10 text-destructive border-destructive/20";
-      case "in-progress":
-        return "bg-primary/10 text-primary border-primary/20";
-      default:
-        return "bg-muted text-muted-foreground border-border";
-    }
-  };
+  const { t } = useTranslation();
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -100,23 +90,6 @@ function AppointmentCardComponent({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const formatTime = (timeString: string) => {
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
   return (
     <Card
       className={cn(
@@ -133,14 +106,14 @@ function AppointmentCardComponent({
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="w-4 h-4" />
-              {formatDate(appointment.date)}
+              {formatAppointmentDate(appointment.date)}
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
-              {formatTime(appointment.time)}
+              {formatAppointmentTime(appointment.time)}
             </div>
           </div>
-          <Badge className={cn("text-xs", getStatusColor(appointment.status))}>
+          <Badge className={cn("text-xs", getAppointmentStatusColor(appointment.status))}>
             {getStatusIcon(appointment.status)}
             <span className="ml-1">
               {t(`appointments.${appointment.status}`)}
@@ -202,7 +175,11 @@ function AppointmentCardComponent({
               {appointment.type === "video" && t("appointments.videoCall")}
               {appointment.type === "phone" && t("appointments.phoneCall")}
               {appointment.type === "in-person" &&
-                (appointment.location || t("appointments.inPerson"))}
+                ((typeof appointment.location === "string"
+                  ? appointment.location
+                  : ((appointment.location as unknown as { name?: string; address?: string } | undefined)?.name ||
+                    (appointment.location as unknown as { name?: string; address?: string } | undefined)?.address)) ||
+                  t("appointments.inPerson"))}
             </p>
           </div>
 
@@ -265,18 +242,21 @@ function AppointmentCardComponent({
 }
 
 // Export memoized AppointmentCard for performance optimization
-export const AppointmentCard = memo(AppointmentCardComponent, (prevProps, nextProps) => {
-  // Custom comparison function for better performance
-  return (
-    prevProps.appointment.id === nextProps.appointment.id &&
-    prevProps.appointment.status === nextProps.appointment.status &&
-    prevProps.appointment.date === nextProps.appointment.date &&
-    prevProps.appointment.time === nextProps.appointment.time &&
-    prevProps.showPatient === nextProps.showPatient &&
-    prevProps.showDoctor === nextProps.showDoctor &&
-    prevProps.className === nextProps.className
-  );
-});
+export const AppointmentCard = memo(
+  AppointmentCardComponent,
+  (prevProps, nextProps) => {
+    // Custom comparison function for better performance
+    return (
+      prevProps.appointment.id === nextProps.appointment.id &&
+      prevProps.appointment.status === nextProps.appointment.status &&
+      prevProps.appointment.date === nextProps.appointment.date &&
+      prevProps.appointment.time === nextProps.appointment.time &&
+      prevProps.showPatient === nextProps.showPatient &&
+      prevProps.showDoctor === nextProps.showDoctor &&
+      prevProps.className === nextProps.className
+    );
+  }
+);
 
 // Appointment list component
 interface AppointmentListProps {
@@ -298,7 +278,7 @@ export function AppointmentList({
   onJoin,
   className,
 }: AppointmentListProps) {
-  const t = useTranslations();
+  const { t } = useTranslation();
 
   if (appointments.length === 0) {
     return (

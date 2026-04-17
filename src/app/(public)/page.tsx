@@ -1,6 +1,6 @@
-import React, { Suspense } from "react";
-import { generateMetadata as generateSEOMetadata } from "@/lib/seo";
-import { pageSEO } from "@/lib/seo";
+import { Suspense } from "react";
+import { generateMetadata as generateSEOMetadata } from "@/lib/config/seo";
+import { pageSEO } from "@/lib/config/seo";
 import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
 import {
@@ -15,6 +15,7 @@ import {
 } from "@/lib/dynamic-imports";
 import WhyChooseUsSection from "@/components/ayurveda/WhyChooseUsSection";
 import SpecializationsSection from "@/components/ayurveda/SpecializationsSection";
+import { AuthRedirect } from "@/components/auth/AuthRedirect";
 
 // Generate SEO metadata using our SEO utility
 export const metadata = generateSEOMetadata({
@@ -39,6 +40,7 @@ export default function AyurvedaHomePage() {
     <PageTransition>
       <div className="overflow-hidden">
         {/* Critical above-the-fold content - load immediately */}
+        <AuthRedirect />
         <HeroSection />
         <StatsSection />
 

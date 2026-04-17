@@ -1,9 +1,19 @@
-// ✅ Enhanced Appointment Types to Match Backend API
+/**
+ * ✅ Consolidated Appointment Types
+ * Single source of truth for all appointment-related types
+ * Follows DRY, SOLID, KISS principles
+ */
+
+// ✅ Consolidated: Import types from their respective type files (single source of truth)
+import type { Patient } from './patient.types';
+import type { Doctor } from './doctor.types';
+import type { Clinic, ClinicLocation } from './clinic.types';
+import type { Invoice } from './billing.types';
 
 export type AppointmentStatus = 
   | 'SCHEDULED'
   | 'CONFIRMED' 
-  | 'CHECKED_IN'
+  | 'AWAITING_SLOT_CONFIRMATION'
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CANCELLED'
@@ -15,16 +25,92 @@ export type AppointmentPriority =
   | 'HIGH'
   | 'URGENT';
 
+export type AppointmentType = 
+  | 'IN_PERSON'
+  | 'VIDEO_CALL'
+  | 'HOME_VISIT';
+
+export type TreatmentType = 
+  | 'GENERAL_CONSULTATION'
+  | 'FOLLOW_UP'
+  | 'THERAPY'
+  | 'SURGERY'
+  | 'LAB_TEST'
+  | 'IMAGING'
+  | 'VACCINATION'
+  // Ayurveda Types
+  | 'VIDDHAKARMA'
+  | 'AGNIKARMA'
+  | 'PANCHAKARMA'
+  | 'NADI_PARIKSHA'
+  | 'DOSHA_ANALYSIS'
+  | 'SHIRODHARA'
+  | 'VIRECHANA'
+  | 'ABHYANGA'
+  | 'SWEDANA'
+  | 'BASTI'
+  | 'NASYA'
+  | 'RAKTAMOKSHANA';
+
+export type AppointmentServiceCategory =
+  | 'CONSULTATION'
+  | 'DIAGNOSIS'
+  | 'TREATMENT'
+  | 'SURGERY'
+  | 'COUNSELING'
+  | 'THERAPY';
+
+export type AppointmentQueueCategory =
+  | 'DOCTOR_CONSULTATION'
+  | 'THERAPY_PROCEDURE'
+  | 'MEDICINE_DESK';
+
+export type AppointmentBillingMode =
+  | 'SUBSCRIPTION_INCLUDED'
+  | 'PER_APPOINTMENT_PAYMENT';
+
+export interface AppointmentServiceDefinition {
+  treatmentType: TreatmentType;
+  label: string;
+  description: string;
+  category: AppointmentServiceCategory;
+  defaultDurationMinutes: number;
+  appointmentModes: AppointmentType[];
+  queueCategory: AppointmentQueueCategory;
+  serviceBucket: string;
+  billingMode: AppointmentBillingMode;
+  assistantDoctorEligible: boolean;
+  active: boolean;
+  videoConsultationFee?: number;
+}
+
+export interface AppointmentReassignmentCandidate {
+  id: string;
+  name: string;
+  role: string;
+  eligible: boolean;
+  reason?: string;
+  isCurrent: boolean;
+  isPrimary: boolean;
+}
+
+export interface AssistantDoctorCoverageAssignment {
+  assistantDoctorId: string;
+  primaryDoctorIds: string[];
+  isActive: boolean;
+}
+
 export interface CreateAppointmentData {
   patientId: string;
   doctorId: string;
   date: string;
   time: string;
   duration: number;
-  type: string;
+  type: AppointmentType; // ✅ Use AppointmentType instead of string
+  treatmentType?: TreatmentType;
   notes?: string;
   clinicId?: string;
-  locationId?: string;
+  locationId?: string | undefined;
   symptoms?: string[];
   priority?: AppointmentPriority;
 }
@@ -33,7 +119,8 @@ export interface UpdateAppointmentData {
   date?: string;
   time?: string;
   duration?: number;
-  type?: string;
+  type?: AppointmentType; // ✅ Use AppointmentType instead of string
+  treatmentType?: TreatmentType;
   notes?: string;
   status?: AppointmentStatus;
   symptoms?: string[];
@@ -48,16 +135,126 @@ export interface CompleteAppointmentData {
   notes?: string;
   followUpDate?: string;
   followUpNotes?: string;
+  doctorId?: string; // ✅ Consolidated: merged from duplicate definition
+}
+
+export type VideoCallStatus = 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+
+export interface AppointmentTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  clinicId: string;
+  doctorId: string;
+  type: string;
+  duration: number;
+  timeSlots: any;
+  recurringPattern: string;
+  recurringDays?: any;
+  recurringInterval: number;
+  startDate: string;
+  endDate?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecurringAppointmentSeries {
+  id: string;
+  templateId: string;
+  patientId: string;
+  clinicId: string;
+  startDate: string;
+  endDate?: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  template?: AppointmentTemplate;
+}
+
+export interface FollowUpPlan {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  clinicId: string;
+  followUpType: string;
+  scheduledFor: string;
+  daysAfter?: number;
+  status: string;
+  priority: string;
+  instructions: string;
+  medications?: string[];
+  tests?: string[];
+  restrictions?: string[];
+  notes?: string;
+  followUpAppointmentId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VideoConsultation {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  clinicId: string;
+  roomId: string;
+  meetingUrl: string;
+  status: VideoCallStatus;
+  startTime?: string;
+  endTime?: string;
+  duration?: number;
+  recordingUrl?: string;
+  recordingId?: string;
+  isRecording: boolean;
+  maxParticipants: number;
+  recordingEnabled: boolean;
+  screenSharingEnabled: boolean;
+  chatEnabled: boolean;
+  waitingRoomEnabled: boolean;
+  autoRecord: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Resource {
+  id: string;
+  name: string;
+  type: string;
+  clinicId: string;
+  capacity?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResourceBooking {
+  id: string;
+  resourceId: string;
+  appointmentId?: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  clinicId?: string;
+  resource?: Resource;
 }
 
 export interface Appointment {
   id: string;
   patientId: string;
   doctorId: string;
+  primaryDoctorId?: string;
+  assignedDoctorId?: string;
+  doctorRole?: string;
+  userId?: string;
   date: string;
   time: string;
   duration: number;
-  type: string;
+  type: AppointmentType; // ✅ Use AppointmentType instead of string
+  treatmentType?: TreatmentType;
   status: AppointmentStatus;
   priority: AppointmentPriority;
   notes?: string;
@@ -67,6 +264,27 @@ export interface Appointment {
   followUpDate?: string;
   clinicId?: string;
   locationId?: string;
+
+  // New Fields
+  proposedSlots?: any;
+  confirmedSlotIndex?: number;
+  seriesId?: string;
+  seriesSequence?: number;
+  parentAppointmentId?: string;
+  isFollowUp?: boolean;
+  followUpReason?: string;
+  originalAppointmentId?: string;
+  subscriptionId?: string;
+  isSubscriptionBased?: boolean;
+  therapyId?: string;
+  startedAt?: string;
+  checkedInAt?: string;
+  completedAt?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
+  cancellationReason?: string;
+  metadata?: Record<string, any>;
+
   createdAt: string;
   updatedAt: string;
   // Relations
@@ -74,6 +292,13 @@ export interface Appointment {
   doctor?: Doctor;
   clinic?: Clinic;
   location?: ClinicLocation;
+  videoConsultations?: VideoConsultation[];
+  series?: RecurringAppointmentSeries;
+  followUpPlan?: FollowUpPlan;
+  resourceBookings?: ResourceBooking[];
+  parentAppointment?: Appointment;
+  followUpAppointments?: Appointment[];
+  invoice?: Invoice;
 }
 
 export interface AppointmentWithRelations extends Appointment {
@@ -81,6 +306,7 @@ export interface AppointmentWithRelations extends Appointment {
   doctor: Doctor;
   clinic?: Clinic;
   location?: ClinicLocation;
+  invoice?: Invoice;
 }
 
 export interface ProcessCheckInData {
@@ -94,10 +320,6 @@ export interface ReorderQueueData {
 export interface VerifyAppointmentQRData {
   qrData: string;
   locationId: string;
-}
-
-export interface CompleteAppointmentData {
-  doctorId: string;
 }
 
 export interface StartConsultationData {
@@ -144,37 +366,17 @@ export interface AppointmentLocation {
   email?: string;
 }
 
-export interface AppointmentWithRelations {
-  id: string;
-  doctorId: string;
-  patientId: string;
-  locationId: string;
-  clinicId: string;
-  userId: string;
-  date: string;
-  time: string;
-  duration: number;
-  type: string;
-  status: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  doctor: DoctorWithUser;
-  patient: PatientWithUser;
-  location: AppointmentLocation;
-}
-
-// ✅ Add missing types for server actions
-export type Appointment = AppointmentWithRelations;
+// ✅ Consolidated: Removed duplicate AppointmentWithRelations definition
+// Use the one above (line 79) which extends Appointment properly
 
 export interface AppointmentFilters {
-  status?: string;
+  status?: AppointmentStatus | AppointmentStatus[]; // ✅ Use AppointmentStatus instead of string
   date?: string;
   doctorId?: string;
   patientId?: string;
   locationId?: string;
   clinicId?: string;
-  type?: string;
+  type?: AppointmentType | AppointmentType[]; // ✅ Use AppointmentType instead of string
   startDate?: string;
   endDate?: string;
   page?: number;
@@ -215,7 +417,10 @@ export interface QueueStats {
 export interface DoctorAvailability {
   doctorId: string;
   date: string;
-  slots: Array<{
+  available?: boolean;
+  availableSlots?: string[];
+  bookedSlots?: string[];
+  slots?: Array<{
     startTime: string;
     endTime: string;
     isAvailable: boolean;
@@ -291,20 +496,5 @@ export interface AppointmentReport {
   generatedBy: string;
 }
 
-export type AppointmentStatus = 
-  | 'SCHEDULED'
-  | 'CONFIRMED'
-  | 'CHECKED_IN'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'NO_SHOW';
-
-export type AppointmentType = 
-  | 'CONSULTATION'
-  | 'FOLLOW_UP'
-  | 'EMERGENCY'
-  | 'ROUTINE_CHECKUP'
-  | 'SPECIALIST_VISIT'
-  | 'LAB_TEST'
-  | 'VACCINATION'; 
+// ✅ Consolidated: Removed duplicate AppointmentStatus and AppointmentType definitions
+// Use the ones defined at the top of the file (lines 3-16) 

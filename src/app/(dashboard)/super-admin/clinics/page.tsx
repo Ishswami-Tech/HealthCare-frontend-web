@@ -1,24 +1,16 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinics } from "@/hooks/useClinics";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useClinics } from "@/hooks/query/useClinics";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
-  Building2,
-  Users,
-  Settings,
-  Activity,
-  LogOut,
   Plus,
   Search,
   MapPin,
@@ -27,23 +19,25 @@ import {
   Edit,
   Trash2,
   Loader2,
+  Building2,
+  Users,
+  Activity,
 } from "lucide-react";
 
 export default function SuperAdminClinics() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch real clinic data
-  const { data: clinicsData, isLoading: isLoadingClinics } = useClinics();
+  const { data: clinicsData, isPending: isLoadingClinics } = useClinics();
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync(["clinics"]);
+  useWebSocketQuerySync();
 
   // Transform clinics data
   const clinics = useMemo(() => {
     if (!clinicsData) return [];
-    const clinicsArray = clinicsData.clinics || [];
+    const clinicsArray = (Array.isArray(clinicsData) ? clinicsData : (clinicsData as any)?.clinics) || [];
 
     return clinicsArray.map((clinic: any) => ({
       id: clinic.id,
@@ -66,62 +60,19 @@ export default function SuperAdminClinics() {
     );
   }, [clinics, searchTerm]);
 
-  const sidebarLinks = getRoutesByRole(Role.SUPER_ADMIN).map((route) => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes("dashboard") ? (
-      <Activity className="w-5 h-5" />
-    ) : route.path.includes("clinics") ? (
-      <Building2 className="w-5 h-5" />
-    ) : route.path.includes("users") ? (
-      <Users className="w-5 h-5" />
-    ) : route.path.includes("settings") ? (
-      <Settings className="w-5 h-5" />
-    ) : (
-      <Activity className="w-5 h-5" />
-    ),
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/auth/login",
-    path: "/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
 
   if (isLoadingClinics) {
     return (
-      <DashboardLayout title="Clinic Management" allowedRole={Role.SUPER_ADMIN}>
-        <GlobalSidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name ||
-              `${user?.firstName} ${user?.lastName}` ||
-              "Super Admin",
-            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-          }}
-        >
+      
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout title="Clinic Management" allowedRole={Role.SUPER_ADMIN}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Super Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Clinic Management</h1>
@@ -330,7 +281,6 @@ export default function SuperAdminClinics() {
             </Card>
           )}
         </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+    
   );
 }

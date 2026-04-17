@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,23 +25,18 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { useClinicContext } from "@/hooks/useClinic";
+
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
+  useClinicContext,
   useClinicLocations,
   useCreateClinicLocation,
   useUpdateClinicLocation,
   useDeleteClinicLocation,
-} from "@/hooks/useClinic";
-import { WebSocketStatusIndicator } from "@/components/websocket/WebSocketErrorBoundary";
-import { useWebSocketQuerySync } from "@/hooks/useRealTimeQueries";
+} from "@/hooks/query/useClinics";
+import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
-  Activity,
-  Users,
-  Calendar,
-  Settings as SettingsIcon,
-  LogOut,
   Plus,
   MapPin,
   Phone,
@@ -55,11 +48,79 @@ import {
   Search,
   Loader2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+
+const DAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+
+type DayKey = (typeof DAYS)[number];
+type WorkingHours = Record<DayKey, { start: string; end: string } | null>;
+type LocationFormState = {
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  zipCode: string;
+  phone: string;
+  email: string;
+  timezone: string;
+  isActive: boolean;
+  workingHours: WorkingHours;
+};
+
+const DEFAULT_WORKING_HOURS: WorkingHours = {
+  monday: { start: "09:00", end: "18:00" },
+  tuesday: { start: "09:00", end: "18:00" },
+  wednesday: { start: "09:00", end: "18:00" },
+  thursday: { start: "09:00", end: "18:00" },
+  friday: { start: "09:00", end: "18:00" },
+  saturday: { start: "09:00", end: "15:00" },
+  sunday: null,
+};
+
+function normalizeWorkingHours(value: unknown): WorkingHours {
+  const source =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Partial<WorkingHours>)
+      : {};
+
+  return DAYS.reduce((acc, day) => {
+    const current = source[day];
+    if (
+      current &&
+      typeof current === "object" &&
+      typeof current.start === "string" &&
+      typeof current.end === "string"
+    ) {
+      acc[day] = { start: current.start, end: current.end };
+    } else if (current === null) {
+      acc[day] = null;
+    } else {
+      acc[day] = DEFAULT_WORKING_HOURS[day];
+    }
+    return acc;
+  }, {} as WorkingHours);
+}
+
+function summarizeWorkingHours(value: unknown) {
+  const hours = normalizeWorkingHours(value);
+  return DAYS.map((day) => {
+    const slot = hours[day];
+    const label = day.charAt(0).toUpperCase() + day.slice(1, 3);
+    return slot ? `${label} ${slot.start}-${slot.end}` : `${label} Closed`;
+  }).join(" • ");
+}
 
 export default function ClinicLocationsPage() {
-  const { session } = useAuth();
-  const user = session?.user;
+  useAuth();
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -68,7 +129,7 @@ export default function ClinicLocationsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch real locations data
-  const { data: locationsData, isLoading: isLoadingLocations } =
+  const { data: locationsData, isPending: isPendingLocations } =
     useClinicLocations(clinicId || "");
 
   // Sync with WebSocket for real-time updates
@@ -101,7 +162,7 @@ export default function ClinicLocationsPage() {
     );
   }, [locations, searchTerm]);
 
-  const [newLocation, setNewLocation] = useState({
+  const [newLocation, setNewLocation] = useState<LocationFormState>({
     name: "",
     address: "",
     city: "",
@@ -123,19 +184,82 @@ export default function ClinicLocationsPage() {
     },
   });
 
+  const updateWorkingHours = (
+    target: "new" | "edit",
+    day: DayKey,
+    field: "start" | "end",
+    value: string
+  ) => {
+    if (target === "new") {
+      const current = normalizeWorkingHours(newLocation.workingHours);
+      setNewLocation({
+        ...newLocation,
+        workingHours: {
+          ...current,
+          [day]: {
+            start: field === "start" ? value : current[day]?.start || "09:00",
+            end: field === "end" ? value : current[day]?.end || "18:00",
+          },
+        },
+      });
+      return;
+    }
+
+    if (!selectedLocation) return;
+    const current = normalizeWorkingHours(selectedLocation.workingHours);
+    setSelectedLocation({
+      ...selectedLocation,
+      workingHours: {
+        ...current,
+        [day]: {
+          start: field === "start" ? value : current[day]?.start || "09:00",
+          end: field === "end" ? value : current[day]?.end || "18:00",
+        },
+      },
+    });
+  };
+
+  const toggleWorkingDay = (target: "new" | "edit", day: DayKey, enabled: boolean) => {
+    if (target === "new") {
+      const current = normalizeWorkingHours(newLocation.workingHours);
+      setNewLocation({
+        ...newLocation,
+        workingHours: {
+          ...current,
+          [day]: enabled ? current[day] || { start: "09:00", end: "18:00" } : null,
+        },
+      });
+      return;
+    }
+
+    if (!selectedLocation) return;
+    const current = normalizeWorkingHours(selectedLocation.workingHours);
+    setSelectedLocation({
+      ...selectedLocation,
+      workingHours: {
+        ...current,
+        [day]: enabled ? current[day] || { start: "09:00", end: "18:00" } : null,
+      },
+    });
+  };
+
   const handleCreateLocation = async () => {
     if (!clinicId) {
-      toast.error("Clinic ID is required");
+      showErrorToast("Clinic ID is required", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       return;
     }
 
     try {
-      await createLocationMutation.mutateAsync({
+      createLocationMutation.mutate({
         clinicId,
         data: newLocation,
       });
 
-      toast.success("Location created successfully");
+      showSuccessToast("Location created successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
       setNewLocation({
         name: "",
         address: "",
@@ -158,8 +282,10 @@ export default function ClinicLocationsPage() {
         },
       });
       setIsCreateDialogOpen(false);
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to create location");
+    } catch (error: unknown) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to create location", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
     }
   };
 
@@ -170,22 +296,28 @@ export default function ClinicLocationsPage() {
 
   const handleUpdateLocation = async () => {
     if (!clinicId || !selectedLocation?.id) {
-      toast.error("Clinic ID and Location ID are required");
+      showErrorToast("Clinic ID and Location ID are required", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       return;
     }
 
     try {
-      await updateLocationMutation.mutateAsync({
+      updateLocationMutation.mutate({
         clinicId,
         locationId: selectedLocation.id,
         data: selectedLocation,
       });
 
-      toast.success("Location updated successfully");
+      showSuccessToast("Location updated successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
       setIsEditDialogOpen(false);
       setSelectedLocation(null);
     } catch (error) {
-      toast.error("Failed to update location");
+      showErrorToast("Failed to update location", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       console.error(error);
     }
   };
@@ -193,84 +325,44 @@ export default function ClinicLocationsPage() {
   const handleDeleteLocation = async (locationId: string) => {
     if (!confirm("Are you sure you want to delete this location?")) return;
     if (!clinicId) {
-      toast.error("Clinic ID is required");
+      showErrorToast("Clinic ID is required", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       return;
     }
 
     setIsDeleting(true);
     try {
-      await deleteLocationMutation.mutateAsync({
+      deleteLocationMutation.mutate({
         clinicId,
         locationId,
       });
 
-      toast.success("Location deleted successfully");
+      showSuccessToast("Location deleted successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
     } catch (error) {
-      toast.error("Failed to delete location");
+      showErrorToast("Failed to delete location", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
       console.error(error);
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map((route) => {
-    let icon = <Activity className="w-5 h-5" />;
-    if (route.path.includes("dashboard")) {
-      icon = <Activity className="w-5 h-5" />;
-    } else if (route.path.includes("staff")) {
-      icon = <Users className="w-5 h-5" />;
-    } else if (route.path.includes("schedule")) {
-      icon = <Calendar className="w-5 h-5" />;
-    } else if (route.path.includes("settings")) {
-      icon = <SettingsIcon className="w-5 h-5" />;
-    }
-    return {
-      ...route,
-      href: route.path,
-      icon,
-    };
-  });
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />,
-  });
-
-  if (isLoadingLocations) {
+  if (isPendingLocations) {
     return (
-      <DashboardLayout title="Clinic Locations" allowedRole={Role.CLINIC_ADMIN}>
-        <GlobalSidebar
-          links={sidebarLinks}
-          user={{
-            name:
-              user?.name ||
-              `${user?.firstName} ${user?.lastName}` ||
-              "Clinic Admin",
-            avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-          }}
-        >
+      
           <div className="p-6 flex items-center justify-center min-h-[400px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        </GlobalSidebar>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout title="Clinic Locations" allowedRole={Role.CLINIC_ADMIN}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{
-          name:
-            user?.name ||
-            `${user?.firstName} ${user?.lastName}` ||
-            "Clinic Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png",
-        }}
-      >
+    
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -436,6 +528,40 @@ export default function ClinicLocationsPage() {
                         }
                       />
                     </div>
+                    <div className="space-y-3">
+                      <Label>Working Hours</Label>
+                      <div className="grid gap-3">
+                        {DAYS.map((day) => {
+                          const slot = normalizeWorkingHours(newLocation.workingHours)[day];
+                          return (
+                            <div key={day} className="grid grid-cols-1 md:grid-cols-[120px_80px_1fr_1fr] gap-3 items-center">
+                              <div className="font-medium capitalize">{day}</div>
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={!!slot}
+                                  onCheckedChange={(checked) => toggleWorkingDay("new", day, checked)}
+                                />
+                                <span className="text-xs text-gray-500">
+                                  {slot ? "Open" : "Closed"}
+                                </span>
+                              </div>
+                              <Input
+                                type="time"
+                                value={slot?.start || ""}
+                                disabled={!slot}
+                                onChange={(e) => updateWorkingHours("new", day, "start", e.target.value)}
+                              />
+                              <Input
+                                type="time"
+                                value={slot?.end || ""}
+                                disabled={!slot}
+                                onChange={(e) => updateWorkingHours("new", day, "end", e.target.value)}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button
@@ -476,7 +602,7 @@ export default function ClinicLocationsPage() {
           </div>
 
           <div className="grid gap-4">
-            {filteredLocations.map((location) => (
+            {filteredLocations.map((location: any) => (
               <Card key={location.id}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -534,6 +660,15 @@ export default function ClinicLocationsPage() {
                       <MapPin className="w-4 h-4 text-gray-400" />
                       <span className="text-sm">{location.country}</span>
                     </div>
+                  </div>
+                  <div className="mt-4 rounded-lg border bg-gray-50 px-4 py-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <Clock className="w-4 h-4" />
+                      Working Hours
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600">
+                      {summarizeWorkingHours(location.workingHours)}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -700,6 +835,40 @@ export default function ClinicLocationsPage() {
                       }
                     />
                   </div>
+                  <div className="space-y-3">
+                    <Label>Working Hours</Label>
+                    <div className="grid gap-3">
+                      {DAYS.map((day) => {
+                        const slot = normalizeWorkingHours(selectedLocation.workingHours)[day];
+                        return (
+                          <div key={day} className="grid grid-cols-1 md:grid-cols-[120px_80px_1fr_1fr] gap-3 items-center">
+                            <div className="font-medium capitalize">{day}</div>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={!!slot}
+                                onCheckedChange={(checked) => toggleWorkingDay("edit", day, checked)}
+                              />
+                              <span className="text-xs text-gray-500">
+                                {slot ? "Open" : "Closed"}
+                              </span>
+                            </div>
+                            <Input
+                              type="time"
+                              value={slot?.start || ""}
+                              disabled={!slot}
+                              onChange={(e) => updateWorkingHours("edit", day, "start", e.target.value)}
+                            />
+                            <Input
+                              type="time"
+                              value={slot?.end || ""}
+                              disabled={!slot}
+                              onChange={(e) => updateWorkingHours("edit", day, "end", e.target.value)}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
               <DialogFooter>
@@ -726,7 +895,6 @@ export default function ClinicLocationsPage() {
             </DialogContent>
           </Dialog>
         </div>
-      </GlobalSidebar>
-    </DashboardLayout>
+    
   );
 }

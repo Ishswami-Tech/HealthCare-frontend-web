@@ -1,7 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
-import { API_ENDPOINTS } from '../config/config';
+import { API_ENDPOINTS, APP_CONFIG } from '../config/config';
 
 // ===== UNIFIED COMMUNICATION =====
 
@@ -299,9 +299,28 @@ export async function submitContactForm(data: {
   message: string;
   type?: 'contact' | 'consultation';
 }) {
-  // Use unified communication to send contact form submission
-  const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
+  // Use public API call for contact form
+  const API_URL = APP_CONFIG.API.BASE_URL;
+  const CLINIC_ID = APP_CONFIG.CLINIC.ID;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (CLINIC_ID) {
+    headers['X-Clinic-ID'] = CLINIC_ID;
+  }
+
+  // Use fetchWithAbort directly to avoid "No tokens found" error for public users
+  const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
+  
+  // Note: We're using the unified communication endpoint.
+  // Ideally this should be a public endpoint like /contact/submit
+  // If this endpoint requires auth, this call will fail with 401 from backend,
+  // but it won't crash the frontend with "No tokens found".
+  const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.COMMUNICATION.SEND}`, {
     method: 'POST',
+    headers,
     body: JSON.stringify({
       type: 'email',
       title: `Contact Form Submission - ${data.type === 'consultation' ? 'Consultation Request' : 'General Inquiry'}`,
@@ -318,7 +337,13 @@ export async function submitContactForm(data: {
       priority: 'normal',
     }),
   });
-  return response;
+
+  if (!response.ok) {
+    throw new Error(`Failed to submit form: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.data || result;
 }
 
 /**
@@ -331,9 +356,23 @@ export async function submitConsultationBooking(data: {
   preferredTime?: string;
   reason?: string;
 }) {
-  // Use unified communication to send consultation booking
-  const { data: response } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
+  // Use public API call for consultation booking
+  const API_URL = APP_CONFIG.API.BASE_URL;
+  const CLINIC_ID = APP_CONFIG.CLINIC.ID;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (CLINIC_ID) {
+    headers['X-Clinic-ID'] = CLINIC_ID;
+  }
+
+  const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
+
+  const response = await fetchWithAbort(`${API_URL}${API_ENDPOINTS.COMMUNICATION.SEND}`, {
     method: 'POST',
+    headers,
     body: JSON.stringify({
       type: 'email',
       title: 'Consultation Booking Request',
@@ -348,5 +387,200 @@ export async function submitConsultationBooking(data: {
       priority: 'high',
     }),
   });
-  return response;
+
+  if (!response.ok) {
+    throw new Error(`Failed to submit booking: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.data || result;
+}
+
+/**
+ * Register FCM device token with backend
+ */
+export async function registerFCMToken(data: {
+  token: string;
+  platform: string;
+  userId: string;
+  deviceModel?: string;
+  osVersion?: string;
+  appVersion?: string;
+}) {
+  const { data: result } = await authenticatedApi(
+    API_ENDPOINTS.COMMUNICATION.PUSH.REGISTER_DEVICE_TOKEN,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  );
+  return result;
+}
+
+// ===== MESSAGING MANAGEMENT =====
+
+/**
+ * Send SMS
+ */
+export async function sendSMS(messageData: {
+  to: string;
+  message: string;
+  templateId?: string;
+  variables?: Record<string, string>;
+}) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
+    method: 'POST',
+    body: JSON.stringify({
+      type: 'sms',
+      title: 'SMS Message',
+      message: messageData.message,
+      recipientId: messageData.to,
+    }),
+  });
+  return data;
+}
+
+/**
+ * Send WhatsApp message
+ */
+export async function sendWhatsAppMessage(messageData: {
+  to: string;
+  message: string;
+  templateId?: string;
+  variables?: Record<string, string>;
+  mediaUrl?: string;
+}) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.COMMUNICATION.SEND, {
+    method: 'POST',
+    body: JSON.stringify({
+      type: 'whatsapp',
+      title: 'WhatsApp Message',
+      message: messageData.message,
+      recipientId: messageData.to,
+    }),
+  });
+  return data;
+}
+
+/**
+ * Get message templates
+ */
+export async function getMessageTemplates(type?: 'sms' | 'email' | 'whatsapp') {
+  const params = type ? `?type=${type}` : '';
+  const { data } = await authenticatedApi(`/communication/templates${params}`);
+  return data;
+}
+
+/**
+ * Create message template
+ */
+export async function createMessageTemplate(templateData: {
+  name: string;
+  type: 'sms' | 'email' | 'whatsapp';
+  subject?: string;
+  content: string;
+  variables?: string[];
+  category?: string;
+}) {
+  const { data } = await authenticatedApi('/communication/templates', {
+    method: 'POST',
+    body: JSON.stringify(templateData),
+  });
+  return data;
+}
+
+/**
+ * Update message template
+ */
+export async function updateMessageTemplate(templateId: string, updates: {
+  name?: string;
+  subject?: string;
+  content?: string;
+  variables?: string[];
+  category?: string;
+  isActive?: boolean;
+}) {
+  const { data } = await authenticatedApi(`/communication/templates/${templateId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  });
+  return data;
+}
+
+/**
+ * Delete message template
+ */
+export async function deleteMessageTemplate(templateId: string) {
+  const { data } = await authenticatedApi(`/communication/templates/${templateId}`, {
+    method: 'DELETE',
+  });
+  return data;
+}
+
+/**
+ * Get message history
+ */
+export async function getMessageHistory(filters?: {
+  userId?: string;
+  type?: 'sms' | 'email' | 'whatsapp';
+  status?: 'sent' | 'delivered' | 'failed';
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined) {
+        params.append(key, value.toString());
+      }
+    });
+  }
+  
+  const endpoint = `/communication/logs${params.toString() ? `?${params.toString()}` : ''}`;
+  const { data } = await authenticatedApi(endpoint);
+  return data;
+}
+
+/**
+ * Get messaging statistics
+ */
+export async function getMessagingStats(period: 'day' | 'week' | 'month' | 'year' = 'month') {
+  const { data } = await authenticatedApi(`${API_ENDPOINTS.COMMUNICATION.STATS}?period=${period}`);
+  return data;
+}
+
+/**
+ * Schedule message
+ */
+export async function scheduleMessage(_messageData: {
+  type: 'sms' | 'email' | 'whatsapp';
+  to: string | string[];
+  content: string;
+  subject?: string;
+  scheduledFor: string;
+  templateId?: string;
+  variables?: Record<string, string>;
+}) {
+  // No scheduled messaging endpoint exists in the backend yet
+  return null;
+}
+
+/**
+ * Cancel scheduled message
+ */
+export async function cancelScheduledMessage(_messageId: string) {
+  // No scheduled messaging endpoint exists in the backend yet
+  return null;
+}
+
+/**
+ * Get scheduled messages
+ */
+export async function getScheduledMessages(_filters?: {
+  type?: 'sms' | 'email' | 'whatsapp';
+  status?: 'pending' | 'sent' | 'cancelled';
+}) {
+  // No scheduled messaging endpoint exists in the backend yet
+  return null;
 }

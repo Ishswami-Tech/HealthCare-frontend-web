@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HoverAnimation } from "@/components/ui/animated-wrapper";
 import { useTranslation, useLanguageSwitcher } from "@/lib/i18n/context";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { useRouter } from "next/navigation";
-// import { APP_CONFIG } from "@/lib/config/config"; // Commented out - login/register buttons are hidden
+import { APP_CONFIG } from "@/lib/config/config";
+import { ROUTES, getDashboardByRole } from "@/lib/config/routes";
+import { Role } from "@/types/auth.types";
 import { CompactThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { Globe, ChevronDown, ChevronRight, User, LogOut } from "lucide-react";
 import {
@@ -40,7 +42,7 @@ const Navigation = () => {
   const { setLanguage, language: currentLanguage } = useLanguageSwitcher();
   const { session, isAuthenticated, logout } = useAuth();
   const router = useRouter();
-  // const isAuthEnabled = APP_CONFIG.AUTH.ENABLED; // Commented out - login/register buttons are hidden
+  const isAuthEnabled = APP_CONFIG.AUTH.ENABLED;
 
   // Get current language short form
   const getCurrentLanguageShort = () => {
@@ -125,19 +127,19 @@ const Navigation = () => {
     };
   }, [hoverTimeout]);
 
-  // Authentication handlers - commented out since login/register buttons are hidden
-  // const handleLogin = () => {
-  //   router.push("/auth/login");
-  // };
+  // Authentication handlers
+  const handleLogin = () => {
+    router.push(ROUTES.LOGIN);
+  };
 
-  // const handleRegister = () => {
-  //   router.push("/auth/register");
-  // };
+  const handleRegister = () => {
+    router.push(ROUTES.REGISTER);
+  };
 
   const handleLogout = async () => {
     try {
       await logout();
-      router.push("/");
+      router.push(ROUTES.HOME);
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -145,10 +147,11 @@ const Navigation = () => {
 
   const handleDashboardNavigation = () => {
     if (!isAuthenticated || !session) {
-      router.push("/auth/login");
+      router.push(ROUTES.LOGIN);
       return;
     }
-    const dashboardPath = `/${session.user.role.toLowerCase()}/dashboard`;
+    // ✅ Use centralized getDashboardByRole function for consistency
+    const dashboardPath = getDashboardByRole(session.user.role as Role);
     router.push(dashboardPath);
   };
 
@@ -290,16 +293,16 @@ const Navigation = () => {
 
         {/* Navigation Content */}
         <div className="container mx-auto px-4 relative z-10">
-          <div className="flex items-center justify-between h-16 md:h-20 min-h-[4rem] max-w-7xl mx-auto">
+          <div className="flex items-center justify-between h-16 md:h-20 min-h-16 max-w-7xl mx-auto">
             {/* Left Section - Logo Only */}
-            <div className="flex items-center flex-shrink-0 min-w-0">
+            <div className="flex items-center shrink-0 min-w-0">
               <HoverAnimation type="scale">
                 <Link
                   href="/"
                   className="flex items-center space-x-2 sm:space-x-3 touch-manipulation"
                 >
                   <motion.div
-                    className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
+                    className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
                     whileHover={{ rotate: 360 }}
                     transition={{ duration: 0.5, ease: "easeInOut" }}
                   >
@@ -341,7 +344,6 @@ const Navigation = () => {
                       onMouseEnter={handleMouseEnter}
                       onMouseLeave={handleMouseLeave}
                       role="button"
-                      tabIndex={0}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           setIsTreatmentsDropdownOpen(
@@ -493,8 +495,7 @@ const Navigation = () => {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              ) : // Login and Register buttons are hidden - commented out
-              /* isAuthEnabled ? (
+              ) : isAuthEnabled ? (
                 <div className="flex items-center space-x-1 sm:space-x-2">
                   <HoverAnimation type="scale">
                     <Button
@@ -518,7 +519,7 @@ const Navigation = () => {
                     </Button>
                   </HoverAnimation>
                 </div>
-                ) : */ null}
+              ) : null}
 
               {/* Primary CTA Button */}
               <HoverAnimation type="scale">
@@ -684,8 +685,7 @@ const Navigation = () => {
                             Logout
                           </Button>
                         </div>
-                      ) : // Login and Register buttons are hidden in mobile menu - commented out
-                      /* isAuthEnabled ? (
+                      ) : isAuthEnabled ? (
                         <div className="flex flex-col space-y-4">
                           <Button
                             onClick={handleLogin}
@@ -701,7 +701,7 @@ const Navigation = () => {
                             Register
                           </Button>
                         </div>
-                        ) : */ null}
+                      ) : null}
 
                       <Button
                         variant="outline"

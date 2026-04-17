@@ -1,5 +1,16 @@
+/**
+ * ✅ Consolidated i18n Utilities
+ * Follows DRY, SOLID, KISS principles
+ * Single source of truth for translation utilities
+ */
+
 import { translations } from './translations/index';
-import { SupportedLanguage } from './config';
+import { 
+  SupportedLanguage, 
+  Locale,
+  SUPPORTED_LANGUAGES,
+  localeDirections 
+} from './config';
 
 // Helper function to get nested translation value
 export function getNestedTranslation(
@@ -85,4 +96,37 @@ export function getArrayTranslationWithFallback(
   }
   
   return primaryTranslation;
+}
+
+// ✅ Locale validation utilities (for compatibility with next-intl migration)
+export function isValidLocale(locale: string): locale is Locale {
+  return Object.keys(SUPPORTED_LANGUAGES).includes(locale);
+}
+
+export function getLocaleFromPathname(pathname: string): Locale | null {
+  const segments = pathname.split('/');
+  const potentialLocale = segments[1];
+  
+  if (potentialLocale && isValidLocale(potentialLocale)) {
+    return potentialLocale;
+  }
+  
+  return null;
+}
+
+export function removeLocaleFromPathname(pathname: string): string {
+  const locale = getLocaleFromPathname(pathname);
+  if (locale) {
+    return pathname.replace(`/${locale}`, '') || '/';
+  }
+  return pathname;
+}
+
+export function addLocaleToPathname(pathname: string, locale: Locale): string {
+  const cleanPathname = removeLocaleFromPathname(pathname);
+  return `/${locale}${cleanPathname === '/' ? '' : cleanPathname}`;
+}
+
+export function getLocaleDirection(locale: Locale): 'ltr' | 'rtl' {
+  return localeDirections[locale] || 'ltr';
 }

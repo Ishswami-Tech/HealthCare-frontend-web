@@ -1,579 +1,230 @@
 "use client";
 
-import React, { useState } from "react";
-import { Role } from "@/types/auth.types";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import GlobalSidebar from "@/components/global/GlobalSidebar/GlobalSidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useCurrentClinic, useUpdateClinic } from "@/hooks/query/useClinics";
+import { useDoctors } from "@/hooks/query/useDoctors";
+import {
+  useAssistantDoctorCoverage,
+  useUpdateAssistantDoctorCoverage,
+} from "@/hooks/query/useAppointments";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { getRoutesByRole } from "@/config/routes";
-import { useAuth } from "@/hooks/useAuth";
-import { 
-  Activity,
-  Users, 
-  Calendar, 
-  Settings as SettingsIcon,
-  LogOut,
-  Save,
-  Building2,
-  Clock,
-  Bell,
-  CreditCard
-} from "lucide-react";
+import { Loader2, Save, Plus, Trash2 } from "lucide-react";
+import type {
+  Clinic,
+  ClinicDoctorConsultationControl,
+  ClinicOperatingDayKey,
+  ClinicOperatingSession,
+  UpdateClinicData,
+} from "@/types/clinic.types";
+import type { AssistantDoctorCoverageAssignment } from "@/types/appointment.types";
 
-export default function ClinicAdminSettings() {
-  const { session } = useAuth();
-  const user = session?.user;
+type DoctorListItem = {
+  id: string;
+  name: string;
+  role: string;
+};
+type AssistantCoverageState = Record<string, AssistantDoctorCoverageAssignment>;
+type ClinicForm = { name: string; address: string; city: string; state: string; country: string; zipCode: string; phone: string; email: string; website: string; description: string; timezone: string; currency: string; language: string; operatingHours: string };
+type SettingsForm = { appointmentDuration: number; maxAdvanceBooking: number; minAdvanceBooking: number; cancellationWindow: number; noShowWindowMinutes: number; noShowFee: number; cancellationFee: number; allowRescheduling: boolean; allowCancellation: boolean; autoConfirmation: boolean; walkInAllowed: boolean; emailNotifications: boolean; smsNotifications: boolean; pushNotifications: boolean; appointmentReminders: boolean; cancellationAlerts: boolean; paymentMethodsText: string; autoBilling: boolean; clinicPaused: boolean; pauseReason: string; generalConsultationEnabled: boolean; videoConsultationEnabled: boolean; emergencyOnly: boolean };
 
-  // Mock clinic settings
-  const [clinicInfo, setClinicInfo] = useState({
-    name: "Ayurveda Wellness Center",
-    address: "123 Health Street, Mumbai, MH 400001",
-    phone: "+91 9876543210",
-    email: "info@ayurvedacenter.com",
-    website: "www.ayurvedacenter.com",
-    description: "Authentic Ayurvedic treatments and consultations with experienced practitioners.",
-    operatingHours: {
-      monday: { open: "09:00", close: "18:00", isOpen: true },
-      tuesday: { open: "09:00", close: "18:00", isOpen: true },
-      wednesday: { open: "09:00", close: "18:00", isOpen: true },
-      thursday: { open: "09:00", close: "18:00", isOpen: true },
-      friday: { open: "09:00", close: "18:00", isOpen: true },
-      saturday: { open: "09:00", close: "15:00", isOpen: true },
-      sunday: { open: "10:00", close: "14:00", isOpen: false }
-    }
-  });
+const DAYS: ClinicOperatingDayKey[] = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+const DAY_LABEL: Record<ClinicOperatingDayKey, string> = { monday:"Monday", tuesday:"Tuesday", wednesday:"Wednesday", thursday:"Thursday", friday:"Friday", saturday:"Saturday", sunday:"Sunday" };
+const defaultSessions = (): Record<ClinicOperatingDayKey, ClinicOperatingSession[]> => ({ monday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], tuesday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], wednesday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], thursday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], friday:[{start:"11:00",end:"14:00"},{start:"16:00",end:"20:00"}], saturday:[{start:"11:00",end:"14:00"}], sunday:[] });
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+const toNumber = (v: unknown, fb: number) => Number.isFinite(Number(v)) ? Number(v) : fb;
+const normalizeTime = (v: unknown, fb: string) => typeof v === "string" && /^([01]\d|2[0-3]):([0-5]\d)$/.test(v.trim()) ? v.trim() : fb;
+const parseSessions = (v: unknown): ClinicOperatingSession[] => Array.isArray(v) ? v.map(x => isRecord(x) ? ({ start: normalizeTime(x.start,"11:00"), end: normalizeTime(x.end,"14:00") }) : null).filter((x): x is ClinicOperatingSession => !!x) : isRecord(v) ? [{ start: normalizeTime(v.start,"11:00"), end: normalizeTime(v.end,"14:00") }] : [];
 
-  const [appointmentSettings, setAppointmentSettings] = useState({
-    defaultSlotDuration: "30",
-    advanceBookingDays: "30",
-    cancellationHours: "24",
-    autoConfirmation: true,
-    walkInAllowed: true,
-    onlineBooking: true,
-    reminderEnabled: true,
-    reminderHoursBefore: "24"
-  });
-
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    smsNotifications: true,
-    appointmentReminders: true,
-    cancellationAlerts: true,
-    dailyReports: false,
-    weeklyReports: true
-  });
-
-  const [paymentSettings, setPaymentSettings] = useState({
-    onlinePayments: true,
-    partialPayments: false,
-    cancellationFee: "100",
-    noShowFee: "200",
-    acceptedMethods: ["Cash", "Card", "UPI"]
-  });
-
-  const updateClinicInfo = (field: string, value: any) => {
-    setClinicInfo(prev => ({ ...prev, [field]: value }));
-  };
-
-  const updateOperatingHours = (day: string, field: string, value: any) => {
-    setClinicInfo(prev => ({
-      ...prev,
-      operatingHours: {
-        ...prev.operatingHours,
-        [day]: {
-          ...prev.operatingHours[day as keyof typeof prev.operatingHours],
-          [field]: value
-        }
-      }
-    }));
-  };
-
-  const updateAppointmentSettings = (field: string, value: any) => {
-    setAppointmentSettings(prev => ({ ...prev, [field]: value }));
-  };
-
-  const updateNotificationSettings = (field: string, value: any) => {
-    setNotificationSettings(prev => ({ ...prev, [field]: value }));
-  };
-
-  const updatePaymentSettings = (field: string, value: any) => {
-    setPaymentSettings(prev => ({ ...prev, [field]: value }));
-  };
-
-  const sidebarLinks = getRoutesByRole(Role.CLINIC_ADMIN).map(route => ({
-    ...route,
-    href: route.path,
-    icon: route.path.includes('dashboard') ? <Activity className="w-5 h-5" /> :
-          route.path.includes('staff') ? <Users className="w-5 h-5" /> :
-          route.path.includes('schedule') ? <Calendar className="w-5 h-5" /> :
-          route.path.includes('settings') ? <SettingsIcon className="w-5 h-5" /> :
-          <Activity className="w-5 h-5" />
-  }));
-
-  sidebarLinks.push({
-    label: "Logout",
-    href: "/(auth)/auth/login",
-    path: "/(auth)/auth/login",
-    icon: <LogOut className="w-5 h-5" />
-  });
-
-  return (
-    <DashboardLayout title="Clinic Settings" allowedRole={Role.CLINIC_ADMIN}>
-      <GlobalSidebar
-        links={sidebarLinks}
-        user={{ 
-          name: user?.name || `${user?.firstName} ${user?.lastName}` || "Clinic Admin",
-          avatarUrl: (user as any)?.profilePicture || "/avatar.png" 
-        }}
-      >
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Clinic Settings</h1>
-            <Button className="flex items-center gap-2">
-              <Save className="w-4 h-4" />
-              Save All Changes
-            </Button>
-          </div>
-
-          <Tabs defaultValue="clinic-info" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="clinic-info" className="flex items-center gap-2">
-                <Building2 className="w-4 h-4" />
-                Clinic Info
-              </TabsTrigger>
-              <TabsTrigger value="appointments" className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                Appointments
-              </TabsTrigger>
-              <TabsTrigger value="notifications" className="flex items-center gap-2">
-                <Bell className="w-4 h-4" />
-                Notifications
-              </TabsTrigger>
-              <TabsTrigger value="payments" className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4" />
-                Payments
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="clinic-info">
-              <div className="grid gap-6">
-                {/* Basic Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Building2 className="w-5 h-5" />
-                      Basic Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="clinicName">Clinic Name</Label>
-                        <Input
-                          id="clinicName"
-                          value={clinicInfo.name}
-                          onChange={(e) => updateClinicInfo('name', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input
-                          id="phone"
-                          value={clinicInfo.phone}
-                          onChange={(e) => updateClinicInfo('phone', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={clinicInfo.email}
-                          onChange={(e) => updateClinicInfo('email', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="website">Website</Label>
-                        <Input
-                          id="website"
-                          value={clinicInfo.website}
-                          onChange={(e) => updateClinicInfo('website', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="address">Address</Label>
-                      <Textarea
-                        id="address"
-                        value={clinicInfo.address}
-                        onChange={(e) => updateClinicInfo('address', e.target.value)}
-                        rows={2}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea
-                        id="description"
-                        value={clinicInfo.description}
-                        onChange={(e) => updateClinicInfo('description', e.target.value)}
-                        rows={3}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Operating Hours */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Clock className="w-5 h-5" />
-                      Operating Hours
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {Object.entries(clinicInfo.operatingHours).map(([day, hours]) => (
-                        <div key={day} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                          <div className="font-medium capitalize">{day}</div>
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={hours.isOpen}
-                              onCheckedChange={(checked) => updateOperatingHours(day, 'isOpen', checked)}
-                            />
-                            <Label className="text-sm">Open</Label>
-                          </div>
-                          {hours.isOpen && (
-                            <>
-                              <div>
-                                <Label className="text-xs text-gray-600">Opening Time</Label>
-                                <Input
-                                  type="time"
-                                  value={hours.open}
-                                  onChange={(e) => updateOperatingHours(day, 'open', e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-gray-600">Closing Time</Label>
-                                <Input
-                                  type="time"
-                                  value={hours.close}
-                                  onChange={(e) => updateOperatingHours(day, 'close', e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                            </>
-                          )}
-                          {!hours.isOpen && (
-                            <div className="col-span-2 text-gray-500 text-sm">Closed</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="appointments">
-              <div className="grid gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="w-5 h-5" />
-                      Appointment Settings
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="slotDuration">Default Slot Duration</Label>
-                        <Select 
-                          value={appointmentSettings.defaultSlotDuration} 
-                          onValueChange={(value) => updateAppointmentSettings('defaultSlotDuration', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="15">15 minutes</SelectItem>
-                            <SelectItem value="30">30 minutes</SelectItem>
-                            <SelectItem value="45">45 minutes</SelectItem>
-                            <SelectItem value="60">60 minutes</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="advanceBooking">Advance Booking (Days)</Label>
-                        <Input
-                          id="advanceBooking"
-                          type="number"
-                          value={appointmentSettings.advanceBookingDays}
-                          onChange={(e) => updateAppointmentSettings('advanceBookingDays', e.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="cancellationHours">Cancellation Notice (Hours)</Label>
-                        <Input
-                          id="cancellationHours"
-                          type="number"
-                          value={appointmentSettings.cancellationHours}
-                          onChange={(e) => updateAppointmentSettings('cancellationHours', e.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="reminderHours">Reminder Hours Before</Label>
-                        <Input
-                          id="reminderHours"
-                          type="number"
-                          value={appointmentSettings.reminderHoursBefore}
-                          onChange={(e) => updateAppointmentSettings('reminderHoursBefore', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Auto Confirmation</Label>
-                          <p className="text-sm text-gray-600">Automatically confirm appointments</p>
-                        </div>
-                        <Switch
-                          checked={appointmentSettings.autoConfirmation}
-                          onCheckedChange={(checked) => updateAppointmentSettings('autoConfirmation', checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Walk-in Appointments</Label>
-                          <p className="text-sm text-gray-600">Allow walk-in patients</p>
-                        </div>
-                        <Switch
-                          checked={appointmentSettings.walkInAllowed}
-                          onCheckedChange={(checked) => updateAppointmentSettings('walkInAllowed', checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Online Booking</Label>
-                          <p className="text-sm text-gray-600">Enable patient self-booking</p>
-                        </div>
-                        <Switch
-                          checked={appointmentSettings.onlineBooking}
-                          onCheckedChange={(checked) => updateAppointmentSettings('onlineBooking', checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Appointment Reminders</Label>
-                          <p className="text-sm text-gray-600">Send automatic reminders</p>
-                        </div>
-                        <Switch
-                          checked={appointmentSettings.reminderEnabled}
-                          onCheckedChange={(checked) => updateAppointmentSettings('reminderEnabled', checked)}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="notifications">
-              <div className="grid gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="w-5 h-5" />
-                      Notification Settings
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Email Notifications</Label>
-                          <p className="text-sm text-gray-600">Send notifications via email</p>
-                        </div>
-                        <Switch
-                          checked={notificationSettings.emailNotifications}
-                          onCheckedChange={(checked) => updateNotificationSettings('emailNotifications', checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>SMS Notifications</Label>
-                          <p className="text-sm text-gray-600">Send notifications via SMS</p>
-                        </div>
-                        <Switch
-                          checked={notificationSettings.smsNotifications}
-                          onCheckedChange={(checked) => updateNotificationSettings('smsNotifications', checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Appointment Reminders</Label>
-                          <p className="text-sm text-gray-600">Remind patients before appointments</p>
-                        </div>
-                        <Switch
-                          checked={notificationSettings.appointmentReminders}
-                          onCheckedChange={(checked) => updateNotificationSettings('appointmentReminders', checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Cancellation Alerts</Label>
-                          <p className="text-sm text-gray-600">Alert staff about cancellations</p>
-                        </div>
-                        <Switch
-                          checked={notificationSettings.cancellationAlerts}
-                          onCheckedChange={(checked) => updateNotificationSettings('cancellationAlerts', checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Daily Reports</Label>
-                          <p className="text-sm text-gray-600">Daily summary reports</p>
-                        </div>
-                        <Switch
-                          checked={notificationSettings.dailyReports}
-                          onCheckedChange={(checked) => updateNotificationSettings('dailyReports', checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Weekly Reports</Label>
-                          <p className="text-sm text-gray-600">Weekly performance reports</p>
-                        </div>
-                        <Switch
-                          checked={notificationSettings.weeklyReports}
-                          onCheckedChange={(checked) => updateNotificationSettings('weeklyReports', checked)}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="payments">
-              <div className="grid gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CreditCard className="w-5 h-5" />
-                      Payment Settings
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="cancellationFee">Cancellation Fee (₹)</Label>
-                        <Input
-                          id="cancellationFee"
-                          type="number"
-                          value={paymentSettings.cancellationFee}
-                          onChange={(e) => updatePaymentSettings('cancellationFee', e.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="noShowFee">No-Show Fee (₹)</Label>
-                        <Input
-                          id="noShowFee"
-                          type="number"
-                          value={paymentSettings.noShowFee}
-                          onChange={(e) => updatePaymentSettings('noShowFee', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Online Payments</Label>
-                          <p className="text-sm text-gray-600">Accept payments online</p>
-                        </div>
-                        <Switch
-                          checked={paymentSettings.onlinePayments}
-                          onCheckedChange={(checked) => updatePaymentSettings('onlinePayments', checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Partial Payments</Label>
-                          <p className="text-sm text-gray-600">Allow partial advance payments</p>
-                        </div>
-                        <Switch
-                          checked={paymentSettings.partialPayments}
-                          onCheckedChange={(checked) => updatePaymentSettings('partialPayments', checked)}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label>Accepted Payment Methods</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
-                        {['Cash', 'Card', 'UPI', 'Net Banking', 'Wallet', 'Cheque'].map((method) => (
-                          <div key={method} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id={method}
-                              checked={paymentSettings.acceptedMethods.includes(method)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  updatePaymentSettings('acceptedMethods', [...paymentSettings.acceptedMethods, method]);
-                                } else {
-                                  updatePaymentSettings('acceptedMethods', paymentSettings.acceptedMethods.filter(m => m !== method));
-                                }
-                              }}
-                              className="rounded"
-                            />
-                            <label htmlFor={method} className="text-sm font-medium">
-                              {method}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </GlobalSidebar>
-    </DashboardLayout>
-  );
+function omitAssistantCoverage(value: unknown): Record<string, unknown> {
+  const record = isRecord(value) ? value : {};
+  const { assistantDoctorCoverage: _assistantDoctorCoverage, ...rest } = record;
+  return rest;
 }
 
+export default function ClinicAdminSettingsPage() {
+  useAuth();
+  const { data: clinicData, isPending } = useCurrentClinic();
+  const updateClinic = useUpdateClinic();
+  const { data: assistantCoverageData = [] } = useAssistantDoctorCoverage();
+  const updateAssistantCoverageMutation = useUpdateAssistantDoctorCoverage();
+  const clinic = useMemo(() => clinicData as Clinic | null, [clinicData]);
+  const { data: doctorsData } = useDoctors(clinic?.id || "");
+  const doctors = useMemo<DoctorListItem[]>(() => {
+    const raw = doctorsData as unknown;
+    const arr = Array.isArray(raw) ? raw : isRecord(raw) && Array.isArray(raw.data) ? raw.data : isRecord(raw) && isRecord(raw.data) && Array.isArray(raw.data.doctors) ? raw.data.doctors : [];
+    return arr.map((doctorValue) => {
+      const doctorRecord = isRecord(doctorValue) ? doctorValue : {};
+      const nestedDoctor = isRecord(doctorRecord.doctor) ? doctorRecord.doctor : {};
+      const nestedUser = isRecord(nestedDoctor.user) ? nestedDoctor.user : {};
+      return {
+        id: String(nestedDoctor.id ?? doctorRecord.id ?? ""),
+        name: String(doctorRecord.name ?? nestedUser.name ?? "Doctor"),
+        role: String(doctorRecord.role ?? nestedUser.role ?? "").toUpperCase(),
+      };
+    }).filter((doctor) => !!doctor.id);
+  }, [doctorsData]);
+  const primaryDoctors = useMemo(() => doctors.filter((doctor) => doctor.role === "DOCTOR"), [doctors]);
+  const assistantDoctors = useMemo(() => doctors.filter((doctor) => doctor.role === "ASSISTANT_DOCTOR"), [doctors]);
+
+  const [ready, setReady] = useState(false);
+  const [clinicForm, setClinicForm] = useState<ClinicForm>({ name:"",address:"",city:"",state:"",country:"India",zipCode:"",phone:"",email:"",website:"",description:"",timezone:"Asia/Kolkata",currency:"INR",language:"en",operatingHours:"Mon-Sun multi-session OPD" });
+  const [settings, setSettings] = useState<SettingsForm>({ appointmentDuration:30,maxAdvanceBooking:30,minAdvanceBooking:2,cancellationWindow:24,noShowWindowMinutes:15,noShowFee:0,cancellationFee:0,allowRescheduling:true,allowCancellation:true,autoConfirmation:true,walkInAllowed:true,emailNotifications:true,smsNotifications:true,pushNotifications:false,appointmentReminders:true,cancellationAlerts:true,paymentMethodsText:"Cash, Card, UPI",autoBilling:false,clinicPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false });
+  const [sessions, setSessions] = useState<Record<ClinicOperatingDayKey, ClinicOperatingSession[]>>(defaultSessions());
+  const [doctorCtrl, setDoctorCtrl] = useState<Record<string, ClinicDoctorConsultationControl>>({});
+  const [assistantCoverage, setAssistantCoverage] = useState<AssistantCoverageState>({});
+
+  useEffect(() => {
+    if (!clinic || ready) return;
+    const base = isRecord(clinic.settings) ? clinic.settings : {};
+    const appt = omitAssistantCoverage(base.appointmentSettings);
+    const notif = isRecord(base.notifications) ? base.notifications : {};
+    const notifSet = isRecord(base.notificationSettings) ? base.notificationSettings : {};
+    const pay = isRecord(base.paymentSettings) ? base.paymentSettings : {};
+    const policy = isRecord(base.customPolicies) ? base.customPolicies : {};
+    const opd = isRecord(appt.opdControls) ? appt.opdControls : isRecord(appt.opdControl) ? appt.opdControl : {};
+    const docMap = isRecord(appt.doctorConsultationControls) ? appt.doctorConsultationControls : {};
+    const dayWin = isRecord(appt.operatingWindowsByDay) ? appt.operatingWindowsByDay : {};
+    const parsed = defaultSessions(); DAYS.forEach(d => { if (dayWin[d] !== undefined) parsed[d] = parseSessions(dayWin[d]); });
+    const mapped: Record<string, ClinicDoctorConsultationControl> = {};
+    Object.entries(docMap).forEach(([id,v]) => { if (isRecord(v)) mapped[id] = { isPaused: Boolean(v.isPaused ?? v.paused ?? false), pauseReason: typeof v.pauseReason==="string"?v.pauseReason:"", generalConsultationEnabled: Boolean(v.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(v.videoConsultationEnabled ?? true), emergencyOnly: Boolean(v.emergencyOnly ?? false) }; });
+    setClinicForm({ name: clinic.name||"", address: clinic.address||"", city: (clinic as any).city||"", state: (clinic as any).state||"", country: (clinic as any).country||"India", zipCode: (clinic as any).zipCode||"", phone: clinic.phone||"", email: clinic.email||"", website: clinic.website||"", description: clinic.description||"", timezone: clinic.timezone||"Asia/Kolkata", currency: clinic.currency||"INR", language: clinic.language||"en", operatingHours: clinic.operatingHours||"Mon-Sun multi-session OPD" });
+    setSettings({ appointmentDuration: toNumber(appt.appointmentDuration,30), maxAdvanceBooking: toNumber(appt.maxAdvanceBooking,30), minAdvanceBooking: toNumber(appt.minAdvanceBooking,2), cancellationWindow: toNumber(appt.cancellationWindow,24), noShowWindowMinutes: toNumber(appt.noShowWindowMinutes,15), noShowFee: toNumber(policy.noShowFee,0), cancellationFee: toNumber(policy.cancellationFee,0), allowRescheduling: typeof appt.allowRescheduling==="boolean"?appt.allowRescheduling:true, allowCancellation: typeof appt.allowCancellation==="boolean"?appt.allowCancellation:true, autoConfirmation: typeof appt.autoConfirmation==="boolean"?appt.autoConfirmation:true, walkInAllowed: typeof appt.walkInAllowed==="boolean"?appt.walkInAllowed:true, emailNotifications: typeof notif.email==="boolean"?notif.email:typeof notifSet.emailNotifications==="boolean"?notifSet.emailNotifications:true, smsNotifications: typeof notif.sms==="boolean"?notif.sms:typeof notifSet.smsNotifications==="boolean"?notifSet.smsNotifications:true, pushNotifications: typeof notif.push==="boolean"?notif.push:typeof notifSet.pushNotifications==="boolean"?notifSet.pushNotifications:false, appointmentReminders: typeof notifSet.appointmentReminders==="boolean"?notifSet.appointmentReminders:true, cancellationAlerts: typeof notifSet.cancellationAlerts==="boolean"?notifSet.cancellationAlerts:true, paymentMethodsText: Array.isArray(pay.paymentMethods)?pay.paymentMethods.join(", "):"Cash, Card, UPI", autoBilling: typeof pay.autoBilling==="boolean"?pay.autoBilling:false, clinicPaused: Boolean(opd.isOpdPaused ?? opd.clinicPaused ?? false), pauseReason: typeof opd.pauseReason==="string"?opd.pauseReason:"", generalConsultationEnabled: Boolean(opd.generalConsultationEnabled ?? true), videoConsultationEnabled: Boolean(opd.videoConsultationEnabled ?? true), emergencyOnly: Boolean(opd.emergencyOnly ?? false) });
+    setSessions(parsed); setDoctorCtrl(mapped); setReady(true);
+  }, [clinic, ready]);
+
+  useEffect(() => {
+    if (assistantCoverageData.length === 0) return;
+    const coverageMap = assistantCoverageData.reduce<AssistantCoverageState>((accumulator, entry) => {
+      accumulator[entry.assistantDoctorId] = {
+        assistantDoctorId: entry.assistantDoctorId,
+        primaryDoctorIds: entry.primaryDoctorIds,
+        isActive: entry.isActive,
+      };
+      return accumulator;
+    }, {});
+    setAssistantCoverage((current) => ({ ...current, ...coverageMap }));
+  }, [assistantCoverageData]);
+
+  useEffect(() => { if (doctors.length===0) return; setDoctorCtrl(prev => { const n={...prev}; doctors.forEach((doctor)=>{ if(!n[doctor.id]) n[doctor.id]={ isPaused:false,pauseReason:"",generalConsultationEnabled:true,videoConsultationEnabled:true,emergencyOnly:false }; }); return n; }); }, [doctors]);
+  useEffect(() => {
+    if (assistantDoctors.length===0) return;
+    setAssistantCoverage(prev => {
+      const next = { ...prev };
+      assistantDoctors.forEach((doctor) => {
+        if (!next[doctor.id]) {
+          next[doctor.id] = { assistantDoctorId: doctor.id, primaryDoctorIds: [], isActive: false };
+        }
+      });
+      return next;
+    });
+  }, [assistantDoctors]);
+
+  const save = async () => {
+    if (!clinic?.id) return;
+    const base = isRecord(clinic.settings) ? clinic.settings : {};
+    const appt = omitAssistantCoverage(base.appointmentSettings);
+    const notif = isRecord(base.notifications) ? base.notifications : {};
+    const notifSet = isRecord(base.notificationSettings) ? base.notificationSettings : {};
+    const pay = isRecord(base.paymentSettings) ? base.paymentSettings : {};
+    const policy = isRecord(base.customPolicies) ? base.customPolicies : {};
+    const paymentMethods = settings.paymentMethodsText.split(",").map(x=>x.trim()).filter(Boolean);
+    const payload: UpdateClinicData = {
+      name: clinicForm.name.trim(), address: clinicForm.address.trim(), city: clinicForm.city.trim(), state: clinicForm.state.trim(), country: clinicForm.country.trim(), zipCode: clinicForm.zipCode.trim(), phone: clinicForm.phone.trim(), email: clinicForm.email.trim(), website: clinicForm.website.trim(), description: clinicForm.description.trim(), timezone: clinicForm.timezone.trim() || "Asia/Kolkata", currency: clinicForm.currency.trim() || "INR", language: clinicForm.language.trim() || "en", operatingHours: clinicForm.operatingHours.trim(),
+      settings: {
+        ...base,
+        appointmentSettings: { ...appt, appointmentDuration: settings.appointmentDuration, maxAdvanceBooking: settings.maxAdvanceBooking, minAdvanceBooking: settings.minAdvanceBooking, cancellationWindow: settings.cancellationWindow, noShowWindowMinutes: settings.noShowWindowMinutes, allowRescheduling: settings.allowRescheduling, allowCancellation: settings.allowCancellation, autoConfirmation: settings.autoConfirmation, walkInAllowed: settings.walkInAllowed, operatingWindowsByDay: sessions, dailyOperatingWindow: sessions.monday[0] || { start:"11:00", end:"14:00" }, opdControls: { isOpdPaused: settings.clinicPaused, pauseReason: settings.pauseReason.trim(), generalConsultationEnabled: settings.generalConsultationEnabled, videoConsultationEnabled: settings.videoConsultationEnabled, emergencyOnly: settings.emergencyOnly }, doctorConsultationControls: doctorCtrl },
+        notificationSettings: { ...notifSet, appointmentReminders: settings.appointmentReminders, cancellationAlerts: settings.cancellationAlerts, emailNotifications: settings.emailNotifications, smsNotifications: settings.smsNotifications, pushNotifications: settings.pushNotifications },
+        notifications: { ...notif, email: settings.emailNotifications, sms: settings.smsNotifications, push: settings.pushNotifications },
+        paymentSettings: { ...pay, currency: clinicForm.currency.trim() || "INR", paymentMethods, autoBilling: settings.autoBilling },
+        customPolicies: { ...policy, noShowFee: settings.noShowFee, cancellationFee: settings.cancellationFee },
+      },
+    };
+    await updateClinic.mutateAsync({ id: clinic.id, data: payload });
+    const coverageEntries = Object.values(assistantCoverage).map((value) => ({
+      assistantDoctorId: value.assistantDoctorId,
+      primaryDoctorIds: value.primaryDoctorIds,
+      isActive: value.isActive,
+    }));
+    await updateAssistantCoverageMutation.mutateAsync(coverageEntries);
+  };
+
+  const setSF = <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) =>
+    setSettings((previous) => ({ ...previous, [key]: value }));
+  const setCF = (k: keyof ClinicForm, v: string) => setClinicForm(p => ({ ...p, [k]: v }));
+  const addSession = (d: ClinicOperatingDayKey) => setSessions(p => ({ ...p, [d]: [...p[d], { start:"16:00", end:"20:00" }] }));
+  const updSession = (d: ClinicOperatingDayKey, i: number, k: "start"|"end", v: string) => setSessions(p => ({ ...p, [d]: p[d].map((s,idx)=>idx===i?{...s,[k]:v}:s) }));
+  const delSession = (d: ClinicOperatingDayKey, i: number) => setSessions(p => ({ ...p, [d]: p[d].filter((_,idx)=>idx!==i) }));
+  const updDoc = (id: string, k: keyof ClinicDoctorConsultationControl, v: string|boolean) => setDoctorCtrl(p => {
+    const current: ClinicDoctorConsultationControl = p[id] || { isPaused:false, pauseReason:"", generalConsultationEnabled:true, videoConsultationEnabled:true, emergencyOnly:false };
+    return { ...p, [id]: { ...current, [k]: v as never } };
+  });
+  const toggleAssistantPrimaryDoctor = (assistantDoctorId: string, primaryDoctorId: string) =>
+    setAssistantCoverage((current) => {
+      const existing = current[assistantDoctorId] || { assistantDoctorId, primaryDoctorIds: [], isActive: false };
+      const hasDoctor = existing.primaryDoctorIds.includes(primaryDoctorId);
+      return {
+        ...current,
+        [assistantDoctorId]: {
+          ...existing,
+          assistantDoctorId,
+          primaryDoctorIds: hasDoctor
+            ? existing.primaryDoctorIds.filter((id) => id !== primaryDoctorId)
+            : [...existing.primaryDoctorIds, primaryDoctorId],
+        },
+      };
+    });
+  const setAssistantCoverageActive = (assistantDoctorId: string, isActive: boolean) =>
+    setAssistantCoverage((current) => ({
+      ...current,
+      [assistantDoctorId]: {
+        ...(current[assistantDoctorId] || { assistantDoctorId, primaryDoctorIds: [] }),
+        isActive,
+      },
+    }));
+
+  if (isPending || !ready) return <div className="p-6 flex items-center justify-center min-h-[420px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (!clinic?.id) return <div className="p-6"><Card><CardHeader><CardTitle>Clinic Settings</CardTitle><CardDescription>Clinic context is not available.</CardDescription></CardHeader></Card></div>;
+
+  return (
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div><h1 className="text-2xl sm:text-3xl font-bold">Clinic Settings</h1><p className="text-sm text-muted-foreground mt-1">Dynamic OPD sessions + emergency + doctor-wise controls.</p></div>
+        <Button className="w-full sm:w-auto" onClick={save} disabled={updateClinic.isPending || updateAssistantCoverageMutation.isPending}>{updateClinic.isPending || updateAssistantCoverageMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}Save Changes</Button>
+      </div>
+
+      <Card><CardHeader><CardTitle>Clinic Profile</CardTitle></CardHeader><CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div><Label>Clinic Name</Label><Input value={clinicForm.name} onChange={e=>setCF("name",e.target.value)} /></div><div><Label>Phone</Label><Input value={clinicForm.phone} onChange={e=>setCF("phone",e.target.value)} /></div>
+        <div><Label>Email</Label><Input value={clinicForm.email} onChange={e=>setCF("email",e.target.value)} /></div><div><Label>Website</Label><Input value={clinicForm.website} onChange={e=>setCF("website",e.target.value)} /></div>
+        <div><Label>City</Label><Input value={clinicForm.city} onChange={e=>setCF("city",e.target.value)} /></div><div><Label>State</Label><Input value={clinicForm.state} onChange={e=>setCF("state",e.target.value)} /></div>
+        <div><Label>Country</Label><Input value={clinicForm.country} onChange={e=>setCF("country",e.target.value)} /></div><div><Label>Zip Code</Label><Input value={clinicForm.zipCode} onChange={e=>setCF("zipCode",e.target.value)} /></div>
+        <div className="md:col-span-2"><Label>Address</Label><Textarea value={clinicForm.address} onChange={e=>setCF("address",e.target.value)} /></div>
+      </CardContent></Card>
+
+      <Card><CardHeader><CardTitle>Dynamic OPD Sessions</CardTitle><CardDescription>Add multiple sessions per day.</CardDescription></CardHeader><CardContent className="space-y-3">
+        {DAYS.map(d => <div key={d} className="border rounded-md p-3 space-y-2"><div className="flex items-center justify-between"><p className="font-medium text-sm">{DAY_LABEL[d]}</p><Button type="button" variant="outline" size="sm" onClick={()=>addSession(d)}><Plus className="h-3 w-3 mr-1" />Add Session</Button></div>{sessions[d].length===0?<p className="text-xs text-muted-foreground">Closed</p>:sessions[d].map((s,i)=><div key={`${d}-${i}`} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end"><div><Label className="text-xs">Start</Label><Input type="time" value={s.start} onChange={e=>updSession(d,i,"start",e.target.value)} /></div><div><Label className="text-xs">End</Label><Input type="time" value={s.end} onChange={e=>updSession(d,i,"end",e.target.value)} /></div><Button type="button" variant="outline" size="icon" onClick={()=>delSession(d,i)}><Trash2 className="h-4 w-4" /></Button></div>)}</div>)}
+      </CardContent></Card>
+
+      <Card><CardHeader><CardTitle>Emergency / OPD Controls</CardTitle></CardHeader><CardContent className="space-y-3">
+        <div className="flex items-center justify-between border rounded-md p-3"><Label>Pause Clinic OPD</Label><Switch checked={settings.clinicPaused} onCheckedChange={v=>setSF("clinicPaused",v)} /></div>
+        <div><Label>Pause Reason</Label><Input value={settings.pauseReason} onChange={e=>setSF("pauseReason",e.target.value)} /></div>
+        <div className="flex items-center justify-between border rounded-md p-3"><Label>General Consultation Enabled</Label><Switch checked={settings.generalConsultationEnabled} onCheckedChange={v=>setSF("generalConsultationEnabled",v)} /></div>
+        <div className="flex items-center justify-between border rounded-md p-3"><Label>Video Consultation Enabled</Label><Switch checked={settings.videoConsultationEnabled} onCheckedChange={v=>setSF("videoConsultationEnabled",v)} /></div>
+        <div className="flex items-center justify-between border rounded-md p-3"><Label>Emergency Only Mode</Label><Switch checked={settings.emergencyOnly} onCheckedChange={v=>setSF("emergencyOnly",v)} /></div>
+      </CardContent></Card>
+
+      <Card><CardHeader><CardTitle>Doctor-Wise Controls</CardTitle></CardHeader><CardContent className="space-y-3">
+        {doctors.length===0 ? <p className="text-sm text-muted-foreground">No doctors found.</p> : doctors.map((doctor)=>{ const c=doctorCtrl[doctor.id]; if(!c) return null; return <div key={doctor.id} className="border rounded-md p-3 space-y-2"><p className="font-medium">{doctor.name}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Pause Doctor</Label><Switch checked={c.isPaused} onCheckedChange={v=>updDoc(doctor.id,"isPaused",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">General Enabled</Label><Switch checked={c.generalConsultationEnabled} onCheckedChange={v=>updDoc(doctor.id,"generalConsultationEnabled",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Video Enabled</Label><Switch checked={c.videoConsultationEnabled} onCheckedChange={v=>updDoc(doctor.id,"videoConsultationEnabled",v)} /></div><div className="flex items-center justify-between border rounded-md p-2"><Label className="text-sm">Emergency Only</Label><Switch checked={c.emergencyOnly} onCheckedChange={v=>updDoc(doctor.id,"emergencyOnly",v)} /></div></div><div><Label className="text-xs">Reason</Label><Input value={c.pauseReason} onChange={e=>updDoc(doctor.id,"pauseReason",e.target.value)} /></div></div>; })}
+      </CardContent></Card>
+
+      <Card><CardHeader><CardTitle>Assistant Doctor Coverage</CardTitle><CardDescription>Choose which primary doctors each assistant doctor can cover at this clinic. Reassignment will use this configuration.</CardDescription></CardHeader><CardContent className="space-y-3">
+        {assistantDoctors.length===0 ? <p className="text-sm text-muted-foreground">No assistant doctors found.</p> : assistantDoctors.map((assistant) => { const coverage = assistantCoverage[assistant.id] || { assistantDoctorId: assistant.id, primaryDoctorIds: [], isActive: false }; return <div key={assistant.id} className="border rounded-md p-3 space-y-3"><div className="flex items-center justify-between gap-3"><div><p className="font-medium">{assistant.name}</p><p className="text-xs text-muted-foreground">Assistant coverage for main doctor bookings</p></div><div className="flex items-center gap-2"><Label className="text-sm">Active</Label><Switch checked={coverage.isActive} onCheckedChange={(value)=>setAssistantCoverageActive(assistant.id, value)} /></div></div><div className="flex flex-wrap gap-2">{primaryDoctors.length===0 ? <p className="text-sm text-muted-foreground">No primary doctors found.</p> : primaryDoctors.map((doctor) => { const selected = coverage.primaryDoctorIds.includes(doctor.id); return <Button key={doctor.id} type="button" variant={selected ? "default" : "outline"} size="sm" onClick={()=>toggleAssistantPrimaryDoctor(assistant.id, doctor.id)}>{doctor.name}</Button>; })}</div></div>; })}
+      </CardContent></Card>
+    </div>
+  );
+}

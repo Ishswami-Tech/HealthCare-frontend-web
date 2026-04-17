@@ -13,23 +13,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useMyAppointments,
   useAppointments,
   useUpdateAppointment,
   useCancelAppointment,
   useAppointmentStats,
-} from "@/hooks/useAppointments";
-import { useJoinVideoAppointment } from "@/hooks/useVideoAppointments";
-import { useClinicContext } from "@/hooks/useClinic";
-import { useRBAC } from "@/hooks/useRBAC";
+} from "@/hooks/query/useAppointments";
+import { useJoinVideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { useClinicContext } from "@/hooks/query/useClinics";
+import { useRBAC } from "@/hooks/utils/useRBAC";
 import {
   useRealTimeAppointments,
   useWebSocketQuerySync,
-} from "@/hooks/useRealTimeQueries";
-import { useDebouncedCallback } from "@/lib/performance";
-import { PAGINATION } from "@/lib/query/query-config";
+} from "@/hooks/realtime/useRealTimeQueries";
+import { useDebouncedCallback } from "@/lib/utils/performance";
+import { isVideoAppointmentPaymentCompleted } from "@/lib/utils/appointmentUtils";
+import { PAGINATION } from "@/hooks/query/config";
 import { Pagination } from "@/components/virtual/VirtualizedList";
 import {
   AppointmentProtectedComponent,
@@ -37,6 +38,7 @@ import {
 } from "@/components/rbac";
 import { Role } from "@/types/auth.types";
 import { Permission } from "@/types/rbac.types";
+import { PageSuspense } from "@/components/ui/suspense-boundary";
 import {
   Calendar,
   Clock,
@@ -53,6 +55,18 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
+
+// Appointment status constants - must match backend enum values
+const APPOINTMENT_STATUS = {
+  IN_PROGRESS: 'IN_PROGRESS',
+  SCHEDULED: 'SCHEDULED',
+  CONFIRMED: 'CONFIRMED',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  NO_SHOW: 'NO_SHOW',
+  PENDING: 'PENDING',
+} as const;
 
 export default function AppointmentsPage() {
   const { session } = useAuth();
@@ -91,17 +105,18 @@ export default function AppointmentsPage() {
 
   // Fetch appointments data with proper permissions, real-time updates, and pagination
   // Always call hooks, but conditionally enable them
-  const allAppointmentsQuery = useAppointments(clinicId || "", {
-    search: debouncedSearchTerm, // Use debounced search
-    doctorId: filterDoctor || undefined,
-    type: filterType || undefined,
-    status: filterStatus || undefined,
+  const allAppointmentsQuery = useAppointments({
+    ...(clinicId ? { clinicId } : {}),
+    search: debouncedSearchTerm,
+    ...(filterDoctor && { doctorId: filterDoctor }),
+    ...(filterType && { type: filterType as any }),
+    ...(filterStatus && { status: filterStatus as any }),
     page,
     limit: PAGINATION.DEFAULT_PAGE_SIZE,
   });
 
   const myAppointmentsQuery = useMyAppointments({
-    status: filterStatus || undefined,
+    ...(filterStatus ? { status: filterStatus } : {}),
     page,
     limit: PAGINATION.DEFAULT_PAGE_SIZE,
   });
@@ -127,7 +142,9 @@ export default function AppointmentsPage() {
       ? (appointmentsQuery.data as any)?.appointments ||
         (appointmentsQuery.data as any)?.data ||
         appointmentsQuery.data
-      : appointmentsQuery.data;
+      : (appointmentsQuery.data as any)?.appointments ||
+        (appointmentsQuery.data as any)?.data?.appointments ||
+        appointmentsQuery.data;
 
   const appointments = Array.isArray(appointmentsData) ? appointmentsData : [];
   const isLoading =
@@ -148,15 +165,27 @@ export default function AppointmentsPage() {
 
   const [activeTab, setActiveTab] = useState("upcoming");
 
+  const getAppointmentDateTime = useCallback((appointment: { date?: string; time?: string }) => {
+    if (!appointment?.date) return null;
+
+    const dateTimeValue = `${appointment.date}T${appointment.time || "00:00"}:00`;
+    const parsed = new Date(dateTimeValue);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, []);
+
   // Memoize filtered appointments for performance (optimized for 10M users)
   const { upcomingAppointments, pastAppointments, totalPages } = useMemo(() => {
     const now = new Date();
     const appointmentsList = Array.isArray(appointments) ? appointments : [];
 
-    const upcoming = appointmentsList.filter(
-      (apt) => new Date(apt.date) >= now
-    );
-    const past = appointmentsList.filter((apt) => new Date(apt.date) < now);
+    const upcoming = appointmentsList.filter((apt) => {
+      const appointmentDateTime = getAppointmentDateTime(apt);
+      return appointmentDateTime !== null && appointmentDateTime >= now;
+    });
+    const past = appointmentsList.filter((apt) => {
+      const appointmentDateTime = getAppointmentDateTime(apt);
+      return appointmentDateTime !== null && appointmentDateTime < now;
+    });
 
     // Calculate pagination
     const pageSize = PAGINATION.DEFAULT_PAGE_SIZE;
@@ -176,20 +205,23 @@ export default function AppointmentsPage() {
       totalUpcoming: upcoming.length,
       totalPast: past.length,
     };
-  }, [appointments, page, activeTab]);
+  }, [appointments, page, activeTab, getAppointmentDateTime]);
 
   // Extract totals for pagination
   const { totalUpcoming, totalPast } = useMemo(() => {
     const now = new Date();
     const appointmentsList = Array.isArray(appointments) ? appointments : [];
     return {
-      totalUpcoming: appointmentsList.filter(
-        (apt: any) => new Date(apt.date) >= now
-      ).length,
-      totalPast: appointmentsList.filter((apt: any) => new Date(apt.date) < now)
-        .length,
+      totalUpcoming: appointmentsList.filter((apt: any) => {
+        const appointmentDateTime = getAppointmentDateTime(apt);
+        return appointmentDateTime !== null && appointmentDateTime >= now;
+      }).length,
+      totalPast: appointmentsList.filter((apt: any) => {
+        const appointmentDateTime = getAppointmentDateTime(apt);
+        return appointmentDateTime !== null && appointmentDateTime < now;
+      }).length,
     };
-  }, [appointments]);
+  }, [appointments, getAppointmentDateTime]);
 
   // AppointmentCard is already memoized above
 
@@ -199,15 +231,17 @@ export default function AppointmentsPage() {
     setPage(1);
   }, []);
 
-  // Show loading state
+  // Show loading state with Suspense boundary
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading appointments...</p>
+      <PageSuspense>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading appointments...</p>
+          </div>
         </div>
-      </div>
+      </PageSuspense>
     );
   }
 
@@ -231,14 +265,18 @@ export default function AppointmentsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "confirmed":
+      case APPOINTMENT_STATUS.CONFIRMED:
         return "bg-green-100 text-green-800";
-      case "pending":
+      case APPOINTMENT_STATUS.PENDING:
+      case APPOINTMENT_STATUS.SCHEDULED:
         return "bg-yellow-100 text-yellow-800";
-      case "completed":
+      case APPOINTMENT_STATUS.COMPLETED:
         return "bg-blue-100 text-blue-800";
-      case "cancelled":
+      case APPOINTMENT_STATUS.CANCELLED:
+      case APPOINTMENT_STATUS.NO_SHOW:
         return "bg-red-100 text-red-800";
+      case APPOINTMENT_STATUS.IN_PROGRESS:
+        return "bg-purple-100 text-purple-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -292,7 +330,7 @@ export default function AppointmentsPage() {
       const result = await joinVideoAppointment.mutateAsync({
         appointmentId,
         userId,
-        role: userRole === Role.DOCTOR ? "doctor" : "patient",
+        role: (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) ? "doctor" : "patient",
       });
 
       const resultData = result as { token?: { token?: string } | string };
@@ -308,7 +346,7 @@ export default function AppointmentsPage() {
           "_blank"
         );
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to join video:", error);
     }
   };
@@ -395,7 +433,7 @@ export default function AppointmentsPage() {
                     </Button>
                   </AppointmentProtectedComponent>
 
-                  {appointment.status !== "completed" && (
+                  {appointment.status !== APPOINTMENT_STATUS.COMPLETED && (
                     <>
                       {/* Edit button - only for users with update permission */}
                       <AppointmentProtectedComponent action="update">
@@ -437,8 +475,9 @@ export default function AppointmentsPage() {
 
                   {/* Video Join Button for video appointments */}
                   {appointment.mode === "video" &&
-                    (appointment.status === "confirmed" ||
-                      appointment.status === "IN_PROGRESS") && (
+                    (appointment.status === APPOINTMENT_STATUS.CONFIRMED ||
+                      appointment.status === APPOINTMENT_STATUS.IN_PROGRESS) &&
+                    isVideoAppointmentPaymentCompleted(appointment) && (
                       <Button
                         size="sm"
                         variant="default"
@@ -454,7 +493,7 @@ export default function AppointmentsPage() {
                     )}
 
                   {/* Queue management actions for authorized users */}
-                  {appointment.status === "confirmed" &&
+                  {appointment.status === APPOINTMENT_STATUS.CONFIRMED &&
                     appointment.mode !== "video" && (
                       <AppointmentProtectedComponent action="manage">
                         <Button
@@ -463,7 +502,7 @@ export default function AppointmentsPage() {
                           className="flex items-center gap-1"
                           onClick={() =>
                             handleUpdateAppointment(appointment.id, {
-                              status: "IN_PROGRESS",
+                              status: APPOINTMENT_STATUS.IN_PROGRESS,
                             })
                           }
                         >
@@ -573,6 +612,13 @@ export default function AppointmentsPage() {
           </Button>
         </AppointmentProtectedComponent>
       </div>
+
+      {/* Patient Live Queue Status */}
+      {userRole === Role.PATIENT && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+           <PatientQueueCard />
+        </div>
+      )}
 
       {/* Filters */}
       <Card>

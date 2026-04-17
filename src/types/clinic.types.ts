@@ -14,6 +14,7 @@ export interface Clinic {
   app_name: string;
   logo?: string;
   website?: string;
+  operatingHours?: string;
   description?: string;
   timezone?: string;
   currency?: string;
@@ -68,14 +69,19 @@ export interface ClinicUser {
 
 export interface ClinicStats {
   totalUsers: number;
-  totalDoctors: number;
-  totalPatients: number;
-  totalReceptionists: number;
-  totalClinicAdmins: number;
+  totalLocations: number;
   totalAppointments: number;
-  activeLocations: number;
-  completionRate: number;
-  avgWaitTime: number;
+  activeDoctors: number;
+  todayAppointments: number;
+  revenue: number;
+  // Legacy/Additional fields
+  totalDoctors?: number;
+  totalPatients?: number;
+  totalReceptionists?: number;
+  totalClinicAdmins?: number;
+  activeLocations?: number;
+  completionRate?: number;
+  avgWaitTime?: number;
   totalRevenue?: number;
   monthlyGrowth?: number;
 }
@@ -107,6 +113,28 @@ export interface ClinicSettings {
   };
 }
 
+export type ClinicOperatingDayKey =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+export interface ClinicOperatingSession {
+  start: string;
+  end: string;
+}
+
+export interface ClinicDoctorConsultationControl {
+  isPaused: boolean;
+  pauseReason: string;
+  generalConsultationEnabled: boolean;
+  videoConsultationEnabled: boolean;
+  emergencyOnly: boolean;
+}
+
 // DTOs for API calls
 export interface CreateClinicData {
   name: string;
@@ -131,14 +159,20 @@ export interface CreateClinicData {
 export interface UpdateClinicData {
   name?: string;
   address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zipCode?: string;
   phone?: string;
   email?: string;
   logo?: string;
   website?: string;
+  operatingHours?: string;
   description?: string;
   timezone?: string;
   currency?: string;
   language?: string;
+  status?: string;
   isActive?: boolean;
   settings?: Record<string, unknown>;
 }
