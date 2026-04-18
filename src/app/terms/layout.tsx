@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | Ishswami Healthcare",
+  title: "Terms of Service | Viddhakarma",
   description:
-    "Read the terms and conditions governing your use of the Ishswami Healthcare platform, including patient, doctor, and clinic obligations.",
+    "Read the terms and conditions governing your use of the Viddhakarma platform, including patient, doctor, and clinic obligations.",
   openGraph: {
-    title: "Terms of Service | Ishswami Healthcare",
+    title: "Terms of Service | Viddhakarma",
     description:
-      "Terms and conditions for using the Ishswami Healthcare platform.",
-    siteName: "Ishswami Healthcare",
+      "Terms and conditions for using the Viddhakarma platform.",
+    siteName: "Viddhakarma",
   },
   robots: { index: true, follow: true },
 };

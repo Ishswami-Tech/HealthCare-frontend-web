@@ -24,6 +24,7 @@ import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/
 
 interface AppointmentListItem {
   id: string;
+  locationId?: string;
   status?: string;
   type?: string;
   date?: string;
@@ -60,6 +61,7 @@ interface AppointmentListItem {
 
 interface CheckInRow {
   id: string;
+  locationId?: string;
   patientName: string;
   patientPhone: string;
   doctorName: string;
@@ -146,16 +148,25 @@ const getDisplayDate = (appointment: AppointmentListItem) => {
 };
 
 export default function ReceptionistCheckInPage() {
-  useAuth();
+  const { session } = useAuth();
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const todayDate = getTodayDateInIst();
   const checkInMutation = useCheckInAppointment();
+  const assignedLocationId = useMemo(() => {
+    const user = session?.user as Record<string, unknown> | undefined;
+    const candidate =
+      (typeof user?.locationId === "string" ? user.locationId : "") ||
+      (typeof user?.clinicLocationId === "string" ? user.clinicLocationId : "") ||
+      (typeof user?.assignedLocationId === "string" ? user.assignedLocationId : "");
+    return candidate || null;
+  }, [session?.user]);
 
   const { data: appointmentsData, isPending: isLoading, refetch } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
     date: todayDate,
+    ...(assignedLocationId ? { locationId: assignedLocationId } : {}),
     limit: 100,
   });
 
@@ -165,7 +176,8 @@ export default function ReceptionistCheckInPage() {
 
   const canConfirmArrival = (appointment: AppointmentListItem) =>
     ["SCHEDULED"].includes((appointment.status || "").toUpperCase()) &&
-    String(appointment.type || "").toUpperCase() !== "VIDEO_CALL";
+    String(appointment.type || "").toUpperCase() !== "VIDEO_CALL" &&
+    (!assignedLocationId || !appointment.locationId || appointment.locationId === assignedLocationId);
 
   const filteredAppointments = useMemo(
     () =>
@@ -175,14 +187,20 @@ export default function ReceptionistCheckInPage() {
         const patientPhone = getPatientPhone(apt);
         const normalizedSearch = searchTerm.toLowerCase();
 
+        const matchesLocation =
+          !assignedLocationId || !apt.locationId || apt.locationId === assignedLocationId;
+
         return (
-          !searchTerm ||
-          patientName.toLowerCase().includes(normalizedSearch) ||
-          doctorName.toLowerCase().includes(normalizedSearch) ||
-          patientPhone.includes(searchTerm)
+          matchesLocation &&
+          (
+            !searchTerm ||
+            patientName.toLowerCase().includes(normalizedSearch) ||
+            doctorName.toLowerCase().includes(normalizedSearch) ||
+            patientPhone.includes(searchTerm)
+          )
         );
       }),
-    [appointments, searchTerm]
+    [appointments, assignedLocationId, searchTerm]
   );
 
   const checkInRows = useMemo<CheckInRow[]>(
@@ -193,6 +211,7 @@ export default function ReceptionistCheckInPage() {
 
         return {
           id: apt.id,
+          ...(apt.locationId ? { locationId: apt.locationId } : {}),
           patientName: getPersonName(apt.patient, apt.patientName) || "Unknown",
           patientPhone: getPatientPhone(apt),
           doctorName: getPersonName(apt.doctor, apt.doctorName) || "Unknown",
@@ -209,10 +228,15 @@ export default function ReceptionistCheckInPage() {
     [filteredAppointments]
   );
 
-  const handleCheckIn = async (appointmentId: string) => {
+  const handleCheckIn = async (appointmentId: string, locationId?: string) => {
+    const locationToSend = assignedLocationId || locationId;
     setCheckingInId(appointmentId);
     try {
-      await checkInMutation.mutateAsync(appointmentId);
+      await checkInMutation.mutateAsync({
+        appointmentId,
+        reason: "Reception desk manual check-in for this location",
+        ...(locationToSend ? { locationId: locationToSend } : {}),
+      });
       await refetch?.();
     } finally {
       setCheckingInId(null);
@@ -292,7 +316,7 @@ export default function ReceptionistCheckInPage() {
             {row.original.canCheckIn ? (
               <Button
                 size="sm"
-                onClick={() => handleCheckIn(row.original.id)}
+                onClick={() => handleCheckIn(row.original.id, row.original.locationId)}
                 disabled={checkingInId === row.original.id}
               >
                 {checkingInId === row.original.id ? (

@@ -110,6 +110,8 @@ export default function ReceptionistPatients() {
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [genderFilter, setGenderFilter] = useState("all");
+  const [sortFilter, setSortFilter] = useState("registered-desc");
   const [showNewPatientDialog, setShowNewPatientDialog] = useState(false);
   const patients = usePatientStore((state) => state.collections.clinic);
   const selectedPatient = usePatientStore((state) => state.selectedPatient);
@@ -178,9 +180,10 @@ export default function ReceptionistPatients() {
   }, [patients]);
 
   const filteredPatients = useMemo(() => {
-    return patientsWithAge.filter((patient: any) => {
+    const base = patientsWithAge.filter((patient: any) => {
       const patientPhone = patient.phone || patient.user?.phone || "";
       const patientEmail = patient.email || patient.user?.email || "";
+      const patientGender = String(patient.gender || "").toUpperCase();
       const matchesSearch =
         !searchTerm ||
         patient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -189,10 +192,29 @@ export default function ReceptionistPatients() {
       const patientStatus = patient.isActive ? "active" : "inactive";
       const matchesStatus =
         statusFilter === "all" || patientStatus === statusFilter;
+      const matchesGender = genderFilter === "all" || patientGender === genderFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesGender;
     });
-  }, [patientsWithAge, searchTerm, statusFilter]);
+
+    return [...base].sort((left: any, right: any) => {
+      if (sortFilter === "name-asc") {
+        return String(left.name || "").localeCompare(String(right.name || ""));
+      }
+      if (sortFilter === "name-desc") {
+        return String(right.name || "").localeCompare(String(left.name || ""));
+      }
+      if (sortFilter === "visits-desc") {
+        return Number(right.totalVisits || 0) - Number(left.totalVisits || 0);
+      }
+      const leftCreatedAt = left.createdAt ? new Date(left.createdAt).getTime() : 0;
+      const rightCreatedAt = right.createdAt ? new Date(right.createdAt).getTime() : 0;
+      if (sortFilter === "registered-asc") {
+        return leftCreatedAt - rightCreatedAt;
+      }
+      return rightCreatedAt - leftCreatedAt;
+    });
+  }, [patientsWithAge, searchTerm, statusFilter, genderFilter, sortFilter]);
 
   const patientTableRows = useMemo<PatientTableRow[]>(
     () =>
@@ -772,6 +794,29 @@ export default function ReceptionistPatients() {
                     <SelectItem value="all">All Patients</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={genderFilter} onValueChange={setGenderFilter}>
+                  <SelectTrigger className="w-full md:w-48">
+                    <SelectValue placeholder="Filter by gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Genders</SelectItem>
+                    <SelectItem value="MALE">Male</SelectItem>
+                    <SelectItem value="FEMALE">Female</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={sortFilter} onValueChange={setSortFilter}>
+                  <SelectTrigger className="w-full md:w-52">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="registered-desc">Newest registered</SelectItem>
+                    <SelectItem value="registered-asc">Oldest registered</SelectItem>
+                    <SelectItem value="name-asc">Name A-Z</SelectItem>
+                    <SelectItem value="name-desc">Name Z-A</SelectItem>
+                    <SelectItem value="visits-desc">Most visits</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

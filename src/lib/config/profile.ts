@@ -259,6 +259,15 @@ export function getProfileCompletionPercentage(
  * Transform API response to match our expected format
  */
 export function transformApiResponse(apiData: Record<string, unknown>): UserProfileData {
+  const profileComplete =
+    typeof apiData.profileComplete === 'boolean'
+      ? apiData.profileComplete
+      : typeof apiData.isProfileComplete === 'boolean'
+        ? apiData.isProfileComplete
+        : typeof apiData.requiresProfileCompletion === 'boolean'
+          ? !apiData.requiresProfileCompletion
+          : false;
+
   return {
     id: (apiData.id as string) || '',
     firstName: (apiData.firstName as string) || '',
@@ -296,11 +305,6 @@ export function transformApiResponse(apiData: Record<string, unknown>): UserProf
     experience: (apiData.experience as string) || '',
     clinicName: (apiData.clinicName as string) || '',
     clinicAddress: (apiData.clinicAddress as string) || '',
-    profileComplete:
-      (apiData.profileComplete as boolean) ||
-      (apiData.isProfileComplete as boolean) ||
-      (typeof apiData.requiresProfileCompletion === 'boolean'
-        ? !apiData.requiresProfileCompletion
-        : false)
+    profileComplete
   };
 }

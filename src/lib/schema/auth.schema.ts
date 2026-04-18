@@ -136,8 +136,8 @@ export const profileCompletionSchema = z.object({
     }, 'You must be at least 12 years old to register'),
   gender: z.enum(['male', 'female', 'other'], {
     message: 'Please select a gender',
-  }).optional(),
-  address: z.string().min(10, 'Address must be at least 10 characters').optional(),
+  }),
+  address: z.string().min(10, 'Address must be at least 10 characters'),
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
   emergencyContactRelationship: z.string().optional(),

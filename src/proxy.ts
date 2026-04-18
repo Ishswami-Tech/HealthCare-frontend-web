@@ -227,11 +227,11 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   const profileCompleteFromCookie = profileCompleteCookie === 'true';
   const profileCompleteFromUserData = resolveProfileCompletionFromUserData(userData);
-  // Token-derived flags take priority over cookie, so stale cookies cannot bypass completion checks.
+  // Treat either signal as completion=true to avoid redirect loops after profile update
+  // when JWT claims are stale but the server-updated cookie is already true.
+  // Cookie is httpOnly and only set server-side in this app.
   const profileComplete =
-    typeof profileCompleteFromUserData === 'boolean'
-      ? profileCompleteFromUserData
-      : profileCompleteFromCookie;
+    profileCompleteFromCookie || profileCompleteFromUserData === true;
   
   const shouldRedirectToProfile = shouldRedirectToProfileCompletion(!!hasValidToken, profileComplete, pathname);
 

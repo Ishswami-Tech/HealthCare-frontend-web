@@ -22,6 +22,27 @@ const isAwaitingDoctorConfirmation = (appointment: any) => {
   return status === "SCHEDULED" && !hasConfirmedSlot;
 };
 
+const parseSlotDateTime = (slot?: { date?: string; time?: string } | null) => {
+  if (!slot?.date || !slot?.time) return null;
+  const normalizedTime = /^\d{2}:\d{2}$/.test(slot.time.trim()) ? `${slot.time.trim()}:00` : slot.time.trim();
+  const parsed = new Date(`${slot.date}T${normalizedTime}+05:30`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const getLastProposedSlotDate = (appointment: any) => {
+  const proposedSlots = Array.isArray(appointment?.proposedSlots) ? appointment.proposedSlots : [];
+  const parsedSlots = proposedSlots
+    .map((slot: { date?: string; time?: string }) => parseSlotDateTime(slot))
+    .filter((value: Date | null): value is Date => Boolean(value))
+    .sort((a: Date, b: Date) => b.getTime() - a.getTime());
+
+  if (parsedSlots.length > 0) return parsedSlots[0];
+  return parseSlotDateTime({
+    date: typeof appointment?.date === "string" ? appointment.date.slice(0, 10) : undefined,
+    time: appointment?.time,
+  });
+};
+
 export default function DoctorVideoPage() {
   const { session } = useAuth();
   const userId = session?.user?.id || "";
@@ -33,13 +54,18 @@ export default function DoctorVideoPage() {
     limit: 50,
   });
 
-  const awaitingSlotAppointments = (
+  const allAwaitingSlotAppointments = (
     Array.isArray((awaitingSlotData as any)?.appointments)
       ? (awaitingSlotData as any).appointments
       : Array.isArray(awaitingSlotData)
         ? awaitingSlotData
         : []
   ).filter((appointment: any) => isAwaitingDoctorConfirmation(appointment));
+  const now = new Date();
+  const awaitingSlotAppointments = allAwaitingSlotAppointments.filter((appointment: any) => {
+    const expiryAt = getLastProposedSlotDate(appointment);
+    return !expiryAt || expiryAt.getTime() >= now.getTime();
+  });
   const { data: paymentTrackedVideoData } = useAppointments({
     doctorId: userId,
     type: "VIDEO_CALL",

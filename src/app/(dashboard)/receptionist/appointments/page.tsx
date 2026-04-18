@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bell, Calendar, Loader2, QrCode, Search, Stethoscope, UserCheck, Eye, MoreHorizontal, UserMinus } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
@@ -53,6 +53,7 @@ import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/
 
 type ViewAppointment = {
   id: string;
+  locationId?: string;
   patientName: string;
   patientPhone: string;
   doctorId: string;
@@ -67,10 +68,12 @@ type ViewAppointment = {
   queuePosition: number | null;
   queueType: string;
   notes: string;
+  cancellationReason?: string;
   waitLabel: string;
   isWalkIn: boolean;
   isDelegated: boolean;
   doctor?: any;
+  sortAt: number;
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -108,6 +111,7 @@ function normalizeAppointment(
 
   return {
     id: app.id,
+    locationId: app.locationId || app.location?.id || undefined,
     patientName,
     patientPhone,
     doctorId: app.doctor?.id || app.doctorId || "",
@@ -127,7 +131,8 @@ function normalizeAppointment(
     paymentStatus: String(app.payment?.status || "N/A").toUpperCase(),
     queuePosition: typeof app.queuePosition === "number" ? app.queuePosition : null,
     queueType: resolveQueueDisplayLabel(app, serviceCatalogMap),
-    notes: app.notes || app.reason || "",
+    notes: app.notes || app.cancellationReason || app.reason || "",
+    cancellationReason: app.cancellationReason || undefined,
     waitLabel:
       typeof app.estimatedWaitTime === "number"
         ? `${app.estimatedWaitTime} min`
@@ -141,19 +146,29 @@ function normalizeAppointment(
       Boolean(app.primaryDoctorId || app.metadata?.primaryDoctorId) &&
       String(app.primaryDoctorId || app.metadata?.primaryDoctorId || "") !==
         String(app.assignedDoctorId || app.metadata?.assignedDoctorId || app.doctorId || ""),
-    doctor: app.doctor || app.metadata?.doctor
+    doctor: app.doctor || app.metadata?.doctor,
+    sortAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed.getTime() : 0,
   };
 }
 
 export default function ReceptionistAppointmentsPage() {
-  useAuth();
+  const { session } = useAuth();
   const { clinicId } = useClinicContext();
   useWebSocketQuerySync();
   const { data: serviceCatalog = [] } = useAppointmentServices();
+  const assignedLocationId = useMemo(() => {
+    const user = session?.user as Record<string, unknown> | undefined;
+    const candidate =
+      (typeof user?.locationId === "string" ? user.locationId : "") ||
+      (typeof user?.clinicLocationId === "string" ? user.clinicLocationId : "") ||
+      (typeof user?.assignedLocationId === "string" ? user.assignedLocationId : "");
+    return candidate || null;
+  }, [session?.user]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [queueFilter, setQueueFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("date-desc");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
@@ -164,6 +179,14 @@ export default function ReceptionistAppointmentsPage() {
   const reassignAppointmentMutation = useReassignAppointmentDoctor();
   const callNextPatientMutation = useQueueCallNextPatient();
 
+  useEffect(() => {
+    if (assignedLocationId && assignedLocationId !== selectedLocationId) {
+      setSelectedLocationId(assignedLocationId);
+    }
+  }, [assignedLocationId, selectedLocationId]);
+
+  const effectiveLocationId = assignedLocationId || selectedLocationId;
+
   const {
     data: appointmentsData,
     isPending,
@@ -171,7 +194,7 @@ export default function ReceptionistAppointmentsPage() {
   } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
     ...(selectedDate ? { date: selectedDate } : {}),
-    ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
+    ...(effectiveLocationId ? { locationId: effectiveLocationId } : {}),
     limit: 1000,
   });
   const { data: locations = [] } = useActiveLocations(clinicId || "");
@@ -218,7 +241,7 @@ export default function ReceptionistAppointmentsPage() {
   }, [appointmentsData, serviceCatalog]);
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((appointment: ViewAppointment) => {
+    const base = appointments.filter((appointment: ViewAppointment) => {
       const matchesSearch =
         !searchTerm ||
         appointment.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -226,9 +249,17 @@ export default function ReceptionistAppointmentsPage() {
         appointment.patientPhone.includes(searchTerm);
       const matchesStatus = statusFilter === "all" || appointment.status === statusFilter;
       const matchesQueue = queueFilter === "all" || appointment.queueType === queueFilter;
-      return matchesSearch && matchesStatus && matchesQueue;
+      const matchesAssignedLocation =
+        !assignedLocationId || !appointment.locationId || appointment.locationId === assignedLocationId;
+      return matchesSearch && matchesStatus && matchesQueue && matchesAssignedLocation;
     });
-  }, [appointments, queueFilter, searchTerm, statusFilter]);
+    return [...base].sort((left, right) => {
+      if (sortOrder === "date-asc") return left.sortAt - right.sortAt;
+      if (sortOrder === "patient-asc") return left.patientName.localeCompare(right.patientName);
+      if (sortOrder === "patient-desc") return right.patientName.localeCompare(left.patientName);
+      return right.sortAt - left.sortAt;
+    });
+  }, [appointments, assignedLocationId, queueFilter, searchTerm, sortOrder, statusFilter]);
 
   const availableQueueTypes = useMemo(
     () =>
@@ -299,10 +330,21 @@ export default function ReceptionistAppointmentsPage() {
     return Array.from(grouped.values()).sort((a, b) => b.confirmed - a.confirmed || b.scheduled - a.scheduled);
   }, [filteredAppointments]);
 
-  async function handleConfirmArrival(appointmentId: string) {
+  async function handleConfirmArrival(appointmentId: string, locationId?: string) {
+    const locationToSend = assignedLocationId || locationId;
+    if (assignedLocationId && locationId && assignedLocationId !== locationId) {
+      showErrorToast("This appointment does not belong to your assigned location", {
+        id: TOAST_IDS.APPOINTMENT.UPDATE,
+      });
+      return;
+    }
     setActiveActionId(appointmentId);
     try {
-      await checkInMutation.mutateAsync(appointmentId);
+      await checkInMutation.mutateAsync({
+        appointmentId,
+        reason: "Reception desk manual check-in for this location",
+        ...(locationToSend ? { locationId: locationToSend } : {}),
+      });
       await refetch?.();
     } finally {
       setActiveActionId(null);
@@ -416,7 +458,7 @@ export default function ReceptionistAppointmentsPage() {
                 size="sm"
                 variant="outline"
                 className="h-8 px-2 text-xs"
-                onClick={() => handleConfirmArrival(appointment.id)}
+                onClick={() => handleConfirmArrival(appointment.id, appointment.locationId)}
                 disabled={activeActionId === appointment.id}
               >
                 {activeActionId === appointment.id ? (
@@ -575,6 +617,23 @@ export default function ReceptionistAppointmentsPage() {
                         <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                         <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                         <SelectItem value="COMPLETED">Completed</SelectItem>
+                        <SelectItem value="AWAITING_SLOT_CONFIRMATION">Awaiting Slot Confirmation</SelectItem>
+                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                        <SelectItem value="NO_SHOW">No Show</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2 min-w-[180px]">
+                    <Select value={sortOrder} onValueChange={setSortOrder}>
+                      <SelectTrigger className="h-11 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date-desc">Latest first</SelectItem>
+                        <SelectItem value="date-asc">Earliest first</SelectItem>
+                        <SelectItem value="patient-asc">Patient A-Z</SelectItem>
+                        <SelectItem value="patient-desc">Patient Z-A</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -595,7 +654,7 @@ export default function ReceptionistAppointmentsPage() {
                     </Select>
                   </div>
 
-                  {locations.length > 1 && (
+                  {!assignedLocationId && locations.length > 1 && (
                     <div className="flex items-center gap-2 min-w-[140px]">
                       <Select
                         value={selectedLocationId || "all"}

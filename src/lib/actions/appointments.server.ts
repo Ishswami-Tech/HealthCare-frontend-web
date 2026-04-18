@@ -324,9 +324,11 @@ export async function updateAssistantDoctorCoverage(
  */
 export async function getAppointments(filters?: AppointmentFilters & { omitClinicId?: boolean }) {
   try {
+    const session = await getServerSession();
     const { omitClinicId, ...restFilters } = filters || {};
     const queryParams = new URLSearchParams(restFilters as any).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.GET_ALL;
+    const resolvedClinicId = restFilters.clinicId || session?.user?.clinicId;
     
     const { status, data } = await authenticatedApi<{
       data?: Appointment[] | { appointments?: Appointment[]; pagination?: any };
@@ -334,7 +336,8 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
       pagination?: any;
       meta?: any;
     }>(endpoint, {
-      ...(restFilters.clinicId ? { headers: { 'X-Clinic-ID': restFilters.clinicId } } : {}),
+      ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
+      omitClinicId: true,
     });
 
     // Detect profile-incomplete 403 returned gracefully by authenticatedApi
@@ -379,6 +382,7 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
  */
 export async function getMyAppointments(filters?: any) {
   try {
+    const session = await getServerSession();
     const normalizedFilters = {
       page: 1,
       limit: 100,
@@ -392,12 +396,28 @@ export async function getMyAppointments(filters?: any) {
     const queryParams = new URLSearchParams(queryInput).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS;
     
-    const { data } = await authenticatedApi<{
+    const { status, data } = await authenticatedApi<{
       data?: Appointment[] | { appointments?: Appointment[]; pagination?: any };
       appointments?: Appointment[];
       pagination?: any;
       meta?: any;
-    }>(endpoint, {});
+    }>(endpoint, {
+      ...(session?.user?.clinicId ? { headers: { 'X-Clinic-ID': session.user.clinicId } } : {}),
+      omitClinicId: true,
+    });
+
+    // Detect profile-incomplete 403 returned gracefully by authenticatedApi
+    if (status === 403 && !data) {
+      return {
+        success: false,
+        error: 'Profile incomplete. Please complete your profile to access appointments.',
+        code: 'PROFILE_INCOMPLETE' as const,
+      };
+    }
+
+    if (!data) {
+      return { success: false, error: 'No appointment data available' };
+    }
     const payload =
       Array.isArray(data)
         ? data
@@ -415,7 +435,15 @@ export async function getMyAppointments(filters?: any) {
       data.meta;
     return { success: true, appointments, meta };
   } catch (error) {
-    logger.error('Failed to get my appointments', error instanceof Error ? error : new Error(String(error)));
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to get my appointments', error instanceof Error ? error : new Error(errorMessage));
+    if (errorMessage.includes('Profile Incomplete') || errorMessage.includes('requiresProfileCompletion')) {
+      return {
+        success: false,
+        error: 'Profile incomplete. Please complete your profile to access appointments.',
+        code: 'PROFILE_INCOMPLETE' as const,
+      };
+    }
     return { success: false, error: 'Failed to fetch appointments' };
   }
 }
@@ -539,18 +567,42 @@ export async function confirmAppointment(id: string) {
 /**
  * Check in appointment
  */
-export async function checkInAppointment(id: string) {
+export async function checkInAppointment(
+  id: string,
+  options?: {
+    reason?: string;
+    locationId?: string;
+  }
+) {
   try {
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id), {
-      method: 'POST',
-      body: JSON.stringify({
-        checkInMethod: 'manual',
-        notes: 'Manual receptionist check-in',
-      }),
-    });
+    const fallbackReason = options?.reason || 'Manual receptionist check-in override';
+    const staffRoles = new Set(['RECEPTIONIST', 'DOCTOR', 'ASSISTANT_DOCTOR', 'NURSE']);
+    const isStaff = staffRoles.has(String(session.user.role || '').toUpperCase());
+
+    try {
+      await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id), {
+        method: 'POST',
+        body: JSON.stringify({
+          checkInMethod: 'manual',
+          notes: 'Manual receptionist check-in',
+        }),
+      });
+    } catch (checkInError) {
+      if (!isStaff) {
+        throw checkInError;
+      }
+
+      await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.FORCE_CHECK_IN(id), {
+        method: 'POST',
+        body: JSON.stringify({
+          reason: fallbackReason,
+          ...(options?.locationId ? { locationId: options.locationId } : {}),
+        }),
+      });
+    }
 
     const { ipAddress, userAgent } = await getClientInfo();
     await auditLog({
@@ -563,7 +615,11 @@ export async function checkInAppointment(id: string) {
       ipAddress,
       userAgent,
       sessionId: session.session_id,
-      metadata: { checkInMethod: 'manual' },
+      metadata: {
+        checkInMethod: 'manual',
+        forceFallbackEnabled: true,
+        ...(options?.locationId ? { locationId: options.locationId } : {}),
+      },
     });
 
     revalidateCache('appointments');

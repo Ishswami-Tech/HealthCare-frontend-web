@@ -100,7 +100,6 @@ import { useClinicContext } from "@/hooks/query/useClinics";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { CalendarPlus, Filter } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Module-scope pure helpers ───────────────────────────────────────────────
 
@@ -111,6 +110,11 @@ function extractAppointments(data: unknown): VideoAppointment[] {
   if (Array.isArray(d.data)) return d.data as VideoAppointment[];
   if (Array.isArray(data)) return data as VideoAppointment[];
   return [];
+}
+
+function getEffectiveAppointmentId(appointment: Partial<VideoAppointment> | null | undefined): string {
+  if (!appointment) return "";
+  return String(appointment.appointmentId || appointment.id || "");
 }
 
 interface AppointmentStats {
@@ -267,7 +271,7 @@ export function VideoAppointmentsList({
         const normalizedStatus = String(apt?.status || "").toLowerCase().replace(/_/g, "-");
         return {
           id: apt?.id,
-          appointmentId: apt?.id,
+          appointmentId: apt?.appointmentId || apt?.id,
           roomName: getAppointmentDoctorName(apt),
           doctorId: apt?.doctorId || apt?.doctor?.id || "",
           patientId: apt?.patientId || apt?.patient?.id || "",
@@ -296,7 +300,8 @@ export function VideoAppointmentsList({
   const searchLower = searchTerm.toLowerCase();
   const filteredAppointments = appointments.filter((apt) => {
     const normalizedStatus = String(apt.status || "").toLowerCase();
-    const matchesSearch = !searchTerm || apt.appointmentId?.toLowerCase().includes(searchLower) || ((apt as any).doctorName || "").toLowerCase().includes(searchLower);
+    const effectiveAppointmentId = getEffectiveAppointmentId(apt).toLowerCase();
+    const matchesSearch = !searchTerm || effectiveAppointmentId.includes(searchLower) || ((apt as any).doctorName || "").toLowerCase().includes(searchLower);
     const matchesStatus = !filterStatus || filterStatus === "all" || normalizedStatus === filterStatus;
     const aptDate = apt.startTime ? new Date(apt.startTime) : (apt.createdAt ? new Date(apt.createdAt) : null);
     const matchesStartDate = !dateFilter.start || (aptDate && aptDate >= new Date(dateFilter.start));
@@ -304,7 +309,7 @@ export function VideoAppointmentsList({
     return matchesSearch && matchesStatus && matchesStartDate && matchesEndDate;
   });
 
-  const stats = computeStats(filteredAppointments);
+  const stats = computeStats(appointments);
   const { total: totalAppointments, active: activeAppointments, scheduled: scheduledAppointments, completed: completedAppointmentsCount, cancelled: cancelledAppointments } = stats;
 
   const handleJoinAppointment = async (appointment: VideoAppointment) => {
@@ -313,8 +318,13 @@ export function VideoAppointmentsList({
       return;
     }
     try {
+      const appointmentId = getEffectiveAppointmentId(appointment);
+      if (!appointmentId) {
+        showErrorToast("Missing appointment ID for this video appointment.", { id: TOAST_IDS.VIDEO.ERROR });
+        return;
+      }
       const result = await joinVideoAppointment.mutateAsync({ 
-        appointmentId: appointment.appointmentId || appointment.id || "", 
+        appointmentId,
         userId, 
         role 
       });
@@ -341,7 +351,12 @@ export function VideoAppointmentsList({
   const handleRescheduleSubmit = async () => {
     if (!actionAppointment || !rescheduleDate || !rescheduleTime) return;
     try {
-      await rescheduleAppointment.mutateAsync({ appointmentId: actionAppointment.appointmentId, date: rescheduleDate, time: rescheduleTime, reason: actionReason || "User reschedule" });
+      const appointmentId = getEffectiveAppointmentId(actionAppointment);
+      if (!appointmentId) {
+        showErrorToast("Missing appointment ID for reschedule.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+        return;
+      }
+      await rescheduleAppointment.mutateAsync({ appointmentId, date: rescheduleDate, time: rescheduleTime, reason: actionReason || "User reschedule" });
       setIsRescheduleOpen(false);
       resetActionState();
     } catch (error) {}
@@ -350,7 +365,12 @@ export function VideoAppointmentsList({
   const handleCancelSubmit = async () => {
     if (!actionAppointment) return;
     try {
-      await cancelAppointment.mutateAsync({ appointmentId: actionAppointment.appointmentId, reason: actionReason || "User cancel" });
+      const appointmentId = getEffectiveAppointmentId(actionAppointment);
+      if (!appointmentId) {
+        showErrorToast("Missing appointment ID for cancellation.", { id: TOAST_IDS.APPOINTMENT.CANCEL });
+        return;
+      }
+      await cancelAppointment.mutateAsync({ appointmentId, reason: actionReason || "User cancel" });
       setIsCancelOpen(false);
       resetActionState();
     } catch (error) {}
@@ -359,7 +379,12 @@ export function VideoAppointmentsList({
   const handleRejectSubmit = async () => {
     if (!actionAppointment) return;
     try {
-      await rejectProposal.mutateAsync({ appointmentId: actionAppointment.appointmentId, reason: actionReason || "Doctor reject" });
+      const appointmentId = getEffectiveAppointmentId(actionAppointment);
+      if (!appointmentId) {
+        showErrorToast("Missing appointment ID for rejection.", { id: TOAST_IDS.APPOINTMENT.CANCEL });
+        return;
+      }
+      await rejectProposal.mutateAsync({ appointmentId, reason: actionReason || "Doctor reject" });
       setIsRejectOpen(false);
       resetActionState();
     } catch (error) {}
@@ -382,13 +407,13 @@ export function VideoAppointmentsList({
   const formatDateValue = (v: string, p: string) => { const d = parseDateValue(v); return d ? formatDateInIST(d, { day: "2-digit", month: "short", year: "numeric" }) : p; };
 
   const LocalStatCard = ({ label, value, icon, color }: any) => (
-    <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 flex items-center gap-2 sm:gap-3 shadow-sm">
+    <div className="rounded-xl border border-border bg-card p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
       <div className={cn("rounded-xl p-2 sm:p-2.5 shrink-0", color)}>
         {icon}
       </div>
       <div>
-        <p className="text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-none mb-0.5">{value}</p>
-        <p className="text-[9px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</p>
+        <p className="text-xl sm:text-2xl font-semibold text-foreground leading-none mb-0.5">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
       </div>
     </div>
   );
@@ -408,28 +433,28 @@ export function VideoAppointmentsList({
     const doctorName = (appointment as any).doctorName || `Consultation ${appointment.appointmentId || appointment.id}`;
     
     return (
-      <div className={cn("rounded-2xl border transition-all duration-200", isExpanded ? "border-muted-foreground/20 bg-muted/20 shadow-sm" : "border-border bg-card hover:border-muted-foreground/20")}>
+      <div className="rounded-xl border border-border bg-card">
         <div className="p-3 sm:p-5 cursor-pointer" onClick={() => setExpandedCard(isExpanded ? null : (appointment.id || appointment.appointmentId))}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs sm:text-sm font-bold text-muted-foreground italic">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs sm:text-sm font-semibold text-muted-foreground">
                 {doctorName.charAt(0)}
               </div>
               <div className="min-w-0">
                 <p className="font-semibold text-sm sm:text-base text-foreground leading-tight mb-0.5 truncate">{doctorName}</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Video Consultation</span>
-                  {(appointment as any).paymentCompleted === false && <span className="text-[8px] sm:text-[9px] text-red-600 font-bold uppercase tracking-widest px-1.5 sm:px-2 py-0.5 rounded-full bg-red-50 border border-red-100">Unpaid</span>}
+                  <span className="text-xs text-muted-foreground">Video Consultation</span>
+                  {(appointment as any).paymentCompleted === false && <span className="text-[10px] text-red-600 font-medium px-1.5 sm:px-2 py-0.5 rounded-full bg-red-50 border border-red-100">Unpaid</span>}
                 </div>
               </div>
             </div>
             <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
                <div className="text-left sm:text-right">
-                  <p className="text-xs sm:text-sm font-bold text-foreground leading-none">{appointment.startTime ? formatTimeInIST(new Date(appointment.startTime), { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}</p>
-                  <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{appointment.startTime ? formatDateInIST(new Date(appointment.startTime), { month: "short", day: "2-digit" }) : "—"}</p>
+                  <p className="text-xs sm:text-sm font-semibold text-foreground leading-none">{appointment.startTime ? formatTimeInIST(new Date(appointment.startTime), { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{appointment.startTime ? formatDateInIST(new Date(appointment.startTime), { month: "short", day: "2-digit" }) : "—"}</p>
                </div>
                <div className="flex items-center gap-2">
-                 <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider", cfg.bg, cfg.color)}>
+                 <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] font-medium", cfg.bg, cfg.color)}>
                    <span className={cn("w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full", cfg.dot)} />
                    {statusLabel}
                  </span>
@@ -439,34 +464,40 @@ export function VideoAppointmentsList({
           </div>
         </div>
 
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-4 sm:px-5 pb-4 sm:pb-5 overflow-hidden">
+        {isExpanded && (
+            <div className="px-4 sm:px-5 pb-4 sm:pb-5 overflow-hidden">
                <div className="pt-3 border-t border-border space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                     <div className="md:col-span-2 space-y-2">
-                      <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic font-serif">Diagnostic Context</span>
-                      <p className="font-medium text-xs sm:text-sm text-foreground/80 leading-relaxed italic border-l-2 border-emerald-500 pl-4 sm:pl-6 bg-emerald-50/30 dark:bg-emerald-900/10 py-2 sm:py-3 rounded-r-2xl">
-                        "{(appointment as any).chiefComplaint || "Routine video checkup and clinical review."}"
+                      <span className="text-xs font-medium text-muted-foreground">Diagnostic Context</span>
+                      <p className="text-sm text-foreground leading-relaxed">
+                        {(appointment as any).chiefComplaint || "Routine video checkup and clinical review."}
                       </p>
                     </div>
                     <div className="space-y-4">
                       <div>
-                        <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Protocol Type</span>
-                        <p className="font-bold text-foreground text-xs sm:text-sm uppercase">{(appointment as any).treatmentType || "Virtual Consultation"}</p>
+                        <span className="text-xs font-medium text-muted-foreground">Protocol Type</span>
+                        <p className="font-medium text-foreground text-sm">{(appointment as any).treatmentType || "Virtual Consultation"}</p>
                       </div>
                       <div>
-                        <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Authorization</span>
-                        <p className="font-bold text-emerald-600 text-xs sm:text-sm uppercase tracking-tighter italic">{role} Access</p>
+                        <span className="text-xs font-medium text-muted-foreground">Authorization</span>
+                        <p className="font-medium text-emerald-600 text-sm">{role} Access</p>
                       </div>
                     </div>
                   </div>
 
+                  {(appointment as any).cancellationReason && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+                      <span className="font-semibold">Cancellation reason:</span>{" "}
+                      {(appointment as any).cancellationReason}
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap gap-2 justify-end pt-3 sm:pt-4 border-t border-border">
-                    {appointment.status === 'scheduled' && (
+                    {['scheduled', 'confirmed'].includes(String(appointment.status || '').toLowerCase()) && (
                       <>
                         {(appointment as any).paymentCompleted === false && getVideoPaymentAmount(appointment, appointmentServices) > 0 && (
-                          <PaymentButton appointmentId={appointment.appointmentId} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold" onSuccess={() => refetch()}>
+                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold" onSuccess={() => refetch()}>
                             Pay ₹{getVideoPaymentAmount(appointment, appointmentServices)}
                           </PaymentButton>
                         )}
@@ -497,7 +528,7 @@ export function VideoAppointmentsList({
                       </Button>
                     )}
                     {showEndButton && appointment.status === "in-progress" && (
-                      <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(appointment.appointmentId || appointment.id || "")} className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm" disabled={endVideoAppointment.isPending}>
+                      <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(getEffectiveAppointmentId(appointment))} className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm" disabled={endVideoAppointment.isPending}>
                         {endVideoAppointment.isPending ? "Ending..." : "End Session"}
                       </Button>
                     )}
@@ -506,9 +537,8 @@ export function VideoAppointmentsList({
                     )}
                   </div>
                </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
       </div>
     );
   };
@@ -538,7 +568,8 @@ export function VideoAppointmentsList({
         )}
 
         {showStatistics && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 mb-6">
+            <LocalStatCard label="Total" value={totalAppointments} icon={<Users className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20" />
             <LocalStatCard label="Active" value={activeAppointments} icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20" />
             <LocalStatCard label="Pending" value={scheduledAppointments} icon={<Calendar className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20" />
             <LocalStatCard label="Finished" value={completedAppointmentsCount} icon={<CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-muted-foreground bg-muted" />
@@ -592,9 +623,65 @@ export function VideoAppointmentsList({
           )}
         </div>
 
-        <Dialog open={isVideoRoomOpen} onOpenChange={setIsVideoRoomOpen}><DialogContent className="max-w-7xl w-full h-[90vh] p-0 overflow-hidden rounded-3xl border-none shadow-2xl"><div className="h-full"><VideoAppointmentRoom appointment={selectedAppointment!} onLeaveRoom={() => { setIsVideoRoomOpen(false); setSelectedAppointment(null); }} /></div></DialogContent></Dialog>
-        <Dialog open={isRescheduleOpen} onOpenChange={setIsRescheduleOpen}><DialogContent className="rounded-3xl p-8"><DialogHeader><DialogTitle className="text-2xl font-bold tracking-tight">Modify Schedule</DialogTitle><DialogDescription className="italic font-medium">Select a new clinical window for this session.</DialogDescription></DialogHeader><div className="space-y-6 py-6"><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</Label><Input type="date" value={rescheduleDate} onChange={e => setRescheduleDate(e.target.value)} className="h-12 rounded-xl" /></div><div className="space-y-2"><Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Time</Label><Input type="time" value={rescheduleTime} onChange={e => setRescheduleTime(e.target.value)} className="h-12 rounded-xl" /></div></div><div className="space-y-2"><Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Context</Label><Textarea placeholder="Reason for change..." value={actionReason} onChange={e => setActionReason(e.target.value)} className="rounded-xl min-h-[100px]" /></div></div><div className="flex gap-3"><Button variant="outline" onClick={() => setIsRescheduleOpen(false)} className="flex-1 h-12 rounded-xl font-bold">Discard</Button><Button onClick={handleRescheduleSubmit} className="flex-1 h-12 rounded-xl bg-slate-900 font-bold">Confirm Move</Button></div></DialogContent></Dialog>
-        <Dialog open={isCancelOpen} onOpenChange={setIsCancelOpen}><DialogContent className="rounded-3xl p-8"><DialogHeader><DialogTitle className="text-2xl font-bold tracking-tight">Terminate Session</DialogTitle><DialogDescription className="italic font-medium text-red-600">Are you sure you want to end this clinical commitment?</DialogDescription></DialogHeader><div className="space-y-6 py-6"><div className="space-y-2"><Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Mandatory Context</Label><Textarea placeholder="Clinical reason for termination..." value={actionReason} onChange={e => setActionReason(e.target.value)} className="rounded-xl min-h-[100px]" /></div></div><div className="flex gap-3"><Button variant="outline" onClick={() => setIsCancelOpen(false)} className="flex-1 h-12 rounded-xl font-bold">Abort Change</Button><Button variant="destructive" onClick={handleCancelSubmit} className="flex-1 h-12 rounded-xl font-bold">Confirm Termination</Button></div></DialogContent></Dialog>
+        <Dialog open={isVideoRoomOpen} onOpenChange={setIsVideoRoomOpen}>
+          <DialogContent className="max-w-7xl w-full h-[90vh] p-0 overflow-hidden rounded-xl">
+            <div className="h-full">
+              <VideoAppointmentRoom
+                appointment={selectedAppointment!}
+                onLeaveRoom={() => {
+                  setIsVideoRoomOpen(false);
+                  setSelectedAppointment(null);
+                }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={isRescheduleOpen} onOpenChange={setIsRescheduleOpen}>
+          <DialogContent className="rounded-xl p-6">
+            <DialogHeader>
+              <DialogTitle>Modify Schedule</DialogTitle>
+              <DialogDescription>Select a new session date and time.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Date</Label>
+                  <Input type="date" value={rescheduleDate} onChange={e => setRescheduleDate(e.target.value)} className="h-10" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Time</Label>
+                  <Input type="time" value={rescheduleTime} onChange={e => setRescheduleTime(e.target.value)} className="h-10" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Reason</Label>
+                <Textarea placeholder="Reason for change..." value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setIsRescheduleOpen(false)} className="flex-1">Discard</Button>
+              <Button onClick={handleRescheduleSubmit} className="flex-1">Confirm</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
+          <DialogContent className="rounded-xl p-6">
+            <DialogHeader>
+              <DialogTitle>Cancel Session</DialogTitle>
+              <DialogDescription>Are you sure you want to cancel this video session?</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Reason</Label>
+                <Textarea placeholder="Cancellation reason..." value={actionReason} onChange={e => setActionReason(e.target.value)} className="min-h-[90px]" />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setIsCancelOpen(false)} className="flex-1">Keep Session</Button>
+              <Button variant="destructive" onClick={handleCancelSubmit} className="flex-1">Confirm Cancel</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedComponent>
   );

@@ -523,11 +523,14 @@ export function useDeleteVideoAppointment() {
 export function useRescheduleVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
+  const { user } = useAuth();
 
   return useMutationOperation<{ success: boolean; data: any }, { appointmentId: string; date: string; time: string; reason: string }>(
     async (data: { appointmentId: string; date: string; time: string; reason: string }) => {
-      const hasAccess = hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS);
+      const isPatient = String(user?.role || '').toUpperCase() === Role.PATIENT;
+      const hasAccess = isPatient || hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+      if (!data.appointmentId) throw new Error('Appointment ID is required');
 
       const result = await rescheduleAppointment(data.appointmentId, {
         date: data.date,
@@ -535,7 +538,7 @@ export function useRescheduleVideoAppointment() {
         reason: data.reason
       });
       
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw new Error(result.error || 'Failed to reschedule appointment');
       
       return { success: true, data: result };
     },
@@ -592,19 +595,21 @@ export function useRejectVideoProposal() {
 export function useCancelVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
+  const { user } = useAuth();
 
   return useMutationOperation<{ success: boolean; data: any }, { appointmentId: string; reason: string }>(
     async (data: { appointmentId: string; reason: string }) => {
-      // Assuming same permission as update or specific cancel permission
-      const hasAccess = hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS); 
+      const isPatient = String(user?.role || '').toUpperCase() === Role.PATIENT;
+      const hasAccess = isPatient || hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+      if (!data.appointmentId) throw new Error('Appointment ID is required');
 
       const result = await updateAppointmentStatus(data.appointmentId, {
         status: 'CANCELLED',
         reason: data.reason,
       });
       
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw new Error(result.error || 'Failed to cancel appointment');
       
       return { success: true, data: result };
     },

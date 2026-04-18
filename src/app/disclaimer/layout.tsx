@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Disclaimer | Ishswami Healthcare",
+  title: "Disclaimer | Viddhakarma",
   description:
-    "Read the medical and legal disclaimer for Ishswami Healthcare. Understand the limitations of the information provided on our platform.",
+    "Read the medical and legal disclaimer for Viddhakarma. Understand the limitations of the information provided on our platform.",
   openGraph: {
-    title: "Disclaimer | Ishswami Healthcare",
+    title: "Disclaimer | Viddhakarma",
     description:
-      "Medical and legal disclaimer for the Ishswami Healthcare platform.",
-    siteName: "Ishswami Healthcare",
+      "Medical and legal disclaimer for the Viddhakarma platform.",
+    siteName: "Viddhakarma",
   },
   robots: { index: true, follow: true },
 };

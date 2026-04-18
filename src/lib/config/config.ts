@@ -405,6 +405,7 @@ export const API_ENDPOINTS = {
     VIDEO_REJECT_PROPOSAL: (id: string) => `/appointments/${id}/video/reject`,
     VIDEO_CONFIRM_SLOT: (id: string) => `/appointments/${id}/video/confirm-slot`,
     CHECK_IN: (id: string) => `/appointments/${id}/check-in`,
+    FORCE_CHECK_IN: (id: string) => `/appointments/${id}/force-check-in`,
     SCAN_QR: '/appointments/check-in/scan-qr',
     START: (id: string) => `/appointments/${id}/start-consultation`,
     COMPLETE: (id: string) => `/appointments/${id}/complete`,

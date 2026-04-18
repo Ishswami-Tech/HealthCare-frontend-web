@@ -76,7 +76,7 @@ const Logo = memo(function Logo() {
         transition={{ duration: 0.2, ease: "linear" }}
         className="text-lg font-bold tracking-tight text-sidebar-foreground truncate"
       >
-        Ishswami
+        Viddhakarma
       </motion.span>
     </Link>
   );

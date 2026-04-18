@@ -108,9 +108,28 @@ async function getAuthHeaders(
     clinicId = (await getClinicId()) || undefined;
   }
 
-  // ✅ Fallback to APP_CONFIG.CLINIC.ID if clinic ID is not in cookies/localStorage
-  // This ensures clinic ID is always set from environment variable or config default
-  if (!clinicId) {
+  // Prefer clinic context from access token claims when cookie/local storage is missing.
+  if (!clinicId && accessToken) {
+    try {
+      const payloadSegment = accessToken.split('.')[1];
+      if (payloadSegment) {
+        const normalized = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+        const decoded =
+          typeof window === 'undefined'
+            ? Buffer.from(padded, 'base64').toString('utf-8')
+            : atob(padded);
+        const payload = JSON.parse(decoded) as { clinicId?: string; primaryClinicId?: string };
+        clinicId = payload.clinicId || payload.primaryClinicId;
+      }
+    } catch {
+      // Ignore JWT decode issues; request can proceed without clinic header.
+    }
+  }
+
+  // Only use static clinic fallback for non-authenticated/public flows.
+  // For authenticated requests, forcing a default clinic can leak wrong tenant context.
+  if (!clinicId && !requireAuth) {
     clinicId = APP_CONFIG.CLINIC.ID;
   }
 
@@ -744,9 +763,15 @@ export class ClinicApiClient extends ApiClient {
     password: string; 
     rememberMe?: boolean; 
   }) {
-    return this.publicRequest(API_ENDPOINTS.AUTH.LOGIN, {
+    const loginRequestOptions: RequestInit & { omitClinicId: boolean } = {
       method: 'POST',
-      body: JSON.stringify(credentials)
+      body: JSON.stringify(credentials),
+      // Do not force a fallback clinic header during login.
+      // Backend now resolves clinic from the user's associations when needed.
+      omitClinicId: true,
+    };
+    return this.publicRequest(API_ENDPOINTS.AUTH.LOGIN, {
+      ...loginRequestOptions,
     });
   }
 

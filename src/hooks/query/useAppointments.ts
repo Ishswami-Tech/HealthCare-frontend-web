@@ -487,15 +487,30 @@ export const useUserUpcomingAppointments = () => {
 export const useCheckInAppointment = () => {
   const { hasPermission } = useRBAC();
   
-  return useMutationOperation<{ success: boolean }, string>(
-    async (appointmentId: string) => {
+  return useMutationOperation<
+    { success: boolean },
+    string | { appointmentId: string; reason?: string; locationId?: string }
+  >(
+    async (
+      payload: string | { appointmentId: string; reason?: string; locationId?: string }
+    ) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to check in appointment');
       }
+
+      const appointmentId = typeof payload === 'string' ? payload : payload.appointmentId;
       
-      const result = await checkInAppointment(appointmentId);
+      const result = await checkInAppointment(
+        appointmentId,
+        typeof payload === 'string'
+          ? undefined
+          : {
+              ...(payload.reason ? { reason: payload.reason } : {}),
+              ...(payload.locationId ? { locationId: payload.locationId } : {}),
+            }
+      );
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Failed to check in appointment');
       }
       return { success: true };
     },

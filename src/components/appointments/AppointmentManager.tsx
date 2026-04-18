@@ -165,27 +165,10 @@ export default function AppointmentManager({
     // Admin views already fetch filtered by clinic/patient — don't re-filter.
     if (isAdminView) return allAppointments;
 
-    const currentUserId = user?.id;
-    // If no user id yet (loading), return all appointments rather than empty
-    if (!currentUserId) return allAppointments;
-
-    return allAppointments.filter((appointment: any) => {
-      // Collect every possible ID field and match against session user ID
-      // The backend may return patientId as a Patient entity ID *or* User ID
-      // depending on how the relation was resolved, so we check all candidates.
-      const candidateIds = [
-        appointment?.patientId,
-        appointment?.patient?.id,
-        appointment?.patient?.userId,
-        appointment?.patient?.user?.id,
-        appointment?.userId,
-        appointment?.user?.id,
-      ].filter((value): value is string => typeof value === "string" && value.length > 0);
-
-      // Include the appointment if any candidate matches the current user
-      return candidateIds.includes(currentUserId) || candidateIds.length === 0;
-    });
-  }, [allAppointments, user?.id, isAdminView]);
+    // Patient view uses /appointments/my-appointments (already server scoped).
+    // Do not perform client-side patientId/userId filtering here.
+    return allAppointments;
+  }, [allAppointments, isAdminView]);
 
   const normalizedAppointments = useMemo(() => {
     return patientScopedAppointments
