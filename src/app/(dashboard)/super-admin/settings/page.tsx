@@ -78,7 +78,7 @@ export default function SuperAdminSettings() {
           </div>
 
           <Tabs defaultValue="general" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <Globe className="w-4 h-4" />
                 General

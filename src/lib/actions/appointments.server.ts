@@ -32,6 +32,7 @@ import {
   proposeVideoSlotsSchema,
   updateAppointmentStatusSchema,
   rescheduleAppointmentSchema,
+  confirmVideoFinalSlotSchema,
   rejectVideoProposalSchema
 } from '@/lib/schema/appointments.schema';
 
@@ -513,37 +514,7 @@ export async function updateAppointment(id: string, data: UpdateAppointmentData)
  * @deprecated Use updateAppointmentStatus instead
  */
 export async function cancelAppointment(id: string, reason?: string) {
-  try {
-    const session = await getServerSession();
-    if (!session?.user) return { success: false, error: 'Unauthorized' };
-
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.STATUS(id), {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'CANCELLED', reason }),
-    });
-
-    const { ipAddress, userAgent } = await getClientInfo();
-    await auditLog({
-      userId: session.user.id,
-      action: 'APPOINTMENT_CANCELLED',
-      resource: 'APPOINTMENT',
-      resourceId: id,
-      result: 'SUCCESS',
-      riskLevel: 'MEDIUM',
-      ipAddress,
-      userAgent,
-      sessionId: session.session_id,
-      metadata: { reason }
-    });
-
-    revalidatePath('/dashboard/appointments');
-    revalidateCache('appointments');
-    
-    return { success: true };
-  } catch (error) {
-    logger.error('Failed to cancel appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to cancel appointment' };
-  }
+  return updateAppointmentStatus(id, { status: 'CANCELLED', reason });
 }
 
 /**
@@ -551,17 +522,7 @@ export async function cancelAppointment(id: string, reason?: string) {
  * @deprecated Use updateAppointmentStatus instead
  */
 export async function confirmAppointment(id: string) {
-  try {
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.STATUS(id), {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'CONFIRMED' }),
-    });
-    revalidateCache('appointments');
-    return { success: true };
-  } catch (error) {
-    logger.error('Failed to confirm appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to confirm appointment' };
-  }
+  return updateAppointmentStatus(id, { status: 'CONFIRMED' });
 }
 
 /**
@@ -628,6 +589,56 @@ export async function checkInAppointment(
   } catch (error) {
     logger.error('Failed to check in appointment', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Failed to check in appointment' };
+  }
+}
+
+/**
+ * Force check-in appointment for staff receptionist/manual workflow.
+ */
+export async function forceCheckInAppointment(
+  id: string,
+  options?: {
+    reason?: string;
+    locationId?: string;
+  }
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    const reason = options?.reason || 'Manual receptionist check-in override';
+    const { data } = await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.FORCE_CHECK_IN(id), {
+      method: 'POST',
+      body: JSON.stringify({
+        reason,
+        ...(options?.locationId ? { locationId: options.locationId } : {}),
+      }),
+    });
+
+    const { ipAddress, userAgent } = await getClientInfo();
+    await auditLog({
+      userId: session.user.id,
+      action: 'APPOINTMENT_CHECKED_IN',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: {
+        checkInMethod: 'manual',
+        forceFallbackEnabled: false,
+        ...(options?.locationId ? { locationId: options.locationId } : {}),
+      },
+    });
+
+    revalidateCache('appointments');
+    revalidateCache('queue');
+    return { success: true, data };
+  } catch (error) {
+    logger.error('Failed to force check in appointment', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to force check in appointment' };
   }
 }
 
@@ -722,6 +733,7 @@ export async function scanLocationQRAndCheckIn(data: {
   code: string;
   locationId?: string;
   appointmentId?: string;
+  coordinates?: { lat: number; lng: number };
 }) {
   try {
     const validatedData = scanQRSchema.parse(data);
@@ -729,6 +741,7 @@ export async function scanLocationQRAndCheckIn(data: {
       qrCode: validatedData.code,
       ...(validatedData.locationId ? { locationId: validatedData.locationId } : {}),
       ...(validatedData.appointmentId ? { appointmentId: validatedData.appointmentId } : {}),
+      ...(validatedData.coordinates ? { coordinates: validatedData.coordinates } : {}),
     };
     const { data: response } = await authenticatedApi<any>(API_ENDPOINTS.APPOINTMENTS.SCAN_QR, {
       method: 'POST',
@@ -994,5 +1007,38 @@ export async function confirmVideoSlot(appointmentId: string, confirmedSlotIndex
   } catch (error) {
     logger.error('Failed to confirm video slot', error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Failed to confirm video slot' };
+  }
+}
+
+/**
+ * Confirm final video slot
+ */
+export async function confirmFinalVideoSlot(
+  appointmentId: string,
+  data: {
+    confirmedSlotIndex?: number;
+    date?: string;
+    time?: string;
+    reason?: string;
+  }
+) {
+  try {
+    const validatedData = confirmVideoFinalSlotSchema.parse(data);
+    const { data: appointment } = await authenticatedApi<Appointment>(
+      API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_FINAL_SLOT(appointmentId),
+      {
+        method: 'POST',
+        body: JSON.stringify(validatedData),
+      }
+    );
+    revalidateCache('appointments');
+    revalidatePath('/doctor/video');
+    return { success: true, appointment };
+  } catch (error) {
+    logger.error('Failed to confirm final video slot', error instanceof Error ? error : new Error(String(error)));
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to confirm final video slot',
+    };
   }
 }

@@ -25,12 +25,14 @@ import {
   testAppointmentContext,
   proposeVideoAppointment,
   confirmVideoSlot,
+  confirmFinalVideoSlot,
   rescheduleAppointment,
   rejectVideoProposal,
   reassignAppointmentDoctor,
   getAssistantDoctorCoverage,
   updateAssistantDoctorCoverage,
   checkInAppointment,
+  forceCheckInAppointment,
   scanLocationQRAndCheckIn,
 } from '@/lib/actions/appointments.server';
 import {
@@ -96,7 +98,10 @@ const serializeAppointmentFilters = (
 /**
  * Hook for fetching appointments with filters (Optimized for 100K users)
  */
-export const useAppointments = (clinicIdOrFilters?: string | (AppointmentFilters & { omitClinicId?: boolean })) => {
+export const useAppointments = (
+  clinicIdOrFilters?: string | (AppointmentFilters & { omitClinicId?: boolean }),
+  options?: { enabled?: boolean }
+) => {
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
   
@@ -146,7 +151,10 @@ export const useAppointments = (clinicIdOrFilters?: string | (AppointmentFilters
     queryKey,
     queryFn,
     {
-      enabled: (!!clinicId || (typeof clinicIdOrFilters === 'object' && (!!clinicIdOrFilters.omitClinicId || !!clinicIdOrFilters.clinicId))) && hasPermission(Permission.VIEW_APPOINTMENTS),
+      enabled:
+        (options?.enabled ?? true) &&
+        (!!clinicId || (typeof clinicIdOrFilters === 'object' && (!!clinicIdOrFilters.omitClinicId || !!clinicIdOrFilters.clinicId))) &&
+        hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000, // 5 minutes for better caching
       gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
       refetchOnWindowFocus: false, // Reduce unnecessary refetches
@@ -607,6 +615,92 @@ export const useCompleteAppointment = () => {
 };
 
 /**
+ * Hook for confirming the final video slot, including custom doctor-picked slots.
+ */
+export const useConfirmFinalVideoSlot = () => {
+  const { hasPermission } = useRBAC();
+  return useMutationOperation(
+    async (data: {
+      appointmentId: string;
+      confirmedSlotIndex?: number;
+      date?: string;
+      time?: string;
+      reason?: string;
+    }) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error('Insufficient permissions');
+      }
+      const payload: {
+        confirmedSlotIndex?: number;
+        date?: string;
+        time?: string;
+        reason?: string;
+      } = {};
+      if (data.confirmedSlotIndex !== undefined) payload.confirmedSlotIndex = data.confirmedSlotIndex;
+      if (data.date !== undefined) payload.date = data.date;
+      if (data.time !== undefined) payload.time = data.time;
+      if (data.reason !== undefined) payload.reason = data.reason;
+      const result = await confirmFinalVideoSlot(data.appointmentId, payload);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to confirm final slot');
+      }
+      if (!result.appointment) {
+        throw new Error('No appointment returned');
+      }
+      return result.appointment;
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Confirming final slot...',
+      successMessage: 'Final slot confirmed successfully',
+      invalidateQueries: [['appointments'], ['video-appointments'], ['appointment']],
+    }
+  );
+};
+
+/**
+ * Hook for receptionist force check-in
+ */
+export const useForceCheckInAppointment = () => {
+  const { hasPermission } = useRBAC();
+
+  return useMutationOperation<
+    { success: boolean },
+    string | { appointmentId: string; reason?: string; locationId?: string }
+  >(
+    async (
+      payload: string | { appointmentId: string; reason?: string; locationId?: string }
+    ) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error('Insufficient permissions to check in appointment');
+      }
+
+      const appointmentId = typeof payload === 'string' ? payload : payload.appointmentId;
+
+      const result = await forceCheckInAppointment(
+        appointmentId,
+        typeof payload === 'string'
+          ? undefined
+          : {
+              ...(payload.reason ? { reason: payload.reason } : {}),
+              ...(payload.locationId ? { locationId: payload.locationId } : {}),
+            }
+      );
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to force check in appointment');
+      }
+      return { success: true };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Checking in patient...',
+      successMessage: 'Patient check-in confirmed successfully',
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments'], ['queue']],
+    }
+  );
+};
+
+/**
  * Hook for marking an appointment as no-show
  */
 export const useMarkAppointmentNoShow = () => {
@@ -660,10 +754,11 @@ export const useReassignAppointmentDoctor = () => {
       return { success: true };
     },
     {
-      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      toastId: TOAST_IDS.APPOINTMENT.REASSIGN,
       loadingMessage: "Reassigning appointment...",
       successMessage: "Appointment reassigned successfully",
       invalidateQueries: [["appointments"], ["appointment"], ["myAppointments"]],
+      showLoading: false,
     }
   );
 };
@@ -1520,7 +1615,12 @@ export interface QrCheckInResult {
 export const useScanLocationQrAndCheckIn = () => {
   return useMutationOperation<
     QrCheckInResult,
-    { code: string; locationId?: string; appointmentId?: string }
+    {
+      code: string;
+      locationId?: string;
+      appointmentId?: string;
+      coordinates?: { lat: number; lng: number };
+    }
   >(
     async (data) => {
       const result = (await scanLocationQRAndCheckIn(data)) as QrCheckInResult;

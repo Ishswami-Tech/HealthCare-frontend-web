@@ -341,7 +341,7 @@ export default function ClinicAdminSchedule() {
           )}
 
           <Tabs defaultValue="doctor-schedules" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
               <TabsTrigger
                 value="doctor-schedules"
                 className="flex items-center gap-2"

@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Calendar, CheckCircle, Clock, ListTodo, QrCode, Users, ExternalLink, Receipt, ChevronRight, Activity, Pill, Plus } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments } from "@/hooks/query/useAppointments";
@@ -17,6 +19,7 @@ import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-ad
 import { showSuccessToast } from "@/hooks/utils/use-toast";
 import { cn } from "@/lib/utils";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { getReceptionistAppointmentTimeLabel } from "@/lib/utils/appointmentUtils";
 
 type ReceptionAppointment = {
   id: string;
@@ -73,12 +76,7 @@ export default function ReceptionistDashboard() {
     const raw = appointmentsData?.appointments || [];
     return (raw as any[]).map(appointment => {
       const canonical = normalizeQueueEntry(appointment);
-      const startAt = 
-        appointment.startTime || 
-        appointment.appointmentDate || 
-        (appointment.date && appointment.time ? `${appointment.date}T${appointment.time}` : null);
-      const parsed = startAt ? new Date(startAt) : null;
-
+      
       return {
         id: canonical.entryId || canonical.appointmentId || appointment.id,
         patientName: canonical.patientName || "Unknown Patient",
@@ -89,10 +87,7 @@ export default function ReceptionistDashboard() {
           String(canonical.primaryDoctorId || appointment.primaryDoctorId || appointment.metadata?.primaryDoctorId || "") !==
             String(canonical.assignedDoctorId || appointment.assignedDoctorId || appointment.metadata?.assignedDoctorId || appointment.doctorId || ""),
         status: canonical.status,
-        timeLabel:
-          parsed && !Number.isNaN(parsed.getTime())
-            ? parsed.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
-            : appointment.time || "TBD",
+        timeLabel: getReceptionistAppointmentTimeLabel(appointment),
         queuePosition: canonical.position > 0 ? canonical.position : null,
         waitLabel:
           typeof canonical.estimatedWaitTime === "number"
@@ -191,6 +186,114 @@ export default function ReceptionistDashboard() {
         .filter((item) => item.status === "CONFIRMED" || item.status === "IN_PROGRESS")
         .sort((a, b) => (a.queuePosition ?? 999) - (b.queuePosition ?? 999)),
     [appointments]
+  );
+
+  const doctorBacklogColumns = useMemo<ColumnDef<(typeof doctorBacklog)[number]>[]>(
+    () => [
+      {
+        accessorKey: "doctorName",
+        header: "Doctor",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">{row.original.doctorName}</span>
+              <Badge
+                variant="outline"
+                className="h-4 border-emerald-100 bg-emerald-50 text-[10px] uppercase tracking-tighter text-emerald-600 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300"
+              >
+                {doctorVelocities.get(row.original.doctorName) || 2.5} pts/hr
+              </Badge>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {row.original.nextPatient
+                ? `Next queued patient: ${row.original.nextPatient}`
+                : "No patient waiting yet"}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "scheduled",
+        header: "Scheduled",
+        cell: ({ row }) => <Badge variant="secondary">Scheduled {row.original.scheduled}</Badge>,
+      },
+      {
+        accessorKey: "confirmed",
+        header: "Queued",
+        cell: ({ row }) => (
+          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+            Queued {row.original.confirmed}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "inProgress",
+        header: "In Progress",
+        cell: ({ row }) => (
+          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+            In Progress {row.original.inProgress}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "total",
+        header: "Total",
+        cell: ({ row }) => <Badge variant="outline">Total {row.original.total}</Badge>,
+      },
+    ],
+    [doctorVelocities]
+  );
+
+  const activeQueueColumns = useMemo<ColumnDef<(typeof activeQueue)[number]>[]>(
+    () => [
+      {
+        accessorKey: "patientName",
+        header: "Patient",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="font-semibold">{row.original.patientName}</span>
+            <span className="text-xs text-muted-foreground">
+              {row.original.doctorName}
+              {row.original.doctorRole === "ASSISTANT_DOCTOR" ? " (Assistant Doctor)" : ""}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <Badge className={STATUS_STYLES[row.original.status] || STATUS_STYLES.SCHEDULED}>
+              {row.original.status.replaceAll("_", " ")}
+            </Badge>
+            {row.original.priority === "URGENT" && (
+              <Badge className="bg-rose-500 text-white animate-pulse border-none">URGENT</Badge>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "timeLabel",
+        header: "Time",
+        cell: ({ row }) => <span className="text-sm">{row.original.timeLabel}</span>,
+      },
+      {
+        accessorKey: "queuePosition",
+        header: "Queue Position",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {getQueuePositionLabel({ position: row.original.queuePosition ?? 0 })}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "waitLabel",
+        header: "Wait",
+        cell: ({ row }) => <span className="text-sm text-muted-foreground">Wait {row.original.waitLabel}</span>,
+      },
+    ],
+    []
   );
 
   const upcoming = useMemo(
@@ -329,34 +432,12 @@ export default function ReceptionistDashboard() {
                       : "No doctor backlog for today."}
                 </p>
               ) : (
-                doctorBacklog.map((doctor) => (
-                  <div
-                    key={doctor.doctorName}
-                    className="rounded-xl border border-slate-100 bg-white dark:bg-slate-800/50 p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between shadow-sm hover:border-emerald-100 transition-colors"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold">{doctor.doctorName}</p>
-                        <Badge variant="outline" className="text-[10px] h-4 bg-emerald-50 text-emerald-600 border-emerald-100 uppercase tracking-tighter">
-                          {doctorVelocities.get(doctor.doctorName) || 2.5} pts/hr
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {doctor.nextPatient ? `Next queued patient: ${doctor.nextPatient}` : "No patient waiting yet"}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">Scheduled {doctor.scheduled}</Badge>
-                      <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
-                        Queued {doctor.confirmed}
-                      </Badge>
-                      <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                        In Progress {doctor.inProgress}
-                      </Badge>
-                      <Badge variant="outline">Total {doctor.total}</Badge>
-                    </div>
-                  </div>
-                ))
+                <DataTable
+                  columns={doctorBacklogColumns}
+                  data={doctorBacklog}
+                  pageSize={8}
+                  emptyMessage="No doctor backlog for today."
+                />
               )}
             </CardContent>
           </Card>
@@ -372,33 +453,12 @@ export default function ReceptionistDashboard() {
               {activeQueue.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No confirmed patients in the live queue.</p>
               ) : (
-                activeQueue.slice(0, 8).map((appointment) => (
-                  <div key={appointment.id} className="rounded-xl border p-3 bg-card">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-semibold">{appointment.patientName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {appointment.doctorName}
-                          {appointment.doctorRole === "ASSISTANT_DOCTOR" ? " (Assistant Doctor)" : ""}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={STATUS_STYLES[appointment.status] || STATUS_STYLES.SCHEDULED}>
-                          {appointment.status.replaceAll("_", " ")}
-                        </Badge>
-                        {appointment.priority === "URGENT" && (
-                          <Badge className="bg-rose-500 text-white animate-pulse border-none">URGENT</Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      <span>Time {appointment.timeLabel}</span>
-                      <span>{getQueuePositionLabel({ position: appointment.queuePosition ?? 0 })}</span>
-                      <span>Wait {appointment.waitLabel}</span>
-                      {appointment.isDelegated ? <span>Delegated from primary doctor</span> : null}
-                    </div>
-                  </div>
-                ))
+                <DataTable
+                  columns={activeQueueColumns}
+                  data={activeQueue.slice(0, 32)}
+                  pageSize={8}
+                  emptyMessage="No confirmed patients in the live queue."
+                />
               )}
             </CardContent>
           </Card>
@@ -463,7 +523,7 @@ export default function ReceptionistDashboard() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Calendar className="w-4 h-4 text-blue-600" />
+              <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-300" />
               <h3 className="font-semibold">Schedule Patients</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-3">
@@ -483,7 +543,7 @@ export default function ReceptionistDashboard() {
             <p className="text-sm text-muted-foreground mb-3">
               Review scheduled backlog, queued patients, and live consultation state.
             </p>
-            <Button asChild variant="outline" className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+            <Button asChild variant="outline" className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-900/20">
               <Link href="/receptionist/appointments">Open Queue Workspace</Link>
             </Button>
           </CardContent>
@@ -503,7 +563,7 @@ export default function ReceptionistDashboard() {
               {medicineDesk.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex flex-col gap-3 rounded-xl border border-slate-100 bg-slate-50/30 dark:bg-slate-900/10 p-4 sm:flex-row sm:items-center sm:justify-between hover:border-amber-100 transition-colors"
+                  className="flex flex-col gap-3 rounded-xl border border-slate-100 bg-slate-50/30 p-4 transition-colors hover:border-amber-100 dark:border-slate-800 dark:bg-slate-900/10 dark:hover:border-amber-900 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -537,8 +597,8 @@ export default function ReceptionistDashboard() {
                     
                     <div className="flex items-center gap-2 ml-2">
                       {entry.paymentStatus !== "PAID" && entry.pendingAmount > 0 && (
-                        <Button size="sm" variant="ghost" asChild className="h-9 gap-1 text-slate-600">
-                          <Link href="/receptionist/collections">
+                        <Button size="sm" variant="ghost" asChild className="h-9 gap-1 text-slate-600 dark:text-slate-300">
+                          <Link href="/billing?tab=invoices">
                             <Receipt className="w-3.5 h-3.5" />
                             Billing
                           </Link>

@@ -724,6 +724,10 @@ export const useActiveLocations = (clinicId: string, options?: {
     },
     {
       enabled: !!clinicId && (options?.enabled ?? true),
+      staleTime: 10 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: true,
     }
   );
 };

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { 
   Dialog, 
   DialogContent, 
+  DialogDescription,
   DialogHeader, 
   DialogTitle, 
   DialogTrigger 
@@ -66,9 +67,9 @@ const isLoading = clinicsLoading || myClinicLoading || defaultClinicLoading;
             <Building className="w-6 h-6 text-blue-600" />
             Select Clinic Location
           </DialogTitle>
-          <p className="text-muted-foreground text-sm">
+          <DialogDescription className="text-muted-foreground text-sm">
             Choose a clinic location to book your appointment.
-          </p>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col border-t mt-4">

@@ -669,7 +669,7 @@ export async function generateInvoicePDF(id: string): Promise<{
       method: 'POST',
     });
     const pdfData = data as { url?: string; pdfUrl?: string; message?: string } | undefined;
-    const pdfUrl = `/api/billing/invoices/${id}/download`;
+    const pdfUrl = `/api/billing/invoices/${id}/pdf-download`;
     return {
       success: true,
       data,

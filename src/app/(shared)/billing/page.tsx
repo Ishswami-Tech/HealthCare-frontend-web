@@ -11,7 +11,6 @@ import { useClinicContext } from "@/hooks/query/useClinics";
 import {
   useBillingPlans,
   useSubscriptions,
-  useClinicSubscriptions,
   useInvoices,
   useClinicInvoices,
   usePayments,
@@ -34,12 +33,25 @@ function BillingPageContent() {
   const userRoleForTitle = (session?.user?.role || "").toUpperCase();
   useEffect(() => {
     const isPatientRole = userRoleForTitle === "PATIENT";
-    setPageTitle(isPatientRole ? "My Billing" : "Billing Dashboard");
+    const isReceptionistRole = userRoleForTitle === "RECEPTIONIST";
+    setPageTitle(
+      isPatientRole ? "My Billing" : isReceptionistRole ? "Collections & Payments" : "Billing Dashboard"
+    );
   }, [userRoleForTitle, setPageTitle]);
 
   const userId = (session?.user?.id || "").trim();
   const clinicId = contextClinicId || session?.user?.clinicId || "";
+  const currentRole = (session?.user?.role as Role) || Role.PATIENT;
+  const isPatientRole = currentRole === Role.PATIENT;
   const isAdminRole = [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.FINANCE_BILLING].includes(
+    currentRole
+  );
+  const usesClinicBillingData = [
+    Role.SUPER_ADMIN,
+    Role.CLINIC_ADMIN,
+    Role.FINANCE_BILLING,
+    Role.RECEPTIONIST,
+  ].includes(
     (session?.user?.role as Role) || Role.PATIENT
   );
 
@@ -57,12 +69,7 @@ function BillingPageContent() {
     data: userSubscriptions = [],
     isPending: userSubscriptionsPending,
     refetch: refetchUserSubscriptions,
-  } = useSubscriptions(userId);
-  const {
-    data: clinicSubscriptions = [],
-    isPending: clinicSubscriptionsPending,
-    refetch: refetchClinicSubscriptions,
-  } = useClinicSubscriptions(isAdminRole);
+  } = useSubscriptions(userId, isPatientRole);
   const {
     data: userInvoices = [],
     isPending: userInvoicesPending,
@@ -72,7 +79,7 @@ function BillingPageContent() {
     data: clinicInvoices = [],
     isPending: clinicInvoicesPending,
     refetch: refetchClinicInvoices,
-  } = useClinicInvoices(isAdminRole);
+  } = useClinicInvoices(usesClinicBillingData);
   const {
     data: userPayments = [],
     isPending: userPaymentsPending,
@@ -82,14 +89,14 @@ function BillingPageContent() {
     data: clinicPayments = [],
     isPending: clinicPaymentsPending,
     refetch: refetchClinicPayments,
-  } = useClinicPayments(undefined, isAdminRole);
+  } = useClinicPayments(undefined, usesClinicBillingData);
   const { data: analytics } = useBillingAnalytics(isAdminRole ? clinicId : "");
   const { data: clinicLedger, refetch: refetchLedger } = useClinicLedger(undefined, isAdminRole);
 
   const hasUserId = !!userId;
-  const subscriptions = isAdminRole ? clinicSubscriptions : userSubscriptions;
-  const invoices = isAdminRole ? clinicInvoices : userInvoices;
-  const payments = isAdminRole ? clinicPayments : userPayments;
+  const subscriptions = isPatientRole ? userSubscriptions : [];
+  const invoices = usesClinicBillingData ? clinicInvoices : userInvoices;
+  const payments = usesClinicBillingData ? clinicPayments : userPayments;
   const plans = useMemo(
     () => (clinicPlans.length > 0 ? clinicPlans : fallbackPlans),
     [clinicPlans, fallbackPlans]
@@ -100,17 +107,21 @@ function BillingPageContent() {
     isAuthPending ||
     plansPending ||
     (isAdminRole
-      ? clinicSubscriptionsPending || clinicInvoicesPending || clinicPaymentsPending
-      : hasUserId && (userSubscriptionsPending || userInvoicesPending || userPaymentsPending));
+      ? clinicInvoicesPending || clinicPaymentsPending
+      : usesClinicBillingData
+        ? clinicInvoicesPending || clinicPaymentsPending
+        : hasUserId && (userSubscriptionsPending || userInvoicesPending || userPaymentsPending));
 
   const handleRefetchAll = () => {
     void refetchClinicPlans();
     void refetchFallbackPlans();
     if (isAdminRole) {
-      void refetchClinicSubscriptions();
       void refetchClinicInvoices();
       void refetchClinicPayments();
       void refetchLedger();
+    } else if (usesClinicBillingData) {
+      void refetchClinicInvoices();
+      void refetchClinicPayments();
     } else if (hasUserId) {
       void refetchUserSubscriptions();
       void refetchUserInvoices();

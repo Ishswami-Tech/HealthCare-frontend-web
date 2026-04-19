@@ -8,6 +8,9 @@ import type {
   TreatmentType,
 } from "@/types/appointment.types";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -30,7 +33,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
 import { useDoctors } from "@/hooks/query/useDoctors";
-import { usePatients } from "@/hooks/query/usePatients";
+import { usePatients, useCreatePatient } from "@/hooks/query/usePatients";
 import {
   useAppointmentServices,
   useCreateAppointment,
@@ -45,16 +48,21 @@ import {
 } from "@/hooks/query/useBilling";
 import { useSendAppointmentReminder } from "@/hooks/query/useCommunication";
 import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
+import { useCreateUser } from "@/hooks/query/useUsers";
 import { useRBAC } from "@/hooks/utils/useRBAC";
+import {
+  dismissToast,
+  showErrorToast,
+  showSuccessToast,
+} from "@/hooks/utils/use-toast";
 import { Permission } from "@/types/rbac.types";
 import { APP_CONFIG } from "@/lib/config/config";
-import { toast } from "sonner";
 import { theme } from "@/lib/utils/theme-utils";
 import { format } from "date-fns";
 import {
-  Activity, Plus, Leaf, Waves, Clock,
+  Activity, Plus, Leaf, Waves, Clock, Search,
   Flame, Heart, Brain, Droplets, Wind, CheckCircle,
-  ChevronLeft, User, Loader2,
+  ChevronLeft, User, Loader2, UserPlus,
   CalendarIcon, Sun, CloudSun, Moon, QrCode, Download,
   Check, ArrowRight, Video, MapPin, Building,
 } from "lucide-react";
@@ -178,6 +186,30 @@ const isSubscriptionCurrent = (subscription?: { status?: string; endDate?: strin
   return Number.isFinite(endDate.getTime()) && endDate.getTime() >= Date.now();
 };
 
+const normalizePatientGender = (value: string) => {
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "MALE" || normalized === "FEMALE" || normalized === "OTHER") {
+    return normalized as "MALE" | "FEMALE" | "OTHER";
+  }
+  return undefined;
+};
+
+const createTemporaryPatientPassword = (phone: string) => {
+  const digits = phone.replace(/\D/g, "").slice(-6) || "123456";
+  return `Pt@${digits}`;
+};
+
+const extractCreatedUserId = (result: unknown) => {
+  if (!result || typeof result !== "object") return undefined;
+  const record = result as Record<string, unknown>;
+  if (typeof record.id === "string") return record.id;
+  if (record.data && typeof record.data === "object") {
+    const nested = record.data as Record<string, unknown>;
+    if (typeof nested.id === "string") return nested.id;
+  }
+  return undefined;
+};
+
 export function BookAppointmentDialog({
   trigger,
   clinicId,
@@ -221,15 +253,34 @@ export function BookAppointmentDialog({
   const [requiresVideoPayment, setRequiresVideoPayment] = useState(false);
   const [videoPaymentCompleted, setVideoPaymentCompleted] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId || "");
-  const isPrivilegedScheduler = ["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [showQuickCreatePatient, setShowQuickCreatePatient] = useState(false);
+  const [recentlyCreatedPatient, setRecentlyCreatedPatient] = useState<{
+    id: string;
+    displayName: string;
+    phone?: string;
+    email?: string;
+  } | null>(null);
+  const [newPatient, setNewPatient] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    dateOfBirth: "",
+    gender: "",
+    address: "",
+  });
+  const isPrivilegedScheduler = ["RECEPTIONIST", "DOCTOR", "ASSISTANT_DOCTOR", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
   const targetPatientId = isPrivilegedScheduler ? selectedPatientId : session?.user?.id || "";
   const shouldLoadLocations = open;
   const shouldLoadServices = open;
   const shouldLoadDoctors = open && step >= 3 && !!activeClinicId && !!selectedLocationId;
   const shouldLoadPatients = open && isPrivilegedScheduler && !!activeClinicId;
+  const createPatientMutation = useCreatePatient();
+  const createUserMutation = useCreateUser();
 
   // ─── Queries ─────────────────────────────────────────────────────────────
-  const { data: locations = [] } = useActiveLocations(activeClinicId, {
+  const { data: locations = [], isPending: locationsLoading, isFetching: locationsFetching } = useActiveLocations(activeClinicId, {
     enabled: shouldLoadLocations,
   });
   const { data: appointmentServices = [], isPending: servicesLoading } = useAppointmentServices(shouldLoadServices);
@@ -359,9 +410,25 @@ export function BookAppointmentDialog({
     }));
   }, [patientsData]);
 
+  const filteredPatientsList = useMemo(() => {
+    const query = patientSearch.trim().toLowerCase();
+    if (!query) {
+      return patientsList;
+    }
+
+    return patientsList.filter((patient: any) => {
+      const name = String(patient.displayName || "").toLowerCase();
+      const phone = String(patient.phone || "").toLowerCase();
+      const email = String(patient.email || "").toLowerCase();
+      return name.includes(query) || phone.includes(query) || email.includes(query);
+    });
+  }, [patientsList, patientSearch]);
+
   const selectedPatient = useMemo(
-    () => patientsList.find((patient: any) => (patient.userId || patient.id) === selectedPatientId),
-    [patientsList, selectedPatientId]
+    () =>
+      patientsList.find((patient: any) => (patient.userId || patient.id) === selectedPatientId) ||
+      (recentlyCreatedPatient?.id === selectedPatientId ? recentlyCreatedPatient : null),
+    [patientsList, selectedPatientId, recentlyCreatedPatient]
   );
 
   const activeSubscription = useMemo(() => {
@@ -441,6 +508,19 @@ export function BookAppointmentDialog({
         setBookedAppointmentId("");
         setRequiresVideoPayment(false);
         setVideoPaymentCompleted(false);
+        setSelectedPatientId(initialPatientId || "");
+        setPatientSearch("");
+        setShowQuickCreatePatient(false);
+        setRecentlyCreatedPatient(null);
+        setNewPatient({
+          firstName: "",
+          lastName: "",
+          phone: "",
+          email: "",
+          dateOfBirth: "",
+          gender: "",
+          address: "",
+        });
       }
       // Otherwise, keep all existing state (user resumes from where they left off)
     }
@@ -471,8 +551,8 @@ export function BookAppointmentDialog({
       tab: "plans" | "subscriptions" | "payments",
       message: string
     ) => {
-      toast.dismiss("subscription-coverage-check");
-      toast.error(message);
+      dismissToast("subscription-coverage-check");
+      showErrorToast(message);
       router.push(`${patientBillingRoute}?tab=${tab}`);
     };
 
@@ -501,7 +581,7 @@ export function BookAppointmentDialog({
 
       if (finalAppointmentType === "VIDEO_CALL") {
         if (selectedVideoSlots.length !== 3) {
-          toast.error("Please select exactly 3 preferred video slots.");
+          showErrorToast("Please select exactly 3 preferred video slots.");
           return;
         }
 
@@ -532,6 +612,12 @@ export function BookAppointmentDialog({
         }
 
         onBooked?.();
+        showSuccessToast(
+          `Video appointment requested with ${selectedDoctor?.name || 'doctor'}` +
+          (selectedDate ? ` for ${format(selectedDate, 'd MMM yyyy')}` : '') +
+          ' — awaiting doctor confirmation.',
+          { id: 'booking-success' }
+        );
         setStep(7);
         return;
       }
@@ -625,6 +711,12 @@ export function BookAppointmentDialog({
         sendReminder({ appointmentId: apptId, reminderType: 'all' });
       }
       onBooked?.();
+      showSuccessToast(
+        `Appointment booked${selectedDoctor?.name ? ` with ${selectedDoctor.name}` : ''}` +
+        (selectedDate ? ` on ${format(selectedDate, 'd MMM yyyy')}` : '') +
+        '.',
+        { id: 'booking-success' }
+      );
       setStep(7); // step 7 = success/QR screen
     } catch (err: any) {
       const errorMessage =
@@ -664,8 +756,8 @@ export function BookAppointmentDialog({
         return;
       }
 
-      toast.dismiss("subscription-coverage-check");
-      toast.error(errorMessage);
+      dismissToast("subscription-coverage-check");
+      showErrorToast(errorMessage);
     }
   }, [
     selectedService,
@@ -697,14 +789,13 @@ export function BookAppointmentDialog({
   const canNext = useMemo(() => {
     if (step === 1) return !!selectedLocationId && !!consultationMode;
     if (step === 2) {
-      const isOfficeStaff = ["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
-      return !!selectedServiceId && (!isOfficeStaff || !!selectedPatientId);
+      return !!selectedServiceId && (!isPrivilegedScheduler || !!selectedPatientId);
     }
     if (step === 3) return !!selectedDoctorId;
     if (step === 4) return !!selectedDate;
     if (step === 5) return consultationMode === "VIDEO" ? selectedVideoSlots.length === 3 : !!selectedSlot;
     return true;
-  }, [step, selectedLocationId, consultationMode, selectedServiceId, selectedDoctorId, selectedDate, selectedSlot, selectedVideoSlots, userRole, selectedPatientId]);
+  }, [step, selectedLocationId, consultationMode, selectedServiceId, selectedDoctorId, selectedDate, selectedSlot, selectedVideoSlots, isPrivilegedScheduler, selectedPatientId]);
 
   const TOTAL_STEPS = 6;
   const goNext = () => {
@@ -770,10 +861,15 @@ export function BookAppointmentDialog({
       {/* Location */}
       <div className="flex flex-col gap-2">
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Visit Location</p>
-        {(locations as any[]).length === 0 ? (
+        {locationsLoading && (locations as any[]).length === 0 ? (
           <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
             <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
             Loading locations...
+          </div>
+        ) : (locations as any[]).length === 0 ? (
+          <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
+            <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
+            No active locations found for this clinic.
           </div>
         ) : (
           <div className="space-y-2">
@@ -858,39 +954,272 @@ export function BookAppointmentDialog({
         ? visibleServices
         : visibleServices.filter((t) => t.category === serviceFilter);
 
+    const handleCreateQuickPatient = async () => {
+      const firstName = newPatient.firstName.trim();
+      const lastName = newPatient.lastName.trim();
+      const phone = newPatient.phone.trim();
+
+      if (!firstName || !lastName || !phone) {
+        showErrorToast("First name, last name, and phone number are required");
+        return;
+      }
+
+      try {
+        const temporaryPassword = createTemporaryPatientPassword(phone);
+        const normalizedGender = normalizePatientGender(newPatient.gender);
+        const email =
+          newPatient.email.trim() || `patient.${phone.replace(/\D/g, "")}@placeholder.local`;
+
+        const createdUser = await createUserMutation.mutateAsync({
+          email,
+          password: temporaryPassword,
+          firstName,
+          lastName,
+          phone,
+          role: "PATIENT",
+          clinicId: activeClinicId,
+          ...(normalizedGender ? { gender: normalizedGender } : {}),
+          ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
+          ...(newPatient.address.trim() ? { address: newPatient.address.trim() } : {}),
+        });
+
+        const userId = extractCreatedUserId(createdUser);
+        if (!userId) {
+          throw new Error("Created patient user is missing an ID");
+        }
+
+        await createPatientMutation.mutateAsync({
+          userId,
+          ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
+          ...(normalizedGender ? { gender: normalizedGender } : {}),
+        });
+
+        const displayName = `${firstName} ${lastName}`.trim();
+        setSelectedPatientId(userId);
+        setPatientSearch(displayName);
+        setRecentlyCreatedPatient({ id: userId, displayName, phone, email });
+        setShowQuickCreatePatient(false);
+        setNewPatient({
+          firstName: "",
+          lastName: "",
+          phone: "",
+          email: "",
+          dateOfBirth: "",
+          gender: "",
+          address: "",
+        });
+
+        await queryClient.invalidateQueries({ queryKey: ["patients"], exact: false });
+        showSuccessToast(`Patient created successfully. Temporary password: ${temporaryPassword}`);
+      } catch (error) {
+        showErrorToast(error instanceof Error ? error.message : "Failed to create patient");
+      }
+    };
+
     return (
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">What type of consultation do you need?</p>
-        {["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole) ? (
-          <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-4">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Select Patient
-            </label>
-            <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Choose a patient for this booking" />
-              </SelectTrigger>
-              <SelectContent>
-                {patientsList.map((patient: any) => (
-                  <SelectItem key={patient.userId || patient.id} value={patient.userId || patient.id}>
-                    {patient.displayName}
-                    {patient.phone ? ` • ${patient.phone}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedPatient ? (
+        {isPrivilegedScheduler && (
+          <div className="space-y-3 rounded-2xl border border-border bg-muted/20 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Patient</p>
+                <p className="text-sm text-muted-foreground">Search an existing patient or register a new one before booking.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowQuickCreatePatient((value) => !value)}
+                className="gap-2 self-start"
+              >
+                <UserPlus className="h-4 w-4" />
+                {showQuickCreatePatient ? "Close quick add" : "Register New Patient"}
+              </Button>
+            </div>
+
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={patientSearch}
+                onChange={(event) => setPatientSearch(event.target.value)}
+                placeholder="Search by patient name, phone, or email"
+                className="h-11 pl-10"
+              />
+            </div>
+
+            {locationsFetching && (locations as any[]).length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Booking for {selectedPatient.displayName}
-                {selectedPatient.phone ? ` • ${selectedPatient.phone}` : ""}
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Receptionist bookings must be linked to an existing patient.
+                Refreshing location data in the background.
               </p>
             )}
+
+            <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+              {filteredPatientsList.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-6 text-center text-sm text-muted-foreground">
+                  No patient matches the search.
+                </div>
+              ) : (
+                filteredPatientsList.map((patient: any) => {
+                  const patientId = patient.userId || patient.id;
+                  const isSelected = selectedPatientId === patientId;
+                  return (
+                    <button
+                      key={patientId}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPatientId(patientId);
+                        setRecentlyCreatedPatient(null);
+                      }}
+                      className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
+                          : "border-border bg-card hover:border-emerald-300 hover:bg-muted/30"
+                      }`}
+                    >
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                        isSelected ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"
+                      }`}>
+                        {String(patient.displayName || "P").charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`truncate font-semibold ${isSelected ? "text-emerald-700 dark:text-emerald-300" : ""}`}>
+                          {patient.displayName}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {patient.phone || "No phone"}{patient.email ? ` - ${patient.email}` : ""}
+                        </p>
+                      </div>
+                      {isSelected && <Check className="h-4 w-4 text-emerald-600" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {showQuickCreatePatient && (
+              <Card className="border-emerald-200/70 bg-background/80 shadow-sm dark:border-emerald-900/50">
+                <CardContent className="space-y-4 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Quick register patient</p>
+                      <p className="text-xs text-muted-foreground">
+                        This creates the patient identity and profile, then returns you to booking.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">First name</Label>
+                      <Input
+                        value={newPatient.firstName}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, firstName: event.target.value }))}
+                        placeholder="John"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Last name</Label>
+                      <Input
+                        value={newPatient.lastName}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, lastName: event.target.value }))}
+                        placeholder="Doe"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone</Label>
+                      <Input
+                        value={newPatient.phone}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, phone: event.target.value }))}
+                        placeholder="+91 98765 43210"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email</Label>
+                      <Input
+                        type="email"
+                        value={newPatient.email}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, email: event.target.value }))}
+                        placeholder="patient@example.com"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date of birth</Label>
+                      <Input
+                        type="date"
+                        value={newPatient.dateOfBirth}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, dateOfBirth: event.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gender</Label>
+                      <Select value={newPatient.gender} onValueChange={(value) => setNewPatient((current) => ({ ...current, gender: value }))}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MALE">Male</SelectItem>
+                          <SelectItem value="FEMALE">Female</SelectItem>
+                          <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
+                      <Textarea
+                        value={newPatient.address}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, address: event.target.value }))}
+                        placeholder="Street, city, state"
+                        className="min-h-20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowQuickCreatePatient(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                      onClick={handleCreateQuickPatient}
+                      disabled={createPatientMutation.isPending || createUserMutation.isPending}
+                    >
+                      {(createPatientMutation.isPending || createUserMutation.isPending) ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4" />
+                          Create Patient
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {selectedPatient ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+                <span className="font-semibold">Booking for {selectedPatient.displayName}</span>
+                {selectedPatient.phone ? <span className="ml-2 opacity-80">- {selectedPatient.phone}</span> : null}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-3 text-sm text-muted-foreground">
+                Select or create a patient to continue booking.
+              </div>
+            )}
           </div>
-        ) : null}
+        )}
         {servicesLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, index) => (

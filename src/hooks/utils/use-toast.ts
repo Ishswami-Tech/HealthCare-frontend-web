@@ -39,6 +39,7 @@ export const TOAST_IDS = {
   APPOINTMENT: {
     CREATE: 'appointment-create',
     UPDATE: 'appointment-update',
+    REASSIGN: 'appointment-reassign',
     DELETE: 'appointment-delete',
     BULK_UPDATE: 'appointment-bulk-update',
     START: 'appointment-start',
@@ -220,13 +221,13 @@ function toast(options: {
     sonnerId = sonnerToast.error(errorMessage, {
       id: toastId,
       description: options.title && options.description ? options.title : undefined,
-      duration: options.duration || 5000,
+      duration: options.duration ?? 5000,
     });
   } else {
     sonnerId = sonnerToast.success(message, {
       id: toastId,
       description,
-      duration: options.duration || 4000,
+      duration: options.duration ?? 5000,
     });
   }
   
@@ -282,7 +283,7 @@ export function showSuccessToast(
   sonnerToast.success(message, {
     id: toastId,
     description: options?.description,
-    duration: options?.duration || 4000,
+    duration: options?.duration ?? 5000,
   });
 }
 
@@ -308,7 +309,7 @@ export function showErrorToast(
   sonnerToast.error(errorMessage, {
     id: toastId,
     description: options?.description,
-    duration: options?.duration || 5000,
+    duration: options?.duration ?? 5000,
   });
 }
 
@@ -335,7 +336,7 @@ export function showInfoToast(
   sonnerToast.info(message, {
     id: toastId,
     description: options?.description,
-    duration: options?.duration || 4000,
+    duration: options?.duration ?? 5000,
   });
 }
 
@@ -355,7 +356,7 @@ export function showWarningToast(
   sonnerToast.warning(message, {
     id: toastId,
     description: options?.description,
-    duration: options?.duration || 5000,
+    duration: options?.duration ?? 5000,
   });
 }
 

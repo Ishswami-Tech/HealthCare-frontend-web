@@ -117,7 +117,7 @@ export default function PharmacistProfile() {
         {/* Settings Tabs */}
         <div className="md:col-span-8">
           <Tabs defaultValue="personal" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2">
               <TabsTrigger value="personal">Personal Info</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
             </TabsList>

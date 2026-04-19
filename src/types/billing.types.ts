@@ -80,6 +80,7 @@ export interface Payment {
   clinicId: string;
   invoiceId?: string;
   subscriptionId?: string;
+  patientName?: string;
   amount: number;
   currency: string;
   method: 'CASH' | 'CARD' | 'UPI' | 'NET_BANKING' | 'WALLET' | 'INSURANCE';

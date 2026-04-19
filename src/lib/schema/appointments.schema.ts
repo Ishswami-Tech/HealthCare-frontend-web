@@ -4,6 +4,7 @@ export const scanQRSchema = z.object({
   code: z.string().min(1, 'QR code is required'),
   locationId: z.string().uuid().optional(),
   appointmentId: z.string().uuid().optional(),
+  coordinates: z.object({ lat: z.number(), lng: z.number() }).optional(),
 });
 
 export const createAppointmentSchema = z.object({
@@ -53,6 +54,17 @@ export const proposeVideoSlotsSchema = z.object({
   })).min(3).max(4),
   notes: z.string().max(1000).optional(),
 });
+
+export const confirmVideoFinalSlotSchema = z
+  .object({
+    confirmedSlotIndex: z.number().int().min(0).optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
+    reason: z.string().max(1000).optional(),
+  })
+  .refine((value) => value.confirmedSlotIndex !== undefined || (value.date && value.time), {
+    message: 'Provide either a slot index or a custom date and time',
+  });
 
 export const rescheduleAppointmentSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (YYYY-MM-DD)'),

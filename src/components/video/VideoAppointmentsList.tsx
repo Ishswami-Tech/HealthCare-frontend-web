@@ -78,6 +78,7 @@ import {
 } from "@/hooks/query/useVideoAppointments";
 import { useAppointmentServices, useMyAppointments } from "@/hooks/query/useAppointments";
 import { useClinics } from "@/hooks/query/useClinics";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { VideoAppointmentRoom } from "./VideoAppointmentRoom";
 import {
@@ -155,6 +156,22 @@ export function isJoinableVideoAppointment(appointment: VideoAppointment | any):
   return paymentCompleted !== false;
 }
 
+function isWithinJoinWindow(appointment: VideoAppointment | any): boolean {
+  const startRaw = appointment?.startTime || appointment?.appointmentDate;
+  if (!startRaw) return false;
+
+  const startTime = new Date(startRaw);
+  if (Number.isNaN(startTime.getTime())) return false;
+
+  const endRaw = appointment?.endTime;
+  const endTime = endRaw ? new Date(endRaw) : new Date(startTime.getTime() + 60 * 60 * 1000);
+  if (Number.isNaN(endTime.getTime())) return false;
+
+  const now = new Date();
+  const earlyJoinWindow = new Date(startTime.getTime() - 15 * 60 * 1000);
+  return now >= earlyJoinWindow && now <= endTime;
+}
+
 export function getVideoPaymentAmount(
   appointment: VideoAppointment,
   appointmentServices: unknown[] = []
@@ -203,6 +220,7 @@ interface VideoAppointmentsListProps {
   showJoinButton?: boolean;
   showEndButton?: boolean;
   showDownloadButton?: boolean;
+  enforceTimeSlotWindow?: boolean;
   limit?: number;
   filters?: {
     doctorId?: string;
@@ -219,6 +237,7 @@ export function VideoAppointmentsList({
   showJoinButton = false,
   showEndButton = false,
   showDownloadButton = true,
+  enforceTimeSlotWindow = false,
   limit = 100,
   filters = {},
 }: VideoAppointmentsListProps) {
@@ -257,6 +276,7 @@ export function VideoAppointmentsList({
     page: 1,
     limit,
   });
+  useWebSocketQuerySync();
   const { data: myAppointmentsData, isPending: isLoadingMyAppointments } = useMyAppointments();
   const { data: appointmentServices = [] } = useAppointmentServices();
   const { data: clinicsData } = useClinics();
@@ -317,6 +337,12 @@ export function VideoAppointmentsList({
       showErrorToast("No permission to join sessions.", { id: TOAST_IDS.VIDEO.PERMISSION });
       return;
     }
+    if (enforceTimeSlotWindow && !isWithinJoinWindow(appointment)) {
+      showErrorToast("Join is allowed only during the appointment time slot.", {
+        id: TOAST_IDS.VIDEO.ERROR,
+      });
+      return;
+    }
     try {
       const appointmentId = getEffectiveAppointmentId(appointment);
       if (!appointmentId) {
@@ -341,7 +367,6 @@ export function VideoAppointmentsList({
     if (!canEnd) return;
     try {
       await endVideoAppointment.mutateAsync(appointmentId);
-      refetch();
       showSuccessToast("Session ended", { id: TOAST_IDS.VIDEO.END });
     } catch (error) {
       showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
@@ -497,7 +522,7 @@ export function VideoAppointmentsList({
                     {['scheduled', 'confirmed'].includes(String(appointment.status || '').toLowerCase()) && (
                       <>
                         {(appointment as any).paymentCompleted === false && getVideoPaymentAmount(appointment, appointmentServices) > 0 && (
-                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold" onSuccess={() => refetch()}>
+                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold">
                             Pay ₹{getVideoPaymentAmount(appointment, appointmentServices)}
                           </PaymentButton>
                         )}
@@ -522,7 +547,10 @@ export function VideoAppointmentsList({
                         <Button variant="ghost" size="sm" onClick={() => openCancel(appointment)} className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm text-destructive hover:text-destructive">Cancel</Button>
                       </>
                     )}
-                    {showJoinButton && ["scheduled", "in-progress"].includes(appointment.status) && isJoinableVideoAppointment(appointment) && (
+                    {showJoinButton &&
+                      ["scheduled", "in-progress"].includes(appointment.status) &&
+                      isJoinableVideoAppointment(appointment) &&
+                      (!enforceTimeSlotWindow || isWithinJoinWindow(appointment)) && (
                       <Button size="sm" onClick={() => handleJoinAppointment(appointment)} className="h-8 sm:h-9 px-4 sm:px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold" disabled={joinVideoAppointment.isPending}>
                         {joinVideoAppointment.isPending ? "Joining..." : "Join Session"}
                       </Button>

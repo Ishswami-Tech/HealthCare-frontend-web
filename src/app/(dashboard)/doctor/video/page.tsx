@@ -1,12 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { VideoAppointmentsList } from "@/components/video/VideoAppointmentsList";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
-import { useAppointments, useConfirmVideoSlot } from "@/hooks/query/useAppointments";
+import { useAppointments, useConfirmFinalVideoSlot, useConfirmVideoSlot } from "@/hooks/query/useAppointments";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { getAppointmentPaymentStatus, isAppointmentAwaitingPayment } from "@/lib/utils/appointmentUtils";
 import { CheckCircle, Clock } from "lucide-react";
 
@@ -47,12 +51,17 @@ export default function DoctorVideoPage() {
   const { session } = useAuth();
   const userId = session?.user?.id || "";
   const confirmSlotMutation = useConfirmVideoSlot();
+  const confirmFinalSlotMutation = useConfirmFinalVideoSlot();
   const { data: awaitingSlotData } = useAppointments({
     doctorId: userId,
     type: "VIDEO_CALL",
     status: ["SCHEDULED", "AWAITING_SLOT_CONFIRMATION"],
     limit: 50,
   });
+  const [customSlotAppointment, setCustomSlotAppointment] = useState<any | null>(null);
+  const [customSlotDate, setCustomSlotDate] = useState("");
+  const [customSlotTime, setCustomSlotTime] = useState("");
+  const [customSlotReason, setCustomSlotReason] = useState("");
 
   const allAwaitingSlotAppointments = (
     Array.isArray((awaitingSlotData as any)?.appointments)
@@ -148,6 +157,19 @@ export default function DoctorVideoPage() {
                           </Button>
                         )
                       )}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="rounded-xl"
+                        onClick={() => {
+                          setCustomSlotAppointment(appointment);
+                          setCustomSlotDate(getLastProposedSlotDate(appointment)?.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) || "");
+                          setCustomSlotTime(appointment?.time ? String(appointment.time).slice(0, 5) : "");
+                        }}
+                      >
+                        <Clock className="mr-1.5 h-3.5 w-3.5" />
+                        Set final slot
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -174,6 +196,76 @@ export default function DoctorVideoPage() {
           </CardContent>
         </Card>
       )}
+      <Dialog open={!!customSlotAppointment} onOpenChange={(open) => !open && setCustomSlotAppointment(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Set final video slot</DialogTitle>
+            <DialogDescription>
+              Use this when none of the patient-proposed slots work. The appointment will be finalized with the doctor-selected slot.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Date</label>
+                <Input type="date" value={customSlotDate} onChange={(e) => setCustomSlotDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Time</label>
+                <Input type="time" value={customSlotTime} onChange={(e) => setCustomSlotTime(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Reason</label>
+              <Textarea
+                value={customSlotReason}
+                onChange={(e) => setCustomSlotReason(e.target.value)}
+                placeholder="Optional note for why a custom slot was chosen"
+                rows={3}
+              />
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setCustomSlotAppointment(null)}
+                disabled={confirmFinalSlotMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!customSlotAppointment || !customSlotDate || !customSlotTime) return;
+                  try {
+                    const payload: {
+                      appointmentId: string;
+                      date: string;
+                      time: string;
+                      reason?: string;
+                    } = {
+                      appointmentId: customSlotAppointment.id,
+                      date: customSlotDate,
+                      time: customSlotTime,
+                    };
+                    if (customSlotReason.trim()) {
+                      payload.reason = customSlotReason.trim();
+                    }
+                    await confirmFinalSlotMutation.mutateAsync(payload);
+                    setCustomSlotAppointment(null);
+                    setCustomSlotDate("");
+                    setCustomSlotTime("");
+                    setCustomSlotReason("");
+                  } catch {
+                    // mutation hook handles toast/error state
+                  }
+                }}
+                disabled={confirmFinalSlotMutation.isPending || !customSlotDate || !customSlotTime}
+              >
+                {confirmFinalSlotMutation.isPending ? "Confirming..." : "Confirm final slot"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       <VideoAppointmentsList
         title="Video Consultations"
         description="Manage and join video consultations with your patients"

@@ -7,10 +7,11 @@ export default function ReceptionistVideoPage() {
     
       <VideoAppointmentsList
         title="Video Consultations"
-        description="View video consultation appointments"
+        description="View and join video consultations during the scheduled time slot"
         showStatistics={false}
         showClinicFilter={false}
-        showJoinButton={false}
+        showJoinButton={true}
+        enforceTimeSlotWindow={true}
         showEndButton={false}
         showDownloadButton={false}
         limit={100}

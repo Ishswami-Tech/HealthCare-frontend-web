@@ -394,7 +394,7 @@ export default function ProfileCompletionForm({
           // Session-related errors
           showErrorToast(
             "Your session appears to be invalid or expired. Please log in again.",
-            { id: TOAST_IDS.AUTH.LOGIN, duration: 10000 }
+            { id: TOAST_IDS.AUTH.LOGIN, duration: 5000 }
           );
           router.push(ROUTES.LOGIN);
         } else if (
@@ -404,7 +404,7 @@ export default function ProfileCompletionForm({
           // Server errors
           showErrorToast(
             "The server encountered an error processing your request. Please try again in a few moments or contact support if the issue persists.",
-            { id: TOAST_IDS.GLOBAL.ERROR, duration: 15000 }
+            { id: TOAST_IDS.GLOBAL.ERROR, duration: 5000 }
           );
         } else {
           // Generic errors

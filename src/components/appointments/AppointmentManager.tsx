@@ -27,6 +27,7 @@ import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/ho
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   useCancelAppointment,
   useMyAppointments,
@@ -103,6 +104,7 @@ export default function AppointmentManager({
 
   // Real-time WebSocket integration
   const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
+  useWebSocketQuerySync();
 
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("SCHEDULED");
@@ -352,7 +354,7 @@ export default function AppointmentManager({
     cardBorder: string;
     cardHover: string;
   }) => (
-    <div className={`rounded-2xl border ${cardBorder} bg-white p-4 flex items-center gap-3 transition-all ${cardHover} hover:shadow-sm`}>
+    <div className={`rounded-2xl border ${cardBorder} bg-card p-4 flex items-center gap-3 transition-all ${cardHover} hover:shadow-sm`}>
       <div className={`rounded-xl ${iconBg} p-2.5 border ${iconBorder} ${iconColor}`}>{icon}</div>
       <div>
         <p className="text-2xl font-extrabold text-foreground tracking-tight">{value}</p>
@@ -389,8 +391,8 @@ export default function AppointmentManager({
     return (
       <div className={`rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md ${
         isCancelled
-          ? "bg-red-50 border-red-200 hover:border-red-300"
-          : `bg-white border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
+          ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50 hover:border-red-300"
+          : `bg-card border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
       }`}>
         {/* Card header */}
         <div
@@ -412,7 +414,7 @@ export default function AppointmentManager({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-3 min-w-0">
               {/* Avatar */}
-              <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 text-sm font-bold text-emerald-700">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/70 flex items-center justify-center shrink-0 text-sm font-bold text-emerald-700 dark:text-emerald-300">
                 {doctorName.charAt(0)}
               </div>
               <div className="min-w-0">
@@ -603,7 +605,7 @@ export default function AppointmentManager({
   }
 
   return (
-    <Card className="max-w-6xl mx-auto bg-white rounded-xl border border-border sm:rounded-2xl shadow-sm overflow-hidden">
+    <Card className="max-w-6xl mx-auto bg-card rounded-xl border border-border sm:rounded-2xl shadow-sm overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-bold flex items-center gap-2">
@@ -627,13 +629,12 @@ export default function AppointmentManager({
                 {...(propClinicId ? { clinicId: propClinicId } : {})}
                 {...(propPatientId ? { initialPatientId: propPatientId } : {})}
                 trigger={
-                  <Button
-                    variant="outline"
-                    className="gap-2 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 rounded-xl px-4 font-semibold h-10 transition-all active:scale-95"
-                  >
-                    <Calendar className="h-4 w-4" />
-                    Book Appointment
-                  </Button>
+                <Button
+                  className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md hover:shadow-lg rounded-xl px-6 font-bold h-10 transition-all active:scale-95 border border-emerald-500/30 ring-2 ring-emerald-600/20 ring-offset-1"
+                >
+                  <CalendarPlus className="h-5 w-5" />
+                  Book Appointment
+                </Button>
                 }
               />
             )}
@@ -659,40 +660,40 @@ export default function AppointmentManager({
             label="Total"
             value={stats.total}
             icon={<Stethoscope className="w-5 h-5" />}
-            iconBg="bg-blue-50"
-            iconBorder="border-blue-100"
+            iconBg="bg-blue-50 dark:bg-blue-950/30"
+            iconBorder="border-blue-100 dark:border-blue-900"
             iconColor="text-blue-600"
-            cardBorder="border-blue-100"
+            cardBorder="border-blue-100 dark:border-blue-900"
             cardHover="hover:border-blue-300"
           />
           <StatCard
             label="Upcoming"
             value={stats.upcoming}
             icon={<Calendar className="w-5 h-5" />}
-            iconBg="bg-emerald-50"
-            iconBorder="border-emerald-100"
+            iconBg="bg-emerald-50 dark:bg-emerald-950/30"
+            iconBorder="border-emerald-100 dark:border-emerald-900"
             iconColor="text-emerald-600"
-            cardBorder="border-emerald-100"
+            cardBorder="border-emerald-100 dark:border-emerald-900"
             cardHover="hover:border-emerald-300"
           />
           <StatCard
             label="In Progress"
             value={stats.inProgress}
             icon={<Zap className="w-5 h-5" />}
-            iconBg="bg-amber-50"
-            iconBorder="border-amber-100"
+            iconBg="bg-amber-50 dark:bg-amber-950/30"
+            iconBorder="border-amber-100 dark:border-amber-900"
             iconColor="text-amber-600"
-            cardBorder="border-amber-100"
+            cardBorder="border-amber-100 dark:border-amber-900"
             cardHover="hover:border-amber-300"
           />
           <StatCard
             label="Completed"
             value={stats.completed}
             icon={<CheckCircle className="w-5 h-5" />}
-            iconBg="bg-violet-50"
-            iconBorder="border-violet-100"
+            iconBg="bg-violet-50 dark:bg-violet-950/30"
+            iconBorder="border-violet-100 dark:border-violet-900"
             iconColor="text-violet-600"
-            cardBorder="border-violet-100"
+            cardBorder="border-violet-100 dark:border-violet-900"
             cardHover="hover:border-violet-300"
           />
       </div>
@@ -710,7 +711,7 @@ export default function AppointmentManager({
           />
         </div>
 
-        <div className="bg-white border border-border/60 p-1 sm:p-1.5 h-12 sm:h-14 rounded-xl sm:rounded-2xl max-w-full flex gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide shadow-sm">
+        <div className="bg-card border border-border/60 p-1 sm:p-1.5 h-12 sm:h-14 rounded-xl sm:rounded-2xl max-w-full flex gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide shadow-sm">
           {(["ALL", "SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as StatusFilter[]).map(s => {
             const isActive = statusFilter === s;
             const labelMap: Record<string, string> = {
@@ -751,7 +752,7 @@ export default function AppointmentManager({
               <Button
                 variant="outline"
                 className={cn(
-                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-slate-200 bg-white",
+                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-border bg-background",
                   !dateFilter.start && "text-muted-foreground"
                 )}
               >
@@ -774,7 +775,7 @@ export default function AppointmentManager({
               <Button
                 variant="outline"
                 className={cn(
-                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-slate-200 bg-white",
+                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-border bg-background",
                   !dateFilter.end && "text-muted-foreground"
                 )}
               >

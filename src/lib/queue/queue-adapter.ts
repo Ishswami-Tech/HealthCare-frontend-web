@@ -38,6 +38,15 @@ export function toTitleCase(value: string): string {
  */
 export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
   const metadata = asRecord(raw?.metadata);
+  const appointmentObj = asRecord(raw?.appointment);
+  const metadataAppointmentId =
+    typeof metadata['appointmentId'] === 'string' ? metadata['appointmentId'] : '';
+  const appointmentId =
+    raw?.appointmentId ||
+    appointmentObj.id ||
+    metadataAppointmentId ||
+    raw?.id ||
+    '';
   const position =
     typeof raw.position === 'number'
       ? raw.position
@@ -46,14 +55,26 @@ export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
         : 0;
 
   return {
-    entryId: raw.entryId || raw.id || '',
-    queueCategory: raw.queueCategory || raw.queueLane || QueueCategory.DOCTOR_CONSULTATION,
-    queueOwnerId: raw.queueOwnerId || raw.doctorId || raw.pharmacyId || 'medicine-desk',
+    entryId: raw.entryId || raw.id || raw._id || (raw.patient?.id ? `queue_${raw.patient.id}` : ""),
+    queueCategory: 
+      raw.queueCategory || 
+      raw.category || 
+      raw.queueLane || 
+      raw.lane || 
+      QueueCategory.DOCTOR_CONSULTATION,
+    queueOwnerId: raw.queueOwnerId || raw.doctorId || raw.staffId || raw.pharmacyId || 'medicine-desk',
     clinicId: raw.clinicId || '',
     locationId: raw.locationId,
-    appointmentId: raw.appointmentId || raw.id || '',
+    appointmentId,
     patientId: raw.patientId || raw.patient?.id || '',
-    patientName: raw.patientName || raw.patient?.name || raw.patient?.user?.name || 'Unknown Patient',
+    patientName: 
+      raw.patientName || 
+      raw.patient?.name || 
+      raw.patient?.user?.name || 
+      raw.userName ||
+      raw.user?.name ||
+      raw.name ||
+      'Unknown Patient',
     doctorName: raw.doctorName || raw.doctor?.name || raw.doctor?.user?.name || '',
     primaryDoctorId:
       raw.primaryDoctorId ||
@@ -67,22 +88,22 @@ export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
     position,
     totalInQueue: typeof raw.totalInQueue === 'number' ? raw.totalInQueue : 0,
     status: raw.status || 'WAITING',
-    serviceBucket: raw.serviceBucket,
-    treatmentType: raw.treatmentType,
-    estimatedWaitTime: raw.estimatedWaitTime,
-    estimatedDuration: raw.estimatedDuration,
-    paymentStatus: raw.paymentStatus,
+    serviceBucket: raw.serviceBucket || asRecord(raw.raw)?.serviceBucket,
+    treatmentType: raw.treatmentType || asRecord(raw.raw)?.treatmentType,
+    estimatedWaitTime: raw.estimatedWaitTime || asRecord(raw.raw)?.estimatedWaitTime,
+    estimatedDuration: raw.estimatedDuration || asRecord(raw.raw)?.estimatedDuration,
+    paymentStatus: raw.paymentStatus || asRecord(raw.raw)?.paymentStatus,
     waitingForPayment:
       typeof raw.waitingForPayment === 'boolean'
         ? raw.waitingForPayment
-        : raw.paymentStatus === 'PENDING',
+        : (raw.paymentStatus || asRecord(raw.raw)?.paymentStatus) === 'PENDING',
     readyForHandover:
       typeof raw.readyForHandover === 'boolean'
         ? raw.readyForHandover
-        : raw.paymentStatus === 'PAID',
+        : (raw.paymentStatus || asRecord(raw.raw)?.paymentStatus) === 'PAID',
     // Projection fields
-    paused: typeof raw.paused === 'boolean' ? raw.paused : false,
-    ...(raw.tokenNumber != null ? { tokenNumber: String(raw.tokenNumber) } : {}),
+    paused: typeof raw.paused === 'boolean' ? raw.paused : (typeof asRecord(raw.raw)?.paused === 'boolean' ? asRecord(raw.raw)?.paused : false),
+    ...(raw.tokenNumber != null ? { tokenNumber: String(raw.tokenNumber) } : asRecord(raw.raw)?.tokenNumber != null ? { tokenNumber: String(asRecord(raw.raw)?.tokenNumber) } : {}),
     ...(raw.scheduledDate != null ? { scheduledDate: raw.scheduledDate as string } : {}),
     ...(raw.startedAt != null ? { startedAt: raw.startedAt as string } : {}),
     ...(raw.completedAt != null ? { completedAt: raw.completedAt as string } : {}),

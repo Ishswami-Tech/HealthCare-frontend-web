@@ -382,3 +382,133 @@ export function formatAppointmentTime(timeString: string): string {
     'en-IN'
   );
 }
+
+/**
+ * Parse a receptionist appointment raw API object into a Date.
+ *
+ * The backend may return:
+ *   - startTime: "HH:mm" (time-only) + appointmentDate: "YYYY-MM-DD" or full ISO
+ *   - time: "HH:mm" (alias) + date/appointmentDate
+ *   - startTime: full ISO string
+ *   - date: "YYYY-MM-DD" + time: "HH:mm"
+ *
+ * Handles all variants without producing Invalid Date.
+ */
+export function parseReceptionistAppointmentDateTime(app: Record<string, unknown>): Date | null {
+  const startTime = typeof app.startTime === 'string' ? app.startTime : '';
+  const timeField = typeof app.time === 'string' ? app.time : '';
+  const appointmentDate =
+    typeof app.appointmentDate === 'string' ? app.appointmentDate : '';
+  const date = typeof app.date === 'string' ? app.date : '';
+
+  // Determine the effective time string (prefer startTime, fall back to time)
+  const effectiveTime = startTime || timeField;
+
+  // Case 1: time value is "HH:mm" (time-only) — combine with date field
+  if (effectiveTime && /^\d{2}:\d{2}/.test(effectiveTime) && !effectiveTime.includes('T')) {
+    const datePart = (appointmentDate || date).slice(0, 10);
+    if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+      const d = new Date(`${datePart}T${effectiveTime.slice(0, 5)}:00`);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    // time-only with no usable date context — use dummy date for time display
+    const d = new Date(`2000-01-01T${effectiveTime.slice(0, 5)}:00`);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  // Case 2: startTime is a full ISO datetime
+  if (startTime && startTime.includes('T')) {
+    const d = new Date(startTime);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  // Case 3: appointmentDate is a full ISO datetime (may include time)
+  if (appointmentDate) {
+    const d = new Date(appointmentDate);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  // Case 4: date + time
+  if (date) {
+    const normalizedTime = timeField ? timeField.slice(0, 5) : '00:00';
+    const d = new Date(`${date}T${normalizedTime}:00`);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  return null;
+}
+
+/** Formats any raw date/ISO string into a readable date label in IST. */
+function formatRawDateLabel(raw: string, locale: string): string {
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: IST_TIMEZONE,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(d);
+}
+
+/**
+ * Returns a human-readable date label for a receptionist appointment row.
+ * Falls back to 'TBD' if no valid date can be parsed.
+ */
+export function getReceptionistAppointmentDateLabel(
+  app: Record<string, unknown>,
+  locale = 'en-IN'
+): string {
+  const parsed = parseReceptionistAppointmentDateTime(app);
+  const startTime = typeof app.startTime === 'string' ? app.startTime : '';
+  const timeField = typeof app.time === 'string' ? app.time : '';
+  const effectiveTime = startTime || timeField;
+  const appointmentDate = typeof app.appointmentDate === 'string' ? app.appointmentDate : '';
+  const date = typeof app.date === 'string' ? app.date : '';
+
+  if (!parsed) {
+    // Try to format the raw date string nicely
+    const rawDate = appointmentDate || date;
+    return rawDate ? formatRawDateLabel(rawDate, locale) : 'TBD';
+  }
+
+  // If time-only with no real date context (dummy 2000-01-01), return TBD for date
+  const hasDateContext = Boolean(appointmentDate || date);
+  const isTimeOnlyField = effectiveTime && /^\d{2}:\d{2}/.test(effectiveTime) && !effectiveTime.includes('T');
+  if (isTimeOnlyField && !hasDateContext) {
+    return 'TBD';
+  }
+
+  // If parsed from dummy date (2000-01-01), don't show that fake date
+  if (parsed.getFullYear() === 2000 && parsed.getMonth() === 0 && parsed.getDate() === 1 && isTimeOnlyField) {
+    return 'TBD';
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: IST_TIMEZONE,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsed);
+}
+
+/**
+ * Returns a human-readable time label for a receptionist appointment row.
+ * Falls back to 'TBD' if no valid time can be parsed.
+ */
+export function getReceptionistAppointmentTimeLabel(
+  app: Record<string, unknown>,
+  locale = 'en-IN'
+): string {
+  const parsed = parseReceptionistAppointmentDateTime(app);
+  if (!parsed) {
+    const startTime = typeof app.startTime === 'string' ? app.startTime : '';
+    const time = typeof app.time === 'string' ? app.time : '';
+    return startTime || time || 'TBD';
+  }
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: IST_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(parsed);
+}

@@ -379,7 +379,7 @@ export default function TherapyQueuePanel({
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
             <TabsTrigger value="agnikarma">Agnikarma</TabsTrigger>
             <TabsTrigger value="panchakarma">Panchakarma</TabsTrigger>
             <TabsTrigger value="shirodhara">Shirodhara</TabsTrigger>

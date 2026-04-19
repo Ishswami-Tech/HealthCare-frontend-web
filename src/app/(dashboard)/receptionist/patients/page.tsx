@@ -250,8 +250,8 @@ export default function ReceptionistPatients() {
         header: "Patient",
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-blue-100 to-green-100">
-              <span className="font-semibold text-blue-800">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-blue-100 to-green-100 dark:from-blue-950/50 dark:to-emerald-950/50">
+              <span className="font-semibold text-blue-800 dark:text-blue-200">
                 {row.original.name.charAt(0).toUpperCase()}
               </span>
             </div>
@@ -287,10 +287,6 @@ export default function ReceptionistPatients() {
           <Badge className={getStatusColor(row.original.statusLabel)}>{row.original.statusLabel}</Badge>
         ),
       },
-      { accessorKey: "visitsLabel", header: "Visits" },
-      { accessorKey: "registeredLabel", header: "Registered" },
-      { accessorKey: "lastVisitLabel", header: "Last Visit" },
-      { accessorKey: "nextAppointmentLabel", header: "Next" },
       {
         id: "actions",
         header: () => <div className="text-right">Actions</div>,
@@ -429,13 +425,13 @@ export default function ReceptionistPatients() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Active":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
       case "Inactive":
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-300";
       case "Pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-300";
     }
   };
 
@@ -456,104 +452,104 @@ export default function ReceptionistPatients() {
                   Add New Patient
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-none shadow-2xl bg-white backdrop-blur-xl">
-                <DialogHeader className="p-6 pb-4 bg-white border-b border-slate-100 shrink-0">
+              <DialogContent className="max-h-[90vh] w-[95vw] max-w-3xl overflow-hidden border border-slate-200/50 bg-background/95 p-0 shadow-2xl backdrop-blur-2xl dark:border-slate-800/60 sm:w-full sm:rounded-[24px]">
+                <DialogHeader className="shrink-0 border-b border-slate-200/50 bg-background/70 p-5 pb-4 backdrop-blur-md dark:border-slate-800/60">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl">
+                    <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                       <User className="w-5 h-5" />
                     </div>
                     <div>
-                      <DialogTitle className="text-xl font-bold text-slate-900 leading-tight">Register New Patient</DialogTitle>
-                      <p className="text-sm text-slate-500 font-medium">Complete the form below to create a new medical record</p>
+                      <DialogTitle className="text-xl font-bold leading-tight text-foreground">Register New Patient</DialogTitle>
+                      <p className="text-sm font-medium text-muted-foreground">Complete the form below to create a new medical record</p>
                     </div>
                   </div>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto p-6 pt-2">
-                  <div className="space-y-6">
+                <div className="flex-1 overflow-y-auto p-5 pt-3">
+                  <div className="space-y-4">
                     {/* Identity & Contact Section */}
-                    <section className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md group/section">
-                      <div className="flex items-center gap-2 mb-5">
+                    <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
+                      <div className="flex items-center gap-2 mb-2.5">
                         <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg group-hover/section:bg-emerald-100 transition-colors">
-                          <Shield className="w-4 h-4" />
+                          <Shield className="w-3.5 h-3.5" />
                         </div>
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Personal Information</h3>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Personal Information</h3>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="firstName" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
+                        <div className="space-y-1">
+                          <Label htmlFor="firstName" className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
                             First Name <span className="text-emerald-500">*</span>
                           </Label>
                           <Input
                             id="firstName"
                             placeholder="e.g. John"
-                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                             value={newPatient.firstName}
                             onChange={(e) => setNewPatient({ ...newPatient, firstName: e.target.value })}
                             required
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="lastName" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                        <div className="space-y-1">
+                          <Label htmlFor="lastName" className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
                             Last Name <span className="text-emerald-500">*</span>
                           </Label>
                           <Input
                             id="lastName"
                             placeholder="e.g. Doe"
-                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                             value={newPatient.lastName}
                             onChange={(e) => setNewPatient({ ...newPatient, lastName: e.target.value })}
                             required
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="phone" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                        <div className="space-y-1">
+                          <Label htmlFor="phone" className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
                             Phone Number <span className="text-emerald-500">*</span>
                           </Label>
                           <div className="relative group/input">
-                            <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within/input:text-emerald-500 transition-colors" />
+                            <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within/input:text-emerald-500 transition-colors" />
                             <Input
                               id="phone"
                               placeholder="+1 (555) 000-0000"
-                              className="pl-10 bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                              className="pl-8 bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                               value={newPatient.phone}
                               onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
                               required
                             />
                           </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="email" className="text-sm font-semibold text-slate-700">Email Address</Label>
+                        <div className="space-y-1">
+                          <Label htmlFor="email" className="text-[11px] font-semibold text-slate-700">Email Address</Label>
                           <div className="relative group/input">
-                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within/input:text-emerald-500 transition-colors" />
+                            <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within/input:text-emerald-500 transition-colors" />
                             <Input
                               id="email"
                               type="email"
                               placeholder="john.doe@example.com"
-                              className="pl-10 bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                              className="pl-8 bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                               value={newPatient.email}
                               onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
                             />
                           </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="dateOfBirth" className="text-sm font-semibold text-slate-700">Date of Birth</Label>
+                        <div className="space-y-1">
+                          <Label htmlFor="dateOfBirth" className="text-[11px] font-semibold text-slate-700">Date of Birth</Label>
                           <Input
                             id="dateOfBirth"
                             type="date"
-                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                             value={newPatient.dateOfBirth}
                             onChange={(e) => setNewPatient({ ...newPatient, dateOfBirth: e.target.value })}
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="gender" className="text-sm font-semibold text-slate-700">Gender</Label>
+                        <div className="space-y-1">
+                          <Label htmlFor="gender" className="text-[11px] font-semibold text-slate-700">Gender</Label>
                           <Select
                             value={newPatient.gender}
                             onValueChange={(value) => setNewPatient({ ...newPatient, gender: value })}
                           >
-                            <SelectTrigger className="bg-slate-50 border-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11">
+                            <SelectTrigger className="bg-white/80 border-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]">
                               <SelectValue placeholder="Select gender" />
                             </SelectTrigger>
                             <SelectContent className="rounded-xl border-slate-100 shadow-xl">
@@ -567,19 +563,19 @@ export default function ReceptionistPatients() {
                     </section>
 
                     {/* Address Section */}
-                    <section className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md group/section">
-                      <div className="flex items-center gap-2 mb-5">
+                    <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
+                      <div className="flex items-center gap-2 mb-2.5">
                         <div className="p-1.5 bg-sky-50 text-sky-600 rounded-lg group-hover/section:bg-sky-100 transition-colors">
-                          <MapPin className="w-4 h-4" />
+                          <MapPin className="w-3.5 h-3.5" />
                         </div>
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Location</h3>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Location</h3>
                       </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="address" className="text-sm font-semibold text-slate-700">Full Home Address</Label>
+                      <div className="space-y-1">
+                        <Label htmlFor="address" className="text-[11px] font-semibold text-slate-700">Full Home Address</Label>
                         <Textarea
                           id="address"
                           placeholder="Street, City, State, ZIP..."
-                          className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all rounded-xl min-h-[80px] p-4 resize-none"
+                          className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
                           value={newPatient.address}
                           onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}
                         />
@@ -587,30 +583,30 @@ export default function ReceptionistPatients() {
                     </section>
 
                     {/* Emergency Contact Section */}
-                    <section className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md group/section">
-                      <div className="flex items-center gap-2 mb-5">
+                    <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
+                      <div className="flex items-center gap-2 mb-2.5">
                         <div className="p-1.5 bg-rose-50 text-rose-600 rounded-lg group-hover/section:bg-rose-100 transition-colors">
-                          <AlertCircle className="w-4 h-4" />
+                          <AlertCircle className="w-3.5 h-3.5" />
                         </div>
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Emergency Details</h3>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Emergency Details</h3>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="emergencyContact" className="text-sm font-semibold text-slate-700">Contact Name</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
+                        <div className="space-y-1">
+                          <Label htmlFor="emergencyContact" className="text-[11px] font-semibold text-slate-700">Contact Name</Label>
                           <Input
                             id="emergencyContact"
                             placeholder="Name (Relationship)"
-                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-xl h-11"
+                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-lg h-8 text-[13px]"
                             value={newPatient.emergencyContact}
                             onChange={(e) => setNewPatient({ ...newPatient, emergencyContact: e.target.value })}
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="emergencyPhone" className="text-sm font-semibold text-slate-700">Contact Phone</Label>
+                        <div className="space-y-1">
+                          <Label htmlFor="emergencyPhone" className="text-[11px] font-semibold text-slate-700">Contact Phone</Label>
                           <Input
                             id="emergencyPhone"
                             placeholder="+1 (555) 000-0000"
-                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-xl h-11"
+                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-lg h-8 text-[13px]"
                             value={newPatient.emergencyPhone}
                             onChange={(e) => setNewPatient({ ...newPatient, emergencyPhone: e.target.value })}
                           />
@@ -619,40 +615,40 @@ export default function ReceptionistPatients() {
                     </section>
 
                     {/* Medical Profile Section */}
-                    <section className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md group/section">
-                      <div className="flex items-center gap-2 mb-5">
+                    <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
+                      <div className="flex items-center gap-2 mb-2.5">
                         <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg group-hover/section:bg-amber-100 transition-colors">
-                          <ClipboardList className="w-4 h-4" />
+                          <ClipboardList className="w-3.5 h-3.5" />
                         </div>
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Medical profile</h3>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Medical profile</h3>
                       </div>
-                      <div className="space-y-6">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="medicalHistory" className="text-sm font-semibold text-slate-700">Past Observations / History</Label>
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="medicalHistory" className="text-[11px] font-semibold text-slate-700">Past Observations / History</Label>
                           <Textarea
                             id="medicalHistory"
                             placeholder="Document any known conditions, allergies, or past surgeries..."
-                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all rounded-xl min-h-[100px] p-4 resize-none"
+                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
                             value={newPatient.medicalHistory}
                             onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="allergies" className="text-sm font-semibold text-slate-700">Known Allergies</Label>
+                        <div className="space-y-1">
+                          <Label htmlFor="allergies" className="text-[11px] font-semibold text-slate-700">Known Allergies</Label>
                           <Input
                             id="allergies"
                             placeholder="Food, drug, or other allergies..."
-                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl h-11"
+                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
                             value={newPatient.allergies}
                             onChange={(e) => setNewPatient({ ...newPatient, allergies: e.target.value })}
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="currentMedications" className="text-sm font-semibold text-slate-700">Current Medications</Label>
+                        <div className="space-y-1">
+                          <Label htmlFor="currentMedications" className="text-[11px] font-semibold text-slate-700">Current Medications</Label>
                           <Textarea
                             id="currentMedications"
                             placeholder="List current medications with dosage..."
-                            className="bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-xl min-h-[80px] p-4 resize-none"
+                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
                             value={newPatient.currentMedications}
                             onChange={(e) => setNewPatient({ ...newPatient, currentMedications: e.target.value })}
                           />
@@ -662,32 +658,34 @@ export default function ReceptionistPatients() {
                   </div>
                 </div>
 
-                <div className="p-6 bg-white border-t border-slate-100 flex items-center justify-between gap-4 shrink-0">
-                  <div className="text-[11px] text-slate-400 font-medium">
-                    <span className="text-emerald-500">*</span> Required medical fields
+                <div className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-200/50 bg-background/80 p-4 backdrop-blur-md dark:border-slate-800/60">
+                  <div className="text-[10px] font-medium text-muted-foreground">
+                    <span className="text-emerald-500">*</span> Required
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
+                      size="sm"
                       onClick={() => setShowNewPatientDialog(false)}
-                      className="rounded-xl hover:bg-slate-100 text-slate-600"
+                      className="h-9 rounded-lg text-slate-600 hover:bg-slate-100/50 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                       Cancel
                     </Button>
                     <Button 
+                      size="sm"
                       onClick={handleNewPatientSubmit}
                       disabled={createPatientMutation.isPending || createUserMutation.isPending}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 px-8 rounded-xl h-11 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20 px-6 rounded-lg h-9 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
                     >
                       {createPatientMutation.isPending || createUserMutation.isPending ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           Registering...
                         </>
                       ) : (
                         <>
-                          Create Patient Profile
-                          <ArrowRight className="w-4 h-4 ml-1 opacity-60" />
+                          Create Profile
+                          <ArrowRight className="w-3.5 h-3.5 ml-1 opacity-60" />
                         </>
                       )}
                     </Button>
@@ -778,7 +776,7 @@ export default function ReceptionistPatients() {
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     placeholder="Search by name, phone, or email..."
                     value={searchTerm}
@@ -1102,11 +1100,11 @@ export default function ReceptionistPatients() {
           {filteredPatients.length === 0 && (
             <Card>
               <CardContent className="text-center py-8">
-                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                 <h3 className="text-lg font-semibold mb-2">
                   No patients found
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   Try adjusting your search criteria
                 </p>
               </CardContent>
@@ -1208,6 +1206,24 @@ export default function ReceptionistPatients() {
                         <strong>Total Visits:</strong>{" "}
                         {selectedPatient.totalVisits !== undefined
                           ? selectedPatient.totalVisits
+                          : "N/A"}
+                      </div>
+                      <div>
+                        <strong>Registered:</strong>{" "}
+                        {selectedPatient.createdAt
+                          ? new Date(selectedPatient.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                          : "N/A"}
+                      </div>
+                      <div>
+                        <strong>Last Visit:</strong>{" "}
+                        {selectedPatient.lastVisit
+                          ? new Date(selectedPatient.lastVisit).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                          : "N/A"}
+                      </div>
+                      <div>
+                        <strong>Next Appointment:</strong>{" "}
+                        {selectedPatient.nextAppointment
+                          ? new Date(selectedPatient.nextAppointment).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
                           : "N/A"}
                       </div>
                     </CardContent>

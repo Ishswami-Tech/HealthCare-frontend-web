@@ -128,6 +128,35 @@ export async function removeFromQueue(queueId: string, reason?: string) {
 }
 
 /**
+ * Bulk cancel queue entries
+ * Useful for cleaning up stale data from past dates
+ */
+export async function bulkCancelQueueEntries(queueIds: string[], reason: string = 'Cleaning up stale queue entries') {
+  try {
+    if (!queueIds || queueIds.length === 0) return { success: true, count: 0 };
+    
+    logger.info(`Bulk cancelling ${queueIds.length} queue entries`);
+    
+    // In a real system, we'd have a specific backend endpoint for this.
+    // For now, we iterate through and cancel them.
+    const results = await Promise.all(
+      queueIds.map(id => removeFromQueue(id, reason))
+    );
+    
+    revalidateCache('queue');
+    revalidateCache('appointments');
+    
+    return { 
+      success: true, 
+      count: results.filter(r => r !== null).length 
+    };
+  } catch (error) {
+    logger.error('bulkCancelQueueEntries failed', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
  * Reorder queue
  */
 export async function reorderQueue(doctorId: string, date: string, newOrder: string[]) {

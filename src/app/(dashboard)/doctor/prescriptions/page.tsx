@@ -9,6 +9,7 @@ import { Loader2 } from "@/components/ui/loader";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -33,6 +34,7 @@ import {
   Edit2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { showInfoToast } from "@/hooks/utils/use-toast";
 import {
   usePrescriptions,
   useCreatePrescription,
@@ -99,7 +101,7 @@ export default function DoctorPrescriptions() {
     if (prescription.pdfUrl) {
       window.open(prescription.pdfUrl, "_blank");
     } else {
-      import("sonner").then(({ toast }) => toast.info("PDF not available for this prescription"));
+      showInfoToast("PDF not available for this prescription");
     }
   };
 
@@ -400,6 +402,9 @@ export default function DoctorPrescriptions() {
             <DialogTitle>
               {editingPrescription ? "Edit Prescription" : "New Prescription"}
             </DialogTitle>
+            <DialogDescription>
+              Create or update a prescription with the patient’s medication plan and clinical notes.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">

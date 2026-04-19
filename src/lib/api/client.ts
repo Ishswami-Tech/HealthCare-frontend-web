@@ -1007,8 +1007,11 @@ export class ClinicApiClient extends ApiClient {
     return this.put(API_ENDPOINTS.APPOINTMENTS.UPDATE(id), data);
   }
 
+  /**
+   * @deprecated Prefer updateAppointmentStatus(id, { status: 'CANCELLED' })
+   */
   async cancelAppointment(id: string) {
-    return this.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(id), { status: 'CANCELLED' });
+    return this.updateAppointmentStatus(id, { status: 'CANCELLED' });
   }
 
   /**
@@ -1042,8 +1045,11 @@ export class ClinicApiClient extends ApiClient {
     return this.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(id), data);
   }
 
+  /**
+   * @deprecated Prefer updateAppointmentStatus(id, { status: 'CONFIRMED' })
+   */
   async confirmAppointment(id: string) {
-    return this.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(id), { status: 'CONFIRMED' });
+    return this.updateAppointmentStatus(id, { status: 'CONFIRMED' });
   }
 
   async proposeVideoAppointment(data: {
@@ -1064,6 +1070,18 @@ export class ClinicApiClient extends ApiClient {
     });
   }
 
+  async confirmFinalVideoSlot(
+    appointmentId: string,
+    data: {
+      confirmedSlotIndex?: number;
+      date?: string;
+      time?: string;
+      reason?: string;
+    }
+  ) {
+    return this.post(API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_FINAL_SLOT(appointmentId), data);
+  }
+
   async checkInAppointment(id: string) {
     return this.post(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id));
   }
@@ -1072,17 +1090,23 @@ export class ClinicApiClient extends ApiClient {
     return this.post(API_ENDPOINTS.APPOINTMENTS.SCAN_QR, data);
   }
 
+  /**
+   * @deprecated Prefer updateAppointmentStatus(id, { status: 'IN_PROGRESS' })
+   */
   async startAppointment(id: string) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.START(id));
+    return this.updateAppointmentStatus(id, { status: 'IN_PROGRESS' });
   }
 
+  /**
+   * @deprecated Prefer updateAppointmentStatus(id, { status: 'COMPLETED', ...data })
+   */
   async completeAppointment(id: string, data: {
     diagnosis?: string;
     prescription?: string;
     notes?: string;
     followUpDate?: string;
   }) {
-    return this.post(API_ENDPOINTS.APPOINTMENTS.COMPLETE(id), data);
+    return this.updateAppointmentStatus(id, { status: 'COMPLETED', ...data });
   }
 
   async getDoctorAvailability(

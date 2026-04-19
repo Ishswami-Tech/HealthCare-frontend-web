@@ -392,7 +392,7 @@ export default function AnalyticsDashboard() {
               </div>
 
               <Tabs defaultValue="overview" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-6">
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="performance">Performance</TabsTrigger>
                   <TabsTrigger value="patients">Patient Analytics</TabsTrigger>

@@ -195,6 +195,18 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         invalidateQueueQueries(data);
       });
 
+      const unsubscribeQueueUpdated = subscribe('queue.updated', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        console.debug('📊 Queue updated (dot event):', data);
+        invalidateQueueQueries(data);
+      });
+
+      const unsubscribeQueuePositionUpdated = subscribe('queue.position.updated', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        console.debug('📍 Queue position updated (dot event):', data);
+        invalidateQueueQueries(data);
+      });
+
       const unsubscribeQueuePatientAdded = subscribe('queue:patient_added', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
         console.debug('👤 Patient added to queue:', data);
@@ -221,6 +233,18 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           invalidateQueueQueries(data);
         }
       );
+
+      const unsubscribeAppointmentReassigned = subscribe('appointment.reassigned', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        console.debug('👨‍⚕️ Appointment reassigned:', data);
+        invalidateQueueQueries(data);
+      });
+
+      const unsubscribeAppointmentCheckedIn = subscribe('appointment.checked_in', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        console.debug('✅ Appointment checked in:', data);
+        invalidateQueueQueries(data);
+      });
 
       const unsubscribeQueueMetrics = subscribe('queue_metrics_update', (rawData: unknown) => {
         const data = rawData as Record<string, unknown>;
@@ -252,10 +276,14 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
       unsubscribeCallbacks.push(
         unsubscribeQueueUpdate,
+        unsubscribeQueueUpdated,
+        unsubscribeQueuePositionUpdated,
         unsubscribeQueuePatientAdded,
         unsubscribeQueuePatientRemoved,
         unsubscribeEnterpriseQueueUpdated,
         unsubscribeEnterpriseQueuePosition,
+        unsubscribeAppointmentReassigned,
+        unsubscribeAppointmentCheckedIn,
         unsubscribeQueueMetrics,
         unsubscribeMedicineDeskUpdated
       );
@@ -321,7 +349,7 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       showWarningToast(notification.title, {
         id: TOAST_IDS.NOTIFICATION.NEW,
         description: notification.message,
-        duration: 10000,
+        duration: 5000,
       });
       
       // Add to notification store for reading

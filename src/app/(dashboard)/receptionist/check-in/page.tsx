@@ -19,8 +19,14 @@ import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { useAppointments, useCheckInAppointment } from "@/hooks/query/useAppointments";
+import { useAppointments, useForceCheckInAppointment } from "@/hooks/query/useAppointments";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import {
+  getReceptionistAppointmentDateLabel,
+  getReceptionistAppointmentTimeLabel,
+} from "@/lib/utils/appointmentUtils";
+
 
 interface AppointmentListItem {
   id: string;
@@ -103,57 +109,15 @@ const getPersonName = (
 const getPatientPhone = (appointment: AppointmentListItem) =>
   appointment.patientPhone || appointment.patient?.phone || appointment.patient?.user?.phone || "";
 
-const getDisplayTime = (appointment: AppointmentListItem) => {
-  if (appointment.startTime) {
-    const parsed = new Date(appointment.startTime);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-    }
-  }
-
-  if (appointment.time && /^\d{2}:\d{2}/.test(appointment.time)) {
-    const parsed = new Date(`2000-01-01T${appointment.time.slice(0, 5)}:00`);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-    }
-  }
-
-  return "-";
-};
-
-const getDisplayDate = (appointment: AppointmentListItem) => {
-  const appointmentDateValue =
-    appointment.startTime ||
-    appointment.appointmentDate ||
-    (appointment.date ? `${appointment.date}T${appointment.time || "00:00"}` : null);
-
-  if (!appointmentDateValue) return "-";
-
-  const parsed = new Date(appointmentDateValue);
-  if (Number.isNaN(parsed.getTime())) return "-";
-
-  return parsed.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
 
 export default function ReceptionistCheckInPage() {
   const { session } = useAuth();
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const [confirmedAppointmentIds, setConfirmedAppointmentIds] = useState<string[]>([]);
   const todayDate = getTodayDateInIst();
-  const checkInMutation = useCheckInAppointment();
+  const forceCheckInMutation = useForceCheckInAppointment();
   const assignedLocationId = useMemo(() => {
     const user = session?.user as Record<string, unknown> | undefined;
     const candidate =
@@ -174,11 +138,6 @@ export default function ReceptionistCheckInPage() {
     ? appointmentsData
     : appointmentsData?.appointments || [];
 
-  const canConfirmArrival = (appointment: AppointmentListItem) =>
-    ["SCHEDULED"].includes((appointment.status || "").toUpperCase()) &&
-    String(appointment.type || "").toUpperCase() !== "VIDEO_CALL" &&
-    (!assignedLocationId || !appointment.locationId || appointment.locationId === assignedLocationId);
-
   const filteredAppointments = useMemo(
     () =>
       appointments.filter((apt) => {
@@ -186,9 +145,10 @@ export default function ReceptionistCheckInPage() {
         const doctorName = getPersonName(apt.doctor, apt.doctorName);
         const patientPhone = getPatientPhone(apt);
         const normalizedSearch = searchTerm.toLowerCase();
+        const rowLocationId = apt.locationId || assignedLocationId || undefined;
 
         const matchesLocation =
-          !assignedLocationId || !apt.locationId || apt.locationId === assignedLocationId;
+          !assignedLocationId || rowLocationId === assignedLocationId;
 
         return (
           matchesLocation &&
@@ -208,36 +168,48 @@ export default function ReceptionistCheckInPage() {
       filteredAppointments.map((apt) => {
         const status = apt.status || "Scheduled";
         const normalizedStatus = String(status).toUpperCase();
+        const rowLocationId = apt.locationId || assignedLocationId || undefined;
+        const isRecentlyCheckedIn = confirmedAppointmentIds.includes(apt.id);
+        const isConfirmed = isRecentlyCheckedIn || ["CONFIRMED", "IN_PROGRESS", "COMPLETED"].includes(normalizedStatus);
 
         return {
           id: apt.id,
-          ...(apt.locationId ? { locationId: apt.locationId } : {}),
+          ...(rowLocationId ? { locationId: rowLocationId } : {}),
           patientName: getPersonName(apt.patient, apt.patientName) || "Unknown",
           patientPhone: getPatientPhone(apt),
           doctorName: getPersonName(apt.doctor, apt.doctorName) || "Unknown",
-          dateLabel: getDisplayDate(apt),
-          timeLabel: getDisplayTime(apt),
+          dateLabel: getReceptionistAppointmentDateLabel(apt as unknown as Record<string, unknown>),
+          timeLabel: getReceptionistAppointmentTimeLabel(apt as unknown as Record<string, unknown>),
           status,
           paymentStatus: String(apt.payment?.status || "N/A").toUpperCase(),
-          canCheckIn: canConfirmArrival(apt),
-          isConfirmedArrival: ["CONFIRMED", "IN_PROGRESS", "COMPLETED"].includes(
-            normalizedStatus
-          ),
+          canCheckIn: !isConfirmed && normalizedStatus === "SCHEDULED",
+          isConfirmedArrival: isConfirmed,
         };
       }),
-    [filteredAppointments]
+    [confirmedAppointmentIds, filteredAppointments]
   );
 
   const handleCheckIn = async (appointmentId: string, locationId?: string) => {
     const locationToSend = assignedLocationId || locationId;
+    if (!locationToSend) {
+      showErrorToast("Reception location is required for manual check-in.", {
+        id: TOAST_IDS.APPOINTMENT.CHECK_IN,
+      });
+      return;
+    }
     setCheckingInId(appointmentId);
     try {
-      await checkInMutation.mutateAsync({
+      await forceCheckInMutation.mutateAsync({
         appointmentId,
         reason: "Reception desk manual check-in for this location",
         ...(locationToSend ? { locationId: locationToSend } : {}),
       });
+      setConfirmedAppointmentIds((current) =>
+        current.includes(appointmentId) ? current : [...current, appointmentId]
+      );
       await refetch?.();
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.CHECK_IN, duration: 5000 });
     } finally {
       setCheckingInId(null);
     }
@@ -329,7 +301,7 @@ export default function ReceptionistCheckInPage() {
                 )}
               </Button>
             ) : row.original.isConfirmedArrival ? (
-              <span className="flex items-center gap-1 text-sm font-medium text-emerald-600 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-full">
+              <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300">
                 <CheckCircle2 className="h-4 w-4" />
                 Confirmed
               </span>
@@ -345,8 +317,8 @@ export default function ReceptionistCheckInPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-100">
-        <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
+      <div className="flex min-h-[400px] items-center justify-center rounded-xl border border-border bg-card p-6">
+        <Loader2 className="h-10 w-10 animate-spin text-emerald-600 dark:text-emerald-300" />
       </div>
     );
   }

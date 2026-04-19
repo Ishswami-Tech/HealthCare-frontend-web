@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
 import {
   Invoice,
@@ -15,7 +16,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Plus, CreditCard, FileText, Wallet, BarChart3, Info, AlertCircle, LayoutDashboard, Search, MessageCircle } from "lucide-react";
+import { DataTable } from "@/components/ui/data-table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RefreshCw, Plus, CreditCard, FileText, Wallet, BarChart3, Info, AlertCircle, Search, MessageCircle } from "lucide-react";
 import { DashboardPageHeader as PatientPageHeader } from "@/components/dashboard/DashboardPageShell";
 import { InvoiceForm } from "./InvoiceForm";
 import { PaymentHistory } from "./PaymentHistory";
@@ -28,10 +37,11 @@ import {
   useReleaseAppointmentPayout,
   useGenerateInvoicePDF,
   useSendInvoiceViaWhatsApp,
+  useMarkInvoiceAsPaid,
 } from "@/hooks/query/useBilling";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PaymentButton } from "@/components/payments";
-import { showInfoToast } from "@/hooks/utils/use-toast";
+import { showErrorToast, showInfoToast } from "@/hooks/utils/use-toast";
 
 interface RoleBasedBillingDashboardProps {
   initialTab?: string;
@@ -91,11 +101,18 @@ export function RoleBasedBillingDashboard({
   const isDoctor = [Role.DOCTOR, Role.ASSISTANT_DOCTOR].includes(userRole);
   const isPatient = userRole === Role.PATIENT;
   const canManageBilling = isAdmin || isReceptionist || isDoctor;
+  const canMarkInvoicesPaid = isAdmin || isReceptionist;
   const canViewAnalytics = isAdmin || userRole === Role.FINANCE_BILLING;
 
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
   const [planToConfirm, setPlanToConfirm] = useState<BillingPlan | null>(null);
   const [isSubscriptionPaymentOpen, setIsSubscriptionPaymentOpen] = useState(false);
@@ -105,6 +122,7 @@ export function RoleBasedBillingDashboard({
   const [newPlanAppointments, setNewPlanAppointments] = useState("");
   const [newPlanUnlimited, setNewPlanUnlimited] = useState(false);
   const [createPlanError, setCreatePlanError] = useState<string>("");
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const [pendingSubscriptionPayment, setPendingSubscriptionPayment] = useState<{
     subscriptionId: string;
     planName: string;
@@ -117,10 +135,13 @@ export function RoleBasedBillingDashboard({
   const createPlanMutation = useCreateBillingPlan();
   const sendInvoiceWhatsAppMutation = useSendInvoiceViaWhatsApp();
   const generateInvoicePDFMutation = useGenerateInvoicePDF();
+  const markInvoiceAsPaidMutation = useMarkInvoiceAsPaid();
 
   const activeSubscription = subscriptions.find(
     (s) => s.status === "ACTIVE" || s.status === "TRIALING"
   );
+  const showPlansTab = isPatient;
+  const showSubscriptionsTab = isPatient;
 
   const handleSubscribePlan = async () => {
     setSubscribeError("");
@@ -204,18 +225,55 @@ export function RoleBasedBillingDashboard({
   };
 
   const filteredInvoices = useMemo(() => {
-    if (!searchTerm.trim()) return invoices;
     const q = searchTerm.toLowerCase();
-    return invoices.filter((invoice) => invoice.invoiceNumber.toLowerCase().includes(q));
-  }, [invoices, searchTerm]);
+    const startAt = startDateFilter ? new Date(`${startDateFilter}T00:00:00`).getTime() : null;
+    const endAt = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999`).getTime() : null;
+    return invoices.filter((invoice) =>
+      (invoiceStatusFilter === "all" || invoice.status === invoiceStatusFilter) &&
+      (() => {
+        const invoiceDateValue = invoice.createdAt || invoice.dueDate;
+        const invoiceDate = invoiceDateValue ? new Date(invoiceDateValue).getTime() : null;
+        return (
+          invoiceDate === null ||
+          ((startAt === null || invoiceDate >= startAt) && (endAt === null || invoiceDate <= endAt))
+        );
+      })() &&
+      (
+        !searchTerm.trim() ||
+        invoice.invoiceNumber.toLowerCase().includes(q) ||
+        invoice.id.toLowerCase().includes(q) ||
+        (invoice.patientName || "").toLowerCase().includes(q)
+      )
+    );
+  }, [endDateFilter, invoiceStatusFilter, invoices, searchTerm, startDateFilter]);
 
   const filteredPayments = useMemo(() => {
-    if (!searchTerm.trim()) return payments;
     const q = searchTerm.toLowerCase();
-    return payments.filter((payment) =>
-      (payment.transactionId || `payment-${payment.id}`).toLowerCase().includes(q)
-    );
-  }, [payments, searchTerm]);
+    const startAt = startDateFilter ? new Date(`${startDateFilter}T00:00:00`).getTime() : null;
+    const endAt = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999`).getTime() : null;
+    return payments.filter((payment) => {
+      const paymentPatientName =
+        "patientName" in payment && typeof payment.patientName === "string"
+          ? payment.patientName
+          : "";
+      const paymentDateValue = payment.paymentDate || payment.createdAt;
+      const paymentDate = paymentDateValue ? new Date(paymentDateValue).getTime() : null;
+      return (
+        (paymentStatusFilter === "all" || payment.status === paymentStatusFilter) &&
+        (paymentMethodFilter === "all" || payment.method === paymentMethodFilter) &&
+        (
+          paymentDate === null ||
+          ((startAt === null || paymentDate >= startAt) && (endAt === null || paymentDate <= endAt))
+        ) &&
+        (
+          !searchTerm.trim() ||
+          (payment.transactionId || `payment-${payment.id}`).toLowerCase().includes(q) ||
+          payment.id.toLowerCase().includes(q) ||
+          paymentPatientName.toLowerCase().includes(q)
+        )
+      );
+    });
+  }, [endDateFilter, paymentMethodFilter, paymentStatusFilter, payments, searchTerm, startDateFilter]);
 
   const pendingInvoicesCount = invoices.filter(
     (i) => i.status === "DRAFT" || i.status === "OPEN" || i.status === "OVERDUE"
@@ -244,15 +302,15 @@ export function RoleBasedBillingDashboard({
     () => ["plans", "subscriptions", "payments", ...(patientHasInvoices ? ["invoices"] : [])],
     [patientHasInvoices]
   );
-  const adminTabs = useMemo(
-    () => (showLedgerTab ? ["overview", "plans", "subscriptions", "invoices", "payments", "ledger"] : ["overview", "plans", "subscriptions", "invoices", "payments"]),
+  const staffTabs = useMemo(
+    () => ["overview", "invoices", "payments", ...(showLedgerTab ? ["ledger"] : [])],
     [showLedgerTab]
   );
   const availableTabs = useMemo(
-    () => new Set(isPatient ? patientTabs : adminTabs),
-    [isPatient, patientTabs, adminTabs]
+    () => new Set(isPatient ? patientTabs : staffTabs),
+    [isPatient, patientTabs, staffTabs]
   );
-  const tabCount = isPatient ? patientTabs.length : (showLedgerTab ? 6 : 5);
+  const tabCount = isPatient ? patientTabs.length : staffTabs.length;
 
   useEffect(() => {
     // Default to "plans" for patients, "overview" for staff
@@ -265,7 +323,9 @@ export function RoleBasedBillingDashboard({
     setActiveTab(availableTabs.has(normalized) ? normalized : fallback);
   }, [initialTab, availableTabs, isPatient]);
 
-  const billingDescription = !isPatient
+  const billingDescription = isReceptionist
+    ? "Collections and invoice payments for your clinic."
+    : !isPatient
     ? `Role-wise billing access active for ${userRole.replaceAll("_", " ")}`
     : !activeSubscription
     ? "Select a plan to unlock in-person appointments"
@@ -280,7 +340,7 @@ export function RoleBasedBillingDashboard({
       }
 
       if (result.pdfUrl) {
-        window.open(`/api/billing/invoices/${invoice.id}/download`, "_blank", "noopener,noreferrer");
+        window.open(result.pdfUrl, "_blank", "noopener,noreferrer");
         return;
       }
 
@@ -292,12 +352,140 @@ export function RoleBasedBillingDashboard({
     }
   };
 
+  const handleMarkInvoicePaid = async (invoiceId: string) => {
+    setMarkingPaidId(invoiceId);
+    try {
+      await markInvoiceAsPaidMutation.mutateAsync(invoiceId);
+      onRefetch?.();
+    } catch (error) {
+      showErrorToast(error);
+    } finally {
+      setMarkingPaidId(null);
+    }
+  };
+
+  const invoiceColumns = useMemo<ColumnDef<Invoice>[]>(
+    () => [
+      {
+        accessorKey: "invoiceNumber",
+        header: "Invoice",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="font-semibold text-foreground">
+              {row.original.invoiceNumber || `#${row.original.id.slice(-8).toUpperCase()}`}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Due:{" "}
+              {row.original.dueDate
+                ? new Date(row.original.dueDate).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "-"}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "amount",
+        header: "Amount",
+        cell: ({ row }) => (
+          <span className="font-semibold">INR {(row.original.amount ?? 0).toLocaleString("en-IN")}</span>
+        ),
+      },
+      {
+        accessorKey: "patientName",
+        header: "Patient",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.patientName || "Unknown"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge
+            className={`rounded-full px-2.5 py-0.5 font-bold uppercase text-[10px] tracking-wider border-none shadow-sm ${
+              row.original.status === "PAID"
+                ? "bg-emerald-500 text-white"
+                : row.original.status === "OVERDUE"
+                  ? "bg-red-500 text-white"
+                  : "bg-slate-500 text-white"
+            }`}
+          >
+            {row.original.status}
+          </Badge>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-2">
+            {(row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
+              <PaymentButton invoiceId={row.original.id} amount={row.original.amount} />
+            )}
+            {canMarkInvoicesPaid &&
+              (row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  onClick={() => void handleMarkInvoicePaid(row.original.id)}
+                  disabled={
+                    markingPaidId === row.original.id || markInvoiceAsPaidMutation.isPending
+                  }
+                >
+                  {markingPaidId === row.original.id ? "Marking..." : "Mark Paid"}
+                </Button>
+              )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl"
+              title="View invoice"
+              disabled={generateInvoicePDFMutation.isPending}
+              onClick={() => setSelectedInvoice(row.original)}
+            >
+              <FileText className="mr-1 w-4 h-4" />
+              View Invoice
+            </Button>
+            {canManageBilling && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+                title="Send invoice via WhatsApp"
+                disabled={sendInvoiceWhatsAppMutation.isPending}
+                onClick={() => sendInvoiceWhatsAppMutation.mutate(row.original.id)}
+              >
+                <MessageCircle className="mr-1 w-4 h-4 text-emerald-600 dark:text-emerald-300" />
+                WhatsApp
+              </Button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    [
+      canMarkInvoicesPaid,
+      canManageBilling,
+      generateInvoicePDFMutation.isPending,
+      markInvoiceAsPaidMutation.isPending,
+      markingPaidId,
+      sendInvoiceWhatsAppMutation.isPending,
+    ]
+  );
+
   return (
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto p-6 space-y-8">
         <PatientPageHeader
-          eyebrow={isPatient ? "BILLING" : "BILLING DASHBOARD"}
-          title={isPatient ? "My Billing" : "Billing Dashboard"}
+          eyebrow={isPatient ? "BILLING" : isReceptionist ? "COLLECTIONS" : "BILLING DASHBOARD"}
+          title={isPatient ? "My Billing" : isReceptionist ? "Collections & Payments" : "Billing Dashboard"}
           description={billingDescription}
           actionsSlot={
             <div className="flex items-center gap-2">
@@ -307,7 +495,7 @@ export function RoleBasedBillingDashboard({
                   New Invoice
                 </Button>
               )}
-              <Button className="h-10 px-4 rounded-xl flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 border-none" onClick={() => onRefetch && onRefetch()}>
+              <Button className="h-10 px-4 rounded-xl flex items-center gap-2 border-none bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400" onClick={() => onRefetch && onRefetch()}>
                 <RefreshCw className="w-4 h-4" />
                 Sync Data
               </Button>
@@ -346,42 +534,131 @@ export function RoleBasedBillingDashboard({
           <StatCard 
             label="TOTAL INVOICES"
             value={invoices.length}
-            icon={<FileText className="w-4 h-4 text-blue-600" />}
-            color="bg-blue-50/50 border-blue-100"
+            icon={<FileText className="w-4 h-4 text-sky-600 dark:text-sky-300" />}
+            color="border-sky-200/70 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30"
           />
           <StatCard 
             label="PENDING INVOICES"
             value={pendingInvoicesCount}
-            icon={<AlertCircle className="w-4 h-4 text-orange-600" />}
-            color="bg-orange-50/50 border-orange-100"
+            icon={<AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-300" />}
+            color="border-amber-200/70 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
           />
           <StatCard 
             label="COMPLETED PAYMENTS"
             value={payments.filter(p => p.status === 'COMPLETED').length}
-            icon={<CreditCard className="w-4 h-4 text-emerald-600" />}
-            color="bg-emerald-50/50 border-emerald-100"
+            icon={<CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-300" />}
+            color="border-emerald-200/70 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30"
           />
           <StatCard 
-            label="TOTAL REVENUE"
+            label="PAID REVENUE"
             value={`₹${(paidAmount ?? 0).toLocaleString('en-IN')}`}
-            icon={<Wallet className="w-4 h-4 text-purple-600" />}
-            color="bg-purple-50/50 border-purple-100"
+            icon={<Wallet className="w-4 h-4 text-violet-600 dark:text-violet-300" />}
+            color="border-violet-200/70 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30"
           />
         </div>
       )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           <TabsList>
-            {[...(isPatient ? patientTabs : adminTabs)].map((val) => (
+            {[...(isPatient ? patientTabs : staffTabs)].map((val) => (
               <TabsTrigger
                 key={val}
                 value={val}
-                className="capitalize whitespace-nowrap"
+                className="capitalize"
               >
                 {val}
               </TabsTrigger>
             ))}
           </TabsList>
+
+          {(activeTab === "invoices" || activeTab === "payments") && (
+            <div className="flex flex-col gap-3 rounded-2xl border bg-card p-4 md:flex-row md:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={
+                    activeTab === "invoices"
+                      ? "Search by invoice number, patient, or invoice id"
+                      : "Search by transaction, patient, or payment id"
+                  }
+                  className="pl-9"
+                />
+              </div>
+              <Input
+                type="date"
+                value={startDateFilter}
+                onChange={(e) => setStartDateFilter(e.target.value)}
+                className="w-full md:w-44"
+              />
+              <Input
+                type="date"
+                value={endDateFilter}
+                onChange={(e) => setEndDateFilter(e.target.value)}
+                className="w-full md:w-44"
+              />
+              {activeTab === "invoices" && (
+                <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
+                  <SelectTrigger className="w-full md:w-48">
+                    <SelectValue placeholder="Invoice status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="OPEN">Open</SelectItem>
+                    <SelectItem value="PAID">Paid</SelectItem>
+                    <SelectItem value="OVERDUE">Overdue</SelectItem>
+                    <SelectItem value="VOID">Void</SelectItem>
+                    <SelectItem value="UNCOLLECTIBLE">Uncollectible</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              {activeTab === "payments" && (
+                <>
+                  <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+                    <SelectTrigger className="w-full md:w-44">
+                      <SelectValue placeholder="Payment status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="COMPLETED">Completed</SelectItem>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="FAILED">Failed</SelectItem>
+                      <SelectItem value="REFUNDED">Refunded</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                    <SelectTrigger className="w-full md:w-44">
+                      <SelectValue placeholder="Payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Methods</SelectItem>
+                      <SelectItem value="CASH">Cash</SelectItem>
+                      <SelectItem value="CARD">Card</SelectItem>
+                      <SelectItem value="UPI">UPI</SelectItem>
+                      <SelectItem value="NET_BANKING">Net Banking</SelectItem>
+                      <SelectItem value="WALLET">Wallet</SelectItem>
+                      <SelectItem value="INSURANCE">Insurance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm("");
+                  setStartDateFilter("");
+                  setEndDateFilter("");
+                  setInvoiceStatusFilter("all");
+                  setPaymentStatusFilter("all");
+                  setPaymentMethodFilter("all");
+                }}
+              >
+                Reset
+              </Button>
+            </div>
+          )}
 
         {!isPatient && (
           <TabsContent value="overview" className="space-y-4">
@@ -393,14 +670,15 @@ export function RoleBasedBillingDashboard({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p className="text-sm">Total Paid: INR {(paidAmount ?? 0).toLocaleString("en-IN")}</p>
+                <p className="text-sm">Total Paid Revenue: INR {(paidAmount ?? 0).toLocaleString("en-IN")}</p>
                 <p className="text-sm">Total Pending: INR {(pendingAmount ?? 0).toLocaleString("en-IN")}</p>
-                <p className="text-sm">Active Subscriptions: {patientAnalytics.activeSubscriptions}</p>
+                {isPatient && <p className="text-sm">Active Subscriptions: {patientAnalytics.activeSubscriptions}</p>}
               </CardContent>
             </Card>
           </TabsContent>
         )}
 
+        {showPlansTab && (
         <TabsContent value="plans" className="space-y-4">
           {plans.length === 0 ? (
             <Card>
@@ -409,7 +687,7 @@ export function RoleBasedBillingDashboard({
                 <p className="text-sm text-muted-foreground">
                   Please refresh or contact clinic admin to publish billing plans for this clinic.
                 </p>
-                  <Button variant="outline" size="lg" className="rounded-xl h-11 border-slate-200 text-slate-700 font-bold mt-2" onClick={() => onRefetch && onRefetch()}>
+                  <Button variant="outline" size="lg" className="mt-2 h-11 rounded-xl font-bold" onClick={() => onRefetch && onRefetch()}>
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Reload Plans
                   </Button>
@@ -418,32 +696,32 @@ export function RoleBasedBillingDashboard({
           ) : (
             <div className="space-y-4">
               {subscribeError ? (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   {subscribeError}
                 </div>
               ) : null}
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {plans.map((plan) => (
-                <Card key={plan.id} className="rounded-2xl border-slate-200/60 shadow-sm hover:shadow-md transition-shadow ring-1 ring-slate-100 flex flex-col">
+                <Card key={plan.id} className="flex flex-col rounded-2xl border-border/70 shadow-sm ring-1 ring-border/40 transition-shadow hover:shadow-md">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-xl font-bold text-slate-800">{plan.name}</CardTitle>
+                    <CardTitle className="text-xl font-bold text-foreground">{plan.name}</CardTitle>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col pt-0">
                     <div className="flex items-baseline gap-1 mt-1">
                       <p className="text-3xl font-bold text-[#006951]">₹{(plan.price ?? 0).toLocaleString("en-IN")}</p>
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">/ {plan.billingCycle.toLowerCase()}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">/ {plan.billingCycle.toLowerCase()}</p>
                     </div>
                     <div className="flex items-center gap-2 mt-3">
                       {plan.isUnlimitedAppointments ? (
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 pointer-events-none rounded-full px-3">Unlimited Appointments</Badge>
+                        <Badge variant="outline" className="pointer-events-none rounded-full border-emerald-200 bg-emerald-50 px-3 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">Unlimited Appointments</Badge>
                       ) : (
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 pointer-events-none rounded-full px-3">{plan.appointmentsIncluded || 0} Appointments</Badge>
+                        <Badge variant="outline" className="pointer-events-none rounded-full border-sky-200 bg-sky-50 px-3 text-sky-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300">{plan.appointmentsIncluded || 0} Appointments</Badge>
                       )}
                     </div>
                     {isPatient && (
-                      <div className="mt-8 pt-4 border-t border-slate-100">
+                      <div className="mt-8 border-t border-border/60 pt-4">
                         {activeSubscription?.planId === plan.id ? (
-                          <div className="flex items-center justify-center gap-2 w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                          <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/60 bg-muted/50 p-2.5">
                             <Badge variant="secondary" className="bg-[#006951]/10 text-[#006951] hover:bg-[#006951]/10 px-3 font-bold border-none">Current Plan</Badge>
                           </div>
                         ) : (
@@ -464,31 +742,33 @@ export function RoleBasedBillingDashboard({
             </div>
           )}
         </TabsContent>
+        )}
 
+        {showSubscriptionsTab && (
         <TabsContent value="subscriptions" className="space-y-4">
           {subscriptions.length === 0 ? (
-            <Card className="rounded-2xl border-dashed border-slate-200 bg-slate-50/50">
+            <Card className="rounded-2xl border-dashed border-border/70 bg-muted/30">
               <CardContent className="py-12 text-center">
-                <div className="mx-auto w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                  <CreditCard className="w-6 h-6 text-slate-400" />
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                  <CreditCard className="w-6 h-6 text-muted-foreground" />
                 </div>
-                <p className="font-semibold text-slate-600">No subscriptions found</p>
-                <p className="text-sm text-slate-500 mt-1">You haven't subscribed to any billing plans yet.</p>
+                <p className="font-semibold text-foreground">No subscriptions found</p>
+                <p className="mt-1 text-sm text-muted-foreground">You haven't subscribed to any billing plans yet.</p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-3">
               {subscriptions.map((sub) => (
-                <Card key={sub.id} className="rounded-2xl border-slate-200/50 shadow-sm hover:shadow-md hover:border-[#006951]/30 transition-all ring-1 ring-slate-100 group">
+                <Card key={sub.id} className="group rounded-2xl border-border/70 shadow-sm ring-1 ring-border/40 transition-all hover:border-emerald-700/30 hover:shadow-md dark:hover:border-emerald-400/30">
                   <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100/60 flex items-center justify-center shrink-0 transition-colors group-hover:bg-emerald-100/60">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-200/60 bg-emerald-50 transition-colors group-hover:bg-emerald-100/60 dark:border-emerald-900 dark:bg-emerald-950/30 dark:group-hover:bg-emerald-900/50">
                         <CreditCard className="w-6 h-6 text-[#006951]" />
                       </div>
                       <div>
                         <p className="font-extrabold text-[#006951] text-base leading-none">{sub.plan?.name || "Subscription Plan"}</p>
-                        <p className="text-[13px] font-bold text-slate-400 mt-2 flex items-center gap-1.5 uppercase tracking-tight">
-                          Started on <span className="text-slate-600">{sub.startDate ? new Date(sub.startDate).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' }) : "Not available"}</span>
+                        <p className="mt-2 flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-tight text-muted-foreground">
+                          Started on <span className="text-foreground">{sub.startDate ? new Date(sub.startDate).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' }) : "Not available"}</span>
                         </p>
                       </div>
                     </div>
@@ -500,8 +780,8 @@ export function RoleBasedBillingDashboard({
                       }`}>
                         {sub.status}
                       </Badge>
-                      <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100 transition-colors">
-                        <Info className="w-4 h-4 text-slate-400" />
+                      <Button variant="ghost" size="icon" className="rounded-xl transition-colors hover:bg-muted">
+                        <Info className="w-4 h-4 text-muted-foreground" />
                       </Button>
                     </div>
                   </CardContent>
@@ -510,76 +790,26 @@ export function RoleBasedBillingDashboard({
             </div>
           )}
         </TabsContent>
+        )}
 
         <TabsContent value="invoices" className="space-y-4">
           {filteredInvoices.length === 0 ? (
-            <Card className="rounded-2xl border-dashed border-slate-200 bg-slate-50/50">
+            <Card className="rounded-2xl border-dashed border-border/70 bg-muted/30">
               <CardContent className="py-12 text-center">
-                <div className="mx-auto w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                  <FileText className="w-6 h-6 text-slate-400" />
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                  <FileText className="w-6 h-6 text-muted-foreground" />
                 </div>
-                <p className="font-semibold text-slate-600">No invoices found</p>
-                <p className="text-sm text-slate-500 mt-1">There are no records matching your criteria.</p>
+                <p className="font-semibold text-foreground">No invoices found</p>
+                <p className="mt-1 text-sm text-muted-foreground">There are no records matching your criteria.</p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-3">
-              {filteredInvoices.map((invoice) => (
-                <Card key={invoice.id} className="rounded-2xl border-slate-200/50 shadow-sm hover:shadow-md hover:border-[#006951]/30 transition-all ring-1 ring-slate-100 group">
-                  <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-all ${
-                        invoice.status === 'PAID' 
-                          ? 'bg-emerald-50 border-emerald-100/60 text-[#006951] group-hover:bg-emerald-100/60' 
-                          : 'bg-orange-50 border-orange-100/60 text-orange-600 group-hover:bg-orange-100/60'
-                      }`}>
-                        <FileText className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="font-extrabold text-foreground text-base leading-none group-hover:text-[#006951] transition-colors">{invoice.invoiceNumber}</p>
-                        <p className="text-[11px] font-bold text-slate-400 mt-2 flex items-center gap-1.5 uppercase tracking-tight">
-                          Due on <span className="text-slate-600 font-bold">{new Date(invoice.dueDate).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 sm:text-right">
-                      <div className="flex flex-col sm:items-end">
-                        <p className="font-extrabold text-foreground text-xl tracking-tight">₹{(invoice.amount ?? 0).toLocaleString("en-IN")}</p>
-                        <Badge className={`mt-2 rounded-full px-2.5 py-0.5 font-bold uppercase text-[10px] tracking-wider border-none shadow-sm ${
-                        invoice.status === 'PAID' ? 'bg-emerald-500 text-white' :
-                        invoice.status === 'OVERDUE' ? 'bg-red-500 text-white' :
-                        'bg-slate-500 text-white'
-                        }`}>
-                          {invoice.status}
-                        </Badge>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-xl hover:bg-slate-100 transition-colors"
-                        title="Generate invoice PDF"
-                        disabled={generateInvoicePDFMutation.isPending}
-                        onClick={() => void handleGenerateInvoicePDF(invoice)}
-                      >
-                        <FileText className="w-4 h-4 text-slate-400" />
-                      </Button>
-                      {canManageBilling && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="rounded-xl hover:bg-green-50 transition-colors"
-                          title="Send invoice via WhatsApp"
-                          disabled={sendInvoiceWhatsAppMutation.isPending}
-                          onClick={() => sendInvoiceWhatsAppMutation.mutate(invoice.id)}
-                        >
-                          <MessageCircle className="w-4 h-4 text-green-600" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <DataTable
+              columns={invoiceColumns}
+              data={filteredInvoices}
+              pageSize={10}
+              emptyMessage="No invoices found"
+            />
           )}
         </TabsContent>
 
@@ -590,8 +820,8 @@ export function RoleBasedBillingDashboard({
         {showLedgerTab && (
           <TabsContent value="ledger" className="space-y-6">
             {!ledger ? (
-              <Card className="rounded-2xl border-dashed border-slate-200 bg-slate-50/50">
-                <CardContent className="py-12 text-center text-slate-500">
+              <Card className="rounded-2xl border-dashed border-border/70 bg-muted/30">
+                <CardContent className="py-12 text-center text-muted-foreground">
                   Ledger data is not available yet.
                 </CardContent>
               </Card>
@@ -601,85 +831,85 @@ export function RoleBasedBillingDashboard({
                   <StatCard 
                     label="TOTAL COLLECTIONS"
                     value={`₹${(ledger.summary.totalCollections ?? 0).toLocaleString("en-IN")}`}
-                    icon={<Wallet className="w-4 h-4 text-blue-600" />}
-                    color="bg-blue-50/50 border-blue-100"
+                    icon={<Wallet className="w-4 h-4 text-sky-600 dark:text-sky-300" />}
+                    color="border-sky-200/70 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30"
                   />
                   <StatCard 
                     label="PENDING PAYOUTS"
                     value={`₹${(ledger.summary.pendingPayouts ?? 0).toLocaleString("en-IN")}`}
-                    icon={<RefreshCw className="w-4 h-4 text-orange-600" />}
-                    color="bg-orange-50/50 border-orange-100"
+                    icon={<RefreshCw className="w-4 h-4 text-amber-600 dark:text-amber-300" />}
+                    color="border-amber-200/70 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
                   />
                   <StatCard 
                     label="PLATFORM REVENUE"
                     value={`₹${(ledger.summary.totalPlatformRevenue ?? 0).toLocaleString("en-IN")}`}
-                    icon={<BarChart3 className="w-4 h-4 text-purple-600" />}
-                    color="bg-purple-50/50 border-purple-100"
+                    icon={<BarChart3 className="w-4 h-4 text-violet-600 dark:text-violet-300" />}
+                    color="border-violet-200/70 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30"
                   />
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
-                  <Card className="rounded-2xl border-slate-200/60 shadow-sm ring-1 ring-slate-100">
-                    <CardHeader className="pb-3 border-b border-slate-50">
-                      <CardTitle className="text-base font-bold text-slate-800">Revenue Breakup</CardTitle>
+                  <Card className="rounded-2xl border-border/70 shadow-sm ring-1 ring-border/40">
+                    <CardHeader className="border-b border-border/60 pb-3">
+                      <CardTitle className="text-base font-bold text-foreground">Revenue Breakup</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-5 flex flex-col gap-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                          <span className="text-sm font-medium text-slate-600">Appointments</span>
+                          <span className="text-sm font-medium text-muted-foreground">Appointments</span>
                         </div>
                         <span className="text-sm font-bold text-foreground">₹{(ledger?.summary.byRevenueModel?.APPOINTMENT ?? 0).toLocaleString("en-IN")}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-blue-500" />
-                          <span className="text-sm font-medium text-slate-600">Subscriptions</span>
+                          <span className="text-sm font-medium text-muted-foreground">Subscriptions</span>
                         </div>
                         <span className="text-sm font-bold text-foreground">₹{(ledger?.summary.byRevenueModel?.SUBSCRIPTION ?? 0).toLocaleString("en-IN")}</span>
                       </div>
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                      <div className="flex items-center justify-between pt-2 border-t border-border/60">
                         <span className="text-sm font-bold text-foreground">Total System Revenue</span>
                         <span className="text-sm font-bold text-[#006951]">₹{((ledger?.summary.byRevenueModel?.APPOINTMENT || 0) + (ledger?.summary.byRevenueModel?.SUBSCRIPTION || 0)).toLocaleString("en-IN")}</span>
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="rounded-2xl border-slate-200/60 shadow-sm ring-1 ring-slate-100">
-                    <CardHeader className="pb-3 border-b border-slate-50">
-                      <CardTitle className="text-base font-bold text-slate-800">Quick Actions</CardTitle>
+                  <Card className="rounded-2xl border-border/70 shadow-sm ring-1 ring-border/40">
+                    <CardHeader className="pb-3 border-b border-border/60">
+                      <CardTitle className="text-base font-bold text-foreground">Quick Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-5 flex flex-col gap-2">
-                      <Button variant="outline" size="lg" className="w-full justify-start rounded-xl h-11 border-slate-200 text-slate-700 font-bold">
-                        <FileText className="w-4 h-4 mr-2 text-slate-400" />
+                      <Button variant="outline" size="lg" className="h-11 w-full justify-start rounded-xl font-bold">
+                        <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
                         Download PDF Statement
                       </Button>
-                      <Button variant="outline" size="lg" className="w-full justify-start rounded-xl h-11 border-slate-200 text-slate-700 font-bold">
-                        <RefreshCw className="w-4 h-4 mr-2 text-slate-400" />
+                      <Button variant="outline" size="lg" className="h-11 w-full justify-start rounded-xl font-bold">
+                        <RefreshCw className="mr-2 h-4 w-4 text-muted-foreground" />
                         Reconcile Pending Payouts
                       </Button>
                     </CardContent>
                   </Card>
                 </div>
 
-                <Card className="rounded-2xl border-slate-200/60 shadow-sm ring-1 ring-slate-100">
-                  <CardHeader className="pb-3 border-b border-slate-50">
-                    <CardTitle className="text-base font-bold text-slate-800">Recent Payment Ledger Entries</CardTitle>
+                <Card className="rounded-2xl border-border/70 shadow-sm ring-1 ring-border/40">
+                  <CardHeader className="pb-3 border-b border-border/60">
+                    <CardTitle className="text-base font-bold text-foreground">Recent Payment Ledger Entries</CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0 pb-0">
                     {ledger.payments.length === 0 ? (
-                      <div className="py-12 text-center text-slate-400 text-sm italic">No recent ledger entries found.</div>
+                      <div className="py-12 text-center text-sm italic text-muted-foreground">No recent ledger entries found.</div>
                     ) : (
-                      <div className="divide-y divide-slate-50 max-h-[500px] overflow-auto pr-2">
+                      <div className="max-h-[500px] divide-y divide-border/50 overflow-auto pr-2">
                         {ledger.payments.slice(0, 30).map((entry) => (
                           <div key={entry.paymentId} className="flex items-center justify-between py-4 group">
                             <div className="flex items-start gap-3">
-                              <div className={`mt-0.5 p-1.5 rounded-lg ${entry.revenueModel === 'APPOINTMENT' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                              <div className={`mt-0.5 rounded-lg p-1.5 ${entry.revenueModel === 'APPOINTMENT' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-sky-50 text-sky-600 dark:bg-sky-950/30 dark:text-sky-300'}`}>
                                 {entry.revenueModel === 'APPOINTMENT' ? <BarChart3 className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
                               </div>
                               <div>
                                 <p className="font-bold text-foreground text-[13px]">{entry.paymentId}</p>
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">
+                                <p className="mt-0.5 text-[11px] font-bold uppercase tracking-tight text-muted-foreground">
                                   {entry.revenueModel} • {entry.provider || 'UNKNOWN'} • {entry.appointmentType || 'OFFLINE'}
                                 </p>
                               </div>
@@ -688,7 +918,7 @@ export function RoleBasedBillingDashboard({
                               <p className="font-bold text-foreground">₹{(entry.amount ?? 0).toLocaleString("en-IN")}</p>
                               <div className="flex items-center justify-end gap-1.5 mt-0.5">
                                 <div className={`w-1.5 h-1.5 rounded-full ${entry.payoutState === 'PAYMENT_COMPLETED' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
-                                <span className="text-[10px] font-bold text-slate-500 uppercase">{entry.payoutState.replace('_', ' ')}</span>
+                                <span className="text-[10px] font-bold uppercase text-muted-foreground">{entry.payoutState.replace('_', ' ')}</span>
                               </div>
                             </div>
                           </div>
@@ -704,25 +934,25 @@ export function RoleBasedBillingDashboard({
       </Tabs>
 
       {!isPatient && analytics && (
-        <Card className="rounded-2xl border-slate-200/60 shadow-sm ring-1 ring-slate-100 mt-6">
-          <CardHeader className="pb-3 border-b border-slate-50">
-            <CardTitle className="text-base font-bold text-slate-800">Financial Analytics Summary</CardTitle>
+        <Card className="mt-6 rounded-2xl border-border/70 shadow-sm ring-1 ring-border/40">
+          <CardHeader className="pb-3 border-b border-border/60">
+            <CardTitle className="text-base font-bold text-foreground">Financial Analytics Summary</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-6">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Revenue</p>
-              <p className="font-bold text-foreground text-xl mt-1">₹{(analytics.totalRevenue ?? 0).toLocaleString("en-IN")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Paid Revenue</p>
+              <p className="font-bold text-foreground text-xl mt-1">₹{(paidAmount ?? 0).toLocaleString("en-IN")}</p>
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Monthly Revenue</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Monthly Revenue</p>
               <p className="font-bold text-foreground text-xl mt-1">₹{(analytics.monthlyRevenue ?? 0).toLocaleString("en-IN")}</p>
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Subscriptions</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Active Subscriptions</p>
               <p className="font-bold text-foreground text-xl mt-1">{analytics.activeSubscriptions}</p>
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending Invoices</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pending Invoices</p>
               <p className="font-bold text-foreground text-xl mt-1">{analytics.pendingInvoices}</p>
             </div>
           </CardContent>
@@ -743,6 +973,126 @@ export function RoleBasedBillingDashboard({
             }}
             onCancel={() => setIsCreateInvoiceOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedInvoice?.invoiceNumber
+                ? `Invoice ${selectedInvoice.invoiceNumber}`
+                : "Invoice Details"}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedInvoice && (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border bg-card p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Patient
+                  </p>
+                  <p className="mt-2 font-semibold text-foreground">
+                    {selectedInvoice.patientName || "Unknown"}
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-card p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Status
+                  </p>
+                  <div className="mt-2">
+                    <Badge
+                      className={`rounded-full px-2.5 py-0.5 font-bold uppercase text-[10px] tracking-wider border-none shadow-sm ${
+                        selectedInvoice.status === "PAID"
+                          ? "bg-emerald-500 text-white"
+                          : selectedInvoice.status === "OVERDUE"
+                            ? "bg-red-500 text-white"
+                            : "bg-slate-500 text-white"
+                      }`}
+                    >
+                      {selectedInvoice.status}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-card p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Amount
+                  </p>
+                  <p className="mt-2 font-semibold text-foreground">
+                    INR {(selectedInvoice.amount ?? 0).toLocaleString("en-IN")}
+                  </p>
+                </div>
+                <div className="rounded-xl border bg-card p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Due Date
+                  </p>
+                  <p className="mt-2 font-semibold text-foreground">
+                    {selectedInvoice.dueDate
+                      ? new Date(selectedInvoice.dueDate).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "-"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border bg-card">
+                <div className="border-b px-4 py-3">
+                  <p className="text-sm font-semibold text-foreground">Line Items</p>
+                </div>
+                <div className="divide-y">
+                  {selectedInvoice.items.length > 0 ? (
+                    selectedInvoice.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between gap-4 px-4 py-3"
+                      >
+                        <div>
+                          <p className="font-medium text-foreground">{item.description}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Qty {item.quantity} x INR {item.unitPrice.toLocaleString("en-IN")}
+                          </p>
+                        </div>
+                        <p className="font-semibold text-foreground">
+                          INR {item.total.toLocaleString("en-IN")}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-4 py-6 text-sm text-muted-foreground">
+                      No line items available.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                {canManageBilling && (
+                  <Button
+                    variant="outline"
+                    onClick={() => sendInvoiceWhatsAppMutation.mutate(selectedInvoice.id)}
+                    disabled={sendInvoiceWhatsAppMutation.isPending}
+                  >
+                    <MessageCircle className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                    WhatsApp
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => void handleGenerateInvoicePDF(selectedInvoice)}
+                  disabled={generateInvoicePDFMutation.isPending}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Open PDF
+                </Button>
+                {(selectedInvoice.status === "OPEN" || selectedInvoice.status === "OVERDUE") && (
+                  <PaymentButton invoiceId={selectedInvoice.id} amount={selectedInvoice.amount} />
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -838,10 +1188,10 @@ export function RoleBasedBillingDashboard({
                 <p className="text-sm text-muted-foreground">{planToConfirm?.description}</p>
               </div>
               {subscribeError && (
-                <div className="text-[11px] font-bold uppercase tracking-tight mt-2 p-2.5 bg-red-50 text-red-700 border border-red-100 rounded-xl">{subscribeError}</div>
+                <div className="mt-2 rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-[11px] font-bold uppercase tracking-tight text-destructive">{subscribeError}</div>
               )}
               <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto h-11 rounded-xl text-slate-700 font-bold" onClick={() => setPlanToConfirm(null)}>
+                <Button variant="outline" size="lg" className="h-11 w-full rounded-xl font-bold sm:w-auto" onClick={() => setPlanToConfirm(null)}>
                   Cancel
                 </Button>
                 <Button 
