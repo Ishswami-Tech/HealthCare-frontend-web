@@ -106,7 +106,7 @@ interface SidebarInnerProps {
 }
 
 function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
-  const { open } = useSidebar(); // Access setOpen to toggle on hover
+  const { open, setOpenMobile, isMobile } = useSidebar(); // Access setOpen to toggle on hover
   const { t } = useTranslation();
   const pathname = usePathname();
   const [avatarError, setAvatarError] = useState(false);
@@ -144,6 +144,12 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
 
   const firstLetter = user.name?.charAt(0).toUpperCase() || "U";
 
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
   return (
     <>
       {/* Header with Logo */}
@@ -169,7 +175,13 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   isActive={pathname === link.href}
                   tooltip={link.title}
                   className={cn("text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors overflow-hidden", !open && "mx-auto justify-center")}
-                  {...(isLogout ? { onClick: (e: any) => { e.preventDefault(); onLogoutClick(); } } : {})}
+                  onClick={(e: any) => {
+                    if (isLogout) {
+                      e.preventDefault();
+                      onLogoutClick();
+                    }
+                    handleLinkClick();
+                  }}
                 >
                   {isLogout ? (
                     <button className={cn("flex items-center gap-2 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
@@ -217,7 +229,11 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
       <SidebarFooter className="border-t border-sidebar-border/50 px-2 py-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className={cn("h-auto p-2 hover:bg-sidebar-accent transition-colors overflow-hidden", !open && "mx-auto justify-center")}>
+            <SidebarMenuButton 
+              asChild 
+              className={cn("h-auto p-2 hover:bg-sidebar-accent transition-colors overflow-hidden", !open && "mx-auto justify-center")}
+              onClick={handleLinkClick}
+            >
               <Link href={profileRoute} className={cn("flex items-center gap-3 w-full", !open && "justify-center")}>
                 {!avatarError && user.avatarUrl ? (
                   <NextImage
@@ -276,30 +292,7 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
   const open = !isSidebarCollapsed;
   const setOpen = useCallback((o: boolean) => setSidebarCollapsed(!o), [setSidebarCollapsed]);
 
-  // Detect if device supports touch (for mobile)
-  const isTouchDevice = typeof window !== 'undefined' &&
-    ('ontouchstart' in window) ||
-    (navigator.maxTouchPoints > 0);
 
-  // Handle sidebar toggle (for both desktop hover and mobile tap)
-  const handleSidebarMouseEnter = useCallback(() => {
-    // Only use hover on non-touch devices
-    if (!isTouchDevice) {
-      setOpen(true);
-    }
-  }, [isTouchDevice, setOpen]);
-
-  const handleSidebarMouseLeave = useCallback(() => {
-    // Only use hover on non-touch devices
-    if (!isTouchDevice) {
-      setOpen(false);
-    }
-  }, [isTouchDevice, setOpen]);
-
-  // Handle sidebar click/toggle for mobile
-  const handleSidebarToggle = useCallback(() => {
-    setOpen(!open);
-  }, [open, setOpen]);
 
   const handleLogoutClick = useCallback(() => {
     setShowLogoutDialog(true);
@@ -325,27 +318,13 @@ export default function Sidebar({ links, user, children }: SidebarProps) {
     <>
       <SidebarProvider open={open} onOpenChange={setOpen}>
         <div className={cn("flex h-screen w-full bg-neutral-100 dark:bg-neutral-900 overflow-hidden")}>
-          {/* Mobile toggle button - visible only on small screens */}
-          {isTouchDevice && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden absolute top-4 left-4 z-50 bg-white dark:bg-neutral-800 shadow-md"
-              onClick={handleSidebarToggle}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          )}
-
           <SidebarComponent
             collapsible="icon"
             className={cn(
-              "border-none bg-neutral-100 dark:bg-neutral-900 text-sidebar-foreground transition-all duration-300 ease-in-out",
-              isTouchDevice && "md:hover:expand-on-hover"
+              "border-none bg-neutral-100 dark:bg-neutral-900 text-sidebar-foreground transition-all duration-300 ease-in-out"
             )}
-            onMouseEnter={handleSidebarMouseEnter}
-            onMouseLeave={handleSidebarMouseLeave}
-            onClick={isTouchDevice ? handleSidebarToggle : undefined}
+            onMouseEnter={() => setOpen(true)}
+            onMouseLeave={() => setOpen(false)}
           >
             <SidebarInner
               links={links}

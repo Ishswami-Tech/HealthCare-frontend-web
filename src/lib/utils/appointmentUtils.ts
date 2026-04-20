@@ -290,7 +290,7 @@ export function getAppointmentStatusDisplayName(status: string): string {
   const normalizedStatus = normalizeAppointmentStatus(status);
   const statusNames: Record<string, string> = {
     SCHEDULED: 'Scheduled',
-    CONFIRMED: 'Confirmed',
+    CONFIRMED: 'Queued',
     IN_PROGRESS: 'In Progress',
     COMPLETED: 'Completed',
     CANCELLED: 'Cancelled',

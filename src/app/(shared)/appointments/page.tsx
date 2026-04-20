@@ -24,12 +24,12 @@ import {
 import { useJoinVideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useRBAC } from "@/hooks/utils/useRBAC";
-import {
-  useRealTimeAppointments,
-  useWebSocketQuerySync,
-} from "@/hooks/realtime/useRealTimeQueries";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useDebouncedCallback } from "@/lib/utils/performance";
-import { isVideoAppointmentPaymentCompleted } from "@/lib/utils/appointmentUtils";
+import {
+  getAppointmentStatusDisplayName,
+  isVideoAppointmentPaymentCompleted,
+} from "@/lib/utils/appointmentUtils";
 import { PAGINATION } from "@/hooks/query/config";
 import { Pagination } from "@/components/virtual/VirtualizedList";
 import {
@@ -103,7 +103,7 @@ export default function AppointmentsPage() {
     Permission.VIEW_ALL_APPOINTMENTS
   );
 
-  // Fetch appointments data with proper permissions, real-time updates, and pagination
+  // Fetch appointments data with proper permissions and websocket-backed invalidation.
   // Always call hooks, but conditionally enable them
   const allAppointmentsQuery = useAppointments({
     ...(clinicId ? { clinicId } : {}),
@@ -126,33 +126,19 @@ export default function AppointmentsPage() {
     ? allAppointmentsQuery
     : myAppointmentsQuery;
 
-  // Real-time appointments hook for live updates (with pagination)
-  const realTimeAppointments = useRealTimeAppointments({
-    doctorId: filterDoctor || undefined,
-    type: filterType ? [filterType as any] : undefined,
-    status: filterStatus ? [filterStatus as any] : undefined,
-    searchQuery: debouncedSearchTerm || undefined,
-  } as any);
-
-  // Use real-time data if available, otherwise fall back to regular query
-  const appointmentsData =
-    realTimeAppointments.isRealTimeEnabled && realTimeAppointments.data
-      ? realTimeAppointments.data
-      : shouldFetchAllAppointments
-      ? (appointmentsQuery.data as any)?.appointments ||
-        (appointmentsQuery.data as any)?.data ||
-        appointmentsQuery.data
-      : (appointmentsQuery.data as any)?.appointments ||
-        (appointmentsQuery.data as any)?.data?.appointments ||
-        appointmentsQuery.data;
+  const appointmentsData = shouldFetchAllAppointments
+    ? (appointmentsQuery.data as any)?.appointments ||
+      (appointmentsQuery.data as any)?.data ||
+      appointmentsQuery.data
+    : (appointmentsQuery.data as any)?.appointments ||
+      (appointmentsQuery.data as any)?.data?.appointments ||
+      appointmentsQuery.data;
 
   const appointments = Array.isArray(appointmentsData) ? appointmentsData : [];
-  const isLoading =
-    appointmentsQuery.isPending || realTimeAppointments.isPending;
-  const error = appointmentsQuery.error || realTimeAppointments.error;
+  const isLoading = appointmentsQuery.isPending;
+  const error = appointmentsQuery.error;
   const refetchAppointments = () => {
     appointmentsQuery.refetch();
-    realTimeAppointments.refetch();
   };
 
   // Fetch appointment statistics for authorized users
@@ -414,7 +400,7 @@ export default function AppointmentsPage() {
                     {appointment.type}
                   </Badge>
                   <Badge className={getStatusColor(appointment.status)}>
-                    {appointment.status}
+                    {getAppointmentStatusDisplayName(appointment.status)}
                   </Badge>
                 </div>
               </div>
@@ -532,61 +518,61 @@ export default function AppointmentsPage() {
       >
         {appointmentStats && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card>
+            <Card className="border-blue-100 bg-blue-50/70 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
+                    <p className="text-sm font-medium text-blue-700 dark:text-blue-200">
                       Total Today
                     </p>
-                    <p className="text-2xl font-bold">
+                    <p className="text-2xl font-bold text-blue-900 dark:text-blue-50">
                       {appointmentStats?.todayAppointments || 0}
                     </p>
                   </div>
-                  <Calendar className="h-8 w-8 text-blue-600" />
+                  <Calendar className="h-8 w-8 text-blue-600 dark:text-blue-300" />
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="border-emerald-100 bg-emerald-50/70 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/20">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Confirmed
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-200">
+                      Completed
                     </p>
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-100">
                       {appointmentStats?.completedAppointments || 0}
                     </p>
                   </div>
-                  <CheckCircle className="h-8 w-8 text-green-600" />
+                  <CheckCircle className="h-8 w-8 text-emerald-600 dark:text-emerald-300" />
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="border-amber-100 bg-amber-50/70 shadow-sm dark:border-amber-900 dark:bg-amber-950/20">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Pending</p>
-                    <p className="text-2xl font-bold text-yellow-600">
+                    <p className="text-sm font-medium text-amber-700 dark:text-amber-200">Pending</p>
+                    <p className="text-2xl font-bold text-amber-700 dark:text-amber-100">
                       {appointmentStats?.totalAppointments || 0}
                     </p>
                   </div>
-                  <AlertCircle className="h-8 w-8 text-yellow-600" />
+                  <AlertCircle className="h-8 w-8 text-amber-600 dark:text-amber-300" />
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="border-rose-100 bg-rose-50/70 shadow-sm dark:border-rose-900 dark:bg-rose-950/20">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
+                    <p className="text-sm font-medium text-rose-700 dark:text-rose-200">
                       Cancelled
                     </p>
-                    <p className="text-2xl font-bold text-red-600">
+                    <p className="text-2xl font-bold text-rose-700 dark:text-rose-100">
                       {appointmentStats?.cancelledAppointments || 0}
                     </p>
                   </div>
-                  <XCircle className="h-8 w-8 text-red-600" />
+                  <XCircle className="h-8 w-8 text-rose-600 dark:text-rose-300" />
                 </div>
               </CardContent>
             </Card>
@@ -671,7 +657,7 @@ export default function AppointmentsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                  <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                  <SelectItem value="CONFIRMED">Queued</SelectItem>
                   <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                   <SelectItem value="COMPLETED">Completed</SelectItem>
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>

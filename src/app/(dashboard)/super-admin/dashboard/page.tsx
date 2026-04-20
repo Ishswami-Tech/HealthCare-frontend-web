@@ -1,5 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +18,7 @@ import {
   Users,
   Calendar,
   Settings,
+  Activity,
 } from "lucide-react";
 
 export default function SuperAdminDashboard() {
@@ -55,6 +60,61 @@ export default function SuperAdminDashboard() {
         : null,
   };
 
+  const recentActivity = useMemo(() => {
+    const clinicActivity = clinicsArray
+      .slice()
+      .sort((a: any, b: any) => new Date(b.createdAt || b.updatedAt || 0).getTime() - new Date(a.createdAt || a.updatedAt || 0).getTime())
+      .slice(0, 5)
+      .map((clinic: any) => ({
+        id: `clinic-${clinic.id}`,
+        type: "Clinic",
+        name: clinic.name,
+        status: clinic.isActive !== false ? "Active" : "Inactive",
+        clinic: clinic.name,
+        date: clinic.createdAt || clinic.updatedAt || new Date(),
+      }));
+
+    const userActivity = usersArray
+      .slice()
+      .sort((a: any, b: any) => new Date(b.createdAt || b.updatedAt || 0).getTime() - new Date(a.createdAt || a.updatedAt || 0).getTime())
+      .slice(0, 5)
+      .map((user: any) => ({
+        id: `user-${user.id}`,
+        type: "User",
+        name: user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+        status: user.isActive !== false ? "Active" : "Inactive",
+        clinic: user.clinic?.name || "N/A",
+        date: user.createdAt || user.updatedAt || new Date(),
+      }));
+
+    return [...clinicActivity, ...userActivity]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 10);
+  }, [clinicsArray, usersArray]);
+
+  const activityColumns = useMemo<ColumnDef<any>[]>(
+    () => [
+      { accessorKey: "type", header: "Type" },
+      { accessorKey: "name", header: "Name" },
+      { accessorKey: "clinic", header: "Clinic" },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant={row.original.status === "Active" ? "default" : "secondary"}>
+            {row.original.status}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "date",
+        header: "Date",
+        cell: ({ row }) => new Date(row.original.date).toLocaleString(),
+      },
+    ],
+    []
+  );
+
 
   return (
     
@@ -68,56 +128,56 @@ export default function SuperAdminDashboard() {
 
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
+            <Card className="border-blue-100 bg-blue-50/70 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Total Clinics
                 </CardTitle>
-                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-300" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalClinics}</div>
+                <div className="text-2xl font-bold text-blue-900 dark:text-blue-50">{stats.totalClinics}</div>
                 <p className="text-xs text-muted-foreground">Live clinic count</p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-emerald-100 bg-emerald-50/70 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Total Users
                 </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalUsers}</div>
+                <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-50">{stats.totalUsers}</div>
                 <p className="text-xs text-muted-foreground">Live user count</p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-indigo-100 bg-indigo-50/70 shadow-sm dark:border-indigo-900 dark:bg-indigo-950/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Total Appointments
                 </CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Calendar className="h-4 w-4 text-indigo-600 dark:text-indigo-300" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-bold text-indigo-900 dark:text-indigo-50">
                   {stats.totalAppointments}
                 </div>
                 <p className="text-xs text-muted-foreground">Live appointment volume</p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-amber-100 bg-amber-50/70 shadow-sm dark:border-amber-900 dark:bg-amber-950/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Monthly Revenue
                 </CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-300" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-bold text-amber-900 dark:text-amber-50">
                   ₹{stats.monthlyRevenue.toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground">Current analytics total</p>
@@ -127,43 +187,43 @@ export default function SuperAdminDashboard() {
 
           {/* Additional Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
+            <Card className="border-blue-100 bg-blue-50/70 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
               <CardHeader>
                 <CardTitle className="text-lg">Active Patients</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-blue-600">
+                <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">
                   {stats.activePatients}
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-blue-700/70 dark:text-blue-200/70">
                   Patients treated this month
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-emerald-100 bg-emerald-50/70 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/20">
               <CardHeader>
                 <CardTitle className="text-lg">Active Doctors</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-600">
+                <div className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">
                   {stats.activeDoctors}
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-emerald-700/70 dark:text-emerald-200/70">
                   Doctors across all clinics
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-purple-100 bg-purple-50/70 shadow-sm dark:border-purple-900 dark:bg-purple-950/20">
               <CardHeader>
                 <CardTitle className="text-lg">Satisfaction Score</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-purple-600">
+                <div className="text-3xl font-bold text-purple-700 dark:text-purple-300">
                   {stats.avgSatisfaction !== null ? `${stats.avgSatisfaction}/5.0` : "N/A"}
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-purple-700/70 dark:text-purple-200/70">
                   {stats.avgSatisfaction !== null
                     ? "Average patient satisfaction"
                     : "Satisfaction data is not yet wired system-wide"}
@@ -175,12 +235,15 @@ export default function SuperAdminDashboard() {
           {/* Recent Activities */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent System Activities</CardTitle>
+              <CardTitle>Recent Operational Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                System activity feed is not yet connected to a backend audit stream on this dashboard.
-              </div>
+              <DataTable
+                columns={activityColumns}
+                data={recentActivity}
+                pageSize={5}
+                emptyMessage="No recent records."
+              />
             </CardContent>
           </Card>
 
@@ -191,34 +254,26 @@ export default function SuperAdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                  <Building2 className="w-6 h-6 text-blue-600 mb-2" />
-                  <h3 className="font-medium">Add New Clinic</h3>
-                  <p className="text-xs text-gray-600">
-                    Register a new clinic location
-                  </p>
-                </div>
-                <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                  <Users className="w-6 h-6 text-green-600 mb-2" />
+                <Link href="/super-admin/clinics" className="p-4 border rounded-xl border-blue-100 bg-blue-50/70 hover:bg-blue-100 transition-colors dark:border-blue-900 dark:bg-blue-950/20 dark:hover:bg-blue-950/35">
+                  <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-300 mb-2" />
+                  <h3 className="font-medium">Add / Manage Clinics</h3>
+                  <p className="text-xs text-muted-foreground">Register or update clinic records</p>
+                </Link>
+                <Link href="/super-admin/users" className="p-4 border rounded-xl border-emerald-100 bg-emerald-50/70 hover:bg-emerald-100 transition-colors dark:border-emerald-900 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/35">
+                  <Users className="w-6 h-6 text-emerald-600 dark:text-emerald-300 mb-2" />
                   <h3 className="font-medium">Manage Users</h3>
-                  <p className="text-xs text-gray-600">
-                    View and manage all users
-                  </p>
-                </div>
-                <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                  <TrendingUp className="w-6 h-6 text-purple-600 mb-2" />
-                  <h3 className="font-medium">View Analytics</h3>
-                  <p className="text-xs text-gray-600">
-                    System performance metrics
-                  </p>
-                </div>
-                <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                  <Settings className="w-6 h-6 text-orange-600 mb-2" />
+                  <p className="text-xs text-muted-foreground">View and manage all users</p>
+                </Link>
+                <Link href="/super-admin/health" className="p-4 border rounded-xl border-purple-100 bg-purple-50/70 hover:bg-purple-100 transition-colors dark:border-purple-900 dark:bg-purple-950/20 dark:hover:bg-purple-950/35">
+                  <Activity className="w-6 h-6 text-purple-600 dark:text-purple-300 mb-2" />
+                  <h3 className="font-medium">Operational Health</h3>
+                  <p className="text-xs text-muted-foreground">Monitor system status</p>
+                </Link>
+                <Link href="/super-admin/settings" className="p-4 border rounded-xl border-amber-100 bg-amber-50/70 hover:bg-amber-100 transition-colors dark:border-amber-900 dark:bg-amber-950/20 dark:hover:bg-amber-950/35">
+                  <Settings className="w-6 h-6 text-amber-600 dark:text-amber-300 mb-2" />
                   <h3 className="font-medium">System Settings</h3>
-                  <p className="text-xs text-gray-600">
-                    Configure global settings
-                  </p>
-                </div>
+                  <p className="text-xs text-muted-foreground">Configure clinic defaults</p>
+                </Link>
               </div>
             </CardContent>
           </Card>

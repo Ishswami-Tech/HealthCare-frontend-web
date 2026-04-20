@@ -34,7 +34,8 @@ export function PatientQueueCard() {
 
     return (appointments as QueueAwareAppointment[]).find((apt) => {
       const status = normalizeAppointmentStatus(apt?.status);
-      return status === "CONFIRMED" || status === "IN_PROGRESS";
+      const isArrived = Boolean((apt as QueueAwareAppointment & { checkedInAt?: string | null }).checkedInAt);
+      return (status === "IN_PROGRESS" || isArrived) && status !== "CANCELLED" && status !== "COMPLETED";
     }) || null;
   }, [appointmentsData]);
 
@@ -68,7 +69,9 @@ export function PatientQueueCard() {
   const normalizedStatus = normalizeAppointmentStatus(activeAppointment.status);
 
   let peopleAhead = 0;
-  if (normalizedStatus === "CONFIRMED" && userToken > currentToken) {
+  const isArrived = Boolean((activeAppointment as QueueAwareAppointment & { checkedInAt?: string | null }).checkedInAt) || normalizedStatus === "IN_PROGRESS";
+
+  if (isArrived && userToken > currentToken) {
     peopleAhead = userToken - currentToken;
   }
 
@@ -97,7 +100,7 @@ export function PatientQueueCard() {
               : "bg-muted text-muted-foreground border-none shadow-none"
           )}
         >
-          {isInProgress ? "Now Serving" : "Waiting"}
+          {isInProgress ? "Now Serving" : isArrived ? "Waiting" : "Not Checked In"}
         </Badge>
       </div>
 

@@ -48,7 +48,7 @@ export default function EnhancedDoctorDashboard() {
     todayAppointments: allAppointments.filter((apt: any) =>
       new Date(apt.date).toDateString() === todayStr
     ).length,
-    checkedInPatients: allAppointments.filter((apt: any) => apt.status === "CONFIRMED").length,
+    checkedInPatients: allAppointments.filter((apt: any) => Boolean(apt.checkedInAt) || apt.status === "IN_PROGRESS").length,
     completedToday: allAppointments.filter((apt: any) =>
       new Date(apt.date).toDateString() === todayStr && apt.status === "COMPLETED"
     ).length,
@@ -81,7 +81,7 @@ export default function EnhancedDoctorDashboard() {
       const status = apt.status as string;
       return (
         new Date(apt.date).toDateString() === todayStr &&
-        ["CONFIRMED", "IN_PROGRESS", "SCHEDULED"].includes(status)
+        (Boolean(apt.checkedInAt) || status === "IN_PROGRESS")
       );
     })
     .sort((a: any, b: any) => (a.time || "").localeCompare(b.time || ""))
@@ -91,6 +91,7 @@ export default function EnhancedDoctorDashboard() {
       patientName: `${apt.patient?.firstName || ""} ${apt.patient?.lastName || ""}`.trim() || "Unknown Patient",
       time: apt.time || "",
       status: apt.status === "IN_PROGRESS" ? "in-progress" as const : "waiting" as const,
+      checkedInAt: apt.checkedInAt || null,
       type: apt.type || "Consultation",
       duration: `${apt.duration || 30} min`,
       priority: (apt.priority?.toLowerCase() || "normal") as "normal" | "high" | "critical",

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { DataTable } from "@/components/ui/data-table";
 import { Loader2 } from "@/components/ui/loader";
 import {
   Search,
@@ -92,6 +94,83 @@ export default function SupportStaffRequests() {
     }
   };
 
+  const requestColumns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ row }) => <span className="font-medium">{row.original.type}</span>,
+      },
+      {
+        accessorKey: "priority",
+        header: "Priority",
+        cell: ({ row }) => <Badge className={getPriorityColor(row.original.priority)}>{row.original.priority}</Badge>,
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge className={getStatusColor(row.original.status)}>
+            {row.original.status.replace("_", " ").toLowerCase()}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "requesterName",
+        header: "Requester",
+        cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.requesterName}</span>,
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Created",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {new Date(row.original.createdAt).toLocaleDateString("en-IN")}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-2">
+            {row.original.status === "pending" && (
+              <Button
+                size="sm"
+                onClick={() => handleStatusChange(row.original.id, "in_progress")}
+                disabled={updateMutation.isPending}
+              >
+                <Play className="w-3 h-3 mr-1" />
+                Start
+              </Button>
+            )}
+            {row.original.status === "in_progress" && (
+              <Button
+                size="sm"
+                onClick={() => handleStatusChange(row.original.id, "completed")}
+                disabled={updateMutation.isPending}
+              >
+                Complete
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDelete(row.original.id)}
+              disabled={deleteMutation.isPending}
+            >
+              Delete
+            </Button>
+            <Button variant="outline" size="sm">
+              View
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [deleteMutation.isPending, updateMutation.isPending]
+  );
+
   if (isPending) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -166,65 +245,12 @@ export default function SupportStaffRequests() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredRequests.map((request: any) => (
-                <div
-                  key={request.id}
-                  className="p-4 border rounded-lg hover:bg-gray-50"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-semibold">{request.type}</h4>
-                        <Badge className={getPriorityColor(request.priority)}>
-                          {request.priority}
-                        </Badge>
-                        <Badge className={getStatusColor(request.status)}>
-                          {request.status.replace("_", " ").toLowerCase()}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {request.description}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Requester: {request.requesterName} | Created:{" "}
-                        {new Date(request.createdAt).toLocaleDateString("en-IN")}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      {request.status === "pending" && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleStatusChange(request.id, "in_progress")}
-                          disabled={updateMutation.isPending}
-                        >
-                          <Play className="w-3 h-3 mr-1" />
-                          Start
-                        </Button>
-                      )}
-                      {request.status === "in_progress" && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleStatusChange(request.id, "completed")}
-                          disabled={updateMutation.isPending}
-                        >
-                          Complete
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(request.id)}
-                        disabled={deleteMutation.isPending}
-                      >
-                        Delete
-                      </Button>
-                      <Button variant="outline" size="sm">View</Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DataTable
+              columns={requestColumns}
+              data={filteredRequests}
+              pageSize={10}
+              emptyMessage="No requests found"
+            />
           )}
         </CardContent>
       </Card>

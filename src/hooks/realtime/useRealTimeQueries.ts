@@ -14,6 +14,9 @@ import {
 import type { Appointment, AppointmentFilters } from '@/types/appointment.types';
 import type { User } from '@/types/auth.types';
 import type { Clinic } from '@/types/clinic.types';
+import {
+  getAppointmentQueryKey,
+} from '@/lib/query/appointment-query-keys';
 
 // Enhanced query hooks with real-time WebSocket integration
 
@@ -24,17 +27,16 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
   const subscriptionRef = useRef<(() => void) | null>(null);
 
   const query = useQueryData(
-    ['appointments', filters, currentClinic?.id],
+    getAppointmentQueryKey(currentClinic?.id, filters),
     async () => {
       if (!currentClinic) throw new Error('No clinic selected');
       
       // Use actual API endpoint from config
       const { API_ENDPOINTS } = await import('@/lib/config/config');
-      const params = new URLSearchParams({
-        clinicId: currentClinic.id,
-        ...Object.fromEntries(
-          Object.entries(filters).map(([key, value]) => [key, String(value)])
-        )
+      const params = new URLSearchParams({ clinicId: currentClinic.id });
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') return;
+        params.set(key, Array.isArray(value) ? value.join(',') : String(value));
       });
       
       // ✅ SECURITY: Use centralized API client instead of direct fetch
@@ -84,7 +86,7 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
       // Update the query cache based on the action
       switch (data.action) {
         case 'created':
-          queryClient.setQueryData(['appointments', filters, currentClinic.id], (oldData: { success: boolean; data: Appointment[] } | undefined) => {
+          queryClient.setQueryData(getAppointmentQueryKey(currentClinic.id, filters), (oldData: { success: boolean; data: Appointment[] } | undefined) => {
             if (oldData?.success && oldData?.data) {
               const newData = [...oldData.data, data.appointment];
               return { ...oldData, data: newData };
@@ -94,7 +96,7 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
           break;
 
         case 'updated':
-          queryClient.setQueryData(['appointments', filters, currentClinic.id], (oldData: { success: boolean; data: Appointment[] } | undefined) => {
+          queryClient.setQueryData(getAppointmentQueryKey(currentClinic.id, filters), (oldData: { success: boolean; data: Appointment[] } | undefined) => {
             if (oldData?.success && oldData?.data) {
               const updatedData = oldData.data.map((apt: Appointment) =>
                 apt.id === data.appointment.id ? { ...apt, ...data.appointment } : apt
@@ -106,7 +108,7 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
           break;
 
         case 'deleted':
-          queryClient.setQueryData(['appointments', filters, currentClinic.id], (oldData: { success: boolean; data: Appointment[] } | undefined) => {
+          queryClient.setQueryData(getAppointmentQueryKey(currentClinic.id, filters), (oldData: { success: boolean; data: Appointment[] } | undefined) => {
             if (oldData?.success && oldData?.data) {
               const filteredData = oldData.data.filter((apt: Appointment) => apt.id !== data.appointment.id);
               return { ...oldData, data: filteredData };
@@ -282,7 +284,7 @@ export function useRealTimeAppointmentMutation() {
   const { emit } = useWebSocketIntegration();
 
   const createAppointment = useOptimisticMutation<Appointment, Partial<Appointment>>({
-    queryKey: ['appointments', undefined, currentClinic?.id],
+    queryKey: getAppointmentQueryKey(currentClinic?.id),
     mutationFn: async (appointmentData: Partial<Appointment>) => {
       if (!currentClinic) throw new Error('No clinic selected');
       
@@ -325,7 +327,7 @@ export function useRealTimeAppointmentMutation() {
   });
 
   const updateAppointment = useOptimisticMutation<Appointment, { id: string; updates: Partial<Appointment> }>({
-    queryKey: ['appointments', undefined, currentClinic?.id],
+    queryKey: getAppointmentQueryKey(currentClinic?.id),
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Appointment> }) => {
       const { API_ENDPOINTS } = await import('@/lib/config/config');
       // ✅ SECURITY: Use centralized API client instead of direct fetch
@@ -359,7 +361,7 @@ export function useRealTimeAppointmentMutation() {
   });
 
   const deleteAppointment = useOptimisticMutation<Appointment, string>({
-    queryKey: ['appointments', undefined, currentClinic?.id],
+    queryKey: getAppointmentQueryKey(currentClinic?.id),
     mutationFn: async (id: string) => {
       const { API_ENDPOINTS } = await import('@/lib/config/config');
       // ✅ SECURITY: Use centralized API client instead of direct fetch
@@ -373,7 +375,9 @@ export function useRealTimeAppointmentMutation() {
       }
       
       // Return the deleted appointment for optimistic update
-      const appointments = queryClient.getQueryData<{ success: boolean; data: Appointment[] }>(['appointments', {}, currentClinic?.id]);
+      const appointments = queryClient.getQueryData<{ success: boolean; data: Appointment[] }>(
+        getAppointmentQueryKey(currentClinic?.id)
+      );
       const deletedAppointment = appointments?.data?.find(apt => apt.id === id);
       return deletedAppointment || ({ id } as Appointment);
     },

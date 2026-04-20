@@ -45,6 +45,11 @@ import {
   getQueueListQueryKey,
   getQueueStatsQueryKey,
 } from '@/lib/queue/queue-cache';
+import {
+  serializeAppointmentQueryKey,
+  getAppointmentQueryKey,
+  toAppointmentFilterParams,
+} from '@/lib/query/appointment-query-keys';
 import type { 
   CreateAppointmentData, 
   UpdateAppointmentData,
@@ -55,42 +60,38 @@ import type {
 } from '@/types/appointment.types';
 
 const extractAppointments = (payload: unknown): Appointment[] => {
-  if (Array.isArray(payload)) return payload as Appointment[];
+  const dedupe = (items: Appointment[]) =>
+    Array.from(
+      new Map(
+        items.map((appointment) => {
+          const compositeKey = [
+            String((appointment as any)?.date || (appointment as any)?.appointmentDate || ""),
+            String((appointment as any)?.time || (appointment as any)?.appointmentTime || ""),
+            String((appointment as any)?.doctorId || (appointment as any)?.doctor?.id || ""),
+            String((appointment as any)?.patientId || (appointment as any)?.patient?.id || ""),
+            String((appointment as any)?.type || (appointment as any)?.appointmentType || ""),
+            String((appointment as any)?.status || ""),
+            String((appointment as any)?.locationId || (appointment as any)?.location?.id || ""),
+            String((appointment as any)?.clinicId || (appointment as any)?.clinic?.id || ""),
+          ].join("|");
+
+          const id = String(appointment?.id || "");
+          return [compositeKey || id, appointment];
+        })
+      ).values()
+    );
+
+  if (Array.isArray(payload)) return dedupe(payload as Appointment[]);
   if (payload && typeof payload === 'object') {
     const record = payload as { appointments?: unknown; data?: unknown };
-    if (Array.isArray(record.appointments)) return record.appointments as Appointment[];
-    if (Array.isArray(record.data)) return record.data as Appointment[];
+    if (Array.isArray(record.appointments)) return dedupe(record.appointments as Appointment[]);
+    if (Array.isArray(record.data)) return dedupe(record.data as Appointment[]);
     if (record.data && typeof record.data === 'object') {
       const nested = record.data as { appointments?: unknown };
-      if (Array.isArray(nested.appointments)) return nested.appointments as Appointment[];
+      if (Array.isArray(nested.appointments)) return dedupe(nested.appointments as Appointment[]);
     }
   }
   return [];
-};
-
-const serializeAppointmentFilters = (
-  filters: AppointmentFilters & { omitClinicId?: boolean }
-): Record<string, string | number> => {
-  const params: Record<string, string | number> = {};
-
-  Object.entries(filters).forEach(([key, value]) => {
-    if (key === 'omitClinicId' || value === undefined || value === null || value === '') {
-      return;
-    }
-
-    if (Array.isArray(value)) {
-      if (value.length > 0) {
-        params[key] = value.join(',');
-      }
-      return;
-    }
-
-    if (typeof value === 'string' || typeof value === 'number') {
-      params[key] = value;
-    }
-  });
-
-  return params;
 };
 
 // ✅ Appointment Management Hooks
@@ -107,7 +108,7 @@ export const useAppointments = (
   
   // Memoize query key for performance
   const queryKey = useMemo(
-    () => ['appointments', clinicId, clinicIdOrFilters], 
+    () => serializeAppointmentQueryKey(clinicId, clinicIdOrFilters),
     [clinicId, clinicIdOrFilters]
   );
   
@@ -132,7 +133,7 @@ export const useAppointments = (
 
     const response = await clinicApiClient.get<unknown>(
       API_ENDPOINTS.APPOINTMENTS.GET_ALL,
-      serializeAppointmentFilters(filters)
+      toAppointmentFilterParams(filters)
     );
     if (!response.success) {
       throw new Error(response.message || response.error || 'Failed to fetch appointments');
@@ -253,7 +254,7 @@ export const useCreateAppointment = (clinicId?: string) => {
   // Use optimistic mutation hook
   const queryClient = useQueryClient();
   const { optimisticData, addOptimistic, mutation, isPending } = useOptimisticMutation({
-    queryKey: ['appointments', clinicId],
+    queryKey: serializeAppointmentQueryKey(clinicId),
     mutationFn,
     optimisticUpdate: (current, variables) => {
       // Create optimistic appointment
@@ -271,6 +272,8 @@ export const useCreateAppointment = (clinicId?: string) => {
       onSuccess: (appointment: Appointment) => {
         // Invalidate both appointments and myAppointments so all views refresh
         void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+        void queryClient.invalidateQueries({ queryKey: getAppointmentQueryKey(clinicId), exact: false });
+        void queryClient.refetchQueries({ queryKey: getAppointmentQueryKey(clinicId), exact: false, type: 'active' });
         void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
         void queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
         void queryClient.invalidateQueries({ queryKey: ['appointmentStats'], exact: false });
@@ -1106,7 +1109,7 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
       
       const response = await clinicApiClient.get<unknown>(
         API_ENDPOINTS.APPOINTMENTS.GET_ALL,
-        serializeAppointmentFilters({ ...filters, clinicId })
+        toAppointmentFilterParams({ ...filters, clinicId })
       );
       if (!response.success) {
         // ✅ Use centralized error handler

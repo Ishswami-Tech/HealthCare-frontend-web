@@ -249,7 +249,7 @@ export default function QueuePage() {
   );
 
   const { data: queueStats } = useQueueStats(locationId);
-  const { data: doctorsData } = useDoctors(clinicId || "", { limit: 500 });
+  const { data: doctorsData } = useDoctors(clinicId || "", { limit: 200 });
 
   const assignableDoctors = useMemo(() => {
     const normalize = (users: any[]) =>

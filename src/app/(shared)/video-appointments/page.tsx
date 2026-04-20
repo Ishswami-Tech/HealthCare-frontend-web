@@ -660,7 +660,7 @@ export default function VideoAppointmentsPage() {
             </p>
             <div className="space-y-4">
               {awaitingConfirmation.map((apt: any) => (
-                <Card key={apt.id}>
+                <Card key={apt.id} className="border-amber-100 bg-amber-50/70 shadow-sm dark:border-amber-900 dark:bg-amber-950/20">
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>

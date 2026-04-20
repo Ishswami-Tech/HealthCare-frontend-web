@@ -23,6 +23,7 @@ import { useAppointments, useForceCheckInAppointment } from "@/hooks/query/useAp
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
+  getAppointmentStatusDisplayName,
   getReceptionistAppointmentDateLabel,
   getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
@@ -38,6 +39,7 @@ interface AppointmentListItem {
   startTime?: string;
   time?: string;
   payment?: { status?: string };
+  checkedInAt?: string | null;
   patientName?: string;
   patientPhone?: string;
   doctorName?: string;
@@ -170,7 +172,7 @@ export default function ReceptionistCheckInPage() {
         const normalizedStatus = String(status).toUpperCase();
         const rowLocationId = apt.locationId || assignedLocationId || undefined;
         const isRecentlyCheckedIn = confirmedAppointmentIds.includes(apt.id);
-        const isConfirmed = isRecentlyCheckedIn || ["CONFIRMED", "IN_PROGRESS", "COMPLETED"].includes(normalizedStatus);
+        const isConfirmedArrival = isRecentlyCheckedIn || Boolean(apt.checkedInAt);
 
         return {
           id: apt.id,
@@ -182,8 +184,8 @@ export default function ReceptionistCheckInPage() {
           timeLabel: getReceptionistAppointmentTimeLabel(apt as unknown as Record<string, unknown>),
           status,
           paymentStatus: String(apt.payment?.status || "N/A").toUpperCase(),
-          canCheckIn: !isConfirmed && normalizedStatus === "SCHEDULED",
-          isConfirmedArrival: isConfirmed,
+          canCheckIn: !isConfirmedArrival && ["SCHEDULED", "CONFIRMED"].includes(normalizedStatus),
+          isConfirmedArrival,
         };
       }),
     [confirmedAppointmentIds, filteredAppointments]
@@ -271,7 +273,9 @@ export default function ReceptionistCheckInPage() {
                 : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-none shadow-none"
             }
           >
-            {row.original.status.replace("_", " ")}
+            {row.original.isConfirmedArrival
+              ? "Arrived"
+              : getAppointmentStatusDisplayName(row.original.status || "")}
           </Badge>
         ),
       },
@@ -303,7 +307,7 @@ export default function ReceptionistCheckInPage() {
             ) : row.original.isConfirmedArrival ? (
               <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300">
                 <CheckCircle2 className="h-4 w-4" />
-                Confirmed
+                Arrived
               </span>
             ) : (
               <span className="text-sm text-muted-foreground">-</span>

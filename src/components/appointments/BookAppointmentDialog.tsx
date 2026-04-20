@@ -33,7 +33,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
 import { useDoctors } from "@/hooks/query/useDoctors";
-import { usePatients, useCreatePatient } from "@/hooks/query/usePatients";
+import { usePatients, useQuickRegisterPatient } from "@/hooks/query/usePatients";
 import {
   useAppointmentServices,
   useCreateAppointment,
@@ -48,7 +48,6 @@ import {
 } from "@/hooks/query/useBilling";
 import { useSendAppointmentReminder } from "@/hooks/query/useCommunication";
 import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
-import { useCreateUser } from "@/hooks/query/useUsers";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import {
   dismissToast,
@@ -199,17 +198,6 @@ const createTemporaryPatientPassword = (phone: string) => {
   return `Pt@${digits}`;
 };
 
-const extractCreatedUserId = (result: unknown) => {
-  if (!result || typeof result !== "object") return undefined;
-  const record = result as Record<string, unknown>;
-  if (typeof record.id === "string") return record.id;
-  if (record.data && typeof record.data === "object") {
-    const nested = record.data as Record<string, unknown>;
-    if (typeof nested.id === "string") return nested.id;
-  }
-  return undefined;
-};
-
 export function BookAppointmentDialog({
   trigger,
   clinicId,
@@ -276,8 +264,7 @@ export function BookAppointmentDialog({
   const shouldLoadServices = open;
   const shouldLoadDoctors = open && step >= 3 && !!activeClinicId && !!selectedLocationId;
   const shouldLoadPatients = open && isPrivilegedScheduler && !!activeClinicId;
-  const createPatientMutation = useCreatePatient();
-  const createUserMutation = useCreateUser();
+  const quickRegisterPatientMutation = useQuickRegisterPatient();
 
   // ─── Queries ─────────────────────────────────────────────────────────────
   const { data: locations = [], isPending: locationsLoading, isFetching: locationsFetching } = useActiveLocations(activeClinicId, {
@@ -298,7 +285,7 @@ export function BookAppointmentDialog({
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
   const { data: patientsData = [] } = usePatients(
     isPrivilegedScheduler ? activeClinicId : "",
-    { limit: 1000, isActive: true },
+    { limit: 200, isActive: true },
     { enabled: shouldLoadPatients }
   );
 
@@ -601,6 +588,7 @@ export function BookAppointmentDialog({
         setBookedAppointmentId(proposedAppointment.id);
         queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
         queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        queryClient.refetchQueries({ queryKey: ["appointments"], exact: false, type: "active" });
         queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
         queryClient.invalidateQueries({ queryKey: ["appointmentStats"] });
         queryClient.invalidateQueries({ queryKey: ["appointment", proposedAppointment.id] });
@@ -688,11 +676,7 @@ export function BookAppointmentDialog({
           patientId: targetPatientId,
         };
 
-        console.log("[BookAppointmentDialog] handleBook Payload:", payload);
-
         const appointment = await createAppointment(payload);
-
-        console.log("[BookAppointmentDialog] handleBook Response:", appointment);
 
         if (!appointment?.id) {
           throw new Error("Failed to create appointment; check console for details.");
@@ -703,6 +687,7 @@ export function BookAppointmentDialog({
       setBookedAppointmentId(apptId);
       queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.refetchQueries({ queryKey: ["appointments"], exact: false, type: "active" });
       queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
       queryClient.invalidateQueries({ queryKey: ["appointmentStats"] });
       queryClient.invalidateQueries({ queryKey: ["appointment", apptId] });
@@ -967,37 +952,31 @@ export function BookAppointmentDialog({
       try {
         const temporaryPassword = createTemporaryPatientPassword(phone);
         const normalizedGender = normalizePatientGender(newPatient.gender);
-        const email =
-          newPatient.email.trim() || `patient.${phone.replace(/\D/g, "")}@placeholder.local`;
-
-        const createdUser = await createUserMutation.mutateAsync({
-          email,
+        const email = newPatient.email.trim();
+        const quickRegisterResult = await quickRegisterPatientMutation.mutateAsync({
+          ...(email ? { email } : {}),
           password: temporaryPassword,
           firstName,
           lastName,
           phone,
-          role: "PATIENT",
-          clinicId: activeClinicId,
           ...(normalizedGender ? { gender: normalizedGender } : {}),
           ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
           ...(newPatient.address.trim() ? { address: newPatient.address.trim() } : {}),
         });
-
-        const userId = extractCreatedUserId(createdUser);
+        const userId =
+          (quickRegisterResult as any)?.user?.id ||
+          (quickRegisterResult as any)?.userId ||
+          (quickRegisterResult as any)?.id;
         if (!userId) {
-          throw new Error("Created patient user is missing an ID");
+          throw new Error("Quick registration completed without a usable patient ID");
         }
-
-        await createPatientMutation.mutateAsync({
-          userId,
-          ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
-          ...(normalizedGender ? { gender: normalizedGender } : {}),
-        });
+        const resolvedEmail =
+          (quickRegisterResult as any)?.generatedEmail || email || `patient.${phone.replace(/\D/g, "")}@clinic.local`;
 
         const displayName = `${firstName} ${lastName}`.trim();
         setSelectedPatientId(userId);
         setPatientSearch(displayName);
-        setRecentlyCreatedPatient({ id: userId, displayName, phone, email });
+        setRecentlyCreatedPatient({ id: userId, displayName, phone, email: resolvedEmail });
         setShowQuickCreatePatient(false);
         setNewPatient({
           firstName: "",
@@ -1189,9 +1168,9 @@ export function BookAppointmentDialog({
                       type="button"
                       className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
                       onClick={handleCreateQuickPatient}
-                      disabled={createPatientMutation.isPending || createUserMutation.isPending}
+                      disabled={quickRegisterPatientMutation.isPending}
                     >
-                      {(createPatientMutation.isPending || createUserMutation.isPending) ? (
+                      {quickRegisterPatientMutation.isPending ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Creating...
@@ -1668,7 +1647,7 @@ export function BookAppointmentDialog({
             ? "Complete Payment to Confirm"
             : consultationMode === "VIDEO"
             ? "Video Appointment Request Sent"
-            : "Appointment Confirmed!"}
+            : "Appointment Booked!"}
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
           {consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
@@ -1829,14 +1808,14 @@ export function BookAppointmentDialog({
     "Confirm Appointment",
     consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
       ? "Complete Payment"
-      : "Booking Confirmed! 🎉",
+      : "Booking Complete! 🎉",
   ][step - 1];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white rounded-xl px-6 py-6 font-semibold shadow-glow-subtle hover:shadow-glow-medium transition-all transform hover:-translate-y-0.5 active:scale-95">
+          <Button className="flex items-center gap-2 rounded-xl border-0 bg-emerald-600 px-6 py-6 font-semibold text-white shadow-glow-subtle transition-all hover:bg-emerald-700 hover:shadow-glow-medium transform hover:-translate-y-0.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500/30">
             <Plus className="w-5 h-5" />
             Book Appointment
           </Button>
@@ -1844,12 +1823,11 @@ export function BookAppointmentDialog({
       </DialogTrigger>
 
       <DialogContent className="
-        w-full max-w-none sm:max-w-md
-        h-dvh sm:h-[650px]
-        flex flex-col p-0 gap-0 overflow-hidden
-        rounded-none sm:rounded-2xl
-        top-0 sm:top-1/2 left-0 sm:left-1/2
-        translate-y-0 sm:-translate-y-1/2 sm:-translate-x-1/2
+        top-0 left-0 h-[100dvh] w-[100vw] max-w-none translate-x-0 translate-y-0
+        flex flex-col gap-0 overflow-hidden rounded-none border-0 p-0
+        md:top-1/2 md:left-1/2 md:h-[90dvh] md:w-[min(78vw,48rem)] md:max-w-2xl
+        lg:top-1/2 lg:left-1/2 lg:h-[90dvh] lg:w-[min(66vw,42rem)] lg:max-w-xl
+        sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border
       ">
         {/* Header */}
         <div className="px-4 sm:px-5 pt-4 pb-3 border-b shrink-0">
@@ -1875,22 +1853,21 @@ export function BookAppointmentDialog({
 
         {/* Footer — hide on success screen */}
         {step < 7 && (
-          <div className="px-4 sm:px-6 py-4 border-t bg-background flex items-center gap-4 shrink-0">
+          <div className="px-4 sm:px-6 py-4 border-t bg-background flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:gap-4 shrink-0">
             <Button
               variant="outline"
               onClick={step > 1 ? goBack : () => setOpen(false)}
-              className="h-11 px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2"
+              className="h-11 w-full px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2 sm:w-auto"
             >
               <ChevronLeft className="w-4 h-4" /> {step > 1 ? "Back" : "Cancel"}
             </Button>
-            
-            <div className="flex-1" />
+            <div className="hidden flex-1 sm:block" />
 
             {step < 6 ? (
               <Button
                 onClick={goNext}
                 disabled={!canNext}
-                className="h-11 px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2"
+                className="h-11 w-full px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
               >
                 Continue <ArrowRight className="w-4 h-4" />
               </Button>
@@ -1898,7 +1875,7 @@ export function BookAppointmentDialog({
               <Button
                 onClick={handleBook}
                 disabled={consultationMode === "VIDEO" ? isProposingVideoAppointment : isCreatingInPersonAppointment}
-                className="h-11 px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2"
+                className="h-11 w-full px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
               >
                 {(consultationMode === "VIDEO" ? isProposingVideoAppointment : isCreatingInPersonAppointment) ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> {consultationMode === "VIDEO" ? "Sending request..." : "Booking..."}</>

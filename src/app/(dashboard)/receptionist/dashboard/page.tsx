@@ -19,7 +19,10 @@ import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-ad
 import { showSuccessToast } from "@/hooks/utils/use-toast";
 import { cn } from "@/lib/utils";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
-import { getReceptionistAppointmentTimeLabel } from "@/lib/utils/appointmentUtils";
+import {
+  getAppointmentStatusDisplayName,
+  getReceptionistAppointmentTimeLabel,
+} from "@/lib/utils/appointmentUtils";
 
 type ReceptionAppointment = {
   id: string;
@@ -265,7 +268,7 @@ export default function ReceptionistDashboard() {
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <Badge className={STATUS_STYLES[row.original.status] || STATUS_STYLES.SCHEDULED}>
-              {row.original.status.replaceAll("_", " ")}
+              {getAppointmentStatusDisplayName(row.original.status)}
             </Badge>
             {row.original.priority === "URGENT" && (
               <Badge className="bg-rose-500 text-white animate-pulse border-none">URGENT</Badge>
@@ -291,6 +294,44 @@ export default function ReceptionistDashboard() {
         accessorKey: "waitLabel",
         header: "Wait",
         cell: ({ row }) => <span className="text-sm text-muted-foreground">Wait {row.original.waitLabel}</span>,
+      },
+    ],
+    []
+  );
+
+  const upcomingColumns = useMemo<ColumnDef<(typeof upcoming)[number]>[]>(
+    () => [
+      {
+        accessorKey: "patientName",
+        header: "Patient",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="font-semibold">{row.original.patientName}</span>
+            <span className="text-xs text-muted-foreground">
+              {row.original.doctorName}
+              {row.original.doctorRole === "ASSISTANT_DOCTOR" ? " (Assistant Doctor)" : ""}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "timeLabel",
+        header: "Time",
+        cell: ({ row }) => <span className="text-sm">{row.original.timeLabel}</span>,
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <Badge className={STATUS_STYLES[row.original.status] || STATUS_STYLES.SCHEDULED}>
+              {getAppointmentStatusDisplayName(row.original.status)}
+            </Badge>
+            {row.original.priority === "URGENT" && (
+              <Badge className="bg-rose-500 text-white animate-pulse border-none">URGENT</Badge>
+            )}
+          </div>
+        ),
       },
     ],
     []
@@ -354,94 +395,67 @@ export default function ReceptionistDashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <Link href="/receptionist/appointments" className="block transition-transform hover:scale-[1.02] active:scale-95">
-          <Card className="hover:border-emerald-200 transition-colors shadow-sm">
+          <Card className="border-blue-200 bg-blue-50 shadow-sm transition-colors dark:border-blue-500/20 dark:bg-blue-500/10">
             <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Today</div>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">Today</div>
+              <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.total}</div>
             </CardContent>
           </Card>
         </Link>
         <Link href="/receptionist/appointments?status=SCHEDULED" className="block transition-transform hover:scale-[1.02] active:scale-95">
-          <Card className="hover:border-slate-200 transition-colors shadow-sm">
+          <Card className="border-slate-200 bg-slate-50 shadow-sm transition-colors dark:border-slate-500/20 dark:bg-slate-500/10">
             <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Scheduled</div>
-              <div className="text-2xl font-bold text-slate-700 dark:text-slate-200">{stats.scheduled}</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">Scheduled</div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.scheduled}</div>
             </CardContent>
           </Card>
         </Link>
         <Link href="/receptionist/appointments?status=CONFIRMED" className="block transition-transform hover:scale-[1.02] active:scale-95">
-          <Card className="hover:border-emerald-200 transition-colors shadow-sm">
+          <Card className="border-emerald-200 bg-emerald-50 shadow-sm transition-colors dark:border-emerald-500/20 dark:bg-emerald-500/10">
             <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Queued</div>
-              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{stats.confirmed}</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Queued</div>
+              <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">{stats.confirmed}</div>
             </CardContent>
           </Card>
         </Link>
         <Link href="/receptionist/appointments?status=IN_PROGRESS" className="block transition-transform hover:scale-[1.02] active:scale-95">
-          <Card className="border-blue-100/50 shadow-sm hover:border-blue-200 transition-colors">
+          <Card className="border-indigo-200 bg-indigo-50 shadow-sm transition-colors dark:border-indigo-500/20 dark:bg-indigo-500/10">
             <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider text-[10px]">In Progress</div>
-              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.inProgress}</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">In Progress</div>
+              <div className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">{stats.inProgress}</div>
             </CardContent>
           </Card>
         </Link>
-        <Card className="border-emerald-500/20 shadow-md bg-emerald-50/30 dark:bg-emerald-500/5 relative overflow-hidden group">
+        <Card className="relative overflow-hidden border-emerald-200 bg-emerald-50 shadow-md group dark:border-emerald-500/20 dark:bg-emerald-500/10">
           <div className="absolute -right-2 -top-2 opacity-10 group-hover:scale-110 transition-transform">
             <Activity className="w-16 h-16 text-emerald-600" />
           </div>
           <CardContent className="p-4 relative z-10">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-1">
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
               Clinic Velocity
             </div>
             <div className="flex items-baseline gap-1">
-              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+              <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
                 {velocity}
               </div>
-              <div className="text-[10px] font-medium text-emerald-600/70">
+              <div className="text-[10px] font-medium text-emerald-700/70 dark:text-emerald-200/70">
                 pts/hr
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="shadow-sm">
+        <Card className="border-amber-200 bg-amber-50 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10">
           <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Med Desk</div>
-            <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">Med Desk</div>
+            <div className="text-2xl font-bold text-amber-900 dark:text-amber-100">
               {medicineDesk.length}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Doctor Backlog
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {doctorBacklog.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {appointmentsError
-                    ? `Error loading appointments: ${appointmentsError.message}`
-                    : isPending
-                      ? "Loading clinic backlog..."
-                      : "No doctor backlog for today."}
-                </p>
-              ) : (
-                <DataTable
-                  columns={doctorBacklogColumns}
-                  data={doctorBacklog}
-                  pageSize={8}
-                  emptyMessage="No doctor backlog for today."
-                />
-              )}
-            </CardContent>
-          </Card>
-
+      <div className="space-y-6">
+        <div className="grid gap-6 xl:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -449,7 +463,7 @@ export default function ReceptionistDashboard() {
                 Active Queue
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 overflow-x-auto">
               {activeQueue.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No confirmed patients in the live queue.</p>
               ) : (
@@ -457,14 +471,13 @@ export default function ReceptionistDashboard() {
                   columns={activeQueueColumns}
                   data={activeQueue.slice(0, 32)}
                   pageSize={8}
+                  compact
                   emptyMessage="No confirmed patients in the live queue."
                 />
               )}
             </CardContent>
           </Card>
-        </div>
 
-        <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -472,161 +485,187 @@ export default function ReceptionistDashboard() {
                 Upcoming Scheduled Patients
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-            {upcoming.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No more scheduled patients for today.</p>
+            <CardContent className="space-y-3 overflow-x-auto">
+              {upcoming.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No more scheduled patients for today.</p>
+              ) : (
+                <DataTable
+                  columns={upcomingColumns}
+                  data={upcoming}
+                  pageSize={8}
+                  compact
+                  emptyMessage="No more scheduled patients for today."
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Doctor Backlog
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 overflow-x-auto">
+            {doctorBacklog.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {appointmentsError
+                  ? `Error loading appointments: ${appointmentsError.message}`
+                  : isPending
+                    ? "Loading clinic backlog..."
+                    : "No doctor backlog for today."}
+              </p>
             ) : (
-              upcoming.map((appointment) => (
-                <div
-                  key={appointment.id}
-                  className="rounded-xl border p-4 bg-card flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
-                >
-                  <div>
-                    <p className="font-semibold">{appointment.patientName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {appointment.doctorName}
-                      {appointment.doctorRole === "ASSISTANT_DOCTOR" ? " (Assistant Doctor)" : ""}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <span>{appointment.timeLabel}</span>
-                    <Badge className={STATUS_STYLES[appointment.status] || STATUS_STYLES.SCHEDULED}>
-                      {appointment.status.replaceAll("_", " ")}
-                    </Badge>
-                    {appointment.priority === "URGENT" && (
-                      <Badge className="bg-rose-500 text-white animate-pulse border-none">URGENT</Badge>
-                    )}
-                  </div>
-                </div>
-              ))
+              <DataTable
+                columns={doctorBacklogColumns}
+                data={doctorBacklog}
+                pageSize={8}
+                compact
+                emptyMessage="No doctor backlog for today."
+              />
             )}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Medicine Desk Queue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {medicineDesk.length > 0 ? (
+              <div className="space-y-3">
+                {medicineDesk.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex flex-col gap-3 rounded-xl border border-slate-100 bg-slate-50/30 p-4 transition-colors hover:border-amber-100 dark:border-slate-800 dark:bg-slate-900/10 dark:hover:border-amber-900 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                          <div className="font-semibold text-lg">{entry.patientName}</div>
+                          {entry.priority === "URGENT" && (
+                              <Badge className="bg-rose-500 text-white animate-pulse border-none h-5 text-[10px]">URGENT</Badge>
+                          )}
+                      </div>
+                      <div className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Clock className="w-3 h-3" />
+                        {entry.queuePosition ? getQueuePositionLabel({ position: entry.queuePosition }) : "Medicine handover pending"}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        className={
+                          entry.readyForHandover || entry.paymentStatus === "PAID"
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 px-3 py-1"
+                            : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-3 py-1"
+                        }
+                      >
+                        {entry.readyForHandover || entry.paymentStatus === "PAID"
+                          ? "Ready For Handover"
+                          : "Awaiting Payment"}
+                      </Badge>
+                      {entry.pendingAmount > 0 && (
+                        <Badge variant="outline" className="border-amber-200 text-amber-700 bg-amber-50/50 dark:bg-amber-900/20">
+                          INR {entry.pendingAmount.toFixed(2)}
+                        </Badge>
+                      )}
+                      
+                      <div className="flex items-center gap-2 ml-2">
+                        {entry.paymentStatus !== "PAID" && entry.pendingAmount > 0 && (
+                          <Button size="sm" variant="ghost" asChild className="h-9 gap-1 text-slate-600 dark:text-slate-300">
+                            <Link href="/billing?tab=invoices">
+                              <Receipt className="w-3.5 h-3.5" />
+                              Billing
+                            </Link>
+                          </Button>
+                        )}
+                        {(entry.readyForHandover || entry.paymentStatus === "PAID") && (
+                          <Button 
+                            size="sm" 
+                            className="h-9 gap-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm"
+                            onClick={() => handleDispense(entry.id)}
+                            disabled={dispenseMutation.isPending}
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            Handover
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No active medicine desk handovers right now.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card className="overflow-hidden border-l-4 border-l-slate-400 shadow-sm">
+            <CardHeader className="border-b border-border bg-muted/40 px-4 py-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                Reception Intake
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Confirm arrivals for the doctor queue.
+              </p>
+              <Button asChild size="sm" className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
+                <Link href="/receptionist/check-in">Open Check-In Desk</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden border-l-4 border-l-blue-400 shadow-sm">
+            <CardHeader className="border-b border-border bg-muted/40 px-4 py-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-300" />
+                Schedule Patients
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Book walk-ins or assisted front-desk appointments.
+              </p>
+              <BookAppointmentDialog
+                trigger={
+                  <Button size="sm" className="w-full bg-blue-600 text-white hover:bg-blue-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Appointment
+                  </Button>
+                }
+                onBooked={() => refetchMedicineDesk?.()}
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden border-l-4 border-l-emerald-400 shadow-sm">
+            <CardHeader className="border-b border-border bg-muted/40 px-4 py-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Clock className="w-4 h-4 text-emerald-600" />
+                Queue View
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Review backlog, queue, and live consultation state.
+              </p>
+              <Button asChild size="sm" className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
+                <Link href="/receptionist/appointments">Open Queue Workspace</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
-              <h3 className="font-semibold">Reception Intake</h3>
-            </div>
-            <p className="text-sm text-muted-foreground mb-3">
-              Manually confirm a patient as arrived so they join the doctor queue.
-            </p>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/receptionist/check-in">Open Check-In Desk</Link>
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-300" />
-              <h3 className="font-semibold">Schedule Patients</h3>
-            </div>
-            <p className="text-sm text-muted-foreground mb-3">
-              Create appointments for walk-ins or assisted front-desk booking.
-            </p>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/receptionist/appointments#appointment-manager">Create Appointment</Link>
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="w-4 h-4 text-emerald-600" />
-              <h3 className="font-semibold">Queue View</h3>
-            </div>
-            <p className="text-sm text-muted-foreground mb-3">
-              Review scheduled backlog, queued patients, and live consultation state.
-            </p>
-            <Button asChild variant="outline" className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-900/20">
-              <Link href="/receptionist/appointments">Open Queue Workspace</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Medicine Desk Queue
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {medicineDesk.length > 0 ? (
-            <div className="space-y-3">
-              {medicineDesk.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex flex-col gap-3 rounded-xl border border-slate-100 bg-slate-50/30 p-4 transition-colors hover:border-amber-100 dark:border-slate-800 dark:bg-slate-900/10 dark:hover:border-amber-900 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                        <div className="font-semibold text-lg">{entry.patientName}</div>
-                        {entry.priority === "URGENT" && (
-                            <Badge className="bg-rose-500 text-white animate-pulse border-none h-5 text-[10px]">URGENT</Badge>
-                        )}
-                    </div>
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Clock className="w-3 h-3" />
-                      {entry.queuePosition ? getQueuePositionLabel({ position: entry.queuePosition }) : "Medicine handover pending"}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge
-                      className={
-                        entry.readyForHandover || entry.paymentStatus === "PAID"
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 px-3 py-1"
-                          : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-3 py-1"
-                      }
-                    >
-                      {entry.readyForHandover || entry.paymentStatus === "PAID"
-                        ? "Ready For Handover"
-                        : "Awaiting Payment"}
-                    </Badge>
-                    {entry.pendingAmount > 0 && (
-                      <Badge variant="outline" className="border-amber-200 text-amber-700 bg-amber-50/50 dark:bg-amber-900/20">
-                        INR {entry.pendingAmount.toFixed(2)}
-                      </Badge>
-                    )}
-                    
-                    <div className="flex items-center gap-2 ml-2">
-                      {entry.paymentStatus !== "PAID" && entry.pendingAmount > 0 && (
-                        <Button size="sm" variant="ghost" asChild className="h-9 gap-1 text-slate-600 dark:text-slate-300">
-                          <Link href="/billing?tab=invoices">
-                            <Receipt className="w-3.5 h-3.5" />
-                            Billing
-                          </Link>
-                        </Button>
-                      )}
-                      {(entry.readyForHandover || entry.paymentStatus === "PAID") && (
-                        <Button 
-                          size="sm" 
-                          className="h-9 gap-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm"
-                          onClick={() => handleDispense(entry.id)}
-                          disabled={dispenseMutation.isPending}
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          Handover
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No active medicine desk handovers right now.
-            </p>
-          )}
-        </CardContent>
-      </Card>
     </DashboardPageShell>
   );
 }

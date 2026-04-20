@@ -72,7 +72,7 @@ type StatusFilter = "ALL" | "SCHEDULED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLET
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string; bg: string }> = {
   SCHEDULED:   { label: "Scheduled",   color: "text-blue-700 dark:text-blue-300",   dot: "bg-blue-500",   bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900" },
-  CONFIRMED:   { label: "Confirmed",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900" },
+  CONFIRMED:   { label: "Queued",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900" },
   IN_PROGRESS: { label: "In Progress", color: "text-purple-700 dark:text-purple-300",dot: "bg-purple-500",bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-100 dark:border-purple-900" },
   COMPLETED:   { label: "Completed",   color: "text-slate-600 dark:text-slate-400", dot: "bg-slate-400", bg: "bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700" },
   CANCELLED:   { label: "Cancelled",   color: "text-red-700 dark:text-red-300",     dot: "bg-red-500",   bg: "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900" },
@@ -293,7 +293,7 @@ export default function AppointmentManager({
 
 
   const handleCancelAppointment = useCallback((id: string) => {
-    cancelAppointment({ id, reason: "Cancelled by patient during testing" }, {
+    cancelAppointment({ id, reason: "Cancelled via appointment manager" }, {
       onSuccess: () => showSuccessToast("Appointment cancelled", { id: TOAST_IDS.APPOINTMENT.DELETE, description: "Your appointment has been cancelled." }),
       onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to cancel", { id: TOAST_IDS.APPOINTMENT.DELETE }),
     });
@@ -343,6 +343,7 @@ export default function AppointmentManager({
     iconColor,
     cardBorder,
     cardHover,
+    className,
   }: {
     label: string;
     value: number;
@@ -353,8 +354,9 @@ export default function AppointmentManager({
     iconColor: string;
     cardBorder: string;
     cardHover: string;
+    className?: string;
   }) => (
-    <div className={`rounded-2xl border ${cardBorder} bg-card p-4 flex items-center gap-3 transition-all ${cardHover} hover:shadow-sm`}>
+    <div className={`rounded-2xl border ${cardBorder} bg-card p-4 flex items-center gap-3 transition-all ${cardHover} hover:shadow-sm ${className || ""}`}>
       <div className={`rounded-xl ${iconBg} p-2.5 border ${iconBorder} ${iconColor}`}>{icon}</div>
       <div>
         <p className="text-2xl font-extrabold text-foreground tracking-tight">{value}</p>
@@ -607,14 +609,14 @@ export default function AppointmentManager({
   return (
     <Card className="max-w-6xl mx-auto bg-card rounded-xl border border-border sm:rounded-2xl shadow-sm overflow-hidden">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="text-xl font-bold flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
                <Calendar className="w-5 h-5 text-emerald-600" />
             </div>
             Current Appointments
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start sm:gap-3 lg:w-auto lg:justify-end">
             {isRealTimeEnabled && (
               <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${isConnected ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-amber-500"}`} />
@@ -630,7 +632,7 @@ export default function AppointmentManager({
                 {...(propPatientId ? { initialPatientId: propPatientId } : {})}
                 trigger={
                 <Button
-                  className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md hover:shadow-lg rounded-xl px-6 font-bold h-10 transition-all active:scale-95 border border-emerald-500/30 ring-2 ring-emerald-600/20 ring-offset-1"
+                  className="w-full sm:w-auto gap-2 rounded-xl border-0 bg-emerald-600 px-6 font-bold h-10 text-white shadow-md transition-all active:scale-95 hover:bg-emerald-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-emerald-500/30"
                 >
                   <CalendarPlus className="h-5 w-5" />
                   Book Appointment
@@ -642,11 +644,14 @@ export default function AppointmentManager({
             <Button
               variant="outline"
               onClick={() => refetch()}
-              className="h-10 w-10 rounded-xl flex items-center justify-center p-0 border-border/50 hover:bg-accent/50 transition-all shadow-sm"
+              className="h-10 w-full gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 py-2 text-sky-700 hover:bg-sky-100 hover:text-sky-800 transition-all shadow-sm dark:border-sky-900/70 dark:bg-sky-950/25 dark:text-sky-300 dark:hover:bg-sky-950/45 sm:w-auto"
               disabled={appointmentsFetching}
               title="Refresh Appointments"
             >
-              <RefreshCw className={`w-4 h-4 text-muted-foreground ${appointmentsFetching ? "animate-spin" : ""}`} />
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200">
+                <RefreshCw className={`w-3.5 h-3.5 ${appointmentsFetching ? "animate-spin" : ""}`} />
+              </span>
+              <span className="text-sm font-medium">Refresh</span>
             </Button>
           </div>
         </div>
@@ -655,7 +660,7 @@ export default function AppointmentManager({
       <CardContent className="space-y-6">
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
           <StatCard
             label="Total"
             value={stats.total}
@@ -665,6 +670,7 @@ export default function AppointmentManager({
             iconColor="text-blue-600"
             cardBorder="border-blue-100 dark:border-blue-900"
             cardHover="hover:border-blue-300"
+            className="bg-blue-50/70 dark:bg-blue-950/20"
           />
           <StatCard
             label="Upcoming"
@@ -675,6 +681,7 @@ export default function AppointmentManager({
             iconColor="text-emerald-600"
             cardBorder="border-emerald-100 dark:border-emerald-900"
             cardHover="hover:border-emerald-300"
+            className="bg-emerald-50/70 dark:bg-emerald-950/20"
           />
           <StatCard
             label="In Progress"
@@ -685,6 +692,7 @@ export default function AppointmentManager({
             iconColor="text-amber-600"
             cardBorder="border-amber-100 dark:border-amber-900"
             cardHover="hover:border-amber-300"
+            className="bg-amber-50/70 dark:bg-amber-950/20"
           />
           <StatCard
             label="Completed"
@@ -695,6 +703,7 @@ export default function AppointmentManager({
             iconColor="text-violet-600"
             cardBorder="border-violet-100 dark:border-violet-900"
             cardHover="hover:border-violet-300"
+            className="bg-violet-50/70 dark:bg-violet-950/20"
           />
       </div>
 
@@ -717,7 +726,7 @@ export default function AppointmentManager({
             const labelMap: Record<string, string> = {
               ALL: "All",
               SCHEDULED: "Scheduled",
-              CONFIRMED: "Confirmed",
+              CONFIRMED: "Queued",
               IN_PROGRESS: "In Progress",
               COMPLETED: "Completed",
               CANCELLED: "Cancelled"

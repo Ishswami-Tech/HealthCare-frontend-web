@@ -55,6 +55,7 @@ export const useQueue = (clinicId?: string, filters?: {
 }) => {
   const normalizedClinicId = clinicId?.trim();
   const { isConnected } = useWebSocketStatus();
+  const { enabled, ...queueRequestFilters } = filters ?? {};
   const queueFilters: QueueListFilters | undefined = filters
     ? {
         ...(filters.type ? { type: filters.type } : {}),
@@ -66,11 +67,11 @@ export const useQueue = (clinicId?: string, filters?: {
 
   return useQueryData(getQueueListQueryKey(normalizedClinicId, queueFilters), async () => {
     return await getQueue({
-      ...filters,
+      ...queueRequestFilters,
       ...(normalizedClinicId ? { clinicId: normalizedClinicId } : {}),
     });
   }, {
-    enabled: filters?.enabled !== false,
+    enabled: enabled !== false,
     // Websocket invalidation owns freshness when connected; polling becomes fallback only.
     refetchInterval: isConnected ? 2 * 60 * 1000 : 30000,
   });

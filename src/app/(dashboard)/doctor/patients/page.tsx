@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { DataTable } from "@/components/ui/data-table";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments } from "@/hooks/query/useAppointments";
@@ -106,6 +107,10 @@ export default function DoctorPatients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [genderFilter, setGenderFilter] = useState("all");
   const [ageFilter, setAgeFilter] = useState("all");
+  const [scheduleTarget, setScheduleTarget] = useState<{
+    id: string;
+    token: number;
+  } | null>(null);
   const patientsQuery = useDoctorPatients(
     clinicId || "",
     {
@@ -251,7 +256,16 @@ export default function DoctorPatients() {
               <Eye className="mr-1 h-4 w-4" />
               View EHR
             </Button>
-            <Button size="sm" className="flex items-center gap-1">
+            <Button
+              size="sm"
+              className="flex items-center gap-1"
+              onClick={() =>
+                setScheduleTarget({
+                  id: row.original.userId || row.original.user?.id || row.original.id,
+                  token: Date.now(),
+                })
+              }
+            >
               <Calendar className="h-3 w-3" />
               Schedule
             </Button>
@@ -400,11 +414,26 @@ export default function DoctorPatients() {
         pageSize={10}
       />
 
-      <Drawer open={!!drawerPatient} onOpenChange={(open) => !open && setSelectedPatient(null)}>
-        <DrawerContent className="mx-auto max-h-[90vh] max-w-4xl overflow-y-auto">
+      <Drawer
+        direction="right"
+        open={!!drawerPatient}
+        onOpenChange={(open) => !open && setSelectedPatient(null)}
+      >
+        <DrawerContent className="h-full w-[min(92vw,80rem)] max-w-none overflow-y-auto">
           {drawerPatient ? <EhrDrawerContent patient={drawerPatient} /> : null}
         </DrawerContent>
       </Drawer>
+
+      {scheduleTarget ? (
+        <BookAppointmentDialog
+          key={scheduleTarget.token}
+          defaultOpen
+          {...(clinicId ? { clinicId } : {})}
+          {...(doctorId ? { initialDoctorId: doctorId } : {})}
+          initialPatientId={scheduleTarget.id}
+          onBooked={() => setScheduleTarget(null)}
+        />
+      ) : null}
     </DashboardPageShell>
   );
 }

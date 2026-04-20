@@ -510,22 +510,6 @@ export async function updateAppointment(id: string, data: UpdateAppointmentData)
 }
 
 /**
- * Cancel appointment
- * @deprecated Use updateAppointmentStatus instead
- */
-export async function cancelAppointment(id: string, reason?: string) {
-  return updateAppointmentStatus(id, { status: 'CANCELLED', reason });
-}
-
-/**
- * Confirm appointment
- * @deprecated Use updateAppointmentStatus instead
- */
-export async function confirmAppointment(id: string) {
-  return updateAppointmentStatus(id, { status: 'CONFIRMED' });
-}
-
-/**
  * Check in appointment
  */
 export async function checkInAppointment(

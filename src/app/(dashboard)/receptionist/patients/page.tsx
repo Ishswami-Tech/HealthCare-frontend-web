@@ -28,8 +28,7 @@ import {
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { usePatients, useCreatePatient } from "@/hooks/query/usePatients";
-import { useCreateUser } from "@/hooks/query/useUsers";
+import { usePatients, useQuickRegisterPatient } from "@/hooks/query/usePatients";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import {
@@ -85,26 +84,6 @@ function normalizePatientGender(
   return undefined;
 }
 
-function extractCreatedUserId(result: unknown): string | undefined {
-  if (!result || typeof result !== "object") {
-    return undefined;
-  }
-
-  const record = result as Record<string, unknown>;
-  if (typeof record.id === "string") {
-    return record.id;
-  }
-
-  if (record.data && typeof record.data === "object") {
-    const nested = record.data as Record<string, unknown>;
-    if (typeof nested.id === "string") {
-      return nested.id;
-    }
-  }
-
-  return undefined;
-}
-
 export default function ReceptionistPatients() {
   useAuth();
   const { clinicId } = useClinicContext();
@@ -145,8 +124,7 @@ export default function ReceptionistPatients() {
   useWebSocketQuerySync();
 
   // Create patient mutation
-  const createPatientMutation = useCreatePatient();
-  const createUserMutation = useCreateUser();
+  const quickRegisterPatientMutation = useQuickRegisterPatient();
 
   // Calculate age from dateOfBirth if needed
   const patientsWithAge = useMemo(() => {
@@ -355,37 +333,27 @@ export default function ReceptionistPatients() {
               phone: newPatient.emergencyPhone.trim(),
             }
           : undefined;
-
-      const createdUser = await createUserMutation.mutateAsync({
-        email:
-          newPatient.email.trim() ||
-          `patient.${newPatient.phone.replace(/\D/g, "")}@placeholder.local`,
+      const email = newPatient.email.trim();
+      const quickRegisterResult = await quickRegisterPatientMutation.mutateAsync({
+        ...(email ? { email } : {}),
         password: temporaryPassword,
         firstName: trimmedFirstName,
         lastName: trimmedLastName,
         phone: trimmedPhone,
-        role: Role.PATIENT,
-        clinicId,
         ...(gender ? { gender } : {}),
         ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
         ...(newPatient.address.trim() ? { address: newPatient.address.trim() } : {}),
-        ...(medicalHistory.length > 0 ? { medicalConditions: medicalHistory } : {}),
-        ...(emergencyContact ? { emergencyContact } : {}),
-      });
-
-      const userId = extractCreatedUserId(createdUser);
-      if (!userId) {
-        throw new Error("Created patient user is missing an ID");
-      }
-
-      await createPatientMutation.mutateAsync({
-        userId,
-        ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
-        ...(gender ? { gender } : {}),
-        ...(allergies.length > 0 ? { allergies } : {}),
         ...(medicalHistory.length > 0 ? { medicalHistory } : {}),
         ...(emergencyContact ? { emergencyContact } : {}),
       });
+
+      const userId =
+        (quickRegisterResult as any)?.user?.id ||
+        (quickRegisterResult as any)?.userId ||
+        (quickRegisterResult as any)?.id;
+      if (!userId) {
+        throw new Error("Quick registration completed without a usable patient ID");
+      }
 
       showSuccessToast(
         `Patient created successfully. Temporary password: ${temporaryPassword}`,
@@ -674,10 +642,10 @@ export default function ReceptionistPatients() {
                     <Button 
                       size="sm"
                       onClick={handleNewPatientSubmit}
-                      disabled={createPatientMutation.isPending || createUserMutation.isPending}
+                      disabled={quickRegisterPatientMutation.isPending}
                       className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20 px-6 rounded-lg h-9 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
                     >
-                      {createPatientMutation.isPending || createUserMutation.isPending ? (
+                      {quickRegisterPatientMutation.isPending ? (
                         <>
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           Registering...

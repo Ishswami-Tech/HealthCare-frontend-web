@@ -108,6 +108,21 @@ export default function TherapistDashboard() {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "CONFIRMED":
+        return "Queued";
+      case "IN_PROGRESS":
+        return "In Progress";
+      case "SCHEDULED":
+        return "Scheduled";
+      case "COMPLETED":
+        return "Completed";
+      default:
+        return status.replaceAll("_", " ").toLowerCase();
+    }
+  };
+
   return (
     <DashboardPageShell>
       <DashboardPageHeader
@@ -227,12 +242,12 @@ export default function TherapistDashboard() {
                     </div>
                     <div className="text-right">
                       <div className="font-medium">{appointment.time}</div>
-                      <Badge
-                        className={`${getStatusColor(appointment.status)} flex items-center gap-1`}
-                      >
-                        {getStatusIcon(appointment.status)}
-                        {appointment.status.replace("_", " ").toLowerCase()}
-                      </Badge>
+                        <Badge
+                          className={`${getStatusColor(appointment.status)} flex items-center gap-1`}
+                        >
+                          {getStatusIcon(appointment.status)}
+                        {getStatusLabel(appointment.status)}
+                        </Badge>
                     </div>
                   </div>
                 ))}

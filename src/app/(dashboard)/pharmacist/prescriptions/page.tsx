@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DataTable } from "@/components/ui/data-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -163,108 +165,148 @@ export default function PharmacistPrescriptionsPage() {
     });
   };
 
-  const renderPrescriptionCard = (prescription: PrescriptionRow, allowDispense: boolean) => {
-    const state = getPrescriptionState(prescription);
-    const StateIcon = state.icon;
-
-    return (
-      <Card key={prescription.id} className="hover:shadow-md transition-shadow">
-        <CardContent className="p-6 space-y-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">{prescription.patientName}</h3>
-                <p className="text-sm text-gray-600">{prescription.doctorName}</p>
-                <p className="text-xs text-gray-500">Prescription ID: {prescription.id}</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className={`${state.badgeClass} flex items-center gap-1`}>
-                <StateIcon className="w-3.5 h-3.5" />
-                {state.label}
-              </Badge>
-              <Badge variant="outline">{prescription.paymentStatus}</Badge>
-              {prescription.queuePosition ? (
-                <Badge variant="outline">
-                  {getQueuePositionLabel({ position: prescription.queuePosition ?? 0 })}
-                </Badge>
-              ) : null}
-            </div>
+  const activeColumns = useMemo<ColumnDef<PrescriptionRow>[]>(
+    () => [
+      {
+        accessorKey: "patientName",
+        header: "Patient",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="font-semibold text-foreground">{row.original.patientName}</span>
+            <span className="text-xs text-muted-foreground">ID: {row.original.id}</span>
           </div>
-
-          <div className="grid gap-2 text-sm text-gray-600 md:grid-cols-2">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span>{new Date(prescription.prescribedAt).toLocaleString()}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              <span>
-                Paid ₹{prescription.paidAmount.toLocaleString()} / ₹
-                {prescription.totalAmount.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Package className="w-4 h-4" />
-              <span>{prescription.queueCategory || "MEDICINE_DESK"}</span>
-            </div>
+        ),
+      },
+      {
+        accessorKey: "doctorName",
+        header: "Doctor",
+        cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.doctorName}</span>,
+      },
+      {
+        accessorKey: "prescribedAt",
+        header: "Prescribed",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {new Date(row.original.prescribedAt).toLocaleString("en-IN")}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "State",
+        cell: ({ row }) => {
+          const state = getPrescriptionState(row.original);
+          const StateIcon = state.icon;
+          return (
+            <Badge className={`${state.badgeClass} flex items-center gap-1`}>
+              <StateIcon className="w-3.5 h-3.5" />
+              {state.label}
+            </Badge>
+          );
+        },
+      },
+      {
+        accessorKey: "paymentStatus",
+        header: "Payment",
+        cell: ({ row }) => <Badge variant="outline">{row.original.paymentStatus}</Badge>,
+      },
+      {
+        accessorKey: "queuePosition",
+        header: "Queue",
+        cell: ({ row }) =>
+          row.original.queuePosition ? (
+            <Badge variant="outline">
+              {getQueuePositionLabel({ position: row.original.queuePosition ?? 0 })}
+            </Badge>
+          ) : (
+            <span className="text-sm text-muted-foreground">-</span>
+          ),
+      },
+      {
+        accessorKey: "medicines",
+        header: "Medicines",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.medicines.map((medicine) => medicine.name).join(", ")}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => handleDispense(row.original.id)}
+              disabled={!row.original.canDispense || dispensePrescription.isPending}
+            >
+              <Package className="mr-2 h-4 w-4" />
+              Dispense
+            </Button>
           </div>
+        ),
+      },
+    ],
+    [dispensePrescription.isPending]
+  );
 
-          <div className="space-y-2">
-            <h4 className="font-medium">Medicines ({prescription.medicines.length})</h4>
-            {prescription.medicines.map((medicine, index) => (
-              <div
-                key={`${prescription.id}-${index}`}
-                className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{medicine.name}</span>
-                    {!medicine.available ? (
-                      <Badge variant="destructive" className="text-xs">
-                        Out of Stock
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <p className="text-sm text-gray-600">{medicine.dosage}</p>
-                </div>
-                <span className="text-sm text-gray-500">{medicine.quantity}</span>
-              </div>
-            ))}
+  const historyColumns = useMemo<ColumnDef<PrescriptionRow>[]>(
+    () => [
+      {
+        accessorKey: "patientName",
+        header: "Patient",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="font-semibold text-foreground">{row.original.patientName}</span>
+            <span className="text-xs text-muted-foreground">ID: {row.original.id}</span>
           </div>
-
-          <div className="rounded-lg border bg-slate-50 px-4 py-3 text-sm">
-            {prescription.pendingAmount > 0 ? (
-              <p className="text-amber-700">
-                Prescription payment is pending. Remaining amount: ₹
-                {prescription.pendingAmount.toLocaleString()}
-              </p>
-            ) : (
-              <p className="text-emerald-700">
-                Payment received. Medicine handover can be completed.
-              </p>
-            )}
-          </div>
-
-          {allowDispense ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={() => handleDispense(prescription.id)}
-                disabled={!prescription.canDispense || dispensePrescription.isPending}
-              >
-                <Package className="mr-2 h-4 w-4" />
-                Dispense Medicines
-              </Button>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
-    );
-  };
+        ),
+      },
+      {
+        accessorKey: "doctorName",
+        header: "Doctor",
+        cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.doctorName}</span>,
+      },
+      {
+        accessorKey: "prescribedAt",
+        header: "Prescribed",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {new Date(row.original.prescribedAt).toLocaleString("en-IN")}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "State",
+        cell: ({ row }) => {
+          const state = getPrescriptionState(row.original);
+          const StateIcon = state.icon;
+          return (
+            <Badge className={`${state.badgeClass} flex items-center gap-1`}>
+              <StateIcon className="w-3.5 h-3.5" />
+              {state.label}
+            </Badge>
+          );
+        },
+      },
+      {
+        accessorKey: "paymentStatus",
+        header: "Payment",
+        cell: ({ row }) => <Badge variant="outline">{row.original.paymentStatus}</Badge>,
+      },
+      {
+        accessorKey: "medicines",
+        header: "Medicines",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.medicines.map((medicine) => medicine.name).join(", ")}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
 
   if (isPending) {
     return (
@@ -321,9 +363,16 @@ export default function PharmacistPrescriptionsPage() {
 
         <TabsContent value="active" className="space-y-4">
           {activePrescriptions.length > 0 ? (
-            activePrescriptions.map((prescription) =>
-              renderPrescriptionCard(prescription, true)
-            )
+            <Card>
+              <CardContent className="p-4">
+                <DataTable
+                  columns={activeColumns}
+                  data={activePrescriptions}
+                  pageSize={10}
+                  emptyMessage="No active prescriptions"
+                />
+              </CardContent>
+            </Card>
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center gap-3 p-10 text-center">
@@ -341,9 +390,16 @@ export default function PharmacistPrescriptionsPage() {
 
         <TabsContent value="history" className="space-y-4">
           {historyPrescriptions.length > 0 ? (
-            historyPrescriptions.map((prescription) =>
-              renderPrescriptionCard(prescription, false)
-            )
+            <Card>
+              <CardContent className="p-4">
+                <DataTable
+                  columns={historyColumns}
+                  data={historyPrescriptions}
+                  pageSize={10}
+                  emptyMessage="No dispense history"
+                />
+              </CardContent>
+            </Card>
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center gap-3 p-10 text-center">

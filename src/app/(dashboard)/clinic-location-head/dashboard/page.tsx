@@ -123,50 +123,50 @@ export default function ClinicLocationHeadDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-slate-100 shadow-sm">
+        <Card className="border-blue-200 bg-blue-50 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-500 uppercase tracking-tight">
+            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-blue-700 dark:text-blue-300">
               Today
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalToday}</div>
-            <p className="text-xs text-slate-400 mt-1">Total appointments</p>
+            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.totalToday}</div>
+            <p className="mt-1 text-xs text-blue-700/80 dark:text-blue-200/80">Total appointments</p>
           </CardContent>
         </Card>
-        <Card className="border-blue-100 shadow-sm">
+        <Card className="border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-blue-600 uppercase tracking-tight">
+            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-emerald-700 dark:text-emerald-300">
               Queue
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
               {queueStats ? Number(queueStats.waiting ?? stats.waiting) : stats.waiting}
             </div>
-            <p className="text-xs text-slate-400 mt-1">Waiting patients</p>
+            <p className="mt-1 text-xs text-emerald-700/80 dark:text-emerald-200/80">Waiting patients</p>
           </CardContent>
         </Card>
-        <Card className="border-amber-100 shadow-sm">
+        <Card className="border-indigo-200 bg-indigo-50 shadow-sm dark:border-indigo-500/20 dark:bg-indigo-500/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-amber-600 uppercase tracking-tight">
+            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-indigo-700 dark:text-indigo-300">
               In Progress
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{stats.inProgress}</div>
-            <p className="text-xs text-slate-400 mt-1">Active consultations</p>
+            <div className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">{stats.inProgress}</div>
+            <p className="mt-1 text-xs text-indigo-700/80 dark:text-indigo-200/80">Active consultations</p>
           </CardContent>
         </Card>
-        <Card className="border-emerald-100 shadow-sm">
+        <Card className="border-green-200 bg-green-50 shadow-sm dark:border-green-500/20 dark:bg-green-500/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-emerald-600 uppercase tracking-tight">
+            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-green-700 dark:text-green-300">
               Completed
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">{stats.completed}</div>
-            <p className="text-xs text-slate-400 mt-1">Done today</p>
+            <div className="text-2xl font-bold text-green-900 dark:text-green-100">{stats.completed}</div>
+            <p className="mt-1 text-xs text-green-700/80 dark:text-green-200/80">Done today</p>
           </CardContent>
         </Card>
       </div>

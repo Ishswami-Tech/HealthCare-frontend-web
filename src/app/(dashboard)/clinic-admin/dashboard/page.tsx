@@ -150,12 +150,12 @@ export default function ClinicAdminDashboard() {
               variant="ghost"
               size="sm"
               onClick={() => refetchStats()}
-              className="h-10 px-4 font-bold flex items-center gap-2"
+              className="h-10 px-4 font-bold flex items-center gap-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200 dark:hover:bg-blue-950/40"
             >
               <RefreshCcw className="w-4 h-4" />
               Sync Data
             </Button>
-            <Button asChild className="h-10 px-6 font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-2 rounded-xl">
+            <Button asChild className="h-10 px-6 font-bold shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">
               <Link href="/clinic-admin/schedule">
                 <Plus className="w-4 h-4" />
                 Manage Schedule
@@ -219,7 +219,7 @@ export default function ClinicAdminDashboard() {
             isUp: medicineDeskItems.filter((item) => item.paymentStatus === "PAID").length > 0
           }
         ].map((item, i) => (
-          <Card key={i} className="group border-none shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
+          <Card key={i} className={cn("group border-none shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden ring-1", item.bg, "ring-neutral-200 dark:ring-neutral-800")}>
             <div className={cn("h-1 w-full opacity-30 group-hover:opacity-100 transition-opacity", item.color.replace('text', 'bg'))} />
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -248,7 +248,7 @@ export default function ClinicAdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-foreground">
         {/* Live Queue Tracker */}
-        <Card className="lg:col-span-8 border-none shadow-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
+        <Card className="lg:col-span-8 border-none shadow-lg bg-blue-50/60 dark:bg-blue-950/10 ring-1 ring-blue-100 dark:ring-blue-900 overflow-hidden">
           <CardHeader className="p-6 border-b bg-neutral-50/50 dark:bg-neutral-900/50 flex flex-row items-center justify-between">
             <div className="space-y-1">
               <CardTitle className="text-xl font-black flex items-center gap-2">
@@ -345,7 +345,7 @@ export default function ClinicAdminDashboard() {
         {/* Sidebar Insights */}
         <div className="lg:col-span-4 space-y-8 text-neutral-900">
           {/* Recent Performance */}
-          <Card className="border-none shadow-lg bg-blue-600 text-white overflow-hidden relative">
+        <Card className="border-none shadow-lg bg-blue-600 text-white overflow-hidden relative">
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <TrendingUp className="w-24 h-24" />
             </div>
@@ -377,7 +377,7 @@ export default function ClinicAdminDashboard() {
           </Card>
 
           {/* Activity Log */}
-          <Card className="border-none shadow-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+          <Card className="border-none shadow-lg bg-purple-50/60 dark:bg-purple-950/10 ring-1 ring-purple-100 dark:ring-purple-900">
             <CardHeader className="p-6 border-b">
               <CardTitle className="text-lg font-black flex items-center gap-2">
                 <Activity className="w-5 h-5 text-purple-600" />
@@ -406,7 +406,7 @@ export default function ClinicAdminDashboard() {
         </div>
       </div>
 
-      <Card className="border-none shadow-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
+      <Card className="border-none shadow-lg bg-amber-50/60 dark:bg-amber-950/10 ring-1 ring-amber-100 dark:ring-amber-900 overflow-hidden">
         <CardHeader className="p-6 border-b bg-neutral-50/50 dark:bg-neutral-900/50">
           <CardTitle className="text-xl font-black flex items-center gap-2">
             <Activity className="w-5 h-5 text-amber-600" />

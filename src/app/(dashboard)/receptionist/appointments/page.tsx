@@ -197,7 +197,7 @@ export default function ReceptionistAppointmentsPage() {
     limit: 200,
   });
   const { data: locations = [] } = useActiveLocations(clinicId || "");
-  const { data: doctorsData } = useDoctors(clinicId || "", { limit: 500 });
+  const { data: doctorsData } = useDoctors(clinicId || "", { limit: 200 });
 
   const assignableDoctors = useMemo(() => {
     const normalize = (users: any[]) =>
@@ -655,7 +655,7 @@ export default function ReceptionistAppointmentsPage() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                    <SelectItem value="CONFIRMED">Queued</SelectItem>
                     <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                     <SelectItem value="COMPLETED">Completed</SelectItem>
                     <SelectItem value="AWAITING_SLOT_CONFIRMATION">Awaiting Slot</SelectItem>

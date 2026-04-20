@@ -1008,13 +1008,6 @@ export class ClinicApiClient extends ApiClient {
   }
 
   /**
-   * @deprecated Prefer updateAppointmentStatus(id, { status: 'CANCELLED' })
-   */
-  async cancelAppointment(id: string) {
-    return this.updateAppointmentStatus(id, { status: 'CANCELLED' });
-  }
-
-  /**
    * Update appointment status (Consolidated method)
    * Replaces checkIn, start, complete, cancel, etc.
    */
@@ -1043,13 +1036,6 @@ export class ClinicApiClient extends ApiClient {
     restrictions?: string[];
   }) {
     return this.patch(API_ENDPOINTS.APPOINTMENTS.STATUS(id), data);
-  }
-
-  /**
-   * @deprecated Prefer updateAppointmentStatus(id, { status: 'CONFIRMED' })
-   */
-  async confirmAppointment(id: string) {
-    return this.updateAppointmentStatus(id, { status: 'CONFIRMED' });
   }
 
   async proposeVideoAppointment(data: {
@@ -1088,25 +1074,6 @@ export class ClinicApiClient extends ApiClient {
 
   async scanLocationQRAndCheckIn(data: { qrCode: string; locationId?: string }) {
     return this.post(API_ENDPOINTS.APPOINTMENTS.SCAN_QR, data);
-  }
-
-  /**
-   * @deprecated Prefer updateAppointmentStatus(id, { status: 'IN_PROGRESS' })
-   */
-  async startAppointment(id: string) {
-    return this.updateAppointmentStatus(id, { status: 'IN_PROGRESS' });
-  }
-
-  /**
-   * @deprecated Prefer updateAppointmentStatus(id, { status: 'COMPLETED', ...data })
-   */
-  async completeAppointment(id: string, data: {
-    diagnosis?: string;
-    prescription?: string;
-    notes?: string;
-    followUpDate?: string;
-  }) {
-    return this.updateAppointmentStatus(id, { status: 'COMPLETED', ...data });
   }
 
   async getDoctorAvailability(

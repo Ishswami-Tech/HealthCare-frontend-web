@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useActiveSubscription,
@@ -20,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DataTable } from "@/components/ui/data-table";
 import {
   FileText,
   CreditCard,
@@ -32,9 +34,10 @@ import {
   Sparkles,
   Check,
 } from "lucide-react";
+import { PaymentHistory } from "@/components/billing/PaymentHistory";
 import { PaymentButton } from "@/components/payments";
 import { useLayoutStore } from "@/stores/layout.store";
-import type { BillingPlan, Subscription } from "@/types/billing.types";
+import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
 
 export default function PatientBillingPage() {
   const { session } = useAuth();
@@ -300,6 +303,146 @@ export default function PatientBillingPage() {
     }
   }
 
+  const invoiceColumns: ColumnDef<Invoice>[] = [
+      {
+        accessorKey: "invoiceNumber",
+        header: "Invoice",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="font-semibold text-foreground">
+              {row.original.invoiceNumber || `#${row.original.id.slice(-8).toUpperCase()}`}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {getInvoiceDateLabel(row.original)}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "amount",
+        header: "Amount",
+        cell: ({ row }) => (
+          <span className="font-semibold">
+            {formatAmount(row.original.amount, row.original.currency)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant="outline" className={`font-medium ${statusColor(row.original.status)}`}>
+            {formatStatusLabel(row.original.status)}
+          </Badge>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {(row.original.status === "OPEN" || row.original.status === "OVERDUE") && (
+              <PaymentButton
+                invoiceId={row.original.id}
+                amount={row.original.amount}
+                className="w-full sm:w-auto"
+              />
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => handleDownloadPDF(row.original.id)}
+              title="Download invoice PDF"
+            >
+              <Download className="h-3.5 w-3.5" />
+              PDF
+            </Button>
+          </div>
+        ),
+      },
+  ];
+
+  const subscriptionColumns: ColumnDef<Subscription>[] = [
+      {
+        accessorKey: "plan",
+        header: "Plan",
+        cell: ({ row }) => {
+          const plan = row.original.plan;
+          const isActive = isEffectivelyActive(row.original);
+          return (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-foreground">
+                  {plan?.name ?? "Subscription Plan"}
+                </span>
+                {isActive && (
+                  <Badge className="bg-green-600 text-white hover:bg-green-600 dark:bg-green-700">
+                    Active
+                  </Badge>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {plan?.billingCycle ? cycleLabel(plan.billingCycle) : "Cycle unknown"}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "period",
+        header: "Period",
+        cell: ({ row }) => {
+          const sub = row.original;
+          return (
+            <div className="flex flex-col text-sm">
+              <span className="text-foreground">
+                {getPeriodStart(sub) ? formatDate(getPeriodStart(sub)!) : "--"}
+              </span>
+              <span className="text-xs text-muted-foreground">{getPeriodEndLabel(sub)}</span>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "usage",
+        header: "Usage",
+        cell: ({ row }) => {
+          const progress = getVisitProgress(row.original);
+          if (!progress) {
+            return <span className="text-sm text-muted-foreground">Unlimited visits</span>;
+          }
+          return (
+            <span className="text-sm text-muted-foreground">
+              {progress.used}/{progress.limit} used
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+          const expiryInfo = getExpiryInfo(row.original);
+          const displayStatus = getSubscriptionDisplayStatus(row.original, expiryInfo);
+          return (
+            <Badge variant="outline" className={`font-medium ${statusColor(displayStatus)}`}>
+              {formatSubscriptionStatus(displayStatus)}
+            </Badge>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: () => (
+          <Button variant="outline" size="sm" className="h-8" onClick={openPlansTab}>
+            View Plans
+          </Button>
+        ),
+      },
+  ];
+
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -543,74 +686,12 @@ export default function PatientBillingPage() {
               </CardContent>
             </Card>
           ) : (
-            invoices.map((invoice) => (
-              <Card key={invoice.id}>
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    {/* Left: invoice info */}
-                    <div className="min-w-0 space-y-1 sm:flex-1">
-                      <p className="font-medium">
-                        {invoice.invoiceNumber
-                          ? `Invoice ${invoice.invoiceNumber}`
-                          : `Invoice #${invoice.id.slice(-8).toUpperCase()}`}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {getInvoiceDateLabel(invoice)}
-                      </p>
-                      <Badge variant="outline" className={`font-medium ${statusColor(invoice.status)}`}>
-                        {formatStatusLabel(invoice.status)}
-                      </Badge>
-                    </div>
-
-                    {/* Right: amount + actions */}
-                    <div className="flex w-full flex-col gap-2 sm:min-w-[148px] sm:w-auto sm:items-end shrink-0">
-                      <p className="text-lg font-semibold tracking-tight sm:text-right">{formatAmount(invoice.amount, invoice.currency)}</p>
-
-                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                        {/* Pay button for open/overdue */}
-                        {(invoice.status === "OPEN" || invoice.status === "OVERDUE") && (
-                          <PaymentButton
-                            invoiceId={invoice.id}
-                            amount={invoice.amount}
-                            className="w-full sm:min-w-[110px] sm:w-auto"
-                          />
-                        )}
-
-                        {/* PDF download — always visible */}
-                        <Button
-                          id={`download-invoice-${invoice.id}`}
-                          size="sm"
-                          variant="outline"
-                          className="h-8 w-full gap-1.5 text-xs sm:min-w-[84px] sm:w-auto"
-                          onClick={() => handleDownloadPDF(invoice.id)}
-                          title="Download invoice PDF"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          PDF
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Line items preview (if available) */}
-                  {Array.isArray(invoice.items) && invoice.items.length > 0 && (
-                    <div className="mt-3 pt-3 border-t space-y-1">
-                      {invoice.items.slice(0, 3).map((item, i) => (
-                        <div key={item.id ?? i} className="flex items-start justify-between gap-3 text-xs text-muted-foreground">
-                          <span className="min-w-0 flex-1 break-words">{item.description}</span>
-                          <span className="shrink-0">{formatAmount(item.total, invoice.currency)}</span>
-                        </div>
-                      ))}
-                      {invoice.items.length > 3 && (
-                        <p className="text-xs text-muted-foreground">
-                          +{invoice.items.length - 3} more item{invoice.items.length - 3 !== 1 ? "s" : ""}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))
+            <DataTable
+              columns={invoiceColumns}
+              data={invoices}
+              pageSize={10}
+              emptyMessage="No invoices found"
+            />
           )}
         </TabsContent>
 
@@ -634,40 +715,7 @@ export default function PatientBillingPage() {
               </CardContent>
             </Card>
           ) : (
-            payments.map((payment) => (
-              <Card key={payment.id}>
-                <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 space-y-1 sm:flex-1">
-                    <p className="font-medium">
-                      {payment.method || "Payment"} - #{payment.id.slice(-8).toUpperCase()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {payment.paymentDate
-                        ? formatDate(payment.paymentDate)
-                        : payment.createdAt
-                          ? formatDate(payment.createdAt)
-                          : "--"}
-                    </p>
-                    {payment.transactionId && (
-                      <p className="text-xs text-muted-foreground font-mono">
-                        Txn: {payment.transactionId}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex w-full flex-col gap-2 sm:min-w-[132px] sm:w-auto sm:items-end sm:text-right">
-                    <p className="text-lg font-semibold tracking-tight text-emerald-600 sm:text-right">
-                      {formatAmount(payment.amount, payment.currency)}
-                    </p>
-                    <Badge
-                      variant="outline"
-                      className={`font-medium ${statusColor(payment.status || "COMPLETED")}`}
-                    >
-                      {formatStatusLabel(payment.status || "COMPLETED")}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+            <PaymentHistory payments={payments} compact />
           )}
         </TabsContent>
 
@@ -729,224 +777,12 @@ export default function PatientBillingPage() {
                 </div>
               )}
 
-              {subscriptionCards.map((sub, index) => {
-                const plan = sub.plan;
-                const visitProgress = getVisitProgress(sub);
-                const expiryInfo = getExpiryInfo(sub);
-                const displayStatus = getSubscriptionDisplayStatus(sub, expiryInfo);
-                const features = plan?.features?.slice(0, 4) ?? [];
-                const planName = plan?.name ?? "Subscription Plan";
-                const cycle = plan?.billingCycle;
-                const planPrice = plan?.price;
-                const currency = plan?.currency ?? "INR";
-                const isActive = isEffectivelyActive(sub);
-                const previousSubscription = subscriptionCards[index - 1];
-                const previousIsActive = previousSubscription
-                  ? isEffectivelyActive(previousSubscription)
-                  : false;
-                const showCurrentHeader = isActive && (index === 0 || !previousIsActive);
-                const showHistoryHeader = !isActive && (index === 0 || previousIsActive);
-
-                return (
-                  <Fragment key={sub.id}>
-                  {showCurrentHeader && (
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">Current subscription</p>
-                      <p className="text-xs text-muted-foreground">
-                        This is the plan currently available for appointments and benefits.
-                      </p>
-                    </div>
-                  )}
-
-                  {showHistoryHeader && (
-                    <div className="space-y-1 pt-2">
-                      <p className="text-sm font-semibold text-foreground">Subscription history</p>
-                      <p className="text-xs text-muted-foreground">
-                        Previous or expired subscription records are kept for billing history.
-                      </p>
-                    </div>
-                  )}
-
-                  <Card
-                    className={`overflow-hidden ${isActive ? "border-green-300 dark:border-green-900" : ""}`}
-                  >
-                    {/* Top accent bar */}
-                    <div
-                      className={`h-1 w-full ${
-                        isActive && sub.status === "ACTIVE"
-                          ? "bg-green-500"
-                          : isActive && sub.status === "TRIALING"
-                            ? "bg-blue-500"
-                            : (!isActive && ["ACTIVE", "TRIALING", "PAST_DUE"].includes(sub.status))
-                              ? "bg-amber-500"
-                              : "bg-slate-300 dark:bg-slate-700"
-                      }`}
-                    />
-
-                    <CardContent className="p-4 sm:p-5 space-y-3">
-                      {/* ── Header: plan name + price side-by-side ── */}
-                      <div className="flex items-start justify-between gap-3 flex-wrap">
-                        {/* Left: name + badges */}
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-base leading-tight">{planName}</p>
-                            {isActive && (
-                              <Badge className="bg-green-600 text-white hover:bg-green-600 dark:bg-green-700 text-xs px-2 py-0">
-                                Active
-                              </Badge>
-                            )}
-                            {cycle && (
-                              <Badge variant="secondary" className="text-xs px-2 py-0 font-normal">
-                                {cycleLabel(cycle)}
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Status + auto-renew row */}
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {!isActive && (
-                              <Badge variant="outline" className={`font-medium text-xs ${statusColor(displayStatus)}`}>
-                                {formatSubscriptionStatus(displayStatus)}
-                              </Badge>
-                            )}
-                            {isActive ? (
-                              <span
-                                className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${
-                                  sub.autoRenew
-                                    ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900"
-                                    : "bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800"
-                                }`}
-                              >
-                                <RefreshCw className="h-3 w-3" />
-                                Auto-renew {sub.autoRenew ? "ON" : "OFF"}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-                                Renewal stopped
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Date range */}
-                          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                            <Calendar className="h-3 w-3 shrink-0" />
-                            {getPeriodStart(sub) ? formatDate(getPeriodStart(sub)!) : "--"}
-                            {" - "}
-                            {getPeriodEndLabel(sub)}
-                          </p>
-                        </div>
-
-                        {/* Right: price */}
-                        {planPrice != null && (
-                          <div className="shrink-0 text-right">
-                            <p className="text-xl font-bold tracking-tight">
-                              {formatAmount(planPrice, currency)}
-                            </p>
-                            {cycle && (
-                              <p className="text-xs text-muted-foreground">
-                                per {cycleLabel(cycle).toLowerCase()}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* ── Visits section ── */}
-                      {visitProgress !== null ? (
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Activity className="h-3.5 w-3.5" />
-                              Visits used
-                            </span>
-                            <span className="font-medium text-foreground">
-                              {visitProgress.used} / {visitProgress.limit}
-                              <span className="font-normal text-muted-foreground ml-1">
-                                ({visitProgress.remaining} remaining)
-                              </span>
-                            </span>
-                          </div>
-                          <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden dark:bg-slate-800">
-                            <div
-                              className={`h-full rounded-full transition-all ${
-                                visitProgress.pct >= 90
-                                  ? "bg-red-500"
-                                  : visitProgress.pct >= 70
-                                    ? "bg-amber-500"
-                                    : "bg-green-500"
-                              }`}
-                              style={{ width: `${visitProgress.pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      ) : plan?.isUnlimitedAppointments ? (
-                        <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                          Unlimited visits included
-                        </div>
-                      ) : null}
-
-                      {/* ── Renewal / expiry countdown ── */}
-                      {expiryInfo !== null && (
-                        <div
-                          className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs ${
-                            expiryInfo.days <= 0
-                              ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300"
-                              : expiryInfo.days <= 7
-                                ? "bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300"
-                                : expiryInfo.days <= 30
-                                  ? "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
-                                  : "bg-muted text-muted-foreground dark:bg-slate-900 dark:text-slate-300"
-                          }`}
-                        >
-                          <span className="flex items-center gap-1.5">
-                            <Calendar className="h-3.5 w-3.5 shrink-0" />
-                            {isActive
-                              ? sub.nextBillingDate
-                                ? "Next renewal"
-                                : "Expires"
-                              : "Expired on"}:{" "}
-                            <span className="font-medium">{formatDate(expiryInfo.target!)}</span>
-                          </span>
-                          <span className="font-semibold ml-2 shrink-0">
-                            {!isActive && expiryInfo.days < 0
-                              ? `Expired ${Math.abs(expiryInfo.days)}d ago`
-                              : expiryInfo.days > 0
-                              ? `${expiryInfo.days}d left`
-                              : expiryInfo.days === 0
-                                ? "Today"
-                                : sub.nextBillingDate
-                                  ? `Overdue by ${Math.abs(expiryInfo.days)}d`
-                                  : `Expired ${Math.abs(expiryInfo.days)}d ago`}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* ── Features list ── */}
-                      {features.length > 0 && (
-                        <div className="pt-2 border-t">
-                          <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
-                            <Sparkles className="h-3.5 w-3.5" />
-                            Plan includes
-                          </p>
-                          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                            {features.map((feat, i) => (
-                              <li
-                                key={i}
-                                className="flex items-center gap-1.5 text-xs text-muted-foreground"
-                              >
-                                <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
-                                <span className="truncate">{feat}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                  </Fragment>
-                );
-              })}
+              <DataTable
+                columns={subscriptionColumns}
+                data={subscriptionCards}
+                pageSize={10}
+                emptyMessage="No subscriptions found"
+              />
             </>
           )}
         </TabsContent>
@@ -1037,3 +873,4 @@ export default function PatientBillingPage() {
     </div>
   );
 }
+

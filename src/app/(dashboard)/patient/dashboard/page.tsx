@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -16,16 +16,19 @@ import {
   usePatientPrescriptions,
   useComprehensiveHealthRecord,
 } from "@/hooks/query/useMedicalRecords";
+import { useInvoices, usePayments } from "@/hooks/query/useBilling";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useTranslation } from "@/lib/i18n/context";
 import { theme } from "@/lib/utils/theme-utils";
 import {
   normalizeAppointmentStatus,
+  getAppointmentStatusDisplayName,
   normalizePatientAppointment,
 } from "@/lib/utils/appointmentUtils";
 import {
   Activity,
   Calendar,
+  CreditCard,
   FileText,
   Pill,
   Clock,
@@ -72,6 +75,8 @@ export default function PatientDashboard() {
     "active"
   );
   const { data: comprehensiveData, isPending: isPendingComprehensive } = useComprehensiveHealthRecord(patientId);
+  const { data: invoicesData = [] } = useInvoices(patientId);
+  const { data: paymentsData = [] } = usePayments(patientId);
 
   // Transform real data
   const patientData = useMemo(() => {
@@ -102,6 +107,18 @@ export default function PatientDashboard() {
       ? appointmentsData.appointments
       : [];
     const appointments = Array.isArray(rawAppointments) ? rawAppointments : [];
+    const uniqueAppointments = Array.from(
+      new Map(
+        appointments.map((apt: any) => {
+          const normalized = normalizePatientAppointment(apt);
+          const dedupeKey =
+            apt?.id ||
+            `${normalized.doctorName || "doctor"}-${normalized.normalizedDate || "date"}-${normalized.normalizedTime || "time"}-${normalized.locationName || "location"}`;
+
+          return [String(dedupeKey), apt];
+        })
+      ).values()
+    );
     const activeUpcomingStatuses = new Set([
       "SCHEDULED",
       "CONFIRMED",
@@ -109,8 +126,8 @@ export default function PatientDashboard() {
     ]);
     
     // Safety check for appointments array
-    const upcomingAppointments = Array.isArray(appointments) 
-      ? appointments
+    const upcomingAppointments = Array.isArray(uniqueAppointments) 
+      ? uniqueAppointments
           .filter((apt: any) => {
             const normalized = normalizePatientAppointment(apt);
             const appointmentStart = normalized.dateTime;
@@ -156,6 +173,17 @@ export default function PatientDashboard() {
 
     const latestVitals = (vitalSignsData as any)?.[0] || {};
     const latestPrescriptions = Array.isArray(prescriptionsData) ? prescriptionsData : [];
+    const billingInvoices = Array.isArray(invoicesData) ? invoicesData : [];
+    const billingPayments = Array.isArray(paymentsData) ? paymentsData : [];
+    const openInvoices = billingInvoices.filter((invoice: any) => {
+      const status = String(invoice?.status || "").toUpperCase();
+      return status === "OPEN" || status === "OVERDUE";
+    });
+    const outstandingAmount = openInvoices.reduce(
+      (total: number, invoice: any) => total + Number(invoice?.amount || 0),
+      0
+    );
+    const latestPayment = billingPayments[0] || null;
 
     const calculateAge = (dob: any) => {
       if (!dob) return null;
@@ -186,7 +214,7 @@ export default function PatientDashboard() {
         treatmentProgress: 0, 
         nextAppointment: upcomingAppointments[0]?.date || null,
         lastVisit:
-          appointments
+          uniqueAppointments
             .filter((apt: any) => normalizePatientAppointment(apt).status === "COMPLETED")
             .sort(
               (a: any, b: any) =>
@@ -195,6 +223,7 @@ export default function PatientDashboard() {
             )[0]?.time || null,
       },
       upcomingAppointments,
+      videoAppointments: upcomingAppointments.filter((apt: any) => apt.isOnline),
       recentActivity: [] as Array<{ type: string; message: string; time: string }>,
       currentTreatments: [] as Array<{ name: string; type: string; doctor: string; progress: number; nextSession: string }>,
       medications: latestPrescriptions.slice(0, 5).map((presc: any) => ({
@@ -202,6 +231,11 @@ export default function PatientDashboard() {
         dosage: presc.dosage || "As prescribed",
         nextRefill: presc.nextRefillDate ? safeFormatDate(presc.nextRefillDate) : null,
       })),
+      billingSummary: {
+        openInvoices: openInvoices.length,
+        outstandingAmount,
+        recentPaymentStatus: latestPayment ? String(latestPayment.status || "PENDING").toUpperCase() : "NONE",
+      },
       vitalStats: {
         bloodPressure: latestVitals.bloodPressure || "N/A",
         heartRate: latestVitals.heartRate || "N/A",
@@ -223,8 +257,10 @@ export default function PatientDashboard() {
             ((comprehensiveData as any)?.doshaBalance?.kapha || 0) > 0)
       ),
       hasMedications: latestPrescriptions.length > 0,
+      hasBillingData: billingInvoices.length > 0 || billingPayments.length > 0,
       hasTreatmentData: Boolean((medicalRecordsData as any)?.[0]?.treatment),
       hasVitalData: Boolean((vitalSignsData as any)?.[0]),
+      recordsCount: Array.isArray(medicalRecordsData) ? medicalRecordsData.length : 0,
     };
   }, [
     appointmentsData,
@@ -232,6 +268,8 @@ export default function PatientDashboard() {
     vitalSignsData,
     prescriptionsData,
     comprehensiveData,
+    invoicesData,
+    paymentsData,
     user,
   ]);
 
@@ -267,44 +305,295 @@ export default function PatientDashboard() {
   };
 
   return (
-        <PatientPageShell>
+        <PatientPageShell className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           <PatientPageHeader
             eyebrow="Patient Dashboard"
             title={`${t("dashboard.welcomeBack")}, ${patientData.personalInfo.name.split(" ")[0]}`}
             description={t("dashboard.overview")}
+            actionsSlot={
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Button
+                  variant="outline"
+                  className="h-10 gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 text-sky-700 hover:bg-sky-100 hover:text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-300"
+                  onClick={() => router.push('/patient/check-in')}
+                >
+                  <div className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-current">
+                    <div className="h-1.5 w-1.5 rounded-[1px] bg-current" />
+                  </div>
+                  Scan Check-In
+                </Button>
+                <Button
+                  className="h-10 gap-2 rounded-xl border-0 bg-emerald-600 px-4 font-semibold text-white hover:bg-emerald-700"
+                  onClick={() => router.push("/patient/appointments?openBooking=1")}
+                >
+                  <Plus className="h-4 w-4" />
+                  Book Appointment
+                </Button>
+              </div>
+            }
           />
 
-          <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 rounded-xl border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all"
-                onClick={() => router.push('/patient/check-in')}
-              >
-                <div className="w-4 h-4 flex items-center justify-center border-2 border-current rounded-sm">
-                   <div className="w-2 h-2 bg-current rounded-[1px]" />
+          <Card className="overflow-hidden border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-background to-sky-50 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:via-card dark:to-sky-950/20">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                    <Clock className="h-4 w-4" />
+                    Health Workspace
+                  </div>
+                  {patientData.upcomingAppointments.length > 0 ? (
+                    <div className="rounded-2xl border border-emerald-200/80 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-emerald-900/40 dark:bg-card/80">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700/80 dark:text-emerald-300/80">
+                            Upcoming appointments
+                          </p>
+                          <h3 className="mt-1 text-base font-semibold text-foreground">
+                            {patientData.upcomingAppointments.length} upcoming visit{patientData.upcomingAppointments.length > 1 ? "s" : ""}
+                          </h3>
+                        </div>
+                        <Badge className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+                          All visits
+                        </Badge>
+                      </div>
+
+                      <div className="mt-4 max-h-80 space-y-3 overflow-y-auto pr-1">
+                        {patientData.upcomingAppointments.map((appointment: any) => (
+                          <div
+                            key={appointment.id}
+                            className="flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-background/80 p-3 shadow-sm transition-colors hover:border-emerald-200 dark:border-emerald-900/30 dark:bg-card/80"
+                          >
+                            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+                              <div className="flex min-w-0 items-start gap-3">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                  {appointment.isOnline ? (
+                                    <Video className="h-5 w-5" />
+                                  ) : (
+                                    <Stethoscope className="h-5 w-5" />
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700/80 dark:text-emerald-300/80">
+                                      {appointment.isOnline ? "Video consultation" : "In-person visit"}
+                                    </p>
+                                    <Badge className={`h-6 rounded-full px-2.5 text-[10px] font-semibold uppercase tracking-wider ${getStatusColor(appointment.status)}`}>
+                                      {getAppointmentStatusDisplayName(appointment.status)}
+                                    </Badge>
+                                  </div>
+                                  <h4 className="mt-1 truncate text-sm font-semibold text-foreground">
+                                    {appointment.doctor}
+                                  </h4>
+                                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                                    {appointment.type}
+                                    {appointment.isOnline
+                                      ? " · Online"
+                                      : appointment.location
+                                        ? ` · ${appointment.location}`
+                                        : ""}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-950/30 md:min-w-[11.5rem]">
+                                <div className="min-w-0">
+                                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                    Date
+                                  </div>
+                                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                    {new Date(appointment.date).toLocaleDateString("en-IN", {
+                                      day: "numeric",
+                                      month: "short",
+                                    })}
+                                  </div>
+                                </div>
+                                <div className="min-w-0 text-right">
+                                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                    Time
+                                  </div>
+                                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                    {appointment.time || "Time TBD"}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-emerald-200/70 bg-white/60 p-4 text-sm text-muted-foreground shadow-sm dark:border-emerald-900/30 dark:bg-card/60">
+                      No upcoming appointment right now
+                    </div>
+                  )}
                 </div>
-                Scan Check-In
-              </Button>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 rounded-xl border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 font-semibold transition-all"
-                onClick={() => router.push("/patient/appointments?openBooking=1")}
-              >
-                <Plus className="w-4 h-4" />
-                Book Appointment
-              </Button>
-          </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-3">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Meds</div>
+                  <div className="mt-1 text-lg font-bold leading-none text-emerald-900 dark:text-emerald-100">
+                    {patientData.medications.length}
+                  </div>
+                  <div className="mt-1 text-[11px] text-emerald-700/80 dark:text-emerald-200/80">Active</div>
+                </div>
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 shadow-sm dark:border-violet-500/20 dark:bg-violet-500/10">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">Vitals</div>
+                  <div className="mt-1 text-lg font-bold leading-none text-violet-900 dark:text-violet-100">
+                    {patientData.vitalStats.lastUpdated}
+                  </div>
+                  <div className="mt-1 text-[11px] text-violet-700/80 dark:text-violet-200/80">Latest update</div>
+                </div>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Treatment</div>
+                  <div className="mt-1 line-clamp-1 text-lg font-bold leading-none text-amber-900 dark:text-amber-100">
+                    {patientData.healthOverview.currentTreatment || "None"}
+                  </div>
+                  <div className="mt-1 text-[11px] text-amber-700/80 dark:text-amber-200/80">Current plan</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Real-time Queue Status */}
-          <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-             <PatientQueueCard />
+          <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
+                  Live Queue Status
+                </p>
+                <p className={`text-sm ${theme.textColors.secondary}`}>
+                  See your current queue position and check-in status here.
+                </p>
+              </div>
+            </div>
+            <PatientQueueCard />
+          </div>
+
+          {/* Patient Services */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 sm:gap-4">
+            <Card className="h-full overflow-hidden border-l-4 border-l-emerald-400 bg-gradient-to-br from-emerald-50 via-background to-emerald-100/50 shadow-sm dark:from-emerald-950/25 dark:via-card dark:to-emerald-950/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+                <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
+                  Prescriptions
+                </CardTitle>
+                <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                  <Pill className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 sm:space-y-3">
+                <div>
+                  <div className="text-xl font-bold leading-none text-emerald-700 dark:text-emerald-300 sm:text-2xl">
+                    {patientData.medications.length}
+                  </div>
+                  <p className={`text-xs ${theme.textColors.secondary}`}>
+                    Active medicines and refill reminders
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-10 w-full justify-between border-emerald-200 bg-white/80 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200 dark:hover:bg-emerald-900/30"
+                  onClick={() => router.push("/patient/prescriptions")}
+                >
+                  View prescriptions
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="h-full overflow-hidden border-l-4 border-l-sky-400 bg-gradient-to-br from-sky-50 via-background to-sky-100/50 shadow-sm dark:from-sky-950/25 dark:via-card dark:to-sky-950/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+                <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
+                  Billing & Payments
+                </CardTitle>
+                <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
+                  <CreditCard className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 sm:space-y-3">
+                <div>
+                  <div className="text-xl font-bold leading-none text-sky-700 dark:text-sky-300 sm:text-2xl">
+                    {patientData.billingSummary.openInvoices}
+                  </div>
+                  <p className={`text-xs ${theme.textColors.secondary}`}>
+                    Open invoices · {patientData.billingSummary.outstandingAmount > 0 ? `₹${patientData.billingSummary.outstandingAmount.toLocaleString("en-IN")}` : "No dues"}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-10 w-full justify-between border-sky-200 bg-white/80 text-sky-700 hover:bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200 dark:hover:bg-sky-900/30"
+                  onClick={() => router.push("/patient/billing")}
+                >
+                  Open billing
+                  <CreditCard className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="h-full overflow-hidden border-l-4 border-l-violet-400 bg-gradient-to-br from-violet-50 via-background to-violet-100/50 shadow-sm dark:from-violet-950/25 dark:via-card dark:to-violet-950/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+                <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
+                  Video Consults
+                </CardTitle>
+                <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                  <Video className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 sm:space-y-3">
+                <div>
+                  <div className="text-xl font-bold leading-none text-violet-700 dark:text-violet-300 sm:text-2xl">
+                    {patientData.videoAppointments.length}
+                  </div>
+                  <p className={`text-xs ${theme.textColors.secondary}`}>
+                    Upcoming online consultations
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-10 w-full justify-between border-violet-200 bg-white/80 text-violet-700 hover:bg-violet-50 dark:border-violet-900/40 dark:bg-violet-950/20 dark:text-violet-200 dark:hover:bg-violet-900/30"
+                  onClick={() => router.push("/video-appointments")}
+                >
+                  Join video visits
+                  <Video className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="h-full overflow-hidden border-l-4 border-l-amber-400 bg-gradient-to-br from-amber-50 via-background to-amber-100/50 shadow-sm dark:from-amber-950/25 dark:via-card dark:to-amber-950/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
+                <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
+                  Reports & Records
+                </CardTitle>
+                <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                  <FileText className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 sm:space-y-3">
+                <div>
+                  <div className="text-xl font-bold leading-none text-amber-700 dark:text-amber-300 sm:text-2xl">
+                    {patientData.recordsCount}
+                  </div>
+                  <p className={`text-xs ${theme.textColors.secondary}`}>
+                    Visit notes, vitals, and history
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-10 w-full justify-between border-amber-200 bg-white/80 text-amber-700 hover:bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                  onClick={() => router.push("/patient/medical-records")}
+                >
+                  View reports
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Health Overview Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 sm:gap-4 xl:gap-6">
             {/* Diagnosis Card */}
             {isPendingComprehensive ? (
-               <div className="border rounded-lg p-4 space-y-3">
+               <div className="border rounded-lg p-3 sm:p-4 space-y-3">
                  <Skeleton className="h-4 w-1/2" />
                  <Skeleton className="h-8 w-3/4" />
                  <Skeleton className="h-3 w-1/2" />
@@ -341,8 +630,8 @@ export default function PatientDashboard() {
                   <Activity className="h-4 w-4 text-blue-600" />
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
+              <CardContent className="space-y-1.5 sm:space-y-2">
+                <div className="text-xl font-bold text-blue-600 sm:text-2xl">
                   {patientData.healthOverview.treatmentProgress}%
                 </div>
                 <p className={`text-xs ${theme.textColors.muted}`}>
@@ -352,48 +641,9 @@ export default function PatientDashboard() {
             </Card>
             ) : null}
 
-            {/* Next Appointment Card */}
-            {isPendingAppointments ? (
-               <div className="border rounded-lg p-4 space-y-3">
-                 <Skeleton className="h-4 w-1/2" />
-                 <Skeleton className="h-8 w-3/4" />
-                 <Skeleton className="h-3 w-1/2" />
-               </div>
-            ) : (
-            <Card className="hover:shadow-lg transition-shadow duration-300 border-l-4 border-l-amber-400">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className={`text-sm font-medium ${theme.textColors.heading}`}>
-                  {t("appointments.upcoming")}
-                </CardTitle>
-                <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center">
-                  <Calendar className="h-4 w-4 text-amber-600" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className={`text-lg font-bold text-primary`}>
-                  {patientData.healthOverview.nextAppointment ? new Date(
-                    patientData.healthOverview.nextAppointment
-                  ).toLocaleDateString("en-IN", {
-                    month: "short",
-                    day: "numeric",
-                  }) : "No appointments"}
-                </div>
-                <p className={`text-xs ${theme.textColors.muted}`}>
-                  {patientData.healthOverview.nextAppointment ? new Date(
-                    patientData.healthOverview.nextAppointment
-                  ).toLocaleTimeString("en-IN", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true,
-                  }) : "Schedule one now"}
-                </p>
-              </CardContent>
-            </Card>
-            )}
-
             {/* Vitals Card */}
             {isPendingVitals ? (
-               <div className="border rounded-lg p-4 space-y-3">
+               <div className="border rounded-lg p-3 sm:p-4 space-y-3">
                  <Skeleton className="h-4 w-1/2" />
                  <Skeleton className="h-8 w-3/4" />
                  <Skeleton className="h-3 w-1/2" />
@@ -408,8 +658,8 @@ export default function PatientDashboard() {
                   <Heart className="h-4 w-4 text-red-500" />
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-lg font-bold text-red-500">
+              <CardContent className="space-y-1.5 sm:space-y-2">
+                <div className="text-base font-bold text-red-500 sm:text-lg">
                   {patientData.vitalStats.bloodPressure}
                 </div>
                 <p className={`text-xs ${theme.textColors.muted}`}>
@@ -420,10 +670,10 @@ export default function PatientDashboard() {
             ) : null}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.35fr_0.95fr] gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[1.15fr_0.95fr]">
             {/* Dosha Balance Chart */}
             {patientData.hasDoshaData && (
-            <Card className="lg:order-2 border-l-4 border-l-violet-400 shadow-sm">
+            <Card className="border-l-4 border-l-violet-400 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-violet-50 border border-violet-100 flex items-center justify-center">
@@ -521,111 +771,6 @@ export default function PatientDashboard() {
             </Card>
             )}
 
-            {/* Upcoming Appointments */}
-            <Card className="lg:order-1 border-l-4 border-l-emerald-400 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-                    <Calendar className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  Upcoming Appointments
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-               {isPendingAppointments ? (
-                  <div className="space-y-4">
-                     <Skeleton className="h-16 w-full" />
-                     <Skeleton className="h-16 w-full" />
-                  </div>
-               ) : (
-                <div className="space-y-4">
-                  {patientData.upcomingAppointments.length === 0 ? (
-                     <div className="text-center py-8 text-muted-foreground">
-                        No upcoming appointments
-                     </div>
-                  ) : (
-                  patientData.upcomingAppointments.map((appointment: any) => (
-                    <div
-                      key={appointment.id}
-                      className={`flex items-start sm:items-center justify-between gap-2 sm:gap-3 p-3 sm:p-4 border rounded-lg border-emerald-100 hover:bg-emerald-50/40 hover:border-emerald-200 transition-colors`}
-                    >
-                      <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                        <div
-                          className={`w-10 h-10 ${theme.containers.featureBlue} rounded-full flex items-center justify-center shrink-0`}
-                        >
-                          {appointment.isOnline ? (
-                            <Video
-                              className={`w-5 h-5 ${theme.iconColors.blue}`}
-                            />
-                          ) : (
-                            <Stethoscope
-                              className={`w-5 h-5 ${theme.iconColors.blue}`}
-                            />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <h4
-                            className={`font-semibold truncate ${theme.textColors.heading}`}
-                          >
-                            {appointment.type}
-                          </h4>
-                          <p
-                            className={`text-sm truncate ${theme.textColors.secondary}`}
-                          >
-                            {appointment.doctor}
-                          </p>
-                          <div
-                            className={`flex items-center gap-2 text-xs ${theme.textColors.tertiary}`}
-                          >
-                            {appointment.isOnline ? (
-                              <div className="flex items-center gap-1">
-                                <Video className="w-3 h-3 shrink-0" />
-                                <span className="truncate">Online Consultation</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{appointment.location}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="font-medium text-sm">
-                          {new Date(appointment.date).toLocaleDateString(
-                            "en-IN",
-                            {
-                              month: "short",
-                              day: "numeric",
-                            }
-                          )}
-                        </div>
-                        <div
-                          className={`text-xs ${theme.textColors.secondary}`}
-                        >
-                          {appointment.time}
-                        </div>
-                        <Badge className={`mt-1 text-[10px] ${getStatusColor(appointment.status)}`}>
-                          {appointment.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))
-                  )}
-
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => router.push("/patient/appointments?openBooking=1")}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Schedule New Appointment
-                  </Button>
-                </div>
-               )}
-              </CardContent>
-            </Card>
           </div>
 
           {/* Current Treatments */}
@@ -681,10 +826,10 @@ export default function PatientDashboard() {
           </Card>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Current Medications */}
             {patientData.hasMedications && (
-            <Card>
+            <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Pill className="w-5 h-5" />
@@ -752,7 +897,7 @@ export default function PatientDashboard() {
 
             {/* Recent Activity */}
             {patientData.recentActivity.length > 0 && (
-            <Card>
+            <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="w-5 h-5" />
@@ -867,50 +1012,8 @@ export default function PatientDashboard() {
           </Card>
           )}
 
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button
-                  variant="outline"
-                  className="h-16 flex flex-col items-center justify-center gap-2"
-                  onClick={() => router.push("/patient/appointments?openBooking=1")}
-                >
-                  <Calendar className="w-5 h-5" />
-                  <span className="text-sm">Book Appointment</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-16 flex flex-col items-center justify-center gap-2"
-                  onClick={() => window.location.href = "/video-appointments"}
-                >
-                  <Video className="w-5 h-5" />
-                  <span className="text-sm">Video Consult</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-16 flex flex-col items-center justify-center gap-2"
-                  onClick={() => window.location.href = "/patient/medical-records"}
-                >
-                  <FileText className="w-5 h-5" />
-                  <span className="text-sm">View Reports</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-16 flex flex-col items-center justify-center gap-2"
-                  onClick={() => window.location.href = "/patient/prescriptions"}
-                  disabled={!patientData.hasMedications}
-                >
-                  <Pill className="w-5 h-5" />
-                  <span className="text-sm">Refill Prescription</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </PatientPageShell>
     
   );
 }
+

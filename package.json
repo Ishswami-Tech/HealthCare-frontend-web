@@ -16,6 +16,7 @@
     "start:prod": "NODE_ENV=production next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
+    "contract:check": "node --experimental-strip-types scripts/production-contract-check.ts",
     "test:ws": "node scripts/test-websocket.js test",
     "test:ws:health": "node scripts/test-websocket.js test --health",
     "test:ws:verbose": "node scripts/test-websocket.js test --verbose",

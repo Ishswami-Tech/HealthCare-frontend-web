@@ -281,8 +281,9 @@ export const useDeleteDoctor = () => {
  */
 export const useUpdateDoctorSchedule = () => {
   return useMutationOperation(
-    async ({ doctorId, schedule }: {
+    async ({ doctorId, clinicId, schedule }: {
       doctorId: string;
+      clinicId?: string;
       schedule: {
         dayOfWeek: number;
         startTime: string;
@@ -290,7 +291,7 @@ export const useUpdateDoctorSchedule = () => {
         isAvailable: boolean;
       }[];
     }) => {
-      return await updateDoctorSchedule(doctorId, schedule);
+      return await updateDoctorSchedule(doctorId, schedule, clinicId);
     },
     {
       toastId: TOAST_IDS.DOCTOR.UPDATE,

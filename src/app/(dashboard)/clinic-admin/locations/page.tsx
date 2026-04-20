@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { DataTable } from "@/components/ui/data-table";
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
@@ -74,6 +76,22 @@ type LocationFormState = {
   timezone: string;
   isActive: boolean;
   workingHours: WorkingHours;
+};
+
+type LocationRow = {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  phone: string;
+  email: string;
+  timezone: string;
+  country: string;
+  isActive: boolean;
+  workingHours: unknown;
+  raw: any;
 };
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
@@ -351,6 +369,96 @@ export default function ClinicLocationsPage() {
     }
   };
 
+  const locationRows = useMemo<LocationRow[]>(
+    () =>
+      filteredLocations.map((location: any) => ({
+        id: location.id,
+        name: location.name,
+        address: location.address,
+        city: location.city,
+        state: location.state,
+        zipCode: location.zipCode,
+        phone: location.phone,
+        email: location.email,
+        timezone: location.timezone,
+        country: location.country,
+        isActive: location.isActive,
+        workingHours: location.workingHours,
+        raw: location,
+      })),
+    [filteredLocations]
+  );
+
+  const locationColumns = useMemo<ColumnDef<LocationRow>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Location",
+        cell: ({ row }) => (
+          <div className="space-y-1">
+            <div className="font-semibold">{row.original.name}</div>
+            <div className="text-xs text-muted-foreground">
+              {row.original.address}, {row.original.city}, {row.original.state} {row.original.zipCode}
+            </div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "contact",
+        header: "Contact",
+        cell: ({ row }) => (
+          <div className="space-y-1 text-sm">
+            <div className="flex items-center gap-2">
+              <Phone className="w-4 h-4 text-muted-foreground" />
+              <span>{row.original.phone}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Mail className="w-4 h-4 text-muted-foreground" />
+              <span>{row.original.email}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <span>{row.original.timezone}</span>
+            </div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant={row.original.isActive ? "default" : "secondary"}>
+            {row.original.isActive ? "Active" : "Inactive"}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "workingHours",
+        header: "Working Hours",
+        cell: ({ row }) => (
+          <div className="max-w-[420px] text-xs text-muted-foreground">
+            {summarizeWorkingHours(row.original.workingHours)}
+          </div>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => handleEditLocation(row.original.raw)}>
+              <Edit className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => handleDeleteLocation(row.original.id)} disabled={isDeleting}>
+              <Trash2 className="w-4 h-4 text-red-600" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [handleDeleteLocation, isDeleting]
+  );
+
   if (isPendingLocations) {
     return (
       
@@ -601,92 +709,12 @@ export default function ClinicLocationsPage() {
             </div>
           </div>
 
-          <div className="grid gap-4">
-            {filteredLocations.map((location: any) => (
-              <Card key={location.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Building2 className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <CardTitle className="text-xl">
-                          {location.name}
-                        </CardTitle>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {location.address}, {location.city}, {location.state}{" "}
-                          {location.zipCode}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={location.isActive ? "default" : "secondary"}
-                      >
-                        {location.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditLocation(location)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteLocation(location.id)}
-                        disabled={isDeleting}
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">{location.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">{location.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">{location.timezone}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">{location.country}</span>
-                    </div>
-                  </div>
-                  <div className="mt-4 rounded-lg border bg-gray-50 px-4 py-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <Clock className="w-4 h-4" />
-                      Working Hours
-                    </div>
-                    <p className="mt-2 text-sm text-gray-600">
-                      {summarizeWorkingHours(location.workingHours)}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {filteredLocations.length === 0 && (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">
-                  {searchTerm
-                    ? "No locations found matching your search"
-                    : "No locations added yet"}
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          <DataTable
+            columns={locationColumns}
+            data={locationRows}
+            pageSize={10}
+            emptyMessage={searchTerm ? "No locations found matching your search" : "No locations added yet"}
+          />
 
           {/* Edit Dialog */}
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

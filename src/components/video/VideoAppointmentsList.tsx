@@ -1,6 +1,6 @@
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string; bg: string }> = {
   scheduled:   { label: "Scheduled",   color: "text-blue-700 dark:text-blue-300",   dot: "bg-blue-500",   bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900" },
-  confirmed:   { label: "Confirmed",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900" },
+  confirmed:   { label: "Queued",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900" },
   "in-progress": { label: "In Progress", color: "text-emerald-700 dark:text-emerald-300",dot: "bg-emerald-500",bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900" },
   completed:   { label: "Completed",   color: "text-slate-600 dark:text-slate-400", dot: "bg-slate-400", bg: "bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700" },
   cancelled:   { label: "Cancelled",   color: "text-red-700 dark:text-red-300",     dot: "bg-red-500",   bg: "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900" },
@@ -431,8 +431,8 @@ export function VideoAppointmentsList({
   const toDateString = (d?: Date) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : "";
   const formatDateValue = (v: string, p: string) => { const d = parseDateValue(v); return d ? formatDateInIST(d, { day: "2-digit", month: "short", year: "numeric" }) : p; };
 
-  const LocalStatCard = ({ label, value, icon, color }: any) => (
-    <div className="rounded-xl border border-border bg-card p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+  const LocalStatCard = ({ label, value, icon, color, className }: any) => (
+    <div className={cn("rounded-xl border border-border bg-card p-3 sm:p-4 flex items-center gap-2 sm:gap-3", className)}>
       <div className={cn("rounded-xl p-2 sm:p-2.5 shrink-0", color)}>
         {icon}
       </div>
@@ -456,9 +456,20 @@ export function VideoAppointmentsList({
     });
     const isExpanded = expandedCard === (appointment.id || appointment.appointmentId);
     const doctorName = (appointment as any).doctorName || `Consultation ${appointment.appointmentId || appointment.id}`;
+    const finalSlotSource = String(
+      (appointment as any).metadata?.finalSlotSource ||
+        (appointment as any).finalSlotSource ||
+        ""
+    ).toUpperCase();
+    const finalSlotSourceLabel =
+      finalSlotSource === "PROPOSED_SLOT"
+        ? "Confirmed from patient choices"
+        : finalSlotSource === "CUSTOM_SLOT"
+          ? "Doctor-selected fallback slot"
+          : "";
     
     return (
-      <div className="rounded-xl border border-border bg-card">
+      <div className={cn("rounded-xl border overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md", cfg.bg)}>
         <div className="p-3 sm:p-5 cursor-pointer" onClick={() => setExpandedCard(isExpanded ? null : (appointment.id || appointment.appointmentId))}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
@@ -508,6 +519,12 @@ export function VideoAppointmentsList({
                         <span className="text-xs font-medium text-muted-foreground">Authorization</span>
                         <p className="font-medium text-emerald-600 text-sm">{role} Access</p>
                       </div>
+                      {finalSlotSourceLabel && (
+                        <div>
+                          <span className="text-xs font-medium text-muted-foreground">Final Slot</span>
+                          <p className="font-medium text-foreground text-sm">{finalSlotSourceLabel}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -597,11 +614,11 @@ export function VideoAppointmentsList({
 
         {showStatistics && (
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 mb-6">
-            <LocalStatCard label="Total" value={totalAppointments} icon={<Users className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20" />
-            <LocalStatCard label="Active" value={activeAppointments} icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20" />
-            <LocalStatCard label="Pending" value={scheduledAppointments} icon={<Calendar className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20" />
-            <LocalStatCard label="Finished" value={completedAppointmentsCount} icon={<CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-muted-foreground bg-muted" />
-            <LocalStatCard label="Cancelled" value={cancelledAppointments} icon={<XCircle className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" />
+            <LocalStatCard label="Total" value={totalAppointments} icon={<Users className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-indigo-600 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-950/40" className="border-indigo-100 bg-indigo-50/70 dark:border-indigo-900 dark:bg-indigo-950/20" />
+            <LocalStatCard label="Active" value={activeAppointments} icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-emerald-600 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/40" className="border-emerald-100 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20" />
+            <LocalStatCard label="Pending" value={scheduledAppointments} icon={<Calendar className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-blue-600 dark:text-blue-300 bg-blue-100/80 dark:bg-blue-950/40" className="border-blue-100 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/20" />
+            <LocalStatCard label="Finished" value={completedAppointmentsCount} icon={<CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-900/40" className="border-slate-100 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/20" />
+            <LocalStatCard label="Cancelled" value={cancelledAppointments} icon={<XCircle className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-red-600 dark:text-red-300 bg-red-100/80 dark:bg-red-950/40" className="border-red-100 bg-red-50/70 dark:border-red-900 dark:bg-red-950/20" />
           </div>
         )}
 

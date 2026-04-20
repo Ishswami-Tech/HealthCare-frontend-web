@@ -228,7 +228,7 @@ export default function DoctorAppointments() {
     const labels: Record<string, string> = {
       [APPOINTMENT_STATUS.IN_PROGRESS]: 'In Progress',
       [APPOINTMENT_STATUS.SCHEDULED]: 'Scheduled',
-      [APPOINTMENT_STATUS.CONFIRMED]: 'Confirmed',
+      [APPOINTMENT_STATUS.CONFIRMED]: 'Queued',
       [APPOINTMENT_STATUS.COMPLETED]: 'Completed',
       [APPOINTMENT_STATUS.CANCELLED]: 'Cancelled',
       [APPOINTMENT_STATUS.NO_SHOW]: 'No Show',
@@ -299,7 +299,7 @@ export default function DoctorAppointments() {
               <Button variant="outline" size="sm" onClick={() => setSelectedAppointment(app)}>
                 <Eye className="w-4 h-4" />
               </Button>
-              {app.status === APPOINTMENT_STATUS.CONFIRMED && (
+              {app.status === APPOINTMENT_STATUS.CONFIRMED && app.checkedInAt && (
                 <Button
                   size="sm"
                   onClick={() => startConsultation(app.id)}
@@ -308,6 +308,12 @@ export default function DoctorAppointments() {
                 >
                   <Play className="mr-1 h-4 w-4" />
                   Start
+                </Button>
+              )}
+              {app.status === APPOINTMENT_STATUS.CONFIRMED && !app.checkedInAt && (
+                <Button size="sm" variant="outline" disabled title="Patient must be checked in before consultation can start">
+                  <Play className="mr-1 h-4 w-4" />
+                  Waiting check-in
                 </Button>
               )}
               {app.status === APPOINTMENT_STATUS.IN_PROGRESS && (
@@ -420,7 +426,7 @@ export default function DoctorAppointments() {
                   {...(clinicId ? { clinicId } : {})}
                   {...(user?.id ? { initialDoctorId: user.id } : {})}
                   trigger={
-                    <Button className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">
+                    <Button className="rounded-xl border-0 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500/30">
                       <Calendar className="mr-2 h-4 w-4" />
                       Book Appointment
                     </Button>
@@ -435,7 +441,7 @@ export default function DoctorAppointments() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
             <Card className="border-l-4 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
+                <CardTitle className="text-sm font-medium">Queued</CardTitle>
                 <CheckCircle className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
@@ -508,7 +514,7 @@ export default function DoctorAppointments() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All Status</SelectItem>
-                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                    <SelectItem value="CONFIRMED">Queued</SelectItem>
                     <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                     <SelectItem value="SCHEDULED">Scheduled</SelectItem>
                     <SelectItem value="COMPLETED">Completed</SelectItem>
