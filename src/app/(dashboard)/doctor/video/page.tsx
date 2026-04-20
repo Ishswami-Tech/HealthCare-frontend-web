@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { VideoAppointmentsList } from "@/components/video/VideoAppointmentsList";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
@@ -11,7 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { getAppointmentPaymentStatus, isAppointmentAwaitingPayment } from "@/lib/utils/appointmentUtils";
+import {
+  getAppointmentPaymentStatus,
+  isAppointmentAwaitingPayment,
+  formatDateInIST,
+  formatTimeInIST,
+} from "@/lib/utils/appointmentUtils";
 import { CheckCircle, Clock } from "lucide-react";
 
 const isAwaitingDoctorConfirmation = (appointment: any) => {
@@ -47,11 +52,24 @@ const getLastProposedSlotDate = (appointment: any) => {
   });
 };
 
+const formatProposedSlotDate = (slot?: { date?: string; time?: string } | null) => {
+  const parsed = parseSlotDateTime(slot);
+  if (!parsed) return "Invalid slot";
+  return formatDateInIST(parsed, { day: "2-digit", month: "short", year: "numeric" });
+};
+
+const formatProposedSlotTime = (slot?: { date?: string; time?: string } | null) => {
+  const parsed = parseSlotDateTime(slot);
+  if (!parsed) return "Invalid slot";
+  return formatTimeInIST(parsed, { hour: "2-digit", minute: "2-digit", hour12: true });
+};
+
 export default function DoctorVideoPage() {
   const { session } = useAuth();
   const userId = session?.user?.id || "";
   const confirmSlotMutation = useConfirmVideoSlot();
   const confirmFinalSlotMutation = useConfirmFinalVideoSlot();
+  const [optimisticallyConfirmedAppointmentIds, setOptimisticallyConfirmedAppointmentIds] = useState<Set<string>>(new Set());
   const { data: awaitingSlotData } = useAppointments({
     doctorId: userId,
     type: "VIDEO_CALL",
@@ -70,8 +88,12 @@ export default function DoctorVideoPage() {
         ? awaitingSlotData
         : []
   ).filter((appointment: any) => isAwaitingDoctorConfirmation(appointment));
+  const visibleAwaitingSlotAppointments = useMemo(
+    () => allAwaitingSlotAppointments.filter((appointment: any) => !optimisticallyConfirmedAppointmentIds.has(String(appointment?.id || ""))),
+    [allAwaitingSlotAppointments, optimisticallyConfirmedAppointmentIds]
+  );
   const now = new Date();
-  const awaitingSlotAppointments = allAwaitingSlotAppointments.filter((appointment: any) => {
+  const awaitingSlotAppointments = visibleAwaitingSlotAppointments.filter((appointment: any) => {
     const expiryAt = getLastProposedSlotDate(appointment);
     return !expiryAt || expiryAt.getTime() >= now.getTime();
   });
@@ -117,13 +139,13 @@ export default function DoctorVideoPage() {
               </Badge>
             </div>
 
-            <div className="grid gap-3">
+            <div className="max-h-[72vh] space-y-4 overflow-y-auto pr-1">
               {awaitingSlotAppointments.map((appointment: any) => (
                 <div
                   key={appointment.id}
                   className="rounded-xl border border-amber-200 bg-card p-3 shadow-sm dark:border-amber-900/70 sm:p-4"
                 >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <p className="font-semibold text-foreground">
                         {appointment.patient?.user?.name ||
@@ -136,40 +158,86 @@ export default function DoctorVideoPage() {
                         Choose from the proposed slots below.
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {(appointment.proposedSlots || []).map(
-                        (slot: { date: string; time: string }, index: number) => (
+                    <div className="space-y-3">
+                      <div className="grid gap-3 md:grid-cols-3">
+                        {(appointment.proposedSlots || []).map(
+                          (slot: { date: string; time: string }, index: number) => (
+                            <div
+                              key={`${appointment.id}-${slot.date}-${slot.time}-${index}`}
+                              className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 shadow-sm dark:border-amber-800/70 dark:bg-amber-950/30"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
+                                    Option {index + 1}
+                                  </p>
+                                  <p className="mt-1 text-sm font-semibold text-foreground">
+                                    {formatProposedSlotDate(slot)}
+                                  </p>
+                                </div>
+                                <Badge className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/60 dark:text-amber-100">
+                                  Proposed
+                                </Badge>
+                              </div>
+                              <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-100 bg-background/80 px-3 py-2 text-sm dark:border-amber-900/50 dark:bg-card/80">
+                                <div>
+                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Time
+                                  </p>
+                                  <p className="mt-0.5 font-semibold text-foreground">
+                                    {formatProposedSlotTime(slot)}
+                                  </p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  disabled={confirmSlotMutation.isPending}
+                                  className="h-8 rounded-full bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700"
+                                  onClick={async () => {
+                                    await confirmSlotMutation.mutateAsync({
+                                      appointmentId: appointment.id,
+                                      confirmedSlotIndex: index,
+                                    });
+                                    setOptimisticallyConfirmedAppointmentIds(prev => {
+                                      const next = new Set(prev);
+                                      next.add(String(appointment.id));
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  Confirm this slot
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                      <div className="rounded-xl border border-dashed border-amber-200 bg-background/80 p-3 dark:border-amber-800/70 dark:bg-card/80">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground">Need a different slot?</p>
+                            <p className="text-sm text-muted-foreground">
+                              Use a custom fallback time when none of the proposed slots fit.
+                            </p>
+                          </div>
                           <Button
-                            key={`${appointment.id}-${slot.date}-${slot.time}-${index}`}
                             size="sm"
-                            variant="outline"
-                            disabled={confirmSlotMutation.isPending}
-                            className="rounded-xl border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
-                            onClick={() =>
-                              confirmSlotMutation.mutate({
-                                appointmentId: appointment.id,
-                                confirmedSlotIndex: index,
-                              })
-                            }
+                            variant="secondary"
+                            className="rounded-xl"
+                            onClick={() => {
+                              setCustomSlotAppointment(appointment);
+                              setCustomSlotDate(
+                                getLastProposedSlotDate(appointment)?.toLocaleDateString("en-CA", {
+                                  timeZone: "Asia/Kolkata",
+                                }) || ""
+                              );
+                              setCustomSlotTime(appointment?.time ? String(appointment.time).slice(0, 5) : "");
+                            }}
                           >
                             <Clock className="mr-1.5 h-3.5 w-3.5" />
-                            {slot.date} @ {slot.time}
+                            Pick fallback slot
                           </Button>
-                        )
-                      )}
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="rounded-xl"
-                        onClick={() => {
-                          setCustomSlotAppointment(appointment);
-                          setCustomSlotDate(getLastProposedSlotDate(appointment)?.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) || "");
-                          setCustomSlotTime(appointment?.time ? String(appointment.time).slice(0, 5) : "");
-                        }}
-                      >
-                        <Clock className="mr-1.5 h-3.5 w-3.5" />
-                        Set final slot
-                      </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

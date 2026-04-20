@@ -375,7 +375,7 @@ export const useConfirmVideoSlot = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Confirming slot...',
       successMessage: 'Slot confirmed. Patient can now pay.',
-      invalidateQueries: [['appointments'], ['video-appointments'], ['appointment']],
+      invalidateQueries: [['appointments'], ['video-appointments'], ['appointment'], ['myAppointments']],
     }
   );
 };
@@ -656,7 +656,7 @@ export const useConfirmFinalVideoSlot = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Confirming final slot...',
       successMessage: 'Final slot confirmed successfully',
-      invalidateQueries: [['appointments'], ['video-appointments'], ['appointment']],
+      invalidateQueries: [['appointments'], ['video-appointments'], ['appointment'], ['myAppointments']],
     }
   );
 };

@@ -26,7 +26,7 @@ import { clinicApiClient } from '@/lib/api/client';
 
 export async function revalidateCache(tag: string) {
   try {
-    (revalidateTag as any)(tag);
+    (revalidateTag as any)(tag, 'max');
   } catch (error: unknown) {
     logger.warn(`Failed to revalidate tag: ${tag}`, { error });
   }

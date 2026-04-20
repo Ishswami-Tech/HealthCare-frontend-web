@@ -987,6 +987,10 @@ export async function confirmVideoSlot(appointmentId: string, confirmedSlotIndex
       body: JSON.stringify({ confirmedSlotIndex })
     });
     revalidateCache('appointments');
+    revalidateCache('myAppointments');
+    revalidatePath('/patient/dashboard');
+    revalidatePath('/patient/appointments');
+    revalidatePath('/doctor/video');
     return { success: true, appointment };
   } catch (error) {
     logger.error('Failed to confirm video slot', error instanceof Error ? error : new Error(String(error)));
@@ -1016,7 +1020,10 @@ export async function confirmFinalVideoSlot(
       }
     );
     revalidateCache('appointments');
+    revalidateCache('myAppointments');
     revalidatePath('/doctor/video');
+    revalidatePath('/patient/dashboard');
+    revalidatePath('/patient/appointments');
     return { success: true, appointment };
   } catch (error) {
     logger.error('Failed to confirm final video slot', error instanceof Error ? error : new Error(String(error)));

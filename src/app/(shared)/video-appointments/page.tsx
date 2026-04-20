@@ -86,12 +86,34 @@ const isAwaitingDoctorConfirmation = (appointment: any) => {
   return status === "SCHEDULED" && !hasConfirmedSlot;
 };
 
+const parseSlotDateTime = (slot?: { date?: string; time?: string } | null) => {
+  if (!slot?.date || !slot?.time) return null;
+  const normalizedTime = /^\d{2}:\d{2}$/.test(slot.time.trim())
+    ? `${slot.time.trim()}:00`
+    : slot.time.trim();
+  const parsed = new Date(`${slot.date}T${normalizedTime}+05:30`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatProposedSlotDate = (slot?: { date?: string; time?: string } | null) => {
+  const parsed = parseSlotDateTime(slot);
+  if (!parsed) return "Invalid slot";
+  return formatDateInIST(parsed, { day: "2-digit", month: "short", year: "numeric" });
+};
+
+const formatProposedSlotTime = (slot?: { date?: string; time?: string } | null) => {
+  const parsed = parseSlotDateTime(slot);
+  if (!parsed) return "Invalid slot";
+  return formatTimeInIST(parsed, { hour: "2-digit", minute: "2-digit", hour12: true });
+};
+
 export default function VideoAppointmentsPage() {
   const { session } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isProposeDialogOpen, setIsProposeDialogOpen] = useState(false);
+  const [optimisticallyConfirmedAppointmentIds, setOptimisticallyConfirmedAppointmentIds] = useState<Set<string>>(new Set());
 
   const userId = session?.user?.id || "";
   const userRole = (session?.user?.role as Role) ?? "";
@@ -180,7 +202,11 @@ export default function VideoAppointmentsPage() {
       : Array.isArray((appointmentsApi as any)?.data)
       ? (appointmentsApi as any).data
       : []
-  ).filter((apt: any) => isAwaitingDoctorConfirmation(apt));
+  ).filter(
+    (apt: any) =>
+      isAwaitingDoctorConfirmation(apt) &&
+      !optimisticallyConfirmedAppointmentIds.has(String(apt?.id || ""))
+  );
 
   // Patient's proposed appointments (awaiting doctor slot confirmation + payment)
   const { data: myAppointmentsData } = useMyAppointments();
@@ -598,7 +624,7 @@ export default function VideoAppointmentsPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Complete payment so the doctor can confirm your preferred time slot.
             </p>
-            <div className="space-y-4">
+            <div className="max-h-[72vh] space-y-4 overflow-y-auto pr-1">
               {myProposedVideo.map((apt: any) => {
                 const paymentAmount = getVideoPaymentAmount(apt, appointmentServices);
 
@@ -670,20 +696,78 @@ export default function VideoAppointmentsPage() {
                         <p className="text-sm text-muted-foreground mt-1">
                           Proposed slots:
                         </p>
-                        <div className="flex flex-wrap gap-2 mt-2">
+                        <div className="grid gap-3 mt-3 md:grid-cols-3">
                           {(apt.proposedSlots || []).map((s: { date: string; time: string }, i: number) => (
-                            <Button
+                            <div
                               key={i}
-                              size="sm"
-                              variant="outline"
-                              disabled={confirmSlotMutation.isPending}
-                              onClick={() =>
-                                confirmSlotMutation.mutate({ appointmentId: apt.id, confirmedSlotIndex: i })
-                              }
+                              className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 shadow-sm dark:border-amber-800/70 dark:bg-amber-950/30"
                             >
-                              {s.date} @ {s.time}
-                            </Button>
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
+                                    Option {i + 1}
+                                  </p>
+                                  <p className="mt-1 text-sm font-semibold text-foreground">
+                                    {formatProposedSlotDate(s)}
+                                  </p>
+                                </div>
+                                <Badge className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/60 dark:text-amber-100">
+                                  Proposed
+                                </Badge>
+                              </div>
+                              <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-100 bg-background/80 px-3 py-2 text-sm dark:border-amber-900/50 dark:bg-card/80">
+                                <div>
+                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Time
+                                  </p>
+                                  <p className="mt-0.5 font-semibold text-foreground">
+                                    {formatProposedSlotTime(s)}
+                                  </p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 rounded-full border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                                  disabled={confirmSlotMutation.isPending}
+                                  onClick={async () => {
+                                    await confirmSlotMutation.mutateAsync({
+                                      appointmentId: apt.id,
+                                      confirmedSlotIndex: i,
+                                    });
+                                    setOptimisticallyConfirmedAppointmentIds(prev => {
+                                      const next = new Set(prev);
+                                      next.add(String(apt.id));
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  Confirm
+                                </Button>
+                              </div>
+                            </div>
                           ))}
+                        </div>
+                        <div className="rounded-xl border border-dashed border-amber-200 bg-background/80 p-3 dark:border-amber-800/70 dark:bg-card/80">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground">Need a fallback slot?</p>
+                              <p className="text-sm text-muted-foreground">
+                                Use the custom slot dialog when none of the proposed times work.
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="rounded-xl"
+                              onClick={() => {
+                                // Shared page keeps the fallback in the dedicated doctor view.
+                              }}
+                              disabled
+                            >
+                              <Clock className="mr-1.5 h-3.5 w-3.5" />
+                              Custom fallback only
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
