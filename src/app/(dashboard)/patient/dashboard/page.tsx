@@ -22,7 +22,9 @@ import { useTranslation } from "@/lib/i18n/context";
 import { theme } from "@/lib/utils/theme-utils";
 import {
   normalizeAppointmentStatus,
+  getAppointmentStatusBadgeLabel,
   getAppointmentStatusDisplayName,
+  isAwaitingDoctorSlotConfirmation,
   normalizePatientAppointment,
 } from "@/lib/utils/appointmentUtils";
 import {
@@ -119,6 +121,16 @@ export default function PatientDashboard() {
         })
       ).values()
     );
+    const pendingReviewSource = uniqueAppointments.filter((apt: any) =>
+      isAwaitingDoctorSlotConfirmation({
+        ...apt,
+        status: normalizePatientAppointment(apt).status,
+        type: normalizePatientAppointment(apt).type,
+        proposedSlots: (apt as any).proposedSlots,
+        confirmedSlotIndex: (apt as any).confirmedSlotIndex,
+      })
+    );
+    const pendingReviewIds = new Set(pendingReviewSource.map((apt: any) => String(apt.id || "")));
     const activeUpcomingStatuses = new Set([
       "SCHEDULED",
       "CONFIRMED",
@@ -166,10 +178,40 @@ export default function PatientDashboard() {
                 : "",
               location: normalized.locationName,
               status: normalized.status || "SCHEDULED",
+              statusLabel: getAppointmentStatusBadgeLabel({
+                ...apt,
+                status: normalized.status,
+                type: normalized.type,
+                proposedSlots: (apt as any).proposedSlots,
+                confirmedSlotIndex: (apt as any).confirmedSlotIndex,
+              }),
               isOnline: normalized.isOnline,
             };
           })
+          .filter((appointment: any) => !pendingReviewIds.has(String(appointment.id || "")))
       : [];
+
+    const awaitingDoctorReviewAppointments = pendingReviewSource
+      .map((apt: any) => {
+        const normalized = normalizePatientAppointment(apt);
+        return {
+          id: apt.id,
+          doctor: normalized.doctorName,
+          type: normalized.type,
+          date: normalized.normalizedDate,
+          time: normalized.normalizedTime || "Time TBD",
+          location: normalized.locationName,
+          statusLabel: getAppointmentStatusBadgeLabel({
+            ...apt,
+            status: normalized.status,
+            type: normalized.type,
+            proposedSlots: (apt as any).proposedSlots,
+            confirmedSlotIndex: (apt as any).confirmedSlotIndex,
+          }),
+          proposedSlots: Array.isArray((apt as any).proposedSlots) ? (apt as any).proposedSlots : [],
+        };
+      })
+      .sort((a: any, b: any) => String(b.date || "").localeCompare(String(a.date || "")));
 
     const latestVitals = (vitalSignsData as any)?.[0] || {};
     const latestPrescriptions = Array.isArray(prescriptionsData) ? prescriptionsData : [];
@@ -223,6 +265,7 @@ export default function PatientDashboard() {
             )[0]?.time || null,
       },
       upcomingAppointments,
+      awaitingDoctorReviewAppointments,
       videoAppointments: upcomingAppointments.filter((apt: any) => apt.isOnline),
       recentActivity: [] as Array<{ type: string; message: string; time: string }>,
       currentTreatments: [] as Array<{ name: string; type: string; doctor: string; progress: number; nextSession: string }>,
@@ -378,7 +421,7 @@ export default function PatientDashboard() {
                                       {appointment.isOnline ? "Video consultation" : "In-person visit"}
                                     </p>
                                     <Badge className={`h-6 rounded-full px-2.5 text-[10px] font-semibold uppercase tracking-wider ${getStatusColor(appointment.status)}`}>
-                                      {getAppointmentStatusDisplayName(appointment.status)}
+                                      {appointment.statusLabel || getAppointmentStatusDisplayName(appointment.status)}
                                     </Badge>
                                   </div>
                                   <h4 className="mt-1 truncate text-sm font-semibold text-foreground">
@@ -454,6 +497,66 @@ export default function PatientDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {patientData.awaitingDoctorReviewAppointments.length > 0 && (
+            <Card className="overflow-hidden border border-amber-200/80 bg-amber-50/70 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20">
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
+                      Awaiting doctor review
+                    </p>
+                    <h3 className="mt-1 text-base font-semibold text-foreground">
+                      Your 3 preferred video slots are under review
+                    </h3>
+                    <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                      The request stays visible here while the doctor confirms one slot. It is separate from normal upcoming visits so the state is clear.
+                    </p>
+                  </div>
+                  <Badge className="rounded-full border border-amber-200 bg-white px-3 py-1 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300">
+                    {patientData.awaitingDoctorReviewAppointments.length} pending
+                  </Badge>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {patientData.awaitingDoctorReviewAppointments.map((appointment: any) => (
+                    <div
+                      key={appointment.id}
+                      className="rounded-2xl border border-amber-200/80 bg-white/90 p-3 shadow-sm dark:border-amber-900/40 dark:bg-card/80"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{appointment.doctor}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {appointment.date || "Date TBD"} · {appointment.location || "Location TBD"}
+                          </p>
+                        </div>
+                        <Badge className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
+                          {appointment.statusLabel}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-3 space-y-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Preferred slots
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {appointment.proposedSlots.map((slot: { date?: string; time?: string }, index: number) => (
+                            <span
+                              key={`${appointment.id}-slot-${index}`}
+                              className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+                            >
+                              {slot.time || "Time TBD"}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Real-time Queue Status */}
           <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-500">

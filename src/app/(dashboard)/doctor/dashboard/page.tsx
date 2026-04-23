@@ -157,6 +157,14 @@ export default function DoctorDashboard() {
     [appointmentsArray]
   );
 
+  const awaitingSlotReviewAppointments = useMemo(
+    () =>
+      visibleAppointmentsArray.filter((appointment: AppointmentWithRelations) =>
+        isAwaitingDoctorVideoConfirmation(appointment as any)
+      ),
+    [visibleAppointmentsArray]
+  );
+
   // Today's appointments from real data (sorted by time)
   const todaysAppointments = useMemo(() => {
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
@@ -658,6 +666,55 @@ export default function DoctorDashboard() {
 
         {/* Sidebar Actions */}
         <div className="space-y-6">
+            {awaitingSlotReviewAppointments.length > 0 && (
+              <Card className="overflow-hidden border-l-4 border-l-amber-400 shadow-sm">
+                <div className="border-b border-border bg-amber-50/80 p-4 dark:bg-amber-950/20">
+                  <h3 className="flex items-center gap-2 font-bold text-foreground">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                    Awaiting Slot Review
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Video bookings are paid and waiting for your confirmation of one proposed slot.
+                  </p>
+                </div>
+                <CardContent className="space-y-3 p-4">
+                  <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+                    {awaitingSlotReviewAppointments.length}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {awaitingSlotReviewAppointments.length === 1
+                      ? "Request awaiting your review"
+                      : "Requests awaiting your review"}
+                  </p>
+                  <div className="space-y-2">
+                    {awaitingSlotReviewAppointments.slice(0, 3).map((appointment) => (
+                      <div
+                        key={appointment.id}
+                        className="rounded-xl border border-amber-200 bg-white/90 px-3 py-2 text-sm shadow-sm dark:border-amber-900/40 dark:bg-card/80"
+                      >
+                        <div className="font-semibold text-foreground">
+                          {getAppointmentPatientName(appointment)}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {getAppointmentDateTimeValue(appointment)
+                            ? getAppointmentDateTimeValue(appointment)?.toLocaleDateString("en-IN", {
+                                timeZone: "Asia/Kolkata",
+                                day: "numeric",
+                                month: "short",
+                              })
+                            : "Date TBD"}
+                          {" · "}
+                          {Array.isArray((appointment as any).proposedSlots)
+                            ? `${(appointment as any).proposedSlots.length} proposed slots`
+                            : "3 proposed slots"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="overflow-hidden border-l-4 border-l-slate-400 shadow-sm">
               <div className="bg-muted/40 border-b border-border p-4">
                 <h3 className="font-bold text-foreground flex items-center gap-2">

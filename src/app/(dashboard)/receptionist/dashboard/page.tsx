@@ -20,8 +20,10 @@ import { showSuccessToast } from "@/hooks/utils/use-toast";
 import { cn } from "@/lib/utils";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import {
+  getAppointmentStatusBadgeLabel,
   getAppointmentStatusDisplayName,
   getReceptionistAppointmentTimeLabel,
+  normalizeAppointmentStatus,
 } from "@/lib/utils/appointmentUtils";
 
 type ReceptionAppointment = {
@@ -36,6 +38,7 @@ type ReceptionAppointment = {
   waitLabel: string;
   queueCategory?: string;
   priority: string;
+  rawAppointment?: any;
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -89,7 +92,7 @@ export default function ReceptionistDashboard() {
           Boolean(canonical.primaryDoctorId || appointment.primaryDoctorId || appointment.metadata?.primaryDoctorId) &&
           String(canonical.primaryDoctorId || appointment.primaryDoctorId || appointment.metadata?.primaryDoctorId || "") !==
             String(canonical.assignedDoctorId || appointment.assignedDoctorId || appointment.metadata?.assignedDoctorId || appointment.doctorId || ""),
-        status: canonical.status,
+        status: normalizeAppointmentStatus(canonical.status),
         timeLabel: getReceptionistAppointmentTimeLabel(appointment),
         queuePosition: canonical.position > 0 ? canonical.position : null,
         waitLabel:
@@ -102,6 +105,7 @@ export default function ReceptionistDashboard() {
                 : "Pending",
         queueCategory: canonical.queueCategory,
         priority: String(appointment.priority || "NORMAL").toUpperCase(),
+        rawAppointment: appointment,
       };
     });
   }, [appointmentsData]);
@@ -268,7 +272,9 @@ export default function ReceptionistDashboard() {
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <Badge className={STATUS_STYLES[row.original.status] || STATUS_STYLES.SCHEDULED}>
-              {getAppointmentStatusDisplayName(row.original.status)}
+              {row.original.rawAppointment
+                ? getAppointmentStatusBadgeLabel(row.original.rawAppointment)
+                : getAppointmentStatusDisplayName(row.original.status)}
             </Badge>
             {row.original.priority === "URGENT" && (
               <Badge className="bg-rose-500 text-white animate-pulse border-none">URGENT</Badge>
@@ -325,7 +331,9 @@ export default function ReceptionistDashboard() {
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <Badge className={STATUS_STYLES[row.original.status] || STATUS_STYLES.SCHEDULED}>
-              {getAppointmentStatusDisplayName(row.original.status)}
+              {row.original.rawAppointment
+                ? getAppointmentStatusBadgeLabel(row.original.rawAppointment)
+                : getAppointmentStatusDisplayName(row.original.status)}
             </Badge>
             {row.original.priority === "URGENT" && (
               <Badge className="bg-rose-500 text-white animate-pulse border-none">URGENT</Badge>

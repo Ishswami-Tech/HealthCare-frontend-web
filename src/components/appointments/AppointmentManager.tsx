@@ -210,6 +210,20 @@ export default function AppointmentManager({
       });
   }, [patientScopedAppointments]);
 
+  const awaitingDoctorReviewAppointments = useMemo(
+    () =>
+      normalizedAppointments.filter((appointment) =>
+        isAwaitingDoctorSlotConfirmation({
+          ...appointment,
+          status: normalizeAppointmentStatus(appointment.status),
+          type: appointment.type,
+          proposedSlots: (appointment as any).proposedSlots,
+          confirmedSlotIndex: (appointment as any).confirmedSlotIndex,
+        })
+      ),
+    [normalizedAppointments]
+  );
+
   const filteredAppointments = useMemo(() => {
     const parseAppointmentDate = (value: string) => {
       const parsed = new Date(value);
@@ -704,6 +718,61 @@ export default function AppointmentManager({
             className="bg-violet-50/70 dark:bg-violet-950/20"
           />
       </div>
+
+      {awaitingDoctorReviewAppointments.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
+                Awaiting doctor review
+              </p>
+              <h3 className="mt-1 text-base font-semibold text-foreground">
+                {awaitingDoctorReviewAppointments.length} video request{awaitingDoctorReviewAppointments.length > 1 ? "s" : ""} need confirmation
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                The doctor will confirm one of your 3 preferred slots. This request stays separate from normal upcoming visits.
+              </p>
+            </div>
+            <Badge className="rounded-full border border-amber-200 bg-white px-3 py-1 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300">
+              Pending review
+            </Badge>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {awaitingDoctorReviewAppointments.slice(0, 3).map((appointment) => (
+              <div
+                key={getEffectiveAppointmentId(appointment)}
+                className="rounded-xl border border-amber-200/80 bg-white/90 p-3 shadow-sm dark:border-amber-900/40 dark:bg-card/80"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {getAppointmentStatusBadgeLabel(appointment)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {getDisplayAppointmentDuration(appointment) || "15"} min video consult
+                    </p>
+                  </div>
+                  <Badge className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
+                    Pending
+                  </Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {Array.isArray((appointment as any).proposedSlots) &&
+                    (appointment as any).proposedSlots.map((slot: { date?: string; time?: string }, index: number) => (
+                      <span
+                        key={`${getEffectiveAppointmentId(appointment)}-${index}`}
+                        className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+                      >
+                        {slot.time || "Time TBD"}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Search and Filters (REPLICATING DASHBOARD EXACTLY) */}
       <div className="space-y-4 mb-8">
