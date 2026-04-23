@@ -111,6 +111,9 @@ const REFRESH_TOKEN_OPTIONS: Partial<ResponseCookie> = {
   maxAge: 60 * 60 * 24 * 30,
 };
 
+const INVALID_REFRESH_TOKEN_TTL_MS = 5 * 60 * 1000;
+const invalidRefreshTokenCache = new Map<string, number>();
+
 const accessTokenOptions = SESSION_TOKEN_OPTIONS;
 const refreshTokenOptions = REFRESH_TOKEN_OPTIONS;
 const sessionOptions = COOKIE_OPTIONS;
@@ -918,6 +921,16 @@ export async function refreshToken(): Promise<Session | null> {
       throw new Error('No refresh token available');
     }
 
+    const invalidUntil = invalidRefreshTokenCache.get(refreshTokenValue);
+    if (invalidUntil && invalidUntil > Date.now()) {
+      await clearSession();
+      return null;
+    }
+
+    if (invalidUntil && invalidUntil <= Date.now()) {
+      invalidRefreshTokenCache.delete(refreshTokenValue);
+    }
+
     const response = await clinicApiClient.refreshToken({ refreshToken: refreshTokenValue });
     const responseData = response.data as Record<string, any>;
     
@@ -930,6 +943,11 @@ export async function refreshToken(): Promise<Session | null> {
     const session = await setSession(tokens);
     return session; 
   } catch (error) {
+    const cookieStore = await cookies();
+    const refreshTokenValue = cookieStore.get('refresh_token')?.value;
+    if (refreshTokenValue) {
+      invalidRefreshTokenCache.set(refreshTokenValue, Date.now() + INVALID_REFRESH_TOKEN_TTL_MS);
+    }
     logger.error('Token refresh failed', error instanceof Error ? error : new Error(String(error)));
     await clearSession();
     return null;

@@ -283,7 +283,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     
     // Video appointments
     Permission.VIEW_VIDEO_APPOINTMENTS,
-    Permission.CREATE_VIDEO_APPOINTMENTS,
     Permission.UPDATE_VIDEO_APPOINTMENTS,
     Permission.JOIN_VIDEO_APPOINTMENTS,
     
@@ -339,7 +338,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     
     // Video appointments (join, no end)
     Permission.VIEW_VIDEO_APPOINTMENTS,
-    Permission.CREATE_VIDEO_APPOINTMENTS,
     Permission.JOIN_VIDEO_APPOINTMENTS,
     
     // Billing (view)
@@ -466,7 +464,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     
     // Video appointments (propose, view, join)
     Permission.VIEW_VIDEO_APPOINTMENTS,
-    Permission.CREATE_VIDEO_APPOINTMENTS,
     Permission.JOIN_VIDEO_APPOINTMENTS,
     
     // Medical records (own only)
@@ -493,7 +490,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_QUEUE,
     Permission.UPDATE_QUEUE_STATUS,
     Permission.VIEW_VIDEO_APPOINTMENTS,
-    Permission.CREATE_VIDEO_APPOINTMENTS,
     Permission.JOIN_VIDEO_APPOINTMENTS,
     Permission.END_VIDEO_APPOINTMENTS,
     Permission.VIEW_NOTIFICATIONS,
@@ -570,7 +566,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.VIEW_QUEUE,
     Permission.UPDATE_QUEUE_STATUS,
     Permission.VIEW_VIDEO_APPOINTMENTS,
-    Permission.CREATE_VIDEO_APPOINTMENTS,
     Permission.JOIN_VIDEO_APPOINTMENTS,
     Permission.END_VIDEO_APPOINTMENTS,
     Permission.VIEW_NOTIFICATIONS,

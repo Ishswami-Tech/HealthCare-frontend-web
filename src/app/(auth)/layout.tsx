@@ -6,6 +6,12 @@
  * Loading states are handled by Next.js loading.tsx
  */
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { getDashboardByRole } from "@/lib/config/routes";
+import { Role } from "@/types/auth.types";
+import { PageLoading } from "@/components/ui/loading";
 import { StatusFooter } from "@/components/status/StatusFooter";
 
 export default function AuthLayout({
@@ -13,6 +19,23 @@ export default function AuthLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const { isPending, session, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (!isPending && isAuthenticated && session?.user?.role) {
+      router.replace(getDashboardByRole(session.user.role as Role));
+    }
+  }, [isPending, isAuthenticated, router, session?.user?.role]);
+
+  if (isPending || (isAuthenticated && session?.user)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <PageLoading text="Preparing secure session..." />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex">
       {/* Left side - Decorative */}

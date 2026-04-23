@@ -111,7 +111,7 @@ export default function TherapistDashboard() {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "CONFIRMED":
-        return "Queued";
+        return "Confirmed";
       case "IN_PROGRESS":
         return "In Progress";
       case "SCHEDULED":

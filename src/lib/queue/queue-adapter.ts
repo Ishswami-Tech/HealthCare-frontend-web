@@ -116,7 +116,7 @@ export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
 export function getQueueStatusLabel(entry: CanonicalQueueEntry): string {
   const statusMap: Record<string, string> = {
     WAITING: 'Queued',
-    CONFIRMED: 'Queued',
+    CONFIRMED: 'Confirmed',
     IN_PROGRESS: 'In Progress',
     COMPLETED: 'Completed',
     READY: 'Ready',

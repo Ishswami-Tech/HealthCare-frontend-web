@@ -1,6 +1,6 @@
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string; bg: string }> = {
   scheduled:   { label: "Scheduled",   color: "text-blue-700 dark:text-blue-300",   dot: "bg-blue-500",   bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900" },
-  confirmed:   { label: "Queued",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900" },
+  confirmed:   { label: "Confirmed",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900" },
   "in-progress": { label: "In Progress", color: "text-emerald-700 dark:text-emerald-300",dot: "bg-emerald-500",bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900" },
   completed:   { label: "Completed",   color: "text-slate-600 dark:text-slate-400", dot: "bg-slate-400", bg: "bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700" },
   cancelled:   { label: "Cancelled",   color: "text-red-700 dark:text-red-300",     dot: "bg-red-500",   bg: "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900" },
@@ -15,7 +15,7 @@ const DEFAULT_STATUS_CONFIG = {
 
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ProtectedComponent } from "@/components/rbac/ProtectedComponent";
 import { Permission } from "@/types/rbac.types";
 import {
@@ -67,8 +67,6 @@ import {
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
-  useVideoAppointments,
-  useJoinVideoAppointment,
   useEndVideoAppointment,
   getVideoTokenRole,
   useRescheduleVideoAppointment,
@@ -76,11 +74,10 @@ import {
   useRejectVideoProposal,
   type VideoAppointment,
 } from "@/hooks/query/useVideoAppointments";
-import { useAppointmentServices, useMyAppointments } from "@/hooks/query/useAppointments";
-import { useClinics } from "@/hooks/query/useClinics";
+import { useAppointmentServices, useAppointments, useConfirmVideoSlot, useDoctorAvailability, useMyAppointments } from "@/hooks/query/useAppointments";
+import { useClinics, useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useRBAC } from "@/hooks/utils/useRBAC";
-import { VideoAppointmentRoom } from "./VideoAppointmentRoom";
 import {
   Dialog,
   DialogContent,
@@ -92,8 +89,11 @@ import {
   getAppointmentDateTimeValue,
   getAppointmentStatusBadgeLabel,
   getAppointmentDoctorName,
+  getAppointmentPatientName,
+  getDisplayAppointmentDuration,
   formatDateInIST,
   formatTimeInIST,
+  normalizeAppointmentStatus,
   isVideoAppointmentPaymentCompleted,
 } from "@/lib/utils/appointmentUtils";
 import { ProposeVideoAppointmentDialog } from "@/components/appointments/ProposeVideoAppointmentDialog";
@@ -101,21 +101,155 @@ import { useClinicContext } from "@/hooks/query/useClinics";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { CalendarPlus, Filter } from "lucide-react";
+import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 
 // ─── Module-scope pure helpers ───────────────────────────────────────────────
 
 function extractAppointments(data: unknown): VideoAppointment[] {
-  if (!data || typeof data !== 'object') return [];
-  const d = data as Record<string, unknown>;
-  if (Array.isArray(d.appointments)) return d.appointments as VideoAppointment[];
-  if (Array.isArray(d.data)) return d.data as VideoAppointment[];
-  if (Array.isArray(data)) return data as VideoAppointment[];
-  return [];
+  const rawAppointments: VideoAppointment[] = (() => {
+    if (!data || typeof data !== 'object') return [];
+    const d = data as Record<string, unknown>;
+    if (Array.isArray(d.appointments)) return d.appointments as VideoAppointment[];
+    if (Array.isArray(d.data)) return d.data as VideoAppointment[];
+    if (Array.isArray(data)) return data as VideoAppointment[];
+    return [];
+  })();
+
+  const getRank = (appointment: any) => {
+    const status = String(appointment?.rawStatus || appointment?.status || "").toUpperCase();
+    const hasConfirmedSlot =
+      appointment?.confirmedSlotIndex !== null &&
+      appointment?.confirmedSlotIndex !== undefined &&
+      !Number.isNaN(Number(appointment?.confirmedSlotIndex));
+    const hasProposedSlots = Array.isArray(appointment?.proposedSlots) && appointment.proposedSlots.length > 0;
+    const updatedAt = new Date(appointment?.updatedAt || appointment?.createdAt || 0).getTime();
+
+    return [
+      status === "CONFIRMED" ? 4 : 0,
+      hasConfirmedSlot ? 2 : 0,
+      hasProposedSlots ? 1 : 0,
+      Number.isFinite(updatedAt) ? updatedAt : 0,
+    ] as const;
+  };
+
+  const dedupedAppointments = new Map<string, VideoAppointment>();
+  for (const appointment of rawAppointments) {
+    const key = String(appointment?.id || appointment?.appointmentId || "");
+    if (!key) continue;
+
+    const current = dedupedAppointments.get(key);
+    if (!current) {
+      dedupedAppointments.set(key, appointment);
+      continue;
+    }
+
+    const currentRank = getRank(current);
+    const incomingRank = getRank(appointment);
+    const shouldReplace =
+      incomingRank[0] > currentRank[0] ||
+      (incomingRank[0] === currentRank[0] && incomingRank[1] > currentRank[1]) ||
+      (incomingRank[0] === currentRank[0] && incomingRank[1] === currentRank[1] && incomingRank[2] > currentRank[2]) ||
+      (incomingRank[0] === currentRank[0] && incomingRank[1] === currentRank[1] && incomingRank[2] === currentRank[2] && incomingRank[3] >= currentRank[3]);
+
+    if (shouldReplace) {
+      dedupedAppointments.set(key, appointment);
+    }
+  }
+
+  return Array.from(dedupedAppointments.values());
 }
 
 function getEffectiveAppointmentId(appointment: Partial<VideoAppointment> | null | undefined): string {
   if (!appointment) return "";
   return String(appointment.appointmentId || appointment.id || "");
+}
+
+function getAppointmentSortTime(appointment: Partial<VideoAppointment> | null | undefined): number {
+  if (!appointment) return 0;
+  const dateTime = getAppointmentDateTimeValue(appointment);
+  if (dateTime && !Number.isNaN(dateTime.getTime())) {
+    return dateTime.getTime();
+  }
+
+  const fallbackAppointment = appointment as any;
+  const fallbackTime = fallbackAppointment?.startTime || fallbackAppointment?.appointmentDate || fallbackAppointment?.createdAt;
+  const parsedTime = fallbackTime ? new Date(fallbackTime) : null;
+  return parsedTime && !Number.isNaN(parsedTime.getTime()) ? parsedTime.getTime() : 0;
+}
+
+function toSlotMinutes(slot: string): number | null {
+  const normalized = slot.trim().toUpperCase();
+  const match = normalized.match(/^(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/);
+  if (!match) return null;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const meridiem = match[3];
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  if (meridiem === "AM") {
+    if (hours === 12) hours = 0;
+  } else if (meridiem === "PM" && hours !== 12) {
+    hours += 12;
+  }
+
+  return hours * 60 + minutes;
+}
+
+function groupSlotsByPeriod(slots: string[]) {
+  const periods = {
+    morning: [] as string[],
+    afternoon: [] as string[],
+    evening: [] as string[],
+  };
+
+  slots.forEach((slot) => {
+    const minutes = toSlotMinutes(slot);
+    if (minutes === null) return;
+
+    if (minutes < 12 * 60) {
+      periods.morning.push(slot);
+    } else if (minutes < 17 * 60) {
+      periods.afternoon.push(slot);
+    } else {
+      periods.evening.push(slot);
+    }
+  });
+
+  return periods;
+}
+
+function extractAvailabilitySlots(availability: unknown): string[] {
+  if (!availability || typeof availability !== "object") return [];
+
+  const source = availability as Record<string, unknown>;
+  const directSlots = source.availableSlots;
+  if (Array.isArray(directSlots)) {
+    return directSlots.filter((slot): slot is string => typeof slot === "string" && slot.trim().length > 0);
+  }
+
+  const nestedAvailability = source.data as Record<string, unknown> | undefined;
+  if (nestedAvailability?.availableSlots && Array.isArray(nestedAvailability.availableSlots)) {
+    return nestedAvailability.availableSlots.filter((slot): slot is string => typeof slot === "string" && slot.trim().length > 0);
+  }
+
+  const deeperAvailability = nestedAvailability?.data as Record<string, unknown> | undefined;
+  if (deeperAvailability?.availableSlots && Array.isArray(deeperAvailability.availableSlots)) {
+    return deeperAvailability.availableSlots.filter((slot): slot is string => typeof slot === "string" && slot.trim().length > 0);
+  }
+
+  if (Array.isArray(source.slots)) {
+    return source.slots
+      .flatMap((slot) => {
+        if (!slot || typeof slot !== "object") return [];
+        const slotRecord = slot as Record<string, unknown>;
+        if (slotRecord.isAvailable === false) return [];
+        const startTime = slotRecord.startTime;
+        return typeof startTime === "string" && startTime.trim().length > 0 ? [startTime] : [];
+      });
+  }
+
+  return [];
 }
 
 interface AppointmentStats {
@@ -129,11 +263,12 @@ interface AppointmentStats {
 function computeStats(appointments: VideoAppointment[]): AppointmentStats {
   return appointments.reduce<AppointmentStats>(
     (acc, apt) => {
+      const normalizedStatus = normalizeAppointmentStatus(apt.status).toLowerCase().replace(/_/g, "-");
       acc.total += 1;
-      if (apt.status === 'in-progress') acc.active += 1;
-      else if (apt.status === 'scheduled') acc.scheduled += 1;
-      else if (apt.status === 'completed') acc.completed += 1;
-      else if (apt.status === 'cancelled') acc.cancelled += 1;
+      if (normalizedStatus === "in-progress") acc.active += 1;
+      else if (normalizedStatus === "scheduled" || normalizedStatus === "confirmed") acc.scheduled += 1;
+      else if (normalizedStatus === "completed") acc.completed += 1;
+      else if (normalizedStatus === "cancelled") acc.cancelled += 1;
       return acc;
     },
     { total: 0, active: 0, scheduled: 0, completed: 0, cancelled: 0 }
@@ -141,19 +276,24 @@ function computeStats(appointments: VideoAppointment[]): AppointmentStats {
 }
 
 export function isJoinableVideoAppointment(appointment: VideoAppointment | any): boolean {
-  const normalizedStatus = String(appointment.status || "").toLowerCase();
-  const rawStatus = String(appointment.rawStatus || appointment.status || "").toLowerCase().replace(/_/g, "-");
+  const normalizedStatus = normalizeAppointmentStatus(appointment.status).toLowerCase();
+  const confirmedSlotIndex = appointment?.confirmedSlotIndex;
+  const hasConfirmedSlot =
+    confirmedSlotIndex !== null &&
+    confirmedSlotIndex !== undefined &&
+    !Number.isNaN(Number(confirmedSlotIndex));
 
-  if (normalizedStatus !== "scheduled" && normalizedStatus !== "in-progress") {
+  const joinableStatuses = new Set(["scheduled", "confirmed", "queued", "in-progress"]);
+  if (!joinableStatuses.has(normalizedStatus)) {
     return false;
   }
-  
-  if (rawStatus === "awaiting-slot-confirmation") {
+
+  // Non-in-progress appointments also need a confirmed slot
+  if (normalizedStatus !== "in-progress" && !hasConfirmedSlot) {
     return false;
   }
 
-  const paymentCompleted = (appointment as any).paymentCompleted;
-  return paymentCompleted !== false;
+  return isVideoAppointmentPaymentCompleted(appointment);
 }
 
 function isWithinJoinWindow(appointment: VideoAppointment | any): boolean {
@@ -244,60 +384,93 @@ export function VideoAppointmentsList({
   const { session, user } = useAuth();
   const router = useRouter();
   const { hasPermission } = useRBAC();
+  const clinicContextId = useCurrentClinicId();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("scheduled");
   const [filterClinicId, setFilterClinicId] = useState("");
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
-  const [selectedAppointment, setSelectedAppointment] = useState<VideoAppointment | null>(null);
-  const [isVideoRoomOpen, setIsVideoRoomOpen] = useState(false);
-  const searchParams = useSearchParams();
-  const appointmentIdFromUrl = searchParams.get("appointmentId");
   
   const [actionAppointment, setActionAppointment] = useState<VideoAppointment | null>(null);
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [pendingSlotSelections, setPendingSlotSelections] = useState<Record<string, number>>({});
   
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [actionReason, setActionReason] = useState("");
 
-  const userId = session?.user?.id || "";
   const isPatient = user?.role === "PATIENT";
   const role = getVideoTokenRole(user?.role);
+  const isDoctorRole = role === "doctor";
 
   const canJoin = hasPermission(Permission.JOIN_VIDEO_APPOINTMENTS);
   const canEnd = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
   const canViewRecordings = hasPermission(Permission.VIEW_VIDEO_RECORDINGS);
+  const resolvedClinicId = filterClinicId || clinicContextId || String(session?.user?.clinicId || "");
+  const shouldOmitClinicId = !resolvedClinicId && Boolean((filters as any)?.doctorId);
 
-  const { data: appointmentsData, isPending: isLoading, refetch } = useVideoAppointments({
+  const { data: staffAppointmentsData, isPending: isLoadingStaff, refetch: refetchStaff } = useAppointments({
     ...filters,
-    ...(filterStatus ? { status: filterStatus } : {}),
+    ...(resolvedClinicId ? { clinicId: resolvedClinicId } : {}),
+    ...(shouldOmitClinicId ? { omitClinicId: true } : {}),
+    type: "VIDEO_CALL",
     page: 1,
     limit,
+  } as any, {
+    enabled: !isPatient,
   });
   useWebSocketQuerySync();
-  const { data: myAppointmentsData, isPending: isLoadingMyAppointments } = useMyAppointments();
+  const { data: myAppointmentsData, isPending: isLoadingMyAppointments, refetch: refetchMyAppointments } = useMyAppointments(undefined, {
+    enabled: isPatient,
+  });
   const { data: appointmentServices = [] } = useAppointmentServices();
-  const { data: clinicsData } = useClinics();
+  const { data: clinicsData } = useClinics({
+    enabled: showClinicFilter,
+  });
   const clinics = (Array.isArray(clinicsData) ? clinicsData : (clinicsData as any)?.clinics) || [];
+  const confirmVideoSlot = useConfirmVideoSlot();
+  const rescheduleDoctorId = String((actionAppointment as any)?.doctorId || "");
+  const rescheduleClinicId = String((actionAppointment as any)?.clinicId || resolvedClinicId || clinicContextId || "");
+  const rescheduleLocationId = String((actionAppointment as any)?.locationId || "");
+  const { data: rescheduleAvailability, isPending: isRescheduleAvailabilityLoading, error: rescheduleAvailabilityError } = useDoctorAvailability(
+    rescheduleClinicId,
+    rescheduleDoctorId,
+    rescheduleDate,
+    rescheduleLocationId || undefined,
+    "VIDEO_CALL",
+    {
+      enabled: isRescheduleOpen && !!rescheduleDoctorId && !!rescheduleDate,
+    }
+  );
 
-  const historyAppointments = extractAppointments(appointmentsData);
+  const historyAppointments = extractAppointments(staffAppointmentsData).slice().sort(
+    (left, right) => getAppointmentSortTime(right) - getAppointmentSortTime(left)
+  );
   const patientAppointments = useMemo<VideoAppointment[]>(() => {
     const list = Array.isArray((myAppointmentsData as any)?.appointments) ? (myAppointmentsData as any).appointments : [];
-    return list.filter((apt: any) => String(apt?.type || "").toUpperCase() === "VIDEO_CALL").map((apt: any) => {
+    const patientName = String(
+      (session?.user as any)?.name ||
+      `${(session?.user as any)?.firstName || ""} ${(session?.user as any)?.lastName || ""}`.trim() ||
+      ""
+    );
+    const mappedAppointments = list
+      .filter((apt: any) => String(apt?.type || "").toUpperCase() === "VIDEO_CALL")
+      .map((apt: any) => {
         const dateTime = getAppointmentDateTimeValue(apt);
         const startTime = (dateTime && !Number.isNaN(dateTime.getTime()) ? dateTime.toISOString() : undefined) || apt?.appointmentDate || apt?.startTime || "";
         const normalizedStatus = String(apt?.status || "").toLowerCase().replace(/_/g, "-");
         return {
           id: apt?.id,
-          appointmentId: apt?.appointmentId || apt?.id,
+          appointmentId: apt?.id || apt?.appointmentId,
           roomName: getAppointmentDoctorName(apt),
           doctorId: apt?.doctorId || apt?.doctor?.id || "",
           patientId: apt?.patientId || apt?.patient?.id || "",
+          patientName: patientName || getAppointmentPatientName(apt),
           startTime,
           status: normalizedStatus === "awaiting-slot-confirmation" ? "scheduled" : normalizedStatus,
           rawStatus: apt?.status,
+          confirmedSlotIndex: apt?.confirmedSlotIndex ?? apt?.confirmed_slot_index ?? null,
           sessionId: apt?.sessionId,
           recordingUrl: apt?.recordingUrl,
           notes: apt?.notes,
@@ -306,23 +479,58 @@ export function VideoAppointmentsList({
           doctorName: getAppointmentDoctorName(apt),
           paymentCompleted: isVideoAppointmentPaymentCompleted(apt),
         } as any;
-    });
+      });
+
+    const dedupedAppointments = new Map<string, VideoAppointment>();
+    for (const appointment of mappedAppointments as any[]) {
+      const key = String(appointment?.id || appointment?.appointmentId || "");
+      if (!key) continue;
+
+      const current = dedupedAppointments.get(key) as any;
+      if (!current) {
+        dedupedAppointments.set(key, appointment);
+        continue;
+      }
+
+      const currentConfirmed = current?.confirmedSlotIndex !== null && current?.confirmedSlotIndex !== undefined && !Number.isNaN(Number(current?.confirmedSlotIndex));
+      const incomingConfirmed = appointment?.confirmedSlotIndex !== null && appointment?.confirmedSlotIndex !== undefined && !Number.isNaN(Number(appointment?.confirmedSlotIndex));
+      const currentConfirmedStatus = String(current?.rawStatus || current?.status || "").toUpperCase() === "CONFIRMED";
+      const incomingConfirmedStatus = String(appointment?.rawStatus || appointment?.status || "").toUpperCase() === "CONFIRMED";
+      const currentTime = getAppointmentSortTime(current);
+      const incomingTime = getAppointmentSortTime(appointment);
+
+      const shouldReplace =
+        incomingConfirmedStatus && !currentConfirmedStatus ||
+        incomingConfirmed && !currentConfirmed ||
+        (incomingConfirmedStatus === currentConfirmedStatus && incomingConfirmed === currentConfirmed && incomingTime >= currentTime);
+
+      if (shouldReplace) {
+        dedupedAppointments.set(key, appointment);
+      }
+    }
+
+    return Array.from(dedupedAppointments.values()).sort((left: any, right: any) => getAppointmentSortTime(right) - getAppointmentSortTime(left));
   }, [myAppointmentsData]);
 
   const appointments = isPatient ? patientAppointments : historyAppointments;
+  const isLoading = isPatient ? isLoadingMyAppointments : isLoadingStaff;
+  const refetch = isPatient ? refetchMyAppointments : refetchStaff;
 
-  const joinVideoAppointment = useJoinVideoAppointment();
   const endVideoAppointment = useEndVideoAppointment();
   const rescheduleAppointment = useRescheduleVideoAppointment();
   const cancelAppointment = useCancelVideoAppointment();
   const rejectProposal = useRejectVideoProposal();
 
   const searchLower = searchTerm.toLowerCase();
+  const isUpcomingAppointment = (status: string) => status === "scheduled" || status === "confirmed";
   const filteredAppointments = appointments.filter((apt) => {
     const normalizedStatus = String(apt.status || "").toLowerCase();
     const effectiveAppointmentId = getEffectiveAppointmentId(apt).toLowerCase();
     const matchesSearch = !searchTerm || effectiveAppointmentId.includes(searchLower) || ((apt as any).doctorName || "").toLowerCase().includes(searchLower);
-    const matchesStatus = !filterStatus || filterStatus === "all" || normalizedStatus === filterStatus;
+    const matchesStatus =
+      !filterStatus ||
+      filterStatus === "all" ||
+      (filterStatus === "scheduled" ? isUpcomingAppointment(normalizedStatus) : normalizedStatus === filterStatus);
     const aptDate = apt.startTime ? new Date(apt.startTime) : (apt.createdAt ? new Date(apt.createdAt) : null);
     const matchesStartDate = !dateFilter.start || (aptDate && aptDate >= new Date(dateFilter.start));
     const matchesEndDate = !dateFilter.end || (aptDate && aptDate <= new Date(dateFilter.end));
@@ -349,15 +557,7 @@ export function VideoAppointmentsList({
         showErrorToast("Missing appointment ID for this video appointment.", { id: TOAST_IDS.VIDEO.ERROR });
         return;
       }
-      const result = await joinVideoAppointment.mutateAsync({ 
-        appointmentId,
-        userId, 
-        role 
-      });
-      if (result?.token) {
-        setSelectedAppointment(appointment);
-        setIsVideoRoomOpen(true);
-      }
+      router.push(buildVideoSessionRoute(appointmentId));
     } catch (error) {
       showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
@@ -415,6 +615,25 @@ export function VideoAppointmentsList({
     } catch (error) {}
   };
 
+  const handleConfirmSlot = async (appointment: VideoAppointment) => {
+    if (!isDoctorRole) return;
+    const appointmentId = getEffectiveAppointmentId(appointment);
+    if (!appointmentId) {
+      showErrorToast("Missing appointment ID for slot confirmation.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+      return;
+    }
+
+    try {
+      await confirmVideoSlot.mutateAsync({
+        appointmentId,
+        confirmedSlotIndex: pendingSlotSelections[appointmentId] ?? 0,
+      });
+      showSuccessToast("Video slot confirmed", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.UPDATE });
+    }
+  };
+
   const resetActionState = () => { setActionAppointment(null); setRescheduleDate(""); setRescheduleTime(""); setActionReason(""); };
   const openReschedule = (apt: VideoAppointment) => {
     setActionAppointment(apt);
@@ -422,6 +641,7 @@ export function VideoAppointmentsList({
       ? new Date(apt.startTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
       : "";
     setRescheduleDate(dateValue);
+    setRescheduleTime(apt.startTime ? formatTimeInIST(apt.startTime) : "");
     setIsRescheduleOpen(true);
   };
   const openCancel = (apt: VideoAppointment) => { setActionAppointment(apt); setIsCancelOpen(true); };
@@ -430,6 +650,20 @@ export function VideoAppointmentsList({
   const parseDateValue = (v: string) => v ? new Date(`${v}T00:00:00`) : undefined;
   const toDateString = (d?: Date) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : "";
   const formatDateValue = (v: string, p: string) => { const d = parseDateValue(v); return d ? formatDateInIST(d, { day: "2-digit", month: "short", year: "numeric" }) : p; };
+  const formatProposedSlot = (slot?: { date: string; time: string }) => {
+    if (!slot) return "Slot";
+    const dateLabel = slot.date
+      ? formatDateInIST(new Date(`${slot.date}T00:00:00`), { day: "2-digit", month: "short" })
+      : "";
+    return dateLabel ? `${dateLabel} • ${slot.time}` : slot.time;
+  };
+  const availableRescheduleSlots = useMemo(() => extractAvailabilitySlots(rescheduleAvailability), [rescheduleAvailability]);
+  const rescheduleSlotGroups = useMemo(() => groupSlotsByPeriod(availableRescheduleSlots), [availableRescheduleSlots]);
+  const selectedRescheduleSlotKey = rescheduleTime.trim().toLowerCase();
+  const setRescheduleDateAndResetTime = (date: Date | undefined) => {
+    setRescheduleDate(toDateString(date));
+    setRescheduleTime("");
+  };
 
   const LocalStatCard = ({ label, value, icon, color, className }: any) => (
     <div className={cn("rounded-xl border border-border bg-card p-3 sm:p-4 flex items-center gap-2 sm:gap-3", className)}>
@@ -446,8 +680,19 @@ export function VideoAppointmentsList({
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   const AppointmentCard = ({ appointment }: { appointment: VideoAppointment }) => {
+    const normalizedStatus = normalizeAppointmentStatus(appointment.status).toLowerCase().replace(/_/g, "-");
+    const hasProposedSlots = Array.isArray((appointment as any).proposedSlots) && (appointment as any).proposedSlots.length > 0;
+    const hasConfirmedSlot =
+      (appointment as any).confirmedSlotIndex !== null &&
+      (appointment as any).confirmedSlotIndex !== undefined &&
+      !Number.isNaN(Number((appointment as any).confirmedSlotIndex));
+    const needsDoctorConfirmation =
+      isDoctorRole &&
+      normalizeAppointmentStatus(appointment.status) === "SCHEDULED" &&
+      hasProposedSlots &&
+      !hasConfirmedSlot;
     const cfg: { label: string; color: string; dot: string; bg: string } =
-      STATUS_CONFIG[appointment.status] ?? DEFAULT_STATUS_CONFIG;
+      STATUS_CONFIG[normalizedStatus] ?? DEFAULT_STATUS_CONFIG;
     const statusLabel = getAppointmentStatusBadgeLabel({
       status: (appointment as any).rawStatus || appointment.status,
       type: "VIDEO_CALL",
@@ -455,7 +700,12 @@ export function VideoAppointmentsList({
       confirmedSlotIndex: (appointment as any).confirmedSlotIndex,
     });
     const isExpanded = expandedCard === (appointment.id || appointment.appointmentId);
-    const doctorName = (appointment as any).doctorName || `Consultation ${appointment.appointmentId || appointment.id}`;
+    const patientName = getAppointmentPatientName(appointment);
+    const rawDoctorName = (appointment as any).doctorName || getAppointmentDoctorName(appointment);
+    const doctorName = rawDoctorName.startsWith("Consultation ") || rawDoctorName === "Unknown Doctor"
+      ? ""
+      : rawDoctorName;
+    const displayDuration = getDisplayAppointmentDuration(appointment);
     const finalSlotSource = String(
       (appointment as any).metadata?.finalSlotSource ||
         (appointment as any).finalSlotSource ||
@@ -467,30 +717,77 @@ export function VideoAppointmentsList({
         : finalSlotSource === "CUSTOM_SLOT"
           ? "Doctor-selected fallback slot"
           : "";
+    const isCancelled = normalizedStatus === "cancelled";
+    const paymentCompleted = isVideoAppointmentPaymentCompleted(appointment);
+    const paymentAmount = getVideoPaymentAmount(appointment, appointmentServices);
+    const appointmentDateTime = getAppointmentDateTimeValue(appointment);
+    const appointmentDateLabel = appointmentDateTime
+      ? formatDateInIST(appointmentDateTime, { weekday: "short", month: "short", day: "2-digit" })
+      : "";
+    const appointmentTimeLabel = appointmentDateTime
+      ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
+      : appointment.startTime
+        ? formatTimeInIST(new Date(appointment.startTime), { hour: "2-digit", minute: "2-digit", hour12: true })
+        : "";
+    const appointmentSessionId = getEffectiveAppointmentId(appointment);
     
     return (
-      <div className={cn("rounded-xl border overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md", cfg.bg)}>
-        <div className="p-3 sm:p-5 cursor-pointer" onClick={() => setExpandedCard(isExpanded ? null : (appointment.id || appointment.appointmentId))}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs sm:text-sm font-semibold text-muted-foreground">
-                {doctorName.charAt(0)}
+      <div className={cn(
+        "rounded-xl border overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md",
+        isCancelled ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50" : cfg.bg
+      )}>
+        <div className="p-2.5 sm:p-4 cursor-pointer" onClick={() => setExpandedCard(isExpanded ? null : getEffectiveAppointmentId(appointment))}>
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/70 flex items-center justify-center shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                {patientName.charAt(0)}
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-sm sm:text-base text-foreground leading-tight mb-0.5 truncate">{doctorName}</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Video Consultation</span>
-                  {(appointment as any).paymentCompleted === false && <span className="text-[10px] text-red-600 font-medium px-1.5 sm:px-2 py-0.5 rounded-full bg-red-50 border border-red-100">Unpaid</span>}
+                <p className="font-semibold text-sm text-foreground leading-tight mb-0.5 truncate">{patientName}</p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-[11px] text-muted-foreground truncate">
+                    {doctorName ? `Doctor: ${doctorName}` : "Doctor details pending"}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-5 px-1.5 text-[10px] font-semibold uppercase tracking-wide",
+                      paymentCompleted
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+                        : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                    )}
+                  >
+                    {paymentCompleted ? "Paid" : "Payment required"}
+                  </Badge>
                 </div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {appointmentDateLabel || "Date pending"}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {appointmentTimeLabel || "Time pending"}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <FileText className="w-3 h-3" />
+                    Session {appointmentSessionId ? appointmentSessionId.slice(-6).toUpperCase() : "—"}
+                  </span>
+                </div>
+                {!paymentCompleted && paymentAmount > 0 && (
+                  <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                    Join unlocks after payment of ₹{paymentAmount.toLocaleString("en-IN")}.
+                  </p>
+                )}
               </div>
             </div>
-            <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+            <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
                <div className="text-left sm:text-right">
-                  <p className="text-xs sm:text-sm font-semibold text-foreground leading-none">{appointment.startTime ? formatTimeInIST(new Date(appointment.startTime), { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{appointment.startTime ? formatDateInIST(new Date(appointment.startTime), { month: "short", day: "2-digit" }) : "—"}</p>
+                  <p className="text-xs font-semibold text-foreground leading-none">{appointment.startTime ? formatTimeInIST(new Date(appointment.startTime), { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{appointment.startTime ? formatDateInIST(new Date(appointment.startTime), { month: "short", day: "2-digit" }) : "—"}</p>
                </div>
                <div className="flex items-center gap-2">
-                 <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] font-medium", cfg.bg, cfg.color)}>
+                 <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
                    <span className={cn("w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full", cfg.dot)} />
                    {statusLabel}
                  </span>
@@ -502,30 +799,44 @@ export function VideoAppointmentsList({
 
         {isExpanded && (
             <div className="px-4 sm:px-5 pb-4 sm:pb-5 overflow-hidden">
-               <div className="pt-3 border-t border-border space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                    <div className="md:col-span-2 space-y-2">
-                      <span className="text-xs font-medium text-muted-foreground">Diagnostic Context</span>
-                      <p className="text-sm text-foreground leading-relaxed">
-                        {(appointment as any).chiefComplaint || "Routine video checkup and clinical review."}
-                      </p>
+               <div className="pt-3 border-t border-border space-y-3">
+                  <div className="space-y-3 pt-1.5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">Diagnostic Context</span>
+                        <p className="text-sm text-foreground leading-snug">
+                          {(appointment as any).chiefComplaint || "Routine video checkup and clinical review."}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">Appointment Time</span>
+                        <p className="font-medium text-foreground text-sm">
+                          {appointmentDateLabel || "Date pending"} {appointmentTimeLabel ? `• ${appointmentTimeLabel}` : ""}
+                        </p>
+                      </div>
                     </div>
-                    <div className="space-y-4">
-                      <div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">Session ID</span>
+                        <p className="font-medium text-foreground text-sm break-all">
+                          {appointmentSessionId || "Pending"}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
                         <span className="text-xs font-medium text-muted-foreground">Protocol Type</span>
                         <p className="font-medium text-foreground text-sm">{(appointment as any).treatmentType || "Virtual Consultation"}</p>
                       </div>
-                      <div>
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
                         <span className="text-xs font-medium text-muted-foreground">Authorization</span>
                         <p className="font-medium text-emerald-600 text-sm">{role} Access</p>
                       </div>
-                      {finalSlotSourceLabel && (
-                        <div>
-                          <span className="text-xs font-medium text-muted-foreground">Final Slot</span>
-                          <p className="font-medium text-foreground text-sm">{finalSlotSourceLabel}</p>
-                        </div>
-                      )}
                     </div>
+                    {finalSlotSourceLabel && (
+                      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">Final Slot</span>
+                        <p className="font-medium text-foreground text-sm">{finalSlotSourceLabel}</p>
+                      </div>
+                    )}
                   </div>
 
                   {(appointment as any).cancellationReason && (
@@ -535,50 +846,77 @@ export function VideoAppointmentsList({
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-2 justify-end pt-3 sm:pt-4 border-t border-border">
+                  <div className="flex flex-wrap gap-2 justify-end pt-2.5 border-t border-border">
+                    {needsDoctorConfirmation && hasProposedSlots && (
+                      <div className="flex flex-wrap items-center gap-2 w-full justify-end">
+                        <Select
+                          value={String(pendingSlotSelections[getEffectiveAppointmentId(appointment)] ?? 0)}
+                          onValueChange={(value: string) =>
+                            setPendingSlotSelections((current) => ({
+                              ...current,
+                              [getEffectiveAppointmentId(appointment)]: Number(value),
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-[190px] rounded-xl text-xs">
+                            <SelectValue placeholder="Select a slot" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(appointment as any).proposedSlots.map((slot: { date: string; time: string }, index: number) => (
+                              <SelectItem key={`${appointment.id}-${index}`} value={String(index)}>
+                                {formatProposedSlot(slot)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                          <Button
+                          size="sm"
+                          className="h-8 px-3 rounded-xl text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                          disabled={confirmVideoSlot.isPending}
+                          onClick={() => handleConfirmSlot(appointment)}
+                        >
+                          {confirmVideoSlot.isPending ? (
+                            <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-3 h-3 mr-1.5" />
+                          )}
+                          Confirm Slot
+                        </Button>
+                      </div>
+                    )}
                     {['scheduled', 'confirmed'].includes(String(appointment.status || '').toLowerCase()) && (
                       <>
-                        {(appointment as any).paymentCompleted === false && getVideoPaymentAmount(appointment, appointmentServices) > 0 && (
-                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold">
-                            Pay ₹{getVideoPaymentAmount(appointment, appointmentServices)}
+                        {!paymentCompleted && paymentAmount > 0 && (
+                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-8 px-3 rounded-xl text-xs font-semibold">
+                            Pay ₹{paymentAmount}
                           </PaymentButton>
                         )}
-                        {(appointment as any).paymentCompleted !== false &&
-                          (
-                            (appointment as any).rawStatus === 'AWAITING_SLOT_CONFIRMATION' ||
-                            (
-                              String((appointment as any).rawStatus || '').toUpperCase() === 'SCHEDULED' &&
-                              (
-                                (appointment as any).confirmedSlotIndex === null ||
-                                (appointment as any).confirmedSlotIndex === undefined ||
-                                Number.isNaN(Number((appointment as any).confirmedSlotIndex))
-                              )
-                            )
-                          ) && (
-                          <Button variant="outline" className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm border-amber-200 bg-amber-50 text-amber-700 pointer-events-none" disabled>
-                            <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5" />
+                        {paymentCompleted &&
+                          needsDoctorConfirmation && (
+                          <Button variant="outline" className="h-8 px-3 rounded-xl text-xs border-amber-200 bg-amber-50 text-amber-700 pointer-events-none" disabled>
+                            <Clock className="w-3 h-3 mr-1.5" />
                             Awaiting Doctor Confirmation
                           </Button>
                         )}
-                        <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm">Reschedule</Button>
-                        <Button variant="ghost" size="sm" onClick={() => openCancel(appointment)} className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm text-destructive hover:text-destructive">Cancel</Button>
+                        <Button variant="outline" size="sm" onClick={() => openReschedule(appointment)} className="h-8 px-3 rounded-xl text-xs">Reschedule</Button>
+                        <Button variant="ghost" size="sm" onClick={() => openCancel(appointment)} className="h-8 px-3 rounded-xl text-xs text-destructive hover:text-destructive">Cancel</Button>
                       </>
                     )}
                     {showJoinButton &&
-                      ["scheduled", "in-progress"].includes(appointment.status) &&
+                      ["scheduled", "confirmed", "queued", "in-progress"].includes(normalizeAppointmentStatus(appointment.status).toLowerCase()) &&
                       isJoinableVideoAppointment(appointment) &&
                       (!enforceTimeSlotWindow || isWithinJoinWindow(appointment)) && (
-                      <Button size="sm" onClick={() => handleJoinAppointment(appointment)} className="h-8 sm:h-9 px-4 sm:px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold" disabled={joinVideoAppointment.isPending}>
-                        {joinVideoAppointment.isPending ? "Joining..." : "Join Session"}
+                      <Button size="sm" onClick={() => handleJoinAppointment(appointment)} className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">
+                        Join Session
                       </Button>
                     )}
                     {showEndButton && appointment.status === "in-progress" && (
-                      <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(getEffectiveAppointmentId(appointment))} className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm" disabled={endVideoAppointment.isPending}>
+                      <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(getEffectiveAppointmentId(appointment))} className="h-8 px-3 rounded-xl text-xs" disabled={endVideoAppointment.isPending}>
                         {endVideoAppointment.isPending ? "Ending..." : "End Session"}
                       </Button>
                     )}
                     {showDownloadButton && appointment.status === "completed" && appointment.recordingUrl && (
-                        <Button size="sm" onClick={() => window.open(appointment.recordingUrl, "_blank")} variant="outline" className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs sm:text-sm">Download Recording</Button>
+                        <Button size="sm" onClick={() => window.open(appointment.recordingUrl, "_blank")} variant="outline" className="h-8 px-3 rounded-xl text-xs">Download Recording</Button>
                     )}
                   </div>
                </div>
@@ -613,7 +951,7 @@ export function VideoAppointmentsList({
         )}
 
         {showStatistics && (
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 mb-4">
             <LocalStatCard label="Total" value={totalAppointments} icon={<Users className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-indigo-600 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-950/40" className="border-indigo-100 bg-indigo-50/70 dark:border-indigo-900 dark:bg-indigo-950/20" />
             <LocalStatCard label="Active" value={activeAppointments} icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-emerald-600 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/40" className="border-emerald-100 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20" />
             <LocalStatCard label="Pending" value={scheduledAppointments} icon={<Calendar className="w-4 h-4 sm:w-5 sm:h-5" />} color="text-blue-600 dark:text-blue-300 bg-blue-100/80 dark:bg-blue-950/40" className="border-blue-100 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/20" />
@@ -622,10 +960,10 @@ export function VideoAppointmentsList({
           </div>
         )}
 
-        <div className="space-y-3 mb-4">
+        <div className="space-y-3 mb-3">
           <div className="relative">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-             <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by doctor or session ID..." className="h-11 pl-9 rounded-xl border-border bg-muted/50 text-sm" />
+             <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by doctor or session ID..." className="h-10 pl-9 rounded-xl border-border bg-muted/50 text-sm" />
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
              <Tabs value={filterStatus} onValueChange={setFilterStatus} className="w-full sm:w-auto">
@@ -643,12 +981,12 @@ export function VideoAppointmentsList({
 
         <div className="space-y-3">
           {isLoading ? (
-            <div className="py-16 flex flex-col items-center justify-center gap-3"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground/30" /><p className="text-muted-foreground font-medium text-xs uppercase tracking-widest">Loading sessions...</p></div>
+            <div className="py-14 flex flex-col items-center justify-center gap-2.5"><Loader2 className="w-7 h-7 animate-spin text-muted-foreground/30" /><p className="text-muted-foreground font-medium text-[11px] uppercase tracking-widest">Loading sessions...</p></div>
           ) : filteredAppointments.length === 0 ? (
-            <div className="py-16 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center text-center px-6">
-              <CalendarClock className="w-12 h-12 text-muted-foreground/20 mb-4" />
-              <p className="text-base font-semibold text-foreground mb-1">No Sessions Found</p>
-              <p className="text-muted-foreground text-sm max-w-sm mb-6">Try adjusting the status filter or book a new video consultation.</p>
+            <div className="py-12 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center text-center px-5">
+              <CalendarClock className="w-11 h-11 text-muted-foreground/20 mb-3" />
+              <p className="text-sm font-semibold text-foreground mb-1">No Sessions Found</p>
+              <p className="text-muted-foreground text-xs max-w-sm mb-4">Try adjusting the status filter or book a new video consultation.</p>
               {isPatient && (
                 <Button
                   size="sm"
@@ -660,7 +998,7 @@ export function VideoAppointmentsList({
               )}
             </div>
           ) : (
-            <div className="grid gap-6">
+            <div className="grid gap-4">
               {filteredAppointments.map(apt => (
                 <AppointmentCard key={apt.id || apt.appointmentId} appointment={apt} />
               ))}
@@ -668,35 +1006,119 @@ export function VideoAppointmentsList({
           )}
         </div>
 
-        <Dialog open={isVideoRoomOpen} onOpenChange={setIsVideoRoomOpen}>
-          <DialogContent className="max-w-7xl w-full h-[90vh] p-0 overflow-hidden rounded-xl">
-            <div className="h-full">
-              <VideoAppointmentRoom
-                appointment={selectedAppointment!}
-                onLeaveRoom={() => {
-                  setIsVideoRoomOpen(false);
-                  setSelectedAppointment(null);
-                }}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
         <Dialog open={isRescheduleOpen} onOpenChange={setIsRescheduleOpen}>
           <DialogContent className="rounded-xl p-6">
             <DialogHeader>
               <DialogTitle>Modify Schedule</DialogTitle>
-              <DialogDescription>Select a new session date and time.</DialogDescription>
+              <DialogDescription>Select a new session date and pick from the available time slots.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Date</Label>
-                  <Input type="date" value={rescheduleDate} onChange={e => setRescheduleDate(e.target.value)} className="h-10" />
+            <div className="space-y-3.5 py-3.5">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal h-10",
+                        !rescheduleDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {rescheduleDate ? formatDateValue(rescheduleDate, "Pick a new date") : "Pick a new date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarPicker
+                      mode="single"
+                      selected={parseDateValue(rescheduleDate)}
+                      onSelect={setRescheduleDateAndResetTime}
+                      disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today;
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Available slots</Label>
+                  {rescheduleDate && (
+                    <span className="text-xs text-muted-foreground">
+                      {formatDateValue(rescheduleDate, "")}
+                    </span>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <Label>Time</Label>
-                  <Input type="time" value={rescheduleTime} onChange={e => setRescheduleTime(e.target.value)} className="h-10" />
-                </div>
+
+                {isRescheduleAvailabilityLoading ? (
+                  <div className="flex items-center gap-2 justify-center rounded-xl border border-dashed py-6 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading available slots...
+                  </div>
+                ) : availableRescheduleSlots.length > 0 ? (
+                  <div className="space-y-4">
+                    {[
+                      { key: "morning" as const, label: "Morning", range: "Before 12pm", slots: rescheduleSlotGroups.morning },
+                      { key: "afternoon" as const, label: "Afternoon", range: "12pm – 5pm", slots: rescheduleSlotGroups.afternoon },
+                      { key: "evening" as const, label: "Evening", range: "After 5pm", slots: rescheduleSlotGroups.evening },
+                    ].map((period) =>
+                      period.slots.length === 0 ? null : (
+                        <div key={period.key}>
+                          <div className="mb-2 flex items-center gap-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                              {period.label}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              ({period.range})
+                            </span>
+                            <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                              {period.slots.length} slots
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                            {period.slots.map((slot) => {
+                              const normalizedSlot = slot.trim().toLowerCase();
+                              const isSelected = selectedRescheduleSlotKey === normalizedSlot;
+
+                              return (
+                                <button
+                                  key={slot}
+                                  onClick={() => setRescheduleTime(slot)}
+                                  className={cn(
+                                    "rounded-xl border px-2 py-2 text-center transition-all",
+                                    isSelected
+                                      ? "border-primary bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/20"
+                                      : "border-border bg-card hover:border-primary/40 hover:bg-primary/5"
+                                  )}
+                                >
+                                  <span className="text-xs font-semibold">{slot}</span>
+                                  <span className={cn("block text-[9px] font-medium", isSelected ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                                    Select slot
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed py-6 text-center text-sm text-muted-foreground">
+                    <Clock className="mx-auto mb-2 h-5 w-5 opacity-40" />
+                    <p className="font-medium">
+                      {rescheduleDate ? "No available slots for this date" : "Pick a date to see available slots"}
+                    </p>
+                    <p className="mt-1 text-xs">
+                      {rescheduleAvailabilityError instanceof Error
+                        ? rescheduleAvailabilityError.message
+                        : "Try another date or check the doctor availability settings."}
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Reason</Label>
@@ -705,7 +1127,7 @@ export function VideoAppointmentsList({
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setIsRescheduleOpen(false)} className="flex-1">Discard</Button>
-              <Button onClick={handleRescheduleSubmit} className="flex-1">Confirm</Button>
+              <Button onClick={handleRescheduleSubmit} className="flex-1" disabled={!rescheduleDate || !rescheduleTime}>Confirm</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -731,3 +1153,4 @@ export function VideoAppointmentsList({
     </ProtectedComponent>
   );
 }
+

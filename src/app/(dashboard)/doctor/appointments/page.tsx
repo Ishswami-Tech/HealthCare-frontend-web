@@ -36,6 +36,7 @@ import {
   getAppointmentPaymentStatus,
   getDisplayAppointmentDuration,
   isAppointmentAwaitingPayment,
+  isVideoAppointmentPaymentCompleted,
 } from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
@@ -77,6 +78,8 @@ interface TransformedAppointment {
   type: string;
   duration: string;
   appointmentDate: string;
+  startTime?: string;
+  createdAt?: string;
   patientPhone: string;
   patientEmail: string;
   chiefComplaint: string;
@@ -161,39 +164,52 @@ export default function DoctorAppointments() {
   // Transform appointments data
   const appointments = useMemo(() => {
     const apps = extractAppointments(appointmentsData);
+    const visibleApps = apps.filter(
+      (app: any) =>
+        String(app.type || app.appointmentType || "").toUpperCase() !== "VIDEO_CALL" ||
+        isVideoAppointmentPaymentCompleted(app)
+    );
 
-    return apps.map((app: any): TransformedAppointment => {
-      const displayDuration = getDisplayAppointmentDuration(app);
-      const paymentStatus = getAppointmentPaymentStatus(app);
+    return visibleApps
+      .map((app: any): TransformedAppointment => {
+        const displayDuration = getDisplayAppointmentDuration(app);
+        const paymentStatus = getAppointmentPaymentStatus(app);
 
-      return {
-        id: app.id,
-        appointmentId: app.id,
-        patientId: app.patientId || app.patient?.id || app.patient?.userId || "",
-        doctorId: app.doctorId || app.doctor?.id || app.doctor?.userId || "",
-        patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
-        patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
-        patientGender: app.patient?.gender || "Unknown",
-        time: app.startTime ? new Date(app.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "TBD",
-        status: (app.status || "SCHEDULED") as AppointmentStatus,
-        type: app.type || app.appointmentType || "Consultation",
-        duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
-        appointmentDate: app.startTime
-          ? new Date(app.startTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
-          : new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
-        patientPhone: app.patient?.phone || "",
-        patientEmail: app.patient?.email || "",
-        chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
-        medicalHistory: app.patient?.medicalHistory || [],
-        allergies: app.patient?.allergies || [],
-        currentMedications: app.patient?.currentMedications || [],
-        vitalSigns: app.vitalSigns || null,
-        checkedInAt: app.checkedInAt ? new Date(app.checkedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
-        queuePosition: app.queuePosition || null,
-        paymentStatus,
-        paymentPending: isAppointmentAwaitingPayment(app),
-      };
-    });
+        return {
+          id: app.id,
+          appointmentId: app.id,
+          patientId: app.patientId || app.patient?.id || app.patient?.userId || "",
+          doctorId: app.doctorId || app.doctor?.id || app.doctor?.userId || "",
+          patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
+          patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
+          patientGender: app.patient?.gender || "Unknown",
+          time: app.startTime ? new Date(app.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "TBD",
+          status: (app.status || "SCHEDULED") as AppointmentStatus,
+          type: app.type || app.appointmentType || "Consultation",
+          duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
+          appointmentDate: app.startTime
+            ? new Date(app.startTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+            : new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
+          startTime: app.startTime || "",
+          createdAt: app.createdAt || app.updatedAt || "",
+          patientPhone: app.patient?.phone || "",
+          patientEmail: app.patient?.email || "",
+          chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
+          medicalHistory: app.patient?.medicalHistory || [],
+          allergies: app.patient?.allergies || [],
+          currentMedications: app.patient?.currentMedications || [],
+          vitalSigns: app.vitalSigns || null,
+          checkedInAt: app.checkedInAt ? new Date(app.checkedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
+          queuePosition: app.queuePosition || null,
+          paymentStatus,
+          paymentPending: isAppointmentAwaitingPayment(app),
+        };
+      })
+      .sort((left: TransformedAppointment, right: TransformedAppointment) => {
+        const leftTime = new Date(left.startTime || left.createdAt || 0).getTime();
+        const rightTime = new Date(right.startTime || right.createdAt || 0).getTime();
+        return rightTime - leftTime;
+      });
   }, [appointmentsData]);
 
   const filteredAppointments = useMemo(() => {
@@ -228,7 +244,7 @@ export default function DoctorAppointments() {
     const labels: Record<string, string> = {
       [APPOINTMENT_STATUS.IN_PROGRESS]: 'In Progress',
       [APPOINTMENT_STATUS.SCHEDULED]: 'Scheduled',
-      [APPOINTMENT_STATUS.CONFIRMED]: 'Queued',
+      [APPOINTMENT_STATUS.CONFIRMED]: 'Confirmed',
       [APPOINTMENT_STATUS.COMPLETED]: 'Completed',
       [APPOINTMENT_STATUS.CANCELLED]: 'Cancelled',
       [APPOINTMENT_STATUS.NO_SHOW]: 'No Show',
@@ -279,11 +295,13 @@ export default function DoctorAppointments() {
       },
       {
         accessorKey: "paymentStatus",
-        header: "Payment",
+        header: "Video Payment",
         cell: ({ row }) => {
           const app = row.original;
           return app.type === "VIDEO_CALL" ? (
-            <Badge className={getPaymentBadgeClasses(app.paymentStatus)}>{app.paymentStatus.replace(/_/g, " ")}</Badge>
+            <Badge className={getPaymentBadgeClasses(app.paymentStatus)}>
+              {app.paymentPending ? "Payment pending" : "Paid video request"}
+            </Badge>
           ) : (
             <span className="text-sm text-muted-foreground">Not applicable</span>
           );
@@ -304,7 +322,7 @@ export default function DoctorAppointments() {
                   size="sm"
                   onClick={() => startConsultation(app.id)}
                   disabled={startAppointmentMutation.isPending || (app.type === "VIDEO_CALL" && app.paymentPending)}
-                  title={app.type === "VIDEO_CALL" && app.paymentPending ? "Video appointment is waiting for patient payment" : undefined}
+                  title={app.type === "VIDEO_CALL" && app.paymentPending ? "Video request is waiting for payment" : undefined}
                 >
                   <Play className="mr-1 h-4 w-4" />
                   Start
@@ -341,7 +359,7 @@ export default function DoctorAppointments() {
                     disabled={app.type === "VIDEO_CALL" && app.paymentPending}
                   >
                     <Video className="mr-1 h-4 w-4" />
-                    Video
+                    Open video
                   </Button>
                   <Button
                     size="sm"
@@ -441,7 +459,7 @@ export default function DoctorAppointments() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
             <Card className="border-l-4 border-l-emerald-400 shadow-sm transition-shadow duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Queued</CardTitle>
+                <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
                 <CheckCircle className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
@@ -514,7 +532,7 @@ export default function DoctorAppointments() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All Status</SelectItem>
-                    <SelectItem value="CONFIRMED">Queued</SelectItem>
+                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                     <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                     <SelectItem value="SCHEDULED">Scheduled</SelectItem>
                     <SelectItem value="COMPLETED">Completed</SelectItem>
@@ -550,9 +568,9 @@ export default function DoctorAppointments() {
                       <Badge className={getStatusColor(selectedAppointment.status)}>{getStatusLabel(selectedAppointment.status)}</Badge>
                     </div>
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Payment</p>
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Video Payment</p>
                       <Badge className={getPaymentBadgeClasses(selectedAppointment.paymentStatus)}>
-                        {selectedAppointment.paymentStatus.replace(/_/g, " ")}
+                        {selectedAppointment.paymentPending ? "Payment pending" : "Paid video request"}
                       </Badge>
                     </div>
                     <div>
@@ -763,6 +781,7 @@ export default function DoctorAppointments() {
                 </DialogHeader>
                 <VideoAppointmentRoom
                   appointment={videoRoomAppointment}
+                  autoStart={true}
                   onEndCall={() => {
                     setIsVideoRoomOpen(false);
                     setVideoRoomAppointment(null);

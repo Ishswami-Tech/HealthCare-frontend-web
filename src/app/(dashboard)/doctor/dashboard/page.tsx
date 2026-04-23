@@ -5,8 +5,16 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
+import { useAppointments, useConfirmVideoSlot, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { AppointmentWithRelations, AppointmentStatus } from "@/types/appointment.types";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
@@ -15,6 +23,7 @@ import {
   getAppointmentPatientName,
   getDisplayAppointmentDuration,
   isAppointmentAwaitingPayment,
+  isVideoAppointmentPaymentCompleted,
 } from "@/lib/utils/appointmentUtils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -65,9 +74,8 @@ const isAwaitingDoctorVideoConfirmation = (appointment: {
   proposedSlots?: Array<{ date: string; time: string }>;
   confirmedSlotIndex?: number | null;
 }) => {
-  const status = String(appointment.status || "").toUpperCase();
-  if (status === "AWAITING_SLOT_CONFIRMATION") return true;
   if (String(appointment.type || "").toUpperCase() !== "VIDEO_CALL") return false;
+  if (!isVideoAppointmentPaymentCompleted(appointment)) return false;
 
   const hasProposedSlots = Array.isArray(appointment.proposedSlots) && appointment.proposedSlots.length > 0;
   const hasConfirmedSlot =
@@ -75,7 +83,7 @@ const isAwaitingDoctorVideoConfirmation = (appointment: {
     appointment.confirmedSlotIndex !== undefined &&
     !Number.isNaN(Number(appointment.confirmedSlotIndex));
 
-  return status === "SCHEDULED" && hasProposedSlots && !hasConfirmedSlot;
+  return String(appointment.status || "").toUpperCase() === "SCHEDULED" && hasProposedSlots && !hasConfirmedSlot;
 };
 
 const getPaymentBadgeClasses = (paymentStatus: string) => {
@@ -110,12 +118,14 @@ export default function DoctorDashboard() {
     () => getDisplayDoctorName(user?.name || user?.firstName || null),
     [user?.firstName, user?.name]
   );
-  const clinicId = user?.clinicId;
+  const clinicId = useCurrentClinicId();
+  const doctorId = user?.id;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [activePatient, setActivePatient] = useState<{ id: string; name: string } | null>(null);
   const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null);
+  const [pendingVideoSlotSelections, setPendingVideoSlotSelections] = useState<Record<string, number>>({});
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -123,12 +133,13 @@ export default function DoctorDashboard() {
   // Fetch real data using existing hooks and server actions
   const { data: appointments, isPending: isAppointmentsPending, error: appointmentsError } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
-    ...(user?.id ? { doctorId: user.id } : {}),
+    ...(doctorId ? { doctorId } : {}),
     limit: 100,
   });
   
   const startAppointmentMutation = useStartAppointment();
   const completeAppointmentMutation = useCompleteAppointment();
+  const confirmVideoSlotMutation = useConfirmVideoSlot();
 
   // Calculate real stats from fetched data
   const appointmentsArray = useMemo(() => {
@@ -136,10 +147,20 @@ export default function DoctorDashboard() {
     return (appointments as any)?.appointments || [];
   }, [appointments]);
 
+  const visibleAppointmentsArray = useMemo(
+    () =>
+      appointmentsArray.filter(
+        (appointment: AppointmentWithRelations) =>
+          String(appointment.type).toUpperCase() !== "VIDEO_CALL" ||
+          isVideoAppointmentPaymentCompleted(appointment)
+      ),
+    [appointmentsArray]
+  );
+
   // Today's appointments from real data (sorted by time)
   const todaysAppointments = useMemo(() => {
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-    return appointmentsArray
+    return visibleAppointmentsArray
       .filter((apt: AppointmentWithRelations) => {
         const dateTime = getAppointmentDateTimeValue(apt);
         const aptDate =
@@ -162,7 +183,7 @@ export default function DoctorDashboard() {
         
         let displayStatus = apt.status as string;
         if (isAwaitingDoctorVideoConfirmation(apt as any)) {
-          displayStatus = "SCHEDULED (AWAITING DOCTOR CONFIRMATION)";
+          displayStatus = "SCHEDULED (AWAITING SLOT CONFIRMATION)";
         }
         else if (apt.status === "IN_PROGRESS") displayStatus = "IN PROGRESS";
 
@@ -192,7 +213,7 @@ export default function DoctorDashboard() {
           confirmedSlotIndex: (apt as any).confirmedSlotIndex,
         };
       });
-  }, [appointmentsArray]);
+  }, [visibleAppointmentsArray]);
 
   const filteredAppointments = useMemo(() => {
     return todaysAppointments.filter((apt: TransformedAppointment) => 
@@ -213,7 +234,7 @@ export default function DoctorDashboard() {
 
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-    const todayApts = appointmentsArray.filter((apt: AppointmentWithRelations) => {
+    const todayApts = visibleAppointmentsArray.filter((apt: AppointmentWithRelations) => {
       const dateTime = getAppointmentDateTimeValue(apt);
       const aptDate =
         (dateTime
@@ -242,12 +263,24 @@ export default function DoctorDashboard() {
           isAwaitingDoctorVideoConfirmation(a)
       ),
     };
-  }, [appointmentsArray, todaysAppointments]);
+  }, [todaysAppointments, visibleAppointmentsArray]);
 
   const openPrescription = (apt: TransformedAppointment) => {
     setActivePatient({ id: apt.patientId, name: apt.patientName });
     setActiveAppointmentId(apt.id);
     setIsPrescriptionModalOpen(true);
+  };
+
+  const formatProposedSlot = (slot?: { date: string; time: string }) => {
+    if (!slot) return "Slot";
+    const dateLabel = slot.date
+      ? new Date(`${slot.date}T00:00:00`).toLocaleDateString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          day: "2-digit",
+          month: "short",
+        })
+      : "";
+    return `${dateLabel ? `${dateLabel} • ` : ""}${slot.time}`;
   };
 
   const columns: ColumnDef<TransformedAppointment>[] = [
@@ -284,7 +317,9 @@ export default function DoctorDashboard() {
                     row.original.paymentStatus
                   )}`}
                 >
-                  Payment {row.original.paymentStatus.replace(/_/g, " ")}
+                  {row.original.paymentStatus === "PAID"
+                    ? "Paid video request"
+                    : "Payment pending"}
                 </Badge>
               </div>
             )}
@@ -338,7 +373,7 @@ export default function DoctorDashboard() {
                     router.push("/doctor/video");
                   }
                 }}
-                title={!paymentReady ? "Video appointment is waiting for patient payment" : undefined}
+                title={!paymentReady ? "Video request is waiting for payment" : undefined}
               >
                 {startAppointmentMutation.isPending ? (
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -365,8 +400,50 @@ export default function DoctorDashboard() {
                 variant="outline"
                 className="h-8 rounded-md border-amber-200 bg-amber-50 px-2 text-[10px] font-semibold uppercase tracking-wider text-amber-700"
               >
-                Awaiting Payment
+                Payment pending
               </Badge>
+            )}
+            {isAwaitingDoctorVideoConfirmation(appointment) && Array.isArray(appointment.proposedSlots) && appointment.proposedSlots.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Select
+                  value={String(pendingVideoSlotSelections[appointment.id] ?? 0)}
+                  onValueChange={(value: string) =>
+                    setPendingVideoSlotSelections((current) => ({
+                      ...current,
+                      [appointment.id]: Number(value),
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-8 w-[190px] rounded-md text-xs">
+                    <SelectValue placeholder="Choose slot" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appointment.proposedSlots.map((slot, index) => (
+                      <SelectItem key={`${appointment.id}-${index}`} value={String(index)}>
+                        {formatProposedSlot(slot)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+                  disabled={confirmVideoSlotMutation.isPending}
+                  onClick={() =>
+                    confirmVideoSlotMutation.mutateAsync({
+                      appointmentId: appointment.id,
+                      confirmedSlotIndex: pendingVideoSlotSelections[appointment.id] ?? 0,
+                    })
+                  }
+                >
+                  {confirmVideoSlotMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-3 h-3" />
+                  )}
+                  Confirm slot
+                </Button>
+              </div>
             )}
             {appointment.statusEnum === "IN_PROGRESS" && (
               <div className="flex gap-2">

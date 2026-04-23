@@ -102,8 +102,8 @@ function EhrDrawerContent({ patient }: { patient: RecordLike }) {
 
 export default function DoctorPatients() {
   const { session } = useAuth();
-  const { clinicId } = useClinicContext();
   const doctorId = session?.user?.id || "";
+  const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [genderFilter, setGenderFilter] = useState("all");
   const [ageFilter, setAgeFilter] = useState("all");

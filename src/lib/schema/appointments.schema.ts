@@ -77,7 +77,18 @@ export const rejectVideoProposalSchema = z.object({
 });
 
 export const updateAppointmentStatusSchema = z.object({
-  status: z.enum(['PENDING', 'SCHEDULED', 'CONFIRMED', 'CANCELLED', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'RESCHEDULED', 'AWAITING_SLOT_CONFIRMATION']),
+  status: z.enum([
+    'SCHEDULED',
+    'CONFIRMED',
+    'IN_PROGRESS',
+    'COMPLETED',
+    'CANCELLED',
+    'NO_SHOW',
+    'PENDING',
+    'RESCHEDULED',
+    'FOLLOW_UP_SCHEDULED',
+    'AWAITING_SLOT_CONFIRMATION',
+  ]),
   reason: z.string().optional(),
   notes: z.string().optional(),
   // Check-in

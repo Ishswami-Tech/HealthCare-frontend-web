@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "@/components/ui/loader";
-import { useAuth } from "@/hooks/auth/useAuth";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import {
   useClinicInvoices,
   useClinicPayments,
@@ -30,8 +30,7 @@ import {
 
 export default function FinanceBillingDashboard() {
   const router = useRouter();
-  const { session } = useAuth();
-  const clinicId = session?.user?.clinicId ?? "";
+  const clinicId = useCurrentClinicId();
 
   useWebSocketQuerySync();
 

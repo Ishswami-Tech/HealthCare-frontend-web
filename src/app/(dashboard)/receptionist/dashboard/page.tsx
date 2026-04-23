@@ -222,10 +222,10 @@ export default function ReceptionistDashboard() {
       },
       {
         accessorKey: "confirmed",
-        header: "Queued",
+        header: "Confirmed",
         cell: ({ row }) => (
           <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
-            Queued {row.original.confirmed}
+            Confirmed {row.original.confirmed}
           </Badge>
         ),
       },
@@ -413,7 +413,7 @@ export default function ReceptionistDashboard() {
         <Link href="/receptionist/appointments?status=CONFIRMED" className="block transition-transform hover:scale-[1.02] active:scale-95">
           <Card className="border-emerald-200 bg-emerald-50 shadow-sm transition-colors dark:border-emerald-500/20 dark:bg-emerald-500/10">
             <CardContent className="p-4">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Queued</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Confirmed</div>
               <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">{stats.confirmed}</div>
             </CardContent>
           </Card>

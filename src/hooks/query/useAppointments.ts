@@ -94,6 +94,67 @@ const extractAppointments = (payload: unknown): Appointment[] => {
   return [];
 };
 
+const patchConfirmedSlotInAppointment = (appointment: any, appointmentId: string, confirmedSlotIndex: number) => {
+  if (!appointment || typeof appointment !== 'object') return appointment;
+
+  const currentId = String(appointment?.id || appointment?.appointmentId || '');
+  if (currentId !== String(appointmentId)) return appointment;
+
+  return {
+    ...appointment,
+    status: 'CONFIRMED',
+    confirmedSlotIndex,
+    confirmed_slot_index: confirmedSlotIndex,
+    rawStatus: 'CONFIRMED',
+  };
+};
+
+const patchConfirmedSlotInPayload = (payload: unknown, appointmentId: string, confirmedSlotIndex: number): unknown => {
+  if (Array.isArray(payload)) {
+    return payload.map((appointment) =>
+      patchConfirmedSlotInAppointment(appointment, appointmentId, confirmedSlotIndex)
+    );
+  }
+
+  if (!payload || typeof payload !== 'object') return payload;
+
+  const record = payload as Record<string, unknown>;
+  if (Array.isArray(record.appointments)) {
+    return {
+      ...record,
+      appointments: record.appointments.map((appointment) =>
+        patchConfirmedSlotInAppointment(appointment, appointmentId, confirmedSlotIndex)
+      ),
+    };
+  }
+
+  if (Array.isArray(record.data)) {
+    return {
+      ...record,
+      data: record.data.map((appointment) =>
+        patchConfirmedSlotInAppointment(appointment, appointmentId, confirmedSlotIndex)
+      ),
+    };
+  }
+
+  if (record.data && typeof record.data === 'object') {
+    const nested = record.data as Record<string, unknown>;
+    if (Array.isArray(nested.appointments)) {
+      return {
+        ...record,
+        data: {
+          ...nested,
+          appointments: nested.appointments.map((appointment) =>
+            patchConfirmedSlotInAppointment(appointment, appointmentId, confirmedSlotIndex)
+          ),
+        },
+      };
+    }
+  }
+
+  return patchConfirmedSlotInAppointment(payload, appointmentId, confirmedSlotIndex);
+};
+
 // ✅ Appointment Management Hooks
 
 /**
@@ -357,6 +418,7 @@ export const useProposeVideoAppointment = () => {
  */
 export const useConfirmVideoSlot = () => {
   const { hasPermission } = useRBAC();
+  const queryClient = useQueryClient();
   return useMutationOperation(
     async ({ appointmentId, confirmedSlotIndex }: { appointmentId: string; confirmedSlotIndex: number }) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
@@ -376,6 +438,20 @@ export const useConfirmVideoSlot = () => {
       loadingMessage: 'Confirming slot...',
       successMessage: 'Slot confirmed. Patient can now pay.',
       invalidateQueries: [['appointments'], ['video-appointments'], ['appointment'], ['myAppointments']],
+      onSuccess: (_appointment, variables) => {
+        void queryClient.setQueriesData(
+          { queryKey: ['appointments'], exact: false },
+          (current) => patchConfirmedSlotInPayload(current, variables.appointmentId, variables.confirmedSlotIndex)
+        );
+        void queryClient.setQueriesData(
+          { queryKey: ['video-appointments'], exact: false },
+          (current) => patchConfirmedSlotInPayload(current, variables.appointmentId, variables.confirmedSlotIndex)
+        );
+        void queryClient.setQueriesData(
+          { queryKey: ['myAppointments'], exact: false },
+          (current) => patchConfirmedSlotInPayload(current, variables.appointmentId, variables.confirmedSlotIndex)
+        );
+      },
     }
   );
 };
@@ -973,6 +1049,8 @@ export const useMyAppointments = (filters?: {
   date?: string;
   page?: number;
   limit?: number;
+}, options?: {
+  enabled?: boolean;
 }) => {
   const { hasPermission } = useRBAC();
   const { session } = useAuth();
@@ -1000,7 +1078,7 @@ export const useMyAppointments = (filters?: {
       } as any;
     },
     {
-      enabled: !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      enabled: (options?.enabled ?? true) && !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 2 * 60 * 1000, // reuse recent appointment data across patient pages
       gcTime: 10 * 60 * 1000,
       refetchOnMount: true, // Refetch when invalidated so payment callback navigation refreshes the list

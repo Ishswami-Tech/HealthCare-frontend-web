@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,19 +38,21 @@ type OtpMethod = "email" | "phone";
 type SuccessPhase = "none" | "alert" | "redirecting";
 
 export default function LoginPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [view, setView] = useState<LoginMethod>("selection");
   const [showOTPInput, setShowOTPInput] = useState(false);
   const [otpMethod, setOtpMethod] = useState<OtpMethod>("email");
   const [isSocialLoginLoading, setIsSocialLoginLoading] = useState(false);
   const [successPhase, setSuccessPhase] = useState<SuccessPhase>("none");
+  const [isRestoringSession, setIsRestoringSession] = useState(false);
   const sessionExpired = searchParams.get("reason") === "session-expired";
 
   // Shared email state to persist across views
   const [sharedIdentifier, setSharedIdentifier] = useState("");
 
   const otpInputRef = useRef<HTMLInputElement>(null);
-  const { loginAsync, requestOTP, verifyOTP, isLoggingIn, isVerifyingOTP } = useAuth();
+  const { loginAsync, requestOTP, verifyOTP, isLoggingIn, isVerifyingOTP, session, refreshSession, getRedirectPath } = useAuth();
   
   const isFormDisabled = isSocialLoginLoading || successPhase !== "none";
 
@@ -64,6 +66,42 @@ export default function LoginPage() {
       otpInputRef.current.focus();
     }
   }, [showOTPInput]);
+
+  useEffect(() => {
+    if (session?.user) {
+      router.replace(getRedirectPath(session.user));
+    }
+  }, [getRedirectPath, router, session]);
+
+  useEffect(() => {
+    if (!sessionExpired || session?.user || isRestoringSession) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      setIsRestoringSession(true);
+      const restoredSession = await refreshSession(true);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (restoredSession?.user) {
+        router.replace(getRedirectPath(restoredSession.user));
+        return;
+      }
+
+      setIsRestoringSession(false);
+    };
+
+    void restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getRedirectPath, isRestoringSession, refreshSession, router, session?.user, sessionExpired]);
 
   // Login Mutation
   const loginMutation = useCallback(
@@ -506,7 +544,7 @@ export default function LoginPage() {
         </p>
       </CardHeader>
       <CardContent className="px-4 sm:px-6">
-        {sessionExpired && (
+        {sessionExpired && !isRestoringSession && !session?.user && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
             Your session expired or the token was missing. Please sign in again to continue.
           </div>

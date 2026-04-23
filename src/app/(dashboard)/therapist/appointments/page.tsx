@@ -150,7 +150,7 @@ export default function TherapistAppointments() {
                 variant={filterStatus === "CONFIRMED" ? "default" : "outline"}
                 onClick={() => setFilterStatus("CONFIRMED")}
               >
-                Queued
+                Confirmed
               </Button>
               <Button
                 variant={filterStatus === "COMPLETED" ? "default" : "outline"}

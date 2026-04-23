@@ -7,7 +7,7 @@ import { Permission } from "@/types/rbac.types";
 import { ProtectedRoute } from "@/components/rbac/ProtectedRoute";
 import { RoleBasedBillingDashboard } from "@/components/billing";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useClinicContext } from "@/hooks/query/useClinics";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import {
   useBillingPlans,
   useSubscriptions,
@@ -24,7 +24,7 @@ import { useLayoutStore } from "@/stores/layout.store";
 
 function BillingPageContent() {
   const { session, isPending: isAuthPending } = useAuth();
-  const { clinicId: contextClinicId } = useClinicContext();
+  const clinicId = useCurrentClinicId();
   const searchParams = useSearchParams();
   const setPageTitle = useLayoutStore((state) => state.setPageTitle);
 
@@ -40,7 +40,6 @@ function BillingPageContent() {
   }, [userRoleForTitle, setPageTitle]);
 
   const userId = (session?.user?.id || "").trim();
-  const clinicId = contextClinicId || session?.user?.clinicId || "";
   const currentRole = (session?.user?.role as Role) || Role.PATIENT;
   const isPatientRole = currentRole === Role.PATIENT;
   const isAdminRole = [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.FINANCE_BILLING].includes(

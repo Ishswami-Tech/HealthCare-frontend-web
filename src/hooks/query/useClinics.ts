@@ -1,7 +1,9 @@
 import { useQueryData, useMutationOperation } from '../core';
+import { useAuth } from '@/hooks/auth/useAuth';
 import { TOAST_IDS } from '../utils/use-toast';
-import { useAuth } from '../auth/useAuth';
 import { useRBAC } from '../utils/useRBAC';
+import { useAppStore } from '@/stores';
+import { useAuthStore } from '@/stores/auth.store';
 import { Permission } from '@/types/rbac.types';
 import { APP_CONFIG } from '@/lib/config/config';
 import { 
@@ -111,10 +113,16 @@ export const useCreateClinic = () => {
 /**
  * Hook to get all clinics
  */
-export const useClinics = () => {
-  return useQueryData(['clinics'], async () => {
-    return await getClinics();
-  });
+export const useClinics = (options?: { enabled?: boolean }) => {
+  return useQueryData(
+    ['clinics'],
+    async () => {
+      return await getClinics();
+    },
+    {
+      enabled: options?.enabled ?? true,
+    }
+  );
 };
 
 
@@ -857,11 +865,15 @@ export interface PaginationParams {
 
 // ✅ Current Clinic ID Hook (separate to avoid circular imports)
 export const useCurrentClinicId = () => {
-  const { session } = useAuth();
+  const currentClinic = useAppStore(state => state.currentClinic);
+  const sessionUser = useAuthStore(state => state.session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined);
   
-  // Try to get clinic ID from user session
-  const clinicId = (session?.user as { clinicId?: string; clinic?: { id: string } })?.clinicId || 
-                  (session?.user as { clinicId?: string; clinic?: { id: string } })?.clinic?.id;
+  const clinicId =
+    currentClinic?.id ||
+    sessionUser?.clinicId ||
+    sessionUser?.clinic?.id ||
+    APP_CONFIG.CLINIC.ID ||
+    "";
   
   return clinicId;
 };

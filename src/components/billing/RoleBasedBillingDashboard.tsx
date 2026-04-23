@@ -42,6 +42,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PaymentButton } from "@/components/payments";
 import { showErrorToast, showInfoToast } from "@/hooks/utils/use-toast";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
 
 interface RoleBasedBillingDashboardProps {
   initialTab?: string;
@@ -94,6 +95,7 @@ export function RoleBasedBillingDashboard({
   onRefetch,
 }: RoleBasedBillingDashboardProps) {
   const { session } = useAuth();
+  const clinicId = useCurrentClinicId();
   const userRole = (session?.user?.role as Role) || Role.PATIENT;
 
   const isAdmin = [Role.SUPER_ADMIN, Role.CLINIC_ADMIN, Role.FINANCE_BILLING].includes(userRole);
@@ -146,8 +148,8 @@ export function RoleBasedBillingDashboard({
   const handleSubscribePlan = async () => {
     setSubscribeError("");
     if (!session?.user?.id || !planToConfirm) return;
-    const clinicId = planToConfirm.clinicId || session.user.clinicId || "";
-    if (!clinicId) {
+    const resolvedClinicId = planToConfirm.clinicId || clinicId || "";
+    if (!resolvedClinicId) {
       setSubscribeError("Clinic context is missing for subscription checkout.");
       return;
     }
@@ -155,7 +157,7 @@ export function RoleBasedBillingDashboard({
     try {
       const created = await createSubscriptionMutation.mutateAsync({
         userId: session.user.id,
-        clinicId,
+        clinicId: resolvedClinicId,
         planId: planToConfirm.id,
       });
 
@@ -187,17 +189,17 @@ export function RoleBasedBillingDashboard({
       return;
     }
 
-    const clinicId = session?.user?.clinicId || plans[0]?.clinicId || "";
+    const resolvedClinicId = clinicId || plans[0]?.clinicId || "";
     const parsedPrice = Number(newPlanPrice);
     const parsedAppointments = Number(newPlanAppointments || "0");
-    if (!clinicId || !newPlanName.trim() || !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+    if (!resolvedClinicId || !newPlanName.trim() || !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
       setCreatePlanError("Please fill valid plan name, clinic, and price.");
       return;
     }
 
     try {
       await createPlanMutation.mutateAsync({
-        clinicId,
+        clinicId: resolvedClinicId,
         name: newPlanName.trim(),
         price: parsedPrice,
         currency: "INR",

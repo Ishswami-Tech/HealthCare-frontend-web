@@ -1,21 +1,5 @@
-"use client";
-
-import { VideoAppointmentsList } from "@/components/video/VideoAppointmentsList";
+import { redirect } from "next/navigation";
 
 export default function ReceptionistVideoPage() {
-  return (
-    
-      <VideoAppointmentsList
-        title="Video Consultations"
-        description="View and join video consultations during the scheduled time slot"
-        showStatistics={false}
-        showClinicFilter={false}
-        showJoinButton={true}
-        enforceTimeSlotWindow={true}
-        showEndButton={false}
-        showDownloadButton={false}
-        limit={100}
-      />
-    
-  );
+  redirect("/video-appointments");
 }

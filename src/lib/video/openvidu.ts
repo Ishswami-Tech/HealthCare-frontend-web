@@ -376,7 +376,6 @@ export class VideoAppointmentService {
     try {
       if (this.currentCall) {
         await this.currentCall.endCall();
-        await this.currentCall.dispose();
         this.currentCall = null;
       }
     } catch (error) {

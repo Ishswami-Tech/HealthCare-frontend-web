@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
-import { useClinicContext } from "@/hooks/query/useClinics";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import {
   usePatientMedicalRecords,
   usePatientVitalSigns,
@@ -60,7 +60,7 @@ export default function PatientDashboard() {
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
 
-  const { clinicId } = useClinicContext();
+  const clinicId = useCurrentClinicId();
   const patientId = user?.id || "";
 
   // Fetch real data using hooks with loading and error states

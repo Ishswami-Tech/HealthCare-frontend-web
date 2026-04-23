@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { useClinicContext } from "@/hooks/query/useClinics";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useCreateInvoice } from "@/hooks/query/useBilling";
 
 interface InvoiceFormProps {
@@ -18,11 +18,11 @@ interface InvoiceFormProps {
 
 export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) {
   const { session } = useAuth();
-  const { clinicId: contextClinicId } = useClinicContext();
+  const clinicContextId = useCurrentClinicId();
   const createInvoice = useCreateInvoice();
 
   const userId = session?.user?.id || invoice?.userId || "";
-  const clinicId = contextClinicId || session?.user?.clinicId || invoice?.clinicId || "";
+  const clinicId = clinicContextId || invoice?.clinicId || "";
 
   const [amount, setAmount] = useState<number>(invoice?.amount || 0);
   const [description, setDescription] = useState<string>(invoice?.items?.[0]?.description || "");

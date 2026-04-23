@@ -47,14 +47,13 @@ import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/
 export default function DoctorPrescriptions() {
   const { session } = useAuth();
   const user = session?.user;
+  const doctorId = user?.id || "";
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [editingPrescription, setEditingPrescription] = useState<any | null>(null);
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [editForm, setEditForm] = useState({ diagnosis: "", notes: "", status: "active", medicines: "" });
-
-  const doctorId = user?.id;
 
   const { data: prescriptionsData, isPending } = usePrescriptions(doctorId);
   const createMutation = useCreatePrescription();

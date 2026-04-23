@@ -19,12 +19,14 @@ export const usePrescriptions = (doctorId?: string, filters?: {
   patientName?: string;
   limit?: number;
   offset?: number;
+}, options?: {
+  enabled?: boolean;
 }) => {
   return useQueryData(
     ['prescriptions', doctorId, filters],
     async () => await getPrescriptions(doctorId, filters),
     {
-      enabled: !!doctorId,
+      enabled: (options?.enabled ?? true) && !!doctorId,
     }
   );
 };

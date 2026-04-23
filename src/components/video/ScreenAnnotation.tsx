@@ -39,6 +39,8 @@ interface ScreenAnnotationProps {
 type AnnotationTool = "drawing" | "text" | "arrow" | "highlight" | "shape";
 type ShapeType = "rectangle" | "circle" | "line";
 
+const EMPTY_ANNOTATIONS: Annotation[] = [];
+
 export function ScreenAnnotation({
   appointmentId,
   className,
@@ -59,15 +61,17 @@ export function ScreenAnnotation({
   const [deletingAnnotationId, setDeletingAnnotationId] = useState<string | null>(null);
 
   const { subscribeToAnnotations, isConnected } = useVideoAppointmentWebSocket();
-  const { data: fetchedAnnotations = [] } = useAnnotations(appointmentId);
+  const { data: fetchedAnnotations } = useAnnotations(appointmentId);
   const createAnnotationMutation = useCreateAnnotation();
   const deleteAnnotationMutation = useDeleteAnnotation();
   const isSavingAnnotation = createAnnotationMutation.isPending;
 
+  const resolvedAnnotations = fetchedAnnotations ?? EMPTY_ANNOTATIONS;
+
   useEffect(() => {
-    setAnnotations(fetchedAnnotations);
-    drawAnnotations(fetchedAnnotations);
-  }, [fetchedAnnotations]);
+    setAnnotations(resolvedAnnotations);
+    drawAnnotations(resolvedAnnotations);
+  }, [resolvedAnnotations]);
 
   // Subscribe to real-time annotation updates
   useEffect(() => {

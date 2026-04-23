@@ -13,7 +13,6 @@ import type { Invoice } from './billing.types';
 export type AppointmentStatus = 
   | 'SCHEDULED'
   | 'CONFIRMED' 
-  | 'AWAITING_SLOT_CONFIRMATION'
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CANCELLED'

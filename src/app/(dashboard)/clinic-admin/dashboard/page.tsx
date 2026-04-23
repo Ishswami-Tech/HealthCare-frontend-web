@@ -365,7 +365,7 @@ export default function ClinicAdminDashboard() {
               </div>
               <div className="flex gap-4">
                 <div className="flex-1 p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
-                  <p className="text-[10px] font-black uppercase text-white/60 mb-1">Queued</p>
+                  <p className="text-[10px] font-black uppercase text-white/60 mb-1">Confirmed</p>
                   <p className="text-xl font-black">{queueItems.length}</p>
                 </div>
                 <div className="flex-1 p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">

@@ -29,8 +29,10 @@ export function normalizeAppointmentStatus(value: unknown): string {
     case 'AWAITING_SLOT_CONFIRMATION':
     case 'FOLLOW_UP_SCHEDULED':
     case 'RESCHEDULED':
+    case 'WAITING':
       return 'SCHEDULED';
     case 'ACTIVE':
+    case 'STARTED':
       return 'IN_PROGRESS';
     case 'ENDED':
       return 'COMPLETED';
@@ -179,6 +181,10 @@ export function getAppointmentDateTimeValue(appointment: any): Date | null {
 export function getAppointmentDoctorName(appointment: any): string {
   return (
     appointment?.doctorName ||
+    appointment?.doctor?.user?.displayName ||
+    appointment?.doctor?.displayName ||
+    appointment?.doctor?.fullName ||
+    appointment?.doctor?.user?.fullName ||
     appointment?.doctor?.user?.name ||
     appointment?.doctor?.name ||
     `${appointment?.doctor?.user?.firstName || appointment?.doctor?.firstName || ''} ${
@@ -191,6 +197,10 @@ export function getAppointmentDoctorName(appointment: any): string {
 export function getAppointmentPatientName(appointment: any): string {
   return (
     appointment?.patientName ||
+    appointment?.patient?.user?.displayName ||
+    appointment?.patient?.displayName ||
+    appointment?.patient?.fullName ||
+    appointment?.patient?.user?.fullName ||
     appointment?.patient?.user?.name ||
     appointment?.patient?.name ||
     `${appointment?.patient?.user?.firstName || appointment?.patient?.firstName || ""} ${
@@ -290,7 +300,7 @@ export function getAppointmentStatusDisplayName(status: string): string {
   const normalizedStatus = normalizeAppointmentStatus(status);
   const statusNames: Record<string, string> = {
     SCHEDULED: 'Scheduled',
-    CONFIRMED: 'Queued',
+    CONFIRMED: 'Confirmed',
     IN_PROGRESS: 'In Progress',
     COMPLETED: 'Completed',
     CANCELLED: 'Cancelled',
@@ -300,9 +310,6 @@ export function getAppointmentStatusDisplayName(status: string): string {
 }
 
 export function isAwaitingDoctorSlotConfirmation(appointment: any): boolean {
-  const status = String(appointment?.status || '').toUpperCase();
-  if (status === 'AWAITING_SLOT_CONFIRMATION') return true;
-
   const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
   if (type !== 'VIDEO_CALL') return false;
 
@@ -314,7 +321,7 @@ export function isAwaitingDoctorSlotConfirmation(appointment: any): boolean {
     confirmedSlotIndex !== undefined &&
     !Number.isNaN(Number(confirmedSlotIndex));
 
-  return status === 'SCHEDULED' && hasProposedSlots && !hasConfirmedSlot;
+  return normalizeAppointmentStatus(appointment?.status) === 'SCHEDULED' && hasProposedSlots && !hasConfirmedSlot;
 }
 
 export function getAppointmentStatusBadgeLabel(appointment: any): string {

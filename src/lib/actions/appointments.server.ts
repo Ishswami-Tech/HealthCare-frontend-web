@@ -384,6 +384,7 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
 export async function getMyAppointments(filters?: any) {
   try {
     const session = await getServerSession();
+    const resolvedClinicId = session?.user?.clinicId || APP_CONFIG.CLINIC.ID;
     const normalizedFilters = {
       page: 1,
       limit: 100,
@@ -403,7 +404,7 @@ export async function getMyAppointments(filters?: any) {
       pagination?: any;
       meta?: any;
     }>(endpoint, {
-      ...(session?.user?.clinicId ? { headers: { 'X-Clinic-ID': session.user.clinicId } } : {}),
+      ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
       omitClinicId: true,
     });
 

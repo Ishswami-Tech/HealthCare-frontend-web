@@ -13,6 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useMyAppointments,
@@ -22,6 +26,8 @@ import {
   useAppointmentStats,
 } from "@/hooks/query/useAppointments";
 import { useJoinVideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { VideoAppointmentRoom } from "@/components/video/VideoAppointmentRoom";
+import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -56,6 +62,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
+import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 // Appointment status constants - must match backend enum values
 const APPOINTMENT_STATUS = {
@@ -76,6 +83,8 @@ export default function AppointmentsPage() {
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [page, setPage] = useState(1);
+  const [isVideoRoomOpen, setIsVideoRoomOpen] = useState(false);
+  const [activeVideoAppointment, setActiveVideoAppointment] = useState<VideoAppointment | null>(null);
 
   // Debounce search to reduce API calls (optimized for 10M users)
   const debouncedSetSearch = useDebouncedCallback((value: string) => {
@@ -310,30 +319,35 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleJoinVideo = async (appointmentId: string) => {
+  const handleJoinVideo = async (appointment: any) => {
     try {
       const userId = session?.user?.id || "";
-      const result = await joinVideoAppointment.mutateAsync({
-        appointmentId,
+      await joinVideoAppointment.mutateAsync({
+        appointmentId: appointment.id || appointment.appointmentId,
         userId,
         role: (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) ? "doctor" : "patient",
       });
-
-      const resultData = result as { token?: { token?: string } | string };
-      const token =
-        typeof resultData?.token === "string"
-          ? resultData.token
-          : resultData?.token?.token;
-
-      if (token) {
-        // Open video consultation in new window
-        window.open(
-          `/video-consultation/${appointmentId}?token=${token}`,
-          "_blank"
-        );
-      }
+      setActiveVideoAppointment({
+        id: String(appointment.id || appointment.appointmentId),
+        appointmentId: appointment.id || appointment.appointmentId,
+        roomName: appointment.roomName || appointment.doctorName || `room-${appointment.id || appointment.appointmentId}`,
+        doctorId: appointment.doctorId || appointment.doctor?.id || appointment.doctor?.userId || "",
+        patientId: appointment.patientId || appointment.patient?.id || appointment.patient?.userId || "",
+        startTime: appointment.startTime || appointment.dateTime || new Date().toISOString(),
+        endTime: appointment.endTime || appointment.dateTime || new Date().toISOString(),
+        status: String(appointment.status || "scheduled").toLowerCase() as VideoAppointment["status"],
+        sessionId: appointment.sessionId,
+        recordingUrl: appointment.recordingUrl,
+        notes: appointment.notes,
+        createdAt: appointment.createdAt || new Date().toISOString(),
+        updatedAt: appointment.updatedAt || new Date().toISOString(),
+      });
+      setIsVideoRoomOpen(true);
     } catch (error: unknown) {
-      console.error("Failed to join video:", error);
+      showErrorToast(
+        error instanceof Error ? error.message : "Failed to join video",
+        { id: TOAST_IDS.VIDEO.ERROR }
+      );
     }
   };
 
@@ -468,7 +482,7 @@ export default function AppointmentsPage() {
                         size="sm"
                         variant="default"
                         className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700"
-                        onClick={() => handleJoinVideo(appointment.id)}
+                        onClick={() => handleJoinVideo(appointment)}
                         disabled={joinVideoAppointment.isPending}
                       >
                         <Video className="w-3 h-3" />
@@ -657,7 +671,7 @@ export default function AppointmentsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                  <SelectItem value="CONFIRMED">Queued</SelectItem>
+                  <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                   <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                   <SelectItem value="COMPLETED">Completed</SelectItem>
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>
@@ -717,9 +731,9 @@ export default function AppointmentsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="past" className="space-y-4">
-          {pastAppointments.length > 0 ? (
-            <>
+      <TabsContent value="past" className="space-y-4">
+        {pastAppointments.length > 0 ? (
+          <>
               {pastAppointments.map((appointment) => (
                 <AppointmentCard
                   key={appointment.id}
@@ -748,10 +762,27 @@ export default function AppointmentsPage() {
                   Your appointment history will appear here.
                 </p>
               </CardContent>
-            </Card>
+          </Card>
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isVideoRoomOpen} onOpenChange={setIsVideoRoomOpen}>
+        <DialogContent className="max-w-7xl w-full h-[90vh] p-0 overflow-hidden rounded-xl">
+          <div className="h-full">
+            {activeVideoAppointment && (
+              <VideoAppointmentRoom
+                appointment={activeVideoAppointment}
+                autoStart={true}
+                onLeaveRoom={() => {
+                  setIsVideoRoomOpen(false);
+                  setActiveVideoAppointment(null);
+                }}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

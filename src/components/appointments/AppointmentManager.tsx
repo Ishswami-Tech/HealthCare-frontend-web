@@ -43,6 +43,7 @@ import { BookAppointmentDialog } from "@/components/appointments/BookAppointment
 import { cn } from "@/lib/utils";
 import {
   formatDateInIST,
+  isAwaitingDoctorSlotConfirmation,
   getAppointmentStatusBadgeLabel,
   getAppointmentDateTimeValue,
   getDisplayAppointmentDuration,
@@ -72,7 +73,7 @@ type StatusFilter = "ALL" | "SCHEDULED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLET
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string; bg: string }> = {
   SCHEDULED:   { label: "Scheduled",   color: "text-blue-700 dark:text-blue-300",   dot: "bg-blue-500",   bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900" },
-  CONFIRMED:   { label: "Queued",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900" },
+  CONFIRMED:   { label: "Confirmed",   color: "text-green-700 dark:text-green-300", dot: "bg-green-500", bg: "bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900" },
   IN_PROGRESS: { label: "In Progress", color: "text-purple-700 dark:text-purple-300",dot: "bg-purple-500",bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-100 dark:border-purple-900" },
   COMPLETED:   { label: "Completed",   color: "text-slate-600 dark:text-slate-400", dot: "bg-slate-400", bg: "bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700" },
   CANCELLED:   { label: "Cancelled",   color: "text-red-700 dark:text-red-300",     dot: "bg-red-500",   bg: "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900" },
@@ -87,6 +88,10 @@ interface AppointmentManagerProps {
   patientId?: string;
   hideBookButton?: boolean;
   autoOpenBookDialog?: boolean;
+}
+
+function getEffectiveAppointmentId(appointment: AppointmentWithRelations | any): string {
+  return String(appointment?.appointmentId || appointment?.id || "");
 }
 
 export default function AppointmentManager({ 
@@ -107,7 +112,7 @@ export default function AppointmentManager({
   useWebSocketQuerySync();
 
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("SCHEDULED");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(isAdminView ? "ALL" : "SCHEDULED");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
@@ -301,7 +306,8 @@ export default function AppointmentManager({
 
   const handleRescheduleSubmit = () => {
     if (!selectedAppointment) return;
-    rescheduleAppointment({ id: selectedAppointment.id, data: { date: rescheduleData.date, time: rescheduleData.time } }, {
+    const appointmentId = getEffectiveAppointmentId(selectedAppointment);
+    rescheduleAppointment({ id: appointmentId, data: { date: rescheduleData.date, time: rescheduleData.time } }, {
       onSuccess: () => {
         showSuccessToast("Appointment rescheduled", { id: TOAST_IDS.APPOINTMENT.UPDATE, description: "Your appointment has been rescheduled." });
         setIsRescheduleDialogOpen(false);
@@ -312,7 +318,8 @@ export default function AppointmentManager({
 
   const handleRejectProposal = () => {
     if (!selectedAppointment) return;
-    rejectVideoProposal({ id: selectedAppointment.id, reason: rejectReason }, {
+    const appointmentId = getEffectiveAppointmentId(selectedAppointment);
+    rejectVideoProposal({ id: appointmentId, reason: rejectReason }, {
       onSuccess: () => {
         showSuccessToast("Proposal rejected", { id: TOAST_IDS.APPOINTMENT.UPDATE });
         setIsRejectDialogOpen(false);
@@ -528,7 +535,7 @@ export default function AppointmentManager({
                   <Button
                     variant="outline"
                     className="h-10 px-5 rounded-lg border-red-200/50 bg-red-50/30 text-red-600 hover:bg-red-100/50 hover:text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 text-sm transition-all active:scale-95 flex-1 sm:flex-none"
-                    onClick={() => handleCancelAppointment(apt.id)}
+                    onClick={() => handleCancelAppointment(getEffectiveAppointmentId(apt))}
                     disabled={cancellingAppointment}
                   >
                     <XCircle className="w-4 h-4 mr-2" />
@@ -536,11 +543,11 @@ export default function AppointmentManager({
                   </Button>
                 )}
                 {apt.type === "VIDEO_CALL" &&
-                  ["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes((apt as any).raw?.status) &&
+                  ["CONFIRMED", "IN_PROGRESS"].includes(String((apt as any).raw?.status || "").toUpperCase()) &&
                   isVideoAppointmentPaymentCompleted(apt) && (
                   <Button
                     className="h-10 px-6 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
-                    onClick={() => window.location.href = `/patient/video?appointmentId=${apt.id}`}
+                    onClick={() => window.location.href = `/patient/video?appointmentId=${getEffectiveAppointmentId(apt)}`}
                   >
                     <Video className="w-4 h-4 mr-2" />
                     Join Video
@@ -549,12 +556,13 @@ export default function AppointmentManager({
                 {apt.type === "VIDEO_CALL" &&
                   !isVideoAppointmentPaymentCompleted(apt) && (
                   <PaymentButton
-                    appointmentId={apt.id}
+                    appointmentId={getEffectiveAppointmentId(apt)}
                     amount={apt.invoice?.amount || 500}
                     className="h-10 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
                     onSuccess={() => {
-                      if (["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes((apt as any).raw?.status)) {
-                        window.location.href = `/patient/video?appointmentId=${apt.id}`;
+                      const appointmentStatus = normalizeAppointmentStatus((apt as any).raw?.status || apt.status);
+                      if (["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes(appointmentStatus)) {
+                        window.location.href = `/patient/video?appointmentId=${getEffectiveAppointmentId(apt)}`;
                       } else {
                          window.location.reload();
                       }
@@ -566,17 +574,7 @@ export default function AppointmentManager({
                 )}
                 {apt.type === "VIDEO_CALL" &&
                   isVideoAppointmentPaymentCompleted(apt) &&
-                  (
-                    (apt as any).raw?.status === "AWAITING_SLOT_CONFIRMATION" ||
-                    (
-                      String((apt as any).raw?.status || "").toUpperCase() === "SCHEDULED" &&
-                      (
-                        (apt as any).raw?.confirmedSlotIndex === null ||
-                        (apt as any).raw?.confirmedSlotIndex === undefined ||
-                        Number.isNaN(Number((apt as any).raw?.confirmedSlotIndex))
-                      )
-                    )
-                  ) && (
+                  isAwaitingDoctorSlotConfirmation(apt) && (
                     <Button
                       variant="outline"
                       className="h-10 px-6 rounded-lg border-amber-200 bg-amber-50 text-amber-700 text-sm pointer-events-none flex-1"
@@ -726,7 +724,7 @@ export default function AppointmentManager({
             const labelMap: Record<string, string> = {
               ALL: "All",
               SCHEDULED: "Scheduled",
-              CONFIRMED: "Queued",
+              CONFIRMED: "Confirmed",
               IN_PROGRESS: "In Progress",
               COMPLETED: "Completed",
               CANCELLED: "Cancelled"

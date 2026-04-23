@@ -17,6 +17,7 @@ import type {
 import { fetchWithAbort, TimeoutError } from '@/lib/utils/fetch-with-abort';
 import { getAccessToken, getSessionId, getClinicId } from '@/lib/utils/token-manager';
 import { useAuthStore } from '@/stores/auth.store';
+import { triggerClientAuthRecovery } from '@/lib/utils/auth-recovery';
 
 // ✅ Custom Error Classes
 export class ApiError extends Error {
@@ -535,7 +536,7 @@ export class ApiClient {
     const refreshPromise = (async () => {
       try {
         // Call refresh endpoint directly (bypassing executeRequest to avoid infinite loop)
-        const response = await fetch(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
+      const response = await fetch(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -545,29 +546,32 @@ export class ApiClient {
           body: JSON.stringify(refreshToken ? { refreshToken } : {})
         });
 
-        if (!response.ok) {
-          throw new Error('Token refresh failed');
-        }
+          if (!response.ok) {
+            throw new Error('Token refresh failed');
+          }
 
         const data = await response.json();
         const tokens = data.data || data;
 
         // Update session with new tokens
         await this.updateSession(tokens);
-      } catch (error) {
-        // If refresh fails, clear session and throw
-        await this.clearAuthSession();
-        
-        // Throw proper ApiError to stop unintended retries
-        if (!(error instanceof ApiError)) {
+        } catch (error) {
+          // If refresh fails, clear session and throw
+          await this.clearAuthSession();
+          if (typeof window !== 'undefined') {
+            triggerClientAuthRecovery();
+          }
+          
+          // Throw proper ApiError to stop unintended retries
+          if (!(error instanceof ApiError)) {
           throw new ApiError(
             'Session expired. Please log in again.',
             HTTP_STATUS.UNAUTHORIZED,
             ERROR_CODES.AUTH_TOKEN_INVALID
           );
-        }
-        throw error;
-      } finally {
+          }
+          throw error;
+        } finally {
         activeRefreshPromises.delete(refreshKey);
       }
     })();

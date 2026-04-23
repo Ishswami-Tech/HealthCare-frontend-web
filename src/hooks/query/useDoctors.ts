@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
+import { useAuth } from '@/hooks/auth/useAuth';
 import {
   getDoctors,
   getDoctorById,
@@ -26,7 +27,7 @@ import {
 } from '@/lib/actions/doctors.server';
 import { getDoctorAvailability } from '@/lib/actions/appointments.server';
 import { usePatientStore } from '@/stores';
-import { useCurrentClinicId } from './useClinics';
+import { useClinicDoctors, useCurrentClinicId } from './useClinics';
 
 // ===== DOCTORS QUERY HOOKS =====
 
@@ -426,4 +427,28 @@ export const useExportDoctorData = () => {
       successMessage: 'Doctor data exported successfully',
     }
   );
+};
+
+export const useCurrentDoctorEntityId = (clinicId?: string) => {
+  const { session } = useAuth();
+  const authenticatedUserId = session?.user?.id || '';
+  const authenticatedEmail = session?.user?.email?.toLowerCase() || '';
+  const clinicDoctors = useClinicDoctors(clinicId || '');
+
+  const doctorId = useMemo(() => {
+    const doctors = Array.isArray(clinicDoctors.data) ? clinicDoctors.data : [];
+    const matchedDoctor = doctors.find((doctor) => {
+      const doctorUserId = doctor.userId || doctor.user?.id || '';
+      const doctorEmail = doctor.user?.email?.toLowerCase() || '';
+      return doctorUserId === authenticatedUserId || (authenticatedEmail && doctorEmail === authenticatedEmail);
+    });
+
+    return matchedDoctor?.id || '';
+  }, [authenticatedEmail, authenticatedUserId, clinicDoctors.data]);
+
+  return {
+    doctorId,
+    doctorUserId: authenticatedUserId,
+    isResolvingDoctorId: Boolean(clinicId) && clinicDoctors.isPending && !doctorId,
+  };
 };

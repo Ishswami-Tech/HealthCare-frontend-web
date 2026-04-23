@@ -33,6 +33,8 @@ interface WaitingRoomProps {
   className?: string;
 }
 
+const EMPTY_WAITING_ROOM_QUEUE: WaitingRoomParticipant[] = [];
+
 export function WaitingRoom({
   appointmentId,
   onAdmitted,
@@ -51,7 +53,7 @@ export function WaitingRoom({
   const isDoctor = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
   const { subscribeToWaitingRoom, isConnected } = useVideoAppointmentWebSocket();
   const {
-    data: waitingRoomQueue = [],
+    data: waitingRoomQueue,
     isPending: isLoadingQueue,
   } = useWaitingRoomQueue(appointmentId, isDoctor);
   const joinWaitingRoomMutation = useJoinWaitingRoom();
@@ -62,11 +64,13 @@ export function WaitingRoom({
     leaveWaitingRoomMutation.isPending ||
     admitFromWaitingRoomMutation.isPending;
 
+  const resolvedWaitingRoomQueue = waitingRoomQueue ?? EMPTY_WAITING_ROOM_QUEUE;
+
   useEffect(() => {
     if (isDoctor) {
-      setQueue(waitingRoomQueue);
+      setQueue(resolvedWaitingRoomQueue);
     }
-  }, [isDoctor, waitingRoomQueue]);
+  }, [isDoctor, resolvedWaitingRoomQueue]);
 
   // Subscribe to waiting room events
   useEffect(() => {

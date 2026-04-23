@@ -47,7 +47,7 @@ import {
   useCreateInPersonAppointmentWithSubscription,
 } from "@/hooks/query/useBilling";
 import { useSendAppointmentReminder } from "@/hooks/query/useCommunication";
-import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
+import { useActiveLocations, useClinicContext, useMyClinic } from "@/hooks/query/useClinics";
 import { useRBAC } from "@/hooks/utils/useRBAC";
 import {
   dismissToast,
@@ -147,16 +147,14 @@ const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
  */
 const getTodayIST = () => {
   const now = new Date();
-  // Get date parts in IST
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Kolkata',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
   });
-  const istDateString = formatter.format(now); // "YYYY-MM-DD"
-  // Create a local date object set to that day (start of day)
-  return new Date(istDateString);
+  const [year, month, day] = formatter.format(now).split('-').map(Number);
+  return new Date(year ?? now.getFullYear(), (month ?? 1) - 1, day ?? now.getDate());
 };
 
 const formatDateIST = (date: Date) =>
@@ -219,7 +217,10 @@ export function BookAppointmentDialog({
   const postBookingLabel = userRole === "RECEPTIONIST" ? "View Reception Desk" : "View My Appointments";
   const patientCheckInRoute = "/patient/check-in";
   const { clinicId: contextClinicId } = useClinicContext();
-  const activeClinicId = clinicId || contextClinicId || APP_CONFIG.CLINIC.ID;
+  const { data: myClinic, isPending: myClinicLoading } = useMyClinic();
+  const hasExplicitClinicId = !!clinicId || !!contextClinicId || !!session?.user?.clinicId;
+  const shouldResolvePatientClinic = userRole === "PATIENT" && !hasExplicitClinicId;
+  const activeClinicId = clinicId || contextClinicId || session?.user?.clinicId || myClinic?.id || APP_CONFIG.CLINIC.ID;
 
   // ─── Dialog / Step state ──────────────────────────────────────────────────
   const [open, setOpen] = useState(defaultOpen);
@@ -260,9 +261,9 @@ export function BookAppointmentDialog({
   });
   const isPrivilegedScheduler = ["RECEPTIONIST", "DOCTOR", "ASSISTANT_DOCTOR", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
   const targetPatientId = isPrivilegedScheduler ? selectedPatientId : session?.user?.id || "";
-  const shouldLoadLocations = open;
+  const shouldLoadLocations = open && consultationMode !== "VIDEO" && (!shouldResolvePatientClinic || !myClinicLoading);
   const shouldLoadServices = open;
-  const shouldLoadDoctors = open && step >= 3 && !!activeClinicId && !!selectedLocationId;
+  const shouldLoadDoctors = open && step >= 3 && !!activeClinicId && (consultationMode === "VIDEO" || !!selectedLocationId);
   const shouldLoadPatients = open && isPrivilegedScheduler && !!activeClinicId;
   const quickRegisterPatientMutation = useQuickRegisterPatient();
 
@@ -273,9 +274,11 @@ export function BookAppointmentDialog({
   const { data: appointmentServices = [], isPending: servicesLoading } = useAppointmentServices(shouldLoadServices);
   const { data: doctorsData, isPending: doctorsLoading } = useDoctors(
     activeClinicId,
-    {
-      locationId: selectedLocationId,
-    },
+    consultationMode === "VIDEO"
+      ? undefined
+      : {
+          locationId: selectedLocationId,
+        },
     {
       enabled: shouldLoadDoctors,
     }
@@ -296,13 +299,13 @@ export function BookAppointmentDialog({
     !!activeClinicId &&
     !!selectedDoctorId &&
     !!dateString &&
-    !!selectedLocationId;
+    (consultationMode === "VIDEO" || !!selectedLocationId);
 
   const { data: availability, isPending: availabilityLoading, error: availabilityError } = useDoctorAvailability(
     activeClinicId,
     selectedDoctorId,
     dateString,
-    selectedLocationId,
+    consultationMode === "VIDEO" ? undefined : selectedLocationId,
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
     { enabled: shouldLoadAvailability }
   );
@@ -324,7 +327,10 @@ export function BookAppointmentDialog({
   const { mutate: sendReminder } = useSendAppointmentReminder();
   const shouldLoadSubscriptions = open && step >= 6 && !!targetPatientId;
   const { data: subscriptionsData = [] } = useSubscriptions(targetPatientId, shouldLoadSubscriptions);
-  const { data: backendActiveSubscription } = useActiveSubscription(targetPatientId, activeClinicId, shouldLoadSubscriptions);
+  const {
+    data: backendActiveSubscription,
+    isPending: backendActiveSubscriptionLoading,
+  } = useActiveSubscription(targetPatientId, activeClinicId, shouldLoadSubscriptions);
 
   // ─── Derived ─────────────────────────────────────────────────────────────
   const modeAppointmentType: AppointmentType =
@@ -437,6 +443,10 @@ export function BookAppointmentDialog({
 
     return candidates[0];
   }, [subscriptionsData, activeClinicId, backendActiveSubscription]);
+
+  const isPatientInPersonBooking = consultationMode === "IN_PERSON" && userRole === "PATIENT";
+  const isSubscriptionGateLoading = isPatientInPersonBooking && backendActiveSubscriptionLoading;
+  const needsSubscriptionPlan = isPatientInPersonBooking && !isSubscriptionGateLoading && !activeSubscription;
 
   const slots = useMemo(() => {
     if (Array.isArray((availability as any)?.availableSlots)) return (availability as any).availableSlots;
@@ -772,7 +782,7 @@ export function BookAppointmentDialog({
 
   // ─── Navigation ──────────────────────────────────────────────────────────
   const canNext = useMemo(() => {
-    if (step === 1) return !!selectedLocationId && !!consultationMode;
+    if (step === 1) return !!consultationMode && (consultationMode === "VIDEO" || !!selectedLocationId);
     if (step === 2) {
       return !!selectedServiceId && (!isPrivilegedScheduler || !!selectedPatientId);
     }
@@ -843,56 +853,65 @@ export function BookAppointmentDialog({
   // ─── Step 1: Location + Mode ─────────────────────────────────────────────
   const renderStep1 = () => (
     <div className="flex flex-col gap-5">
-      {/* Location */}
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Visit Location</p>
-        {locationsLoading && (locations as any[]).length === 0 ? (
-          <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
-            <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
-            Loading locations...
-          </div>
-        ) : (locations as any[]).length === 0 ? (
-          <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
-            <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
-            No active locations found for this clinic.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {(locations as any[]).map((loc) => (
-              <button
-                key={loc.id}
-                onClick={() => {
-                  setSelectedLocationId(loc.id);
-                  // Auto-proceed if consultation mode is also selected (it has a default)
-                  if (consultationMode) setTimeout(goNext, 150);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
-                  selectedLocationId === loc.id
-                    ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                    : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
-                }`}
-              >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  selectedLocationId === loc.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}>
-                  <MapPin className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`font-semibold text-sm ${ selectedLocationId === loc.id ? "text-primary" : ""}`}>
-                    {loc.name || loc.address || "Location"}
-                  </p>
-                  {loc.address && loc.name && (
-                    <p className="text-xs text-muted-foreground truncate">{loc.address}</p>
+      {consultationMode === "VIDEO" ? (
+        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+          Video consultations do not require a physical location.
+        </div>
+      ) : shouldResolvePatientClinic && myClinicLoading ? (
+        <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
+          <Loader2 className="w-7 h-7 mx-auto mb-2 opacity-60 animate-spin" />
+          Resolving your clinic...
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Visit Location</p>
+          {locationsLoading && (locations as any[]).length === 0 ? (
+            <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
+              <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
+              Loading locations...
+            </div>
+          ) : (locations as any[]).length === 0 ? (
+            <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
+              <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
+              No active locations found for this clinic.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(locations as any[]).map((loc) => (
+                <button
+                  key={loc.id}
+                  onClick={() => {
+                    setSelectedLocationId(loc.id);
+                    if (consultationMode) setTimeout(goNext, 150);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                    selectedLocationId === loc.id
+                      ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                      : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
+                  }`}
+                >
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    selectedLocationId === loc.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}>
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-semibold text-sm ${ selectedLocationId === loc.id ? "text-primary" : ""}`}>
+                      {loc.name || loc.address || "Location"}
+                    </p>
+                    {loc.address && loc.name && (
+                      <p className="text-xs text-muted-foreground truncate">{loc.address}</p>
+                    )}
+                  </div>
+                  {selectedLocationId === loc.id && (
+                    <Check className="w-4 h-4 text-primary shrink-0" />
                   )}
-                </div>
-                {selectedLocationId === loc.id && (
-                  <Check className="w-4 h-4 text-primary shrink-0" />
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Mode */}
       <div className="flex flex-col gap-2">
@@ -906,8 +925,7 @@ export function BookAppointmentDialog({
               key={value}
               onClick={() => {
                 setConsultationMode(value);
-                // Auto-proceed if location is also selected
-                if (selectedLocationId) setTimeout(goNext, 150);
+                if (value === "VIDEO" || selectedLocationId) setTimeout(goNext, 150);
               }}
               className={`flex flex-col items-center gap-2 px-4 py-4 rounded-xl border transition-all ${
                 consultationMode === value
@@ -1603,6 +1621,55 @@ export function BookAppointmentDialog({
         ))}
       </div>
 
+      {consultationMode === "VIDEO" && shouldCollectVideoPayment && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Video visit fee</p>
+            <p className="text-lg font-bold text-foreground">INR {videoPaymentAmount.toFixed(0)}</p>
+          </div>
+          <p className="text-xs text-emerald-700 dark:text-emerald-300">
+            Submit the request first, then pay to unlock doctor confirmation.
+          </p>
+        </div>
+      )}
+
+      {isPatientInPersonBooking && (
+        <div
+          className={`rounded-2xl border p-4 space-y-2 ${
+            needsSubscriptionPlan
+              ? "border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
+              : "border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/30"
+          }`}
+        >
+          <p
+            className={`text-sm font-semibold ${
+              needsSubscriptionPlan
+                ? "text-amber-800 dark:text-amber-200"
+                : "text-blue-800 dark:text-blue-200"
+            }`}
+          >
+            {isSubscriptionGateLoading
+              ? "Checking your plan"
+              : needsSubscriptionPlan
+              ? "Plan required"
+              : "Plan check"}
+          </p>
+          <p
+            className={`text-xs ${
+              needsSubscriptionPlan
+                ? "text-amber-700 dark:text-amber-300"
+                : "text-blue-700 dark:text-blue-300"
+            }`}
+          >
+            {isSubscriptionGateLoading
+              ? "We’re checking your plan before booking this in-person appointment."
+              : needsSubscriptionPlan
+              ? "You need an active plan for this clinic to continue."
+              : "We’ll verify your plan before confirming this appointment."}
+          </p>
+        </div>
+      )}
+
       {/* Additional fields */}
       <div className="space-y-3">
         <div>
@@ -1644,14 +1711,14 @@ export function BookAppointmentDialog({
       <div className="text-center">
         <h3 className="text-lg font-bold">
           {consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
-            ? "Complete Payment to Confirm"
+            ? "Pay to Continue"
             : consultationMode === "VIDEO"
             ? "Video Appointment Request Sent"
             : "Appointment Booked!"}
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
           {consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
-            ? "Your preferred slots are saved. Complete the payment below so the request can be finalized from your side."
+            ? "Your preferred slots are saved. Pay below so the doctor can review and confirm one of them."
             : consultationMode === "VIDEO"
             ? "Your 3 preferred slots were sent to the doctor. One of them will be confirmed."
             : "Your appointment has been booked successfully."}
@@ -1663,12 +1730,12 @@ export function BookAppointmentDialog({
           <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <Video className="w-4 h-4" />
             {requiresVideoPayment && !videoPaymentCompleted
-              ? "Payment Required"
+              ? "Payment required"
               : "Video Slot Proposal Submitted"}
           </div>
           <p className="text-xs text-muted-foreground text-center">
             {requiresVideoPayment && !videoPaymentCompleted
-              ? "The doctor can review your selected slots after payment is completed. Once paid, you can track the request from your appointments page."
+              ? "The doctor can review your selected slots after payment is completed."
               : "The doctor will review your selected slots and confirm one. You can track the status from your appointments page."}
           </p>
           <div className="w-full rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-3 text-center text-sm text-blue-700 dark:text-blue-300">
@@ -1696,7 +1763,7 @@ export function BookAppointmentDialog({
                   onBooked?.();
                 }}
               >
-                Complete Payment
+                Pay now
               </PaymentButton>
             </div>
           ) : null}
@@ -1730,6 +1797,22 @@ export function BookAppointmentDialog({
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 font-bold">3.</span>
                 <span>You can open the check-in page anytime from the button below.</span>
+              </div>
+            </div>
+          )}
+          {shouldCollectVideoPayment && (
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 p-3 text-xs text-emerald-900 dark:text-emerald-100 space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 font-bold">1.</span>
+                <span>Submit the request with your preferred slots.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 font-bold">2.</span>
+                <span>Complete payment for this video appointment.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 font-bold">3.</span>
+                <span>The doctor can then confirm one of your proposed slots.</span>
               </div>
             </div>
           )}
@@ -1780,7 +1863,7 @@ export function BookAppointmentDialog({
               }
             }}
           >
-            {postBookingLabel}
+            {isPatientInPersonFlow ? "View Check-in Status" : postBookingLabel}
           </Button>
         )}
       </div>
@@ -1874,13 +1957,17 @@ export function BookAppointmentDialog({
             ) : (
               <Button
                 onClick={handleBook}
-                disabled={consultationMode === "VIDEO" ? isProposingVideoAppointment : isCreatingInPersonAppointment}
+                disabled={
+                  consultationMode === "VIDEO"
+                    ? isProposingVideoAppointment
+                    : isCreatingInPersonAppointment || isSubscriptionGateLoading
+                }
                 className="h-11 w-full px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
               >
-                {(consultationMode === "VIDEO" ? isProposingVideoAppointment : isCreatingInPersonAppointment) ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> {consultationMode === "VIDEO" ? "Sending request..." : "Booking..."}</>
+                {(consultationMode === "VIDEO" ? isProposingVideoAppointment : isCreatingInPersonAppointment || isSubscriptionGateLoading) ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> {consultationMode === "VIDEO" ? "Preparing request..." : "Checking plan..."}</>
                 ) : (
-                  <><Check className="w-4 h-4" /> {consultationMode === "VIDEO" ? "Send Video Request" : "Confirm & Book"}</>
+                  <><Check className="w-4 h-4" /> {consultationMode === "VIDEO" ? (shouldCollectVideoPayment ? `Send request • Pay INR ${videoPaymentAmount.toFixed(0)}` : "Send video request") : needsSubscriptionPlan ? "Choose plan to continue" : "Confirm & Book"}</>
                 )}
               </Button>
             )}

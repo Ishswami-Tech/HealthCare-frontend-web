@@ -352,7 +352,7 @@ export default function ReceptionistAppointmentsPage() {
       },
       {
         accessorKey: "confirmed",
-        header: "Queued",
+        header: "Confirmed",
         cell: ({ row }) => (
           <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
             {row.original.confirmed}
@@ -655,10 +655,9 @@ export default function ReceptionistAppointmentsPage() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                    <SelectItem value="CONFIRMED">Queued</SelectItem>
+                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                     <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                     <SelectItem value="COMPLETED">Completed</SelectItem>
-                    <SelectItem value="AWAITING_SLOT_CONFIRMATION">Awaiting Slot</SelectItem>
                     <SelectItem value="CANCELLED">Cancelled</SelectItem>
                     <SelectItem value="NO_SHOW">No Show</SelectItem>
                   </SelectContent>

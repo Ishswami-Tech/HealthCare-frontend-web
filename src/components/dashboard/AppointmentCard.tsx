@@ -22,7 +22,8 @@ import { useTranslation } from "@/lib/i18n/context";
 import { 
   getAppointmentStatusColor, 
   formatAppointmentDate, 
-  formatAppointmentTime 
+  formatAppointmentTime,
+  isAwaitingDoctorSlotConfirmation
 } from "@/lib/utils/appointmentUtils";
 
 interface AppointmentCardProps {
@@ -195,7 +196,9 @@ function AppointmentCardComponent({
 
         {/* Actions */}
         <div className="flex gap-2 pt-2">
-          {appointment.status === "scheduled" && onJoin && (
+          {appointment.status === "scheduled" &&
+            onJoin &&
+            !(appointment.type === "video" && isAwaitingDoctorSlotConfirmation(appointment)) && (
             <Button
               size="sm"
               className="flex-1 hover:scale-105 transition-transform"
