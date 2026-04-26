@@ -10,6 +10,7 @@ import { useAppointments } from "@/hooks/query/useAppointments";
 import { useQueue } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
   Users,
@@ -33,6 +34,11 @@ export default function AssistantDoctorDashboard() {
   useWebSocketQuerySync();
 
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const historyStartDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 90);
+    return date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  }, []);
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -42,7 +48,7 @@ export default function AssistantDoctorDashboard() {
 
   const { data: appointmentsResult, isPending: appointmentsPending } = useAppointments(
     clinicId
-      ? { clinicId, ...(today ? { date: today } : {}) }
+      ? { clinicId, startDate: historyStartDate, ...(today ? { endDate: today } : {}) }
       : undefined
   );
 
@@ -56,6 +62,20 @@ export default function AssistantDoctorDashboard() {
     return Array.isArray(raw) ? raw : [];
   }, [appointmentsResult]);
 
+  const todayAppointments = useMemo(
+    () =>
+      appointments.filter((appointment: Record<string, unknown>) => {
+        const dateTime = getAppointmentDateTimeValue(appointment);
+        const aptDate =
+          (dateTime
+            ? dateTime.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+            : "") ||
+          String(appointment.date || appointment.appointmentDate || "").slice(0, 10);
+        return aptDate === today;
+      }),
+    [appointments, today]
+  );
+
   const queueEntries = useMemo(() => {
     const raw = Array.isArray(queueData) ? queueData : (queueData as { entries?: unknown[] })?.entries ?? [];
     return Array.isArray(raw) ? raw : [];
@@ -63,11 +83,11 @@ export default function AssistantDoctorDashboard() {
 
   const stats = useMemo(() => {
     const myAppointments = userId
-      ? appointments.filter((a: Record<string, unknown>) => {
+      ? todayAppointments.filter((a: Record<string, unknown>) => {
           const doctorId = (a.doctorId ?? a.doctor_id ?? (a.doctor as Record<string, unknown>)?.id) as string | undefined;
           return !doctorId || doctorId === userId;
         })
-      : appointments;
+      : todayAppointments;
 
     return {
       todayTotal: myAppointments.length,
@@ -88,7 +108,7 @@ export default function AssistantDoctorDashboard() {
         (e: Record<string, unknown>) => String(e.status ?? "").toUpperCase() === "WAITING"
       ).length,
     };
-  }, [appointments, queueEntries, userId]);
+  }, [todayAppointments, queueEntries, userId]);
 
   const upcomingAppointments = useMemo(() => {
     return appointments
@@ -110,7 +130,7 @@ export default function AssistantDoctorDashboard() {
   }
 
   return (
-    <DashboardPageShell className="p-6">
+    <DashboardPageShell className="p-4 sm:p-6">
       <DashboardPageHeader
         eyebrow="Assistant Doctor"
         title={`${greeting}${user?.name ? `, Dr. ${user.name.split(" ")[0]}` : ""}`}

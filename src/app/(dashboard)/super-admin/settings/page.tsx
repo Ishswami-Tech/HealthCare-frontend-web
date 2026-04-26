@@ -249,7 +249,7 @@ export default function SuperAdminSettings() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">System Settings</h1>

@@ -116,7 +116,7 @@ export default function TherapistAppointments() {
       <div>
         <h1 className="text-3xl font-bold">Appointments</h1>
         <p className="text-gray-600">
-          Manage your therapy sessions and appointments
+          Manage your sessions and appointments
         </p>
       </div>
 
@@ -205,9 +205,9 @@ export default function TherapistAppointments() {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {appointments.filter((a) => a.type === "Therapy Session").length}
+                  {appointments.filter((a) => a.type === "Session").length}
                 </div>
-                <div className="text-sm text-gray-600">Therapy Sessions</div>
+                <div className="text-sm text-gray-600">Procedural Sessions</div>
               </div>
             </div>
           </CardContent>

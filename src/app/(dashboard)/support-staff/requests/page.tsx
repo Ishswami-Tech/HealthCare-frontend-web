@@ -23,7 +23,7 @@ import {
   useCreateSupportRequest,
   useDeleteSupportRequest,
 } from "@/hooks/query/useSupportStaff";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 
 export default function SupportStaffRequests() {
   const { user } = useAuth();
@@ -39,7 +39,7 @@ export default function SupportStaffRequests() {
   const createMutation = useCreateSupportRequest();
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['supportStaffRequests', staffId]]);
+  useWebSocketQuerySync();
 
   const requests = requestsData?.requests || [];
 

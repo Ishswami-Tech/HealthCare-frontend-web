@@ -1102,6 +1102,10 @@ export class ClinicApiClient extends ApiClient {
     return this.get(API_ENDPOINTS.QUEUE.GET, { type: queueType });
   }
 
+  async getQueueFilters() {
+    return this.get(API_ENDPOINTS.QUEUE.FILTERS);
+  }
+
   async addToQueue(data: {
     patientId: string;
     appointmentId?: string;

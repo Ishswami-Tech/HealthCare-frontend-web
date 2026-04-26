@@ -6,6 +6,7 @@ import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useQueryClient } from "@/hooks/core";
 import { API_ENDPOINTS } from "@/lib/config/config";
 import { clinicApiClient } from "@/lib/api/client";
+import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
 
 type VerifyState = "loading" | "success" | "failed";
 const ALLOWED_PROVIDERS = new Set(["cashfree"]);
@@ -78,8 +79,12 @@ export default function PaymentCallbackPage() {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["myAppointments"], exact: false }),
           queryClient.invalidateQueries({ queryKey: ["appointments"], exact: false }),
-          queryClient.invalidateQueries({ queryKey: ["appointmentStats"], exact: false }),
-          queryClient.invalidateQueries({ queryKey: ["appointment-stats"], exact: false }),
+          queryClient.invalidateQueries({ queryKey: ["video-appointments"], exact: false }),
+          queryClient.invalidateQueries({ queryKey: ["video-appointment"], exact: false }),
+          queryClient.invalidateQueries({
+            queryKey: getAppointmentStatsQueryKey(params.clinicId || undefined),
+            exact: false,
+          }),
           queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"], exact: false }),
           queryClient.invalidateQueries({ queryKey: ["invoices"], exact: false }),
           queryClient.invalidateQueries({ queryKey: ["payments"], exact: false }),

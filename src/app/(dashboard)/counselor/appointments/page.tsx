@@ -20,7 +20,7 @@ import {
   useUpdateCounselorAppointment,
   useDeleteCounselorAppointment,
 } from "@/hooks/query/useCounselor";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 
 export default function CounselorAppointments() {
   const { session } = useAuth();
@@ -36,7 +36,7 @@ export default function CounselorAppointments() {
   const deleteMutation = useDeleteCounselorAppointment();
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['counselorAppointments', counselorId]]);
+  useWebSocketQuerySync();
 
   const appointments = appointmentsData?.appointments || [];
 

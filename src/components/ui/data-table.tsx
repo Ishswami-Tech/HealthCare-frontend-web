@@ -35,9 +35,11 @@ type DataTableProps<TData, TValue> = {
   emptyMessage?: string;
   pageSize?: number;
   className?: string;
+  tableClassName?: string;
   toolbar?: React.ReactNode;
   pageSizeOptions?: number[];
   compact?: boolean;
+  scrollable?: boolean;
 };
 
 export function DataTable<TData, TValue>({
@@ -46,9 +48,11 @@ export function DataTable<TData, TValue>({
   emptyMessage = "No results.",
   pageSize = 10,
   className,
+  tableClassName,
   toolbar,
   pageSizeOptions = [10, 25, 50, 100],
   compact = false,
+  scrollable = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
@@ -81,7 +85,11 @@ export function DataTable<TData, TValue>({
     <div className={cn("min-w-0 space-y-4", className)}>
       {toolbar}
       <div className="w-full rounded-xl border border-border bg-card">
-        <Table className={compact ? "min-w-0" : "min-w-[720px]"} compact={compact}>
+        <Table
+          className={cn(compact ? "min-w-0" : "min-w-[720px]", scrollable && "min-w-[860px] lg:min-w-0", tableClassName)}
+          compact={compact}
+          scrollable={scrollable}
+        >
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

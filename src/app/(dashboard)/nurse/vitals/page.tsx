@@ -32,7 +32,7 @@ import {
   useCreateNursePatientRecord,
   useUpdateNursePatientRecord,
 } from "@/hooks/query/useNurse";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
@@ -89,7 +89,7 @@ export default function NurseVitals() {
   const createMutation = useCreateNursePatientRecord();
   const updateMutation = useUpdateNursePatientRecord();
 
-  useWebSocketQuerySync([["nursePatientVitals", nurseId]]);
+  useWebSocketQuerySync();
 
   const vitalsRecords = vitalsData?.vitals || [];
 

@@ -94,7 +94,10 @@ import {
   formatDateInIST,
   formatTimeInIST,
   normalizeAppointmentStatus,
-  isVideoAppointmentPaymentCompleted,
+} from "@/lib/utils/appointmentUtils";
+import {
+  getAppointmentViewState,
+  isPaidVideoAppointmentAwaitingDoctorConfirmation,
 } from "@/lib/utils/appointmentUtils";
 import { ProposeVideoAppointmentDialog } from "@/components/appointments/ProposeVideoAppointmentDialog";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -117,17 +120,13 @@ function extractAppointments(data: unknown): VideoAppointment[] {
 
   const getRank = (appointment: any) => {
     const status = String(appointment?.rawStatus || appointment?.status || "").toUpperCase();
-    const hasConfirmedSlot =
-      appointment?.confirmedSlotIndex !== null &&
-      appointment?.confirmedSlotIndex !== undefined &&
-      !Number.isNaN(Number(appointment?.confirmedSlotIndex));
-    const hasProposedSlots = Array.isArray(appointment?.proposedSlots) && appointment.proposedSlots.length > 0;
+    const viewState = getAppointmentViewState(appointment);
     const updatedAt = new Date(appointment?.updatedAt || appointment?.createdAt || 0).getTime();
 
     return [
       status === "CONFIRMED" ? 4 : 0,
-      hasConfirmedSlot ? 2 : 0,
-      hasProposedSlots ? 1 : 0,
+      viewState.hasConfirmedSlot ? 2 : 0,
+      viewState.hasProposedSlots ? 1 : 0,
       Number.isFinite(updatedAt) ? updatedAt : 0,
     ] as const;
   };
@@ -276,12 +275,9 @@ function computeStats(appointments: VideoAppointment[]): AppointmentStats {
 }
 
 export function isJoinableVideoAppointment(appointment: VideoAppointment | any): boolean {
-  const normalizedStatus = normalizeAppointmentStatus(appointment.status).toLowerCase();
-  const confirmedSlotIndex = appointment?.confirmedSlotIndex;
-  const hasConfirmedSlot =
-    confirmedSlotIndex !== null &&
-    confirmedSlotIndex !== undefined &&
-    !Number.isNaN(Number(confirmedSlotIndex));
+  const viewState = getAppointmentViewState(appointment);
+  const normalizedStatus = viewState.normalizedStatus.toLowerCase();
+  const hasConfirmedSlot = viewState.hasConfirmedSlot;
 
   const joinableStatuses = new Set(["scheduled", "confirmed", "queued", "in-progress"]);
   if (!joinableStatuses.has(normalizedStatus)) {
@@ -293,7 +289,7 @@ export function isJoinableVideoAppointment(appointment: VideoAppointment | any):
     return false;
   }
 
-  return isVideoAppointmentPaymentCompleted(appointment);
+  return viewState.paymentCompleted;
 }
 
 function isWithinJoinWindow(appointment: VideoAppointment | any): boolean {
@@ -477,7 +473,7 @@ export function VideoAppointmentsList({
           treatmentType: apt?.treatmentType,
           createdAt: apt?.createdAt || apt?.updatedAt || startTime,
           doctorName: getAppointmentDoctorName(apt),
-          paymentCompleted: isVideoAppointmentPaymentCompleted(apt),
+          paymentCompleted: getAppointmentViewState(apt).paymentCompleted,
         } as any;
       });
 
@@ -492,8 +488,8 @@ export function VideoAppointmentsList({
         continue;
       }
 
-      const currentConfirmed = current?.confirmedSlotIndex !== null && current?.confirmedSlotIndex !== undefined && !Number.isNaN(Number(current?.confirmedSlotIndex));
-      const incomingConfirmed = appointment?.confirmedSlotIndex !== null && appointment?.confirmedSlotIndex !== undefined && !Number.isNaN(Number(appointment?.confirmedSlotIndex));
+      const currentConfirmed = getAppointmentViewState(current).hasConfirmedSlot;
+      const incomingConfirmed = getAppointmentViewState(appointment).hasConfirmedSlot;
       const currentConfirmedStatus = String(current?.rawStatus || current?.status || "").toUpperCase() === "CONFIRMED";
       const incomingConfirmedStatus = String(appointment?.rawStatus || appointment?.status || "").toUpperCase() === "CONFIRMED";
       const currentTime = getAppointmentSortTime(current);
@@ -628,7 +624,6 @@ export function VideoAppointmentsList({
         appointmentId,
         confirmedSlotIndex: pendingSlotSelections[appointmentId] ?? 0,
       });
-      showSuccessToast("Video slot confirmed", { id: TOAST_IDS.APPOINTMENT.UPDATE });
     } catch (error) {
       showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.UPDATE });
     }
@@ -681,16 +676,15 @@ export function VideoAppointmentsList({
 
   const AppointmentCard = ({ appointment }: { appointment: VideoAppointment }) => {
     const normalizedStatus = normalizeAppointmentStatus(appointment.status).toLowerCase().replace(/_/g, "-");
-    const hasProposedSlots = Array.isArray((appointment as any).proposedSlots) && (appointment as any).proposedSlots.length > 0;
-    const hasConfirmedSlot =
-      (appointment as any).confirmedSlotIndex !== null &&
-      (appointment as any).confirmedSlotIndex !== undefined &&
-      !Number.isNaN(Number((appointment as any).confirmedSlotIndex));
+    const viewState = getAppointmentViewState(appointment);
+    const hasProposedSlots = viewState.hasProposedSlots;
+    const hasConfirmedSlot = viewState.hasConfirmedSlot;
+    const proposedSlots = hasProposedSlots
+      ? ((appointment as any).proposedSlots as Array<{ date: string; time: string }>)
+      : [];
     const needsDoctorConfirmation =
       isDoctorRole &&
-      normalizeAppointmentStatus(appointment.status) === "SCHEDULED" &&
-      hasProposedSlots &&
-      !hasConfirmedSlot;
+      isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment);
     const cfg: { label: string; color: string; dot: string; bg: string } =
       STATUS_CONFIG[normalizedStatus] ?? DEFAULT_STATUS_CONFIG;
     const statusLabel = getAppointmentStatusBadgeLabel({
@@ -718,7 +712,7 @@ export function VideoAppointmentsList({
           ? "Doctor-selected fallback slot"
           : "";
     const isCancelled = normalizedStatus === "cancelled";
-    const paymentCompleted = isVideoAppointmentPaymentCompleted(appointment);
+    const paymentCompleted = viewState.paymentCompleted;
     const paymentAmount = getVideoPaymentAmount(appointment, appointmentServices);
     const appointmentDateTime = getAppointmentDateTimeValue(appointment);
     const appointmentDateLabel = appointmentDateTime
@@ -862,7 +856,7 @@ export function VideoAppointmentsList({
                             <SelectValue placeholder="Select a slot" />
                           </SelectTrigger>
                           <SelectContent>
-                            {(appointment as any).proposedSlots.map((slot: { date: string; time: string }, index: number) => (
+                            {proposedSlots.map((slot: { date: string; time: string }, index: number) => (
                               <SelectItem key={`${appointment.id}-${index}`} value={String(index)}>
                                 {formatProposedSlot(slot)}
                               </SelectItem>

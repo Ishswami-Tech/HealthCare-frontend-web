@@ -7,9 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCurrentClinic, useClinicStats, useActiveLocations } from "@/hooks/query/useClinics";
 import { useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
-import { useRealTimeAppointments, useRealTimeQueueStatus } from "@/hooks/realtime/useRealTimeQueries";
+import { useQueue } from "@/hooks/query/useQueue";
+import { useRealTimeAppointments } from "@/hooks/realtime/useRealTimeQueries";
 import { cn } from "@/lib/utils";
-import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
+import {
+  extractQueueEntries,
+  getQueuePositionLabel,
+  getQueueStatusLabel,
+  normalizeQueueEntry,
+  resolveQueueDisplayLabel,
+} from "@/lib/queue/queue-adapter";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import {
   Settings,
@@ -39,20 +46,18 @@ export default function ClinicAdminDashboard() {
   const { data: appointmentsData } = useRealTimeAppointments({
     limit: 100,
   });
-  const { isPending: isLoadingQueue } = useRealTimeQueueStatus(undefined, locationId);
+  const { data: liveQueueData, isPending: isLoadingQueue } = useQueue(clinicId || undefined, {
+    enabled: !!clinicId,
+  });
   const { data: medicineDeskQueue = [] } = useMedicineDeskQueue(clinicId || "", !!clinicId);
 
   const appointments = (appointmentsData as any)?.data || [];
   const queueItems = useMemo(
     () =>
-      appointments
-        .filter((item: any) => ["CONFIRMED", "IN_PROGRESS"].includes(String(item.status || "").toUpperCase()))
-        .sort((a: any, b: any) => {
-          const aToken = typeof a.queuePosition === "number" ? a.queuePosition : 9999;
-          const bToken = typeof b.queuePosition === "number" ? b.queuePosition : 9999;
-          return aToken - bToken;
-        }),
-    [appointments]
+      extractQueueEntries(liveQueueData)
+        .filter((item) => !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(item.status || "").toUpperCase()))
+        .sort((a, b) => a.position - b.position),
+    [liveQueueData]
   );
 
   const stats = useMemo(() => {
@@ -132,7 +137,7 @@ export default function ClinicAdminDashboard() {
   }
 
   return (
-    <DashboardPageShell className="min-h-screen bg-transparent p-4 sm:p-8 sm:space-y-8">
+    <DashboardPageShell className="min-h-screen bg-transparent p-4 sm:p-6 sm:space-y-6">
       <DashboardPageHeader
         eyebrow="Clinic Admin"
         title="Control Hub"
@@ -159,6 +164,12 @@ export default function ClinicAdminDashboard() {
               <Link href="/clinic-admin/schedule">
                 <Plus className="w-4 h-4" />
                 Manage Schedule
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-10 px-6 font-bold flex items-center gap-2 rounded-xl border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50">
+              <Link href="/queue">
+                <Activity className="w-4 h-4" />
+                Open Queue Workspace
               </Link>
             </Button>
           </div>
@@ -268,28 +279,25 @@ export default function ClinicAdminDashboard() {
               </div>
             ) : queueItems.length > 0 ? (
               <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                {queueItems.map((item: any, idx: number) => (
-                  <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors group">
+                {queueItems.map((item, idx: number) => (
+                  <div key={item.entryId || item.appointmentId || idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors group">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary/10 to-blue-500/10 flex items-center justify-center font-black text-primary text-sm shadow-sm group-hover:scale-110 transition-transform">
-                        {item.tokenNumber || item.queuePosition || idx + 1}
+                        {item.tokenNumber || item.position || idx + 1}
                       </div>
                         <div>
                           <h4 className="font-bold text-sm">{item.patientName || "Walk-in Patient"}</h4>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-[10px] font-bold uppercase text-muted-foreground">
-                              {item.doctorName || "Unassigned Doctor"}
-                              {String(item.doctorRole || "").toUpperCase() === "ASSISTANT_DOCTOR"
-                                ? " (ASSISTANT)"
-                                : ""}
+                              {item.doctorName || (item.assignedDoctorId ? "Assigned Doctor" : "Unassigned Doctor")}
                             </span>
                             <span className="w-1 h-1 bg-neutral-300 rounded-full" />
                             <span className="text-[10px] font-bold uppercase text-primary/80">
-                              {item.serviceType || item.type || item.treatmentType || "Consultation"}
+                              {resolveQueueDisplayLabel(item)}
                             </span>
                             {item.primaryDoctorId &&
                             String(item.primaryDoctorId) !==
-                              String(item.assignedDoctorId || item.doctorId || "") ? (
+                              String(item.assignedDoctorId || "") ? (
                               <>
                                 <span className="w-1 h-1 bg-neutral-300 rounded-full" />
                                 <span className="text-[10px] font-bold uppercase text-amber-600">
@@ -303,7 +311,7 @@ export default function ClinicAdminDashboard() {
                     <div className="flex items-center gap-6">
                       <div className="text-right hidden sm:block">
                         <p className="text-xs font-bold">
-                          {item.checkInTime || item.checkedInAt || item.time || "Now"}
+                          {item.appointmentTime || item.checkedInAt || item.startedAt || "Now"}
                         </p>
                         <p className="text-[10px] font-bold text-muted-foreground uppercase">
                           {typeof item.waitTime === "number" ? `${item.waitTime}m wait` : item.waitTime || "Live queue"}
@@ -311,13 +319,13 @@ export default function ClinicAdminDashboard() {
                       </div>
                       <Badge className={cn(
                         "rounded-lg border-none px-3 py-1 text-[10px] font-black uppercase tracking-widest",
-                        item.status === "IN_PROGRESS"
+                        String(item.status || "").toUpperCase() === "IN_PROGRESS"
                           ? "bg-blue-500 text-white"
-                          : item.status === "CONFIRMED"
+                          : String(item.status || "").toUpperCase() === "CONFIRMED"
                             ? "bg-emerald-500 text-white"
                             : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
                       )}>
-                        {item.status === "CONFIRMED" ? "QUEUED" : item.status || "WAITING"}
+                        {getQueueStatusLabel(item)}
                       </Badge>
                     </div>
                   </div>

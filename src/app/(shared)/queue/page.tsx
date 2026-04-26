@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/ui/data-table";
+import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,13 +19,25 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueuePermissions } from "@/hooks/utils/useRBAC";
 import { QueueProtectedComponent, ProtectedComponent } from "@/components/rbac";
-import { usePauseQueue, useQueue, useQueueStats, useTransferQueueEntry } from "@/hooks/query/useQueue";
+import {
+  usePauseQueue,
+  useQueue,
+  useQueueFilters,
+  useQueueStats,
+  useTransferQueueEntry,
+} from "@/hooks/query/useQueue";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { useReassignAppointmentDoctor } from "@/hooks/query/useAppointments";
 import { useClinicContext, useActiveLocations } from "@/hooks/query/useClinics";
 import { Role } from "@/types/auth.types";
 import { QueueCategory, type CanonicalQueueEntry } from "@/types/queue.types";
-import { getQueueStatusLabel, normalizeQueueEntry, resolveQueueDisplayLabel } from "@/lib/queue/queue-adapter";
+import {
+  getQueueStatusLabel,
+  getQueuePatientDisplayName,
+  hasQueuePatientIdentity,
+  normalizeQueueEntry,
+  resolveQueueDisplayLabel,
+} from "@/lib/queue/queue-adapter";
 import { Permission } from "@/types/rbac.types";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { PageLoading, Skeleton } from "@/components/ui/loading";
@@ -50,6 +63,7 @@ import {
   useOptimisticCallNextPatient,
 } from "@/hooks/utils/useOptimisticQueue";
 import { bulkCancelQueueEntries } from "@/lib/actions/queue.server";
+import type { QueueFilterOption } from "@/types/api.types";
 
 import {
   Clock,
@@ -69,17 +83,6 @@ import {
 } from "lucide-react";
 
 // ─── Logical queue options the receptionist can move patients between ─────────
-const QUEUE_TRANSFER_OPTIONS = [
-  { label: "Consultation",  value: "DOCTOR_CONSULTATION",  treatmentType: "CONSULTATION",  icon: "stethoscope" },
-  { label: "Agnikarma",     value: "THERAPY_PROCEDURE",    treatmentType: "AGNIKARMA",     icon: "flame" },
-  { label: "Panchakarma",   value: "THERAPY_PROCEDURE",    treatmentType: "PANCHAKARMA",   icon: "droplets" },
-  { label: "Shirodhara",    value: "THERAPY_PROCEDURE",    treatmentType: "SHIRODHARA",    icon: "leaf" },
-  { label: "Vidhakarma",    value: "THERAPY_PROCEDURE",    treatmentType: "VIDHAKARMA",    icon: "syringe" },
-  { label: "Nasya",         value: "THERAPY_PROCEDURE",    treatmentType: "NASYA",         icon: "wind" },
-  { label: "Basti",         value: "THERAPY_PROCEDURE",    treatmentType: "BASTI",         icon: "droplets" },
-  { label: "Medicine Desk", value: "MEDICINE_DESK",        treatmentType: "MEDICINE_DESK", icon: "stethoscope" },
-] as const;
-
 // Queue status constants - must match backend enum values
 const QUEUE_STATUS = {
   WAITING: 'WAITING',
@@ -89,12 +92,24 @@ const QUEUE_STATUS = {
 } as const;
 
 const TERMINAL_QUEUE_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'NO_SHOW']);
+const CONSULTATION_QUEUE_FILTERS = [
+  { value: "GENERAL_CONSULTATION", label: "General Consultation" },
+  { value: "FOLLOW_UP", label: "Follow Up" },
+  { value: "SPECIAL_CASE", label: "Special Case" },
+  { value: "DIAGNOSTIC", label: "Diagnostic" },
+  { value: "SENIOR_CITIZEN", label: "Senior Citizen" },
+] as const;
+
+const CONSULTATION_QUEUE_FILTER_KEYS = new Set(
+  CONSULTATION_QUEUE_FILTERS.map((filter) => normalizeQueueToken(filter.value))
+);
 
 type QueueDisplayItem = CanonicalQueueEntry & {
   id: string;
   type?: string;
   queueType?: string;
   queueLane?: string;
+  displayLabel?: string;
   appointmentTime?: string;
   checkedInAt?: string;
   confirmedAt?: string;
@@ -107,11 +122,32 @@ type QueueDisplayItem = CanonicalQueueEntry & {
 };
 
 function normalizeQueueToken(value?: string | null): string {
-  return String(value || "")
+  const token = String(value || "")
     .trim()
     .toUpperCase()
     .replace(/\s+/g, "_")
     .replace(/-/g, "_");
+  if (token === "THERAPY" || token === "SURGERY" || token === "THERAPY_PROCEDURE") {
+    return "PROCEDURAL_CARE";
+  }
+  if (token === "LAB_TEST" || token === "IMAGING" || token === "VACCINATION") {
+    return "DIAGNOSTIC_PREVENTIVE";
+  }
+  if (token === "GERIATRIC_CARE" || token === "SENIOR_CITIZEN_CARE") {
+    return "SENIOR_CITIZEN";
+  }
+  if (
+    token === "DOSHA_ANALYSIS" ||
+    token === "VIRECHANA" ||
+    token === "ABHYANGA" ||
+    token === "SWEDANA" ||
+    token === "BASTI" ||
+    token === "NASYA" ||
+    token === "RAKTAMOKSHANA"
+  ) {
+    return "AYURVEDIC_PROCEDURES";
+  }
+  return token;
 }
 
 function normalizeQueueDisplayItem(raw: any): QueueDisplayItem {
@@ -133,6 +169,42 @@ function normalizeQueueDisplayItem(raw: any): QueueDisplayItem {
     serviceType: raw?.serviceType,
     waitTime: raw?.waitTime,
   };
+}
+
+function hasQueueTaxonomy(entry: Pick<
+  QueueDisplayItem,
+  "queueCategory" | "queueType" | "queueLane" | "serviceBucket" | "treatmentType" | "displayLabel" | "serviceType"
+>): boolean {
+  return Boolean(
+    entry.queueCategory ||
+      entry.queueType ||
+      entry.queueLane ||
+      entry.serviceBucket ||
+      entry.treatmentType ||
+      entry.displayLabel ||
+      entry.serviceType
+  );
+}
+
+function isAnalyticsQueueEntry(entry: QueueDisplayItem): boolean {
+  const tokens = [
+    entry.queueCategory,
+    entry.queueType,
+    entry.queueLane,
+    entry.serviceBucket,
+    entry.treatmentType,
+    entry.displayLabel,
+    entry.serviceType,
+    resolveQueueDisplayLabel(entry),
+  ]
+    .filter(Boolean)
+    .map((token) => normalizeQueueToken(token));
+
+  return tokens.some((token) => token.includes("ANALYTICS"));
+}
+
+function getQueueDisplayLabel(entry: QueueDisplayItem): string {
+  return hasQueueTaxonomy(entry) ? resolveQueueDisplayLabel(entry) : "Uncategorized";
 }
 
 function extractQueueDisplayItems(queueData: unknown): QueueDisplayItem[] {
@@ -170,25 +242,38 @@ function matchesQueueSection(item: QueueDisplayItem, section: string): boolean {
     item.queueLane,
     item.serviceBucket,
     item.treatmentType,
-    resolveQueueDisplayLabel(item),
+    item.displayLabel,
+    item.serviceType,
+    getQueueDisplayLabel(item),
   ].map(normalizeQueueToken);
 
+  const taxonomyPresent = hasQueueTaxonomy(item);
+
   if (normalizedSection === "CONSULTATION" || normalizedSection === "CONSULTATIONS") {
-    return tokens.some((token) => token.includes("CONSULTATION") || token === normalizeQueueToken(QueueCategory.DOCTOR_CONSULTATION));
+    return (
+      tokens.some((token) => token.includes("CONSULTATION") || token === normalizeQueueToken(QueueCategory.DOCTOR_CONSULTATION))
+    );
+  }
+
+  if (normalizedSection === "UNCATEGORIZED" || normalizedSection === "UNCLASSIFIED") {
+    return !taxonomyPresent || isAnalyticsQueueEntry(item);
   }
 
   if (normalizedSection === "THERAPY" || normalizedSection === "THERAPIES") {
-    return tokens.some(
-      (token) =>
-        token.includes("THERAPY") ||
+      return tokens.some(
+        (token) =>
+          token.includes("PROCEDURAL_CARE") ||
+          token.includes("THERAPY") ||
+          token.includes("SURGERY") ||
         token.includes("AGNIKARMA") ||
         token.includes("PANCHAKARMA") ||
         token.includes("SHIRODHARA") ||
-        token.includes("VIDHAKARMA") ||
+        token.includes("VIDDHAKARMA") ||
         token.includes("NASYA") ||
         token.includes("BASTI") ||
-        token === normalizeQueueToken(QueueCategory.THERAPY_PROCEDURE)
-    );
+          token.includes("AYURVEDIC_PROCEDURES") ||
+          token === normalizeQueueToken(QueueCategory.THERAPY_PROCEDURE)
+      );
   }
 
   // Fallback match: if section name is contained in any of the tokens
@@ -204,35 +289,28 @@ export default function QueuePage() {
   const userRole = (session?.user?.role as Role) || Role.SUPER_ADMIN;
   const doctorId = session?.user?.id;
   const [activeQueue, setActiveQueue] = useState("consultations");
-  const [activeTherapyLane, setActiveTherapyLane] = useState("agnikarma");
+  const [activeConsultationLane, setActiveConsultationLane] = useState("GENERAL_CONSULTATION");
+  const [activeTherapyLane, setActiveTherapyLane] = useState("PROCEDURAL_CARE");
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
 
   // RBAC permissions
   const queuePermissions = useQueuePermissions();
+  const { data: queueFilterCatalog = [] } = useQueueFilters({ enabled: queuePermissions.canViewQueue });
 
   // Clinic context
   const { clinicId } = useClinicContext();
   const { data: locations = [] } = useActiveLocations(clinicId || "");
   const locationId = locations[0]?.id || "";
   const queueClinicId = clinicId || undefined;
-  const queueDoctorId =
-    userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR ? doctorId : undefined;
 
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []) as string;
-  
   const queueFilters: {
     enabled: boolean;
     doctorId?: string;
-    date: string;
   } = {
     enabled: queuePermissions.canViewQueue,
-    date: todayStr,
   };
-  if (queueDoctorId) {
-    queueFilters.doctorId = queueDoctorId;
-  }
 
   // State to track historical/stale entries that should be cleaned up
   const [isCleaningUp, setIsCleaningUp] = useState(false);
@@ -277,7 +355,38 @@ export default function QueuePage() {
   const rawQueueEntries = useMemo(() => extractQueueDisplayItems(queueData), [queueData]);
 
   const queueEntries = rawQueueEntries.filter(
-    (item) => !TERMINAL_QUEUE_STATUSES.has(String(item.status || '').toUpperCase())
+    (item) =>
+      hasQueuePatientIdentity(item) &&
+      !TERMINAL_QUEUE_STATUSES.has(String(item.status || '').toUpperCase())
+  );
+
+  const treatmentQueueFilters = useMemo<QueueFilterOption[]>(() => {
+    const treatmentGroup = queueFilterCatalog.find(
+      (group) => normalizeQueueToken(group.key) === "TREATMENTS"
+    );
+    return treatmentGroup?.filters ?? [];
+  }, [queueFilterCatalog]);
+
+  const queueTransferOptions = useMemo<QueueFilterOption[]>(() => treatmentQueueFilters, [treatmentQueueFilters]);
+  const procedureQueueFilters = useMemo<QueueFilterOption[]>(
+    () => [
+      ...treatmentQueueFilters.filter((filter) => !CONSULTATION_QUEUE_FILTER_KEYS.has(normalizeQueueToken(filter.value))),
+      {
+        value: "UNCATEGORIZED",
+        label: "Uncategorized",
+        description: "Queue entries without a treatment type or service label.",
+      },
+    ],
+    [treatmentQueueFilters]
+  );
+  const consultationQueueFilters = useMemo<QueueFilterOption[]>(
+    () =>
+      CONSULTATION_QUEUE_FILTERS.map((filter) => ({
+        value: filter.value,
+        label: filter.label,
+        description: filter.label,
+      })),
+    []
   );
 
   const rawQueueById = useMemo(
@@ -286,28 +395,35 @@ export default function QueuePage() {
   );
 
   const scopedQueueEntries = useMemo(() => {
-    return queueEntries.filter((item: QueueDisplayItem) => {
-      // 1. Strict Date filtering: only show today's items in the live scoped lists
-      if (item.scheduledDate && item.scheduledDate !== todayStr) return false;
-      
-      // 2. Role-based filtering
-      if (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) {
-        return [item.assignedDoctorId, item.primaryDoctorId, item.queueOwnerId].some(
-          (value) => value && String(value) === String(doctorId)
-        );
-      }
+    return queueEntries;
+  }, [queueEntries]);
 
-      return true;
-    });
-  }, [doctorId, queueEntries, userRole, todayStr]);
+  useEffect(() => {
+    if (
+      consultationQueueFilters.length > 0 &&
+      !consultationQueueFilters.some((option) => normalizeQueueToken(option.value) === activeConsultationLane)
+    ) {
+      setActiveConsultationLane(normalizeQueueToken(consultationQueueFilters[0]?.value));
+    }
+  }, [activeConsultationLane, consultationQueueFilters]);
+
+  useEffect(() => {
+    if (
+      procedureQueueFilters.length > 0 &&
+      !procedureQueueFilters.some((option) => normalizeQueueToken(option.value) === activeTherapyLane)
+    ) {
+      setActiveTherapyLane(normalizeQueueToken(procedureQueueFilters[0]?.value));
+    }
+  }, [activeTherapyLane, procedureQueueFilters]);
 
   // Identify stale entries (active items from past dates) present in raw data
   const staleEntries = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
     return queueEntries.filter(item => {
-      if (!item.scheduledDate || !todayStr) return false;
+      if (!item.scheduledDate) return false;
       return item.scheduledDate < todayStr && item.status !== QUEUE_STATUS.COMPLETED;
     });
-  }, [queueEntries, todayStr]);
+  }, [queueEntries]);
 
   const handleBulkCleanup = async () => {
     if (staleEntries.length === 0) return;
@@ -367,10 +483,14 @@ export default function QueuePage() {
     }
 
     if (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) {
-      return "Assigned doctor queue";
+      return "Clinic Queue";
     }
 
-    if (userRole === Role.CLINIC_ADMIN || userRole === Role.RECEPTIONIST) {
+    if (userRole === Role.CLINIC_ADMIN) {
+      return "Clinic Operations Queue";
+    }
+
+    if (userRole === Role.RECEPTIONIST) {
       return "Reception Queue";
     }
 
@@ -396,7 +516,7 @@ export default function QueuePage() {
 
   const isUnassignedQueueItem = useCallback((item: QueueDisplayItem) => {
     const doctorToken = String(item.doctorName || "").trim().toLowerCase();
-    const hasDoctorId = Boolean(item.assignedDoctorId || item.primaryDoctorId || item.queueOwnerId);
+    const hasDoctorId = Boolean(item.assignedDoctorId || item.primaryDoctorId);
     return !hasDoctorId || !doctorToken || doctorToken === "unassigned";
   }, []);
 
@@ -444,7 +564,7 @@ export default function QueuePage() {
 
         setActiveQueue(treatmentType === "CONSULTATION" ? "consultations" : "therapies");
         if (treatmentType !== "CONSULTATION") {
-          setActiveTherapyLane(treatmentType.toLowerCase());
+          setActiveTherapyLane(normalizeQueueToken(treatmentType));
         }
         showSuccessToast(`Moved to ${label}`, { id: TOAST_IDS.GLOBAL.SUCCESS });
       } catch (error) {
@@ -545,31 +665,61 @@ export default function QueuePage() {
     return scopedQueueEntries.filter((item: QueueDisplayItem) => matchesQueueSection(item, type));
   };
 
-  const consultationQueue = getQueueByType("consultation");
-  const agnikarmaQueue = getQueueByType("agnikarma");
-  const panchakarmaQueue = getQueueByType("panchakarma");
-  const shirodharaQueue = getQueueByType("shirodhara");
-  const vidhakarmaQueue = getQueueByType("vidhakarma");
-  const nasyaQueue = getQueueByType("nasya");
-  const bastiQueue = getQueueByType("basti");
+  const consultationQueueSections = useMemo(
+    () =>
+      consultationQueueFilters.map((option) => ({
+        key: normalizeQueueToken(option.value),
+        title: option.label,
+        items: getQueueByType(option.value),
+      })),
+    [consultationQueueFilters, scopedQueueEntries]
+  );
 
-  // Catch-all: items that didn't match any bucket
-  const uncategorizedQueue = useMemo(() => {
-    const matchedIds = new Set([
-      ...consultationQueue.map(i => i.id),
-      ...agnikarmaQueue.map(i => i.id),
-      ...panchakarmaQueue.map(i => i.id),
-      ...shirodharaQueue.map(i => i.id),
-      ...vidhakarmaQueue.map(i => i.id),
-      ...nasyaQueue.map(i => i.id),
-      ...bastiQueue.map(i => i.id),
-    ]);
-    return scopedQueueEntries.filter((item: QueueDisplayItem) => !matchedIds.has(item.id));
-  }, [scopedQueueEntries, consultationQueue, agnikarmaQueue, panchakarmaQueue, shirodharaQueue, vidhakarmaQueue, nasyaQueue, bastiQueue]);
+  const activeConsultationSection = useMemo(() => {
+    return (
+      consultationQueueSections.find((section) => section.key === activeConsultationLane) ??
+      consultationQueueSections[0]
+    );
+  }, [consultationQueueSections, activeConsultationLane]);
+  const selectedConsultationItems = activeConsultationSection?.items ?? [];
+
+  const procedureQueueSections = useMemo(
+    () =>
+      procedureQueueFilters.map((option) => ({
+        key: normalizeQueueToken(option.value),
+        title: option.label,
+        items: getQueueByType(option.value),
+      })),
+    [procedureQueueFilters, scopedQueueEntries]
+  );
+
+  const activeQueueTabs = useMemo(
+    () =>
+      [
+        {
+          key: "consultations",
+          label: "Consultations",
+          count: consultationQueueSections.reduce((total, section) => total + section.items.length, 0),
+        },
+        {
+          key: "therapies",
+          label: "Procedures",
+          count: procedureQueueSections.reduce((total, section) => total + section.items.length, 0),
+        },
+      ],
+    [consultationQueueSections, procedureQueueSections]
+  );
+
+  useEffect(() => {
+    if (activeQueueTabs.length === 0) return;
+    if (!activeQueueTabs.some((tab) => tab.key === activeQueue)) {
+      setActiveQueue(activeQueueTabs[0]?.key || "consultations");
+    }
+  }, [activeQueue, activeQueueTabs]);
 
   function QueueRowActions({ item }: { item: QueueDisplayItem }) {
-    const rowDoctorId = item.assignedDoctorId || item.primaryDoctorId || item.queueOwnerId || "";
-    const rowCallNext = useOptimisticCallNextPatient(clinicId, rowDoctorId);
+    const rowDoctorId = item.assignedDoctorId || item.primaryDoctorId || "";
+    const rowCallNext = useOptimisticCallNextPatient(clinicId, rowDoctorId || undefined);
     const canStartFromRow =
       userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
     const normalizedStatus = String(item.status || "").toUpperCase();
@@ -577,17 +727,17 @@ export default function QueuePage() {
     const canAssignForReference = hasReliableAppointmentReference(item);
 
     return (
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex min-w-0 flex-row flex-nowrap items-center justify-end gap-1.5 overflow-hidden">
         {canStartFromRow && item.status === QUEUE_STATUS.WAITING && (
           <QueueProtectedComponent action="update-status">
             <Button
               size="sm"
-              className="h-8"
+              className="h-8 shrink-0 whitespace-nowrap px-2 text-[11px]"
               onClick={() => handleUpdateQueueStatus(item.id, QUEUE_STATUS.IN_PROGRESS)}
               disabled={updateQueueStatusOptimistic.isPending}
             >
               <Play className="mr-1 h-3 w-3" />
-              Start
+              <span>Start</span>
             </Button>
           </QueueProtectedComponent>
         )}
@@ -598,23 +748,23 @@ export default function QueuePage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8"
+                className="h-8 shrink-0 whitespace-nowrap px-2 text-[11px]"
                 onClick={() => void handlePauseQueue(rowDoctorId)}
                 disabled={updateQueueStatusOptimistic.isPending}
               >
                 <Pause className="mr-1 h-3 w-3" />
-                Pause
+                <span>Pause</span>
               </Button>
             </QueueProtectedComponent>
             <QueueProtectedComponent action="update-status">
               <Button
                 size="sm"
-                className="h-8"
+                className="h-8 shrink-0 whitespace-nowrap px-2 text-[11px]"
                 onClick={() => handleUpdateQueueStatus(item.id, QUEUE_STATUS.COMPLETED)}
                 disabled={updateQueueStatusOptimistic.isPending}
               >
                 <CheckCircle className="mr-1 h-3 w-3" />
-                Complete
+                <span>Complete</span>
               </Button>
             </QueueProtectedComponent>
           </>
@@ -622,29 +772,31 @@ export default function QueuePage() {
 
         {item.status === QUEUE_STATUS.CONFIRMED && (
           <QueueProtectedComponent action="call-next">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8"
-              onClick={() =>
-                rowCallNext.mutation.mutate(
-                  { appointmentId: item.appointmentId },
-                  {
-                    onSuccess: () => {
-                      refetchQueue();
-                      showSuccessToast("Next patient called", { id: TOAST_IDS.GLOBAL.SUCCESS });
-                    },
-                    onError: (err: Error) => {
-                      showErrorToast(err.message || "Failed", { id: TOAST_IDS.GLOBAL.ERROR });
-                    },
+            {rowDoctorId ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 whitespace-nowrap px-2 text-[11px]"
+                onClick={() =>
+                  rowCallNext.mutation.mutate(
+                    { appointmentId: item.appointmentId },
+                    {
+                      onSuccess: () => {
+                        refetchQueue();
+                        showSuccessToast("Next patient called", { id: TOAST_IDS.GLOBAL.SUCCESS });
+                      },
+                      onError: (err: Error) => {
+                        showErrorToast(err.message || "Failed", { id: TOAST_IDS.GLOBAL.ERROR });
+                      },
                   }
                 )
-              }
-              disabled={rowCallNext.isPending || !item.appointmentId}
-            >
-              <SkipForward className="mr-1 h-3 w-3" />
-              {rowCallNext.isPending ? "Calling..." : "Call Next"}
-            </Button>
+                }
+                disabled={rowCallNext.isPending || !item.appointmentId}
+              >
+                <SkipForward className="mr-1 h-3 w-3" />
+                <span>{rowCallNext.isPending ? "Calling..." : "Call Next"}</span>
+              </Button>
+            ) : null}
           </QueueProtectedComponent>
         )}
 
@@ -652,11 +804,11 @@ export default function QueuePage() {
           <Button
             size="sm"
             variant="outline"
-            className="h-8"
+            className="h-8 shrink-0 whitespace-nowrap px-2 text-[11px]"
             onClick={() => openAssignDoctorDialog(item)}
             disabled={!item.appointmentId || reassignAppointmentMutation.isPending}
           >
-            Assign Doctor
+            <span>Assign Doctor</span>
           </Button>
         )}
 
@@ -666,11 +818,11 @@ export default function QueuePage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8 border-border/70 text-xs hover:bg-muted"
+                className="h-8 shrink-0 whitespace-nowrap border-border/70 px-2 text-[11px] hover:bg-muted"
                 disabled={transferringId === item.id}
               >
                 <ArrowRightLeft className="mr-1 h-3 w-3" />
-                {transferringId === item.id ? "Moving..." : "Move to"}
+                <span>{transferringId === item.id ? "Moving..." : "Move to"}</span>
                 <ChevronDown className="ml-1 h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
@@ -679,13 +831,13 @@ export default function QueuePage() {
                 Transfer to queue
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {QUEUE_TRANSFER_OPTIONS.filter(
-                (opt) => opt.treatmentType !== (item.treatmentType?.toUpperCase() ?? "")
-              ).map((opt) => (
+              {queueTransferOptions
+                .filter((opt) => normalizeQueueToken(opt.value) !== normalizeQueueToken(item.treatmentType))
+                .map((opt) => (
                 <DropdownMenuItem
-                  key={opt.treatmentType}
+                  key={opt.value}
                   onSelect={() =>
-                    void handleTransfer(item.id, opt.value, opt.treatmentType, opt.label)
+                    void handleTransfer(item.id, opt.value, opt.value, opt.label)
                   }
                 >
                   {opt.label}
@@ -704,8 +856,8 @@ export default function QueuePage() {
         accessorKey: "patientName",
         header: "Patient",
         cell: ({ row }) => (
-          <span className="font-medium text-foreground">
-            {row.original.patientName || "Unknown Patient"}
+          <span className="max-w-[160px] truncate text-sm font-medium text-foreground">
+            {getQueuePatientDisplayName(row.original)}
           </span>
         ),
       },
@@ -713,7 +865,7 @@ export default function QueuePage() {
         accessorKey: "doctorName",
         header: "Doctor",
         cell: ({ row }) => (
-          <span className="text-muted-foreground">
+          <span className="max-w-[140px] truncate text-sm text-muted-foreground">
             {row.original.doctorName || "Unassigned"}
           </span>
         ),
@@ -725,7 +877,7 @@ export default function QueuePage() {
           <Badge
             className={`${getStatusColor(
               row.original.status
-            )} flex w-max items-center justify-center gap-1 whitespace-nowrap border px-2 py-0.5 text-[10px] font-semibold`}
+            )} flex max-w-[84px] items-center justify-center gap-1 whitespace-nowrap border px-1.5 py-0.5 text-[10px] font-semibold`}
           >
             {getStatusIcon(row.original.status)}
             {getQueueStatusLabel(row.original)}
@@ -739,7 +891,7 @@ export default function QueuePage() {
           const waitValue = row.original.estimatedWaitTime || row.original.waitTime;
           if (!waitValue) return <span className="text-muted-foreground">-</span>;
           return (
-            <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+            <span className="flex min-w-[44px] items-center gap-1 text-[10px] font-medium text-muted-foreground">
               <Clock className="h-3 w-3" />
               {waitValue}m
             </span>
@@ -774,8 +926,8 @@ export default function QueuePage() {
         id: "category",
         header: "Category",
         cell: ({ row }) => (
-          <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-            {resolveQueueDisplayLabel(row.original)}
+          <span className="max-w-[72px] truncate text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+            {getQueueDisplayLabel(row.original)}
           </span>
         ),
       },
@@ -784,24 +936,20 @@ export default function QueuePage() {
     [baseQueueColumns]
   );
 
-  const therapyQueueSections = useMemo(
-    () => [
-      { key: "agnikarma", title: "Agnikarma", items: agnikarmaQueue },
-      { key: "panchakarma", title: "Panchakarma", items: panchakarmaQueue },
-      { key: "shirodhara", title: "Shirodhara", items: shirodharaQueue },
-      { key: "vidhakarma", title: "Vidhakarma", items: vidhakarmaQueue },
-      { key: "nasya", title: "Nasya", items: nasyaQueue },
-      { key: "basti", title: "Basti", items: bastiQueue },
-    ],
-    [agnikarmaQueue, panchakarmaQueue, shirodharaQueue, vidhakarmaQueue, nasyaQueue, bastiQueue]
-  );
-
-  const activeTherapySection = useMemo(() => {
+  const activeProcedureSection = useMemo(() => {
     return (
-      therapyQueueSections.find((section) => section.key === activeTherapyLane) ??
-      therapyQueueSections[0]
+      procedureQueueSections.find((section) => section.key === activeTherapyLane) ??
+      procedureQueueSections[0]
     );
-  }, [therapyQueueSections, activeTherapyLane]);
+  }, [procedureQueueSections, activeTherapyLane]);
+  const selectedProcedureItems = activeProcedureSection?.items ?? [];
+
+  useEffect(() => {
+    if (procedureQueueSections.length === 0) return;
+    if (!procedureQueueSections.some((section) => section.key === activeTherapyLane)) {
+      setActiveTherapyLane(procedureQueueSections[0]?.key || "PROCEDURAL_CARE");
+    }
+  }, [activeTherapyLane, procedureQueueSections]);
 
   // Keep returns after all hooks to avoid hook-order mismatch.
   if (isLoading) {
@@ -872,24 +1020,18 @@ export default function QueuePage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Real-time Status Indicator - clean UI for dashboard */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-3xl font-bold">Queue Management</h1>
-          <p className="text-gray-600">
-            {queuePermissions.canManageQueue
-              ? "Monitor and manage patient queues"
-              : "View patient queue status"}{" "}
-            • {queueScopeLabel}
-          </p>
-
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50/80 text-emerald-700 rounded-full border border-emerald-200/60 shadow-sm backdrop-blur-sm">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[11px] font-bold tracking-wide uppercase">Live Sync</span>
-        </div>
-      </div>
+    <DashboardPageShell className="p-4 md:p-6">
+      <DashboardPageHeader
+        eyebrow="Dashboard"
+        title="Queue Management"
+        description={`${queuePermissions.canManageQueue ? "Monitor and manage patient queues" : "View patient queue status"} ${queueScopeLabel}`}
+        meta={
+          <div className="flex items-center gap-2 rounded-full border border-emerald-200/60 bg-emerald-50/80 px-3 py-1.5 text-emerald-700 shadow-sm backdrop-blur-sm">
+            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[11px] font-bold tracking-wide uppercase">Live Sync</span>
+          </div>
+        }
+      />
 
       {/* Stale Data Cleanup Banner */}
       {staleEntries.length > 0 && (userRole === Role.RECEPTIONIST || userRole === Role.CLINIC_ADMIN) && (
@@ -992,106 +1134,125 @@ export default function QueuePage() {
       <Tabs
         value={activeQueue}
         onValueChange={setActiveQueue}
-        className="space-y-6"
+        className="space-y-5"
       >
-        <TabsList>
-          <TabsTrigger value="consultations">Consultations</TabsTrigger>
-          <TabsTrigger value="therapies">Therapies</TabsTrigger>
-          {uncategorizedQueue.length > 0 && (
-            <TabsTrigger value="uncategorized" className="text-red-600">
-              Uncategorized ({uncategorizedQueue.length})
+        <TabsList className="flex h-auto flex-wrap gap-1.5 bg-transparent p-0">
+          {activeQueueTabs.map((tab) => (
+            <TabsTrigger
+              key={tab.key}
+              value={tab.key}
+              className="gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
+            >
+              <span>{tab.label}</span>
+              <Badge
+                variant="outline"
+                className="h-5 rounded-full border-transparent bg-muted/70 px-1.5 text-xs text-muted-foreground data-[state=active]:bg-white/20 data-[state=active]:text-white"
+              >
+                {tab.count}
+              </Badge>
             </TabsTrigger>
-          )}
+          ))}
         </TabsList>
 
         <TabsContent value="consultations" className="space-y-4">
-          <Card className="border-border/60 bg-background/90 backdrop-blur-sm shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Stethoscope className="w-5 h-5" />
-                Consultation Queue
-                <Badge variant="secondary">{consultationQueue.length}</Badge>
-              </CardTitle>
+          <Card className="border-border/60 bg-background/90 shadow-sm backdrop-blur-sm">
+            <CardHeader className="flex flex-col gap-3 px-4 pb-2 pt-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                  <Stethoscope className="h-5 w-5" />
+                  Consultation Queue Types
+                <Badge variant="secondary">
+                    {selectedConsultationItems.length}
+                  </Badge>
+                </CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  General consultation lanes available for front-desk and queue routing.
+                </p>
+              </div>
             </CardHeader>
-            <CardContent className="pt-2">
+            <CardContent className="space-y-3 px-4 pb-4 pt-2">
+              <div className="flex flex-wrap gap-2">
+                {consultationQueueSections.map((section) => (
+                  <Badge
+                    key={section.key}
+                    asChild
+                    variant="outline"
+                    className={`cursor-pointer gap-2 px-3 py-2 text-sm font-semibold shadow-sm transition ${
+                      activeConsultationLane === section.key
+                        ? "border-emerald-500 bg-emerald-600 text-white ring-1 ring-emerald-300 dark:border-emerald-400 dark:bg-emerald-500 dark:text-white"
+                        : "border-border bg-background text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    <button type="button" onClick={() => setActiveConsultationLane(section.key)}>
+                      <span className="truncate">{section.title}</span>
+                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                        {section.items.length}
+                      </span>
+                    </button>
+                  </Badge>
+                ))}
+              </div>
               <DataTable
                 columns={laneColumns}
-                data={consultationQueue}
-                pageSize={10}
-                emptyMessage="No patients in consultation queue."
-                className="[&_table]:min-w-[980px]"
+                data={selectedConsultationItems}
+                pageSize={5}
+                emptyMessage={`No patients in ${String(activeConsultationSection?.title || "selected").toLowerCase()} queue.`}
+                compact
+                scrollable
               />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="therapies" className="space-y-6">
-          <Card className="border-border/60 bg-background/90 backdrop-blur-sm shadow-sm">
-            <CardHeader className="pb-2 space-y-3">
-              <CardTitle className="flex items-center gap-2">
-                Therapy Queues
+          <Card className="border-border/60 bg-background/90 shadow-sm backdrop-blur-sm">
+            <CardHeader className="flex flex-col gap-3 px-4 pb-2 pt-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                  Treatment Queue Tabs
                 <Badge variant="secondary">
-                  {therapyQueueSections.reduce((total, section) => total + section.items.length, 0)}
-                </Badge>
-              </CardTitle>
-              <div className="overflow-x-auto">
-                <div className="flex min-w-max items-center gap-2">
-                  {therapyQueueSections.map((section) => (
-                    <Button
-                      key={section.key}
-                      variant={activeTherapyLane === section.key ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setActiveTherapyLane(section.key)}
-                      className="h-8"
-                    >
-                      {section.title}
-                      <Badge variant="secondary" className="ml-2">
-                        {section.items.length}
-                      </Badge>
-                    </Button>
-                  ))}
-                </div>
+                    {selectedProcedureItems.length}
+                  </Badge>
+                </CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Current treatment lanes available for transfer and front-desk routing.
+                </p>
               </div>
             </CardHeader>
-            <CardContent className="pt-2">
+            <CardContent className="space-y-3 px-4 pb-4 pt-2">
+              <div className="flex flex-wrap gap-2">
+                {procedureQueueSections.map((section) => (
+                  <Badge
+                    key={section.key}
+                    asChild
+                    variant="outline"
+                    className={`cursor-pointer gap-2 px-3 py-2 text-sm font-semibold shadow-sm transition ${
+                      activeTherapyLane === section.key
+                        ? "border-emerald-500 bg-emerald-600 text-white ring-1 ring-emerald-300 dark:border-emerald-400 dark:bg-emerald-500 dark:text-white"
+                        : "border-border bg-background text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    <button type="button" onClick={() => setActiveTherapyLane(section.key)}>
+                      <span className="truncate">{section.title}</span>
+                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                        {section.items.length}
+                      </span>
+                    </button>
+                  </Badge>
+                ))}
+              </div>
               <DataTable
                 columns={laneColumns}
-                data={activeTherapySection?.items ?? []}
-                pageSize={10}
-                emptyMessage={`No patients in ${(activeTherapySection?.title || "selected").toLowerCase()} queue.`}
-                className="[&_table]:min-w-[980px]"
+                data={selectedProcedureItems}
+                pageSize={5}
+                emptyMessage={`No patients in ${(activeProcedureSection?.title || "selected").toLowerCase()} queue.`}
+                compact
+                scrollable
               />
             </CardContent>
           </Card>
         </TabsContent>
 
-        {uncategorizedQueue.length > 0 && (
-          <TabsContent value="uncategorized" className="space-y-4">
-            <Card className="border-border/60 bg-background/90 backdrop-blur-sm shadow-sm">
-              <CardHeader className="pb-1">
-                <CardTitle className="flex items-center gap-2 text-foreground">
-                  <AlertCircle className="h-5 w-5 text-amber-600" />
-                  Uncategorized Items
-                  <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200">
-                    {uncategorizedQueue.length}
-                  </Badge>
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  These items matched your clinic scope but couldn&apos;t be sorted into specific therapy/consultation lanes.
-                </p>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <DataTable
-                  columns={laneColumns}
-                  data={uncategorizedQueue}
-                  pageSize={10}
-                  emptyMessage="No uncategorized queue items."
-                  className="[&_table]:min-w-[980px]"
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
       </Tabs>
 
       <Dialog
@@ -1104,7 +1265,7 @@ export default function QueuePage() {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Assign Doctor</DialogTitle>
             <DialogDescription>
@@ -1121,7 +1282,7 @@ export default function QueuePage() {
               </div>
             ) : null}
             <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select doctor" />
               </SelectTrigger>
               <SelectContent>
@@ -1157,7 +1318,7 @@ export default function QueuePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </DashboardPageShell>
   );
 }
 

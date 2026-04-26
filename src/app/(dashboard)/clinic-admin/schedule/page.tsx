@@ -546,17 +546,17 @@ export default function ClinicAdminSchedule() {
                           <Badge>45 min</Badge>
                         </div>
                         <div className="flex items-center justify-between p-3 border rounded-lg">
-                          <span>Dosha Analysis</span>
+                          <span>Diagnostic / Preventive Care</span>
                           <Badge>60 min</Badge>
                         </div>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center justify-between p-3 border rounded-lg">
-                          <span>Panchakarma Session</span>
+                          <span>Procedural Session</span>
                           <Badge>90 min</Badge>
                         </div>
                         <div className="flex items-center justify-between p-3 border rounded-lg">
-                          <span>Shirodhara</span>
+                          <span>Procedural Care</span>
                           <Badge>60 min</Badge>
                         </div>
                         <div className="flex items-center justify-between p-3 border rounded-lg">

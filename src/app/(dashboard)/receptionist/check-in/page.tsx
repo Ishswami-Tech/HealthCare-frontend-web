@@ -27,6 +27,7 @@ import {
   getReceptionistAppointmentDateLabel,
   getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
+import { getAppointmentViewState } from "@/lib/utils/appointmentUtils";
 
 
 interface AppointmentListItem {
@@ -168,6 +169,7 @@ export default function ReceptionistCheckInPage() {
   const checkInRows = useMemo<CheckInRow[]>(
     () =>
       filteredAppointments.map((apt) => {
+        const viewState = getAppointmentViewState(apt);
         const status = apt.status || "Scheduled";
         const normalizedStatus = String(status).toUpperCase();
         const rowLocationId = apt.locationId || assignedLocationId || undefined;
@@ -183,7 +185,7 @@ export default function ReceptionistCheckInPage() {
           dateLabel: getReceptionistAppointmentDateLabel(apt as unknown as Record<string, unknown>),
           timeLabel: getReceptionistAppointmentTimeLabel(apt as unknown as Record<string, unknown>),
           status,
-          paymentStatus: String(apt.payment?.status || "N/A").toUpperCase(),
+          paymentStatus: viewState.paymentStatus,
           canCheckIn: !isConfirmedArrival && ["SCHEDULED", "CONFIRMED"].includes(normalizedStatus),
           isConfirmedArrival,
         };
@@ -369,6 +371,7 @@ export default function ReceptionistCheckInPage() {
             data={checkInRows}
             emptyMessage="No appointments found"
             pageSize={10}
+            compact
           />
         </CardContent>
       </Card>

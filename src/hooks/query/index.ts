@@ -18,11 +18,6 @@ export {
   useMyAppointments,
   useUserUpcomingAppointments,
   useTestAppointmentContext,
-  // Queue functions from appointments (keep for backward compatibility)
-  useQueue as useAppointmentQueue,
-  useAddToQueue as useAddToAppointmentQueue,
-  useCallNextPatient as useCallNextAppointmentPatient,
-  useQueueStats as useAppointmentQueueStats,
   useDoctorAvailability,
 } from './useAppointments';
 
@@ -72,7 +67,6 @@ export {
 // Doctors - export specific, excluding useDoctorAvailability (exported from useAppointments)
 export {
   useDoctors,
-  useDoctors as useClinicDoctors,
   useDoctor,
   useCreateDoctor,
   useUpdateDoctor,
@@ -115,8 +109,6 @@ export {
   useUserActivityLogs,
   useUserSessions,
   useTerminateUserSession,
-  usePatients as useUserPatients,
-  useDoctors as useUserDoctors,
 } from './useUsers';
 
 // Medical Records - export specific, excluding medicine/prescription functions (exported from usePharmacy)
@@ -169,23 +161,14 @@ export {
 // Pharmacy - export specific, excluding medicine/prescription functions that conflict with useMedicalRecords
 export {
   useMedicines,
-  useMedicines as usePharmacyMedicines,
   useMedicine,
-  useMedicine as usePharmacyMedicine,
   useSearchMedicines,
-  useSearchMedicines as usePharmacySearchMedicines,
   useCreateMedicine,
-  useCreateMedicine as usePharmacyCreateMedicine,
   useUpdateMedicine,
-  useUpdateMedicine as usePharmacyUpdateMedicine,
   useDeleteMedicine,
-  useDeleteMedicine as usePharmacyDeleteMedicine,
   usePrescriptions,
-  usePrescriptions as usePharmacyPrescriptions,
   usePrescription,
-  usePrescription as usePharmacyPrescription,
   useCreatePrescription,
-  useCreatePrescription as usePharmacyCreatePrescription,
   useUpdatePrescriptionStatus,
   useDispensePrescription,
   useInventory,
@@ -205,11 +188,7 @@ export * from './useBilling';
 // Queue - export specific, excluding functions that conflict with useAppointments
 export {
   useQueue as useQueueManagement,
-  useQueueStats as useQueueManagementStats,
-  useCallNextPatient as useQueueCallNextPatient,
-  useAddToQueue as useQueueAddToQueue,
   useQueueHistory,
-  useQueueAnalytics as useQueueManagementAnalytics,
   useQueueUtils,
   usePauseQueue,
   useQueueConfig,

@@ -1,8 +1,7 @@
-'use server';
+﻿'use server';
 
 import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
-import type { ListAllVideoSessionsResponse } from '@/types/video.types';
 
 // ===== VIDEO TOKEN MANAGEMENT =====
 
@@ -300,7 +299,6 @@ export async function sendChatMessage(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // ✅ Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -353,7 +351,6 @@ export async function updateTypingIndicator(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // ✅ Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -392,7 +389,6 @@ export async function joinWaitingRoom(appointmentId: string) {
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // ✅ Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -471,7 +467,7 @@ export async function admitFromWaitingRoom(
   const doctorId = session?.user?.id || '';
   
   if (!doctorId) {
-    // ✅ Use centralized error messages
+    // âœ… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -543,7 +539,7 @@ export async function createMedicalNote(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // ✅ Use centralized error messages
+    // âœ… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -560,28 +556,6 @@ export async function createMedicalNote(
     }
   );
   return response as MedicalNote;
-}
-
-/**
- * Update medical note
- * Note: Backend doesn't have UPDATE endpoint, only DELETE
- * This function is kept for future compatibility
- */
-export async function updateMedicalNote(
-  _appointmentId: string,
-  _noteId: string,
-  _data: {
-    content?: string;
-    noteType?: 'GENERAL' | 'SYMPTOM' | 'DIAGNOSIS' | 'PRESCRIPTION' | 'TREATMENT';
-    title?: string;
-    prescription?: unknown;
-  }
-) {
-  // Backend doesn't have update endpoint, so we'll need to delete and recreate
-  // For now, return error or implement workaround
-  // ✅ Use centralized error messages
-  const { ERROR_MESSAGES } = await import('@/lib/config/config');
-  throw new Error(ERROR_MESSAGES.TRY_AGAIN);
 }
 
 /**
@@ -628,7 +602,7 @@ export async function saveNoteToEHR(_appointmentId: string, noteId: string) {
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // ✅ Use centralized error messages
+    // âœ… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -684,7 +658,7 @@ export async function updateQualityMetrics(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // ✅ Use centralized error messages
+    // âœ… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -755,7 +729,7 @@ export async function createAnnotation(
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // ✅ Use centralized error messages
+    // âœ… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -795,7 +769,7 @@ export async function deleteAnnotation(_appointmentId: string, annotationId: str
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // ✅ Use centralized error messages
+    // âœ… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -956,7 +930,7 @@ export async function saveTranscriptToEHR(appointmentId: string) {
   const userId = session?.user?.id || '';
   
   if (!userId) {
-    // ✅ Use centralized error messages
+    // âœ… Use centralized error messages
     const { ERROR_MESSAGES } = await import('@/lib/config/config');
     throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
   }
@@ -1046,29 +1020,12 @@ export async function manageParticipantEnhanced(
   return response as { success: boolean };
 }
 
-// ===== SUPER ADMIN: SESSION MONITORING & CONTROL =====
-
-/**
- * List all active video sessions (Super Admin only)
- */
-export async function listAllVideoSessions(): Promise<ListAllVideoSessionsResponse> {
-  const { data: response } = await authenticatedApi(
-    API_ENDPOINTS.VIDEO.ADMIN.LIST_SESSIONS,
-    {}
-  );
-  return response as ListAllVideoSessionsResponse;
+export async function listAllVideoSessions() {
+  const { listAllVideoSessions: runListAllVideoSessions } = await import('./video.admin.server');
+  return runListAllVideoSessions();
 }
 
-/**
- * Force-terminate an active video session (Super Admin only)
- */
 export async function terminateVideoSession(sessionId: string, reason?: string) {
-  const { data: response } = await authenticatedApi(
-    API_ENDPOINTS.VIDEO.ADMIN.TERMINATE_SESSION(sessionId),
-    {
-      method: 'POST',
-      body: JSON.stringify({ reason: reason || 'Terminated by Super Admin' }),
-    }
-  );
-  return response as { success: boolean; message?: string };
+  const { terminateVideoSession: runTerminateVideoSession } = await import('./video.admin.server');
+  return runTerminateVideoSession(sessionId, reason);
 }

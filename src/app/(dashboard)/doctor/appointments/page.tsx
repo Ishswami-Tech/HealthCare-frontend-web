@@ -33,10 +33,13 @@ import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/
 import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
+  getAppointmentViewState,
+  shouldShowAppointmentOnDoctorDashboard,
+} from "@/lib/utils/appointmentUtils";
+import {
   getAppointmentPaymentStatus,
   getDisplayAppointmentDuration,
   isAppointmentAwaitingPayment,
-  isVideoAppointmentPaymentCompleted,
 } from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
@@ -164,16 +167,13 @@ export default function DoctorAppointments() {
   // Transform appointments data
   const appointments = useMemo(() => {
     const apps = extractAppointments(appointmentsData);
-    const visibleApps = apps.filter(
-      (app: any) =>
-        String(app.type || app.appointmentType || "").toUpperCase() !== "VIDEO_CALL" ||
-        isVideoAppointmentPaymentCompleted(app)
-    );
+    const visibleApps = apps.filter(shouldShowAppointmentOnDoctorDashboard);
 
     return visibleApps
       .map((app: any): TransformedAppointment => {
         const displayDuration = getDisplayAppointmentDuration(app);
         const paymentStatus = getAppointmentPaymentStatus(app);
+        const viewState = getAppointmentViewState(app);
 
         return {
           id: app.id,
@@ -184,7 +184,7 @@ export default function DoctorAppointments() {
           patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
           patientGender: app.patient?.gender || "Unknown",
           time: app.startTime ? new Date(app.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "TBD",
-          status: (app.status || "SCHEDULED") as AppointmentStatus,
+          status: (viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : viewState.normalizedStatus) as AppointmentStatus,
           type: app.type || app.appointmentType || "Consultation",
           duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
           appointmentDate: app.startTime

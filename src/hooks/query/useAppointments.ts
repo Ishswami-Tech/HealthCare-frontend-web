@@ -48,6 +48,7 @@ import {
 import {
   serializeAppointmentQueryKey,
   getAppointmentQueryKey,
+  getAppointmentStatsQueryKey,
   toAppointmentFilterParams,
 } from '@/lib/query/appointment-query-keys';
 import type { 
@@ -92,67 +93,6 @@ const extractAppointments = (payload: unknown): Appointment[] => {
     }
   }
   return [];
-};
-
-const patchConfirmedSlotInAppointment = (appointment: any, appointmentId: string, confirmedSlotIndex: number) => {
-  if (!appointment || typeof appointment !== 'object') return appointment;
-
-  const currentId = String(appointment?.id || appointment?.appointmentId || '');
-  if (currentId !== String(appointmentId)) return appointment;
-
-  return {
-    ...appointment,
-    status: 'CONFIRMED',
-    confirmedSlotIndex,
-    confirmed_slot_index: confirmedSlotIndex,
-    rawStatus: 'CONFIRMED',
-  };
-};
-
-const patchConfirmedSlotInPayload = (payload: unknown, appointmentId: string, confirmedSlotIndex: number): unknown => {
-  if (Array.isArray(payload)) {
-    return payload.map((appointment) =>
-      patchConfirmedSlotInAppointment(appointment, appointmentId, confirmedSlotIndex)
-    );
-  }
-
-  if (!payload || typeof payload !== 'object') return payload;
-
-  const record = payload as Record<string, unknown>;
-  if (Array.isArray(record.appointments)) {
-    return {
-      ...record,
-      appointments: record.appointments.map((appointment) =>
-        patchConfirmedSlotInAppointment(appointment, appointmentId, confirmedSlotIndex)
-      ),
-    };
-  }
-
-  if (Array.isArray(record.data)) {
-    return {
-      ...record,
-      data: record.data.map((appointment) =>
-        patchConfirmedSlotInAppointment(appointment, appointmentId, confirmedSlotIndex)
-      ),
-    };
-  }
-
-  if (record.data && typeof record.data === 'object') {
-    const nested = record.data as Record<string, unknown>;
-    if (Array.isArray(nested.appointments)) {
-      return {
-        ...record,
-        data: {
-          ...nested,
-          appointments: nested.appointments.map((appointment) =>
-            patchConfirmedSlotInAppointment(appointment, appointmentId, confirmedSlotIndex)
-          ),
-        },
-      };
-    }
-  }
-
-  return patchConfirmedSlotInAppointment(payload, appointmentId, confirmedSlotIndex);
 };
 
 // ✅ Appointment Management Hooks
@@ -337,7 +277,7 @@ export const useCreateAppointment = (clinicId?: string) => {
         void queryClient.refetchQueries({ queryKey: getAppointmentQueryKey(clinicId), exact: false, type: 'active' });
         void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
         void queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['appointmentStats'], exact: false });
+        void queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(), exact: false });
         if (appointment) {
           toast({
             title: 'Success',
@@ -418,7 +358,6 @@ export const useProposeVideoAppointment = () => {
  */
 export const useConfirmVideoSlot = () => {
   const { hasPermission } = useRBAC();
-  const queryClient = useQueryClient();
   return useMutationOperation(
     async ({ appointmentId, confirmedSlotIndex }: { appointmentId: string; confirmedSlotIndex: number }) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
@@ -437,21 +376,7 @@ export const useConfirmVideoSlot = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Confirming slot...',
       successMessage: 'Slot confirmed. Patient can now pay.',
-      invalidateQueries: [['appointments'], ['video-appointments'], ['appointment'], ['myAppointments']],
-      onSuccess: (_appointment, variables) => {
-        void queryClient.setQueriesData(
-          { queryKey: ['appointments'], exact: false },
-          (current) => patchConfirmedSlotInPayload(current, variables.appointmentId, variables.confirmedSlotIndex)
-        );
-        void queryClient.setQueriesData(
-          { queryKey: ['video-appointments'], exact: false },
-          (current) => patchConfirmedSlotInPayload(current, variables.appointmentId, variables.confirmedSlotIndex)
-        );
-        void queryClient.setQueriesData(
-          { queryKey: ['myAppointments'], exact: false },
-          (current) => patchConfirmedSlotInPayload(current, variables.appointmentId, variables.confirmedSlotIndex)
-        );
-      },
+      invalidateQueries: [['appointments'], ['video-appointments'], ['appointment'], ['myAppointments'], ['userUpcomingAppointments'], ['video-appointment']],
     }
   );
 };
@@ -1358,7 +1283,7 @@ export const useAppointmentStats = () => {
   const clinicId = useCurrentClinicId();
   
   return useQueryData(
-    ['appointmentStats', clinicId],
+    getAppointmentStatsQueryKey(clinicId),
     async () => {
       if (!clinicId) {
         throw new Error('No clinic ID available');

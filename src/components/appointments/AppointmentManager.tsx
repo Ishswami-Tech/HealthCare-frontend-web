@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -43,13 +44,15 @@ import { BookAppointmentDialog } from "@/components/appointments/BookAppointment
 import { cn } from "@/lib/utils";
 import {
   formatDateInIST,
-  isAwaitingDoctorSlotConfirmation,
   getAppointmentStatusBadgeLabel,
   getAppointmentDateTimeValue,
   getDisplayAppointmentDuration,
   isVideoAppointmentPaymentCompleted,
   normalizeAppointmentStatus,
   normalizePatientAppointment,
+} from "@/lib/utils/appointmentUtils";
+import {
+  isPaidVideoAppointmentAwaitingDoctorConfirmation,
 } from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
@@ -213,15 +216,19 @@ export default function AppointmentManager({
   const awaitingDoctorReviewAppointments = useMemo(
     () =>
       normalizedAppointments.filter((appointment) =>
-        isAwaitingDoctorSlotConfirmation({
-          ...appointment,
-          status: normalizeAppointmentStatus(appointment.status),
-          type: appointment.type,
-          proposedSlots: (appointment as any).proposedSlots,
-          confirmedSlotIndex: (appointment as any).confirmedSlotIndex,
-        })
+        isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment)
       ),
     [normalizedAppointments]
+  );
+
+  const awaitingDoctorReviewIds = useMemo(
+    () => new Set(awaitingDoctorReviewAppointments.map((appointment) => String(appointment.id || ""))),
+    [awaitingDoctorReviewAppointments]
+  );
+
+  const primaryAppointments = useMemo(
+    () => normalizedAppointments.filter((appointment) => !awaitingDoctorReviewIds.has(String(appointment.id || ""))),
+    [normalizedAppointments, awaitingDoctorReviewIds]
   );
 
   const filteredAppointments = useMemo(() => {
@@ -233,7 +240,7 @@ export default function AppointmentManager({
     const startDate = dateFilter.start ? parseAppointmentDate(`${dateFilter.start}T00:00:00`) : null;
     const endDate = dateFilter.end ? parseAppointmentDate(`${dateFilter.end}T23:59:59.999`) : null;
 
-    return normalizedAppointments.filter(apt => {
+    return primaryAppointments.filter(apt => {
       const matchesType = !filterType || apt.type === filterType;
       const matchesStatus =
         statusFilter === "ALL"
@@ -253,16 +260,16 @@ export default function AppointmentManager({
       const matchesEndDate = !endDate || (appointmentDate !== null && appointmentDate <= endDate);
       return matchesType && matchesStatus && matchesSearch && matchesStartDate && matchesEndDate;
     });
-  }, [normalizedAppointments, statusFilter, searchQuery, dateFilter.start, dateFilter.end]);
+  }, [primaryAppointments, statusFilter, searchQuery, dateFilter.start, dateFilter.end]);
 
   // Stats
   const stats = useMemo(() => {
     const total = normalizedAppointments.length;
-    const upcoming = normalizedAppointments.filter(a => ["SCHEDULED", "CONFIRMED"].includes(a.status)).length;
-    const completed = normalizedAppointments.filter(a => a.status === "COMPLETED").length;
-    const inProgress = normalizedAppointments.filter(a => a.status === "IN_PROGRESS").length;
+    const upcoming = primaryAppointments.filter(a => ["SCHEDULED", "CONFIRMED"].includes(a.status)).length;
+    const completed = primaryAppointments.filter(a => a.status === "COMPLETED").length;
+    const inProgress = primaryAppointments.filter(a => a.status === "IN_PROGRESS").length;
     return { total, upcoming, completed, inProgress };
-  }, [normalizedAppointments]);
+  }, [normalizedAppointments, primaryAppointments]);
 
   const formatDate = (date: string) => {
     const parsed = new Date(date);
@@ -588,7 +595,7 @@ export default function AppointmentManager({
                 )}
                 {apt.type === "VIDEO_CALL" &&
                   isVideoAppointmentPaymentCompleted(apt) &&
-                  isAwaitingDoctorSlotConfirmation(apt) && (
+                  isPaidVideoAppointmentAwaitingDoctorConfirmation(apt) && (
                     <Button
                       variant="outline"
                       className="h-10 px-6 rounded-lg border-amber-200 bg-amber-50 text-amber-700 text-sm pointer-events-none flex-1"

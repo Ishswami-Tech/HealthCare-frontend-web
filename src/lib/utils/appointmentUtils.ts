@@ -18,6 +18,17 @@ const VIDEO_DEFAULT_DURATION_MINUTES = 15;
 
 export const IST_TIMEZONE = 'Asia/Kolkata';
 
+const COMPLETED_PAYMENT_STATUSES = new Set(['COMPLETED', 'SUCCESS', 'PAID', 'CAPTURED']);
+const PENDING_PAYMENT_STATUSES = new Set([
+  'PENDING',
+  'PROCESSING',
+  'OPEN',
+  'CREATED',
+  'AWAITING_PAYMENT',
+  'UNPAID',
+  'OVERDUE',
+]);
+
 export function normalizeAppointmentStatus(value: unknown): string {
   const normalized = String(value || '')
     .trim()
@@ -39,6 +50,60 @@ export function normalizeAppointmentStatus(value: unknown): string {
     default:
       return normalized;
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function asRecordArray(value: unknown): Record<string, unknown>[] {
+  if (Array.isArray(value)) {
+    return value
+      .map(item => asRecord(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item));
+  }
+
+  const record = asRecord(value);
+  return record ? [record] : [];
+}
+
+function getPaymentCandidates(appointment: any): Record<string, unknown>[] {
+  return [
+    ...asRecordArray(appointment?.payment),
+    ...asRecordArray(appointment?.payments),
+    ...asRecordArray(appointment?.billing?.payment),
+    ...asRecordArray(appointment?.billing?.payments),
+    ...asRecordArray(appointment?.invoice?.payment),
+    ...asRecordArray(appointment?.invoice?.payments),
+  ];
+}
+
+function normalizePaymentStatusValue(value: unknown): string {
+  const normalized = String(value || '')
+    .trim()
+    .replace(/[\s-]+/g, '_')
+    .toUpperCase();
+
+  if (!normalized) {
+    return '';
+  }
+
+  if (COMPLETED_PAYMENT_STATUSES.has(normalized)) {
+    return 'PAID';
+  }
+
+  if (PENDING_PAYMENT_STATUSES.has(normalized)) {
+    return 'PENDING';
+  }
+
+  if (normalized === 'FAILED' || normalized === 'VOID' || normalized === 'UNCOLLECTIBLE') {
+    return normalized;
+  }
+
+  return normalized;
 }
 
 function normalizeDateInput(value: Date | string): Date | null {
@@ -100,40 +165,47 @@ export function isVideoAppointmentPaymentCompleted(appointment: any): boolean {
     return true;
   }
 
-  const paymentStatus = getAppointmentPaymentStatus(appointment);
+  return getAppointmentPaymentStatus(appointment) === 'PAID';
+}
 
-  return paymentStatus === 'COMPLETED' || paymentStatus === 'SUCCESS' || paymentStatus === 'PAID';
+function normalizeStatusToken(value: unknown): string {
+  return normalizePaymentStatusValue(value);
 }
 
 export function getAppointmentPaymentStatus(appointment: any): string {
-  const paymentStatus = String(
-    appointment?.payment?.status ||
-      appointment?.paymentStatus ||
+  const paymentCandidates = getPaymentCandidates(appointment);
+  const paymentStatusCandidates = paymentCandidates.flatMap((payment) => [
+    payment?.status,
+    payment?.paymentStatus,
+    payment?.state,
+    payment?.payment_state,
+    payment?.transactionStatus,
+  ]).map(normalizeStatusToken).filter(Boolean);
+
+  const directPaymentStatus = normalizeStatusToken(
+    appointment?.paymentStatus ||
       appointment?.billing?.paymentStatus ||
       appointment?.invoice?.paymentStatus ||
       appointment?.invoice?.status ||
       ''
-  )
-    .trim()
-    .replace(/[\s-]+/g, '_')
-    .toUpperCase();
+  );
 
-  if (!paymentStatus) {
-    return 'N_A';
+  const allStatuses = [...paymentStatusCandidates, directPaymentStatus].filter(Boolean);
+
+  if (allStatuses.some((status) => COMPLETED_PAYMENT_STATUSES.has(status) || status === 'PAID')) {
+    return 'PAID';
   }
 
-  switch (paymentStatus) {
-    case 'SUCCESS':
-    case 'COMPLETED':
-      return 'PAID';
-    case 'OPEN':
-    case 'PROCESSING':
-    case 'CREATED':
-    case 'AWAITING_PAYMENT':
-      return 'PENDING';
-    default:
-      return paymentStatus;
+  if (allStatuses.some((status) => PENDING_PAYMENT_STATUSES.has(status) || status === 'PENDING')) {
+    return 'PENDING';
   }
+
+  const firstKnown = allStatuses.find(Boolean);
+  if (firstKnown) {
+    return firstKnown;
+  }
+
+  return 'N_A';
 }
 
 export function isAppointmentAwaitingPayment(appointment: any): boolean {
@@ -312,6 +384,7 @@ export function getAppointmentStatusDisplayName(status: string): string {
 export function isAwaitingDoctorSlotConfirmation(appointment: any): boolean {
   const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
   if (type !== 'VIDEO_CALL') return false;
+  if (!isVideoAppointmentPaymentCompleted(appointment)) return false;
 
   const hasProposedSlots =
     Array.isArray(appointment?.proposedSlots) && appointment.proposedSlots.length > 0;
@@ -319,16 +392,151 @@ export function isAwaitingDoctorSlotConfirmation(appointment: any): boolean {
   const hasConfirmedSlot =
     confirmedSlotIndex !== null &&
     confirmedSlotIndex !== undefined &&
+    confirmedSlotIndex !== '' &&
     !Number.isNaN(Number(confirmedSlotIndex));
 
-  return normalizeAppointmentStatus(appointment?.status) === 'SCHEDULED' && hasProposedSlots && !hasConfirmedSlot;
+  const status = normalizeAppointmentStatus(appointment?.status);
+  const paymentStatus = getAppointmentPaymentStatus(appointment);
+  const paymentCompleted = paymentStatus === 'COMPLETED' || paymentStatus === 'SUCCESS' || paymentStatus === 'PAID';
+
+  return paymentCompleted && (status === 'SCHEDULED' || status === 'PENDING') && hasProposedSlots && !hasConfirmedSlot;
 }
 
 export function getAppointmentStatusBadgeLabel(appointment: any): string {
   if (isAwaitingDoctorSlotConfirmation(appointment)) {
-    return 'Scheduled (Awaiting Doctor Confirmation)';
+    return 'Awaiting Doctor Review';
   }
   return getAppointmentStatusDisplayName(String(appointment?.status || ''));
+}
+
+export type AppointmentWorkflowState =
+  | 'scheduled'
+  | 'confirmed'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled'
+  | 'awaiting_video_payment'
+  | 'awaiting_doctor_slot_confirmation';
+
+export type AppointmentViewState = {
+  type: string;
+  status: string;
+  normalizedStatus: string;
+  workflowState: AppointmentWorkflowState;
+  paymentStatus: string;
+  paymentCompleted: boolean;
+  awaitingDoctorSlotConfirmation: boolean;
+  awaitingPayment: boolean;
+  isVideo: boolean;
+  isScheduledLike: boolean;
+  hasProposedSlots: boolean;
+  hasConfirmedSlot: boolean;
+  displayStatusLabel: string;
+  showInDoctorWorkspace: boolean;
+  showInPatientWorkspace: boolean;
+  showInReceptionWorkspace: boolean;
+};
+
+function isCancelledLike(status: string): boolean {
+  return ['CANCELLED', 'NO_SHOW'].includes(status);
+}
+
+function isActiveLike(status: string): boolean {
+  return ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(status);
+}
+
+function hasProposedSlots(appointment: any): boolean {
+  return Array.isArray(appointment?.proposedSlots) && appointment.proposedSlots.length > 0;
+}
+
+function hasConfirmedSlot(appointment: any): boolean {
+  const confirmedSlotIndex = appointment?.confirmedSlotIndex;
+  return (
+    confirmedSlotIndex !== null &&
+    confirmedSlotIndex !== undefined &&
+    confirmedSlotIndex !== '' &&
+    !Number.isNaN(Number(confirmedSlotIndex))
+  );
+}
+
+export function getAppointmentViewState(appointment: any): AppointmentViewState {
+  const status = normalizeAppointmentStatus(appointment?.status);
+  const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
+  const paymentStatus = getAppointmentPaymentStatus(appointment);
+  const paymentCompleted = isVideoAppointmentPaymentCompleted(appointment);
+  const proposedSlots = hasProposedSlots(appointment);
+  const confirmedSlot = hasConfirmedSlot(appointment);
+  const awaitingDoctorSlotConfirmation =
+    type === 'VIDEO_CALL' &&
+    paymentCompleted &&
+    (status === 'SCHEDULED' || status === 'PENDING') &&
+    proposedSlots &&
+    !confirmedSlot;
+  const awaitingPayment = isAppointmentAwaitingPayment(appointment);
+  const isVideo = type === 'VIDEO_CALL';
+  const isScheduledLike = status === 'SCHEDULED' || status === 'CONFIRMED';
+  const workflowState: AppointmentWorkflowState = awaitingDoctorSlotConfirmation
+    ? 'awaiting_doctor_slot_confirmation'
+    : status === 'IN_PROGRESS'
+      ? 'in_progress'
+      : status === 'COMPLETED'
+        ? 'completed'
+        : status === 'CANCELLED' || status === 'NO_SHOW'
+          ? 'cancelled'
+          : paymentCompleted && status === 'SCHEDULED' && isVideo
+            ? 'awaiting_video_payment'
+            : status === 'CONFIRMED'
+              ? 'confirmed'
+              : 'scheduled';
+  const displayStatusLabel = awaitingDoctorSlotConfirmation
+    ? 'Awaiting Doctor Review'
+    : getAppointmentStatusBadgeLabel(appointment);
+
+  return {
+    type,
+    status,
+    normalizedStatus: status,
+    workflowState,
+    paymentStatus,
+    paymentCompleted,
+    awaitingDoctorSlotConfirmation,
+    awaitingPayment,
+    isVideo,
+    isScheduledLike,
+    hasProposedSlots: proposedSlots,
+    hasConfirmedSlot: confirmedSlot,
+    displayStatusLabel,
+    showInDoctorWorkspace:
+      !isCancelledLike(status) &&
+      (
+        status === 'CONFIRMED' ||
+        status === 'IN_PROGRESS' ||
+        status === 'COMPLETED' ||
+        (status === 'SCHEDULED' && (!isVideo || paymentCompleted || awaitingDoctorSlotConfirmation))
+      ),
+    showInPatientWorkspace: !isCancelledLike(status) && (isActiveLike(status) || awaitingDoctorSlotConfirmation),
+    showInReceptionWorkspace: !isCancelledLike(status) && (isActiveLike(status) || awaitingDoctorSlotConfirmation),
+  };
+}
+
+export function shouldShowAppointmentOnDoctorDashboard(appointment: any): boolean {
+  return getAppointmentViewState(appointment).showInDoctorWorkspace;
+}
+
+export function shouldShowAppointmentOnPatientDashboard(appointment: any): boolean {
+  return getAppointmentViewState(appointment).showInPatientWorkspace;
+}
+
+export function shouldShowAppointmentOnReceptionistDashboard(appointment: any): boolean {
+  return getAppointmentViewState(appointment).showInReceptionWorkspace;
+}
+
+export function shouldShowAppointmentOnReceptionDashboard(appointment: any): boolean {
+  return shouldShowAppointmentOnReceptionistDashboard(appointment);
+}
+
+export function isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment: any): boolean {
+  return getAppointmentViewState(appointment).awaitingDoctorSlotConfirmation;
 }
 
 // Theme-aware status colors

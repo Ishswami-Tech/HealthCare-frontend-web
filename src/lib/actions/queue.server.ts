@@ -35,6 +35,19 @@ export async function getQueue(filters?: {
 }
 
 /**
+ * Get queue filter catalog
+ */
+export async function getQueueFilters() {
+  try {
+    const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.FILTERS, {});
+    return data;
+  } catch (error) {
+    logger.error('getQueueFilters failed', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
+/**
  * Get queue statistics
  */
 export async function getQueueStats(locationId: string) {

@@ -370,7 +370,7 @@ export default function TherapyQueuePanel({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Timer className="w-5 h-5" />
-          Therapy Queue Management
+          Procedural Queue Management
         </CardTitle>
       </CardHeader>
       <CardContent>

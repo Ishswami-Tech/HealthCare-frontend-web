@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useQueue, useQueueStats } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import {
   Building2,
   Calendar,
@@ -32,9 +33,14 @@ export default function ClinicLocationHeadDashboard() {
   useWebSocketQuerySync();
 
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const historyStartDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 90);
+    return date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  }, []);
 
   const { data: appointmentsResult, isPending: appointmentsPending } = useAppointments(
-    clinicId ? { clinicId, ...(today ? { date: today } : {}) } : undefined
+    clinicId ? { clinicId, startDate: historyStartDate, ...(today ? { endDate: today } : {}) } : undefined
   );
 
   const { data: queueData, isPending: queuePending } = useQueue(clinicId ?? undefined, {
@@ -49,6 +55,20 @@ export default function ClinicLocationHeadDashboard() {
     return Array.isArray(raw) ? raw : [];
   }, [appointmentsResult]);
 
+  const todayAppointments = useMemo(
+    () =>
+      appointments.filter((appointment: Record<string, unknown>) => {
+        const dateTime = getAppointmentDateTimeValue(appointment);
+        const aptDate =
+          (dateTime
+            ? dateTime.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+            : "") ||
+          String(appointment.date || appointment.appointmentDate || "").slice(0, 10);
+        return aptDate === today;
+      }),
+    [appointments, today]
+  );
+
   const queueEntries = useMemo(() => {
     const raw = Array.isArray(queueData)
       ? queueData
@@ -59,19 +79,19 @@ export default function ClinicLocationHeadDashboard() {
   const queueStats = queueStatsRaw as Record<string, unknown> | undefined;
 
   const stats = useMemo(() => {
-    const totalToday = appointments.length;
-    const completed = appointments.filter(
+    const totalToday = todayAppointments.length;
+    const completed = todayAppointments.filter(
       (a: Record<string, unknown>) => String(a.status ?? "").toUpperCase() === "COMPLETED"
     ).length;
     const waiting = queueEntries.filter(
       (e: Record<string, unknown>) => String(e.status ?? "").toUpperCase() === "WAITING"
     ).length;
-    const inProgress = appointments.filter(
+    const inProgress = todayAppointments.filter(
       (a: Record<string, unknown>) => String(a.status ?? "").toUpperCase() === "IN_PROGRESS"
     ).length;
 
     return { totalToday, completed, waiting, inProgress };
-  }, [appointments, queueEntries]);
+  }, [todayAppointments, queueEntries]);
 
   const upcomingAppointments = useMemo(
     () =>
@@ -96,7 +116,7 @@ export default function ClinicLocationHeadDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -172,12 +192,12 @@ export default function ClinicLocationHeadDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's Appointments */}
+        {/* Recent Appointments */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-blue-600" />
-              Today&apos;s Appointments
+              Recent Appointments
             </CardTitle>
             <Button
               variant="ghost"
@@ -192,7 +212,7 @@ export default function ClinicLocationHeadDashboard() {
             {upcomingAppointments.length === 0 ? (
               <div className="text-center py-10 text-muted-foreground">
                 <Calendar className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No appointments scheduled for today</p>
+                <p className="text-sm">No recent appointments found</p>
               </div>
             ) : (
               <div className="space-y-2">

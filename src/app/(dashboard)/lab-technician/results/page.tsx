@@ -23,7 +23,7 @@ import {
   useCreateLabResult,
   useDeleteLabResult,
 } from "@/hooks/query/useLabTechnician";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 
 export default function LabTechnicianResults() {
   const { user } = useAuth();
@@ -39,7 +39,7 @@ export default function LabTechnicianResults() {
   const createMutation = useCreateLabResult();
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['labTechnicianResults', technicianId]]);
+  useWebSocketQuerySync();
 
   const testResults = labResultsData?.results || [];
 

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCounselorClients } from "@/hooks/query/useCounselor";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
@@ -31,7 +31,7 @@ export default function CounselorPatients() {
   const { isPending } = useCounselorClients(counselorId);
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['counselorClients', counselorId]]);
+  useWebSocketQuerySync();
 
   const filteredClients = clients.filter((client: any) => {
     const matchesStatus =

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -21,11 +21,17 @@ import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useTranslation } from "@/lib/i18n/context";
 import { theme } from "@/lib/utils/theme-utils";
 import {
+  getAppointmentViewState,
+  isPaidVideoAppointmentAwaitingDoctorConfirmation,
+  shouldShowAppointmentOnPatientDashboard,
+} from "@/lib/utils/appointmentUtils";
+import {
   normalizeAppointmentStatus,
   getAppointmentStatusBadgeLabel,
   getAppointmentStatusDisplayName,
-  isAwaitingDoctorSlotConfirmation,
   normalizePatientAppointment,
+  getReceptionistAppointmentDateLabel,
+  getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
 import {
   Activity,
@@ -121,30 +127,26 @@ export default function PatientDashboard() {
         })
       ).values()
     );
-    const pendingReviewSource = uniqueAppointments.filter((apt: any) =>
-      isAwaitingDoctorSlotConfirmation({
-        ...apt,
-        status: normalizePatientAppointment(apt).status,
-        type: normalizePatientAppointment(apt).type,
-        proposedSlots: (apt as any).proposedSlots,
-        confirmedSlotIndex: (apt as any).confirmedSlotIndex,
-      })
+    const visibleAppointments = uniqueAppointments.filter(shouldShowAppointmentOnPatientDashboard);
+    const pendingReviewSource = visibleAppointments.filter((apt: any) =>
+      isPaidVideoAppointmentAwaitingDoctorConfirmation(apt)
     );
     const pendingReviewIds = new Set(pendingReviewSource.map((apt: any) => String(apt.id || "")));
     const activeUpcomingStatuses = new Set([
       "SCHEDULED",
       "CONFIRMED",
+      "PENDING",
       "IN_PROGRESS",
     ]);
     
     // Safety check for appointments array
-    const upcomingAppointments = Array.isArray(uniqueAppointments) 
-      ? uniqueAppointments
+    const futureAppointments = Array.isArray(visibleAppointments)
+      ? visibleAppointments
           .filter((apt: any) => {
             const normalized = normalizePatientAppointment(apt);
+            const viewState = getAppointmentViewState(apt);
             const appointmentStart = normalized.dateTime;
-            const status = normalized.status;
-            // Show today + future appointments that are active (not just strictly future time)
+            const status = viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : normalized.status;
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             return (
@@ -161,23 +163,31 @@ export default function PatientDashboard() {
             if (!second) return -1;
             return first.getTime() - second.getTime();
           })
-          .slice(0, 5)
+      : [];
+
+    const upcomingAppointments = Array.isArray(visibleAppointments)
+      ? [...visibleAppointments]
+          .sort((a: any, b: any) => {
+            const first = normalizePatientAppointment(a).dateTime;
+            const second = normalizePatientAppointment(b).dateTime;
+            if (!first && !second) return 0;
+            if (!first) return 1;
+            if (!second) return -1;
+            return second.getTime() - first.getTime();
+          })
           .map((apt: any) => {
             const normalized = normalizePatientAppointment(apt);
-            const appointmentStart = normalized.dateTime;
+            const viewState = getAppointmentViewState(apt);
+            const dateLabel = getReceptionistAppointmentDateLabel(apt as Record<string, unknown>);
+            const timeLabel = getReceptionistAppointmentTimeLabel(apt as Record<string, unknown>);
             return {
               id: apt.id,
               doctor: normalized.doctorName,
               type: normalized.type,
-              date: normalized.normalizedDate,
-              time: appointmentStart
-                ? safeFormatTime(appointmentStart.toISOString(), {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "",
+              date: dateLabel,
+              time: timeLabel,
               location: normalized.locationName,
-              status: normalized.status || "SCHEDULED",
+              status: viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : normalized.status || "SCHEDULED",
               statusLabel: getAppointmentStatusBadgeLabel({
                 ...apt,
                 status: normalized.status,
@@ -188,12 +198,12 @@ export default function PatientDashboard() {
               isOnline: normalized.isOnline,
             };
           })
-          .filter((appointment: any) => !pendingReviewIds.has(String(appointment.id || "")))
       : [];
 
     const awaitingDoctorReviewAppointments = pendingReviewSource
       .map((apt: any) => {
         const normalized = normalizePatientAppointment(apt);
+        const viewState = getAppointmentViewState(apt);
         return {
           id: apt.id,
           doctor: normalized.doctorName,
@@ -203,7 +213,7 @@ export default function PatientDashboard() {
           location: normalized.locationName,
           statusLabel: getAppointmentStatusBadgeLabel({
             ...apt,
-            status: normalized.status,
+            status: viewState.awaitingDoctorSlotConfirmation ? "SCHEDULED" : normalized.status,
             type: normalized.type,
             proposedSlots: (apt as any).proposedSlots,
             confirmedSlotIndex: (apt as any).confirmedSlotIndex,
@@ -212,6 +222,10 @@ export default function PatientDashboard() {
         };
       })
       .sort((a: any, b: any) => String(b.date || "").localeCompare(String(a.date || "")));
+    const awaitingDoctorReviewSlotCount = awaitingDoctorReviewAppointments.reduce(
+      (total: number, appointment: any) => total + (Array.isArray(appointment.proposedSlots) ? appointment.proposedSlots.length : 0),
+      0
+    );
 
     const latestVitals = (vitalSignsData as any)?.[0] || {};
     const latestPrescriptions = Array.isArray(prescriptionsData) ? prescriptionsData : [];
@@ -254,9 +268,12 @@ export default function PatientDashboard() {
         primaryDosha: (comprehensiveData as any)?.doshaBalance?.dominant || "Unknown",
         currentTreatment: (medicalRecordsData as any)?.[0]?.treatment || "None",
         treatmentProgress: 0, 
-        nextAppointment: upcomingAppointments[0]?.date || null,
+        nextAppointment: futureAppointments[0]
+          ? getReceptionistAppointmentDateLabel(futureAppointments[0] as Record<string, unknown>)
+          : null,
         lastVisit:
-          uniqueAppointments
+        uniqueAppointments
+            .filter(shouldShowAppointmentOnPatientDashboard)
             .filter((apt: any) => normalizePatientAppointment(apt).status === "COMPLETED")
             .sort(
               (a: any, b: any) =>
@@ -266,6 +283,7 @@ export default function PatientDashboard() {
       },
       upcomingAppointments,
       awaitingDoctorReviewAppointments,
+      awaitingDoctorReviewSlotCount,
       videoAppointments: upcomingAppointments.filter((apt: any) => apt.isOnline),
       recentActivity: [] as Array<{ type: string; message: string; time: string }>,
       currentTreatments: [] as Array<{ name: string; type: string; doctor: string; progress: number; nextSession: string }>,
@@ -389,10 +407,10 @@ export default function PatientDashboard() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700/80 dark:text-emerald-300/80">
-                            Upcoming appointments
+                            Appointments
                           </p>
                           <h3 className="mt-1 text-base font-semibold text-foreground">
-                            {patientData.upcomingAppointments.length} upcoming visit{patientData.upcomingAppointments.length > 1 ? "s" : ""}
+                            {patientData.upcomingAppointments.length} appointment{patientData.upcomingAppointments.length > 1 ? "s" : ""}
                           </h3>
                         </div>
                         <Badge className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -466,7 +484,7 @@ export default function PatientDashboard() {
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-emerald-200/70 bg-white/60 p-4 text-sm text-muted-foreground shadow-sm dark:border-emerald-900/30 dark:bg-card/60">
-                      No upcoming appointment right now
+                      No appointments right now
                     </div>
                   )}
                 </div>
@@ -507,14 +525,18 @@ export default function PatientDashboard() {
                       Awaiting doctor review
                     </p>
                     <h3 className="mt-1 text-base font-semibold text-foreground">
-                      Your 3 preferred video slots are under review
+                      {patientData.awaitingDoctorReviewSlotCount === 1
+                        ? "Your 1 preferred video slot is under review"
+                        : `Your ${patientData.awaitingDoctorReviewSlotCount || patientData.awaitingDoctorReviewAppointments.length} preferred video slots are under review`}
                     </h3>
                     <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
                       The request stays visible here while the doctor confirms one slot. It is separate from normal upcoming visits so the state is clear.
                     </p>
                   </div>
                   <Badge className="rounded-full border border-amber-200 bg-white px-3 py-1 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300">
-                    {patientData.awaitingDoctorReviewAppointments.length} pending
+                    {patientData.awaitingDoctorReviewAppointments.length === 1
+                      ? "1 request pending"
+                      : `${patientData.awaitingDoctorReviewAppointments.length} requests pending`}
                   </Badge>
                 </div>
 

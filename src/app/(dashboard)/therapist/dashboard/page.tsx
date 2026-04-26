@@ -62,10 +62,18 @@ export default function TherapistDashboard() {
     }));
   }, [clientsArray]);
 
-  const todaySessions = useMemo(() => {
-    const today = new Date().toDateString();
+  const recentSessions = useMemo(() => {
     return appointmentsArray
-      .filter((apt: any) => apt.date === today)
+      .slice()
+      .sort((a: any, b: any) => {
+        const first = new Date(`${a.date || ""}T${a.time || "00:00"}`).getTime();
+        const second = new Date(`${b.date || ""}T${b.time || "00:00"}`).getTime();
+        if (Number.isNaN(first) && Number.isNaN(second)) return 0;
+        if (Number.isNaN(first)) return 1;
+        if (Number.isNaN(second)) return -1;
+        return second - first;
+      })
+      .slice(0, 5)
       .map((apt: any) => ({
         id: apt.id,
         patientName: apt.patientName,
@@ -167,7 +175,7 @@ export default function TherapistDashboard() {
               {stats.completedToday}
             </div>
             <p className="text-xs text-muted-foreground">
-              Therapy sessions finished
+              Procedural sessions finished
             </p>
           </CardContent>
         </Card>
@@ -207,7 +215,7 @@ export default function TherapistDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
-              Today&apos;s Appointments
+              Recent Appointments
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -215,13 +223,13 @@ export default function TherapistDashboard() {
               <div className="flex items-center justify-center min-h-[200px]">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               </div>
-            ) : todaySessions.length === 0 ? (
+            ) : recentSessions.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500">No appointments scheduled for today</p>
+                <p className="text-gray-500">No recent appointments found</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {todaySessions.map((appointment) => (
+                {recentSessions.map((appointment) => (
                   <div
                     key={appointment.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
@@ -310,7 +318,7 @@ export default function TherapistDashboard() {
         </Card>
       </div>
 
-      {/* Therapy Specialties */}
+      {/* Specialties */}
       <Card>
         <CardHeader>
           <CardTitle>Your Specialties</CardTitle>

@@ -19,12 +19,12 @@ import {
   FileText,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/context";
-import { 
+import {
   getAppointmentStatusColor, 
   formatAppointmentDate, 
   formatAppointmentTime,
-  isAwaitingDoctorSlotConfirmation
 } from "@/lib/utils/appointmentUtils";
+import { isPaidVideoAppointmentAwaitingDoctorConfirmation } from "@/lib/utils/appointmentUtils";
 
 interface AppointmentCardProps {
   appointment: {
@@ -198,7 +198,7 @@ function AppointmentCardComponent({
         <div className="flex gap-2 pt-2">
           {appointment.status === "scheduled" &&
             onJoin &&
-            !(appointment.type === "video" && isAwaitingDoctorSlotConfirmation(appointment)) && (
+            !(appointment.type === "video" && isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment)) && (
             <Button
               size="sm"
               className="flex-1 hover:scale-105 transition-transform"

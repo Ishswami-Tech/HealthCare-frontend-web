@@ -41,7 +41,7 @@ import {
   useUpdatePrescription,
   useDeletePrescription,
 } from "@/hooks/query/usePrescriptions";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 export default function DoctorPrescriptions() {
@@ -61,7 +61,7 @@ export default function DoctorPrescriptions() {
   const deleteMutation = useDeletePrescription();
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['prescriptions', doctorId]]);
+  useWebSocketQuerySync();
 
   const prescriptions = prescriptionsData?.prescriptions || [];
 

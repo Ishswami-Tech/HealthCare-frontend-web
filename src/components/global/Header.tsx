@@ -27,6 +27,20 @@ interface HeaderProps {
   children?: React.ReactNode;
 }
 
+const AVATAR_GRADIENTS = [
+  "from-sky-500 via-blue-500 to-indigo-600",
+  "from-emerald-500 via-teal-500 to-cyan-600",
+  "from-orange-500 via-amber-500 to-rose-500",
+  "from-violet-500 via-fuchsia-500 to-pink-600",
+  "from-rose-500 via-red-500 to-orange-500",
+] as const;
+
+function getAvatarGradient(initials?: string) {
+  const value = String(initials || "U").toUpperCase();
+  const hash = value.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length];
+}
+
 export function Header({ className, children }: HeaderProps) {
   const [mounted, setMounted] = React.useState(false);
   const { logout } = useAuth();
@@ -119,11 +133,16 @@ export function Header({ className, children }: HeaderProps) {
                 {displayUser && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button className="h-7 w-7 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-primary/20 hover:ring-primary/40 transition-all overflow-hidden">
+                      <button
+                        className={cn(
+                          "h-7 w-7 rounded-full bg-linear-to-br flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-primary/20 hover:ring-primary/40 transition-all overflow-hidden",
+                          getAvatarGradient(displayUser.initials)
+                        )}
+                      >
                         {displayUser.avatar ? (
                           <img src={displayUser.avatar} alt={displayUser.name} className="h-full w-full object-cover" />
                         ) : (
-                          displayUser.initials
+                          <span className="tracking-wide">{displayUser.initials}</span>
                         )}
                       </button>
                     </DropdownMenuTrigger>

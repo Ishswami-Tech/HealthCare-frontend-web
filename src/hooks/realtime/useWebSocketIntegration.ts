@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useRef } from 'react';
+import type { QueryClient } from '@tanstack/react-query';
 import { useQueryClient } from '@/hooks/core';
 import { useWebSocketStore, useAppStore } from '@/stores';
 import { websocketManager } from '@/lib/config/websocket';
@@ -9,10 +10,24 @@ import {
   getQueueStatusQueryKey,
   normalizeQueueStatusSnapshot,
 } from '@/lib/queue/queue-cache';
+import { getAppointmentStatsQueryKey } from '@/lib/query/appointment-query-keys';
 // ✅ Consolidated: Import types from @/types (single source of truth)
 import type { Appointment } from '@/types/appointment.types';
 import { useNotificationStore, Notification } from '@/stores/notifications.store';
 import { showInfoToast, showWarningToast, TOAST_IDS } from '@/hooks/utils/use-toast';
+
+export function invalidateAppointmentQueryFamilies(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['appointment'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['video-appointments'], exact: false });
+  void queryClient.invalidateQueries({ queryKey: ['video-appointment'], exact: false });
+  void queryClient.invalidateQueries({
+    queryKey: getAppointmentStatsQueryKey(),
+    exact: false,
+  });
+}
 
 export interface UseWebSocketIntegrationOptions {
   tenantId?: string | undefined;
@@ -102,39 +117,43 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
     // Subscribe to appointment updates
     if (subscribeToAppointments && clinicId) {
-      const unsubscribeAppointmentCreated = subscribe('appointment:created', (rawData: unknown) => {
+      const invalidateAppointmentQueries = () => {
+        invalidateAppointmentQueryFamilies(queryClient);
+      };
+
+      const unsubscribeAppointmentCreated = subscribe('appointment.created', (rawData: unknown) => {
         const data = rawData as Appointment;
         console.debug('🆕 New appointment created:', data);
-        void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['appointment-stats'], exact: false });
+        invalidateAppointmentQueries();
       });
 
-      const unsubscribeAppointmentUpdated = subscribe('appointment:updated', (rawData: unknown) => {
-        const data = rawData as { id: string; updates: Partial<Appointment> };
+      const unsubscribeAppointmentUpdated = subscribe('appointment.updated', (rawData: unknown) => {
+        const data = rawData as { appointmentId?: string; id?: string; appointment?: Appointment; updates?: Partial<Appointment> };
         console.debug('📝 Appointment updated:', data);
-        queryClient.setQueryData(['appointment', data.id], (oldData: Appointment | undefined) =>
-          oldData ? { ...oldData, ...data.updates } : oldData
-        );
-        void queryClient.invalidateQueries({
-          queryKey: ['appointments'],
-          exact: false 
-        });
-        void queryClient.invalidateQueries({
-          queryKey: ['myAppointments'],
-          exact: false
-        });
+        const appointmentId = String(data.appointment?.id || data.id || data.appointmentId || '');
+        const patch = data.appointment || data.updates || {};
+        if (appointmentId) {
+          queryClient.setQueryData(['appointment', appointmentId], (oldData: Appointment | undefined) =>
+            oldData ? { ...oldData, ...patch } : (data.appointment as Appointment | undefined) || oldData
+          );
+          queryClient.setQueryData(['video-appointment', appointmentId], (oldData: Appointment | undefined) =>
+            oldData ? { ...oldData, ...patch } : (data.appointment as Appointment | undefined) || oldData
+          );
+        }
+        invalidateAppointmentQueries();
       });
 
-      const unsubscribeAppointmentDeleted = subscribe('appointment:deleted', (rawData: unknown) => {
-        const data = rawData as { id: string };
+      const unsubscribeAppointmentDeleted = subscribe('appointment.deleted', (rawData: unknown) => {
+        const data = rawData as { id?: string; appointmentId?: string };
         console.debug('🗑️ Appointment deleted:', data);
-        void queryClient.removeQueries({ queryKey: ['appointment', data.id], exact: true });
-        void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
+        const appointmentId = String(data.id || data.appointmentId || '');
+        if (appointmentId) {
+          void queryClient.removeQueries({ queryKey: ['appointment', appointmentId], exact: true });
+        }
+        invalidateAppointmentQueries();
       });
 
-      const unsubscribeAppointmentStatusChanged = subscribe('appointment:status_changed', (rawData: unknown) => {
+      const unsubscribeAppointmentStatusChanged = subscribe('appointment.status_changed', (rawData: unknown) => {
         const data = rawData as { id: string; status: string; timestamp: string };
         console.debug('🔄 Appointment status changed:', data);
         queryClient.setQueryData(['appointment', data.id], (oldData: any) => {
@@ -143,21 +162,43 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           }
           return oldData;
         });
-        void queryClient.invalidateQueries({
-          queryKey: ['appointments'],
-          exact: false
-        });
-        void queryClient.invalidateQueries({
-          queryKey: ['myAppointments'],
-          exact: false
-        });
+        invalidateAppointmentQueries();
       });
+
+      const appointmentLifecycleEvents = [
+        'appointment.reassigned',
+        'appointment.checked_in',
+        'appointment.confirmed',
+        'appointment.rescheduled',
+        'appointment.cancelled',
+        'appointment.completed',
+        'appointment.slot.confirmed',
+        'appointment.consultation_started',
+        'appointment.noshow',
+      ] as const;
+
+      const unsubscribeAppointmentLifecycleEvents = appointmentLifecycleEvents.map((event) =>
+        subscribe(event, (rawData: unknown) => {
+          const data = rawData as { appointmentId?: string; id?: string; clinicId?: string };
+          if (data.clinicId && clinicId && data.clinicId !== clinicId) {
+            return;
+          }
+
+          const appointmentId = String(data.appointmentId || data.id || '');
+          if (appointmentId) {
+            queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId], exact: false });
+            queryClient.invalidateQueries({ queryKey: ['video-appointment', appointmentId], exact: false });
+          }
+          invalidateAppointmentQueries();
+        })
+      );
 
       unsubscribeCallbacks.push(
         unsubscribeAppointmentCreated,
         unsubscribeAppointmentUpdated,
         unsubscribeAppointmentDeleted,
-        unsubscribeAppointmentStatusChanged
+        unsubscribeAppointmentStatusChanged,
+        ...unsubscribeAppointmentLifecycleEvents
       );
     }
 
@@ -379,15 +420,14 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
   useEffect(() => {
     if (!isConnected || !clinicId) return;
 
-    // Subscribe to clinic-specific updates
-    emit('join_clinic', { clinicId });
+    emit('joinRoom', { room: `clinic:${clinicId}` });
 
-    if (subscribeToQueues) {
-      emit('subscribe_queue_updates', { clinicId });
+    if (subscribeToAppointments && userId) {
+      emit('joinRoom', { room: `user:${userId}` });
     }
 
-    if (subscribeToAppointments) {
-      emit('subscribe_appointment_updates', { clinicId, userId });
+    if (subscribeToQueues) {
+      emit('joinRoom', { room: `clinic:${clinicId}` });
     }
   }, [isConnected, clinicId, userId, subscribeToQueues, subscribeToAppointments, emit]);
 
@@ -498,11 +538,10 @@ export function useAppointmentWebSocketIntegration() {
     date?: string; 
   }) => {
     if (isConnected && currentClinic) {
-      emit('subscribe_appointment_updates', {
-        clinicId: currentClinic.id,
-        userId: user?.id,
-        ...filters,
-      });
+      emit('joinRoom', {
+        room: `clinic:${currentClinic.id}`,
+        ...(filters || {}),
+      } as Record<string, unknown>);
     }
   }, [isConnected, emit, currentClinic, user]);
 
@@ -523,7 +562,3 @@ export function useAppointmentWebSocketIntegration() {
     isConnected,
   };
 }
-
-// Re-export from useRealTimeQueries for convenience
-// Real-time appointment hooks are exported from useRealTimeQueries
-// Import them directly: import { useRealTimeAppointments } from '@/hooks/realtime/useRealTimeQueries';

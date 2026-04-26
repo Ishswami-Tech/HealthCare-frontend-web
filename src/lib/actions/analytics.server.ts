@@ -4,18 +4,14 @@ import { authenticatedApi } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 
 // ===== ANALYTICS & REPORTING =====
-// 🔒 TENANT ISOLATION: All analytics endpoints use the X-Clinic-ID header
-// (auto-injected by authenticatedApi) for tenant scoping. The clinicId query
-// parameter is accepted for backward compatibility but the backend ClinicGuard
-// uses the header value as the authoritative source.
+// Tenant scoping comes from the X-Clinic-ID header injected by authenticatedApi.
 
 /**
  * Get dashboard analytics
  */
 export async function getDashboardAnalytics(period: 'day' | 'week' | 'month' | 'year' = 'month', _clinicId?: string) {
   const params = new URLSearchParams({ period });
-  // 🔒 clinicId is auto-provided via X-Clinic-ID header — query param ignored by backend
-  
+
   const { data } = await authenticatedApi(`${API_ENDPOINTS.ANALYTICS.DASHBOARD}?${params.toString()}`);
   return data;
 }

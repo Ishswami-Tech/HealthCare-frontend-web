@@ -156,7 +156,13 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
   const { session } = useAuth();
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
-  const { subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents, isConnected } = useVideoAppointmentWebSocket();
+  const {
+    subscribeToVideoAppointments,
+    subscribeToConsultationEvents,
+    subscribeToParticipantEvents,
+    subscribeToRecordingEvents,
+    isConnected,
+  } = useVideoAppointmentWebSocket();
 
   const clinicId = useCurrentClinicId();
   const isPatient = (session?.user?.role as string) === Role.PATIENT;
@@ -240,12 +246,30 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       }
     });
 
+    const unsubscribeConsultation = subscribeToConsultationEvents((data) => {
+      if (data.appointmentId) {
+        queryClient.invalidateQueries({ queryKey: ['video-appointment', data.appointmentId] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
+    });
+
     return () => {
       unsubscribeAppointments();
       unsubscribeParticipants();
       unsubscribeRecording();
+      unsubscribeConsultation();
     };
-  }, [isConnected, queryClient, subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents]);
+  }, [
+    isConnected,
+    queryClient,
+    subscribeToVideoAppointments,
+    subscribeToConsultationEvents,
+    subscribeToParticipantEvents,
+    subscribeToRecordingEvents,
+  ]);
 
   return query;
 }
@@ -254,7 +278,12 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
 export function useVideoAppointment(id: string) {
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
-  const { subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents } = useVideoAppointmentWebSocket();
+  const {
+    subscribeToVideoAppointments,
+    subscribeToConsultationEvents,
+    subscribeToParticipantEvents,
+    subscribeToRecordingEvents,
+  } = useVideoAppointmentWebSocket();
 
   const query = useQueryData(
     ['video-appointment', id],
@@ -301,12 +330,30 @@ export function useVideoAppointment(id: string) {
       }
     });
 
+    const unsubscribeConsultation = subscribeToConsultationEvents((data) => {
+      if (data.appointmentId === id) {
+        queryClient.invalidateQueries({ queryKey: ['video-appointment', id] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
+    });
+
     return () => {
       unsubscribeAppointments();
       unsubscribeParticipants();
       unsubscribeRecording();
+      unsubscribeConsultation();
     };
-  }, [id, queryClient, subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents]);
+  }, [
+    id,
+    queryClient,
+    subscribeToVideoAppointments,
+    subscribeToConsultationEvents,
+    subscribeToParticipantEvents,
+    subscribeToRecordingEvents,
+  ]);
 
   return query;
 }

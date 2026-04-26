@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useNursePatients } from "@/hooks/query/useNurse";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,7 @@ export default function NurseDashboard() {
   } as any);
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['nursePatients', user?.clinicId]]);
+  useWebSocketQuerySync();
 
   const stats = useMemo(() => {
     const todayDate = new Date().toISOString().split('T')[0];

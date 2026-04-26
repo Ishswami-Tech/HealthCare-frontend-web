@@ -53,3 +53,7 @@ export function getAppointmentQueryKey(
 ) {
   return ['appointments', clinicId ?? '__all__', serializeAppointmentFilters(filters)];
 }
+
+export function getAppointmentStatsQueryKey(clinicId?: string) {
+  return ['appointmentStats', clinicId ?? '__all__'];
+}

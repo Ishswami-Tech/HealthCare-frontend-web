@@ -11,6 +11,7 @@ import {
 import {
   getQueue,
   getQueueStats,
+  getQueueFilters,
   updateQueueStatus,
   callNextPatient,
   getQueueHistory,
@@ -89,6 +90,26 @@ export const useQueueStats = (locationId?: string, options?: { enabled?: boolean
   }, {
     enabled: !!locationId && options?.enabled !== false,
     refetchInterval: isConnected ? 2 * 60 * 1000 : 60000,
+  });
+};
+
+/**
+ * Hook to fetch the backend queue filter catalog
+ */
+export const useQueueFilters = (options?: { enabled?: boolean }) => {
+  return useQueryData(['queue-filters'], async () => {
+    const result = await getQueueFilters();
+    if (!result) {
+      throw new Error('Failed to fetch queue filters');
+    }
+    const payload = Array.isArray(result) ? result : (result as { availableQueueFilterCatalog?: unknown[]; data?: unknown })?.availableQueueFilterCatalog ?? (result as { data?: unknown })?.data;
+    return Array.isArray(payload) ? payload : [];
+  }, {
+    enabled: options?.enabled !== false,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 2,
   });
 };
 

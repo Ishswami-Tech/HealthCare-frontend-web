@@ -10,6 +10,8 @@ type QueueLabelSource = {
   serviceBucket?: string | null;
   queueCategory?: string | null;
   treatmentType?: string | null;
+  displayLabel?: string | null;
+  serviceType?: string | null;
 };
 
 type ServiceCatalogEntry = {
@@ -76,6 +78,9 @@ export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
       raw.name ||
       'Unknown Patient',
     doctorName: raw.doctorName || raw.doctor?.name || raw.doctor?.user?.name || '',
+    displayLabel: raw.displayLabel || raw.raw?.displayLabel || undefined,
+    queueType: raw.queueType || raw.raw?.queueType || raw.type || raw.raw?.type,
+    serviceType: raw.serviceType || raw.raw?.serviceType || undefined,
     primaryDoctorId:
       raw.primaryDoctorId ||
       (typeof metadata['primaryDoctorId'] === 'string' ? metadata['primaryDoctorId'] : undefined),
@@ -90,6 +95,11 @@ export function normalizeQueueEntry(raw: any): CanonicalQueueEntry {
     status: raw.status || 'WAITING',
     serviceBucket: raw.serviceBucket || asRecord(raw.raw)?.serviceBucket,
     treatmentType: raw.treatmentType || asRecord(raw.raw)?.treatmentType,
+    appointmentTime: raw.appointmentTime || raw.time || raw.raw?.appointmentTime || raw.raw?.time,
+    checkedInAt: raw.checkedInAt || raw.raw?.checkedInAt,
+    confirmedAt: raw.confirmedAt || raw.raw?.confirmedAt,
+    updatedAt: raw.updatedAt || raw.raw?.updatedAt,
+    waitTime: raw.waitTime || raw.raw?.waitTime,
     estimatedWaitTime: raw.estimatedWaitTime || asRecord(raw.raw)?.estimatedWaitTime,
     estimatedDuration: raw.estimatedDuration || asRecord(raw.raw)?.estimatedDuration,
     paymentStatus: raw.paymentStatus || asRecord(raw.raw)?.paymentStatus,
@@ -157,6 +167,64 @@ export function normalizeQueueEntries(rawArray: any[]): CanonicalQueueEntry[] {
   return rawArray.map(normalizeQueueEntry);
 }
 
+export function hasQueuePatientIdentity(
+  entry: Pick<CanonicalQueueEntry, 'patientId' | 'appointmentId' | 'patientName'>
+): boolean {
+  const patientName = String(entry.patientName || '').trim().toLowerCase();
+  return Boolean(
+    entry.patientId ||
+      entry.appointmentId ||
+      (patientName && patientName !== 'unknown patient')
+  );
+}
+
+export function getQueuePatientDisplayName(
+  entry: Pick<CanonicalQueueEntry, 'patientName' | 'patientId' | 'appointmentId'>
+): string {
+  const patientName = String(entry.patientName || '').trim();
+  if (patientName && patientName.toLowerCase() !== 'unknown patient') {
+    return patientName;
+  }
+
+  if (entry.patientId || entry.appointmentId) {
+    return 'Patient';
+  }
+
+  return 'Unknown Patient';
+}
+
+function extractRawQueueItems(queueData: unknown): any[] {
+  const payload = queueData as Record<string, unknown> | unknown[] | null | undefined;
+
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (payload && typeof payload === 'object') {
+    if (Array.isArray((payload as Record<string, unknown>).data)) {
+      return (payload as Record<string, unknown>).data as any[];
+    }
+    if (Array.isArray((payload as Record<string, unknown>).queue)) {
+      return (payload as Record<string, unknown>).queue as any[];
+    }
+    if (Array.isArray((payload as Record<string, unknown>).items)) {
+      return (payload as Record<string, unknown>).items as any[];
+    }
+    for (const key of Object.keys(payload as Record<string, unknown>)) {
+      const candidate = (payload as Record<string, unknown>)[key];
+      if (Array.isArray(candidate)) {
+        return candidate as any[];
+      }
+    }
+  }
+
+  return [];
+}
+
+export function extractQueueEntries(queueData: unknown): CanonicalQueueEntry[] {
+  return extractRawQueueItems(queueData).map(normalizeQueueEntry);
+}
+
 export function resolveQueueDisplayLabel(
   raw: QueueLabelSource,
   serviceCatalogMap?: Map<string, ServiceCatalogEntry>
@@ -164,12 +232,20 @@ export function resolveQueueDisplayLabel(
   const treatmentType = String(raw.treatmentType || '').toUpperCase();
   const service = treatmentType ? serviceCatalogMap?.get(treatmentType) : undefined;
 
+  if (typeof raw.displayLabel === 'string' && raw.displayLabel.trim()) {
+    return raw.displayLabel.trim();
+  }
+
   if (service?.serviceBucket) {
     return toTitleCase(service.serviceBucket);
   }
 
   if (service?.label) {
     return service.label;
+  }
+
+  if (typeof raw.serviceType === 'string' && raw.serviceType) {
+    return toTitleCase(raw.serviceType);
   }
 
   if (typeof raw.serviceBucket === 'string' && raw.serviceBucket) {

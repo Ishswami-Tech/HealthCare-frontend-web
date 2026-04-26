@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCounselorAppointments } from "@/hooks/query/useCounselor";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
 export default function CounselorDashboard() {
@@ -23,6 +23,11 @@ export default function CounselorDashboard() {
 
   const counselorId = user?.id;
   const today = new Date().toISOString().split('T')[0];
+  const historyStartDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 90);
+    return date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  }, []);
 
   const { data: todayAppointmentsData, isPending: isAppointmentsPending } = useCounselorAppointments(
     counselorId,
@@ -31,11 +36,11 @@ export default function CounselorDashboard() {
 
   const { data: allAppointmentsData, isPending: isAllAppointmentsPending } = useCounselorAppointments(
     counselorId,
-    { startDate: today }
+    { startDate: historyStartDate, endDate: today }
   );
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['counselorAppointments', counselorId]]);
+  useWebSocketQuerySync();
 
   const todayAppointments = todayAppointmentsData?.appointments || [];
   const allAppointments = allAppointmentsData?.appointments || [];

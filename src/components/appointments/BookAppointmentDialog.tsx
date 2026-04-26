@@ -49,6 +49,7 @@ import {
 import { useSendAppointmentReminder } from "@/hooks/query/useCommunication";
 import { useActiveLocations, useClinicContext, useMyClinic } from "@/hooks/query/useClinics";
 import { useRBAC } from "@/hooks/utils/useRBAC";
+import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
 import {
   dismissToast,
   showErrorToast,
@@ -600,7 +601,7 @@ export function BookAppointmentDialog({
         queryClient.invalidateQueries({ queryKey: ["appointments"] });
         queryClient.refetchQueries({ queryKey: ["appointments"], exact: false, type: "active" });
         queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
-        queryClient.invalidateQueries({ queryKey: ["appointmentStats"] });
+        queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(activeClinicId), exact: false });
         queryClient.invalidateQueries({ queryKey: ["appointment", proposedAppointment.id] });
         if (shouldCollectVideoPayment) {
           setRequiresVideoPayment(true);
@@ -699,7 +700,7 @@ export function BookAppointmentDialog({
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.refetchQueries({ queryKey: ["appointments"], exact: false, type: "active" });
       queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
-      queryClient.invalidateQueries({ queryKey: ["appointmentStats"] });
+      queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(activeClinicId), exact: false });
       queryClient.invalidateQueries({ queryKey: ["appointment", apptId] });
       // Send appointment reminder via push + email + WhatsApp
       if (hasPermission(Permission.SEND_NOTIFICATIONS)) {

@@ -112,6 +112,9 @@ export function PaymentButton({
         queryClient.invalidateQueries({ queryKey: ["appointments"], exact: false });
       }
       queryClient.invalidateQueries({ queryKey: ["appointment", appointmentId], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["video-appointments"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["video-appointment", appointmentId], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"], exact: false });
     }
 
     if (prescriptionId) {

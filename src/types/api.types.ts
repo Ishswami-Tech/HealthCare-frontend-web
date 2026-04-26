@@ -61,6 +61,24 @@ export interface QueueStatsResponse extends ApiResponse<QueueStats> {
   data: QueueStats;
 }
 
+export interface QueueFilterOption {
+  value: string;
+  label: string;
+  description?: string;
+  aliases?: string[];
+}
+
+export interface QueueFilterGroup {
+  key: string;
+  label: string;
+  description?: string;
+  filters: QueueFilterOption[];
+}
+
+export interface QueueFilterCatalogResponse extends ApiResponse<QueueFilterGroup[]> {
+  data: QueueFilterGroup[];
+}
+
 export interface QueueStats {
   totalInQueue: number;
   averageWaitTime: number;

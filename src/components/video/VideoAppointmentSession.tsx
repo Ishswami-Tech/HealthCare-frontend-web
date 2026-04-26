@@ -11,8 +11,8 @@ import { useVideoAppointment } from "@/hooks/query/useVideoAppointments";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import {
   getAppointmentPaymentStatus,
-  isVideoAppointmentPaymentCompleted,
 } from "@/lib/utils/appointmentUtils";
+import { getAppointmentViewState } from "@/lib/utils/appointmentUtils";
 
 type SessionInput = {
   appointmentId: string;
@@ -70,7 +70,7 @@ function normalizeAppointment(
     status: String(appointment?.status || "scheduled")
       .toLowerCase()
       .replace(/_/g, "-") as VideoAppointment["status"],
-    paymentCompleted: isVideoAppointmentPaymentCompleted(appointment),
+    paymentCompleted: getAppointmentViewState(appointment).paymentCompleted,
     sessionId: appointment?.sessionId,
     recordingUrl: appointment?.recordingUrl,
     notes: appointment?.notes,
@@ -176,7 +176,7 @@ function VideoAppointmentSessionContent({
   }, [appointment, appointmentQuery]);
 
   const paymentCompleted = React.useMemo(() => {
-    return isVideoAppointmentPaymentCompleted(rawAppointment);
+    return getAppointmentViewState(rawAppointment).paymentCompleted;
   }, [rawAppointment]);
 
   const paymentStatusLabel = React.useMemo(() => {

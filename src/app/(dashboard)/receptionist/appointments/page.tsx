@@ -53,9 +53,14 @@ import {
 } from "@/hooks/query/useAppointments";
 import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
 import { useCallNextPatient as useQueueCallNextPatient } from "@/hooks/query/useQueue";
+import { useQueueFilters } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { getQueuePositionLabel, resolveQueueDisplayLabel } from "@/lib/queue/queue-adapter";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import {
+  getAppointmentViewState,
+  shouldShowAppointmentOnReceptionDashboard,
+} from "@/lib/utils/appointmentUtils";
 
 type ViewAppointment = {
   id: string;
@@ -96,6 +101,7 @@ function normalizeAppointment(
   serviceCatalogMap: Map<string, { label: string; serviceBucket: string; queueCategory: string }>
 ): ViewAppointment {
   const parsed = parseReceptionistAppointmentDateTime(app as unknown as Record<string, unknown>);
+  const viewState = getAppointmentViewState(app);
   const patientName =
     app.patientName ||
     app.patient?.name ||
@@ -126,8 +132,8 @@ function normalizeAppointment(
     doctorRole: String(app.doctor?.role || app.doctor?.user?.role || "").toUpperCase(),
     dateLabel: getReceptionistAppointmentDateLabel(app as unknown as Record<string, unknown>),
     timeLabel: getReceptionistAppointmentTimeLabel(app as unknown as Record<string, unknown>),
-    status: String(app.status || "SCHEDULED").toUpperCase(),
-    paymentStatus: String(app.payment?.status || "N/A").toUpperCase(),
+    status: viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : viewState.normalizedStatus,
+    paymentStatus: viewState.paymentStatus,
     queuePosition: typeof app.queuePosition === "number" ? app.queuePosition : null,
     queueType: resolveQueueDisplayLabel(app, serviceCatalogMap),
     notes: app.notes || app.cancellationReason || app.reason || "",
@@ -155,6 +161,11 @@ export default function ReceptionistAppointmentsPage() {
   const { clinicId } = useClinicContext();
   useWebSocketQuerySync();
   const { data: serviceCatalog = [] } = useAppointmentServices();
+  const { data: queueFilterCatalog = [] } = useQueueFilters({ enabled: !!clinicId });
+  const typedQueueFilterCatalog = queueFilterCatalog as Array<{
+    key?: string;
+    filters?: Array<{ label?: string; value?: string }>;
+  }>;
   const assignedLocationId = useMemo(() => {
     const user = session?.user as Record<string, unknown> | undefined;
     const candidate =
@@ -236,7 +247,9 @@ export default function ReceptionistAppointmentsPage() {
       ])
     );
 
-    return raw.map((appointment: any) => normalizeAppointment(appointment, serviceMap));
+    return raw
+      .filter(shouldShowAppointmentOnReceptionDashboard)
+      .map((appointment: any) => normalizeAppointment(appointment, serviceMap));
   }, [appointmentsData, serviceCatalog]);
 
   const filteredAppointments = useMemo(() => {
@@ -260,9 +273,21 @@ export default function ReceptionistAppointmentsPage() {
     });
   }, [appointments, assignedLocationId, queueFilter, searchTerm, sortOrder, statusFilter]);
 
-  const availableQueueTypes = useMemo(
-    () =>
-      (
+  const availableQueueTypes = useMemo<string[]>(
+    () => {
+      const treatmentGroup = typedQueueFilterCatalog.find(
+        (group) => String(group.key || "").toLowerCase() === "treatments"
+      );
+      const backendLabels =
+        treatmentGroup?.filters
+          ?.map((option: { label?: string; value?: string }) => option.label || option.value)
+          .filter((label: string | undefined): label is string => Boolean(label)) || [];
+
+      if (backendLabels.length > 0) {
+        return [...new Set(backendLabels)].sort();
+      }
+
+      return (
         Array.from(
           new Set(
             appointments
@@ -270,8 +295,9 @@ export default function ReceptionistAppointmentsPage() {
               .filter((queueType: string) => Boolean(queueType))
           )
         ) as string[]
-      ).sort(),
-    [appointments]
+      ).sort();
+    },
+    [appointments, typedQueueFilterCatalog]
   );
 
   const selectedCalendarDate = useMemo(
@@ -619,7 +645,7 @@ export default function ReceptionistAppointmentsPage() {
       <div className="space-y-6">
         <div>
           <Card>
-            <CardHeader className="border-b bg-muted/40 dark:bg-muted/20 px-5 py-4 space-y-3">
+            <CardHeader className="border-b bg-muted/40 dark:bg-muted/20 px-4 py-3 space-y-3">
               {/* Row 1: Title + Live badge */}
               <div className="flex items-center justify-between gap-3">
                 <CardTitle className="text-base font-bold inline-flex items-center gap-2">
@@ -635,9 +661,9 @@ export default function ReceptionistAppointmentsPage() {
               </div>
 
               {/* Row 2: Search + filters in one scrollable row */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-hide">
+              <div className="flex flex-wrap items-center gap-2">
                 {/* Search */}
-                <div className="relative shrink-0 w-52">
+                <div className="relative w-52 shrink-0">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
                     placeholder="Search patient, doctor..."
@@ -649,7 +675,7 @@ export default function ReceptionistAppointmentsPage() {
 
                 {/* Status */}
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-9 text-sm w-[130px] shrink-0 border-border bg-background">
+                  <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -665,7 +691,7 @@ export default function ReceptionistAppointmentsPage() {
 
                 {/* Sort */}
                 <Select value={sortOrder} onValueChange={setSortOrder}>
-                  <SelectTrigger className="h-9 text-sm w-[130px] shrink-0 border-border bg-background">
+                  <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
                     <SelectValue placeholder="Sort" />
                   </SelectTrigger>
                   <SelectContent>
@@ -678,7 +704,7 @@ export default function ReceptionistAppointmentsPage() {
 
                 {/* Queue */}
                 <Select value={queueFilter} onValueChange={setQueueFilter}>
-                  <SelectTrigger className="h-9 text-sm w-[120px] shrink-0 border-border bg-background">
+                  <SelectTrigger className="h-9 w-[120px] shrink-0 border-border bg-background text-sm">
                     <SelectValue placeholder="All Queues" />
                   </SelectTrigger>
                   <SelectContent>
@@ -695,7 +721,7 @@ export default function ReceptionistAppointmentsPage() {
                     value={selectedLocationId || "all"}
                     onValueChange={(val) => setSelectedLocationId(val === "all" ? null : val)}
                   >
-                    <SelectTrigger className="h-9 text-sm w-[130px] shrink-0 border-border bg-background">
+                    <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
                       <SelectValue placeholder="All Locations" />
                     </SelectTrigger>
                     <SelectContent>
@@ -740,25 +766,26 @@ export default function ReceptionistAppointmentsPage() {
                 </Popover>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4">
               <DataTable 
                 columns={columns} 
                 data={filteredAppointments} 
                 pageSize={10}
+                compact
               />
             </CardContent>
           </Card>
         </div>
 
         <Card className="border-border/60 shadow-sm overflow-hidden bg-card">
-          <CardHeader className="pb-3 border-b border-border px-6 py-5">
+          <CardHeader className="border-b border-border px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-blue-600/10 flex items-center justify-center">
                   <Stethoscope className="w-4 h-4 text-blue-600" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg font-bold text-foreground">
+                  <CardTitle className="text-base font-bold text-foreground">
                     Active Doctor Queues
                     {doctorBacklog.length > 0 && (
                       <span className="ml-3 px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-bold ring-1 ring-inset ring-blue-700/10">
@@ -766,14 +793,14 @@ export default function ReceptionistAppointmentsPage() {
                       </span>
                     )}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground font-medium mt-0.5">Real-time clinical workload and patient flow</p>
+                  <p className="mt-0.5 text-sm font-medium text-muted-foreground">Real-time clinical workload and patient flow</p>
                 </div>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             {doctorBacklog.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground bg-muted/30 rounded-2xl border border-dashed border-border">
+              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/30 py-10 text-muted-foreground">
                 <Stethoscope className="w-8 h-8 text-muted-foreground/50" />
                 <p className="text-sm font-medium">No active doctor queues at the moment</p>
               </div>
@@ -783,6 +810,7 @@ export default function ReceptionistAppointmentsPage() {
                 data={doctorBacklog}
                 pageSize={9}
                 emptyMessage="No active doctor queues at the moment"
+                compact
               />
             )}
           </CardContent>

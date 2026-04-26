@@ -23,6 +23,40 @@ import { sidebarLinksByRole, SidebarLink } from "@/lib/config/sidebarLinks";
 import { useLayoutStore } from "@/stores/layout.store";
 const DashboardShellContext = createContext<boolean>(false);
 
+function resolveDisplayNameAndInitials(user: {
+  firstName?: string | null | undefined;
+  lastName?: string | null | undefined;
+  name?: string | null | undefined;
+  email?: string | null | undefined;
+}) {
+  const firstName = String(user.firstName || "").trim();
+  const lastName = String(user.lastName || "").trim();
+  if (firstName || lastName) {
+    return {
+      displayName: [firstName, lastName].filter(Boolean).join(" ").trim(),
+      initials: `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase(),
+    };
+  }
+
+  const rawName = String(user.name || "").trim();
+  if (rawName) {
+    const candidate = rawName.includes("@") ? rawName.split("@")[0] : rawName;
+    const safeCandidate = candidate || "User";
+    const tokens = safeCandidate.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+    return {
+      displayName: safeCandidate.replace(/[._-]+/g, " ").trim() || "User",
+      initials: `${tokens[0]?.[0] || safeCandidate[0] || "U"}${tokens[1]?.[0] || tokens[0]?.[1] || ""}`.toUpperCase(),
+    };
+  }
+
+  const emailPrefix = String(user.email || "").split("@")[0] || "User";
+  const emailTokens = emailPrefix.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+  return {
+    displayName: emailPrefix.replace(/[._-]+/g, " ").trim() || "User",
+    initials: `${emailTokens[0]?.[0] || "U"}${emailTokens[1]?.[0] || emailTokens[0]?.[1] || ""}`.toUpperCase(),
+  };
+}
+
 interface DashboardLayoutProps {
   children: React.ReactNode;
   /** Optional — used for RBAC error messages and permission warnings */
@@ -118,17 +152,9 @@ export function DashboardLayout({
   // ─── Sync Store Data (Zustand) ─────────────────────────────────────────────
   const userDisplayData = useMemo(() => {
     if (!user) return null;
-    
-    const firstName = user.firstName || "User";
-    const lastName = user.lastName || "";
-    
-    const displayName = lastName ? `${firstName} ${lastName}` : firstName;
-    
-    // Generate initials (more robustly)
-    const initials = `${(firstName?.[0] || "U")}${(lastName?.[0] || "")}`.toUpperCase();
+    const { displayName, initials } = resolveDisplayNameAndInitials(user);
 
-    const avatar = user.profilePicture ||
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&format=png`;
+    const avatar = user.profilePicture || "";
 
     return {
       name: displayName,

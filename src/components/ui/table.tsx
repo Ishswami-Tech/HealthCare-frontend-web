@@ -7,21 +7,23 @@ import { cn } from "@/lib/utils/index"
 function Table({
   className,
   compact = false,
+  scrollable = false,
   ...props
-}: React.ComponentProps<"table"> & { compact?: boolean }) {
+}: React.ComponentProps<"table"> & { compact?: boolean; scrollable?: boolean }) {
   return (
     <div
       data-slot="table-container"
       className={cn(
         "relative w-full",
-        compact ? "overflow-hidden" : "overflow-x-auto"
+        compact ? (scrollable ? "overflow-x-auto" : "overflow-hidden") : "overflow-x-auto"
       )}
     >
       <table
         data-slot="table"
         className={cn(
-          "w-full caption-bottom text-sm",
-          compact && "table-fixed",
+          "caption-bottom text-sm",
+          scrollable ? "min-w-max w-max" : "w-full",
+          compact && !scrollable && "table-fixed",
           className
         )}
         {...props}

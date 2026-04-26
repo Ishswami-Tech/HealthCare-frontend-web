@@ -118,7 +118,7 @@ export default function SuperAdminDashboard() {
 
   return (
     
-        <div className="p-6 space-y-6">
+      <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
             <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">

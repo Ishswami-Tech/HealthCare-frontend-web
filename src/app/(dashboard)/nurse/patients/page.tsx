@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useNursePatients } from "@/hooks/query/useNurse";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 
@@ -32,7 +32,7 @@ export default function NursePatients() {
   const { isPending } = useNursePatients({ nurseId } as any);
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['nursePatients', nurseId]]);
+  useWebSocketQuerySync();
 
   const filteredPatients = patients.filter((patient: any) => {
     return (
