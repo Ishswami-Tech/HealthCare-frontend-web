@@ -34,8 +34,10 @@ import { QueueCategory, type CanonicalQueueEntry } from "@/types/queue.types";
 import {
   getQueueStatusLabel,
   getQueuePatientDisplayName,
+  getQueuePositionLabel,
   hasQueuePatientIdentity,
   normalizeQueueEntry,
+  getQueueStatusColor,
   resolveQueueDisplayLabel,
 } from "@/lib/queue/queue-adapter";
 import { Permission } from "@/types/rbac.types";
@@ -120,6 +122,56 @@ type QueueDisplayItem = CanonicalQueueEntry & {
   serviceType?: string;
   waitTime?: string | number;
 };
+
+function QueueMobileCard({
+  item,
+  onOpenActions,
+}: {
+  item: QueueDisplayItem;
+  onOpenActions: (item: QueueDisplayItem) => void;
+}) {
+  const waitValue = item.estimatedWaitTime || item.waitTime;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-foreground">
+            {getQueuePatientDisplayName(item)}
+          </div>
+          <div className="mt-1 truncate text-[11px] text-muted-foreground">
+            {item.doctorName || "Assigned doctor pending"}
+          </div>
+        </div>
+        <Badge className={`${getQueueStatusColor(item.status)} shrink-0 border px-2 py-0.5 text-[10px] font-semibold`}>
+          {getQueueStatusLabel(item)}
+        </Badge>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <Badge variant="outline" className="max-w-[96px] truncate border-emerald-200 bg-emerald-50 text-[10px] text-emerald-700">
+          {resolveQueueDisplayLabel(item)}
+        </Badge>
+        <Badge variant="outline" className="border-border/70 text-[10px] text-muted-foreground">
+          {getQueuePositionLabel({ position: item.position || 0 })}
+        </Badge>
+        <Badge variant="outline" className="border-border/70 text-[10px] text-muted-foreground">
+          {waitValue ? `Wait ${waitValue}m` : "Wait -"}
+        </Badge>
+      </div>
+
+      <div className="mt-3 flex justify-center">
+        <Button
+          size="sm"
+          className="h-8 min-w-[120px] border-emerald-200 bg-emerald-600 px-3 text-[11px] text-white shadow-sm hover:bg-emerald-700"
+          onClick={() => onOpenActions(item)}
+        >
+          Actions
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function normalizeQueueToken(value?: string | null): string {
   const token = String(value || "")
@@ -314,6 +366,8 @@ export default function QueuePage() {
 
   // State to track historical/stale entries that should be cleaned up
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [selectedQueueActionItem, setSelectedQueueActionItem] = useState<QueueDisplayItem | null>(null);
+  const [transferringQueueItem, setTransferringQueueItem] = useState<QueueDisplayItem | null>(null);
   
   // Fetch queue data with proper permissions - now strictly bound to today
   const {
@@ -718,134 +772,15 @@ export default function QueuePage() {
   }, [activeQueue, activeQueueTabs]);
 
   function QueueRowActions({ item }: { item: QueueDisplayItem }) {
-    const rowDoctorId = item.assignedDoctorId || item.primaryDoctorId || "";
-    const rowCallNext = useOptimisticCallNextPatient(clinicId, rowDoctorId || undefined);
-    const canStartFromRow =
-      userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR;
-    const normalizedStatus = String(item.status || "").toUpperCase();
-    const canAssignForStatus = !TERMINAL_QUEUE_STATUSES.has(normalizedStatus);
-    const canAssignForReference = hasReliableAppointmentReference(item);
-
     return (
       <div className="flex min-w-0 flex-row flex-nowrap items-center justify-end gap-1.5 overflow-hidden">
-        {canStartFromRow && item.status === QUEUE_STATUS.WAITING && (
-          <QueueProtectedComponent action="update-status">
-            <Button
-              size="sm"
-              className="h-8 shrink-0 whitespace-nowrap px-2 text-[11px]"
-              onClick={() => handleUpdateQueueStatus(item.id, QUEUE_STATUS.IN_PROGRESS)}
-              disabled={updateQueueStatusOptimistic.isPending}
-            >
-              <Play className="mr-1 h-3 w-3" />
-              <span>Start</span>
-            </Button>
-          </QueueProtectedComponent>
-        )}
-
-        {canStartFromRow && item.status === QUEUE_STATUS.IN_PROGRESS && (
-          <>
-            <QueueProtectedComponent action="update-status">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 shrink-0 whitespace-nowrap px-2 text-[11px]"
-                onClick={() => void handlePauseQueue(rowDoctorId)}
-                disabled={updateQueueStatusOptimistic.isPending}
-              >
-                <Pause className="mr-1 h-3 w-3" />
-                <span>Pause</span>
-              </Button>
-            </QueueProtectedComponent>
-            <QueueProtectedComponent action="update-status">
-              <Button
-                size="sm"
-                className="h-8 shrink-0 whitespace-nowrap px-2 text-[11px]"
-                onClick={() => handleUpdateQueueStatus(item.id, QUEUE_STATUS.COMPLETED)}
-                disabled={updateQueueStatusOptimistic.isPending}
-              >
-                <CheckCircle className="mr-1 h-3 w-3" />
-                <span>Complete</span>
-              </Button>
-            </QueueProtectedComponent>
-          </>
-        )}
-
-        {item.status === QUEUE_STATUS.CONFIRMED && (
-          <QueueProtectedComponent action="call-next">
-            {rowDoctorId ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 shrink-0 whitespace-nowrap px-2 text-[11px]"
-                onClick={() =>
-                  rowCallNext.mutation.mutate(
-                    { appointmentId: item.appointmentId },
-                    {
-                      onSuccess: () => {
-                        refetchQueue();
-                        showSuccessToast("Next patient called", { id: TOAST_IDS.GLOBAL.SUCCESS });
-                      },
-                      onError: (err: Error) => {
-                        showErrorToast(err.message || "Failed", { id: TOAST_IDS.GLOBAL.ERROR });
-                      },
-                  }
-                )
-                }
-                disabled={rowCallNext.isPending || !item.appointmentId}
-              >
-                <SkipForward className="mr-1 h-3 w-3" />
-                <span>{rowCallNext.isPending ? "Calling..." : "Call Next"}</span>
-              </Button>
-            ) : null}
-          </QueueProtectedComponent>
-        )}
-
-        {canAssignDoctor && isUnassignedQueueItem(item) && canAssignForStatus && canAssignForReference && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 shrink-0 whitespace-nowrap px-2 text-[11px]"
-            onClick={() => openAssignDoctorDialog(item)}
-            disabled={!item.appointmentId || reassignAppointmentMutation.isPending}
-          >
-            <span>Assign Doctor</span>
-          </Button>
-        )}
-
-        {canTransfer && item.status !== QUEUE_STATUS.COMPLETED && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 shrink-0 whitespace-nowrap border-border/70 px-2 text-[11px] hover:bg-muted"
-                disabled={transferringId === item.id}
-              >
-                <ArrowRightLeft className="mr-1 h-3 w-3" />
-                <span>{transferringId === item.id ? "Moving..." : "Move to"}</span>
-                <ChevronDown className="ml-1 h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Transfer to queue
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {queueTransferOptions
-                .filter((opt) => normalizeQueueToken(opt.value) !== normalizeQueueToken(item.treatmentType))
-                .map((opt) => (
-                <DropdownMenuItem
-                  key={opt.value}
-                  onSelect={() =>
-                    void handleTransfer(item.id, opt.value, opt.value, opt.label)
-                  }
-                >
-                  {opt.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        <Button
+          size="sm"
+          className="h-8 shrink-0 whitespace-nowrap border-emerald-200 bg-emerald-600 px-2.5 text-[11px] text-white shadow-sm hover:bg-emerald-700"
+          onClick={() => setSelectedQueueActionItem(item)}
+        >
+          <span>Actions</span>
+        </Button>
       </div>
     );
   }
@@ -901,7 +836,11 @@ export default function QueuePage() {
       {
         id: "actions",
         header: "Actions",
-        cell: ({ row }) => <QueueRowActions item={row.original} />,
+        cell: ({ row }) => (
+          <div className="flex justify-center">
+            <QueueRowActions item={row.original} />
+          </div>
+        ),
       },
     ],
     [
@@ -935,6 +874,24 @@ export default function QueuePage() {
     ],
     [baseQueueColumns]
   );
+
+  const renderMobileQueueList = (items: QueueDisplayItem[], emptyMessage: string) => {
+    if (!items.length) {
+      return (
+        <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-3 py-4 text-sm text-muted-foreground md:hidden">
+          {emptyMessage}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2 md:hidden">
+        {items.map((item) => (
+          <QueueMobileCard key={item.id} item={item} onOpenActions={setSelectedQueueActionItem} />
+        ))}
+      </div>
+    );
+  };
 
   const activeProcedureSection = useMemo(() => {
     return (
@@ -1192,14 +1149,19 @@ export default function QueuePage() {
                   </Badge>
                 ))}
               </div>
-              <DataTable
-                columns={laneColumns}
-                data={selectedConsultationItems}
-                pageSize={5}
-                emptyMessage={`No patients in ${String(activeConsultationSection?.title || "selected").toLowerCase()} queue.`}
-                compact
-                scrollable
-              />
+              {renderMobileQueueList(
+                selectedConsultationItems,
+                `No patients in ${String(activeConsultationSection?.title || "selected").toLowerCase()} queue.`
+              )}
+              <div className="hidden md:block">
+                <DataTable
+                  columns={laneColumns}
+                  data={selectedConsultationItems}
+                  pageSize={5}
+                  emptyMessage={`No patients in ${String(activeConsultationSection?.title || "selected").toLowerCase()} queue.`}
+                  compact
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1241,19 +1203,150 @@ export default function QueuePage() {
                   </Badge>
                 ))}
               </div>
-              <DataTable
-                columns={laneColumns}
-                data={selectedProcedureItems}
-                pageSize={5}
-                emptyMessage={`No patients in ${(activeProcedureSection?.title || "selected").toLowerCase()} queue.`}
-                compact
-                scrollable
-              />
+              {renderMobileQueueList(
+                selectedProcedureItems,
+                `No patients in ${(activeProcedureSection?.title || "selected").toLowerCase()} queue.`
+              )}
+              <div className="hidden md:block">
+                <DataTable
+                  columns={laneColumns}
+                  data={selectedProcedureItems}
+                  pageSize={5}
+                  emptyMessage={`No patients in ${(activeProcedureSection?.title || "selected").toLowerCase()} queue.`}
+                  compact
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
       </Tabs>
+
+      <Dialog
+        open={Boolean(selectedQueueActionItem)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedQueueActionItem(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center sm:text-center">
+            <DialogTitle>Queue Actions</DialogTitle>
+            <DialogDescription>
+              Manage the selected patient from a compact action sheet.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedQueueActionItem ? (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-border bg-muted/20 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-foreground">
+                      {getQueuePatientDisplayName(selectedQueueActionItem)}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {selectedQueueActionItem.doctorName || "Assigned doctor pending"} · Queue #
+                      {selectedQueueActionItem.position || 0}
+                    </div>
+                  </div>
+                  <Badge className={`${getQueueStatusColor(selectedQueueActionItem.status)} border px-2 py-0.5 text-[10px] font-semibold`}>
+                    {getQueueStatusLabel(selectedQueueActionItem)}
+                  </Badge>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[10px] text-emerald-700">
+                    {resolveQueueDisplayLabel(selectedQueueActionItem)}
+                  </Badge>
+                  <Badge variant="outline" className="border-border/70 text-[10px] text-muted-foreground">
+                    {getQueuePositionLabel({ position: selectedQueueActionItem.position || 0 })}
+                  </Badge>
+                </div>
+              </div>
+              <div className="grid gap-3">
+                <Button
+                  className="h-11 w-full justify-center gap-2"
+                  onClick={() => {
+                    setAssigningQueueItem(selectedQueueActionItem);
+                    setSelectedQueueActionItem(null);
+                  }}
+                  disabled={
+                    !selectedQueueActionItem.appointmentId || reassignAppointmentMutation.isPending
+                  }
+                >
+                  <Users className="h-4 w-4" />
+                  Assign Doctor
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-11 w-full justify-center gap-2"
+                  onClick={() => {
+                    setTransferringQueueItem(selectedQueueActionItem);
+                    setSelectedQueueActionItem(null);
+                  }}
+                  disabled={transferringId === selectedQueueActionItem.id}
+                >
+                  <ArrowRightLeft className="h-4 w-4" />
+                  Move to
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(transferringQueueItem)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTransferringQueueItem(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center sm:text-center">
+            <DialogTitle>Move To</DialogTitle>
+            <DialogDescription>
+              Choose the destination queue for the selected patient.
+            </DialogDescription>
+          </DialogHeader>
+          {transferringQueueItem ? (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-border bg-muted/20 p-3">
+                <div className="truncate text-center text-sm font-semibold text-foreground">
+                  {getQueuePatientDisplayName(transferringQueueItem)}
+                </div>
+                <div className="mt-1 text-center text-xs text-muted-foreground">
+                  {transferringQueueItem.doctorName || "Assigned doctor pending"} · Queue #
+                  {transferringQueueItem.position || 0}
+                </div>
+              </div>
+              <div className="grid gap-2">
+                {queueTransferOptions
+                  .filter((opt) => normalizeQueueToken(opt.value) !== normalizeQueueToken(transferringQueueItem.treatmentType))
+                  .map((opt) => (
+                    <Button
+                      key={opt.value}
+                      variant="outline"
+                      className="h-10 w-full justify-center"
+                      onClick={() => {
+                        void handleTransfer(
+                          transferringQueueItem.id,
+                          opt.value,
+                          opt.value,
+                          opt.label
+                        );
+                        setTransferringQueueItem(null);
+                      }}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={Boolean(assigningQueueItem)}
@@ -1265,8 +1358,8 @@ export default function QueuePage() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center sm:text-center">
             <DialogTitle>Assign Doctor</DialogTitle>
             <DialogDescription>
               Assign a doctor to this active queue appointment.
