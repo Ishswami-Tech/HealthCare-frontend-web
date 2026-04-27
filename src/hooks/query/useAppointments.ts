@@ -1032,6 +1032,7 @@ export const useDoctorAvailability = (
   appointmentType?: string,
   options?: {
     enabled?: boolean;
+    refetchIntervalMs?: number;
   }
 ) => {
   
@@ -1055,10 +1056,11 @@ export const useDoctorAvailability = (
     },
     {
       enabled: !!doctorId && !!date && (options?.enabled ?? true), // Enabled for everyone, including guests
-      staleTime: 30 * 1000, // 30 seconds — availability is time-sensitive
+      staleTime: options?.refetchIntervalMs ? 0 : 30 * 1000, // Video availability refreshes more aggressively
       gcTime: 2 * 60 * 1000, // 2 minutes garbage collection
       refetchOnMount: true, // Always re-fetch when dialog opens
       refetchOnWindowFocus: false, // Don't refetch on tab switch
+      refetchInterval: options?.refetchIntervalMs ?? false,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;

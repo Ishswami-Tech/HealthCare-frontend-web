@@ -260,7 +260,7 @@ export default function PatientBillingPage() {
 
   function handleDownloadPDF(invoiceId: string) {
     // Opens the Next.js API proxy route in a new tab — triggers browser PDF save dialog.
-    window.open(`/api/billing/invoices/${invoiceId}/download`, "_blank", "noopener,noreferrer");
+    window.open(`/billing/invoices/${invoiceId}/download`, "_blank", "noopener,noreferrer");
   }
 
   function openPlansTab() {

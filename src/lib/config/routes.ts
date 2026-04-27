@@ -130,6 +130,16 @@ export function getProtectedRouteRoles(path: string): string[] {
     Role.PATIENT,
   ];
 
+  if (path.startsWith('/billing/invoices/') && path.endsWith('/download')) return [
+    Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
+    Role.DOCTOR, Role.ASSISTANT_DOCTOR,
+    Role.RECEPTIONIST, Role.PHARMACIST,
+    Role.CLINIC_LOCATION_HEAD, Role.THERAPIST,
+    Role.NURSE, Role.COUNSELOR,
+    Role.LAB_TECHNICIAN, Role.SUPPORT_STAFF,
+    Role.FINANCE_BILLING, Role.PATIENT,
+  ];
+
   if (path.startsWith('/billing')) return [
     Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
     Role.DOCTOR, Role.ASSISTANT_DOCTOR,

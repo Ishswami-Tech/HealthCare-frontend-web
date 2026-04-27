@@ -262,6 +262,13 @@ export default function AppointmentManager({
     });
   }, [primaryAppointments, statusFilter, searchQuery, dateFilter.start, dateFilter.end]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  useEffect(() => {
+    setCurrentPage((previousPage) => Math.min(previousPage, totalPages));
+  }, [totalPages]);
+
   // Stats
   const stats = useMemo(() => {
     const total = normalizedAppointments.length;
@@ -579,14 +586,11 @@ export default function AppointmentManager({
                   <PaymentButton
                     appointmentId={getEffectiveAppointmentId(apt)}
                     amount={apt.invoice?.amount || 500}
+                    appointmentType="VIDEO_CALL"
                     className="h-10 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
                     onSuccess={() => {
-                      const appointmentStatus = normalizeAppointmentStatus((apt as any).raw?.status || apt.status);
-                      if (["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes(appointmentStatus)) {
-                        window.location.href = `/patient/video?appointmentId=${getEffectiveAppointmentId(apt)}`;
-                      } else {
-                         window.location.reload();
-                      }
+                      void refetch();
+                      setCurrentPage(1);
                     }}
                   >
                     <CreditCard className="w-4 h-4 mr-2" />
@@ -929,11 +933,11 @@ export default function AppointmentManager({
           {/* Pagination info */}
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground font-medium">
-              Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredAppointments.length)}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length} appointments
+              Showing {filteredAppointments.length === 0 ? 0 : (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length} appointments
             </p>
           </div>
           {filteredAppointments
-            .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+            .slice((safeCurrentPage - 1) * ITEMS_PER_PAGE, safeCurrentPage * ITEMS_PER_PAGE)
             .map((apt) => (
               <AppointmentCard key={apt.id} apt={apt} />
             ))}
@@ -944,18 +948,18 @@ export default function AppointmentManager({
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                disabled={safeCurrentPage === 1}
                 className="h-9 px-4 rounded-lg border-border/60 text-sm"
               >
                 ← Prev
               </Button>
-              {Array.from({ length: Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
                   className={cn(
                     "w-9 h-9 rounded-lg text-sm font-semibold transition-all",
-                    page === currentPage
+                    page === safeCurrentPage
                       ? "bg-emerald-600 text-white shadow-sm"
                       : "border border-border/60 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
                   )}
@@ -966,8 +970,8 @@ export default function AppointmentManager({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE), p + 1))}
-                disabled={currentPage === Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE)}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage === totalPages}
                 className="h-9 px-4 rounded-lg border-border/60 text-sm"
               >
                 Next →

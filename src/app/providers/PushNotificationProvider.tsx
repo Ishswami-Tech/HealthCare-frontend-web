@@ -32,6 +32,16 @@ export function PushNotificationProvider({
       return;
     }
 
+    const hasFirebaseConfig =
+      APP_CONFIG.FIREBASE.API_KEY &&
+      APP_CONFIG.FIREBASE.PROJECT_ID &&
+      APP_CONFIG.FIREBASE.MESSAGING_SENDER_ID &&
+      APP_CONFIG.FIREBASE.APP_ID;
+
+    if (!hasFirebaseConfig) {
+      return;
+    }
+
     const registerServiceWorker = async () => {
       try {
         // Register service worker

@@ -1192,11 +1192,11 @@ export class ClinicApiClient extends ApiClient {
   }
 
   async getApiHealth() {
-    return this.get(API_ENDPOINTS.HEALTH.STATUS);
+    return this.get(API_ENDPOINTS.HEALTH.BASE);
   }
 
   async getApiStatus() {
-    return this.get(API_ENDPOINTS.HEALTH.LIVE);
+    return this.get(API_ENDPOINTS.HEALTH.BASE);
   }
 
   // ✅ Test Context Endpoint (from appointments controller)

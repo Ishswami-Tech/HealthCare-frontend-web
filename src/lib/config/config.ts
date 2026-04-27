@@ -624,9 +624,9 @@ export const API_ENDPOINTS = {
   HEALTH: {
     BASE: '/health',
     DETAILED: '/health?detailed=true',
-    STATUS: '/health/status',
-    READY: '/health/ready',
-    LIVE: '/health/status',
+    STATUS: '/health',
+    READY: '/health',
+    LIVE: '/health',
   },
   
   // Billing Endpoints

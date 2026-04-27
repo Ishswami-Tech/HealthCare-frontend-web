@@ -166,7 +166,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
         <SidebarMenu>
           {filteredLinks.map((link, idx) => {
             const isLogout = link.href === "#logout" || link.title === t("sidebar.logout");
-            const Icon = link.icon;
+            const Icon = link.icon || Menu;
 
             return (
               <SidebarMenuItem key={idx} className="">
@@ -186,7 +186,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   {isLogout ? (
                     <button className={cn("flex items-center gap-2 w-full text-destructive hover:text-destructive/80", !open && "justify-center")}>
                       <span className="size-4 flex items-center justify-center shrink-0">
-                        {typeof Icon === 'function' && !Icon.render ? Icon() : <Icon className="size-4" />}
+                        <Icon className="size-4" />
                       </span>
                       {open && (
                         <motion.span
@@ -203,7 +203,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                   ) : (
                     <Link href={link.href} className={cn("flex items-center gap-2 w-full", !open && "justify-center")}>
                       <span className="size-4 flex items-center justify-center shrink-0">
-                        {typeof Icon === 'function' && !Icon.render ? Icon() : <Icon className="size-4" />}
+                        <Icon className="size-4" />
                       </span>
                       {open && (
                         <motion.span

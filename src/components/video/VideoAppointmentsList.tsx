@@ -881,7 +881,7 @@ export function VideoAppointmentsList({
                     {['scheduled', 'confirmed'].includes(String(appointment.status || '').toLowerCase()) && (
                       <>
                         {!paymentCompleted && paymentAmount > 0 && (
-                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-8 px-3 rounded-xl text-xs font-semibold">
+                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-8 px-3 rounded-xl text-xs font-semibold" onSuccess={() => void refetch()}>
                             Pay ₹{paymentAmount}
                           </PaymentButton>
                         )}

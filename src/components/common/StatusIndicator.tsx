@@ -92,7 +92,7 @@ export function StatusIndicator({
   showLabel = true,
   className,
 }: StatusIndicatorProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] || statusConfig.inactive;
   const sizeStyle = sizeConfig[size];
   const Icon = CustomIcon || config.icon;
 

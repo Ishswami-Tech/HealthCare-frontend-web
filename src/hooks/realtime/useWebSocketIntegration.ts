@@ -78,6 +78,9 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         // ✅ SECURITY: Use secure token access (will be migrated to httpOnly cookies)
         const { getAccessToken } = await import('@/lib/utils/token-manager');
         const token = await getAccessToken() || undefined;
+        if (!token) {
+          return;
+        }
 
         // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
         const websocketUrl = APP_CONFIG.WEBSOCKET.URL;
@@ -193,12 +196,43 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         })
       );
 
+      const paymentLifecycleEvents = [
+        'billing.payment.updated',
+        'billing.invoice.paid',
+        'payment.completed',
+      ] as const;
+
+      const unsubscribePaymentLifecycleEvents = paymentLifecycleEvents.map((event) =>
+        subscribe(event, (rawData: unknown) => {
+          const data = rawData as {
+            clinicId?: string;
+            appointmentId?: string;
+            invoiceId?: string;
+            paymentId?: string;
+            appointment?: Appointment;
+          };
+
+          if (data.clinicId && clinicId && data.clinicId !== clinicId) {
+            return;
+          }
+
+          const appointmentId = String(data.appointment?.id || data.appointmentId || '');
+          if (appointmentId) {
+            queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId], exact: false });
+            queryClient.invalidateQueries({ queryKey: ['video-appointment', appointmentId], exact: false });
+          }
+
+          invalidateAppointmentQueries();
+        })
+      );
+
       unsubscribeCallbacks.push(
         unsubscribeAppointmentCreated,
         unsubscribeAppointmentUpdated,
         unsubscribeAppointmentDeleted,
         unsubscribeAppointmentStatusChanged,
-        ...unsubscribeAppointmentLifecycleEvents
+        ...unsubscribeAppointmentLifecycleEvents,
+        ...unsubscribePaymentLifecycleEvents
       );
     }
 

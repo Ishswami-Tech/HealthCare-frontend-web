@@ -15,7 +15,7 @@ const createUnavailableStatus = (): DetailedHealthStatus => ({
 });
 
 export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
-  const HEALTH_URL = `${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.HEALTH.STATUS}`;
+  const HEALTH_URL = `${APP_CONFIG.API.BASE_URL}${API_ENDPOINTS.HEALTH.DETAILED}`;
   
   try {
     const response = await fetchWithAbort(HEALTH_URL, {

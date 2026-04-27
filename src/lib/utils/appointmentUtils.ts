@@ -81,6 +81,20 @@ function getPaymentCandidates(appointment: any): Record<string, unknown>[] {
   ];
 }
 
+function getPaymentCompletionFlags(appointment: any): boolean[] {
+  return [
+    appointment?.paymentCompleted,
+    appointment?.isPaid,
+    appointment?.paid,
+    appointment?.billing?.paymentCompleted,
+    appointment?.billing?.isPaid,
+    appointment?.billing?.paid,
+    appointment?.invoice?.paymentCompleted,
+    appointment?.invoice?.isPaid,
+    appointment?.invoice?.paid,
+  ].filter((value): value is boolean => typeof value === 'boolean');
+}
+
 function normalizePaymentStatusValue(value: unknown): string {
   const normalized = String(value || '')
     .trim()
@@ -165,6 +179,10 @@ export function isVideoAppointmentPaymentCompleted(appointment: any): boolean {
     return true;
   }
 
+  if (getPaymentCompletionFlags(appointment).some(Boolean)) {
+    return true;
+  }
+
   return getAppointmentPaymentStatus(appointment) === 'PAID';
 }
 
@@ -173,6 +191,10 @@ function normalizeStatusToken(value: unknown): string {
 }
 
 export function getAppointmentPaymentStatus(appointment: any): string {
+  if (getPaymentCompletionFlags(appointment).some(Boolean)) {
+    return 'PAID';
+  }
+
   const paymentCandidates = getPaymentCandidates(appointment);
   const paymentStatusCandidates = paymentCandidates.flatMap((payment) => [
     payment?.status,
@@ -185,6 +207,7 @@ export function getAppointmentPaymentStatus(appointment: any): string {
   const directPaymentStatus = normalizeStatusToken(
     appointment?.paymentStatus ||
       appointment?.billing?.paymentStatus ||
+      appointment?.billing?.status ||
       appointment?.invoice?.paymentStatus ||
       appointment?.invoice?.status ||
       ''

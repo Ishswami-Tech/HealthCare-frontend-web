@@ -150,12 +150,31 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
       })
     );
 
+    const paymentLifecycleEvents = [
+      'billing.payment.updated',
+      'billing.invoice.paid',
+      'payment.completed',
+    ] as const;
+
+    const unsubscribePaymentLifecycleEvents = paymentLifecycleEvents.map((event) =>
+      subscribeAppointmentEvent(event, (rawData: unknown) => {
+        const data = rawData as { appointmentId?: string; id?: string; appointment?: Appointment };
+        const appointmentId = String(data.appointment?.id || data.id || data.appointmentId || '');
+        if (appointmentId) {
+          queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId], exact: false });
+          queryClient.invalidateQueries({ queryKey: ['video-appointment', appointmentId], exact: false });
+        }
+        invalidateAppointmentQueries();
+      })
+    );
+
     subscriptionRef.current = () => {
       unsubscribeCreated();
       unsubscribeUpdated();
       unsubscribeDeleted();
       unsubscribeStatusChanged();
       unsubscribeLifecycleEvents.forEach((unsubscribe) => unsubscribe());
+      unsubscribePaymentLifecycleEvents.forEach((unsubscribe) => unsubscribe());
     };
 
     return () => {
