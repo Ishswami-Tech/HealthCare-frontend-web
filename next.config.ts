@@ -109,16 +109,7 @@ const nextConfig: NextConfig = {
    * API Rewrite (proxy only, no CORS)
    * ===================================================== */
   async rewrites() {
-    return [
-      {
-        source: '/api/billing/invoices/:id/download',
-        destination: '/billing/invoices/:id/download',
-      },
-      {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`,
-      },
-    ];
+    return [];
   },
 
   /* =====================================================

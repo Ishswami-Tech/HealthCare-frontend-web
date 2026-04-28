@@ -18,6 +18,7 @@ import { fetchWithAbort, TimeoutError } from '@/lib/utils/fetch-with-abort';
 import { getAccessToken, getSessionId, getClinicId } from '@/lib/utils/token-manager';
 import { useAuthStore } from '@/stores/auth.store';
 import { triggerClientAuthRecovery } from '@/lib/utils/auth-recovery';
+import type { Session } from '@/types/auth.types';
 
 // ✅ Custom Error Classes
 export class ApiError extends Error {
@@ -346,6 +347,14 @@ export class ApiClient {
     return `${method}:${endpoint}:${body}`;
   }
 
+  protected resolveBaseURL(endpoint: string): string {
+    // Health endpoints intentionally bypass /api/v1 versioning and must hit the raw backend base URL.
+    if (endpoint === '/health' || endpoint.startsWith('/health?') || endpoint.startsWith('/health/')) {
+      return APP_CONFIG.API.HEALTH_BASE_URL || this.baseURL;
+    }
+    return this.baseURL;
+  }
+
   // ✅ Generic Request Method (Optimized with Request Deduplication & Batching for 10M users)
   async request<T>(
     endpoint: string,
@@ -356,7 +365,7 @@ export class ApiClient {
     const prefixedEndpoint = apiPrefix && !endpoint.startsWith(apiPrefix) 
       ? `${apiPrefix}${endpoint}` 
       : endpoint;
-    const url = `${this.baseURL}${prefixedEndpoint}`;
+    const url = `${this.resolveBaseURL(prefixedEndpoint)}${prefixedEndpoint}`;
     const method = (options.method || 'GET').toUpperCase();
     const cacheKey = this.getCacheKey(endpoint, options);
     
@@ -511,21 +520,18 @@ export class ApiClient {
   private async performTokenRefresh(): Promise<void> {
     let refreshToken: string | undefined;
     let sessionId: string | undefined;
+    const isClient = typeof window !== 'undefined';
 
     // Get tokens context
-    if (typeof window === 'undefined') {
+    if (!isClient) {
       const { cookies } = await import('next/headers');
       const cookieStore = await cookies();
       refreshToken = cookieStore.get('refresh_token')?.value;
       sessionId = cookieStore.get('session_id')?.value;
     }
 
-    if (!refreshToken && typeof window === 'undefined') {
-      throw new Error('No refresh token available');
-    }
-
     // Use session ID for deduplication, or 'default' for client-side single user
-    const refreshKey = sessionId || 'default';
+    const refreshKey = sessionId || (isClient ? 'client' : 'server');
     
     // Check if refresh is already in progress
     if (activeRefreshPromises.has(refreshKey)) {
@@ -535,23 +541,42 @@ export class ApiClient {
 
     const refreshPromise = (async () => {
       try {
-        // Call refresh endpoint directly (bypassing executeRequest to avoid infinite loop)
-      const response = await fetch(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(sessionId ? { 'X-Session-ID': sessionId } : {})
-          },
-          credentials: this.withCredentials ? 'include' : 'omit',
-          body: JSON.stringify(refreshToken ? { refreshToken } : {})
-        });
+        // Refresh through the same auth contract used by the app:
+        // - client: backend refresh endpoint via the shared API client, which can read httpOnly cookies
+        // - server: direct backend refresh using the request cookies
+        const tokens = isClient
+          ? await (async () => {
+              const response = await this.publicRequest<Session>(API_ENDPOINTS.AUTH.REFRESH, {
+                method: 'POST',
+                credentials: this.withCredentials ? 'include' : 'omit',
+              });
 
-          if (!response.ok) {
-            throw new Error('Token refresh failed');
-          }
+              const refreshedSession = (response.data as Record<string, any>)?.data || response.data;
 
-        const data = await response.json();
-        const tokens = data.data || data;
+              if (!refreshedSession) {
+                throw new Error('Token refresh failed');
+              }
+
+              return refreshedSession;
+            })()
+          : await (async () => {
+              const response = await fetch(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(sessionId ? { 'X-Session-ID': sessionId } : {})
+                },
+                credentials: this.withCredentials ? 'include' : 'omit',
+                body: JSON.stringify(refreshToken ? { refreshToken } : {})
+              });
+
+              if (!response.ok) {
+                throw new Error('Token refresh failed');
+              }
+
+              const data = await response.json();
+              return data.data || data;
+            })();
 
         // Update session with new tokens
         await this.updateSession(tokens);
@@ -605,6 +630,30 @@ export class ApiClient {
        if (user?.role) cookieStore.set('user_role', user.role, { ...cookieOptions, maxAge: 604800 });
        if (user?.clinicId) cookieStore.set('clinic_id', user.clinicId, { ...cookieOptions, maxAge: 604800 });
 
+    } else {
+      const currentSession = useAuthStore.getState().session;
+      const nextUser = (user || currentSession?.user) as Session['user'] | undefined;
+
+      if (accessToken && nextUser) {
+        const nextSession: Session = {
+          ...(currentSession || {
+            user: nextUser,
+            access_token: accessToken,
+            session_id: sessionId || '',
+            isAuthenticated: true,
+          }),
+          access_token: accessToken,
+          session_id: sessionId || currentSession?.session_id || '',
+          isAuthenticated: true,
+          user: {
+            ...(currentSession?.user || nextUser),
+            ...(user || {}),
+            clinicId: user?.clinicId || currentSession?.user?.clinicId,
+          },
+        };
+
+        useAuthStore.getState().setSession(nextSession);
+      }
     }
   }
 
@@ -670,7 +719,7 @@ export class ApiClient {
     const prefixedEndpoint = apiPrefix && !endpoint.startsWith(apiPrefix) 
       ? `${apiPrefix}${endpoint}` 
       : endpoint;
-    const url = `${this.baseURL}${prefixedEndpoint}`;
+    const url = `${this.resolveBaseURL(prefixedEndpoint)}${prefixedEndpoint}`;
     return this.executeRequest<T>(url, options, false); // false = don't require auth
   }
 
@@ -747,7 +796,7 @@ export class ClinicApiClient extends ApiClient {
     // Process requests through the batcher
     const promises = requests.map(({ endpoint, options }) => 
       requestBatcher.batchRequest<ApiResponse<T>>(
-        `${this['baseURL']}${endpoint}`, 
+        `${this.resolveBaseURL(endpoint)}${endpoint}`, 
         options || {},
         (url, opt) => this.executeRequest<T>(url, opt)
       ).catch(error => ({ 

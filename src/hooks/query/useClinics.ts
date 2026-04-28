@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
 import { Permission } from '@/types/rbac.types';
 import { APP_CONFIG } from '@/lib/config/config';
+import { clinicApiClient } from '@/lib/api/client';
 import { 
   CreateClinicData,
   UpdateClinicData,
@@ -37,9 +38,6 @@ import {
   testClinicCommunication,
 } from '@/lib/actions/clinic-communication.server';
 
-// API URL configuration - use centralized config
-const API_URL = APP_CONFIG.API.BASE_URL;
-
 // ✅ Get clinic ID from centralized config (not directly from env)
 // This ensures proper fallback and type safety
 const CLINIC_ID = APP_CONFIG.CLINIC.ID;
@@ -61,30 +59,15 @@ async function apiCall<T>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<{ status: number; data: T }> {
-  const url = `${API_URL}${endpoint}`;
-  
-  // ✅ PERFORMANCE: Use fetch with AbortController
-  const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
-  const response = await fetchWithAbort(url, {
-    timeout: 10000,
+  const response = await clinicApiClient.request<T>(endpoint, {
     credentials: 'include',
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    // ✅ Use centralized error handler
-    const { handleApiError } = await import('@/lib/utils/error-handler');
-    const errorMessage = await handleApiError(response, errorData);
-    throw new Error(errorMessage);
-  }
-
-  const data = await response.json();
-  return { status: response.status, data };
+  return {
+    status: response.statusCode || 200,
+    data: response.data as T,
+  };
 }
 
 // ===== CLINIC CRUD HOOKS =====
@@ -192,7 +175,7 @@ export const useMyClinic = () => {
       return response.data;
     },
     {
-      enabled: !!session?.user?.id && !isPending,
+      enabled: !!session?.user?.id && !!token && !isPending,
     }
   );
 };

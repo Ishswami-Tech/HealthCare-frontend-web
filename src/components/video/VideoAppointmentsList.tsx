@@ -93,6 +93,8 @@ import {
   getDisplayAppointmentDuration,
   formatDateInIST,
   formatTimeInIST,
+  getVideoAppointmentJoinBlockedReason,
+  isVideoAppointmentJoinable,
   normalizeAppointmentStatus,
 } from "@/lib/utils/appointmentUtils";
 import {
@@ -275,21 +277,7 @@ function computeStats(appointments: VideoAppointment[]): AppointmentStats {
 }
 
 export function isJoinableVideoAppointment(appointment: VideoAppointment | any): boolean {
-  const viewState = getAppointmentViewState(appointment);
-  const normalizedStatus = viewState.normalizedStatus.toLowerCase();
-  const hasConfirmedSlot = viewState.hasConfirmedSlot;
-
-  const joinableStatuses = new Set(["scheduled", "confirmed", "queued", "in-progress"]);
-  if (!joinableStatuses.has(normalizedStatus)) {
-    return false;
-  }
-
-  // Non-in-progress appointments also need a confirmed slot
-  if (normalizedStatus !== "in-progress" && !hasConfirmedSlot) {
-    return false;
-  }
-
-  return viewState.paymentCompleted;
+  return isVideoAppointmentJoinable(appointment);
 }
 
 function isWithinJoinWindow(appointment: VideoAppointment | any): boolean {
@@ -395,6 +383,7 @@ export function VideoAppointmentsList({
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [actionReason, setActionReason] = useState("");
+  const [resolvedSlotConfirmations, setResolvedSlotConfirmations] = useState<Record<string, boolean>>({});
 
   const isPatient = user?.role === "PATIENT";
   const role = getVideoTokenRole(user?.role);
@@ -553,6 +542,19 @@ export function VideoAppointmentsList({
         showErrorToast("Missing appointment ID for this video appointment.", { id: TOAST_IDS.VIDEO.ERROR });
         return;
       }
+
+      const refreshedResult = await refetch();
+      const refreshedAppointments = extractAppointments((refreshedResult as any)?.data);
+      const latestAppointment =
+        refreshedAppointments.find((item) => getEffectiveAppointmentId(item) === appointmentId) || appointment;
+
+      if (!isJoinableVideoAppointment(latestAppointment)) {
+        showErrorToast(getVideoAppointmentJoinBlockedReason(latestAppointment), {
+          id: TOAST_IDS.VIDEO.ERROR,
+        });
+        return;
+      }
+
       router.push(buildVideoSessionRoute(appointmentId));
     } catch (error) {
       showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
@@ -620,11 +622,68 @@ export function VideoAppointmentsList({
     }
 
     try {
+      // Refresh the appointment list first so we confirm against the latest
+      // slot/payment state instead of a stale row snapshot.
+      const refreshedResult = await refetch();
+      const refreshedAppointment = extractAppointments(
+        (refreshedResult as any)?.data ?? (refreshedResult as any)?.appointments ?? (refreshedResult as any)
+      ).find((item: any) => String(getEffectiveAppointmentId(item) || item.id || "") === appointmentId);
+
+      if (
+        refreshedAppointment &&
+        !getAppointmentViewState(refreshedAppointment).awaitingDoctorSlotConfirmation
+      ) {
+        setResolvedSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
+        showSuccessToast("Slot is already confirmed. Refreshing the list.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+        await refetch();
+        setPendingSlotSelections((current) => {
+          const next = { ...current };
+          delete next[appointmentId];
+          return next;
+        });
+        return;
+      }
+
+      if (refreshedAppointment && !getAppointmentViewState(refreshedAppointment).paymentCompleted) {
+        showErrorToast(
+          "Payment is still syncing. Please wait a moment and try confirming again.",
+          { id: TOAST_IDS.APPOINTMENT.UPDATE }
+        );
+        return;
+      }
+
       await confirmVideoSlot.mutateAsync({
         appointmentId,
         confirmedSlotIndex: pendingSlotSelections[appointmentId] ?? 0,
       });
+      setResolvedSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
+      if (isPatient) {
+        await refetchMyAppointments();
+      } else {
+        await refetchStaff();
+      }
+      setPendingSlotSelections((current) => {
+        const next = { ...current };
+        delete next[appointmentId];
+        return next;
+      });
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("not awaiting doctor slot confirmation")) {
+        setResolvedSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
+        showSuccessToast("Slot is already confirmed. Refreshing the list.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+        if (isPatient) {
+          await refetchMyAppointments();
+        } else {
+          await refetchStaff();
+        }
+        setPendingSlotSelections((current) => {
+          const next = { ...current };
+          delete next[appointmentId];
+          return next;
+        });
+        return;
+      }
       showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.UPDATE });
     }
   };
@@ -682,9 +741,11 @@ export function VideoAppointmentsList({
     const proposedSlots = hasProposedSlots
       ? ((appointment as any).proposedSlots as Array<{ date: string; time: string }>)
       : [];
+    const appointmentSessionId = getEffectiveAppointmentId(appointment);
     const needsDoctorConfirmation =
       isDoctorRole &&
-      isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment);
+      isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment) &&
+      !resolvedSlotConfirmations[appointmentSessionId];
     const cfg: { label: string; color: string; dot: string; bg: string } =
       STATUS_CONFIG[normalizedStatus] ?? DEFAULT_STATUS_CONFIG;
     const statusLabel = getAppointmentStatusBadgeLabel({
@@ -723,8 +784,6 @@ export function VideoAppointmentsList({
       : appointment.startTime
         ? formatTimeInIST(new Date(appointment.startTime), { hour: "2-digit", minute: "2-digit", hour12: true })
         : "";
-    const appointmentSessionId = getEffectiveAppointmentId(appointment);
-    
     return (
       <div className={cn(
         "rounded-xl border overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md",
@@ -751,7 +810,7 @@ export function VideoAppointmentsList({
                         : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
                     )}
                   >
-                    {paymentCompleted ? "Paid" : "Payment required"}
+                    {paymentCompleted ? "Payment verified" : "Payment pending"}
                   </Badge>
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">

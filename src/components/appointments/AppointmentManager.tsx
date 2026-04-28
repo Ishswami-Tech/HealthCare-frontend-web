@@ -42,17 +42,20 @@ import {
 } from "@/types/appointment.types";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { cn } from "@/lib/utils";
+import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import {
   formatDateInIST,
+  getAppointmentPaymentDisplayState,
   getAppointmentStatusBadgeLabel,
   getAppointmentDateTimeValue,
   getDisplayAppointmentDuration,
+  getAppointmentViewState,
+  getVideoAppointmentJoinBlockedReason,
   isVideoAppointmentPaymentCompleted,
+  isVideoAppointmentJoinable,
   normalizeAppointmentStatus,
   normalizePatientAppointment,
-} from "@/lib/utils/appointmentUtils";
-import {
-  isPaidVideoAppointmentAwaitingDoctorConfirmation,
+  getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
@@ -115,7 +118,7 @@ export default function AppointmentManager({
   useWebSocketQuerySync();
 
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(isAdminView ? "ALL" : "SCHEDULED");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
@@ -184,9 +187,17 @@ export default function AppointmentManager({
     return patientScopedAppointments
       .map((appointment) => {
         const normalized = normalizePatientAppointment(appointment);
+        const viewState = getAppointmentViewState(appointment);
+        const paymentDisplay = getAppointmentPaymentDisplayState(appointment);
+        const displayStatus =
+          viewState.awaitingDoctorSlotConfirmation
+            ? "SCHEDULED"
+            : viewState.isVideo && !paymentDisplay.paymentCompleted
+            ? "SCHEDULED"
+            : normalized.status;
         return {
           ...appointment,
-          status: normalized.status,
+          status: displayStatus,
           type: normalized.type,
           location: {
             ...(appointment.location || {}),
@@ -213,24 +224,6 @@ export default function AppointmentManager({
       });
   }, [patientScopedAppointments]);
 
-  const awaitingDoctorReviewAppointments = useMemo(
-    () =>
-      normalizedAppointments.filter((appointment) =>
-        isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment)
-      ),
-    [normalizedAppointments]
-  );
-
-  const awaitingDoctorReviewIds = useMemo(
-    () => new Set(awaitingDoctorReviewAppointments.map((appointment) => String(appointment.id || ""))),
-    [awaitingDoctorReviewAppointments]
-  );
-
-  const primaryAppointments = useMemo(
-    () => normalizedAppointments.filter((appointment) => !awaitingDoctorReviewIds.has(String(appointment.id || ""))),
-    [normalizedAppointments, awaitingDoctorReviewIds]
-  );
-
   const filteredAppointments = useMemo(() => {
     const parseAppointmentDate = (value: string) => {
       const parsed = new Date(value);
@@ -240,7 +233,7 @@ export default function AppointmentManager({
     const startDate = dateFilter.start ? parseAppointmentDate(`${dateFilter.start}T00:00:00`) : null;
     const endDate = dateFilter.end ? parseAppointmentDate(`${dateFilter.end}T23:59:59.999`) : null;
 
-    return primaryAppointments.filter(apt => {
+    return normalizedAppointments.filter(apt => {
       const matchesType = !filterType || apt.type === filterType;
       const matchesStatus =
         statusFilter === "ALL"
@@ -260,7 +253,7 @@ export default function AppointmentManager({
       const matchesEndDate = !endDate || (appointmentDate !== null && appointmentDate <= endDate);
       return matchesType && matchesStatus && matchesSearch && matchesStartDate && matchesEndDate;
     });
-  }, [primaryAppointments, statusFilter, searchQuery, dateFilter.start, dateFilter.end]);
+  }, [normalizedAppointments, statusFilter, searchQuery, dateFilter.start, dateFilter.end, filterType]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -272,11 +265,11 @@ export default function AppointmentManager({
   // Stats
   const stats = useMemo(() => {
     const total = normalizedAppointments.length;
-    const upcoming = primaryAppointments.filter(a => ["SCHEDULED", "CONFIRMED"].includes(a.status)).length;
-    const completed = primaryAppointments.filter(a => a.status === "COMPLETED").length;
-    const inProgress = primaryAppointments.filter(a => a.status === "IN_PROGRESS").length;
+    const upcoming = normalizedAppointments.filter(a => ["SCHEDULED", "CONFIRMED"].includes(a.status)).length;
+    const completed = normalizedAppointments.filter(a => a.status === "COMPLETED").length;
+    const inProgress = normalizedAppointments.filter(a => a.status === "IN_PROGRESS").length;
     return { total, upcoming, completed, inProgress };
-  }, [normalizedAppointments, primaryAppointments]);
+  }, [normalizedAppointments]);
 
   const formatDate = (date: string) => {
     const parsed = new Date(date);
@@ -288,15 +281,6 @@ export default function AppointmentManager({
       month: "short",
       year: "numeric",
     });
-  };
-
-  const formatTime = (time: string | undefined) => {
-    if (!time) return "—";
-    const parts = time.split(":");
-    const hour = parseInt(parts[0] ?? "0");
-    const m = parts[1] ?? "00";
-    const suffix = hour >= 12 ? "PM" : "AM";
-    return `${hour % 12 || 12}:${m} ${suffix}`;
   };
 
   const parseDateValue = (value: string) => {
@@ -358,6 +342,45 @@ export default function AppointmentManager({
     });
   };
 
+  const handleJoinVideo = useCallback(async (appointment: any) => {
+    try {
+      const appointmentId = getEffectiveAppointmentId(appointment);
+      if (!appointmentId) {
+        showErrorToast("Missing appointment details for this video session.", {
+          id: TOAST_IDS.VIDEO.ERROR,
+        });
+        return;
+      }
+
+      const refreshedQuery = await refetch();
+      const refreshedAppointments = (() => {
+        const data = (refreshedQuery as any)?.data;
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.appointments)) return data.appointments;
+        if (Array.isArray(data?.data?.appointments)) return data.data.appointments;
+        if (Array.isArray(data?.data)) return data.data;
+        return [];
+      })();
+
+      const latestAppointment =
+        refreshedAppointments.find((item: any) => getEffectiveAppointmentId(item) === appointmentId) || appointment;
+
+      if (!isVideoAppointmentJoinable(latestAppointment)) {
+        showErrorToast(getVideoAppointmentJoinBlockedReason(latestAppointment), {
+          id: TOAST_IDS.VIDEO.ERROR,
+        });
+        return;
+      }
+
+      window.location.href = buildVideoSessionRoute(appointmentId);
+    } catch (error: unknown) {
+      showErrorToast(
+        error instanceof Error ? error.message : "Failed to join video",
+        { id: TOAST_IDS.VIDEO.ERROR }
+      );
+    }
+  }, [refetch]);
+
   useEffect(() => {
     if (isRealTimeEnabled && isConnected && !hasShownRealtimeToastRef.current) {
       hasShownRealtimeToastRef.current = true;
@@ -414,13 +437,10 @@ export default function AppointmentManager({
         : apt.type === "IN_PERSON"
           ? "In-Person Visit"
           : String(apt.type || "Appointment").replace(/_/g, " ");
-    const displayTime =
-      apt.time ||
-      (appointmentDateTime
-        ? `${String(appointmentDateTime.getHours()).padStart(2, "0")}:${String(
-            appointmentDateTime.getMinutes()
-          ).padStart(2, "0")}`
-        : undefined);
+    const displayTimeLabel = getReceptionistAppointmentTimeLabel(
+      apt as unknown as Record<string, unknown>
+    );
+    const rawTimeValue = apt.time || "";
     const normalizedDate = appointmentDateTime?.toISOString() || apt.date;
     const displayDuration = getDisplayAppointmentDuration(apt);
 
@@ -486,7 +506,7 @@ export default function AppointmentManager({
             </span>
             <span className="flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" />
-              {formatTime(displayTime)}
+              {displayTimeLabel}
             </span>
             {displayDuration && (
               <span className="flex items-center gap-1.5">
@@ -539,7 +559,7 @@ export default function AppointmentManager({
                       setSelectedAppointment(apt as AppointmentWithRelations);
                       setRescheduleData({
                         date: normalizedDate ? normalizedDate.slice(0, 10) : "",
-                        time: displayTime || "",
+                        time: rawTimeValue || "",
                       });
                       setIsRescheduleDialogOpen(true);
                     }}
@@ -571,11 +591,10 @@ export default function AppointmentManager({
                   </Button>
                 )}
                 {apt.type === "VIDEO_CALL" &&
-                  ["CONFIRMED", "IN_PROGRESS"].includes(String((apt as any).raw?.status || "").toUpperCase()) &&
-                  isVideoAppointmentPaymentCompleted(apt) && (
+                  isVideoAppointmentJoinable(apt) && (
                   <Button
                     className="h-10 px-6 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
-                    onClick={() => window.location.href = `/patient/video?appointmentId=${getEffectiveAppointmentId(apt)}`}
+                    onClick={() => void handleJoinVideo(apt)}
                   >
                     <Video className="w-4 h-4 mr-2" />
                     Join Video
@@ -599,15 +618,11 @@ export default function AppointmentManager({
                 )}
                 {apt.type === "VIDEO_CALL" &&
                   isVideoAppointmentPaymentCompleted(apt) &&
-                  isPaidVideoAppointmentAwaitingDoctorConfirmation(apt) && (
-                    <Button
-                      variant="outline"
-                      className="h-10 px-6 rounded-lg border-amber-200 bg-amber-50 text-amber-700 text-sm pointer-events-none flex-1"
-                      disabled
-                    >
+                  apt.status === "SCHEDULED" && (
+                    <Badge className="h-10 px-4 rounded-lg border-amber-200 bg-amber-50 text-amber-700 text-sm font-semibold flex items-center">
                       <Clock className="w-4 h-4 mr-2" />
                       Awaiting Doctor Confirmation
-                    </Button>
+                    </Badge>
                   )}
               </div>
             </div>
@@ -729,61 +744,6 @@ export default function AppointmentManager({
             className="bg-violet-50/70 dark:bg-violet-950/20"
           />
       </div>
-
-      {awaitingDoctorReviewAppointments.length > 0 && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
-                Awaiting doctor review
-              </p>
-              <h3 className="mt-1 text-base font-semibold text-foreground">
-                {awaitingDoctorReviewAppointments.length} video request{awaitingDoctorReviewAppointments.length > 1 ? "s" : ""} need confirmation
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                The doctor will confirm one of your 3 preferred slots. This request stays separate from normal upcoming visits.
-              </p>
-            </div>
-            <Badge className="rounded-full border border-amber-200 bg-white px-3 py-1 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300">
-              Pending review
-            </Badge>
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {awaitingDoctorReviewAppointments.slice(0, 3).map((appointment) => (
-              <div
-                key={getEffectiveAppointmentId(appointment)}
-                className="rounded-xl border border-amber-200/80 bg-white/90 p-3 shadow-sm dark:border-amber-900/40 dark:bg-card/80"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {getAppointmentStatusBadgeLabel(appointment)}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {getDisplayAppointmentDuration(appointment) || "15"} min video consult
-                    </p>
-                  </div>
-                  <Badge className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
-                    Pending
-                  </Badge>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {Array.isArray((appointment as any).proposedSlots) &&
-                    (appointment as any).proposedSlots.map((slot: { date?: string; time?: string }, index: number) => (
-                      <span
-                        key={`${getEffectiveAppointmentId(appointment)}-${index}`}
-                        className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
-                      >
-                        {slot.time || "Time TBD"}
-                      </span>
-                    ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Search and Filters (REPLICATING DASHBOARD EXACTLY) */}
       <div className="space-y-4 mb-8">

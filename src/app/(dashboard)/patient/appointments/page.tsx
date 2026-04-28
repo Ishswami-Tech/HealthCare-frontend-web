@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { theme } from "@/lib/utils/theme-utils";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { useMyAppointments } from "@/hooks/query/useAppointments";
 import {
   Stethoscope,
   Leaf,
@@ -72,6 +73,7 @@ const TREATMENT_CATEGORIES: TreatmentCategory[] = [
  */
 export default function PatientAppointments() {
   useWebSocketQuerySync();
+  const { data: appointmentsData, isPending: isPendingAppointments } = useMyAppointments();
   const searchParams = useSearchParams();
   const queryClinicId = searchParams.get("clinicId") || undefined;
   const queryLocationId = searchParams.get("locationId") || undefined;
@@ -104,7 +106,10 @@ export default function PatientAppointments() {
 
         {/* Real-time Queue Status */}
         <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-          <PatientQueueCard />
+          <PatientQueueCard
+            appointmentsData={appointmentsData}
+            isAppointmentsPending={isPendingAppointments}
+          />
         </div>
 
         {/* Canonical booking surface */}

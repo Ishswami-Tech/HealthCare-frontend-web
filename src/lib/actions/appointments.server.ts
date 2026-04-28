@@ -971,6 +971,7 @@ export async function proposeVideoAppointment(data: any) {
       ...(validatedData.clinicId ? { headers: { 'X-Clinic-ID': validatedData.clinicId } } : {}),
     });
     revalidateCache('appointments');
+    revalidateCache('video-appointments');
     return { success: true, appointment };
   } catch (error) {
     logger.error('Failed to propose video appointment', error instanceof Error ? error : new Error(String(error)));
@@ -988,6 +989,7 @@ export async function confirmVideoSlot(appointmentId: string, confirmedSlotIndex
       body: JSON.stringify({ confirmedSlotIndex })
     });
     revalidateCache('appointments');
+    revalidateCache('video-appointments');
     revalidateCache('myAppointments');
     revalidatePath('/patient/dashboard');
     revalidatePath('/patient/appointments');
@@ -995,7 +997,10 @@ export async function confirmVideoSlot(appointmentId: string, confirmedSlotIndex
     return { success: true, appointment };
   } catch (error) {
     logger.error('Failed to confirm video slot', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to confirm video slot' };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to confirm video slot',
+    };
   }
 }
 
@@ -1021,6 +1026,7 @@ export async function confirmFinalVideoSlot(
       }
     );
     revalidateCache('appointments');
+    revalidateCache('video-appointments');
     revalidateCache('myAppointments');
     revalidatePath('/doctor/video');
     revalidatePath('/patient/dashboard');

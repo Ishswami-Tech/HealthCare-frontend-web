@@ -89,6 +89,7 @@ const envSchema = z.object({
   
   // Video Configuration
   NEXT_PUBLIC_OPENVIDU_SERVER_URL: z.string().optional(),
+  NEXT_PUBLIC_VIDEO_NO_SHOW_ENABLED: z.string().optional(),
   NEXT_PUBLIC_JITSI_DOMAIN: z.string().optional(),
   NEXT_PUBLIC_JITSI_BASE_URL: z.string().optional(),
   NEXT_PUBLIC_JITSI_WS_URL: z.string().optional(),
@@ -160,6 +161,49 @@ const envDefaults = {
 } as const;
 
 const currentEnvDefaults = envDefaults[currentEnvironment];
+
+function deriveOpenViduServerUrl(): string {
+  const candidates = [
+    env.NEXT_PUBLIC_OPENVIDU_SERVER_URL,
+    env.NEXT_PUBLIC_BACKEND_URL,
+    env.NEXT_PUBLIC_API_URL,
+    env.NEXT_PUBLIC_API_BASE_URL,
+    currentEnvDefaults.apiUrl,
+  ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+  for (const candidate of candidates) {
+    const raw = candidate.trim();
+    try {
+      const parsed = new URL(/^[a-z]+:\/\//i.test(raw) ? raw : `https://${raw}`);
+      const hostname = parsed.hostname.replace(
+        /^backend-service-v1(?!-video)(?=\.)/,
+        'backend-service-v1-video'
+      );
+      if (hostname !== parsed.hostname) {
+        return `${parsed.protocol}//${hostname}${parsed.port ? `:${parsed.port}` : ''}`;
+      }
+
+      if (parsed.hostname.includes('openvidu') || parsed.hostname.includes('-video')) {
+        return `${parsed.protocol}//${parsed.host}`;
+      }
+    } catch {
+      const normalized = raw.replace(/\/+$/, '');
+      if (normalized.includes('backend-service-v1.') && !normalized.includes('backend-service-v1-video.')) {
+        return normalized.replace('backend-service-v1.', 'backend-service-v1-video.');
+      }
+    }
+  }
+
+  return '';
+}
+
+function isVideoNoShowEnabled(): boolean {
+  const value = env.NEXT_PUBLIC_VIDEO_NO_SHOW_ENABLED;
+  if (typeof value === 'string') {
+    return value.toLowerCase() === 'true';
+  }
+  return true;
+}
 
 // ============================================================================
 // CENTRAL APPLICATION CONFIGURATION
@@ -284,7 +328,8 @@ export const APP_CONFIG = {
   // ============================================
   VIDEO: {
     // âš ï¸ SECURITY: Video server URLs must come from environment variables
-    OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || '',
+    OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || deriveOpenViduServerUrl(),
+    NO_SHOW_ENABLED: isVideoNoShowEnabled(),
     // Jitsi Configuration (Fallback Video Provider)
     JITSI: {
       DOMAIN: env.NEXT_PUBLIC_JITSI_DOMAIN || '',
@@ -427,11 +472,6 @@ export const API_ENDPOINTS = {
     QR: {
       GENERATE: (locationId: string) => `/appointments/locations/${locationId}/qr-code`,
       VERIFY: '/appointments/verify-qr',
-    },
-    NOTIFICATIONS: {
-      GET: (userId: string) => `/appointments/notifications/${userId}`,
-      SEND_REMINDER: (appointmentId: string) => `/appointments/${appointmentId}/reminder`,
-      MARK_READ: (notificationId: string) => `/appointments/notifications/${notificationId}/read`,
     },
     ANALYTICS: '/appointments/analytics/wait-times',
     UPCOMING: '/appointments/upcoming',
@@ -669,7 +709,7 @@ export const API_ENDPOINTS = {
       MARK_PAID: (id: string) => `/billing/invoices/${id}/mark-paid`,
       GENERATE_PDF: (id: string) => `/billing/invoices/${id}/generate-pdf`,
       SEND_WHATSAPP: (id: string) => `/billing/invoices/${id}/send-whatsapp`,
-      DOWNLOAD: (fileName: string) => `/billing/invoices/download/${fileName}`,
+      DOWNLOAD: (fileName: string) => `/api/billing/invoices/download/${fileName}`,
     },
     PAYMENTS: {
       BASE: '/billing/payments',
@@ -952,7 +992,6 @@ export const API_ENDPOINTS = {
     CREATE: '/pharmacy/prescriptions',
     UPDATE: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/status`,
     GET_BY_ID: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
-    GENERATE_PDF: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/pdf`,
   },
   
   // Medicines Endpoints

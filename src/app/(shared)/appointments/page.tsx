@@ -25,7 +25,6 @@ import {
   useCancelAppointment,
   useAppointmentStats,
 } from "@/hooks/query/useAppointments";
-import { useJoinVideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { VideoAppointmentRoom } from "@/components/video/VideoAppointmentRoom";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -34,7 +33,10 @@ import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useDebouncedCallback } from "@/lib/utils/performance";
 import {
   getAppointmentStatusDisplayName,
-  isVideoAppointmentPaymentCompleted,
+  getAppointmentViewState,
+  getVideoAppointmentJoinBlockedReason,
+  isVideoAppointmentJoinable,
+  getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
 import { PAGINATION } from "@/hooks/query/config";
 import { Pagination } from "@/components/virtual/VirtualizedList";
@@ -156,7 +158,6 @@ export default function AppointmentsPage() {
   // Mutation hooks for appointment actions
   const updateAppointmentMutation = useUpdateAppointment();
   const cancelAppointmentMutation = useCancelAppointment();
-  const joinVideoAppointment = useJoinVideoAppointment();
 
   const [activeTab, setActiveTab] = useState("upcoming");
 
@@ -321,26 +322,48 @@ export default function AppointmentsPage() {
 
   const handleJoinVideo = async (appointment: any) => {
     try {
-      const userId = session?.user?.id || "";
-      await joinVideoAppointment.mutateAsync({
-        appointmentId: appointment.id || appointment.appointmentId,
-        userId,
-        role: (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) ? "doctor" : "patient",
-      });
+      const appointmentId = String(appointment.id || appointment.appointmentId || "");
+      if (!appointmentId) {
+        showErrorToast("Missing appointment details for this video session.", {
+          id: TOAST_IDS.VIDEO.ERROR,
+        });
+        return;
+      }
+
+      const refreshedQuery = await appointmentsQuery.refetch();
+      const refreshedAppointments = (() => {
+        const data = (refreshedQuery as any)?.data;
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.appointments)) return data.appointments;
+        if (Array.isArray(data?.data?.appointments)) return data.data.appointments;
+        if (Array.isArray(data?.data)) return data.data;
+        return [];
+      })();
+
+      const latestAppointment =
+        refreshedAppointments.find((item: any) => String(item?.id || item?.appointmentId || "") === appointmentId) || appointment;
+
+      if (!isVideoAppointmentJoinable(latestAppointment)) {
+        showErrorToast(getVideoAppointmentJoinBlockedReason(latestAppointment), {
+          id: TOAST_IDS.VIDEO.ERROR,
+        });
+        return;
+      }
+
       setActiveVideoAppointment({
-        id: String(appointment.id || appointment.appointmentId),
-        appointmentId: appointment.id || appointment.appointmentId,
-        roomName: appointment.roomName || appointment.doctorName || `room-${appointment.id || appointment.appointmentId}`,
-        doctorId: appointment.doctorId || appointment.doctor?.id || appointment.doctor?.userId || "",
-        patientId: appointment.patientId || appointment.patient?.id || appointment.patient?.userId || "",
-        startTime: appointment.startTime || appointment.dateTime || new Date().toISOString(),
-        endTime: appointment.endTime || appointment.dateTime || new Date().toISOString(),
-        status: String(appointment.status || "scheduled").toLowerCase() as VideoAppointment["status"],
-        sessionId: appointment.sessionId,
-        recordingUrl: appointment.recordingUrl,
-        notes: appointment.notes,
-        createdAt: appointment.createdAt || new Date().toISOString(),
-        updatedAt: appointment.updatedAt || new Date().toISOString(),
+        id: String(latestAppointment.id || latestAppointment.appointmentId),
+        appointmentId: latestAppointment.id || latestAppointment.appointmentId,
+        roomName: latestAppointment.roomName || latestAppointment.doctorName || `room-${latestAppointment.id || latestAppointment.appointmentId}`,
+        doctorId: latestAppointment.doctorId || latestAppointment.doctor?.id || latestAppointment.doctor?.userId || "",
+        patientId: latestAppointment.patientId || latestAppointment.patient?.id || latestAppointment.patient?.userId || "",
+        startTime: latestAppointment.startTime || latestAppointment.dateTime || new Date().toISOString(),
+        endTime: latestAppointment.endTime || latestAppointment.dateTime || new Date().toISOString(),
+        status: String(latestAppointment.status || "scheduled").toLowerCase() as VideoAppointment["status"],
+        sessionId: latestAppointment.sessionId,
+        recordingUrl: latestAppointment.recordingUrl,
+        notes: latestAppointment.notes,
+        createdAt: latestAppointment.createdAt || new Date().toISOString(),
+        updatedAt: latestAppointment.updatedAt || new Date().toISOString(),
       });
       setIsVideoRoomOpen(true);
     } catch (error: unknown) {
@@ -360,6 +383,12 @@ export default function AppointmentsPage() {
       appointment: any;
       showActions?: boolean;
     }) => {
+      const viewState = getAppointmentViewState(appointment);
+      const canShowJoinVideo =
+        appointment.mode === "video" &&
+        isVideoAppointmentJoinable(appointment) &&
+        !viewState.awaitingDoctorSlotConfirmation;
+
       // Component implementation
       return (
         <Card className="hover:shadow-md transition-shadow">
@@ -391,7 +420,9 @@ export default function AppointmentsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm">{appointment.time}</span>
+                    <span className="text-sm">
+                      {getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {appointment.mode === "video" ? (
@@ -475,20 +506,15 @@ export default function AppointmentsPage() {
 
                   {/* Video Join Button for video appointments */}
                   {appointment.mode === "video" &&
-                    (appointment.status === APPOINTMENT_STATUS.CONFIRMED ||
-                      appointment.status === APPOINTMENT_STATUS.IN_PROGRESS) &&
-                    isVideoAppointmentPaymentCompleted(appointment) && (
+                    canShowJoinVideo && (
                       <Button
                         size="sm"
                         variant="default"
                         className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700"
                         onClick={() => handleJoinVideo(appointment)}
-                        disabled={joinVideoAppointment.isPending}
                       >
                         <Video className="w-3 h-3" />
-                        {joinVideoAppointment.isPending
-                          ? "Joining..."
-                          : "Join Video"}
+                        Join Video
                       </Button>
                     )}
 
@@ -616,7 +642,10 @@ export default function AppointmentsPage() {
       {/* Patient Live Queue Status */}
       {userRole === Role.PATIENT && (
         <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-           <PatientQueueCard />
+           <PatientQueueCard
+             appointmentsData={appointmentsData}
+             isAppointmentsPending={isLoading}
+           />
         </div>
       )}
 

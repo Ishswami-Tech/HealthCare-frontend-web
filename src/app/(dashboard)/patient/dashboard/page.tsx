@@ -473,7 +473,7 @@ export default function PatientDashboard() {
                                     Time
                                   </div>
                                   <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                    {appointment.time || "Time TBD"}
+                                    {getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>)}
                                   </div>
                                 </div>
                               </div>
@@ -592,7 +592,10 @@ export default function PatientDashboard() {
                 </p>
               </div>
             </div>
-            <PatientQueueCard />
+            <PatientQueueCard
+              appointmentsData={appointmentsData}
+              isAppointmentsPending={isPendingAppointments}
+            />
           </div>
 
           {/* Patient Services */}

@@ -289,7 +289,7 @@ export function PaymentButton({
           clinicId: resolvedClinicId,
         });
         invalidateSuccessfulPaymentQueries();
-        showSuccessToast("Payment successful!", {
+        showSuccessToast("Payment verified.", {
           id: TOAST_IDS.PAYMENT.SUCCESS,
         });
         onSuccess?.(orderId);
@@ -307,7 +307,7 @@ export function PaymentButton({
           clinicId: resolvedClinicId,
         });
         invalidateSuccessfulPaymentQueries();
-        showSuccessToast("Payment verified successfully!", {
+        showSuccessToast("Payment verified.", {
           id: TOAST_IDS.PAYMENT.SUCCESS,
         });
         onSuccess?.(orderId);

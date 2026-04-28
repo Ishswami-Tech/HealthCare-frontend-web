@@ -59,6 +59,7 @@ import {
 import { Permission } from "@/types/rbac.types";
 import { APP_CONFIG } from "@/lib/config/config";
 import { theme } from "@/lib/utils/theme-utils";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
   Activity, Plus, Leaf, Waves, Clock, Search,
@@ -586,6 +587,7 @@ export function BookAppointmentDialog({
     const unsubscribeUpdated = subscribe("appointment.updated", shouldRefreshAvailability);
     const unsubscribeDeleted = subscribe("appointment.deleted", shouldRefreshAvailability);
     const unsubscribeConfirmed = subscribe("appointment.confirmed", shouldRefreshAvailability);
+    const unsubscribeSlotConfirmed = subscribe("appointment.slot.confirmed", shouldRefreshAvailability);
     const unsubscribeRescheduled = subscribe("appointment.rescheduled", shouldRefreshAvailability);
     const unsubscribeCancelled = subscribe("appointment.cancelled", shouldRefreshAvailability);
     const unsubscribeCheckedIn = subscribe("appointment.checked_in", shouldRefreshAvailability);
@@ -597,6 +599,7 @@ export function BookAppointmentDialog({
       unsubscribeUpdated();
       unsubscribeDeleted();
       unsubscribeConfirmed();
+      unsubscribeSlotConfirmed();
       unsubscribeRescheduled();
       unsubscribeCancelled();
       unsubscribeCheckedIn();
@@ -631,6 +634,13 @@ export function BookAppointmentDialog({
 
   const slotGroups = useMemo(() => groupSlotsByPeriod(effectiveSlots as string[]), [effectiveSlots]);
   const liveSyncEnabled = isConnected;
+  const liveSyncLabel = liveSyncEnabled ? "Live synced" : "Polling fallback";
+  const liveSyncDescription = liveSyncEnabled
+    ? "Availability updates are coming from websocket events."
+    : "Websocket is unavailable, so availability refreshes automatically.";
+  const liveSyncClasses = liveSyncEnabled
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+    : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300";
 
   useEffect(() => {
     if (open) {
@@ -1569,20 +1579,21 @@ export function BookAppointmentDialog({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/80 px-3 py-2 text-[11px]">
-              {liveSyncEnabled ? (
-                <Wifi className="h-3.5 w-3.5 text-emerald-600" />
-              ) : (
-                <WifiOff className="h-3.5 w-3.5 text-amber-600" />
-              )}
-              <span className="font-semibold text-foreground">
-                {liveSyncEnabled ? "Live sync" : "Polling fallback"}
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                  liveSyncClasses
+                )}
+              >
+                {liveSyncEnabled ? (
+                  <Wifi className="h-3.5 w-3.5" />
+                ) : (
+                  <WifiOff className="h-3.5 w-3.5" />
+                )}
+                {liveSyncLabel}
               </span>
-              <span className="text-muted-foreground">
-                {liveSyncEnabled
-                  ? "Availability updates are coming from websocket events."
-                  : "Websocket is unavailable, so availability refreshes automatically."}
-              </span>
+              <span className="text-[11px] text-muted-foreground">{liveSyncDescription}</span>
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
@@ -1713,20 +1724,21 @@ export function BookAppointmentDialog({
             Available slots for <span className="font-semibold text-foreground">{selectedDoctor?.name}</span> on{" "}
             <span className="font-semibold text-foreground">{selectedDate ? format(selectedDate, "d MMM") : ""}</span>
           </p>
-          <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/80 px-3 py-2 text-[11px]">
-            {liveSyncEnabled ? (
-              <Wifi className="h-3.5 w-3.5 text-emerald-600" />
-            ) : (
-              <WifiOff className="h-3.5 w-3.5 text-amber-600" />
-            )}
-            <span className="font-semibold text-foreground">
-              {liveSyncEnabled ? "Live sync" : "Polling fallback"}
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                liveSyncClasses
+              )}
+            >
+              {liveSyncEnabled ? (
+                <Wifi className="h-3.5 w-3.5" />
+              ) : (
+                <WifiOff className="h-3.5 w-3.5" />
+              )}
+              {liveSyncLabel}
             </span>
-            <span className="text-muted-foreground">
-              {liveSyncEnabled
-                ? "Availability updates are coming from websocket events."
-                : "Websocket is unavailable, so availability refreshes automatically."}
-            </span>
+            <span className="text-[11px] text-muted-foreground">{liveSyncDescription}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">

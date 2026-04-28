@@ -95,6 +95,96 @@ const extractAppointments = (payload: unknown): Appointment[] => {
   return [];
 };
 
+const getAppointmentCacheId = (appointment: unknown): string => {
+  if (!appointment || typeof appointment !== 'object') {
+    return '';
+  }
+
+  const record = appointment as Record<string, unknown>;
+  return String(record.id || record.appointmentId || '');
+};
+
+const patchConfirmedAppointmentInPayload = (payload: unknown, updatedAppointment: Appointment): unknown => {
+  const targetId = getAppointmentCacheId(updatedAppointment);
+  if (!targetId) {
+    return payload;
+  }
+
+  const mergeAppointment = (item: unknown): unknown => {
+    if (!item || typeof item !== 'object') {
+      return item;
+    }
+
+    const itemRecord = item as Record<string, unknown>;
+    const itemId = getAppointmentCacheId(itemRecord);
+    if (!itemId || itemId !== targetId) {
+      return item;
+    }
+
+    return {
+      ...itemRecord,
+      ...updatedAppointment,
+      id: (updatedAppointment as any).id || itemRecord.id,
+      appointmentId: (updatedAppointment as any).appointmentId || itemRecord.appointmentId || itemRecord.id,
+      status: (updatedAppointment as any).status || itemRecord.status,
+      confirmedSlotIndex:
+        (updatedAppointment as any).confirmedSlotIndex ??
+        (updatedAppointment as any).confirmed_slot_index ??
+        itemRecord.confirmedSlotIndex ??
+        itemRecord.confirmed_slot_index ??
+        null,
+      confirmed_slot_index:
+        (updatedAppointment as any).confirmed_slot_index ??
+        (updatedAppointment as any).confirmedSlotIndex ??
+        itemRecord.confirmed_slot_index ??
+        itemRecord.confirmedSlotIndex ??
+        null,
+    };
+  };
+
+  if (Array.isArray(payload)) {
+    return payload.map(mergeAppointment);
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const nextRecord: Record<string, unknown> = { ...record };
+  let changed = false;
+
+  if (Array.isArray(record.appointments)) {
+    nextRecord.appointments = record.appointments.map(mergeAppointment);
+    changed = true;
+  }
+
+  if (Array.isArray(record.data)) {
+    nextRecord.data = record.data.map(mergeAppointment);
+    changed = true;
+  }
+
+  if (record.data && typeof record.data === 'object') {
+    const nestedData = record.data as Record<string, unknown>;
+    if (Array.isArray(nestedData.appointments)) {
+      nextRecord.data = {
+        ...nestedData,
+        appointments: nestedData.appointments.map(mergeAppointment),
+      };
+      changed = true;
+    }
+    if (Array.isArray(nestedData.data)) {
+      nextRecord.data = {
+        ...nestedData,
+        data: nestedData.data.map(mergeAppointment),
+      };
+      changed = true;
+    }
+  }
+
+  return changed ? nextRecord : payload;
+};
+
 // ✅ Appointment Management Hooks
 
 /**
@@ -358,6 +448,7 @@ export const useProposeVideoAppointment = () => {
  */
 export const useConfirmVideoSlot = () => {
   const { hasPermission } = useRBAC();
+  const queryClient = useQueryClient();
   return useMutationOperation(
     async ({ appointmentId, confirmedSlotIndex }: { appointmentId: string; confirmedSlotIndex: number }) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
@@ -377,6 +468,28 @@ export const useConfirmVideoSlot = () => {
       loadingMessage: 'Confirming slot...',
       successMessage: 'Slot confirmed. Patient can now pay.',
       invalidateQueries: [['appointments'], ['video-appointments'], ['appointment'], ['myAppointments'], ['userUpcomingAppointments'], ['video-appointment']],
+      onSuccess: (confirmedAppointment) => {
+        const updatedAppointment = confirmedAppointment as Appointment;
+
+        void queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['video-appointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['appointment'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['myAppointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['userUpcomingAppointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['video-appointment'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+      },
     }
   );
 };

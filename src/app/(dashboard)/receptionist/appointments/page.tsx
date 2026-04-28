@@ -76,6 +76,7 @@ type ViewAppointment = {
   timeLabel: string;
   status: string;
   paymentStatus: string;
+  paymentCompleted: boolean;
   queuePosition: number | null;
   queueType: string;
   notes: string;
@@ -134,6 +135,7 @@ function normalizeAppointment(
     timeLabel: getReceptionistAppointmentTimeLabel(app as unknown as Record<string, unknown>),
     status: viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : viewState.normalizedStatus,
     paymentStatus: viewState.paymentStatus,
+    paymentCompleted: viewState.paymentCompleted,
     queuePosition: typeof app.queuePosition === "number" ? app.queuePosition : null,
     queueType: resolveQueueDisplayLabel(app, serviceCatalogMap),
     notes: app.notes || app.cancellationReason || app.reason || "",
@@ -853,7 +855,11 @@ export default function ReceptionistAppointmentsPage() {
               </div>
               <div>
                 <p className="text-muted-foreground">Payment</p>
-                <p className="font-medium">{selectedAppointment.paymentStatus}</p>
+                <Badge className={selectedAppointment.paymentCompleted
+                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
+                  : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"}>
+                  {selectedAppointment.paymentCompleted ? "Payment verified" : "Payment pending"}
+                </Badge>
               </div>
               <div>
                 <p className="text-muted-foreground">Queue</p>

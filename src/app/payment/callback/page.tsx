@@ -94,7 +94,7 @@ export default function PaymentCallbackPage() {
         ]);
 
         setState("success");
-        setMessage("Payment verified successfully.");
+        setMessage("Payment verified.");
         redirectTimer = setTimeout(() => {
           router.replace(params.appointmentId ? "/patient/appointments" : "/patient/billing");
         }, 1500);

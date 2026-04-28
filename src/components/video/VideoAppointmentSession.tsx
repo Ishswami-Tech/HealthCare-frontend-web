@@ -4,6 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { VideoAppointmentRoom } from "@/components/video/VideoAppointmentRoom";
@@ -11,6 +12,7 @@ import { useVideoAppointment } from "@/hooks/query/useVideoAppointments";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import {
   getAppointmentPaymentStatus,
+  isVideoNoShowEnforced,
 } from "@/lib/utils/appointmentUtils";
 import { getAppointmentViewState } from "@/lib/utils/appointmentUtils";
 
@@ -156,24 +158,65 @@ function VideoAppointmentSessionContent({
 }) {
   const { data: appointmentQuery, isPending, isFetched, error, refetch } =
     useVideoAppointment(appointmentId);
+  const [isPreflightComplete, setIsPreflightComplete] = React.useState(false);
+  const liveAppointmentSource = React.useMemo(
+    () => (appointmentQuery as any)?.appointment || (appointmentQuery as any)?.data || null,
+    [appointmentQuery]
+  );
+  const shouldUseFallbackAppointment = React.useMemo(() => {
+    if (liveAppointmentSource) return false;
+    if (!appointment) return false;
+
+    const statusCode = error && typeof error === "object" ? (error as { statusCode?: unknown }).statusCode : undefined;
+    if (statusCode === 404) return true;
+
+    if (error === null || error === undefined) return true;
+
+    return false;
+  }, [appointment, error, liveAppointmentSource]);
+
+  React.useEffect(() => {
+    let active = true;
+    setIsPreflightComplete(false);
+
+    void refetch()
+      .catch(() => {
+        // The query state already captures the failure; keep the preflight moving.
+      })
+      .finally(() => {
+        if (active) {
+          setIsPreflightComplete(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [appointmentId, refetch]);
 
   const normalizedAppointment = React.useMemo(() => {
-    const source = (appointmentQuery as any)?.appointment || (appointmentQuery as any)?.data || appointmentQuery || null;
-
-    if (source) {
-      return normalizeAppointment(source, appointmentId);
+    if (liveAppointmentSource) {
+      return normalizeAppointment(liveAppointmentSource, appointmentId);
     }
 
-    if (isPending && appointment) {
+    if (shouldUseFallbackAppointment) {
       return normalizeAppointment(appointment, appointmentId);
     }
 
     return null;
-  }, [appointment, appointmentId, appointmentQuery, isPending]);
+  }, [appointment, appointmentId, liveAppointmentSource, shouldUseFallbackAppointment]);
 
   const rawAppointment = React.useMemo(() => {
-    return (appointmentQuery as any)?.appointment || (appointmentQuery as any)?.data || appointmentQuery || appointment || null;
-  }, [appointment, appointmentQuery]);
+    if (liveAppointmentSource) {
+      return liveAppointmentSource;
+    }
+
+    if (shouldUseFallbackAppointment) {
+      return appointment;
+    }
+
+    return null;
+  }, [appointment, liveAppointmentSource, shouldUseFallbackAppointment]);
 
   const paymentCompleted = React.useMemo(() => {
     return getAppointmentViewState(rawAppointment).paymentCompleted;
@@ -185,6 +228,9 @@ function VideoAppointmentSessionContent({
   }, [rawAppointment]);
 
   const paymentAmount = React.useMemo(() => getVideoPaymentAmount(rawAppointment), [rawAppointment]);
+  const paymentStatusTone = paymentCompleted
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+    : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300";
 
   const errorStatusCode = React.useMemo(() => {
     if (!error || typeof error !== "object") return undefined;
@@ -203,7 +249,7 @@ function VideoAppointmentSessionContent({
       if (errorText.includes("completed")) {
         return "This appointment has already been completed.";
       }
-      if (errorText.includes("no-show") || errorText.includes("no show")) {
+      if (isVideoNoShowEnforced() && (errorText.includes("no-show") || errorText.includes("no show"))) {
         return "This appointment was marked as no-show.";
       }
       // Covers the unconfirmed scheduled state while keeping the message generic
@@ -248,7 +294,7 @@ function VideoAppointmentSessionContent({
     if (status === 'COMPLETED') {
       return "This appointment has already been completed.";
     }
-    if (status === 'NO_SHOW' || status === 'NO SHOW') {
+    if (isVideoNoShowEnforced() && (status === 'NO_SHOW' || status === 'NO SHOW')) {
       return "This appointment was marked as a no-show and cannot be joined.";
     }
     
@@ -268,6 +314,11 @@ function VideoAppointmentSessionContent({
               <p className="mt-1 text-sm text-muted-foreground">
                 Video appointments must be paid before joining. Current status: {paymentStatusLabel}.
               </p>
+              <div className="mt-3">
+                <Badge className={paymentStatusTone}>
+                  {paymentCompleted ? "Payment verified" : "Payment pending"}
+                </Badge>
+              </div>
             </div>
             <Button variant="outline" onClick={() => router.replace("/video-appointments")}>
               Back to list
@@ -346,6 +397,35 @@ function VideoAppointmentSessionContent({
     );
   }
 
+  if (!isPreflightComplete) {
+    return (
+      <Card className="overflow-hidden border border-border bg-background shadow-sm">
+        <CardContent className="space-y-4 p-0">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-56" />
+              <Skeleton className="h-4 w-80" />
+            </div>
+            <Button variant="outline" disabled>
+              Back to list
+            </Button>
+          </div>
+          <div className="rounded-2xl border bg-background p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-primary" />
+              <div>
+                <p className="font-medium">Checking latest appointment status</p>
+                <p className="text-sm text-muted-foreground">
+                  Verifying whether this session is still joinable before loading the room.
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (isBlocked) {
     return (
       <Card className="border border-border bg-background shadow-sm">
@@ -383,6 +463,11 @@ function VideoAppointmentSessionContent({
               <p className="text-sm text-muted-foreground">
                 Live session loaded directly from the appointment link.
               </p>
+              <div className="pt-1">
+                <Badge className={paymentStatusTone}>
+                  {paymentCompleted ? "Payment verified" : "Payment pending"}
+                </Badge>
+              </div>
             </div>
             <div className="flex items-center gap-2">
                 <div className="rounded-2xl border border-border bg-muted px-3 py-2 text-right">

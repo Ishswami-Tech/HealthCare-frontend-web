@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
-import { invalidateAppointmentQueryFamilies, useWebSocketIntegration } from './useWebSocketIntegration';
+import { invalidateAppointmentQueryFamilies } from './useWebSocketIntegration';
 import { useWebSocketContext, useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useAppStore } from '@/stores';
 import { useAuth } from '@/hooks/auth/useAuth';
@@ -24,7 +24,7 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
   const queryClient = useQueryClient();
   const { currentClinic } = useAppStore();
   const { session } = useAuth();
-  const { isConnected, subscribe } = useWebSocketIntegration();
+  const { isConnected, subscribe } = useWebSocketContext();
   const subscriptionRef = useRef<(() => void) | null>(null);
   const sessionUser = session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined;
   const resolvedClinicId = currentClinic?.id || sessionUser?.clinicId || sessionUser?.clinic?.id;
@@ -194,7 +194,7 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
 export function useRealTimeAppointmentStats() {
   const queryClient = useQueryClient();
   const { currentClinic } = useAppStore();
-  const { isConnected, subscribe } = useWebSocketIntegration();
+  const { isConnected, subscribe } = useWebSocketContext();
 
   const query = useQueryData(
     getAppointmentStatsQueryKey(currentClinic?.id),
@@ -360,7 +360,7 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
 export function useRealTimeAppointmentMutation() {
   const queryClient = useQueryClient();
   const { currentClinic } = useAppStore();
-  const { emit } = useWebSocketIntegration();
+  const { emit } = useWebSocketContext();
 
   const createAppointment = useOptimisticMutation<Appointment, Partial<Appointment>>({
     queryKey: getAppointmentQueryKey(currentClinic?.id),
@@ -484,7 +484,7 @@ export function useRealTimeAppointmentMutation() {
 // Utility hook for managing query invalidation based on WebSocket events
 export function useWebSocketQuerySync() {
   const queryClient = useQueryClient();
-  const { isConnected, subscribe } = useWebSocketIntegration();
+  const { isConnected, subscribe } = useWebSocketContext();
 
   useEffect(() => {
     if (!isConnected) return;

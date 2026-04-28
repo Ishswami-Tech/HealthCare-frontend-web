@@ -103,7 +103,7 @@ function getPrescriptionState(prescription: PrescriptionRow) {
   if (!prescription.canDispense) {
     return {
       key: "awaiting_payment",
-      label: "Awaiting Payment",
+      label: "Payment pending",
       badgeClass: "bg-amber-100 text-amber-800",
       icon: CreditCard,
     };
@@ -346,7 +346,7 @@ export default function PharmacistPrescriptionsPage() {
               className="rounded-lg border bg-background px-3 py-2"
             >
               <option value="all">All States</option>
-              <option value="awaiting_payment">Awaiting Payment</option>
+              <option value="awaiting_payment">Payment pending</option>
               <option value="ready_to_dispense">Ready To Dispense</option>
               <option value="dispensed">Dispensed</option>
               <option value="cancelled">Cancelled</option>

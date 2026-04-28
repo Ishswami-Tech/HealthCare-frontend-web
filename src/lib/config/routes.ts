@@ -130,7 +130,8 @@ export function getProtectedRouteRoles(path: string): string[] {
     Role.PATIENT,
   ];
 
-  if (path.startsWith('/billing/invoices/') && path.endsWith('/download')) return [
+  // API route exception for invoice PDF streaming
+  if (path.startsWith('/api/billing/invoices/') && path.endsWith('/download')) return [
     Role.SUPER_ADMIN, Role.CLINIC_ADMIN,
     Role.DOCTOR, Role.ASSISTANT_DOCTOR,
     Role.RECEPTIONIST, Role.PHARMACIST,

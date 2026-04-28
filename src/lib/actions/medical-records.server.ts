@@ -191,8 +191,15 @@ export async function getPrescriptionById(prescriptionId: string) {
  * Generate prescription PDF
  */
 export async function generatePrescriptionPDF(prescriptionId: string) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.GENERATE_PDF(prescriptionId));
-  return data;
+  const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.GET_BY_ID(prescriptionId));
+  const prescription = data as { pdfUrl?: string; url?: string } | undefined;
+  const pdfUrl = prescription?.pdfUrl || prescription?.url;
+
+  if (!pdfUrl) {
+    throw new Error('Prescription PDF is not available from the backend yet');
+  }
+
+  return { pdfUrl };
 }
 
 // ===== MEDICINES MANAGEMENT =====

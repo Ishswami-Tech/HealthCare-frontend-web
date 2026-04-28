@@ -446,7 +446,7 @@ export default function ClinicAdminDashboard() {
                           : "bg-amber-500 text-white"
                       }
                     >
-                      {item.paymentStatus === "PAID" ? "Paid" : "Awaiting Payment"}
+                      {item.paymentStatus === "PAID" ? "Payment verified" : "Payment pending"}
                     </Badge>
                     {item.pendingAmount > 0 ? (
                       <span className="text-sm font-medium text-muted-foreground">

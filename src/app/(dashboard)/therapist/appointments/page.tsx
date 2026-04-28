@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTherapistAppointments, useCreateTherapistAppointment, useUpdateTherapistAppointment, useDeleteTherapistAppointment } from "@/hooks/query/useTherapist";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { getReceptionistAppointmentTimeLabel } from "@/lib/utils/appointmentUtils";
 
 export default function TherapistAppointments() {
   useAuth();
@@ -258,7 +259,9 @@ export default function TherapistAppointments() {
                 const clientId = appointment.clientId || "N/A";
                 const appointmentType = appointment.type || "Session";
                 const duration = appointment.duration || "N/A";
-                const time = appointment.time || "N/A";
+                const time = getReceptionistAppointmentTimeLabel(
+                  appointment as unknown as Record<string, unknown>
+                );
                 return (
                   <div
                   key={appointment.id}

@@ -544,7 +544,7 @@ export default function PatientPrescriptions() {
                         <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
                           <Badge className={`${getStatusColor(prescription.status)} text-[10px] sm:text-xs`}>
                             {prescription.pendingAmount > 0
-                              ? "Awaiting Payment"
+                              ? "Payment pending"
                               : "Pending Handover"}
                           </Badge>
                           {prescription.queuePosition ? (

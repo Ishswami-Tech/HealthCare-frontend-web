@@ -132,7 +132,7 @@ export function getQueueStatusLabel(entry: CanonicalQueueEntry): string {
     READY: 'Ready',
     PAID: 'Paid',
     PENDING: 'Pending',
-    WAITING_FOR_PAYMENT: 'Awaiting Payment',
+    WAITING_FOR_PAYMENT: 'Payment pending',
     CANCELLED: 'Cancelled',
     NO_SHOW: 'No Show',
   };

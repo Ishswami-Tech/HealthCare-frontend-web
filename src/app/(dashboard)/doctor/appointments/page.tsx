@@ -37,9 +37,8 @@ import {
   shouldShowAppointmentOnDoctorDashboard,
 } from "@/lib/utils/appointmentUtils";
 import {
-  getAppointmentPaymentStatus,
+  getAppointmentPaymentDisplayState,
   getDisplayAppointmentDuration,
-  isAppointmentAwaitingPayment,
 } from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
@@ -98,6 +97,7 @@ interface TransformedAppointment {
   checkedInAt: string | null;
   queuePosition: number | null;
   paymentStatus: string;
+  paymentCompleted: boolean;
   paymentPending: boolean;
 }
 
@@ -172,7 +172,7 @@ export default function DoctorAppointments() {
     return visibleApps
       .map((app: any): TransformedAppointment => {
         const displayDuration = getDisplayAppointmentDuration(app);
-        const paymentStatus = getAppointmentPaymentStatus(app);
+        const paymentDisplay = getAppointmentPaymentDisplayState(app);
         const viewState = getAppointmentViewState(app);
 
         return {
@@ -201,8 +201,9 @@ export default function DoctorAppointments() {
           vitalSigns: app.vitalSigns || null,
           checkedInAt: app.checkedInAt ? new Date(app.checkedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
           queuePosition: app.queuePosition || null,
-          paymentStatus,
-          paymentPending: isAppointmentAwaitingPayment(app),
+          paymentStatus: paymentDisplay.paymentStatus,
+          paymentCompleted: paymentDisplay.paymentCompleted,
+          paymentPending: paymentDisplay.paymentPending,
         };
       })
       .sort((left: TransformedAppointment, right: TransformedAppointment) => {
@@ -299,8 +300,8 @@ export default function DoctorAppointments() {
         cell: ({ row }) => {
           const app = row.original;
           return app.type === "VIDEO_CALL" ? (
-            <Badge className={getPaymentBadgeClasses(app.paymentStatus)}>
-              {app.paymentPending ? "Payment pending" : "Paid video request"}
+            <Badge className={getPaymentBadgeClasses(app.paymentCompleted ? "PAID" : app.paymentStatus)}>
+              {app.paymentCompleted ? "Payment verified" : "Payment pending"}
             </Badge>
           ) : (
             <span className="text-sm text-muted-foreground">Not applicable</span>
@@ -318,12 +319,12 @@ export default function DoctorAppointments() {
                 <Eye className="w-4 h-4" />
               </Button>
               {app.status === APPOINTMENT_STATUS.CONFIRMED && app.checkedInAt && (
-                <Button
-                  size="sm"
-                  onClick={() => startConsultation(app.id)}
-                  disabled={startAppointmentMutation.isPending || (app.type === "VIDEO_CALL" && app.paymentPending)}
-                  title={app.type === "VIDEO_CALL" && app.paymentPending ? "Video request is waiting for payment" : undefined}
-                >
+              <Button
+                size="sm"
+                onClick={() => startConsultation(app.id)}
+                disabled={startAppointmentMutation.isPending || (app.type === "VIDEO_CALL" && !app.paymentCompleted)}
+                title={app.type === "VIDEO_CALL" && !app.paymentCompleted ? "Video request is waiting for payment" : undefined}
+              >
                   <Play className="mr-1 h-4 w-4" />
                   Start
                 </Button>
@@ -340,7 +341,7 @@ export default function DoctorAppointments() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      if (app.type === "VIDEO_CALL" && app.paymentPending) return;
+                      if (app.type === "VIDEO_CALL" && !app.paymentCompleted) return;
                       const videoAppt: VideoAppointment = {
                         id: app.id,
                         appointmentId: app.id,
@@ -356,7 +357,7 @@ export default function DoctorAppointments() {
                       setVideoRoomAppointment(videoAppt);
                       setIsVideoRoomOpen(true);
                     }}
-                    disabled={app.type === "VIDEO_CALL" && app.paymentPending}
+                    disabled={app.type === "VIDEO_CALL" && !app.paymentCompleted}
                   >
                     <Video className="mr-1 h-4 w-4" />
                     Open video
@@ -569,8 +570,8 @@ export default function DoctorAppointments() {
                     </div>
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Video Payment</p>
-                      <Badge className={getPaymentBadgeClasses(selectedAppointment.paymentStatus)}>
-                        {selectedAppointment.paymentPending ? "Payment pending" : "Paid video request"}
+                      <Badge className={getPaymentBadgeClasses(selectedAppointment.paymentCompleted ? "PAID" : selectedAppointment.paymentStatus)}>
+                        {selectedAppointment.paymentCompleted ? "Payment verified" : "Payment pending"}
                       </Badge>
                     </div>
                     <div>

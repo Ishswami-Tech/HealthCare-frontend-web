@@ -19,6 +19,7 @@ import { useTherapistAppointments, useTherapistClients } from "@/hooks/query/use
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { getReceptionistAppointmentTimeLabel } from "@/lib/utils/appointmentUtils";
 
 export default function TherapistDashboard() {
   useAuth();
@@ -249,7 +250,9 @@ export default function TherapistDashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium">{appointment.time}</div>
+                      <div className="font-medium">
+                        {getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>)}
+                      </div>
                         <Badge
                           className={`${getStatusColor(appointment.status)} flex items-center gap-1`}
                         >

@@ -19,6 +19,7 @@ import { useQueue } from "@/hooks/query/useQueue";
 import { AppointmentWithRelations, AppointmentStatus } from "@/types/appointment.types";
 import type { CanonicalQueueEntry } from "@/types/queue.types";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
   getAppointmentViewState,
   isPaidVideoAppointmentAwaitingDoctorConfirmation,
@@ -26,10 +27,9 @@ import {
 } from "@/lib/utils/appointmentUtils";
 import {
   getAppointmentDateTimeValue,
-  getAppointmentPaymentStatus,
+  getAppointmentPaymentDisplayState,
   getAppointmentPatientName,
   getDisplayAppointmentDuration,
-  isAppointmentAwaitingPayment,
   getReceptionistAppointmentDateLabel,
   getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
@@ -78,6 +78,7 @@ interface TransformedAppointment {
   priority: string;
   patientId: string;
   paymentStatus: string;
+  paymentCompleted: boolean;
   paymentPending: boolean;
   checkedInAt: string | null;
   proposedSlots?: { date: string; time: string }[];
@@ -179,7 +180,7 @@ export default function DoctorDashboard() {
   useWebSocketQuerySync();
 
   // Fetch real data using existing hooks and server actions
-  const { data: appointments, isPending: isAppointmentsPending, error: appointmentsError } = useAppointments({
+  const { data: appointments, isPending: isAppointmentsPending, error: appointmentsError, refetch: refetchAppointments } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
     ...(doctorId ? { doctorId } : {}),
     startDate: historyStartDate,
@@ -195,6 +196,7 @@ export default function DoctorDashboard() {
   const startAppointmentMutation = useStartAppointment();
   const completeAppointmentMutation = useCompleteAppointment();
   const confirmVideoSlotMutation = useConfirmVideoSlot();
+  const [resolvedVideoSlotConfirmations, setResolvedVideoSlotConfirmations] = useState<Record<string, boolean>>({});
 
   // Calculate real stats from fetched data
   const appointmentsArray = useMemo(() => {
@@ -291,7 +293,7 @@ export default function DoctorDashboard() {
       .map((apt: AppointmentWithRelations): TransformedAppointment => {
         const patientName = getAppointmentPatientName(apt);
         const displayDuration = getDisplayAppointmentDuration(apt);
-        const paymentStatus = getAppointmentPaymentStatus(apt);
+        const paymentDisplay = getAppointmentPaymentDisplayState(apt);
         const viewState = getAppointmentViewState(apt);
         const dateLabel = getReceptionistAppointmentDateLabel(apt as unknown as Record<string, unknown>);
         const timeLabel = getReceptionistAppointmentTimeLabel(apt as unknown as Record<string, unknown>);
@@ -327,8 +329,9 @@ export default function DoctorDashboard() {
           notes: apt.notes || "",
           isVideo: apt.type === "VIDEO_CALL",
           priority: (apt as any).priority || "NORMAL",
-          paymentStatus,
-          paymentPending: isAppointmentAwaitingPayment(apt),
+          paymentStatus: paymentDisplay.paymentStatus,
+          paymentCompleted: paymentDisplay.paymentCompleted,
+          paymentPending: paymentDisplay.paymentPending,
           checkedInAt: apt.checkedInAt ? new Date(apt.checkedInAt).toISOString() : null,
           proposedSlots: (apt as any).proposedSlots,
           confirmedSlotIndex: (apt as any).confirmedSlotIndex,
@@ -445,11 +448,11 @@ export default function DoctorDashboard() {
                   <Badge
                     variant="outline"
                     className={`text-[10px] font-semibold uppercase tracking-wider ${getPaymentBadgeClasses(
-                      row.original.paymentStatus
+                      row.original.paymentCompleted ? "PAID" : row.original.paymentStatus
                     )}`}
                   >
-                    {row.original.paymentStatus === "PAID"
-                      ? "Paid video request"
+                    {row.original.paymentCompleted
+                      ? "Payment verified"
                       : "Payment pending"}
                   </Badge>
                 </div>
@@ -516,9 +519,10 @@ export default function DoctorDashboard() {
       header: "Actions",
       cell: ({ row }) => {
         const appointment = row.original;
-        const awaitingConfirmation = isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment);
+        const appointmentId = String(appointment.id || "");
+        const awaitingConfirmation = isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment) && !resolvedVideoSlotConfirmations[appointmentId];
         const proposedSlots = Array.isArray(appointment.proposedSlots) ? appointment.proposedSlots : [];
-        const paymentReady = !appointment.isVideo || !appointment.paymentPending;
+        const paymentReady = !appointment.isVideo || appointment.paymentCompleted;
         return (
           <div className="flex gap-2">
             {appointment.statusEnum === "CONFIRMED" && appointment.checkedInAt && (
@@ -554,7 +558,7 @@ export default function DoctorDashboard() {
                 Waiting check-in
               </Button>
             )}
-            {appointment.statusEnum === "CONFIRMED" && appointment.isVideo && appointment.paymentPending && (
+            {appointment.statusEnum === "CONFIRMED" && appointment.isVideo && !appointment.paymentCompleted && (
               <Badge
                 variant="outline"
                 className="h-8 rounded-md border-amber-200 bg-amber-50 px-2 text-[10px] font-semibold uppercase tracking-wider text-amber-700"
@@ -588,12 +592,58 @@ export default function DoctorDashboard() {
                   size="sm"
                   className="h-8 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
                   disabled={confirmVideoSlotMutation.isPending}
-                  onClick={() =>
-                    confirmVideoSlotMutation.mutateAsync({
-                      appointmentId: appointment.id,
-                      confirmedSlotIndex: pendingVideoSlotSelections[appointment.id] ?? 0,
-                    })
-                  }
+                  onClick={async () => {
+                    try {
+                      const refreshedResult = await refetchAppointments();
+                      const refreshedAppointments = Array.isArray((refreshedResult as any)?.data)
+                        ? (refreshedResult as any).data
+                        : Array.isArray((refreshedResult as any)?.appointments)
+                          ? (refreshedResult as any).appointments
+                          : [];
+                      const refreshedAppointment = refreshedAppointments.find((item: any) => String(item?.id || item?.appointmentId || "") === appointmentId);
+
+                      if (
+                        refreshedAppointment &&
+                        !getAppointmentViewState(refreshedAppointment).awaitingDoctorSlotConfirmation
+                      ) {
+                        setResolvedVideoSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
+                        showSuccessToast("Slot is already confirmed. Refreshing the list.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+                        await refetchAppointments();
+                        setPendingVideoSlotSelections((current) => {
+                          const next = { ...current };
+                          delete next[appointmentId];
+                          return next;
+                        });
+                        return;
+                      }
+
+                      await confirmVideoSlotMutation.mutateAsync({
+                        appointmentId,
+                        confirmedSlotIndex: pendingVideoSlotSelections[appointmentId] ?? 0,
+                      });
+                      setResolvedVideoSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
+                      await refetchAppointments();
+                      setPendingVideoSlotSelections((current) => {
+                        const next = { ...current };
+                        delete next[appointmentId];
+                        return next;
+                      });
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : String(error);
+                      if (message.includes("not awaiting doctor slot confirmation")) {
+                        setResolvedVideoSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
+                        showSuccessToast("Slot is already confirmed. Refreshing the list.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+                        await refetchAppointments();
+                        setPendingVideoSlotSelections((current) => {
+                          const next = { ...current };
+                          delete next[appointmentId];
+                          return next;
+                        });
+                        return;
+                      }
+                      showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.UPDATE });
+                    }
+                  }}
                 >
                   {confirmVideoSlotMutation.isPending ? (
                     <Loader2 className="w-3 h-3 animate-spin" />

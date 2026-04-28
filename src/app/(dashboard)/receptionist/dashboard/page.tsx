@@ -780,8 +780,8 @@ export default function ReceptionistDashboard() {
                         }
                       >
                         {entry.readyForHandover || entry.paymentStatus === "PAID"
-                          ? "Ready For Handover"
-                          : "Awaiting Payment"}
+                          ? "Payment verified"
+                          : "Payment pending"}
                       </Badge>
                       {entry.pendingAmount > 0 && (
                         <Badge variant="outline" className="border-amber-200 text-amber-700 bg-amber-50/50 dark:bg-amber-900/20">

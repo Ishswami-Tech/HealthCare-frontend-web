@@ -1,3 +1,4 @@
+import { APP_CONFIG } from '@/lib/config/config';
 import { AppointmentWithRelations } from '@/types/appointment.types';
 
 export interface NormalizedPatientAppointment {
@@ -37,6 +38,8 @@ export function normalizeAppointmentStatus(value: unknown): string {
 
   switch (normalized) {
     case 'PENDING':
+    case 'AWAITING_PAYMENT':
+    case 'PENDING_PAYMENT':
     case 'AWAITING_SLOT_CONFIRMATION':
     case 'FOLLOW_UP_SCHEDULED':
     case 'RESCHEDULED':
@@ -50,6 +53,10 @@ export function normalizeAppointmentStatus(value: unknown): string {
     default:
       return normalized;
   }
+}
+
+export function isVideoNoShowEnforced(): boolean {
+  return APP_CONFIG.VIDEO.NO_SHOW_ENABLED;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -234,6 +241,71 @@ export function getAppointmentPaymentStatus(appointment: any): string {
 export function isAppointmentAwaitingPayment(appointment: any): boolean {
   const paymentStatus = getAppointmentPaymentStatus(appointment);
   return paymentStatus === 'PENDING' || paymentStatus === 'OVERDUE';
+}
+
+export function isVideoAppointmentJoinable(appointment: any): boolean {
+  const viewState = getAppointmentViewState(appointment);
+  const normalizedStatus = viewState.normalizedStatus.toUpperCase();
+  const joinableStatuses = new Set(['SCHEDULED', 'CONFIRMED', 'QUEUED', 'IN_PROGRESS']);
+
+  if (normalizedStatus === 'NO_SHOW' && !isVideoNoShowEnforced()) {
+    // Test-only bypass: treat video no-show as joinable when enforcement is disabled.
+  } else if (!joinableStatuses.has(normalizedStatus)) {
+    return false;
+  }
+
+  if (normalizedStatus !== 'IN_PROGRESS' && !viewState.hasConfirmedSlot) {
+    return false;
+  }
+
+  return viewState.paymentCompleted;
+}
+
+export function getVideoAppointmentJoinBlockedReason(appointment: any): string {
+  const viewState = getAppointmentViewState(appointment);
+  const normalizedStatus = viewState.normalizedStatus.toUpperCase();
+
+  if (viewState.awaitingDoctorSlotConfirmation) {
+    return 'This video appointment is still waiting for doctor slot confirmation.';
+  }
+
+  if (['CANCELLED', 'COMPLETED'].includes(normalizedStatus)) {
+    return 'This video appointment is no longer available.';
+  }
+
+  if (normalizedStatus === 'NO_SHOW' && isVideoNoShowEnforced()) {
+    return 'This video appointment is no longer available.';
+  }
+
+  if (!viewState.paymentCompleted) {
+    return 'Payment is required before joining this video appointment.';
+  }
+
+  if (normalizedStatus !== 'IN_PROGRESS' && !viewState.hasConfirmedSlot) {
+    return 'This video appointment is waiting for slot confirmation.';
+  }
+
+  return 'This video appointment is not ready to join yet.';
+}
+
+export type AppointmentPaymentDisplayState = {
+  paymentStatus: string;
+  paymentCompleted: boolean;
+  paymentPending: boolean;
+  paymentLabel: string;
+};
+
+export function getAppointmentPaymentDisplayState(appointment: any): AppointmentPaymentDisplayState {
+  const viewState = getAppointmentViewState(appointment);
+  const paymentCompleted = viewState.paymentCompleted;
+  const paymentPending = viewState.isVideo ? !paymentCompleted : viewState.awaitingPayment;
+
+  return {
+    paymentStatus: viewState.paymentStatus,
+    paymentCompleted,
+    paymentPending,
+    paymentLabel: paymentCompleted ? 'Payment verified' : 'Payment pending',
+  };
 }
 
 export function getAppointmentDateTimeValue(appointment: any): Date | null {
@@ -514,6 +586,11 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
   const displayStatusLabel = awaitingDoctorSlotConfirmation
     ? 'Awaiting Doctor Review'
     : getAppointmentStatusBadgeLabel(appointment);
+  const isDashboardVisibleStatus =
+    isActiveLike(status) ||
+    awaitingDoctorSlotConfirmation ||
+    status === 'AWAITING_PAYMENT' ||
+    status === 'PENDING_PAYMENT';
 
   return {
     type,
@@ -530,15 +607,9 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
     hasConfirmedSlot: confirmedSlot,
     displayStatusLabel,
     showInDoctorWorkspace:
-      !isCancelledLike(status) &&
-      (
-        status === 'CONFIRMED' ||
-        status === 'IN_PROGRESS' ||
-        status === 'COMPLETED' ||
-        (status === 'SCHEDULED' && (!isVideo || paymentCompleted || awaitingDoctorSlotConfirmation))
-      ),
+      !isCancelledLike(status) && isDashboardVisibleStatus,
     showInPatientWorkspace: !isCancelledLike(status) && (isActiveLike(status) || awaitingDoctorSlotConfirmation),
-    showInReceptionWorkspace: !isCancelledLike(status) && (isActiveLike(status) || awaitingDoctorSlotConfirmation),
+    showInReceptionWorkspace: !isCancelledLike(status) && isDashboardVisibleStatus,
   };
 }
 

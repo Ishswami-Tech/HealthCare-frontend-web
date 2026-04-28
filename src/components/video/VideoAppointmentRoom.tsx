@@ -3,8 +3,10 @@
 // âœ… Video Appointment Room Component with WebSocket Integration
 // This component provides a complete video appointment interface using OpenVidu with real-time WebSocket updates
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { APP_CONFIG } from "@/lib/config/config";
+import { isVideoNoShowEnforced } from "@/lib/utils/appointmentUtils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,13 +51,15 @@ import { UserVideoComponent } from "./UserVideoComponent";
 import {
   useVideoCall,
   useVideoCallControls,
+  useVideoAppointment,
 } from "@/hooks/query/useVideoAppointments";
 import { useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
-import type { OpenViduAPI } from "@/lib/video/openvidu";
+import { getAppointmentViewState } from "@/lib/utils/appointmentUtils";
+import { normalizeOpenViduServerUrl, type OpenViduAPI } from "@/lib/video/openvidu";
 import type { ParticipantInfo } from "@/lib/video/openvidu";
 
 interface VideoAppointmentRoomProps {
@@ -110,6 +114,41 @@ export function VideoAppointmentRoom({
   const [activePanel, setActivePanel] = useState<"chat" | "notes" | "participants">("chat");
   const autoStartTriggeredRef = useRef(false);
   const resolvedAppointmentId = String(appointment.appointmentId || appointment.id || "");
+  const {
+    data: liveAppointmentQuery,
+    isPending: isLiveAppointmentPending,
+    error: liveAppointmentError,
+  } = useVideoAppointment(resolvedAppointmentId);
+  const liveAppointmentSource = React.useMemo(
+    () => (liveAppointmentQuery as any)?.appointment || (liveAppointmentQuery as any)?.data || null,
+    [liveAppointmentQuery]
+  );
+  const shouldUseFallbackAppointment = React.useMemo(() => {
+    if (liveAppointmentSource) return false;
+    if (!appointment) return false;
+
+    const statusCode = liveAppointmentError && typeof liveAppointmentError === "object"
+      ? (liveAppointmentError as { statusCode?: unknown }).statusCode
+      : undefined;
+    if (statusCode === 404) return true;
+
+    if (liveAppointmentError === null || liveAppointmentError === undefined) return true;
+
+    return false;
+  }, [appointment, liveAppointmentError, liveAppointmentSource]);
+  const latestAppointment = React.useMemo(() => {
+    if (liveAppointmentSource) {
+      return liveAppointmentSource;
+    }
+
+    if (shouldUseFallbackAppointment) {
+      return appointment;
+    }
+
+    return null;
+  }, [appointment, liveAppointmentSource, shouldUseFallbackAppointment]);
+  const latestViewState = React.useMemo(() => getAppointmentViewState(latestAppointment), [latestAppointment]);
+  const openViduHost = normalizeOpenViduServerUrl(APP_CONFIG.VIDEO.OPENVIDU_URL);
   
   // Role-based access
   const isDoctor = user?.role === 'DOCTOR' || user?.role === 'ASSISTANT_DOCTOR';
@@ -255,6 +294,27 @@ export function VideoAppointmentRoom({
       }
       setIsConnecting(true);
 
+      if (!latestAppointment) {
+        throw new Error("Unable to verify the latest appointment status. Please try again.");
+      }
+
+      const currentStatus = String(latestViewState.status || latestAppointment?.status || "").toUpperCase();
+      if (isVideoNoShowEnforced() && currentStatus === "NO_SHOW") {
+        throw new Error("This appointment was marked as no-show and cannot be joined.");
+      }
+      if (currentStatus === "CANCELLED" || currentStatus === "CANCELED") {
+        throw new Error("This appointment was cancelled and cannot be joined.");
+      }
+      if (currentStatus === "COMPLETED") {
+        throw new Error("This appointment has already been completed.");
+      }
+      if (latestViewState.awaitingDoctorSlotConfirmation) {
+        throw new Error("This appointment is still awaiting doctor confirmation.");
+      }
+      if (!latestViewState.paymentCompleted) {
+        throw new Error("Payment is required to join this appointment.");
+      }
+
       const userInfo = {
         userId: user.id,
         displayName: user?.name || "Unknown User",
@@ -263,7 +323,7 @@ export function VideoAppointmentRoom({
       };
 
       // Start call without container - React handles rendering
-      const videoCall = await startCall({ ...appointment, appointmentId: resolvedAppointmentId }, userInfo);
+      const videoCall = await startCall({ ...latestAppointment, appointmentId: resolvedAppointmentId }, userInfo);
       setCall(videoCall);
 
       // Send WebSocket event for participant joined
@@ -281,19 +341,19 @@ export function VideoAppointmentRoom({
     } finally {
       setIsConnecting(false);
     }
-  }, [appointment, sendParticipantJoined, startCall, user]);
+  }, [latestAppointment, latestViewState, resolvedAppointmentId, sendParticipantJoined, startCall, user]);
 
   useEffect(() => {
     autoStartTriggeredRef.current = false;
   }, [resolvedAppointmentId]);
 
   useEffect(() => {
-    if (!autoStart || autoStartTriggeredRef.current || call || isConnecting || !user?.id) return;
+    if (!autoStart || autoStartTriggeredRef.current || call || isConnecting || !user?.id || isLiveAppointmentPending) return;
     autoStartTriggeredRef.current = true;
     void handleStartCall().catch(() => {
       autoStartTriggeredRef.current = false;
     });
-  }, [autoStart, call, handleStartCall, isConnecting, user?.id]);
+  }, [autoStart, call, handleStartCall, isConnecting, isLiveAppointmentPending, user?.id]);
 
   // âœ… End video call
   const handleEndCall = async (options?: { skipToast?: boolean }) => {
@@ -542,6 +602,14 @@ export function VideoAppointmentRoom({
               <p className="text-sm text-muted-foreground">
                 Live session loaded directly from the appointment link.
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="rounded-full border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                >
+                  OpenVidu host: {openViduHost || "not configured"}
+                </Badge>
+              </div>
             </div>
           </div>
 

@@ -21,6 +21,7 @@ import {
   useDeleteCounselorAppointment,
 } from "@/hooks/query/useCounselor";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { getReceptionistAppointmentTimeLabel } from "@/lib/utils/appointmentUtils";
 
 export default function CounselorAppointments() {
   const { session } = useAuth();
@@ -173,7 +174,7 @@ export default function CounselorAppointments() {
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {appointment.time}
+                            {getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>)}
                           </span>
                         </div>
                         {appointment.notes && (
