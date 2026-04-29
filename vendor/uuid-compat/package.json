@@ -1,0 +1,7 @@
+{
+  "name": "uuid",
+  "version": "14.0.0",
+  "private": true,
+  "main": "index.cjs",
+  "type": "commonjs"
+}
