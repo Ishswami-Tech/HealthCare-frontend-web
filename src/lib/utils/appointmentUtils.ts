@@ -1,5 +1,40 @@
 import { APP_CONFIG } from '@/lib/config/config';
-import { AppointmentWithRelations } from '@/types/appointment.types';
+import {
+  IST_TIMEZONE,
+  formatDateInIST,
+  formatDateTimeInIST,
+  formatISODateInIST,
+  formatMonthShortInIST,
+  formatTimeInIST,
+  formatTimeValueInIST,
+  normalizeTimeInputToTwentyFourHour,
+  parseIstDateTime,
+} from './date-time';
+import {
+  calculateAppointmentDuration,
+  getAppointmentDateTimeValue,
+  getNextAvailableTime,
+  isAppointmentOverdue,
+} from './clock';
+import type { AppointmentServiceDefinition } from '@/types/appointment.types';
+
+export {
+  IST_TIMEZONE,
+  formatDateInIST,
+  formatDateTimeInIST,
+  formatISODateInIST,
+  formatMonthShortInIST,
+  formatTimeInIST,
+  formatTimeValueInIST,
+  normalizeTimeInputToTwentyFourHour,
+  parseIstDateTime,
+} from './date-time';
+export {
+  calculateAppointmentDuration,
+  getAppointmentDateTimeValue,
+  getNextAvailableTime,
+  isAppointmentOverdue,
+} from './clock';
 
 export interface NormalizedPatientAppointment {
   id: string;
@@ -16,8 +51,6 @@ export interface NormalizedPatientAppointment {
 
 const IN_PERSON_DEFAULT_DURATION_MINUTES = 3;
 const VIDEO_DEFAULT_DURATION_MINUTES = 15;
-
-export const IST_TIMEZONE = 'Asia/Kolkata';
 
 const COMPLETED_PAYMENT_STATUSES = new Set(['COMPLETED', 'SUCCESS', 'PAID', 'CAPTURED']);
 const PENDING_PAYMENT_STATUSES = new Set([
@@ -37,6 +70,7 @@ export function normalizeAppointmentStatus(value: unknown): string {
     .toUpperCase();
 
   switch (normalized) {
+    case 'PROPOSED':
     case 'PENDING':
     case 'AWAITING_PAYMENT':
     case 'PENDING_PAYMENT':
@@ -125,57 +159,6 @@ function normalizePaymentStatusValue(value: unknown): string {
   }
 
   return normalized;
-}
-
-function normalizeDateInput(value: Date | string): Date | null {
-  const parsed = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-export function formatDateInIST(
-  value: Date | string,
-  options: Intl.DateTimeFormatOptions = {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  },
-  locale = 'en-IN'
-): string {
-  const parsed = normalizeDateInput(value);
-  if (!parsed) return '';
-  return new Intl.DateTimeFormat(locale, {
-    timeZone: IST_TIMEZONE,
-    ...options,
-  }).format(parsed);
-}
-
-export function formatTimeInIST(
-  value: Date | string,
-  options: Intl.DateTimeFormatOptions = {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  },
-  locale = 'en-IN'
-): string {
-  const parsed = normalizeDateInput(value);
-  if (!parsed) return '';
-  return new Intl.DateTimeFormat(locale, {
-    timeZone: IST_TIMEZONE,
-    ...options,
-  }).format(parsed);
-}
-
-export function formatISODateInIST(value: Date | string): string {
-  return formatDateInIST(
-    value,
-    {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    },
-    'en-CA'
-  );
 }
 
 export function isVideoAppointmentPaymentCompleted(appointment: any): boolean {
@@ -308,43 +291,6 @@ export function getAppointmentPaymentDisplayState(appointment: any): Appointment
   };
 }
 
-export function getAppointmentDateTimeValue(appointment: any): Date | null {
-  const directDateTime =
-    appointment?.startTime || appointment?.appointmentDate || appointment?.scheduledAt;
-
-  if (typeof directDateTime === 'string' && directDateTime) {
-    const parsed = new Date(directDateTime);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed;
-    }
-  }
-
-  if (typeof appointment?.date === 'string' && appointment.date) {
-    const directDate = new Date(appointment.date);
-    const looksLikeFullDateTime =
-      appointment.date.includes('T') ||
-      appointment.date.endsWith('Z') ||
-      /[+-]\d{2}:\d{2}$/.test(appointment.date);
-
-    if (!Number.isNaN(directDate.getTime()) && (looksLikeFullDateTime || !appointment?.time)) {
-      return directDate;
-    }
-  }
-
-  if (appointment?.date) {
-    const normalizedTime =
-      typeof appointment.time === 'string' && appointment.time
-        ? appointment.time.slice(0, 5)
-        : '00:00';
-    const parsed = new Date(`${appointment.date}T${normalizedTime}:00`);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed;
-    }
-  }
-
-  return null;
-}
-
 export function getAppointmentDoctorName(appointment: any): string {
   return (
     appointment?.doctorName ||
@@ -393,7 +339,9 @@ export function normalizePatientAppointment(appointment: any): NormalizedPatient
   const dateTime = getAppointmentDateTimeValue(appointment);
   const normalizedStatus = normalizeAppointmentStatus(appointment?.status);
   const normalizedTime =
-    appointment?.time ||
+    (typeof appointment?.time === 'string' && appointment.time
+      ? formatTimeValueInIST(appointment.time)
+      : '') ||
     (dateTime
       ? formatTimeInIST(dateTime, {
           hour: '2-digit',
@@ -442,27 +390,6 @@ export function getDisplayAppointmentDuration(appointment: any): number | undefi
   return undefined;
 }
 
-export function getNextAvailableTime(currentTime: string, duration: number = 30): string {
-  const [hours, minutes] = currentTime.split(':').map(Number);
-  const nextTime = new Date();
-  nextTime.setHours(hours || 0, (minutes || 0) + duration, 0, 0);
-  return nextTime.toTimeString().substring(0, 5);
-}
-
-export function isAppointmentOverdue(appointment: AppointmentWithRelations): boolean {
-  const now = new Date();
-  const appointmentDateTime = new Date(`${appointment.date}T${appointment.time}`);
-  const timeDiff = now.getTime() - appointmentDateTime.getTime();
-  // Consider overdue if more than 30 minutes past scheduled time
-  return timeDiff > 30 * 60 * 1000 && ['SCHEDULED', 'CONFIRMED'].includes(appointment.status);
-}
-
-export function calculateAppointmentDuration(startTime: string, endTime: string): number {
-  const start = new Date(`2000-01-01T${startTime}`);
-  const end = new Date(`2000-01-01T${endTime}`);
-  return Math.round((end.getTime() - start.getTime()) / (1000 * 60));
-}
-
 export function getAppointmentStatusDisplayName(status: string): string {
   const normalizedStatus = normalizeAppointmentStatus(status);
   const statusNames: Record<string, string> = {
@@ -501,6 +428,9 @@ export function getAppointmentStatusBadgeLabel(appointment: any): string {
   if (isAwaitingDoctorSlotConfirmation(appointment)) {
     return 'Awaiting Doctor Review';
   }
+  if (String(appointment?.type || appointment?.appointmentType || '').toUpperCase() === 'VIDEO_CALL' && hasConfirmedSlot(appointment)) {
+    return 'Confirmed';
+  }
   return getAppointmentStatusDisplayName(String(appointment?.status || ''));
 }
 
@@ -532,6 +462,17 @@ export type AppointmentViewState = {
   showInReceptionWorkspace: boolean;
 };
 
+export type VideoSessionAction = 'blocked' | 'start' | 'join' | 'resume';
+
+export type VideoSessionDecision = {
+  status: string;
+  action: VideoSessionAction;
+  label: string;
+  blockedReason: string | null;
+  shouldCallConsultationStart: boolean;
+  canJoin: boolean;
+};
+
 function isCancelledLike(status: string): boolean {
   return ['CANCELLED', 'NO_SHOW'].includes(status);
 }
@@ -541,11 +482,12 @@ function isActiveLike(status: string): boolean {
 }
 
 function hasProposedSlots(appointment: any): boolean {
-  return Array.isArray(appointment?.proposedSlots) && appointment.proposedSlots.length > 0;
+  const proposedSlots = appointment?.proposedSlots ?? appointment?.proposed_slots;
+  return Array.isArray(proposedSlots) && proposedSlots.length > 0;
 }
 
 function hasConfirmedSlot(appointment: any): boolean {
-  const confirmedSlotIndex = appointment?.confirmedSlotIndex;
+  const confirmedSlotIndex = appointment?.confirmedSlotIndex ?? appointment?.confirmed_slot_index;
   return (
     confirmedSlotIndex !== null &&
     confirmedSlotIndex !== undefined &&
@@ -555,16 +497,23 @@ function hasConfirmedSlot(appointment: any): boolean {
 }
 
 export function getAppointmentViewState(appointment: any): AppointmentViewState {
-  const status = normalizeAppointmentStatus(appointment?.status);
   const type = String(appointment?.type || appointment?.appointmentType || '').toUpperCase();
   const paymentStatus = getAppointmentPaymentStatus(appointment);
   const paymentCompleted = isVideoAppointmentPaymentCompleted(appointment);
   const proposedSlots = hasProposedSlots(appointment);
   const confirmedSlot = hasConfirmedSlot(appointment);
+  const rawStatus = normalizeAppointmentStatus(appointment?.status);
+  const status =
+    type === 'VIDEO_CALL' &&
+    confirmedSlot &&
+    paymentCompleted &&
+    (rawStatus === 'SCHEDULED' || rawStatus === 'PENDING' || rawStatus === 'AWAITING_SLOT_CONFIRMATION')
+      ? 'CONFIRMED'
+      : rawStatus;
   const awaitingDoctorSlotConfirmation =
     type === 'VIDEO_CALL' &&
     paymentCompleted &&
-    (status === 'SCHEDULED' || status === 'PENDING') &&
+    (rawStatus === 'SCHEDULED' || rawStatus === 'PENDING') &&
     proposedSlots &&
     !confirmedSlot;
   const awaitingPayment = isAppointmentAwaitingPayment(appointment);
@@ -594,7 +543,7 @@ export function getAppointmentViewState(appointment: any): AppointmentViewState 
 
   return {
     type,
-    status,
+    status: rawStatus,
     normalizedStatus: status,
     workflowState,
     paymentStatus,
@@ -633,6 +582,143 @@ export function isPaidVideoAppointmentAwaitingDoctorConfirmation(appointment: an
   return getAppointmentViewState(appointment).awaitingDoctorSlotConfirmation;
 }
 
+export function getVideoSessionDecision(appointment: any): VideoSessionDecision {
+  const viewState = getAppointmentViewState(appointment);
+  const status = viewState.normalizedStatus.toUpperCase();
+
+  if (viewState.awaitingDoctorSlotConfirmation) {
+    return {
+      status,
+      action: 'blocked',
+      label: 'Awaiting Doctor Review',
+      blockedReason: 'This appointment is still waiting for doctor slot confirmation.',
+      shouldCallConsultationStart: false,
+      canJoin: false,
+    };
+  }
+
+  if (status === 'CANCELLED' || status === 'COMPLETED') {
+    return {
+      status,
+      action: 'blocked',
+      label: getAppointmentStatusDisplayName(status),
+      blockedReason:
+        status === 'CANCELLED'
+          ? 'This appointment was cancelled and cannot be joined.'
+          : 'This appointment has already been completed.',
+      shouldCallConsultationStart: false,
+      canJoin: false,
+    };
+  }
+
+  if (status === 'NO_SHOW' && isVideoNoShowEnforced()) {
+    return {
+      status,
+      action: 'blocked',
+      label: 'No Show',
+      blockedReason: 'This appointment was marked as a no-show and cannot be joined.',
+      shouldCallConsultationStart: false,
+      canJoin: false,
+    };
+  }
+
+  if (!viewState.paymentCompleted) {
+    return {
+      status,
+      action: 'blocked',
+      label: 'Payment pending',
+      blockedReason: 'Payment is required before joining this video appointment.',
+      shouldCallConsultationStart: false,
+      canJoin: false,
+    };
+  }
+
+  if (status === 'IN_PROGRESS') {
+    return {
+      status,
+      action: 'resume',
+      label: 'Resume Video Call',
+      blockedReason: null,
+      shouldCallConsultationStart: false,
+      canJoin: true,
+    };
+  }
+
+  if (viewState.hasConfirmedSlot || status === 'SCHEDULED' || status === 'CONFIRMED' || status === 'QUEUED') {
+    return {
+      status,
+      action: 'join',
+      label: 'Join Session',
+      blockedReason: null,
+      shouldCallConsultationStart: true,
+      canJoin: true,
+    };
+  }
+
+  return {
+    status,
+    action: 'blocked',
+    label: getAppointmentStatusDisplayName(status),
+    blockedReason: 'This video appointment is not ready to join yet.',
+    shouldCallConsultationStart: false,
+    canJoin: false,
+  };
+}
+
+export function getAppointmentServiceMatch(
+  appointment: any,
+  appointmentServices: AppointmentServiceDefinition[] = []
+): AppointmentServiceDefinition | null {
+  const treatmentType = String(appointment?.treatmentType || '').trim().toUpperCase();
+  if (!treatmentType) {
+    return null;
+  }
+
+  return (
+    appointmentServices.find((service) => String(service?.treatmentType || '').toUpperCase() === treatmentType) ||
+    null
+  );
+}
+
+export function getAppointmentServiceLabel(
+  appointment: any,
+  appointmentServices: AppointmentServiceDefinition[] = []
+): string {
+  const service = getAppointmentServiceMatch(appointment, appointmentServices);
+  return (
+    service?.label ||
+    String(appointment?.treatmentType || '')
+      .trim()
+      .replace(/_/g, ' ') ||
+    'Virtual Consultation'
+  );
+}
+
+export function getVideoAppointmentFee(
+  appointment: any,
+  appointmentServices: AppointmentServiceDefinition[] = []
+): number {
+  const service = getAppointmentServiceMatch(appointment, appointmentServices);
+  const candidateValues = [
+    appointment?.invoice?.amount,
+    appointment?.invoice?.totalAmount,
+    appointment?.payment?.amount,
+    appointment?.amount,
+    appointment?.videoConsultationFee,
+    appointment?.service?.videoConsultationFee,
+    service?.videoConsultationFee,
+  ];
+
+  for (const value of candidateValues) {
+    const amount = Number(value);
+    if (Number.isFinite(amount) && amount > 0) {
+      return amount;
+    }
+  }
+
+  return 0;
+}
+
 // Theme-aware status colors
 export function getAppointmentStatusColor(status: string): string {
   // Normalize status to lowercase for comparison if needed, or match keys exactly
@@ -652,19 +738,14 @@ export function getAppointmentStatusColor(status: string): string {
 }
 
 export function formatAppointmentDateTime(date: string, time: string): string {
-  return formatDateInIST(
-    new Date(`${date}T${time}`),
-    {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    },
-    'en-IN'
-  );
+  const dateTime = getAppointmentDateTimeValue({ date, time });
+  if (dateTime) {
+    return formatDateTimeInIST(dateTime);
+  }
+
+  const formattedDate = formatAppointmentDate(date);
+  const formattedTime = formatAppointmentTime(time);
+  return `${formattedDate}${formattedTime ? ` ${formattedTime}` : ''}`.trim();
 }
 
 export function formatAppointmentDate(dateString: string): string {
@@ -680,16 +761,7 @@ export function formatAppointmentDate(dateString: string): string {
 }
 
 export function formatAppointmentTime(timeString: string): string {
-  // Append dummy date to parse time correctly
-  return formatTimeInIST(
-    new Date(`2000-01-01T${timeString}`),
-    {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    },
-    'en-IN'
-  );
+  return formatTimeValueInIST(timeString, 'en-IN');
 }
 
 /**
@@ -714,14 +786,18 @@ export function parseReceptionistAppointmentDateTime(app: Record<string, unknown
   const effectiveTime = startTime || timeField;
 
   // Case 1: time value is "HH:mm" (time-only) — combine with date field
-  if (effectiveTime && /^\d{2}:\d{2}/.test(effectiveTime) && !effectiveTime.includes('T')) {
-    const datePart = (appointmentDate || date).slice(0, 10);
+  if (effectiveTime && !effectiveTime.includes('T')) {
+    const datePart = formatISODateInIST(appointmentDate || date);
+    const normalizedTime = normalizeTimeInputToTwentyFourHour(effectiveTime);
+    if (!normalizedTime) {
+      return null;
+    }
     if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-      const d = new Date(`${datePart}T${effectiveTime.slice(0, 5)}:00`);
+      const d = new Date(`${datePart}T${normalizedTime}+05:30`);
       if (!Number.isNaN(d.getTime())) return d;
     }
-    // time-only with no usable date context — use dummy date for time display
-    const d = new Date(`2000-01-01T${effectiveTime.slice(0, 5)}:00`);
+    // time-only with no usable date context - use dummy date for time display
+    const d = new Date(`2000-01-01T${normalizedTime}+05:30`);
     if (!Number.isNaN(d.getTime())) return d;
   }
 
@@ -739,8 +815,11 @@ export function parseReceptionistAppointmentDateTime(app: Record<string, unknown
 
   // Case 4: date + time
   if (date) {
-    const normalizedTime = timeField ? timeField.slice(0, 5) : '00:00';
-    const d = new Date(`${date}T${normalizedTime}:00`);
+    const normalizedTime = timeField ? normalizeTimeInputToTwentyFourHour(timeField) : '00:00:00';
+    if (!normalizedTime) {
+      return null;
+    }
+    const d = new Date(`${date}T${normalizedTime}+05:30`);
     if (!Number.isNaN(d.getTime())) return d;
   }
 
@@ -782,7 +861,10 @@ export function getReceptionistAppointmentDateLabel(
 
   // If time-only with no real date context (dummy 2000-01-01), return TBD for date
   const hasDateContext = Boolean(appointmentDate || date);
-  const isTimeOnlyField = effectiveTime && /^\d{2}:\d{2}/.test(effectiveTime) && !effectiveTime.includes('T');
+  const isTimeOnlyField =
+    Boolean(effectiveTime) &&
+    Boolean(normalizeTimeInputToTwentyFourHour(effectiveTime)) &&
+    !effectiveTime.includes('T');
   if (isTimeOnlyField && !hasDateContext) {
     return 'TBD';
   }
@@ -812,7 +894,7 @@ export function getReceptionistAppointmentTimeLabel(
   if (!parsed) {
     const startTime = typeof app.startTime === 'string' ? app.startTime : '';
     const time = typeof app.time === 'string' ? app.time : '';
-    return startTime || time || 'TBD';
+    return formatTimeValueInIST(startTime || time, locale) || 'TBD';
   }
   return new Intl.DateTimeFormat(locale, {
     timeZone: IST_TIMEZONE,

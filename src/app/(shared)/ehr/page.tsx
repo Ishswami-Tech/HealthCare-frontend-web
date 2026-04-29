@@ -31,6 +31,7 @@ import {
   useClinicCriticalAlerts,
 } from "@/hooks/query/useEHRClinic";
 import { usePatientPermissions } from "@/hooks/utils/useRBAC";
+import { formatDateTimeInIST } from "@/lib/utils/appointmentUtils";
 import {
   ProtectedComponent,
   PatientProtectedComponent,
@@ -195,7 +196,7 @@ export default function EHRSystem() {
         message: alert.message || alert.description || "Critical alert requires attention",
         severity: alert.severity || alert.priority || "High",
         timestamp: alert.createdAt 
-          ? new Date(alert.createdAt).toLocaleString() 
+          ? formatDateTimeInIST(alert.createdAt)
           : alert.timestamp || "Recently",
       }))
     : [];

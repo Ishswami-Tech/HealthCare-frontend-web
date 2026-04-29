@@ -25,6 +25,7 @@ import {
 import TherapyBadge, {
   TherapyType,
 } from "@/components/ayurveda/TherapyBadge";
+import { formatTimeInIST } from "@/lib/utils/date-time";
 
 export interface QueueItem {
   id: string;
@@ -212,10 +213,7 @@ export default function TherapyQueuePanel({
             <div>
               <span className="text-gray-600">Checked in:</span>
               <p className="font-medium">
-                {new Date(item.checkedInAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {formatTimeInIST(item.checkedInAt)}
                 <span className="text-xs text-gray-500 ml-1">
                   ({calculateWaitTime(item.checkedInAt)}m ago)
                 </span>
@@ -227,10 +225,7 @@ export default function TherapyQueuePanel({
             <div>
               <span className="text-gray-600">Started:</span>
               <p className="font-medium">
-                {new Date(item.startedAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {formatTimeInIST(item.startedAt)}
                 <span className="text-xs text-gray-500 ml-1">
                   ({calculateSessionTime(item.startedAt)}m ago)
                 </span>

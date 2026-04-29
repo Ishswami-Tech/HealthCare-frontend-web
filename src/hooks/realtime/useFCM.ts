@@ -1,3 +1,4 @@
+import { nowIso } from '@/lib/utils/date-time';
 /**
  * Firebase Cloud Messaging (FCM) Hook
  * 
@@ -86,7 +87,7 @@ export function useFCM(): UseFCMReturn {
           url: payload.data?.url || payload.data?.link,
         },
         isRead: false,
-        createdAt: new Date().toISOString(),
+        createdAt: nowIso(),
       };
 
       // Show toast

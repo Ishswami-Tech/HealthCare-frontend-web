@@ -16,7 +16,9 @@ import {
   type OpenViduAPI,
 } from '@/lib/video/openvidu';
 import { APP_CONFIG } from '@/lib/config/config';
-import { normalizeAppointmentStatus, isVideoNoShowEnforced } from '@/lib/utils/appointmentUtils';
+import {
+  getVideoSessionDecision,
+} from '@/lib/utils/appointmentUtils';
 import { isApiError } from '@/lib/utils/error-handler';
 import { normalizeVideoSessionAppointmentId } from '@/lib/utils/video-session-route';
 import { TOAST_IDS } from '../utils/use-toast';
@@ -118,6 +120,7 @@ export interface VideoAppointment {
   roomName: string;
   doctorId: string;
   patientId: string;
+  treatmentType?: string;
   startTime: string;
   endTime: string;
   status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled' | 'proposed';
@@ -441,12 +444,16 @@ export function useUpdateVideoAppointment() {
     async (data: UpdateVideoAppointmentData) => {
       const hasAccess = hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+      const resolvedUserId = user?.id;
+      if (!resolvedUserId) {
+        throw new Error('User not authenticated');
+      }
 
       // Update consultation status by ending or starting it
       if (data.status === 'completed' || data.status === 'cancelled') {
         const result = await endVideoConsultation({
           appointmentId: data.appointmentId,
-          userId: user?.id || '', // Provided from session
+          userId: resolvedUserId,
           userRole: 'doctor',
           endReason: data.status === 'cancelled' ? 'Cancelled by user' : 'Completed',
         });
@@ -456,7 +463,7 @@ export function useUpdateVideoAppointment() {
       // For other status updates, we might need to start consultation
       const result = await startVideoConsultation({
         appointmentId: data.appointmentId,
-        userId: user?.id || '', // Provided from session
+        userId: resolvedUserId,
         userRole: 'doctor',
       });
       
@@ -489,10 +496,14 @@ export function useEndVideoAppointment() {
     async (appointmentId: string) => {
       const hasAccess = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+      const resolvedUserId = user?.id;
+      if (!resolvedUserId) {
+        throw new Error('User not authenticated');
+      }
 
       const result = await endVideoConsultation({
         appointmentId,
-        userId: user?.id || '', // Provided from session
+        userId: resolvedUserId,
         userRole: getVideoTokenRole(user?.role),
       });
       
@@ -523,11 +534,15 @@ export function useDeleteVideoAppointment() {
     async (appointmentId: string) => {
       const hasAccess = hasPermission(Permission.DELETE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+      const resolvedUserId = user?.id;
+      if (!resolvedUserId) {
+        throw new Error('User not authenticated');
+      }
 
       // End consultation to effectively "delete" it
       const result = await endVideoConsultation({
         appointmentId,
-        userId: user?.id || '', // Provided from session
+        userId: resolvedUserId,
         userRole: 'doctor',
         endReason: 'Deleted by user',
       });
@@ -721,28 +736,27 @@ export function useVideoCall() {
   // ✅ Start Video Call
   const startCall = useCallback(async (appointmentData: VideoAppointment, userInfo: { userId?: string; role?: string; displayName?: string; email?: string }) => {
     try {
-      const normalizedStatus = normalizeAppointmentStatus(appointmentData.status);
-
-      if (normalizedStatus === 'NO_SHOW' && isVideoNoShowEnforced()) {
-        throw new Error('This appointment was marked as no-show and cannot be joined.');
-      }
-      if (normalizedStatus === 'CANCELLED') {
-        throw new Error('This appointment was cancelled and cannot be joined.');
-      }
-      if (normalizedStatus === 'COMPLETED') {
-        throw new Error('This appointment has already been completed.');
+      const sessionDecision = getVideoSessionDecision(appointmentData);
+      if (sessionDecision.blockedReason) {
+        throw new Error(sessionDecision.blockedReason);
       }
 
       if (appointmentData.paymentCompleted === false) {
         throw new Error('Payment is required to join this appointment.');
       }
-      const videoRole = getVideoTokenRole(userInfo.role || user?.role);
+        const resolvedUserId = userInfo.userId || user?.id;
+
+        if (!resolvedUserId) {
+          throw new Error("Unable to start OpenVidu call without a user id");
+        }
+
+        const videoRole = getVideoTokenRole(userInfo.role || user?.role);
       const openViduRole = getOpenViduRole(userInfo.role || user?.role);
 
       // First, generate token from backend
       const tokenResult = await generateVideoToken({
         appointmentId: appointmentData.appointmentId,
-        userId: userInfo.userId || user?.id || '',
+        userId: resolvedUserId,
         userRole: videoRole,
         userInfo: {
           displayName: userInfo.displayName || user?.name || 'User',
@@ -750,12 +764,15 @@ export function useVideoCall() {
         },
       }) as { token: string; roomName: string; roomId: string; meetingUrl: string };
 
-      // Mark the consultation as active in the backend before opening the client session
-      await startVideoConsultation({
-        appointmentId: appointmentData.appointmentId,
-        userId: userInfo.userId || user?.id || '',
-        userRole: videoRole,
-      });
+      // Only ask the backend to start a consultation when this is a not-yet-started session.
+      // In-progress sessions already have an active consultation and should join directly.
+      if (sessionDecision.shouldCallConsultationStart) {
+        await startVideoConsultation({
+          appointmentId: appointmentData.appointmentId,
+          userId: resolvedUserId,
+          userRole: videoRole,
+        });
+      }
 
       // Get OpenVidu server URL from config or environment
       const openviduServerUrl = APP_CONFIG.VIDEO.OPENVIDU_URL;
@@ -770,7 +787,7 @@ export function useVideoCall() {
       const call = await videoAppointmentService.startVideoAppointment(
         appointmentData as any,
         {
-          userId: userInfo.userId || user?.id || '',
+          userId: resolvedUserId,
           displayName: userInfo.displayName || user?.name || 'User',
           email: userInfo.email || user?.email || '',
           role: openViduRole,
@@ -792,7 +809,7 @@ export function useVideoCall() {
       });
       
       sendParticipantJoined(appointmentData.appointmentId, {
-        userId: userInfo.userId || user?.id || '',
+        userId: resolvedUserId,
         displayName: userInfo.displayName || user?.name || 'User',
         role: videoRole,
       });
@@ -816,11 +833,17 @@ export function useVideoCall() {
   // ✅ End Video Call
   const endCall = useCallback(async (appointmentId: string) => {
     try {
+      const resolvedUserId = user?.id;
+
+      if (!resolvedUserId) {
+        throw new Error("Unable to end OpenVidu call without a user id");
+      }
+
       let consultationEndError: unknown = null;
       try {
         await endVideoConsultation({
           appointmentId,
-          userId: user?.id || '',
+          userId: resolvedUserId,
           userRole: getVideoTokenRole(user?.role),
         });
       } catch (error) {
@@ -855,7 +878,7 @@ export function useVideoCall() {
       });
       throw error;
     }
-  }, [sendVideoAppointmentEvent, toast]);
+  }, [sendVideoAppointmentEvent, toast, user?.id, user?.role]);
 
   // ✅ Get Current Call
   const getCurrentCall = useCallback(() => {
@@ -1402,12 +1425,18 @@ export function useCallTranscription(appointmentId: string) {
   );
 }
 
-export function useCallQuality(appointmentId: string) {
+export function useCallQuality(appointmentId: string, userId?: string) {
+  const { user } = useAuth();
+  const resolvedUserId = userId ?? user?.id;
+
   return useQueryData(
-    ['video-call-quality', appointmentId],
+    ['video-call-quality', appointmentId, resolvedUserId ?? 'current'],
     async () => {
       try {
-        return await getCallQuality(appointmentId);
+        if (!resolvedUserId) {
+          throw new Error('User not authenticated');
+        }
+        return await getCallQuality(appointmentId, resolvedUserId);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (
@@ -1425,7 +1454,7 @@ export function useCallQuality(appointmentId: string) {
       }
     },
     {
-      enabled: !!appointmentId,
+      enabled: Boolean(appointmentId && resolvedUserId),
       retry: false,
     }
   );

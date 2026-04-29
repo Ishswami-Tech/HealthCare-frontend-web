@@ -24,6 +24,7 @@ import {
   useDeleteSupportRequest,
 } from "@/hooks/query/useSupportStaff";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 export default function SupportStaffRequests() {
   const { user } = useAuth();
@@ -125,7 +126,7 @@ export default function SupportStaffRequests() {
         header: "Created",
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">
-            {new Date(row.original.createdAt).toLocaleDateString("en-IN")}
+            {formatDateInIST(row.original.createdAt, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
           </span>
         ),
       },

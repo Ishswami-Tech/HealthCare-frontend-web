@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 import { useEffect, useRef } from 'react';
 import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
@@ -98,8 +99,9 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
     const unsubscribeCreated = subscribeAppointmentEvent('appointment.created', (rawData: unknown) => {
       const data = rawData as { appointment?: Appointment; appointmentId?: string };
       const appointment = data.appointment || (data as unknown as Appointment);
-      if (appointment?.id) {
-        queryClient.setQueryData(['appointment', appointment.id], appointment);
+      const appointmentId = String((appointment as any)?.appointmentId || appointment?.id || '');
+      if (appointmentId) {
+        queryClient.setQueryData(['appointment', appointmentId], appointment);
       }
       invalidateAppointmentQueries();
     });
@@ -107,7 +109,8 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
     const unsubscribeUpdated = subscribeAppointmentEvent('appointment.updated', (rawData: unknown) => {
       const data = rawData as { appointment?: Appointment; appointmentId?: string };
       const appointment = data.appointment || (data as unknown as Appointment);
-      const appointmentId = String(appointment?.id || data.appointmentId || '');
+      const appointmentRecord = appointment as { appointmentId?: string; id?: string } | undefined;
+      const appointmentId = String(appointmentRecord?.appointmentId || data.appointmentId || appointmentRecord?.id || '');
       if (appointmentId) {
         queryClient.setQueryData(['appointment', appointmentId], (oldData: Appointment | undefined) =>
           oldData ? { ...oldData, ...appointment } : appointment
@@ -159,7 +162,8 @@ export function useRealTimeAppointments(filters: AppointmentFilters = {}) {
     const unsubscribePaymentLifecycleEvents = paymentLifecycleEvents.map((event) =>
       subscribeAppointmentEvent(event, (rawData: unknown) => {
         const data = rawData as { appointmentId?: string; id?: string; appointment?: Appointment };
-        const appointmentId = String(data.appointment?.id || data.id || data.appointmentId || '');
+        const appointmentRecord = data.appointment as { appointmentId?: string; id?: string } | undefined;
+        const appointmentId = String(appointmentRecord?.appointmentId || data.appointmentId || data.id || appointmentRecord?.id || '');
         if (appointmentId) {
           queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId], exact: false });
           queryClient.invalidateQueries({ queryKey: ['video-appointment', appointmentId], exact: false });
@@ -389,8 +393,8 @@ export function useRealTimeAppointmentMutation() {
       const optimisticAppointment = {
         ...variables,
         id: `temp-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
       } as Appointment;
       return [...(current || []), optimisticAppointment];
     },

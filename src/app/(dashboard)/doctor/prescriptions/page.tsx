@@ -43,6 +43,7 @@ import {
 } from "@/hooks/query/usePrescriptions";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 export default function DoctorPrescriptions() {
   const { session } = useAuth();
@@ -318,14 +319,11 @@ export default function DoctorPrescriptions() {
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
                           <span>
-                            {new Date(prescription.date).toLocaleDateString(
-                              "en-IN",
-                              {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              }
-                            )}
+                            {formatDateInIST(prescription.date, {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">

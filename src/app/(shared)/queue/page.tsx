@@ -40,6 +40,7 @@ import {
   getQueueStatusColor,
   resolveQueueDisplayLabel,
 } from "@/lib/queue/queue-adapter";
+import { formatISODateInIST } from "@/lib/utils/date-time";
 import { Permission } from "@/types/rbac.types";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { PageLoading, Skeleton } from "@/components/ui/loading";
@@ -472,7 +473,7 @@ export default function QueuePage() {
 
   // Identify stale entries (active items from past dates) present in raw data
   const staleEntries = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = formatISODateInIST(new Date());
     return queueEntries.filter(item => {
       if (!item.scheduledDate) return false;
       return item.scheduledDate < todayStr && item.status !== QUEUE_STATUS.COMPLETED;

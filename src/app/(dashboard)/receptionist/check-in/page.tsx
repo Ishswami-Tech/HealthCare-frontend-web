@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments, useForceCheckInAppointment } from "@/hooks/query/useAppointments";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
   getAppointmentStatusDisplayName,
@@ -28,6 +29,7 @@ import {
   getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
 import { getAppointmentViewState } from "@/lib/utils/appointmentUtils";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 
 interface AppointmentListItem {
@@ -115,6 +117,7 @@ const getPatientPhone = (appointment: AppointmentListItem) =>
 
 export default function ReceptionistCheckInPage() {
   const { session } = useAuth();
+  useWebSocketQuerySync();
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
@@ -338,7 +341,7 @@ export default function ReceptionistCheckInPage() {
         meta={
           <span className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Calendar className="h-4 w-4 text-emerald-500" />
-            {new Date().toLocaleDateString("en-IN", {
+            {formatDateInIST(new Date(), {
               weekday: "long",
               year: "numeric",
               month: "long",

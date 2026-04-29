@@ -30,6 +30,7 @@ import { InvoiceForm } from "./InvoiceForm";
 import { PaymentHistory } from "./PaymentHistory";
 import { PatientBillingAnalytics } from "./PatientBillingAnalytics";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   useCreateSubscription,
   useCreateBillingPlan,
@@ -379,7 +380,7 @@ export function RoleBasedBillingDashboard({
             <span className="text-xs text-muted-foreground">
               Due:{" "}
               {row.original.dueDate
-                ? new Date(row.original.dueDate).toLocaleDateString("en-IN", {
+                ? formatDateInIST(row.original.dueDate, {
                     day: "numeric",
                     month: "short",
                     year: "numeric",
@@ -770,7 +771,7 @@ export function RoleBasedBillingDashboard({
                       <div>
                         <p className="font-extrabold text-[#006951] text-base leading-none">{sub.plan?.name || "Subscription Plan"}</p>
                         <p className="mt-2 flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-tight text-muted-foreground">
-                          Started on <span className="text-foreground">{sub.startDate ? new Date(sub.startDate).toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' }) : "Not available"}</span>
+                          Started on <span className="text-foreground">{sub.startDate ? formatDateInIST(sub.startDate, { day: "numeric", month: "short", year: "numeric" }) : "Not available"}</span>
                         </p>
                       </div>
                     </div>
@@ -1030,7 +1031,7 @@ export function RoleBasedBillingDashboard({
                   </p>
                   <p className="mt-2 font-semibold text-foreground">
                     {selectedInvoice.dueDate
-                      ? new Date(selectedInvoice.dueDate).toLocaleDateString("en-IN", {
+                      ? formatDateInIST(selectedInvoice.dueDate, {
                           day: "numeric",
                           month: "short",
                           year: "numeric",

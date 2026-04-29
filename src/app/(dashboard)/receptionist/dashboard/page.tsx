@@ -1,5 +1,7 @@
 "use client";
 
+import { nowIso } from '@/lib/utils/date-time';
+
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -34,6 +36,9 @@ import {
   getAppointmentDateTimeValue,
   shouldShowAppointmentOnReceptionDashboard,
 } from "@/lib/utils/appointmentUtils";
+import {
+  formatISODateInIST,
+} from "@/lib/utils/date-time";
 import type { CanonicalQueueEntry } from "@/types/queue.types";
 import {
   getAppointmentStatusBadgeLabel,
@@ -112,11 +117,11 @@ export default function ReceptionistDashboard() {
   useAuth();
   const { clinicId } = useClinicContext();
   useWebSocketQuerySync();
-  const today = useMemo(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }), []);
+  const today = useMemo(() => formatISODateInIST(new Date()), []);
   const historyStartDate = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() - 90);
-    return date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    return formatISODateInIST(date);
   }, []);
   const { data: appointmentsData, isPending, error: appointmentsError } = useAppointments({
     startDate: historyStartDate,
@@ -133,7 +138,7 @@ export default function ReceptionistDashboard() {
     try {
       await dispenseMutation.mutateAsync({ 
         prescriptionId, 
-        dispensingData: { dispensedAt: new Date().toISOString() } 
+        dispensingData: { dispensedAt: nowIso() } 
       });
       showSuccessToast("Medicine dispensed and handover complete");
       refetchMedicineDesk?.();
@@ -184,10 +189,8 @@ export default function ReceptionistDashboard() {
       appointments.filter((appointment) => {
         const dateTime = getAppointmentDateTimeValue(appointment.rawAppointment || appointment);
         const aptDate =
-          (dateTime
-            ? dateTime.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
-            : "") ||
-          String(appointment.rawAppointment?.date || appointment.rawAppointment?.appointmentDate || "").slice(0, 10);
+          (dateTime ? formatISODateInIST(dateTime) : "") ||
+          formatISODateInIST(appointment.rawAppointment?.date || appointment.rawAppointment?.appointmentDate || "");
         return aptDate === today;
       }),
     [appointments, today]

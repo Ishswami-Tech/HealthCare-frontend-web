@@ -58,30 +58,14 @@ export function WebSocketProvider({
 
   // ✅ Retry logic is handled by useWebSocketIntegration hook
 
-  // Initialize WebSocket manager
+  // Cleanup on unmount
   useEffect(() => {
-    if (shouldConnect && user) {
-      const initializeWebSocket = async () => {
-        try {
-          // Use environment-aware WebSocket URL
-          const { APP_CONFIG } = await import("@/lib/config/config");
-          websocketManager.initialize({
-            url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || APP_CONFIG.WEBSOCKET.URL || '',
-            autoConnect: false, // We handle connection through the integration hook
-          });
-        } catch (error) {
-          console.error("Failed to initialize WebSocket manager:", error);
-        }
-      };
-
-      initializeWebSocket();
-    }
-
-    // Cleanup on unmount
     return () => {
+      // The integration hook owns the actual connection lifecycle.
+      // Destroying the shared manager here keeps stale sockets from surviving route teardown.
       websocketManager.destroy();
     };
-  }, [shouldConnect, user]);
+  }, []);
 
   // Context value
   const contextValue: WebSocketContextType = {

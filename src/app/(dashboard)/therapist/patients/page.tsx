@@ -6,17 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Search,
-  Users,
-  Calendar,
-  Brain,
-  Loader2,
-} from "lucide-react";
+  Search, Users, Calendar, Brain, Loader2, } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTherapistClients, useUpdateTherapistClientSession } from "@/hooks/query/useTherapist";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { formatDateInIST, nowIso } from '@/lib/utils/date-time';
 
 export default function TherapistPatients() {
   useAuth();
@@ -50,7 +46,7 @@ export default function TherapistPatients() {
 
   const formatLastVisit = (value: unknown): string => {
     const parsed = safeDate(value);
-    return parsed ? parsed.toLocaleDateString("en-IN") : "N/A";
+    return parsed ? formatDateInIST(parsed) : "N/A";
   };
 
   const getStatusValue = (value: unknown): string =>
@@ -197,8 +193,8 @@ export default function TherapistPatients() {
                             therapistId,
                             clientId: client.id,
                             sessionData: {
-                              sessionDate: new Date().toISOString(),
-                              notes: `Updated on ${new Date().toLocaleDateString("en-IN")}`,
+                              sessionDate: nowIso(),
+                              notes: `Updated on ${formatDateInIST(new Date())}`,
                             },
                           })
                         }

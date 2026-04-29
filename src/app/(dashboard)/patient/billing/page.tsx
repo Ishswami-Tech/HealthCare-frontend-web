@@ -38,6 +38,7 @@ import { PaymentHistory } from "@/components/billing/PaymentHistory";
 import { PaymentButton } from "@/components/payments";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useLayoutStore } from "@/stores/layout.store";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import type { BillingPlan, Invoice, Subscription } from "@/types/billing.types";
 
 export default function PatientBillingPage() {
@@ -174,12 +175,7 @@ export default function PatientBillingPage() {
   }
 
   function formatDate(date: string) {
-    return new Date(date).toLocaleDateString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    return formatDateInIST(date, { day: "2-digit", month: "short", year: "numeric" }, "en-IN");
   }
 
   function getInvoiceDateLabel(invoice: { status: string; dueDate?: string; paidDate?: string }) {

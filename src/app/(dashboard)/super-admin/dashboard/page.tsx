@@ -12,6 +12,8 @@ import { useClinics } from "@/hooks/query/useClinics";
 import { useUsers } from "@/hooks/query/useUsers";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useRevenueAnalytics } from "@/hooks/query/useAnalytics";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatDateTimeInIST } from "@/lib/utils/date-time";
 import {
   TrendingUp,
   Building2,
@@ -23,6 +25,7 @@ import {
 
 export default function SuperAdminDashboard() {
   useAuth();
+  useWebSocketQuerySync();
 
   // Fetch real data using existing hooks and server actions
   const { data: clinics } = useClinics();
@@ -109,7 +112,7 @@ export default function SuperAdminDashboard() {
       {
         accessorKey: "date",
         header: "Date",
-        cell: ({ row }) => new Date(row.original.date).toLocaleString(),
+        cell: ({ row }) => formatDateTimeInIST(row.original.date),
       },
     ],
     []

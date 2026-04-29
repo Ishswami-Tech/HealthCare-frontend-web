@@ -25,6 +25,7 @@ import { theme } from "@/lib/utils/theme-utils";
 import { LoadingSpinner, PageLoading, ErrorState, EmptyState } from "@/components/ui/loading";
 import { useComprehensiveHealthRecord, useAllergies } from "@/hooks/query/useMedicalRecords";
 import { showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import type {
   ComprehensiveHealthRecord,
   PatientAllergyEntry,
@@ -106,7 +107,7 @@ export default function PatientMedicalRecords() {
     () =>
       vitalSigns.map((vital: PatientVitalEntry, index: number) => ({
         id: `${vital.date}-${index}`,
-        dateLabel: new Date(vital.date).toLocaleDateString(),
+        dateLabel: formatDateInIST(vital.date, { day: "2-digit", month: "short", year: "numeric" }, "en-IN"),
         bpLabel: `${vital.bp} mmHg`,
         hrLabel: `${vital.hr} bpm`,
         weightLabel: `${vital.weight} kg`,
@@ -307,9 +308,7 @@ export default function PatientMedicalRecords() {
                                   <div>
                                     <p>
                                       <strong>Date:</strong>{" "}
-                                      {new Date(
-                                        record.date
-                                      ).toLocaleDateString()}
+                                      {formatDateInIST(record.date, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                                     </p>
                                     <p>
                                       <strong>Doctor:</strong> {record.doctor}
@@ -384,9 +383,7 @@ export default function PatientMedicalRecords() {
                             <div>
                               <h3 className="font-semibold">
                                 Prescription -{" "}
-                                {new Date(
-                                  prescription.date
-                                ).toLocaleDateString()}
+                                {formatDateInIST(prescription.date, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                               </h3>
                               <p
                                 className={`text-sm ${theme.textColors.secondary}`}
@@ -483,7 +480,7 @@ export default function PatientMedicalRecords() {
                               <p
                                 className={`text-sm ${theme.textColors.secondary}`}
                               >
-                                {new Date(report.date).toLocaleDateString()} •{" "}
+                                {formatDateInIST(report.date, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")} •{" "}
                                 {report.doctor}
                               </p>
                             </div>
@@ -708,7 +705,7 @@ export default function PatientMedicalRecords() {
                             {(allergy.onsetDate || allergy.diagnosedDate) && (
                               <p className={`text-xs ${theme.textColors.muted}`}>
                                 Onset:{" "}
-                                {new Date(allergy.onsetDate ?? allergy.diagnosedDate ?? "").toLocaleDateString()}
+                                {formatDateInIST(allergy.onsetDate ?? allergy.diagnosedDate ?? "", { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                               </p>
                             )}
                             {allergy.status && (
@@ -816,7 +813,7 @@ export default function PatientMedicalRecords() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground mb-1">Date</h4>
-                  <p>{new Date(selectedRecord.date).toLocaleDateString()}</p>
+                  <p>{formatDateInIST(selectedRecord.date, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground mb-1">Doctor</h4>

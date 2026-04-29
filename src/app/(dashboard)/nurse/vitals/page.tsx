@@ -9,32 +9,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "@/components/ui/loader";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, } from "@/components/ui/dialog";
 import {
-  Activity,
-  Thermometer,
-  Heart,
-  Search,
-  Calendar,
-  Save,
-  Plus,
-  Edit2,
-} from "lucide-react";
+  Activity, Thermometer, Heart, Search, Calendar, Save, Plus, Edit2, } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
-  useNursePatientVitals,
-  useNursePatients,
-  useCreateNursePatientRecord,
-  useUpdateNursePatientRecord,
-} from "@/hooks/query/useNurse";
+  useNursePatientVitals, useNursePatients, useCreateNursePatientRecord, useUpdateNursePatientRecord, } from "@/hooks/query/useNurse";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { formatDateTimeInIST, nowIso } from '@/lib/utils/date-time';
 
 interface VitalsFormData {
   patientId: string;
@@ -128,12 +112,12 @@ export default function NurseVitals() {
     }
     setFormError("");
 
-    const payload = {
-      patientId: form.patientId,
-      patientName: form.patientName,
-      nurseId,
-      recordedAt: new Date().toLocaleString("en-CA", { timeZone: "Asia/Kolkata" }),
-      bloodPressure: {
+      const payload = {
+        patientId: form.patientId,
+        patientName: form.patientName,
+        nurseId,
+        recordedAt: nowIso(),
+        bloodPressure: {
         systolic: Number(form.systolic) || null,
         diastolic: Number(form.diastolic) || null,
       },
@@ -276,12 +260,12 @@ export default function NurseVitals() {
                           </div>
                           <p className="font-semibold text-xs">
                             {record.recordedAt
-                              ? new Date(record.recordedAt).toLocaleString("en-IN", {
-                                  timeZone: "Asia/Kolkata",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
+                              ? formatDateTimeInIST(record.recordedAt, {
                                   day: "2-digit",
                                   month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: true,
                                 })
                               : (record.time ?? "—")}
                           </p>

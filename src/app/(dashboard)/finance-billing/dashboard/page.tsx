@@ -14,6 +14,7 @@ import {
 } from "@/hooks/query/useBilling";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import type { Invoice, Payment, BillingAnalytics } from "@/types/billing.types";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   DollarSign,
   FileText,
@@ -269,7 +270,7 @@ export default function FinanceBillingDashboard() {
                         <p className="text-xs text-muted-foreground">
                           {inv.patientName ?? "Patient"}
                           {inv.createdAt
-                            ? ` · ${new Date(inv.createdAt).toLocaleDateString()}`
+                            ? ` · ${formatDateInIST(inv.createdAt)}`
                             : ""}
                         </p>
                       </div>

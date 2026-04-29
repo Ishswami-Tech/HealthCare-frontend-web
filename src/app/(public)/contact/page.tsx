@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 import React, { useState, Suspense } from "react";
 import { useTranslation } from "@/lib/i18n/context";
@@ -801,7 +802,7 @@ export default function ContactPage() {
                     type="date"
                     value={bookingData.preferredDate}
                     onChange={handleBookingInputChange}
-                    min={new Date().toISOString().split("T")[0]}
+                    min={nowIso().split("T")[0]}
                     className="h-9 rounded-lg"
                   />
                 </div>

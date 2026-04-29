@@ -19,6 +19,8 @@ import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { PatientClinicalRecordView } from "@/components/patient/PatientClinicalRecordView";
 import { usePatientStore } from "@/stores";
+import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   Calendar,
   Users,
@@ -241,7 +243,7 @@ export default function DoctorPatients() {
             <div className="space-y-1 text-sm">
               <div className="text-foreground">{patient.totalVisits !== undefined ? `${patient.totalVisits} total` : "—"}</div>
               <div className="text-muted-foreground">
-                {patient.lastVisit ? `Last: ${new Date(patient.lastVisit).toLocaleDateString()}` : "No visit"}
+                {patient.lastVisit ? `Last: ${formatDateInIST(patient.lastVisit)}` : "No visit"}
               </div>
             </div>
           );
@@ -282,11 +284,7 @@ export default function DoctorPatients() {
     weekEnd.setDate(now.getDate() + 7);
 
     const upcomingAppointments = appointments.filter((appointment: RecordLike) => {
-      const dateValue =
-        appointment.startTime ||
-        appointment.appointmentDate ||
-        (appointment.date && appointment.time ? `${appointment.date}T${appointment.time}` : appointment.date);
-      const parsed = dateValue ? new Date(dateValue) : null;
+      const parsed = getAppointmentDateTimeValue(appointment);
       return parsed && !Number.isNaN(parsed.getTime()) && parsed >= now && parsed <= weekEnd && ["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes(String(appointment.status || "").toUpperCase());
     }).length;
 

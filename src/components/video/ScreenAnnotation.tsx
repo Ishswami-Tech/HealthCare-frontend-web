@@ -29,6 +29,7 @@ import {
   type Annotation,
 } from "@/hooks/query";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { formatTimeInIST } from "@/lib/utils/date-time";
 
 interface ScreenAnnotationProps {
   appointmentId: string;
@@ -471,7 +472,7 @@ export function ScreenAnnotation({
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{annotation.annotationType}</Badge>
                     <span className="text-muted-foreground">
-                      {new Date(annotation.createdAt).toLocaleTimeString()}
+                      {formatTimeInIST(annotation.createdAt)}
                     </span>
                   </div>
                   {annotation.userId === user?.id && (

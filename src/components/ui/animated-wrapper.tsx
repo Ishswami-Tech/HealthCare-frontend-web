@@ -125,7 +125,13 @@ export const HoverAnimation: React.FC<HoverAnimationProps> = ({
   type = 'scale',
   disabled = false,
 }) => {
-  if (disabled) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (disabled || !mounted) {
     return <div className={cn(className)}>{children}</div>;
   }
 

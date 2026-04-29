@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 import { useState, useEffect } from "react";
 import {
@@ -10,6 +11,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 interface InstagramPostProps {
   postUrl: string;
@@ -88,7 +90,7 @@ export function InstagramPost({
             "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&h=400&fit=crop",
           media_type: "IMAGE",
           permalink: postUrl,
-          timestamp: new Date().toISOString(),
+          timestamp: nowIso(),
           username: "Vishwamurti_ayurveda",
           likes_count: 127,
           comments_count: 23,
@@ -194,7 +196,7 @@ export function InstagramPost({
               {postData.username || "Vishwamurti_ayurveda"}
             </p>
             <p className="text-xs text-gray-500">
-              {new Date(postData.timestamp).toLocaleDateString()}
+              {formatDateInIST(postData.timestamp)}
             </p>
           </div>
         </div>

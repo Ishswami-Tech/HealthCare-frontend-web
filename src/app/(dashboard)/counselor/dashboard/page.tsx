@@ -16,17 +16,18 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useCounselorAppointments } from "@/hooks/query/useCounselor";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { formatISODateInIST } from "@/lib/utils/date-time";
 
 export default function CounselorDashboard() {
   const { session } = useAuth();
   const user = session?.user;
 
   const counselorId = user?.id;
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatISODateInIST(new Date());
   const historyStartDate = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() - 90);
-    return date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    return formatISODateInIST(date);
   }, []);
 
   const { data: todayAppointmentsData, isPending: isAppointmentsPending } = useCounselorAppointments(

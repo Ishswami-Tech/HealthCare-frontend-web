@@ -24,6 +24,7 @@ import {
   useDeleteLabResult,
 } from "@/hooks/query/useLabTechnician";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 export default function LabTechnicianResults() {
   const { user } = useAuth();
@@ -255,16 +256,16 @@ export default function LabTechnicianResults() {
                         {result.testType}
                       </p>
                       <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                        <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           Collected:{" "}
-                          {new Date(result.collectionDate).toLocaleDateString("en-IN")}
+                          {formatDateInIST(result.collectionDate, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                         </span>
                         {result.completedDate && (
                           <span className="flex items-center gap-1">
                             <CheckCircle className="w-3 h-3" />
                             Completed:{" "}
-                            {new Date(result.completedDate).toLocaleDateString("en-IN")}
+                            {formatDateInIST(result.completedDate, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                           </span>
                         )}
                       </div>

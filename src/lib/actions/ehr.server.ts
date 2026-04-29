@@ -2,6 +2,7 @@
 
 import { authenticatedApi } from './auth.server';
 import { isApiError } from '@/lib/utils/error-handler';
+import { formatISODateInIST } from '@/lib/utils';
 import { API_ENDPOINTS } from '../config/config';
 
 // ===== COMPREHENSIVE HEALTH RECORD =====
@@ -46,7 +47,7 @@ export async function createMedicalHistory(createDto: {
     userId: createDto.userId,
     condition: createDto.condition,
     notes: createDto.notes,
-    date: createDto.startDate || new Date().toISOString().split('T')[0], // Map startDate to date
+    date: createDto.startDate || formatISODateInIST(new Date()), // Map startDate to date
     clinicId: undefined // Let backend handle or extract from context if needed
   };
 
@@ -403,7 +404,7 @@ export async function createAllergy(createDto: {
     allergen: createDto.allergen,
     severity: createDto.severity || 'mild',
     reaction: createDto.reaction || 'None',
-    diagnosedDate: createDto.onsetDate || new Date().toISOString().split('T')[0], // MAP
+    diagnosedDate: createDto.onsetDate || formatISODateInIST(new Date()), // MAP
     status: createDto.status,
     notes: createDto.notes
   };

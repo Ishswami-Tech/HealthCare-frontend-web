@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 
 import { useAuth } from "@/hooks/auth/useAuth";
+import { formatDateInIST, formatDateTimeInIST } from "@/lib/utils/date-time";
 import {
   Activity,
   UserCheck,
@@ -344,9 +345,9 @@ export default function ReceptionistProfile() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label>Joining Date</Label>
-                        <Input 
-                          value={new Date(profileData.workInfo.joiningDate).toLocaleDateString()} 
-                          disabled 
+                        <Input
+                          value={profileData.workInfo.joiningDate ? formatDateInIST(profileData.workInfo.joiningDate) : ""}
+                          disabled
                         />
                       </div>
                       <div>
@@ -423,7 +424,7 @@ export default function ReceptionistProfile() {
                     
                     <div className="pt-4 border-t">
                       <div className="text-sm text-muted-foreground">
-                        <strong>Last Login:</strong> {new Date(profileData.systemAccess.lastLogin).toLocaleString()}
+                        <strong>Last Login:</strong> {profileData.systemAccess.lastLogin ? formatDateTimeInIST(profileData.systemAccess.lastLogin) : "—"}
                       </div>
                     </div>
                   </CardContent>

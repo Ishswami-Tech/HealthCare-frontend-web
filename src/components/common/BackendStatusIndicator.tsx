@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { StatusIndicator, StatusType, StatusDot } from "./StatusIndicator";
 import { useDetailedHealthStatus } from "@/hooks/query/useHealth";
+import { formatTimeInIST } from "@/lib/utils/date-time";
 
 // Helper to map status string to StatusType
 const mapStatus = (status?: string, healthy?: boolean): StatusType => {
@@ -193,7 +194,7 @@ export function BackendStatusIndicator() {
       <div className="flex justify-between items-center border-t pt-2">
          {lastUpdate && (
           <div className="text-xs text-gray-500">
-            Last update: {lastUpdate.toLocaleTimeString()}
+            Last update: {formatTimeInIST(lastUpdate)}
           </div>
         )}
         <div className="text-xs text-gray-500">

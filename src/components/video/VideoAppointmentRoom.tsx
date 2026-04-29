@@ -6,7 +6,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { APP_CONFIG } from "@/lib/config/config";
-import { isVideoNoShowEnforced } from "@/lib/utils/appointmentUtils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +25,7 @@ import {
   Users,
   MessageSquare,
   FileText,
+  CreditCard,
   Calendar,
   Clock,
   User,
@@ -49,16 +49,24 @@ import { EnhancedRecordingControls } from "./EnhancedRecordingControls";
 import { EnhancedParticipantControls } from "./EnhancedParticipantControls";
 import { UserVideoComponent } from "./UserVideoComponent";
 import {
+  getAppointmentDateTimeValue,
+  formatDateInIST,
+  formatTimeInIST,
+  getAppointmentStatusBadgeLabel,
+  getVideoSessionDecision,
+  getAppointmentServiceLabel,
+  getVideoAppointmentFee,
+} from "@/lib/utils/appointmentUtils";
+import {
   useVideoCall,
   useVideoCallControls,
   useVideoAppointment,
 } from "@/hooks/query/useVideoAppointments";
-import { useCompleteAppointment } from "@/hooks/query/useAppointments";
+import { useAppointmentServices, useCompleteAppointment } from "@/hooks/query/useAppointments";
 import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
-import { getAppointmentViewState } from "@/lib/utils/appointmentUtils";
 import { normalizeOpenViduServerUrl, type OpenViduAPI } from "@/lib/video/openvidu";
 import type { ParticipantInfo } from "@/lib/video/openvidu";
 
@@ -77,6 +85,7 @@ export function VideoAppointmentRoom({
 }: VideoAppointmentRoomProps) {
   const { user } = useAuth();
   const completeAppointmentMutation = useCompleteAppointment();
+  const { data: appointmentServices = [] } = useAppointmentServices();
   const {
     startCall,
     endCall,
@@ -88,6 +97,7 @@ export function VideoAppointmentRoom({
   const {
     subscribeToParticipantEvents,
     subscribeToRecordingEvents,
+    subscribeToConsultationEvents,
     subscribeToChatMessages,
     subscribeToWaitingRoom,
     subscribeToMedicalNotes,
@@ -113,7 +123,9 @@ export function VideoAppointmentRoom({
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [activePanel, setActivePanel] = useState<"chat" | "notes" | "participants">("chat");
   const autoStartTriggeredRef = useRef(false);
+  const [hasConsultationStarted, setHasConsultationStarted] = useState(false);
   const resolvedAppointmentId = String(appointment.appointmentId || appointment.id || "");
+  const currentUserId = user?.id ?? null;
   const {
     data: liveAppointmentQuery,
     isPending: isLiveAppointmentPending,
@@ -147,7 +159,18 @@ export function VideoAppointmentRoom({
 
     return null;
   }, [appointment, liveAppointmentSource, shouldUseFallbackAppointment]);
-  const latestViewState = React.useMemo(() => getAppointmentViewState(latestAppointment), [latestAppointment]);
+  const serviceLabel = React.useMemo(
+    () => getAppointmentServiceLabel(latestAppointment, appointmentServices as any[]),
+    [appointmentServices, latestAppointment]
+  );
+  const serviceFee = React.useMemo(
+    () => getVideoAppointmentFee(latestAppointment, appointmentServices as any[]),
+    [appointmentServices, latestAppointment]
+  );
+  const videoSessionDecision = React.useMemo(
+    () => getVideoSessionDecision(latestAppointment),
+    [latestAppointment]
+  );
   const openViduHost = normalizeOpenViduServerUrl(APP_CONFIG.VIDEO.OPENVIDU_URL);
   
   // Role-based access
@@ -159,17 +182,16 @@ export function VideoAppointmentRoom({
   // canEndForAll: doctors and admins can end the session for everyone; patients only leave
   const canEndForAll = isDoctor || isAdmin;
 
-  // âœ… Subscribe to WebSocket events
+  // ✅ Subscribe to WebSocket events
   useEffect(() => {
     if (!isConnected) return;
 
-    // Subscribe to participant events
     const unsubscribeParticipants = subscribeToParticipantEvents((data) => {
       if (data.appointmentId === resolvedAppointmentId) {
         if (data.action === "participant_joined" && data.participant) {
           const participantData = data.participant;
           const participant: ParticipantInfo = {
-            connectionId: participantData.userId || '',
+            connectionId: participantData.userId,
             data: JSON.stringify(participantData),
             role: participantData.role || 'participant',
             userId: participantData.userId,
@@ -196,7 +218,6 @@ export function VideoAppointmentRoom({
       }
     });
 
-    // Subscribe to recording events
     const unsubscribeRecording = subscribeToRecordingEvents((data) => {
       if (data.appointmentId === resolvedAppointmentId) {
         if (data.action === "recording_started") {
@@ -215,7 +236,43 @@ export function VideoAppointmentRoom({
       }
     });
 
-    // Subscribe to chat messages (real-time updates)
+    const unsubscribeConsultation = subscribeToConsultationEvents((data) => {
+      if (data.appointmentId !== resolvedAppointmentId) {
+        return;
+      }
+
+      const eventType = String(
+        (data as { eventType?: unknown }).eventType ||
+          (data as { type?: unknown }).type ||
+          (data as { action?: unknown }).action ||
+          ""
+      ).toLowerCase();
+
+      if (eventType.includes("started")) {
+        setHasConsultationStarted(true);
+      }
+
+      if (eventType.includes("ended")) {
+        setHasConsultationStarted(false);
+      }
+    });
+
+    return () => {
+      unsubscribeParticipants();
+      unsubscribeRecording();
+      unsubscribeConsultation();
+    };
+  }, [
+    resolvedAppointmentId,
+    isConnected,
+    subscribeToParticipantEvents,
+    subscribeToRecordingEvents,
+    subscribeToConsultationEvents,
+  ]);
+
+  useEffect(() => {
+    if (!isConnected) return;
+
     const unsubscribeChat = subscribeToChatMessages((data) => {
       if (data.appointmentId === resolvedAppointmentId) {
         // Chat component handles its own state updates via WebSocket
@@ -223,7 +280,6 @@ export function VideoAppointmentRoom({
       }
     });
 
-    // Subscribe to waiting room events
     const unsubscribeWaitingRoom = subscribeToWaitingRoom((data) => {
       if (data.appointmentId === resolvedAppointmentId) {
         // Waiting room component handles its own state updates
@@ -231,7 +287,6 @@ export function VideoAppointmentRoom({
       }
     });
 
-    // Subscribe to medical notes events
     const unsubscribeNotes = subscribeToMedicalNotes((data) => {
       if (data.appointmentId === resolvedAppointmentId) {
         // Medical notes component handles its own state updates
@@ -239,7 +294,22 @@ export function VideoAppointmentRoom({
       }
     });
 
-    // Subscribe to call quality updates
+    return () => {
+      unsubscribeChat();
+      unsubscribeWaitingRoom();
+      unsubscribeNotes();
+    };
+  }, [
+    resolvedAppointmentId,
+    isConnected,
+    subscribeToChatMessages,
+    subscribeToWaitingRoom,
+    subscribeToMedicalNotes,
+  ]);
+
+  useEffect(() => {
+    if (!isConnected) return;
+
     const unsubscribeQuality = subscribeToCallQuality((data) => {
       if (data.appointmentId === resolvedAppointmentId) {
         // Call quality component handles its own state updates
@@ -247,7 +317,6 @@ export function VideoAppointmentRoom({
       }
     });
 
-    // Subscribe to annotation events
     const unsubscribeAnnotations = subscribeToAnnotations((data) => {
       if (data.appointmentId === resolvedAppointmentId) {
         // Screen annotation component handles its own state updates
@@ -255,7 +324,6 @@ export function VideoAppointmentRoom({
       }
     });
 
-    // Subscribe to transcription events
     const unsubscribeTranscription = subscribeToTranscription((data) => {
       if (data.appointmentId === resolvedAppointmentId) {
         // Call transcription component handles its own state updates
@@ -264,11 +332,6 @@ export function VideoAppointmentRoom({
     });
 
     return () => {
-      unsubscribeParticipants();
-      unsubscribeRecording();
-      unsubscribeChat();
-      unsubscribeWaitingRoom();
-      unsubscribeNotes();
       unsubscribeQuality();
       unsubscribeAnnotations();
       unsubscribeTranscription();
@@ -276,11 +339,6 @@ export function VideoAppointmentRoom({
   }, [
     resolvedAppointmentId,
     isConnected,
-    subscribeToParticipantEvents,
-    subscribeToRecordingEvents,
-    subscribeToChatMessages,
-    subscribeToWaitingRoom,
-    subscribeToMedicalNotes,
     subscribeToCallQuality,
     subscribeToAnnotations,
     subscribeToTranscription,
@@ -298,21 +356,8 @@ export function VideoAppointmentRoom({
         throw new Error("Unable to verify the latest appointment status. Please try again.");
       }
 
-      const currentStatus = String(latestViewState.status || latestAppointment?.status || "").toUpperCase();
-      if (isVideoNoShowEnforced() && currentStatus === "NO_SHOW") {
-        throw new Error("This appointment was marked as no-show and cannot be joined.");
-      }
-      if (currentStatus === "CANCELLED" || currentStatus === "CANCELED") {
-        throw new Error("This appointment was cancelled and cannot be joined.");
-      }
-      if (currentStatus === "COMPLETED") {
-        throw new Error("This appointment has already been completed.");
-      }
-      if (latestViewState.awaitingDoctorSlotConfirmation) {
-        throw new Error("This appointment is still awaiting doctor confirmation.");
-      }
-      if (!latestViewState.paymentCompleted) {
-        throw new Error("Payment is required to join this appointment.");
+      if (videoSessionDecision.blockedReason) {
+        throw new Error(videoSessionDecision.blockedReason);
       }
 
       const userInfo = {
@@ -328,7 +373,7 @@ export function VideoAppointmentRoom({
 
       // Send WebSocket event for participant joined
       sendParticipantJoined(resolvedAppointmentId, {
-        userId: userInfo.userId || user?.id || '',
+        userId: userInfo.userId,
         displayName: userInfo.displayName || user?.name || 'User',
         role: userInfo.role || user?.role || 'patient',
       });
@@ -341,19 +386,49 @@ export function VideoAppointmentRoom({
     } finally {
       setIsConnecting(false);
     }
-  }, [latestAppointment, latestViewState, resolvedAppointmentId, sendParticipantJoined, startCall, user]);
+  }, [latestAppointment, resolvedAppointmentId, sendParticipantJoined, startCall, user, videoSessionDecision.blockedReason]);
 
   useEffect(() => {
     autoStartTriggeredRef.current = false;
+    setHasConsultationStarted(false);
   }, [resolvedAppointmentId]);
 
   useEffect(() => {
-    if (!autoStart || autoStartTriggeredRef.current || call || isConnecting || !user?.id || isLiveAppointmentPending) return;
+    if (!autoStart || autoStartTriggeredRef.current || call || isConnecting || !currentUserId || isLiveAppointmentPending) return;
     autoStartTriggeredRef.current = true;
     void handleStartCall().catch(() => {
       autoStartTriggeredRef.current = false;
     });
-  }, [autoStart, call, handleStartCall, isConnecting, isLiveAppointmentPending, user?.id]);
+  }, [autoStart, call, currentUserId, handleStartCall, isConnecting, isLiveAppointmentPending]);
+
+  useEffect(() => {
+    if (
+      call ||
+      isConnecting ||
+      !currentUserId ||
+      isLiveAppointmentPending ||
+      autoStartTriggeredRef.current
+    ) {
+      return;
+    }
+
+    if (!hasConsultationStarted && videoSessionDecision.action !== "resume") {
+      return;
+    }
+
+    autoStartTriggeredRef.current = true;
+    void handleStartCall().catch(() => {
+      autoStartTriggeredRef.current = false;
+    });
+  }, [
+    call,
+    handleStartCall,
+    hasConsultationStarted,
+    isConnecting,
+    isLiveAppointmentPending,
+    currentUserId,
+    videoSessionDecision.action,
+  ]);
 
   // âœ… End video call
   const handleEndCall = async (options?: { skipToast?: boolean }) => {
@@ -365,7 +440,7 @@ export function VideoAppointmentRoom({
 
       // Send WebSocket event for participant left
       sendParticipantLeft(resolvedAppointmentId, {
-        userId: user?.id || "",
+        userId: currentUserId ?? "",
         displayName: user?.name || "Unknown User",
         role: user?.role || "patient",
       });
@@ -404,7 +479,7 @@ export function VideoAppointmentRoom({
 
     // Send WebSocket event for participant left
     sendParticipantLeft(resolvedAppointmentId, {
-      userId: user?.id || "",
+      userId: currentUserId ?? "",
       displayName: user?.name || "Unknown User",
       role: user?.role || "patient",
     });
@@ -416,25 +491,25 @@ export function VideoAppointmentRoom({
 
   // âœ… Get call controls
   const controls = call ? getCallControls(call) : null;
-  const appointmentStartDate = new Date(appointment.startTime);
+  const appointmentStartDate = getAppointmentDateTimeValue(appointment);
   const appointmentEndDate = appointment.endTime ? new Date(appointment.endTime) : null;
-  const appointmentDateLabel = Number.isNaN(appointmentStartDate.getTime())
-    ? "Date pending"
-    : appointmentStartDate.toLocaleDateString("en-IN", {
+  const appointmentDateLabel = appointmentStartDate
+    ? formatDateInIST(appointmentStartDate, {
         weekday: "short",
         day: "2-digit",
         month: "short",
-      });
-  const appointmentTimeLabel = Number.isNaN(appointmentStartDate.getTime())
-    ? "Time pending"
-    : appointmentStartDate.toLocaleTimeString("en-IN", {
+      })
+    : "Date pending";
+  const appointmentTimeLabel = appointmentStartDate
+    ? formatTimeInIST(appointmentStartDate, {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
-      });
+      })
+    : "Time pending";
   const appointmentEndLabel =
     appointmentEndDate && !Number.isNaN(appointmentEndDate.getTime())
-      ? appointmentEndDate.toLocaleTimeString("en-IN", {
+      ? formatTimeInIST(appointmentEndDate, {
           hour: "2-digit",
           minute: "2-digit",
           hour12: true,
@@ -592,8 +667,8 @@ export function VideoAppointmentRoom({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="truncate text-xl font-semibold tracking-tight">Video Appointment</h1>
-                <Badge className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide", getStatusColor(appointment.status))}>
-                  {appointment.status.replace("-", " ").toUpperCase()}
+                <Badge className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide", getStatusColor(latestAppointment?.status || appointment.status))}>
+                  {getAppointmentStatusBadgeLabel(latestAppointment || appointment)}
                 </Badge>
                 <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide", connectionBadgeClass)}>
                   {isConnected ? "Live sync" : "Offline"}
@@ -699,9 +774,9 @@ export function VideoAppointmentRoom({
                         onClick={handleStartCall}
                         size="lg"
                         className="mt-6 rounded-2xl bg-emerald-500 px-6 text-white hover:bg-emerald-600"
-                      >
-                        <Phone className="mr-2 h-5 w-5" />
-                        Start Video Call
+                    >
+                      <Phone className="mr-2 h-5 w-5" />
+                        {videoSessionDecision.label}
                       </Button>
                     </div>
                   </div>
@@ -911,12 +986,13 @@ export function VideoAppointmentRoom({
                       Date
                     </div>
                     <p className="mt-2 text-sm font-semibold text-foreground">
-                      {new Date(appointment.startTime).toLocaleDateString("en-IN", {
-                        timeZone: "Asia/Kolkata",
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {appointmentStartDate
+                        ? formatDateInIST(appointmentStartDate, {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "Date pending"}
                     </p>
                   </div>
                   <div className="rounded-2xl border border-border/60 bg-background px-3 py-3 shadow-sm">
@@ -925,17 +1001,19 @@ export function VideoAppointmentRoom({
                       Time
                     </div>
                     <p className="mt-2 text-sm font-semibold text-foreground">
-                      {new Date(appointment.startTime).toLocaleTimeString("en-IN", {
-                        timeZone: "Asia/Kolkata",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                      {" - "}
-                      {appointment.endTime
-                        ? new Date(appointment.endTime).toLocaleTimeString("en-IN", {
-                            timeZone: "Asia/Kolkata",
+                      {appointmentStartDate
+                        ? formatTimeInIST(appointmentStartDate, {
                             hour: "2-digit",
                             minute: "2-digit",
+                            hour12: true,
+                          })
+                        : "Time pending"}
+                      {" - "}
+                      {appointment.endTime
+                        ? formatTimeInIST(new Date(appointment.endTime), {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true,
                           })
                         : "-"}
                     </p>
@@ -958,6 +1036,24 @@ export function VideoAppointmentRoom({
                         </div>
                         <p className="mt-2 break-all text-sm font-semibold text-foreground">
                           {appointment.patientId}
+                        </p>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                          <FileText className="h-3.5 w-3.5" />
+                          Service
+                        </div>
+                        <p className="mt-2 text-sm font-semibold text-foreground">
+                          {serviceLabel}
+                        </p>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                          <CreditCard className="h-3.5 w-3.5" />
+                          Fee
+                        </div>
+                        <p className="mt-2 text-sm font-semibold text-foreground">
+                          {serviceFee > 0 ? `₹${serviceFee}` : "Included"}
                         </p>
                       </div>
                     </div>
@@ -989,12 +1085,12 @@ export function VideoAppointmentRoom({
                           </div>
                           {/* Enhanced Participant Controls - Only for doctors/admins */}
                           {(isDoctor || isAdmin) && (
-                            <EnhancedParticipantControls
-                              appointmentId={resolvedAppointmentId}
-                              participant={participant}
-                              currentUserId={user?.id || ""}
-                              onActionComplete={updateParticipants}
-                            />
+                              <EnhancedParticipantControls
+                                appointmentId={resolvedAppointmentId}
+                                participant={participant}
+                                currentUserId={currentUserId ?? ""}
+                                onActionComplete={updateParticipants}
+                              />
                           )}
                         </div>
                       ))

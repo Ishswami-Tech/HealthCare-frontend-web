@@ -22,10 +22,12 @@ import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
   getAppointmentViewState,
+  formatAppointmentTime,
   isPaidVideoAppointmentAwaitingDoctorConfirmation,
   shouldShowAppointmentOnDoctorDashboard,
 } from "@/lib/utils/appointmentUtils";
 import {
+  formatDateInIST,
   getAppointmentDateTimeValue,
   getAppointmentPaymentDisplayState,
   getAppointmentPatientName,
@@ -163,11 +165,16 @@ export default function DoctorDashboard() {
   );
   const clinicId = useCurrentClinicId();
   const doctorId = user?.id;
-  const today = useMemo(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }), []);
+  const today = useMemo(() => formatDateInIST(new Date(), { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA"), []);
   const historyStartDate = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() - 90);
-    return date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
+  }, []);
+  const futureEndDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 365);
+    return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
   }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -184,12 +191,13 @@ export default function DoctorDashboard() {
     ...(clinicId ? { clinicId } : {}),
     ...(doctorId ? { doctorId } : {}),
     startDate: historyStartDate,
-    endDate: today,
-    limit: 200,
+    endDate: futureEndDate,
+    limit: 500,
   });
   const { data: queueData } = useQueue(
     clinicId || undefined,
     {
+      ...(doctorId ? { doctorId } : {}),
       enabled: !!clinicId,
     }
   );
@@ -299,7 +307,7 @@ export default function DoctorDashboard() {
         const timeLabel = getReceptionistAppointmentTimeLabel(apt as unknown as Record<string, unknown>);
         const appointmentMoment = getAppointmentDateTimeValue(apt);
         const appointmentDay = appointmentMoment
-          ? appointmentMoment.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+          ? formatDateInIST(appointmentMoment, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA")
           : "";
         const scheduleState =
           appointmentDay && appointmentDay < today
@@ -349,12 +357,12 @@ export default function DoctorDashboard() {
   const activeTreatmentQueue = liveQueueEntries;
 
   const stats = useMemo(() => {
-    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const todayStr = formatDateInIST(new Date(), { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
     const todayApts = visibleAppointmentsArray.filter((apt: AppointmentWithRelations) => {
       const dateTime = getAppointmentDateTimeValue(apt);
       const aptDate =
         (dateTime
-          ? dateTime.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+          ? formatDateInIST(dateTime, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA")
           : "") ||
         apt.date ||
         (apt as unknown as Record<string, unknown>).appointmentDate?.toString().split("T")?.[0] ||
@@ -369,9 +377,9 @@ export default function DoctorDashboard() {
       totalPatients: new Set(appointmentsArray.map((apt: AppointmentWithRelations) => apt.patientId)).size,
       awaitingPayments: appointmentsArray.filter((apt: AppointmentWithRelations) => {
         const dateTime = getAppointmentDateTimeValue(apt);
-        const aptDate =
-          (dateTime
-            ? dateTime.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+      const aptDate =
+        (dateTime
+            ? formatDateInIST(dateTime, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA")
             : "") ||
           apt.date ||
           (apt as unknown as Record<string, unknown>).appointmentDate?.toString().split("T")?.[0] ||
@@ -402,13 +410,13 @@ export default function DoctorDashboard() {
   const formatProposedSlot = (slot?: { date: string; time: string }) => {
     if (!slot) return "Slot";
     const dateLabel = slot.date
-      ? new Date(`${slot.date}T00:00:00`).toLocaleDateString("en-IN", {
-          timeZone: "Asia/Kolkata",
+      ? formatDateInIST(new Date(`${slot.date}T00:00:00`), {
           day: "2-digit",
           month: "short",
         })
       : "";
-    return `${dateLabel ? `${dateLabel} · ` : ""}${slot.time}`;
+    const timeLabel = slot.time ? formatAppointmentTime(slot.time) : "";
+    return `${dateLabel ? `${dateLabel} · ` : ""}${timeLabel || slot.time}`;
   };
 
   const columns: ColumnDef<TransformedAppointment>[] = [
@@ -600,7 +608,7 @@ export default function DoctorDashboard() {
                         : Array.isArray((refreshedResult as any)?.appointments)
                           ? (refreshedResult as any).appointments
                           : [];
-                      const refreshedAppointment = refreshedAppointments.find((item: any) => String(item?.id || item?.appointmentId || "") === appointmentId);
+                      const refreshedAppointment = refreshedAppointments.find((item: any) => String(item?.appointmentId || item?.id || "") === appointmentId);
 
                       if (
                         refreshedAppointment &&
@@ -633,6 +641,19 @@ export default function DoctorDashboard() {
                       if (message.includes("not awaiting doctor slot confirmation")) {
                         setResolvedVideoSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
                         showSuccessToast("Slot is already confirmed. Refreshing the list.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
+                        await refetchAppointments();
+                        setPendingVideoSlotSelections((current) => {
+                          const next = { ...current };
+                          delete next[appointmentId];
+                          return next;
+                        });
+                        return;
+                      }
+                      if (message.toLowerCase().includes("slot is no longer available")) {
+                        showErrorToast(
+                          "That proposed slot is no longer available. Please choose a different proposed slot and try again.",
+                          { id: TOAST_IDS.APPOINTMENT.UPDATE }
+                        );
                         await refetchAppointments();
                         setPendingVideoSlotSelections((current) => {
                           const next = { ...current };
@@ -827,7 +848,7 @@ export default function DoctorDashboard() {
       <DashboardPageHeader
         eyebrow="Doctor Dashboard"
         title={`Welcome, Dr. ${displayDoctorName}`}
-        description={`Today is ${new Date().toLocaleDateString("en-IN", {
+        description={`Today is ${formatDateInIST(new Date(), {
           weekday: "long",
           month: "long",
           day: "numeric",
@@ -1048,8 +1069,7 @@ export default function DoctorDashboard() {
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         {getAppointmentDateTimeValue(appointment)
-                          ? getAppointmentDateTimeValue(appointment)?.toLocaleDateString("en-IN", {
-                              timeZone: "Asia/Kolkata",
+                          ? formatDateInIST(getAppointmentDateTimeValue(appointment) as Date, {
                               day: "numeric",
                               month: "short",
                             })

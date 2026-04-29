@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 import React, { useState, useMemo, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +37,9 @@ import {
   getAppointmentViewState,
   getVideoAppointmentJoinBlockedReason,
   isVideoAppointmentJoinable,
+  getAppointmentDateTimeValue,
+  formatDateInIST,
+  formatTimeInIST,
   getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
 import { PAGINATION } from "@/hooks/query/config";
@@ -162,11 +166,7 @@ export default function AppointmentsPage() {
   const [activeTab, setActiveTab] = useState("upcoming");
 
   const getAppointmentDateTime = useCallback((appointment: { date?: string; time?: string }) => {
-    if (!appointment?.date) return null;
-
-    const dateTimeValue = `${appointment.date}T${appointment.time || "00:00"}:00`;
-    const parsed = new Date(dateTimeValue);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    return getAppointmentDateTimeValue(appointment);
   }, []);
 
   // Memoize filtered appointments for performance (optimized for 10M users)
@@ -322,7 +322,7 @@ export default function AppointmentsPage() {
 
   const handleJoinVideo = async (appointment: any) => {
     try {
-      const appointmentId = String(appointment.id || appointment.appointmentId || "");
+      const appointmentId = String(appointment.appointmentId || appointment.id || "");
       if (!appointmentId) {
         showErrorToast("Missing appointment details for this video session.", {
           id: TOAST_IDS.VIDEO.ERROR,
@@ -341,7 +341,7 @@ export default function AppointmentsPage() {
       })();
 
       const latestAppointment =
-        refreshedAppointments.find((item: any) => String(item?.id || item?.appointmentId || "") === appointmentId) || appointment;
+        refreshedAppointments.find((item: any) => String(item?.appointmentId || item?.id || "") === appointmentId) || appointment;
 
       if (!isVideoAppointmentJoinable(latestAppointment)) {
         showErrorToast(getVideoAppointmentJoinBlockedReason(latestAppointment), {
@@ -351,19 +351,19 @@ export default function AppointmentsPage() {
       }
 
       setActiveVideoAppointment({
-        id: String(latestAppointment.id || latestAppointment.appointmentId),
-        appointmentId: latestAppointment.id || latestAppointment.appointmentId,
-        roomName: latestAppointment.roomName || latestAppointment.doctorName || `room-${latestAppointment.id || latestAppointment.appointmentId}`,
+        id: String(latestAppointment.appointmentId || latestAppointment.id),
+        appointmentId: latestAppointment.appointmentId || latestAppointment.id,
+        roomName: latestAppointment.roomName || latestAppointment.doctorName || `room-${latestAppointment.appointmentId || latestAppointment.id}`,
         doctorId: latestAppointment.doctorId || latestAppointment.doctor?.id || latestAppointment.doctor?.userId || "",
         patientId: latestAppointment.patientId || latestAppointment.patient?.id || latestAppointment.patient?.userId || "",
-        startTime: latestAppointment.startTime || latestAppointment.dateTime || new Date().toISOString(),
-        endTime: latestAppointment.endTime || latestAppointment.dateTime || new Date().toISOString(),
+        startTime: latestAppointment.startTime || latestAppointment.dateTime || nowIso(),
+        endTime: latestAppointment.endTime || latestAppointment.dateTime || nowIso(),
         status: String(latestAppointment.status || "scheduled").toLowerCase() as VideoAppointment["status"],
         sessionId: latestAppointment.sessionId,
         recordingUrl: latestAppointment.recordingUrl,
         notes: latestAppointment.notes,
-        createdAt: latestAppointment.createdAt || new Date().toISOString(),
-        updatedAt: latestAppointment.updatedAt || new Date().toISOString(),
+        createdAt: latestAppointment.createdAt || nowIso(),
+        updatedAt: latestAppointment.updatedAt || nowIso(),
       });
       setIsVideoRoomOpen(true);
     } catch (error: unknown) {
@@ -416,12 +416,26 @@ export default function AppointmentsPage() {
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm">{appointment.date}</span>
+                    <span className="text-sm">
+                      {getAppointmentDateTime(appointment)
+                        ? formatDateInIST(getAppointmentDateTime(appointment) as Date, {
+                            weekday: "short",
+                            day: "2-digit",
+                            month: "short",
+                          })
+                        : appointment.date || "Date TBD"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-gray-500" />
                     <span className="text-sm">
-                      {getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>)}
+                      {getAppointmentDateTime(appointment)
+                        ? formatTimeInIST(getAppointmentDateTime(appointment) as Date, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true,
+                          })
+                        : getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

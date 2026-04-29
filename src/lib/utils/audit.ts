@@ -1,3 +1,4 @@
+import { nowIso } from '@/lib/utils/date-time';
 // ✅ Audit Logging for Healthcare Frontend
 // This module provides comprehensive audit logging for HIPAA compliance
 
@@ -32,7 +33,7 @@ export async function auditLog(data: AuditLogData): Promise<AuditLogResponse> {
     
     const auditEntry = {
       ...data,
-      timestamp: data.timestamp || new Date().toISOString(),
+      timestamp: data.timestamp || nowIso(),
       logId: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     };
 

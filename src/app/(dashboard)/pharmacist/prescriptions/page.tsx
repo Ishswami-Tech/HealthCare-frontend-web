@@ -11,21 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import {
-  useDispensePrescription,
-  usePrescriptions,
-} from "@/hooks/query/usePharmacy";
+  useDispensePrescription, usePrescriptions, } from "@/hooks/query/usePharmacy";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  CreditCard,
-  Package,
-  Pill,
-  Search,
-  User,
-} from "lucide-react";
+  AlertTriangle, CheckCircle, Clock, CreditCard, Package, Pill, Search, User, } from "lucide-react";
 import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
+import { formatDateTimeInIST, nowIso } from '@/lib/utils/date-time';
 
 type PrescriptionRow = {
   id: string;
@@ -59,7 +50,7 @@ function normalizePrescription(raw: any): PrescriptionRow {
       raw.patient?.user?.name || raw.patient?.name || raw.patientName || "Unknown Patient",
     doctorName:
       raw.doctor?.user?.name || raw.doctor?.name || raw.doctorName || "Unknown Doctor",
-    prescribedAt: raw.date || raw.createdAt || new Date().toISOString(),
+    prescribedAt: raw.date || raw.createdAt || nowIso(),
     status: String(raw.status || "PENDING").toUpperCase() as "PENDING" | "FILLED" | "CANCELLED",
     paymentStatus: String(raw.paymentStatus || "PENDING").toUpperCase() as
       | "PENDING"
@@ -187,7 +178,7 @@ export default function PharmacistPrescriptionsPage() {
         header: "Prescribed",
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">
-            {new Date(row.original.prescribedAt).toLocaleString("en-IN")}
+            {formatDateTimeInIST(row.original.prescribedAt)}
           </span>
         ),
       },
@@ -272,7 +263,7 @@ export default function PharmacistPrescriptionsPage() {
         header: "Prescribed",
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">
-            {new Date(row.original.prescribedAt).toLocaleString("en-IN")}
+            {formatDateTimeInIST(row.original.prescribedAt)}
           </span>
         ),
       },

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -24,6 +24,10 @@ import {
   getAppointmentViewState,
   isPaidVideoAppointmentAwaitingDoctorConfirmation,
   shouldShowAppointmentOnPatientDashboard,
+  getAppointmentDateTimeValue,
+  formatDateInIST,
+  formatTimeInIST,
+  formatAppointmentTime,
 } from "@/lib/utils/appointmentUtils";
 import {
   normalizeAppointmentStatus,
@@ -92,9 +96,7 @@ export default function PatientDashboard() {
     const safeFormatDate = (dateString: any, options?: Intl.DateTimeFormatOptions) => {
       try {
         if (!dateString) return "";
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return "";
-        return date.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", ...options });
+        return formatDateInIST(dateString, options, "en-IN");
       } catch (e) {
         return "";
       }
@@ -103,9 +105,7 @@ export default function PatientDashboard() {
     const safeFormatTime = (dateString: any, options?: Intl.DateTimeFormatOptions) => {
       try {
         if (!dateString) return "";
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return "";
-        return date.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", ...options });
+        return formatTimeInIST(dateString, options, "en-IN");
       } catch (e) {
         return "";
       }
@@ -178,8 +178,13 @@ export default function PatientDashboard() {
           .map((apt: any) => {
             const normalized = normalizePatientAppointment(apt);
             const viewState = getAppointmentViewState(apt);
-            const dateLabel = getReceptionistAppointmentDateLabel(apt as Record<string, unknown>);
-            const timeLabel = getReceptionistAppointmentTimeLabel(apt as Record<string, unknown>);
+            const appointmentDateTime = getAppointmentDateTimeValue(apt);
+            const dateLabel = appointmentDateTime
+              ? formatDateInIST(appointmentDateTime, { weekday: "short", day: "2-digit", month: "short" })
+              : getReceptionistAppointmentDateLabel(apt as Record<string, unknown>);
+            const timeLabel = appointmentDateTime
+              ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
+              : getReceptionistAppointmentTimeLabel(apt as Record<string, unknown>);
             return {
               id: apt.id,
               doctor: normalized.doctorName,
@@ -462,10 +467,7 @@ export default function PatientDashboard() {
                                     Date
                                   </div>
                                   <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                    {new Date(appointment.date).toLocaleDateString("en-IN", {
-                                      day: "numeric",
-                                      month: "short",
-                                    })}
+                                    {appointment.date || "Date TBD"}
                                   </div>
                                 </div>
                                 <div className="min-w-0 text-right">
@@ -473,7 +475,7 @@ export default function PatientDashboard() {
                                     Time
                                   </div>
                                   <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                    {getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>)}
+                                    {appointment.time || "Time TBD"}
                                   </div>
                                 </div>
                               </div>
@@ -550,7 +552,7 @@ export default function PatientDashboard() {
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-foreground">{appointment.doctor}</p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {appointment.date || "Date TBD"} · {appointment.location || "Location TBD"}
+                            {appointment.date || "Date TBD"} � {appointment.time || "Time TBD"} � {appointment.location || "Location TBD"}
                           </p>
                         </div>
                         <Badge className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
@@ -568,7 +570,7 @@ export default function PatientDashboard() {
                               key={`${appointment.id}-slot-${index}`}
                               className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
                             >
-                              {slot.time || "Time TBD"}
+                              {slot.date ? `${slot.date} · ` : ""}{slot.time ? formatAppointmentTime(slot.time) : "Time TBD"}
                             </span>
                           ))}
                         </div>
@@ -943,7 +945,12 @@ export default function PatientDashboard() {
                       </div>
                       <p className={`text-xs ${theme.textColors.tertiary}`}>
                         Next session:{" "}
-                        {new Date(treatment.nextSession).toLocaleDateString()}
+                        {formatDateInIST(treatment.nextSession, {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </p>
                     </div>
                   </div>
@@ -1141,7 +1148,6 @@ export default function PatientDashboard() {
           )}
 
         </PatientPageShell>
-    
   );
 }
 

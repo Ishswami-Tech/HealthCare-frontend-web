@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DataTable } from "@/components/ui/data-table";
-import { VideoAppointmentRoom } from "@/components/video/VideoAppointmentRoom";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -34,8 +34,15 @@ import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime
 import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
   getAppointmentViewState,
+  getAppointmentDateTimeValue,
+  formatDateInIST,
+  formatTimeInIST,
+  formatISODateInIST,
+  getReceptionistAppointmentDateLabel,
+  getReceptionistAppointmentTimeLabel,
   shouldShowAppointmentOnDoctorDashboard,
 } from "@/lib/utils/appointmentUtils";
+import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import {
   getAppointmentPaymentDisplayState,
   getDisplayAppointmentDuration,
@@ -135,6 +142,7 @@ const getPaymentBadgeClasses = (paymentStatus: string) => {
 };
 
 export default function DoctorAppointments() {
+  const router = useRouter();
   const { session } = useAuth();
   const user = session?.user;
   const { clinicId } = useClinicContext();
@@ -144,14 +152,24 @@ export default function DoctorAppointments() {
   const [consultationNotes, setConsultationNotes] = useState("");
   const [prescription, setPrescription] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
-  const [videoRoomAppointment, setVideoRoomAppointment] = useState<VideoAppointment | null>(null);
-  const [isVideoRoomOpen, setIsVideoRoomOpen] = useState(false);
+  const historyStartDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 90);
+    return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
+  }, []);
+  const futureEndDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 365);
+    return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
+  }, []);
 
   // Fetch real appointment data
   const realTimeAppointments = useRealTimeAppointments({
     doctorId: user?.id || undefined,
     ...(statusFilter !== APPOINTMENT_STATUS.ALL ? { status: statusFilter } : {}),
-    limit: 50,
+    startDate: historyStartDate,
+    endDate: futureEndDate,
+    limit: 500,
   } as any);
 
   const appointmentsData = realTimeAppointments.data;
@@ -174,6 +192,7 @@ export default function DoctorAppointments() {
         const displayDuration = getDisplayAppointmentDuration(app);
         const paymentDisplay = getAppointmentPaymentDisplayState(app);
         const viewState = getAppointmentViewState(app);
+        const appointmentDateTime = getAppointmentDateTimeValue(app);
 
         return {
           id: app.id,
@@ -183,13 +202,15 @@ export default function DoctorAppointments() {
           patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
           patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
           patientGender: app.patient?.gender || "Unknown",
-          time: app.startTime ? new Date(app.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "TBD",
+          time: appointmentDateTime
+            ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
+            : getReceptionistAppointmentTimeLabel(app as Record<string, unknown>),
           status: (viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : viewState.normalizedStatus) as AppointmentStatus,
           type: app.type || app.appointmentType || "Consultation",
           duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
-          appointmentDate: app.startTime
-            ? new Date(app.startTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
-            : new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
+          appointmentDate: appointmentDateTime
+            ? formatDateInIST(appointmentDateTime, { weekday: "short", day: "2-digit", month: "short" })
+            : getReceptionistAppointmentDateLabel(app as Record<string, unknown>),
           startTime: app.startTime || "",
           createdAt: app.createdAt || app.updatedAt || "",
           patientPhone: app.patient?.phone || "",
@@ -199,7 +220,7 @@ export default function DoctorAppointments() {
           allergies: app.patient?.allergies || [],
           currentMedications: app.patient?.currentMedications || [],
           vitalSigns: app.vitalSigns || null,
-          checkedInAt: app.checkedInAt ? new Date(app.checkedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
+          checkedInAt: app.checkedInAt ? formatTimeInIST(app.checkedInAt) : null,
           queuePosition: app.queuePosition || null,
           paymentStatus: paymentDisplay.paymentStatus,
           paymentCompleted: paymentDisplay.paymentCompleted,
@@ -265,7 +286,7 @@ export default function DoctorAppointments() {
               <div className="font-medium text-foreground">{app.patientName}</div>
               <div className="text-xs text-muted-foreground">
                 {app.patientAge ? `${app.patientAge} years` : "Age not set"}
-                {app.patientGender ? ` • ${app.patientGender}` : ""}
+                {app.patientGender ? ` â€¢ ${app.patientGender}` : ""}
               </div>
             </div>
           );
@@ -280,7 +301,7 @@ export default function DoctorAppointments() {
             <div className="space-y-1">
               <div className="text-sm font-medium text-foreground">{app.type}</div>
               <div className="text-xs text-muted-foreground">
-                {app.time} • {app.duration}
+                {app.time} â€¢ {app.duration}
               </div>
             </div>
           );
@@ -321,12 +342,12 @@ export default function DoctorAppointments() {
               {app.status === APPOINTMENT_STATUS.CONFIRMED && app.checkedInAt && (
               <Button
                 size="sm"
-                onClick={() => startConsultation(app.id)}
+                onClick={() => startConsultation(app.id, app.type === "VIDEO_CALL" ? { openVideoAfterStart: true } : undefined)}
                 disabled={startAppointmentMutation.isPending || (app.type === "VIDEO_CALL" && !app.paymentCompleted)}
                 title={app.type === "VIDEO_CALL" && !app.paymentCompleted ? "Video request is waiting for payment" : undefined}
               >
                   <Play className="mr-1 h-4 w-4" />
-                  Start
+                  {app.type === "VIDEO_CALL" ? "Start video" : "Start"}
                 </Button>
               )}
               {app.status === APPOINTMENT_STATUS.CONFIRMED && !app.checkedInAt && (
@@ -337,31 +358,17 @@ export default function DoctorAppointments() {
               )}
               {app.status === APPOINTMENT_STATUS.IN_PROGRESS && (
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (app.type === "VIDEO_CALL" && !app.paymentCompleted) return;
-                      const videoAppt: VideoAppointment = {
-                        id: app.id,
-                        appointmentId: app.id,
-                        roomName: `room-${app.id}`,
-                        doctorId: app.doctorId || user?.id || "",
-                        patientId: app.patientId || "",
-                        startTime: new Date().toISOString(),
-                        endTime: new Date().toISOString(),
-                        status: "in-progress",
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                      };
-                      setVideoRoomAppointment(videoAppt);
-                      setIsVideoRoomOpen(true);
-                    }}
-                    disabled={app.type === "VIDEO_CALL" && !app.paymentCompleted}
-                  >
-                    <Video className="mr-1 h-4 w-4" />
-                    Open video
-                  </Button>
+                  {app.type === "VIDEO_CALL" ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(buildVideoSessionRoute(app.id))}
+                      disabled={!app.paymentCompleted}
+                    >
+                      <Video className="mr-1 h-4 w-4" />
+                      Open video
+                    </Button>
+                  ) : null}
                   <Button
                     size="sm"
                     onClick={() =>
@@ -386,12 +393,15 @@ export default function DoctorAppointments() {
     [completeAppointmentMutation.isPending, consultationNotes, diagnosis, prescription, startAppointmentMutation.isPending, user?.id]
   );
 
-  const startConsultation = async (appointmentId: string) => {
+  const startConsultation = async (appointmentId: string, options?: { openVideoAfterStart?: boolean }) => {
     try {
       await startAppointmentMutation.mutateAsync(appointmentId);
       showSuccessToast("Consultation started successfully", {
         id: TOAST_IDS.GLOBAL.SUCCESS,
       });
+      if (options?.openVideoAfterStart) {
+        router.push(buildVideoSessionRoute(appointmentId));
+      }
     } catch (error: unknown) {
       showErrorToast(error instanceof Error ? error.message : "Failed to start consultation", {
         id: TOAST_IDS.GLOBAL.ERROR,
@@ -434,7 +444,7 @@ export default function DoctorAppointments() {
           <DashboardPageHeader
             eyebrow="Doctor Appointments"
             title="My Appointments"
-            description={`Today is ${new Date().toLocaleDateString("en-IN", {
+            description={`Today is ${formatDateInIST(new Date(), {
               weekday: "long",
               month: "long",
               day: "numeric",
@@ -503,7 +513,7 @@ export default function DoctorAppointments() {
                 <div className="text-2xl font-bold text-purple-600">
                   {
                     appointments.filter((a: TransformedAppointment) =>
-                      a.appointmentDate === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+                      a.appointmentDate === formatISODateInIST(new Date())
                     ).length
                   }
                 </div>
@@ -558,7 +568,7 @@ export default function DoctorAppointments() {
                     <DialogTitle className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <span>Patient Details: {selectedAppointment.patientName}</span>
                       <span className="text-sm font-normal text-muted-foreground">
-                        {selectedAppointment.type} • {selectedAppointment.time}
+                        {selectedAppointment.type} â€¢ {selectedAppointment.time}
                       </span>
                     </DialogTitle>
                   </DialogHeader>
@@ -580,7 +590,7 @@ export default function DoctorAppointments() {
                     </div>
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Queue</p>
-                      <p className="text-sm text-foreground">{selectedAppointment.queuePosition ?? "—"}</p>
+                      <p className="text-sm text-foreground">{selectedAppointment.queuePosition ?? "â€”"}</p>
                     </div>
                   </div>
 
@@ -773,31 +783,10 @@ export default function DoctorAppointments() {
             </DialogContent>
           </Dialog>
 
-          {/* Video Consultation Dialog */}
-          {videoRoomAppointment && (
-            <Dialog open={isVideoRoomOpen} onOpenChange={setIsVideoRoomOpen}>
-              <DialogContent className="max-w-7xl w-full h-[90vh] p-0">
-                <DialogHeader className="sr-only">
-                  <DialogTitle>Video Consultation - {videoRoomAppointment.appointmentId}</DialogTitle>
-                </DialogHeader>
-                <VideoAppointmentRoom
-                  appointment={videoRoomAppointment}
-                  autoStart={true}
-                  onEndCall={() => {
-                    setIsVideoRoomOpen(false);
-                    setVideoRoomAppointment(null);
-                  }}
-                  onLeaveRoom={() => {
-                    setIsVideoRoomOpen(false);
-                    setVideoRoomAppointment(null);
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
         </DashboardPageShell>
       )}
     </>
   );
 }
+
 

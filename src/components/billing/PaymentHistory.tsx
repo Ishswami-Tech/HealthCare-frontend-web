@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileText, CreditCard, RefreshCw } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 interface PaymentHistoryProps {
   payments: Payment[];
@@ -75,7 +76,7 @@ export function PaymentHistory({ payments, onRefetch, compact = false }: Payment
           return (
             <span className="text-sm text-muted-foreground">
               {paymentDate
-                ? new Date(paymentDate).toLocaleDateString("en-IN", {
+                ? formatDateInIST(paymentDate, {
                     day: "2-digit",
                     month: "short",
                     year: "numeric",

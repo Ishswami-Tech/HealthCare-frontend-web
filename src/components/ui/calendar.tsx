@@ -13,6 +13,7 @@ import {
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils/index"
+import { formatISODateInIST, formatMonthShortInIST } from "@/lib/utils/appointmentUtils"
 import { Button, buttonVariants } from "@/components/ui/button"
 
 function Calendar({
@@ -40,8 +41,7 @@ function Calendar({
       )}
       captionLayout={captionLayout}
       formatters={{
-        formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+        formatMonthDropdown: (date) => formatMonthShortInIST(date),
         ...formatters,
       }}
       classNames={{
@@ -193,11 +193,11 @@ function CalendarDayButton({
   }, [modifiers.focused])
 
   return (
-    <Button
+      <Button
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString()}
+      data-day={formatISODateInIST(day.date)}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

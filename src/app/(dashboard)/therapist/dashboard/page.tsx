@@ -19,7 +19,11 @@ import { useTherapistAppointments, useTherapistClients } from "@/hooks/query/use
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
-import { getReceptionistAppointmentTimeLabel } from "@/lib/utils/appointmentUtils";
+import {
+  formatDateInIST,
+  formatISODateInIST,
+  getReceptionistAppointmentTimeLabel,
+} from "@/lib/utils/appointmentUtils";
 
 export default function TherapistDashboard() {
   useAuth();
@@ -39,9 +43,9 @@ export default function TherapistDashboard() {
   // Calculate stats from real data
   const appointmentsArray = appointmentsData?.appointments || [];
   const stats = useMemo(() => {
-    const today = new Date().toDateString();
+    const today = formatISODateInIST(new Date());
     const todayAppointments = appointmentsArray.filter(
-      (apt: any) => apt.date === today
+      (apt: any) => formatISODateInIST(apt.date || apt.startTime || apt.createdAt) === today
     );
 
     return {
@@ -303,7 +307,7 @@ export default function TherapistDashboard() {
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             Last:{" "}
-                            {new Date(client.lastVisit).toLocaleDateString("en-IN")}
+                            {formatDateInIST(client.lastVisit, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                           </span>
                         </div>
                       </div>

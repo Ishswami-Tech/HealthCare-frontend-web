@@ -55,7 +55,8 @@ export function normalizeOpenViduServerUrl(value: string): string {
     const parsed = new URL(
       /^https?:\/\//i.test(raw) || /^wss?:\/\//i.test(raw) ? raw : `https://${raw}`
     );
-    return `${parsed.protocol}//${parsed.host}`;
+    const keepPort = parsed.port.length > 0 ? `:${parsed.port}` : '';
+    return `${parsed.protocol}//${parsed.hostname}${keepPort}`;
   } catch {
     return raw.replace(/\/+$/, '');
   }
@@ -96,15 +97,28 @@ export class OpenViduAPI {
             : serverBase.protocol === 'ws:'
               ? 'ws:'
               : serverBase.protocol === 'wss:'
-                ? 'wss:'
-                : tokenUrl.protocol;
+              ? 'wss:'
+              : tokenUrl.protocol;
+
+      const isLoopbackHost = /^(localhost|127\.0\.0\.1|\[::1\]|::1)$/i.test(tokenUrl.hostname);
+      const serverPort = serverBase.port;
+
+      // Only rewrite tokens that still point at a local development host.
+      // Production tokens should be preserved verbatim so we do not invalidate
+      // the server-issued token payload by changing its origin too aggressively.
+      if (!isLoopbackHost && !serverPort) {
+        return token;
+      }
 
       if (tokenUrl.host === serverBase.host && tokenUrl.protocol === normalizedProtocol) {
         return token;
       }
 
       tokenUrl.protocol = normalizedProtocol;
-      tokenUrl.host = serverBase.host;
+      tokenUrl.hostname = serverBase.hostname;
+      if (serverPort) {
+        tokenUrl.port = serverPort;
+      }
 
       return tokenUrl.toString();
     } catch {

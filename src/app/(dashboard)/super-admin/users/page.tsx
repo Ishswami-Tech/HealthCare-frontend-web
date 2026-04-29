@@ -31,6 +31,7 @@ import { AssignRoleModal } from "@/components/clinic/AssignRoleModal";
 import { Loader2, Users, Plus, Search, Edit, Trash2, UserCheck, UserX, Mail, Phone } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { Role } from "@/types/auth.types";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 type UserRow = {
   id: string;
@@ -223,7 +224,7 @@ export default function SuperAdminUsers() {
         accessorKey: "lastLogin",
         header: "Last Login",
         cell: ({ row }) =>
-          row.original.lastLogin ? new Date(row.original.lastLogin).toLocaleDateString() : "N/A",
+          row.original.lastLogin ? formatDateInIST(row.original.lastLogin) : "N/A",
       },
       {
         id: "actions",

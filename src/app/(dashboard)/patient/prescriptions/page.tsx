@@ -7,16 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  DashboardPageHeader as PatientPageHeader,
-  DashboardPageShell as PatientPageShell,
-} from "@/components/dashboard/DashboardPageShell";
+  DashboardPageHeader as PatientPageHeader, DashboardPageShell as PatientPageShell, } from "@/components/dashboard/DashboardPageShell";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, ErrorState, PageLoading } from "@/components/ui/loading";
 import { PaymentButton } from "@/components/payments/PaymentButton";
@@ -24,6 +17,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { usePrescriptions } from "@/hooks/query/usePharmacy";
 import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
 import { theme } from "@/lib/utils/theme-utils";
+import { formatDateInIST, nowIso } from '@/lib/utils/date-time';
 import type {
   Prescription as PharmacyPrescription,
   PrescriptionMedication,
@@ -124,7 +118,7 @@ function normalizePrescription(raw: PrescriptionResponseItem): DisplayPrescripti
 
   return {
     id: raw.prescriptionNumber || raw.id,
-    date: raw.prescribedAt || raw.createdAt || raw.updatedAt || new Date().toISOString(),
+    date: raw.prescribedAt || raw.createdAt || raw.updatedAt || nowIso(),
     doctor: doctorName,
     status: normalizePrescriptionStatus(raw.status),
     queueCategory: queueEntry.queueCategory,
@@ -330,7 +324,7 @@ export default function PatientPrescriptions() {
                       <div className="space-y-1">
                         <h3 className="text-base sm:text-lg font-semibold">Prescription #{prescription.id}</h3>
                         <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
-                          Prescribed by {prescription.doctor} • {new Date(prescription.date).toLocaleDateString()}
+                          Prescribed by {prescription.doctor} • {formatDateInIST(prescription.date)}
                         </p>
                       </div>
                       <div className="flex items-center justify-between sm:justify-end gap-2">
@@ -411,7 +405,7 @@ export default function PatientPrescriptions() {
                           <span className={theme.textColors.secondary}>Valid Until:</span>
                           <span className={`font-semibold ml-1 sm:ml-2 ${theme.textColors.heading}`}>
                             {prescription.validUntil
-                              ? new Date(prescription.validUntil).toLocaleDateString()
+                              ? formatDateInIST(prescription.validUntil)
                               : "N/A"}
                           </span>
                         </div>
@@ -538,7 +532,7 @@ export default function PatientPrescriptions() {
                         <div className="space-y-1">
                           <h3 className="text-sm sm:text-base font-semibold">Prescription #{prescription.id}</h3>
                           <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
-                            {prescription.doctor} • {new Date(prescription.date).toLocaleDateString()}
+                            {prescription.doctor} • {formatDateInIST(prescription.date)}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
@@ -622,7 +616,7 @@ export default function PatientPrescriptions() {
                         <div className="space-y-1">
                           <h3 className="text-sm sm:text-base font-semibold">Prescription #{prescription.id}</h3>
                           <p className={`text-xs sm:text-sm ${theme.textColors.secondary}`}>
-                            {prescription.doctor} • {new Date(prescription.date).toLocaleDateString()}
+                            {prescription.doctor} • {formatDateInIST(prescription.date)}
                           </p>
                         </div>
                         <Badge className={`${getStatusColor(prescription.status)} text-[10px] sm:text-xs w-fit`}>
@@ -644,7 +638,7 @@ export default function PatientPrescriptions() {
                           <span className={theme.textColors.secondary}>Valid Until:</span>
                           <span className="ml-2">
                             {prescription.validUntil
-                              ? new Date(prescription.validUntil).toLocaleDateString()
+                              ? formatDateInIST(prescription.validUntil)
                               : "N/A"}
                           </span>
                         </div>

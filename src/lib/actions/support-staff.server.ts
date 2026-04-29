@@ -1,6 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
+import { formatISODateInIST, formatTimeInIST } from '@/lib/utils';
 import type { SupportRequest } from '@/types/medical-records.types';
 
 // ===== SUPPORT STAFF SERVER ACTIONS =====
@@ -65,8 +66,12 @@ export async function createSupportRequest(
         type: 'GENERAL',
         notes: requestData.description || requestData.type,
         priority: requestData.priority,
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toTimeString().slice(0, 5),
+        date: formatISODateInIST(new Date()),
+        time: formatTimeInIST(new Date(), {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }),
       }),
     }
   );

@@ -44,9 +44,7 @@ export default function AuthLayout({
         <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16 text-white">
           <h1 className="text-3xl xl:text-4xl font-bold mb-6">Welcome to HealthCare App</h1>
           <p className="text-lg xl:text-xl">
-            Your comprehensive healthcare management solution. Connect with
-            doctors, manage appointments, and access your medical records
-            securely.
+            Your comprehensive healthcare management solution. Connect withdoctors, manage appointments, and access your medical recordssecurely.
           </p>
           <div className="mt-12 space-y-8">
             <div className="flex items-start space-x-4">

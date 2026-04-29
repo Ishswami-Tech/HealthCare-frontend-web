@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useQueue, useQueueStats } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
-import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
+import { formatISODateInIST, getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import {
   Building2,
   Calendar,
@@ -32,11 +32,11 @@ export default function ClinicLocationHeadDashboard() {
 
   useWebSocketQuerySync();
 
-  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const today = useMemo(() => formatISODateInIST(new Date()), []);
   const historyStartDate = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() - 90);
-    return date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    return formatISODateInIST(date);
   }, []);
 
   const { data: appointmentsResult, isPending: appointmentsPending } = useAppointments(
@@ -60,10 +60,8 @@ export default function ClinicLocationHeadDashboard() {
       appointments.filter((appointment: Record<string, unknown>) => {
         const dateTime = getAppointmentDateTimeValue(appointment);
         const aptDate =
-          (dateTime
-            ? dateTime.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
-            : "") ||
-          String(appointment.date || appointment.appointmentDate || "").slice(0, 10);
+          (dateTime ? formatISODateInIST(dateTime) : "") ||
+          formatISODateInIST(String(appointment.date || appointment.appointmentDate || ""));
         return aptDate === today;
       }),
     [appointments, today]

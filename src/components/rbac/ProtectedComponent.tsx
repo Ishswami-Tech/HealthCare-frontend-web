@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { useRBAC, useAppointmentPermissions, usePatientPermissions, useQueuePermissions } from '@/hooks/utils/useRBAC';
+import { useAuth } from '@/hooks/auth/useAuth';
+import { Role } from '@/types/auth.types';
 import { Permission } from '@/types/rbac.types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Lock } from 'lucide-react';
@@ -214,8 +216,11 @@ export const AppointmentProtectedComponent: React.FC<{
   fallback?: React.ReactNode;
 }> = ({ children, action, fallback }) => {
   const permissions = useAppointmentPermissions();
+  const { user } = useAuth();
   
   const hasAccess = React.useMemo(() => {
+    const isPatient = String(user?.role || '').toUpperCase() === Role.PATIENT;
+
     switch (action) {
       case 'view':
         return permissions.canViewAppointments;
@@ -224,13 +229,13 @@ export const AppointmentProtectedComponent: React.FC<{
       case 'update':
         return permissions.canUpdateAppointments;
       case 'delete':
-        return permissions.canDeleteAppointments;
+        return permissions.canDeleteAppointments || isPatient;
       case 'manage':
         return permissions.canManageQueue;
       default:
         return false;
     }
-  }, [permissions, action]);
+  }, [permissions, action, user?.role]);
 
   if (!hasAccess) {
     return fallback ? <>{fallback}</> : null;

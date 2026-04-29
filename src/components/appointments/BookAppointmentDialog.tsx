@@ -60,6 +60,7 @@ import { Permission } from "@/types/rbac.types";
 import { APP_CONFIG } from "@/lib/config/config";
 import { theme } from "@/lib/utils/theme-utils";
 import { cn } from "@/lib/utils";
+import { formatISODateInIST } from "@/lib/utils/date-time";
 import { format } from "date-fns";
 import {
   Activity, Plus, Leaf, Waves, Clock, Search,
@@ -218,7 +219,7 @@ export function BookAppointmentDialog({
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
-  const { isConnected, subscribe } = useWebSocketContext();
+  const { isConnected, connectionStatus, subscribe } = useWebSocketContext();
   const { session } = useAuth();
   const { hasPermission } = useRBAC();
   const userRole = (session?.user?.role || "").toUpperCase();
@@ -309,6 +310,12 @@ export function BookAppointmentDialog({
     !!selectedDoctorId &&
     !!dateString &&
     (consultationMode === "VIDEO" || !!selectedLocationId);
+  const availabilityRefetchIntervalMs =
+    consultationMode === "VIDEO"
+      ? 5000
+      : step >= 4 && !isConnected
+        ? 10000
+        : undefined;
   const availabilityQueryKey = useMemo(
     () => [
       "doctorAvailability",
@@ -334,7 +341,9 @@ export function BookAppointmentDialog({
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
     {
       enabled: shouldLoadAvailability,
-      ...(step >= 4 && !isConnected ? { refetchIntervalMs: 10000 } : {}),
+      ...(availabilityRefetchIntervalMs
+        ? { refetchIntervalMs: availabilityRefetchIntervalMs }
+        : {}),
     }
   );
 
@@ -544,8 +553,21 @@ export function BookAppointmentDialog({
     const refreshedSlots = extractAvailabilitySlots(
       refreshed?.data ?? queryClient.getQueryData(availabilityQueryKey)
     );
+
     return refreshedSlots;
-  }, [availabilityQueryKey, extractAvailabilitySlots, queryClient, refetchAvailability]);
+  }, [
+    activeClinicId,
+    availabilityQueryKey,
+    consultationMode,
+    connectionStatus,
+    dateString,
+    extractAvailabilitySlots,
+    isConnected,
+    queryClient,
+    refetchAvailability,
+    selectedDoctorId,
+    selectedLocationId,
+  ]);
 
   useEffect(() => {
     if (!open || step < 4 || !isConnected || !selectedDoctorId || !dateString) {
@@ -570,7 +592,7 @@ export function BookAppointmentDialog({
       }
 
       const eventDate = data.appointment?.date || data.appointment?.appointmentDate;
-      if (eventDate && String(eventDate).slice(0, 10) !== dateString) {
+      if (eventDate && formatISODateInIST(eventDate) !== dateString) {
         return;
       }
 
@@ -633,14 +655,52 @@ export function BookAppointmentDialog({
   }, [consultationMode, effectiveSlots, selectedSlot, selectedVideoSlots]);
 
   const slotGroups = useMemo(() => groupSlotsByPeriod(effectiveSlots as string[]), [effectiveSlots]);
-  const liveSyncEnabled = isConnected;
-  const liveSyncLabel = liveSyncEnabled ? "Live synced" : "Polling fallback";
-  const liveSyncDescription = liveSyncEnabled
-    ? "Availability updates are coming from websocket events."
-    : "Websocket is unavailable, so availability refreshes automatically.";
-  const liveSyncClasses = liveSyncEnabled
-    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
-    : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300";
+  const liveSyncMode =
+    connectionStatus === "connected"
+      ? "live"
+      : connectionStatus === "connecting" || connectionStatus === "reconnecting"
+        ? "connecting"
+        : "fallback";
+  const liveSyncLabel =
+    liveSyncMode === "live"
+      ? "Live synced"
+      : liveSyncMode === "connecting"
+        ? "Connecting to realtime updates"
+        : "Polling fallback";
+  const liveSyncDescription =
+    liveSyncMode === "live"
+      ? "Availability updates are coming from websocket events."
+      : liveSyncMode === "connecting"
+        ? "Realtime connection is starting; availability will refresh automatically until it is ready."
+        : "Websocket is unavailable, so availability refreshes automatically.";
+  const liveSyncClasses =
+    liveSyncMode === "live"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+      : liveSyncMode === "connecting"
+        ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300"
+        : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300";
+  const showLiveSyncBanner = APP_CONFIG.ENVIRONMENT === "development";
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+  }, [
+    open,
+    activeClinicId,
+    consultationMode,
+    connectionStatus,
+    dateString,
+    effectiveSlots.length,
+    isConnected,
+    selectedDate,
+    selectedDoctorId,
+    selectedLocationId,
+    selectedServiceId,
+    selectedSlot,
+    selectedVideoSlots,
+    step,
+  ]);
 
   useEffect(() => {
     if (open) {
@@ -755,6 +815,7 @@ export function BookAppointmentDialog({
           clinicId: activeClinicId,
           ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
           duration: appointmentDurationMinutes,
+          treatmentType: selectedService?.treatmentType || selectedServiceId,
           proposedSlots: stillAvailableSlots.map((time) => ({
             date: selectedDateString,
             time,
@@ -1579,22 +1640,24 @@ export function BookAppointmentDialog({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                  liveSyncClasses
-                )}
-              >
-                {liveSyncEnabled ? (
-                  <Wifi className="h-3.5 w-3.5" />
-                ) : (
-                  <WifiOff className="h-3.5 w-3.5" />
-                )}
-                {liveSyncLabel}
-              </span>
-              <span className="text-[11px] text-muted-foreground">{liveSyncDescription}</span>
-            </div>
+            {showLiveSyncBanner ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                    liveSyncClasses
+                  )}
+                >
+                  {liveSyncMode === "live" ? (
+                    <Wifi className="h-3.5 w-3.5" />
+                  ) : (
+                    <WifiOff className="h-3.5 w-3.5" />
+                  )}
+                  {liveSyncLabel}
+                </span>
+                <span className="text-[11px] text-muted-foreground">{liveSyncDescription}</span>
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
               <span className="inline-flex items-center gap-1 font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 px-2 py-1 rounded-full border border-blue-200/70 dark:border-blue-900">
@@ -1724,22 +1787,24 @@ export function BookAppointmentDialog({
             Available slots for <span className="font-semibold text-foreground">{selectedDoctor?.name}</span> on{" "}
             <span className="font-semibold text-foreground">{selectedDate ? format(selectedDate, "d MMM") : ""}</span>
           </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                liveSyncClasses
-              )}
-            >
-              {liveSyncEnabled ? (
-                <Wifi className="h-3.5 w-3.5" />
-              ) : (
-                <WifiOff className="h-3.5 w-3.5" />
-              )}
-              {liveSyncLabel}
-            </span>
-            <span className="text-[11px] text-muted-foreground">{liveSyncDescription}</span>
-          </div>
+          {showLiveSyncBanner ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                  liveSyncClasses
+                )}
+              >
+                {liveSyncMode === "live" ? (
+                  <Wifi className="h-3.5 w-3.5" />
+                ) : (
+                  <WifiOff className="h-3.5 w-3.5" />
+                )}
+                {liveSyncLabel}
+              </span>
+              <span className="text-[11px] text-muted-foreground">{liveSyncDescription}</span>
+            </div>
+          ) : null}
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
               <Clock className="w-3 h-3" /> {appointmentDurationMinutes} min per slot
@@ -1973,6 +2038,7 @@ export function BookAppointmentDialog({
                 amount={videoPaymentAmount}
                 description={selectedService?.label || "Video consultation"}
                 className="w-full"
+                autoStart
                 onSuccess={() => {
                   setRequiresVideoPayment(false);
                   setVideoPaymentCompleted(true);

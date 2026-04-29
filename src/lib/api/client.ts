@@ -6,6 +6,7 @@ import { sanitizeErrorMessage, handleApiError } from '@/lib/utils/error-handler'
 import { logger } from '@/lib/utils/logger';
 import { trackApiCall } from '@/lib/utils/metrics';
 import { checkApiRateLimit, getClientIdentifier } from '@/lib/utils/security';
+import { nowIso } from '@/lib/utils/date-time';
 import type { 
   ApiResponse, 
   PaginationParams, 
@@ -263,7 +264,7 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
       code: data?.code || ERROR_CODES.SYSTEM_ERROR,
       message: userFriendlyMessage, // Use sanitized user-friendly message
       statusCode: response.status,
-      timestamp: new Date().toISOString(),
+      timestamp: nowIso(),
       path: response.url,
       method: 'GET', // This will be overridden by the actual method
       requestId: requestId || generateRequestId(),
@@ -1097,6 +1098,7 @@ export class ClinicApiClient extends ApiClient {
     clinicId: string;
     locationId?: string;
     duration: number;
+    treatmentType: string;
     proposedSlots: Array<{ date: string; time: string }>;
     notes?: string | undefined;
   }) {

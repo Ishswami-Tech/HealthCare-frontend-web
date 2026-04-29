@@ -6,6 +6,13 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string;
   cancelled:   { label: "Cancelled",   color: "text-red-700 dark:text-red-300",     dot: "bg-red-500",   bg: "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900" },
   proposed:    { label: "Proposed",    color: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500",  bg: "bg-amber-50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900" },
 };
+const VIDEO_STATUS_TABS = [
+  { value: "all", label: "All" },
+  { value: "scheduled", label: "Upcoming" },
+  { value: "in-progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+] as const;
 const DEFAULT_STATUS_CONFIG = {
   label: "Scheduled",
   color: "text-blue-700 dark:text-blue-300",
@@ -66,6 +73,7 @@ import {
 } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { useWebSocketContext } from "@/app/providers/WebSocketProvider";
 import {
   useEndVideoAppointment,
   getVideoTokenRole,
@@ -92,10 +100,12 @@ import {
   getAppointmentPatientName,
   getDisplayAppointmentDuration,
   formatDateInIST,
+  formatAppointmentTime,
   formatTimeInIST,
   getVideoAppointmentJoinBlockedReason,
   isVideoAppointmentJoinable,
   normalizeAppointmentStatus,
+  getAppointmentServiceLabel,
 } from "@/lib/utils/appointmentUtils";
 import {
   getAppointmentViewState,
@@ -135,7 +145,7 @@ function extractAppointments(data: unknown): VideoAppointment[] {
 
   const dedupedAppointments = new Map<string, VideoAppointment>();
   for (const appointment of rawAppointments) {
-    const key = String(appointment?.id || appointment?.appointmentId || "");
+    const key = String(appointment?.appointmentId || appointment?.id || "");
     if (!key) continue;
 
     const current = dedupedAppointments.get(key);
@@ -218,6 +228,21 @@ function groupSlotsByPeriod(slots: string[]) {
   });
 
   return periods;
+}
+
+function matchesVideoStatusFilter(status: string, filter: string): boolean {
+  const normalizedStatus = status.toLowerCase();
+  const normalizedFilter = filter.toLowerCase();
+
+  if (!normalizedFilter || normalizedFilter === "all") {
+    return true;
+  }
+
+  if (normalizedFilter === "scheduled") {
+    return normalizedStatus === "scheduled" || normalizedStatus === "confirmed";
+  }
+
+  return normalizedStatus === normalizedFilter;
 }
 
 function extractAvailabilitySlots(availability: unknown): string[] {
@@ -370,7 +395,6 @@ export function VideoAppointmentsList({
   const { hasPermission } = useRBAC();
   const clinicContextId = useCurrentClinicId();
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("scheduled");
   const [filterClinicId, setFilterClinicId] = useState("");
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
   
@@ -384,10 +408,21 @@ export function VideoAppointmentsList({
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [actionReason, setActionReason] = useState("");
   const [resolvedSlotConfirmations, setResolvedSlotConfirmations] = useState<Record<string, boolean>>({});
+  const historyStartDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 90);
+    return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
+  }, []);
+  const futureEndDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 365);
+    return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
+  }, []);
 
   const isPatient = user?.role === "PATIENT";
   const role = getVideoTokenRole(user?.role);
   const isDoctorRole = role === "doctor";
+  const [filterStatus, setFilterStatus] = useState(isDoctorRole ? "all" : "scheduled");
 
   const canJoin = hasPermission(Permission.JOIN_VIDEO_APPOINTMENTS);
   const canEnd = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
@@ -400,8 +435,10 @@ export function VideoAppointmentsList({
     ...(resolvedClinicId ? { clinicId: resolvedClinicId } : {}),
     ...(shouldOmitClinicId ? { omitClinicId: true } : {}),
     type: "VIDEO_CALL",
+    startDate: historyStartDate,
+    endDate: futureEndDate,
     page: 1,
-    limit,
+    limit: Math.max(limit, 500),
   } as any, {
     enabled: !isPatient,
   });
@@ -415,6 +452,7 @@ export function VideoAppointmentsList({
   });
   const clinics = (Array.isArray(clinicsData) ? clinicsData : (clinicsData as any)?.clinics) || [];
   const confirmVideoSlot = useConfirmVideoSlot();
+  const { isConnected, subscribe } = useWebSocketContext();
   const rescheduleDoctorId = String((actionAppointment as any)?.doctorId || "");
   const rescheduleClinicId = String((actionAppointment as any)?.clinicId || resolvedClinicId || clinicContextId || "");
   const rescheduleLocationId = String((actionAppointment as any)?.locationId || "");
@@ -441,13 +479,13 @@ export function VideoAppointmentsList({
     );
     const mappedAppointments = list
       .filter((apt: any) => String(apt?.type || "").toUpperCase() === "VIDEO_CALL")
-      .map((apt: any) => {
-        const dateTime = getAppointmentDateTimeValue(apt);
-        const startTime = (dateTime && !Number.isNaN(dateTime.getTime()) ? dateTime.toISOString() : undefined) || apt?.appointmentDate || apt?.startTime || "";
-        const normalizedStatus = String(apt?.status || "").toLowerCase().replace(/_/g, "-");
-        return {
-          id: apt?.id,
-          appointmentId: apt?.id || apt?.appointmentId,
+    .map((apt: any) => {
+      const dateTime = getAppointmentDateTimeValue(apt);
+      const startTime = (dateTime && !Number.isNaN(dateTime.getTime()) ? dateTime.toISOString() : undefined) || apt?.appointmentDate || apt?.startTime || "";
+      const normalizedStatus = String(apt?.status || "").toLowerCase().replace(/_/g, "-");
+      return {
+          id: apt?.appointmentId || apt?.id,
+          appointmentId: apt?.appointmentId || apt?.id,
           roomName: getAppointmentDoctorName(apt),
           doctorId: apt?.doctorId || apt?.doctor?.id || "",
           patientId: apt?.patientId || apt?.patient?.id || "",
@@ -468,7 +506,7 @@ export function VideoAppointmentsList({
 
     const dedupedAppointments = new Map<string, VideoAppointment>();
     for (const appointment of mappedAppointments as any[]) {
-      const key = String(appointment?.id || appointment?.appointmentId || "");
+      const key = String(appointment?.appointmentId || appointment?.id || "");
       if (!key) continue;
 
       const current = dedupedAppointments.get(key) as any;
@@ -506,17 +544,61 @@ export function VideoAppointmentsList({
   const cancelAppointment = useCancelVideoAppointment();
   const rejectProposal = useRejectVideoProposal();
 
+  useEffect(() => {
+    if (!isConnected || !resolvedClinicId) {
+      return;
+    }
+
+    const shouldRefreshForClinic = (payload: unknown) => {
+      const data = payload as { clinicId?: string };
+      return !data.clinicId || data.clinicId === resolvedClinicId;
+    };
+
+    const refreshPatientAndStaffViews = async (payload: unknown) => {
+      if (!shouldRefreshForClinic(payload)) {
+        return;
+      }
+
+      const data = payload as { appointmentId?: string; id?: string };
+      const appointmentId = String(data.appointmentId || data.id || "");
+
+      if (appointmentId) {
+        setResolvedSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
+      }
+
+      if (isPatient) {
+        await refetchMyAppointments();
+      } else {
+        await refetchStaff();
+      }
+    };
+
+    const unsubscribeSlotConfirmed = subscribe("appointment.slot.confirmed", (payload) => {
+      void refreshPatientAndStaffViews(payload);
+    });
+
+    const unsubscribeConfirmed = subscribe("appointment.confirmed", (payload) => {
+      void refreshPatientAndStaffViews(payload);
+    });
+
+    const unsubscribeUpdated = subscribe("appointment.updated", (payload) => {
+      void refreshPatientAndStaffViews(payload);
+    });
+
+    return () => {
+      unsubscribeSlotConfirmed();
+      unsubscribeConfirmed();
+      unsubscribeUpdated();
+    };
+  }, [isConnected, resolvedClinicId, subscribe, isPatient, refetchMyAppointments, refetchStaff]);
+
   const searchLower = searchTerm.toLowerCase();
-  const isUpcomingAppointment = (status: string) => status === "scheduled" || status === "confirmed";
   const filteredAppointments = appointments.filter((apt) => {
     const normalizedStatus = String(apt.status || "").toLowerCase();
     const effectiveAppointmentId = getEffectiveAppointmentId(apt).toLowerCase();
     const matchesSearch = !searchTerm || effectiveAppointmentId.includes(searchLower) || ((apt as any).doctorName || "").toLowerCase().includes(searchLower);
-    const matchesStatus =
-      !filterStatus ||
-      filterStatus === "all" ||
-      (filterStatus === "scheduled" ? isUpcomingAppointment(normalizedStatus) : normalizedStatus === filterStatus);
-    const aptDate = apt.startTime ? new Date(apt.startTime) : (apt.createdAt ? new Date(apt.createdAt) : null);
+    const matchesStatus = matchesVideoStatusFilter(normalizedStatus, filterStatus);
+    const aptDate = getAppointmentDateTimeValue(apt) || (apt.createdAt ? new Date(apt.createdAt) : null);
     const matchesStartDate = !dateFilter.start || (aptDate && aptDate >= new Date(dateFilter.start));
     const matchesEndDate = !dateFilter.end || (aptDate && aptDate <= new Date(dateFilter.end));
     return matchesSearch && matchesStatus && matchesStartDate && matchesEndDate;
@@ -684,6 +766,23 @@ export function VideoAppointmentsList({
         });
         return;
       }
+      if (message.toLowerCase().includes("slot is no longer available")) {
+        showErrorToast(
+          "That proposed slot is no longer available. Please choose a different proposed slot and try again.",
+          { id: TOAST_IDS.APPOINTMENT.UPDATE }
+        );
+        if (isPatient) {
+          await refetchMyAppointments();
+        } else {
+          await refetchStaff();
+        }
+        setPendingSlotSelections((current) => {
+          const next = { ...current };
+          delete next[appointmentId];
+          return next;
+        });
+        return;
+      }
       showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.UPDATE });
     }
   };
@@ -691,11 +790,12 @@ export function VideoAppointmentsList({
   const resetActionState = () => { setActionAppointment(null); setRescheduleDate(""); setRescheduleTime(""); setActionReason(""); };
   const openReschedule = (apt: VideoAppointment) => {
     setActionAppointment(apt);
-    const dateValue = apt.startTime
-      ? new Date(apt.startTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+    const appointmentDateTime = getAppointmentDateTimeValue(apt);
+    const dateValue = appointmentDateTime
+      ? formatDateInIST(appointmentDateTime, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA")
       : "";
     setRescheduleDate(dateValue);
-    setRescheduleTime(apt.startTime ? formatTimeInIST(apt.startTime) : "");
+    setRescheduleTime(appointmentDateTime ? formatTimeInIST(appointmentDateTime) : "");
     setIsRescheduleOpen(true);
   };
   const openCancel = (apt: VideoAppointment) => { setActionAppointment(apt); setIsCancelOpen(true); };
@@ -709,7 +809,8 @@ export function VideoAppointmentsList({
     const dateLabel = slot.date
       ? formatDateInIST(new Date(`${slot.date}T00:00:00`), { day: "2-digit", month: "short" })
       : "";
-    return dateLabel ? `${dateLabel} • ${slot.time}` : slot.time;
+    const timeLabel = slot.time ? formatAppointmentTime(slot.time) : "";
+    return dateLabel ? `${dateLabel} • ${timeLabel || slot.time}` : timeLabel || slot.time;
   };
   const availableRescheduleSlots = useMemo(() => extractAvailabilitySlots(rescheduleAvailability), [rescheduleAvailability]);
   const rescheduleSlotGroups = useMemo(() => groupSlotsByPeriod(availableRescheduleSlots), [availableRescheduleSlots]);
@@ -736,6 +837,7 @@ export function VideoAppointmentsList({
   const AppointmentCard = ({ appointment }: { appointment: VideoAppointment }) => {
     const normalizedStatus = normalizeAppointmentStatus(appointment.status).toLowerCase().replace(/_/g, "-");
     const viewState = getAppointmentViewState(appointment);
+    const effectiveStatus = viewState.normalizedStatus.toLowerCase().replace(/_/g, "-");
     const hasProposedSlots = viewState.hasProposedSlots;
     const hasConfirmedSlot = viewState.hasConfirmedSlot;
     const proposedSlots = hasProposedSlots
@@ -748,13 +850,8 @@ export function VideoAppointmentsList({
       !resolvedSlotConfirmations[appointmentSessionId];
     const cfg: { label: string; color: string; dot: string; bg: string } =
       STATUS_CONFIG[normalizedStatus] ?? DEFAULT_STATUS_CONFIG;
-    const statusLabel = getAppointmentStatusBadgeLabel({
-      status: (appointment as any).rawStatus || appointment.status,
-      type: "VIDEO_CALL",
-      proposedSlots: (appointment as any).proposedSlots,
-      confirmedSlotIndex: (appointment as any).confirmedSlotIndex,
-    });
-    const isExpanded = expandedCard === (appointment.id || appointment.appointmentId);
+    const statusLabel = viewState.displayStatusLabel;
+    const isExpanded = expandedCard === (appointment.appointmentId || appointment.id);
     const patientName = getAppointmentPatientName(appointment);
     const rawDoctorName = (appointment as any).doctorName || getAppointmentDoctorName(appointment);
     const doctorName = rawDoctorName.startsWith("Consultation ") || rawDoctorName === "Unknown Doctor"
@@ -775,15 +872,14 @@ export function VideoAppointmentsList({
     const isCancelled = normalizedStatus === "cancelled";
     const paymentCompleted = viewState.paymentCompleted;
     const paymentAmount = getVideoPaymentAmount(appointment, appointmentServices);
+    const serviceLabel = getAppointmentServiceLabel(appointment, appointmentServices as any[]);
     const appointmentDateTime = getAppointmentDateTimeValue(appointment);
     const appointmentDateLabel = appointmentDateTime
       ? formatDateInIST(appointmentDateTime, { weekday: "short", month: "short", day: "2-digit" })
       : "";
     const appointmentTimeLabel = appointmentDateTime
       ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
-      : appointment.startTime
-        ? formatTimeInIST(new Date(appointment.startTime), { hour: "2-digit", minute: "2-digit", hour12: true })
-        : "";
+      : "";
     return (
       <div className={cn(
         "rounded-xl border overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md",
@@ -836,8 +932,8 @@ export function VideoAppointmentsList({
             </div>
             <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
                <div className="text-left sm:text-right">
-                  <p className="text-xs font-semibold text-foreground leading-none">{appointment.startTime ? formatTimeInIST(new Date(appointment.startTime), { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{appointment.startTime ? formatDateInIST(new Date(appointment.startTime), { month: "short", day: "2-digit" }) : "—"}</p>
+                  <p className="text-xs font-semibold text-foreground leading-none">{appointmentDateTime ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{appointmentDateTime ? formatDateInIST(appointmentDateTime, { month: "short", day: "2-digit" }) : "—"}</p>
                </div>
                <div className="flex items-center gap-2">
                  <span className={cn("inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold shadow-sm", cfg.color)}>
@@ -877,7 +973,7 @@ export function VideoAppointmentsList({
                       </div>
                       <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
                         <span className="text-xs font-medium text-muted-foreground">Protocol Type</span>
-                        <p className="font-medium text-foreground text-sm">{(appointment as any).treatmentType || "Virtual Consultation"}</p>
+                        <p className="font-medium text-foreground text-sm">{serviceLabel}</p>
                       </div>
                       <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
                         <span className="text-xs font-medium text-muted-foreground">Authorization</span>
@@ -937,10 +1033,10 @@ export function VideoAppointmentsList({
                         </Button>
                       </div>
                     )}
-                    {['scheduled', 'confirmed'].includes(String(appointment.status || '').toLowerCase()) && (
+                    {['scheduled', 'confirmed', 'queued', 'in-progress'].includes(effectiveStatus) && (
                       <>
                         {!paymentCompleted && paymentAmount > 0 && (
-                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description="Video Consult" className="h-8 px-3 rounded-xl text-xs font-semibold" onSuccess={() => void refetch()}>
+                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold" onSuccess={() => void refetch()}>
                             Pay ₹{paymentAmount}
                           </PaymentButton>
                         )}
@@ -956,7 +1052,7 @@ export function VideoAppointmentsList({
                       </>
                     )}
                     {showJoinButton &&
-                      ["scheduled", "confirmed", "queued", "in-progress"].includes(normalizeAppointmentStatus(appointment.status).toLowerCase()) &&
+                      ["scheduled", "confirmed", "queued", "in-progress"].includes(effectiveStatus) &&
                       isJoinableVideoAppointment(appointment) &&
                       (!enforceTimeSlotWindow || isWithinJoinWindow(appointment)) && (
                       <Button size="sm" onClick={() => handleJoinAppointment(appointment)} className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">
@@ -1021,8 +1117,10 @@ export function VideoAppointmentsList({
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
              <Tabs value={filterStatus} onValueChange={setFilterStatus} className="w-full sm:w-auto">
                 <TabsList className="max-w-full overflow-x-auto h-auto p-1 justify-start scrollbar-hide">
-                    {["all", "scheduled", "in-progress", "completed", "cancelled"].map(s => (
-                        <TabsTrigger key={s} value={s} className="capitalize shrink-0 text-xs sm:text-sm px-3">{s}</TabsTrigger>
+                    {VIDEO_STATUS_TABS.map((tab) => (
+                        <TabsTrigger key={tab.value} value={tab.value} className="capitalize shrink-0 text-xs sm:text-sm px-3">
+                          {tab.label}
+                        </TabsTrigger>
                     ))}
                 </TabsList>
              </Tabs>
@@ -1053,7 +1151,7 @@ export function VideoAppointmentsList({
           ) : (
             <div className="grid gap-4">
               {filteredAppointments.map(apt => (
-                <AppointmentCard key={apt.id || apt.appointmentId} appointment={apt} />
+                <AppointmentCard key={apt.appointmentId || apt.id} appointment={apt} />
               ))}
             </div>
           )}

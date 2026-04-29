@@ -33,6 +33,7 @@ import {
   type QrCheckInAppointment,
   type QrCheckInSelectionCandidate,
 } from "@/hooks/query/useAppointments";
+import { formatTimeInIST } from "@/lib/utils/date-time";
 import { theme } from "@/lib/utils/theme-utils";
 
 type CheckInCoordinates = { lat: number; lng: number };
@@ -156,11 +157,7 @@ export default function PatientCheckInPage() {
     const doctorName = successData.doctorName ?? "Assigned Doctor";
     const locationName = successData.locationName ?? "Booked Clinic Location";
     const timeDisplay = successData.checkedInAt
-      ? new Date(successData.checkedInAt).toLocaleTimeString("en-IN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        })
+      ? formatTimeInIST(successData.checkedInAt)
       : "—";
 
     return (
@@ -247,11 +244,7 @@ export default function PatientCheckInPage() {
             const doctorName = (apt.doctorName ?? apt.doctor?.name ?? derivedDoctorName) || "Doctor";
             const timeStr =
               apt.startTime || apt.time
-                ? new Date(apt.startTime || apt.time || "").toLocaleTimeString("en-IN", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: true,
-                  })
+                ? formatTimeInIST(apt.startTime || apt.time || "")
                 : "—";
 
             return (

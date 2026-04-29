@@ -10,7 +10,7 @@ import { useAppointments } from "@/hooks/query/useAppointments";
 import { useQueue } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
-import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
+import { formatDateInIST, formatISODateInIST, getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
   Users,
@@ -33,11 +33,11 @@ export default function AssistantDoctorDashboard() {
 
   useWebSocketQuerySync();
 
-  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const today = useMemo(() => formatISODateInIST(new Date()), []);
   const historyStartDate = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() - 90);
-    return date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    return formatISODateInIST(date);
   }, []);
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -47,12 +47,18 @@ export default function AssistantDoctorDashboard() {
   }, []);
 
   const { data: appointmentsResult, isPending: appointmentsPending } = useAppointments(
-    clinicId
-      ? { clinicId, startDate: historyStartDate, ...(today ? { endDate: today } : {}) }
+    clinicId && userId
+      ? {
+          clinicId,
+          doctorId: userId,
+          startDate: historyStartDate,
+          ...(today ? { endDate: today } : {}),
+        }
       : undefined
   );
 
   const { data: queueData, isPending: queuePending } = useQueue(clinicId ?? undefined, {
+    ...(userId ? { doctorId: userId } : {}),
     ...(today ? { date: today } : {}),
     enabled: !!clinicId,
   });
@@ -68,9 +74,9 @@ export default function AssistantDoctorDashboard() {
         const dateTime = getAppointmentDateTimeValue(appointment);
         const aptDate =
           (dateTime
-            ? dateTime.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+            ? formatDateInIST(dateTime, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA")
             : "") ||
-          String(appointment.date || appointment.appointmentDate || "").slice(0, 10);
+          formatISODateInIST(String(appointment.date || appointment.appointmentDate || ""));
         return aptDate === today;
       }),
     [appointments, today]

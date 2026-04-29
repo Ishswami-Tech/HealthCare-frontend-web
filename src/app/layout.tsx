@@ -9,6 +9,7 @@ import "./globals.css";
 import { AppProvider } from "@/app/providers/AppProvider";
 import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
 import { Suspense } from "react";
+import Script from "next/script";
 import { APP_CONFIG } from "@/lib/config/config";
 import { DEFAULT_LANGUAGE } from "@/lib/i18n/config";
 import { LoadingSpinner } from "@/components/ui/loading";
@@ -98,7 +99,7 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="//accounts.google.com" />
         <link rel="dns-prefetch" href="//www.google-analytics.com" />
         
-        <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       </head>
       <body className={cn(inter.className, "antialiased")} suppressHydrationWarning>
         <PerformanceProvider

@@ -22,6 +22,7 @@ import {
 } from "@/hooks/query/useCounselor";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { getReceptionistAppointmentTimeLabel } from "@/lib/utils/appointmentUtils";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 export default function CounselorAppointments() {
   const { session } = useAuth();
@@ -170,7 +171,7 @@ export default function CounselorAppointments() {
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {new Date(appointment.date).toLocaleDateString("en-IN")}
+                            {formatDateInIST(appointment.date)}
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />

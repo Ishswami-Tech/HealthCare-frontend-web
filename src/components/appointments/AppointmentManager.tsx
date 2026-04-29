@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import {
   formatDateInIST,
+  formatISODateInIST,
   getAppointmentPaymentDisplayState,
   getAppointmentStatusBadgeLabel,
   getAppointmentDateTimeValue,
@@ -274,8 +275,7 @@ export default function AppointmentManager({
   const formatDate = (date: string) => {
     const parsed = new Date(date);
     if (Number.isNaN(parsed.getTime())) return "Date TBD";
-    return parsed.toLocaleDateString("en-IN", {
-      timeZone: "Asia/Kolkata",
+    return formatDateInIST(parsed, {
       weekday: "short",
       day: "numeric",
       month: "short",
@@ -424,8 +424,10 @@ export default function AppointmentManager({
   );
 
   const AppointmentCard = ({ apt }: { apt: AppointmentWithRelations }) => {
-    const cfg = (STATUS_CONFIG[apt.status] ?? STATUS_CONFIG["SCHEDULED"]) as { label: string; color: string; dot: string; bg: string };
-    const statusLabel = getAppointmentStatusBadgeLabel((apt as any).raw || apt);
+    const viewState = getAppointmentViewState(apt);
+    const effectiveStatus = viewState.normalizedStatus;
+    const cfg = (STATUS_CONFIG[effectiveStatus] ?? STATUS_CONFIG["SCHEDULED"]) as { label: string; color: string; dot: string; bg: string };
+    const statusLabel = viewState.displayStatusLabel;
     const isExpanded = expandedCard === apt.id;
     const appointmentDateTime = getAppointmentDateTimeValue(apt);
     const normalizedAppointment = normalizePatientAppointment(apt);
@@ -444,7 +446,7 @@ export default function AppointmentManager({
     const normalizedDate = appointmentDateTime?.toISOString() || apt.date;
     const displayDuration = getDisplayAppointmentDuration(apt);
 
-    const isCancelled = apt.status === "CANCELLED" || apt.status === "NO_SHOW";
+    const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW";
     return (
       <div className={`rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md ${
         isCancelled
@@ -551,14 +553,14 @@ export default function AppointmentManager({
 
               {/* Actions — unified to avoid duplicate buttons */}
               <div className="flex flex-wrap gap-3 mt-4">
-                {apt.status === "SCHEDULED" && (
+                {effectiveStatus === "SCHEDULED" && (
                   <Button
                     variant="outline"
                     className="h-10 px-5 rounded-lg border-border/50 bg-background/50 text-sm hover:bg-accent/50 transition-all active:scale-95 flex-1 sm:flex-none"
                     onClick={() => {
                       setSelectedAppointment(apt as AppointmentWithRelations);
                       setRescheduleData({
-                        date: normalizedDate ? normalizedDate.slice(0, 10) : "",
+                        date: normalizedDate ? formatISODateInIST(normalizedDate) : "",
                         time: rawTimeValue || "",
                       });
                       setIsRescheduleDialogOpen(true);
@@ -568,7 +570,7 @@ export default function AppointmentManager({
                     Reschedule
                   </Button>
                 )}
-                {apt.status === "SCHEDULED" && apt.type !== "VIDEO_CALL" && (
+                {effectiveStatus === "SCHEDULED" && apt.type !== "VIDEO_CALL" && (
                   <Button
                     className="h-10 px-6 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
                     onClick={() => {
@@ -579,7 +581,7 @@ export default function AppointmentManager({
                     Go To Check-In
                   </Button>
                 )}
-                {apt.status === "SCHEDULED" && (
+                {effectiveStatus === "SCHEDULED" && (
                   <Button
                     variant="outline"
                     className="h-10 px-5 rounded-lg border-red-200/50 bg-red-50/30 text-red-600 hover:bg-red-100/50 hover:text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 text-sm transition-all active:scale-95 flex-1 sm:flex-none"
@@ -618,7 +620,7 @@ export default function AppointmentManager({
                 )}
                 {apt.type === "VIDEO_CALL" &&
                   isVideoAppointmentPaymentCompleted(apt) &&
-                  apt.status === "SCHEDULED" && (
+                  viewState.awaitingDoctorSlotConfirmation && (
                     <Badge className="h-10 px-4 rounded-lg border-amber-200 bg-amber-50 text-amber-700 text-sm font-semibold flex items-center">
                       <Clock className="w-4 h-4 mr-2" />
                       Awaiting Doctor Confirmation

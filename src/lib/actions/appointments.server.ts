@@ -11,6 +11,7 @@ import { validateClinicAccess } from '@/lib/config/permissions';
 import { logger } from '@/lib/utils/logger';
 import { isApiError } from '@/lib/utils/error-handler';
 import { API_ENDPOINTS, APP_CONFIG } from '@/lib/config/config';
+import { formatISODateInIST, formatTimeInIST } from '@/lib/utils/appointmentUtils';
 import type { 
   Appointment, 
   CreateAppointmentData, 
@@ -88,13 +89,12 @@ function normalizeAppointment(raw: Appointment | (Appointment & { appointmentDat
   }
 
   // Use IST timezone for both date and time to ensure correct clinic-local values
-  const istDate = parsedDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-  const istTime = parsedDate.toLocaleTimeString('en-US', {
-    timeZone: 'Asia/Kolkata',
+  const istDate = formatISODateInIST(parsedDate);
+  const istTime = formatTimeInIST(parsedDate, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).replace(/^24:/, '00:');
+  });
 
   return {
     ...normalizedRaw,
@@ -143,6 +143,45 @@ export async function updateAppointmentStatus(id: string, data: any) {
       error instanceof Error ? error : new Error(String(error));
     logger.error('Failed to update appointment status', normalizedError);
     return { success: false, error: normalizedError.message || 'Failed to update status' };
+  }
+}
+
+/**
+ * Cancel an appointment using the dedicated ownership-aware backend route.
+ */
+export async function cancelAppointment(id: string, reason?: string) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.DELETE(id), {
+      method: 'DELETE',
+    });
+
+    const { ipAddress, userAgent } = await getClientInfo();
+    await auditLog({
+      userId: session.user.id,
+      action: 'APPOINTMENT_CANCELLED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: { reason },
+    });
+
+    revalidatePath(`/dashboard/appointments/${id}`);
+    revalidateCache('appointments');
+    revalidateCache('queue');
+
+    return { success: true };
+  } catch (error) {
+    const normalizedError =
+      error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to cancel appointment', normalizedError);
+    return { success: false, error: normalizedError.message || 'Failed to cancel appointment' };
   }
 }
 

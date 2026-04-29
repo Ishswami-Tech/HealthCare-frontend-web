@@ -51,6 +51,69 @@ function resolveProfileCompletionFromUserData(userData: Record<string, unknown> 
   return undefined;
 }
 
+function normalizeOrigin(input: string | undefined): string {
+  if (!input || !input.trim()) {
+    return '';
+  }
+
+  const trimmed = input.trim();
+  const isLocalhostLike = /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(trimmed);
+
+  try {
+    const normalized = /^[a-z]+:\/\//i.test(trimmed)
+      ? trimmed
+      : isLocalhostLike
+        ? `http://${trimmed}`
+        : `https://${trimmed}`;
+    const parsed = new URL(normalized);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return trimmed.replace(/\/+$/, '');
+  }
+}
+
+function buildConnectSrcSources(rawUrl: string | undefined): string[] {
+  const origin = normalizeOrigin(rawUrl);
+  if (!origin) {
+    return [];
+  }
+
+  try {
+    const parsed = new URL(origin);
+    const base = `${parsed.protocol}//${parsed.host}`;
+    const websocketScheme = parsed.protocol === 'https:' ? 'wss' : 'ws';
+    return [base, `${websocketScheme}://${parsed.host}`];
+  } catch {
+    return [origin];
+  }
+}
+
+function buildOpenViduConnectSrcSources(rawUrl: string | undefined): string[] {
+  const sources = new Set(buildConnectSrcSources(rawUrl));
+  const origin = normalizeOrigin(rawUrl);
+
+  if (!origin) {
+    return [...sources];
+  }
+
+  try {
+    const parsed = new URL(origin);
+    const openViduPort = parsed.port || '4443';
+    const websocketScheme = parsed.protocol === 'https:' ? 'wss' : 'ws';
+
+    sources.add(`${parsed.protocol}//${parsed.host}`);
+    sources.add(`${websocketScheme}://${parsed.hostname}:${openViduPort}`);
+
+    if (!parsed.port) {
+      sources.add(`https://${parsed.hostname}:${openViduPort}`);
+    }
+  } catch {
+    // Fall back to the normalized origin only.
+  }
+
+  return [...sources];
+}
+
 
 /**
  * Extract user data from JWT token
@@ -95,13 +158,11 @@ function extractUserDataFromToken(accessToken: string): Record<string, unknown> 
  */
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  console.debug(`[PROXY] Incoming: ${request.method} ${pathname}`);
 
   // =========================================================================
   // STEP 1: Skip proxy for static files and API routes
   // =========================================================================
   if (shouldSkipProxyRoute(pathname)) {
-    console.debug(`[PROXY] Skipping: ${pathname}`);
     return NextResponse.next();
   }
 
@@ -134,9 +195,7 @@ export default async function proxy(request: NextRequest) {
   // STEP 3: Allow public routes without authentication
   // =========================================================================
   const isPublic = isPublicRoute(pathname);
-  console.debug(`[PROXY] isPublic: ${isPublic} for ${pathname}`);
   if (isPublic) {
-    console.debug(`[PROXY] Allowing public: ${pathname}`);
     return response;
   }
 
@@ -203,15 +262,12 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   // Parity with middleware.ts: Don't let logged-in users see login page
   const isAuth = isAuthPath(pathname);
-  console.debug(`[PROXY] isAuthPath: ${isAuth} for ${pathname}`);
   if (isAuth) {
     if (hasValidToken && userRole) {
       const dashboardUrl = getDashboardByRole(userRole);
-      console.debug(`[PROXY] Redirecting authenticated user from ${pathname} to ${dashboardUrl}`);
       return NextResponse.redirect(new URL(dashboardUrl, request.url));
     }
     // Allow access to auth pages if not authenticated
-    console.debug(`[PROXY] Allowing auth path for guest: ${pathname}`);
     return response;
   }
 
@@ -274,17 +330,24 @@ export default async function proxy(request: NextRequest) {
   // =========================================================================
   
   // ✅ Dynamically build allowed hosts from environment variables
-  const apiHost = process.env.NEXT_PUBLIC_API_URL?.replace(/^https?:\/\//, '') || '';
-  const wsHost = process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace(/^https?:\/\//, '') || apiHost;
-  const appHost = process.env.NEXT_PUBLIC_APP_URL?.replace(/^https?:\/\//, '') || '';
+  const apiHost = normalizeOrigin(process.env.NEXT_PUBLIC_API_URL);
+  const wsHost =
+    normalizeOrigin(process.env.NEXT_PUBLIC_WEBSOCKET_URL) ||
+    normalizeOrigin(process.env.NEXT_PUBLIC_WS_URL) ||
+    apiHost;
+  const appHost = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
+  const openViduHost =
+    normalizeOrigin(process.env.NEXT_PUBLIC_OPENVIDU_SERVER_URL) ||
+    normalizeOrigin(process.env.OPENVIDU_URL);
   
   // Build connect-src dynamically from environment
   const connectSources = [
     "'self'",
-    appHost ? `https://${appHost}` : '',
-    appHost ? `wss://${appHost}` : '',
-    apiHost ? `https://${apiHost}` : '',
-    wsHost ? `wss://${wsHost}` : '',
+    ...buildConnectSrcSources(appHost || undefined),
+    ...buildConnectSrcSources(apiHost || undefined),
+    ...buildConnectSrcSources(wsHost || undefined),
+    ...buildOpenViduConnectSrcSources(openViduHost || undefined),
+    'https://*.cashfree.com',
     'https://api.cashfree.com',
     'https://sandbox.cashfree.com',
     'https://payments.cashfree.com',
@@ -303,7 +366,7 @@ export default async function proxy(request: NextRequest) {
     img-src 'self' blob: data: https://lh3.googleusercontent.com https://graph.facebook.com https://platform-lookaside.fbsbx.com https://storage.googleapis.com https://ui-avatars.com;
     font-src 'self' https://fonts.gstatic.com;
     connect-src ${connectSources};
-    frame-src 'self' https://accounts.google.com https://www.facebook.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;
+    frame-src 'self' https://accounts.google.com https://www.facebook.com https://*.cashfree.com https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com;
     media-src 'self' blob:;
     object-src 'none';
     base-uri 'self';
@@ -342,3 +405,4 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };
+

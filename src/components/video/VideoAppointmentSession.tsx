@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -9,10 +10,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { VideoAppointmentRoom } from "@/components/video/VideoAppointmentRoom";
 import { useVideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { useAppointmentServices } from "@/hooks/query/useAppointments";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import {
   getAppointmentPaymentStatus,
   isVideoNoShowEnforced,
+  getVideoSessionDecision,
+  getAppointmentServiceLabel,
+  getVideoAppointmentFee,
 } from "@/lib/utils/appointmentUtils";
 import { getAppointmentViewState } from "@/lib/utils/appointmentUtils";
 
@@ -33,17 +38,18 @@ function normalizeAppointment(
   fallbackId: string
 ): VideoAppointment | null {
   const resolvedAppointmentId = String(
-    appointment?.id || appointment?.appointmentId || fallbackId || ""
+    appointment?.appointmentId || fallbackId || appointment?.id || ""
   );
 
   if (!resolvedAppointmentId) return null;
+  const consultationSessionId = String(appointment?.id || "");
 
   const startTime =
     appointment?.startTime ||
     appointment?.appointmentDate ||
     appointment?.scheduledFor ||
     appointment?.createdAt ||
-    new Date().toISOString();
+    nowIso();
 
   const endTime =
     appointment?.endTime ||
@@ -73,32 +79,13 @@ function normalizeAppointment(
       .toLowerCase()
       .replace(/_/g, "-") as VideoAppointment["status"],
     paymentCompleted: getAppointmentViewState(appointment).paymentCompleted,
-    sessionId: appointment?.sessionId,
+    sessionId: appointment?.sessionId || (consultationSessionId && consultationSessionId !== resolvedAppointmentId ? consultationSessionId : undefined),
     recordingUrl: appointment?.recordingUrl,
     notes: appointment?.notes,
+    treatmentType: appointment?.treatmentType,
     createdAt: appointment?.createdAt || startTime,
     updatedAt: appointment?.updatedAt || startTime,
   };
-}
-
-function getVideoPaymentAmount(appointment: any): number {
-  const candidateValues = [
-    appointment?.invoice?.amount,
-    appointment?.invoice?.totalAmount,
-    appointment?.payment?.amount,
-    appointment?.amount,
-    appointment?.videoConsultationFee,
-    appointment?.consultationFee,
-  ];
-
-  for (const value of candidateValues) {
-    const amount = Number(value);
-    if (Number.isFinite(amount) && amount > 0) {
-      return amount;
-    }
-  }
-
-  return 0;
 }
 
 export function VideoAppointmentSession({
@@ -163,6 +150,7 @@ function VideoAppointmentSessionContent({
     () => (appointmentQuery as any)?.appointment || (appointmentQuery as any)?.data || null,
     [appointmentQuery]
   );
+  const { data: appointmentServices = [] } = useAppointmentServices();
   const shouldUseFallbackAppointment = React.useMemo(() => {
     if (liveAppointmentSource) return false;
     if (!appointment) return false;
@@ -217,6 +205,10 @@ function VideoAppointmentSessionContent({
 
     return null;
   }, [appointment, liveAppointmentSource, shouldUseFallbackAppointment]);
+  const serviceLabel = React.useMemo(
+    () => getAppointmentServiceLabel(rawAppointment, appointmentServices as any[]),
+    [appointmentServices, rawAppointment]
+  );
 
   const paymentCompleted = React.useMemo(() => {
     return getAppointmentViewState(rawAppointment).paymentCompleted;
@@ -227,7 +219,10 @@ function VideoAppointmentSessionContent({
     return paymentStatus === "N_A" ? "PENDING" : paymentStatus;
   }, [rawAppointment]);
 
-  const paymentAmount = React.useMemo(() => getVideoPaymentAmount(rawAppointment), [rawAppointment]);
+  const paymentAmount = React.useMemo(
+    () => getVideoAppointmentFee(rawAppointment, appointmentServices as any[]),
+    [appointmentServices, rawAppointment]
+  );
   const paymentStatusTone = paymentCompleted
     ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
     : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300";
@@ -285,21 +280,10 @@ function VideoAppointmentSessionContent({
   }, [error, errorStatusCode, isFetched, normalizedAppointment]);
 
   const blockedStatusMessage = React.useMemo(() => {
-    if (!normalizedAppointment) return null;
-    
-    const status = String(normalizedAppointment.status).toUpperCase();
-    if (status === 'CANCELLED' || status === 'CANCELED') {
-      return "This appointment was cancelled and cannot be joined.";
-    }
-    if (status === 'COMPLETED') {
-      return "This appointment has already been completed.";
-    }
-    if (isVideoNoShowEnforced() && (status === 'NO_SHOW' || status === 'NO SHOW')) {
-      return "This appointment was marked as a no-show and cannot be joined.";
-    }
-    
-    return null;
-  }, [normalizedAppointment]);
+    if (!rawAppointment) return null;
+    const decision = getVideoSessionDecision(rawAppointment);
+    return decision.action === 'blocked' ? decision.blockedReason : null;
+  }, [rawAppointment]);
 
   const displayErrorMessage = blockedStatusMessage || errorMessage;
   const isBlocked = !!blockedStatusMessage || ((error || isFetched) && !normalizedAppointment);
@@ -318,6 +302,9 @@ function VideoAppointmentSessionContent({
                 <Badge className={paymentStatusTone}>
                   {paymentCompleted ? "Payment verified" : "Payment pending"}
                 </Badge>
+                <Badge variant="outline" className="ml-2 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide">
+                  {serviceLabel}
+                </Badge>
               </div>
             </div>
             <Button variant="outline" onClick={() => router.replace("/video-appointments")}>
@@ -329,7 +316,7 @@ function VideoAppointmentSessionContent({
             <div className="space-y-3">
               <p className="font-medium">Complete the video appointment payment to continue.</p>
               <p className="text-sm text-muted-foreground">
-                You will not be able to open the session until the payment is completed.
+                You will not be able to open the session until the {serviceLabel.toLowerCase()} payment is completed.
               </p>
 
               {paymentAmount > 0 ? (
@@ -337,7 +324,7 @@ function VideoAppointmentSessionContent({
                   appointmentId={appointmentId}
                   amount={paymentAmount}
                   appointmentType="VIDEO_CALL"
-                  description="Video Consult"
+                  description={serviceLabel}
                   className="h-10 rounded-xl px-5 font-semibold"
                 >
                   Pay â‚¹{paymentAmount}
@@ -494,7 +481,7 @@ function VideoAppointmentSessionContent({
         <div className="flex-1 min-h-0 overflow-hidden">
           <VideoAppointmentRoom
             appointment={normalizedAppointment as VideoAppointment}
-            autoStart={true}
+            autoStart={false}
             onLeaveRoom={() => {
               if (onBack) {
                 onBack();

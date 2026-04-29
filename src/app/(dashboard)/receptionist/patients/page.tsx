@@ -31,6 +31,7 @@ import { useClinicContext } from "@/hooks/query/useClinics";
 import { usePatients, useQuickRegisterPatient } from "@/hooks/query/usePatients";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   Calendar,
   Users,
@@ -209,13 +210,13 @@ export default function ReceptionistPatients() {
         visitsLabel:
           patient.totalVisits !== undefined ? String(patient.totalVisits) : "N/A",
         registeredLabel: patient.createdAt
-          ? new Date(patient.createdAt).toLocaleDateString()
+          ? formatDateInIST(patient.createdAt)
           : "N/A",
         lastVisitLabel: patient.lastVisit
-          ? new Date(patient.lastVisit).toLocaleDateString()
+          ? formatDateInIST(patient.lastVisit)
           : "N/A",
         nextAppointmentLabel: patient.nextAppointment
-          ? new Date(patient.nextAppointment).toLocaleDateString()
+          ? formatDateInIST(patient.nextAppointment)
           : "N/A",
       })),
     [filteredPatients]
@@ -870,21 +871,19 @@ export default function ReceptionistPatients() {
                         {patient.lastVisit && (
                           <div>
                             <strong>Last Visit:</strong>{" "}
-                            {new Date(patient.lastVisit).toLocaleDateString()}
+                            {formatDateInIST(patient.lastVisit)}
                           </div>
                         )}
                         {patient.nextAppointment && (
                           <div>
                             <strong>Next:</strong>{" "}
-                            {new Date(
-                              patient.nextAppointment
-                            ).toLocaleDateString()}
+                            {formatDateInIST(patient.nextAppointment)}
                           </div>
                         )}
                         {patient.createdAt && (
                           <div>
                             <strong>Registered:</strong>{" "}
-                            {new Date(patient.createdAt).toLocaleDateString()}
+                            {formatDateInIST(patient.createdAt)}
                           </div>
                         )}
                       </div>
@@ -951,9 +950,7 @@ export default function ReceptionistPatients() {
                                     {selectedPatient.createdAt && (
                                       <div>
                                         <strong>Registration:</strong>{" "}
-                                        {new Date(
-                                          selectedPatient.createdAt
-                                        ).toLocaleDateString()}
+                                        {formatDateInIST(selectedPatient.createdAt)}
                                       </div>
                                     )}
                                     {selectedPatient.address && (
@@ -1123,7 +1120,7 @@ export default function ReceptionistPatients() {
                       <div>
                         <strong>Registration:</strong>{" "}
                         {selectedPatient.createdAt
-                          ? new Date(selectedPatient.createdAt).toLocaleDateString()
+                          ? formatDateInIST(selectedPatient.createdAt)
                           : "N/A"}
                       </div>
                       <div className="md:col-span-2">
@@ -1179,19 +1176,19 @@ export default function ReceptionistPatients() {
                       <div>
                         <strong>Registered:</strong>{" "}
                         {selectedPatient.createdAt
-                          ? new Date(selectedPatient.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                          ? formatDateInIST(selectedPatient.createdAt, { day: "2-digit", month: "short", year: "numeric" })
                           : "N/A"}
                       </div>
                       <div>
                         <strong>Last Visit:</strong>{" "}
                         {selectedPatient.lastVisit
-                          ? new Date(selectedPatient.lastVisit).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                          ? formatDateInIST(selectedPatient.lastVisit, { day: "2-digit", month: "short", year: "numeric" })
                           : "N/A"}
                       </div>
                       <div>
                         <strong>Next Appointment:</strong>{" "}
                         {selectedPatient.nextAppointment
-                          ? new Date(selectedPatient.nextAppointment).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                          ? formatDateInIST(selectedPatient.nextAppointment, { day: "2-digit", month: "short", year: "numeric" })
                           : "N/A"}
                       </div>
                     </CardContent>

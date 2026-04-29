@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useInventory } from "@/hooks/query/usePharmacy";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import { 
   Package,
   AlertTriangle,
@@ -144,7 +145,7 @@ export default function InventoryPage() {
         cell: ({ row }) => (
           <div className="flex flex-col">
             <span className={isExpiringSoon(row.original.expiryDate) ? "font-semibold text-red-600 dark:text-red-300" : "text-foreground"}>
-              {new Date(row.original.expiryDate).toLocaleDateString()}
+              {formatDateInIST(row.original.expiryDate)}
             </span>
             {isExpiringSoon(row.original.expiryDate) && (
               <span className="text-xs text-red-600 dark:text-red-300">Expiring soon</span>

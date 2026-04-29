@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import { useCreateInvoice } from "@/hooks/query/useBilling";
+import { formatISODateInIST } from "@/lib/utils/date-time";
 
 interface InvoiceFormProps {
   invoice?: Invoice;
@@ -27,7 +28,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
   const [amount, setAmount] = useState<number>(invoice?.amount || 0);
   const [description, setDescription] = useState<string>(invoice?.items?.[0]?.description || "");
   const [dueDate, setDueDate] = useState<string>(
-    invoice?.dueDate ? invoice.dueDate.slice(0, 10) : new Date().toISOString().slice(0, 10)
+    invoice?.dueDate ? formatISODateInIST(invoice.dueDate) : formatISODateInIST(new Date())
   );
   const [quantity, setQuantity] = useState<number>(invoice?.items?.[0]?.quantity || 1);
   const [unitPrice, setUnitPrice] = useState<number>(invoice?.items?.[0]?.unitPrice || 0);

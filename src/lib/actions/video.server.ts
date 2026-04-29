@@ -2,6 +2,7 @@
 
 import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
+import { isApiError } from '@/lib/utils/error-handler';
 
 // ===== VIDEO TOKEN MANAGEMENT =====
 
@@ -69,11 +70,22 @@ export async function endVideoConsultation(data: {
  * Get consultation status
  */
 export async function getConsultationStatus(appointmentId: string) {
-  const { data: response } = await authenticatedApi(
-    API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId),
-    {}
-  );
-  return response;
+  try {
+    const { data: response } = await authenticatedApi(
+      API_ENDPOINTS.VIDEO.CONSULTATION.STATUS(appointmentId),
+      {}
+    );
+    return response;
+  } catch (error) {
+    if (
+      isApiError(error) &&
+      (error.statusCode === 404 || error.code === 'DATABASE_RECORD_NOT_FOUND')
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 /**
@@ -682,8 +694,11 @@ export async function updateQualityMetrics(
  */
 export async function getCallQuality(appointmentId: string, userId?: string) {
   const consultationId = await getConsultationId(appointmentId);
-  // Use provided userId or empty string (backend will get from auth token)
-  const userIdParam = userId || '';
+  const session = await getServerSession();
+  const userIdParam = userId || session?.user?.id || '';
+  if (!userIdParam) {
+    throw new Error('User ID is required to load call quality metrics.');
+  }
   const { data: response } = await authenticatedApi(
     API_ENDPOINTS.VIDEO.QUALITY.GET(consultationId, userIdParam), {}
   );

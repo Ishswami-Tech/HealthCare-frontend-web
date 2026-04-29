@@ -23,6 +23,7 @@ import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/compone
 import { Building2, Plus, Search, Edit, Trash2, Loader2, MapPin, Phone, Mail, Users, Activity } from "lucide-react";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import type { CreateClinicData, UpdateClinicData } from "@/types/clinic.types";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 type ClinicRow = {
   id: string;
@@ -249,7 +250,7 @@ export default function SuperAdminClinics() {
         cell: ({ row }) => (
           <div className="space-y-1">
             <div className="font-semibold">{row.original.name}</div>
-            <div className="text-xs text-muted-foreground">{row.original.establishedDate ? new Date(row.original.establishedDate).toLocaleDateString() : "N/A"}</div>
+            <div className="text-xs text-muted-foreground">{row.original.establishedDate ? formatDateInIST(row.original.establishedDate) : "N/A"}</div>
           </div>
         ),
       },

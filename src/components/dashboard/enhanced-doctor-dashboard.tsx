@@ -12,6 +12,8 @@ import React from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   Calendar,
   Users,
@@ -36,6 +38,7 @@ export default function EnhancedDoctorDashboard() {
   const { session } = useAuth();
   const user = session?.user;
   const { clinicId } = useClinicContext();
+  useWebSocketQuerySync();
   
   // Fetch real data
   const { data: appointments } = useMyAppointments();
@@ -131,7 +134,7 @@ export default function EnhancedDoctorDashboard() {
                     Good morning, Dr. {user?.firstName || "Doctor"}
                   </h1>
                   <p className="text-sm text-muted-foreground">
-                    {new Date().toLocaleDateString("en-IN", {
+                    {formatDateInIST(new Date(), {
                       weekday: "long",
                       year: "numeric",
                       month: "long",

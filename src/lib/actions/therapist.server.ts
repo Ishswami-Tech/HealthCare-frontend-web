@@ -3,6 +3,7 @@
 import { authenticatedApi } from './auth.server';
 import { cookies } from 'next/headers';
 import type { TherapistAppointment, TherapistPatient, TherapistSession } from '@/types/medical-records.types';
+import { nowIso } from '@/lib/utils/date-time';
 
 // ===== THERAPIST SERVER ACTIONS =====
 // Therapists are doctors with the THERAPIST role.
@@ -199,7 +200,7 @@ export async function updateClientSession(
         type: 'TREATMENT',
         title: 'Therapy Session',
         description: sessionData.notes || '',
-        date: sessionData.sessionDate || new Date().toISOString(),
+        date: sessionData.sessionDate || nowIso(),
         ...(sessionData.nextSessionDate ? { followUpDate: sessionData.nextSessionDate } : {}),
       }),
     }

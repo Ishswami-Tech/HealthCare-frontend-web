@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 /**
  * Video Appointment Socket.IO Hook
@@ -8,7 +9,6 @@
 
 import { useCallback } from 'react';
 import { useWebSocketStore } from '@/stores';
-import { useWebSocketIntegration } from './useWebSocketIntegration';
 
 // Video appointment event types (Socket.IO events)
 export const VideoAppointmentEvents = {
@@ -17,6 +17,7 @@ export const VideoAppointmentEvents = {
   APPOINTMENT_JOINED: 'appointment.joined',
   APPOINTMENT_LEFT: 'appointment.left',
   APPOINTMENT_ENDED: 'appointment.ended',
+  APPOINTMENT_CONSULTATION_STARTED: 'appointment.consultation_started',
   VIDEO_CONSULTATION_STARTED: 'video.consultation.started',
   VIDEO_CONSULTATION_ENDED: 'video.consultation.ended',
   CONSULTATION_EVENT: 'consultation.event',
@@ -66,12 +67,6 @@ export interface VideoAppointmentEventData {
  */
 export function useVideoAppointmentWebSocket() {
   const { subscribe, emit, isConnected } = useWebSocketStore();
-  
-  // Ensure WebSocket connection is active
-  useWebSocketIntegration({
-    autoConnect: true,
-    subscribeToAppointments: true,
-  });
 
   /**
    * Subscribe to video appointment updates
@@ -101,24 +96,31 @@ export function useVideoAppointmentWebSocket() {
       const unsubscribeStarted = subscribe(
         VideoAppointmentEvents.VIDEO_CONSULTATION_STARTED,
         (data: unknown) => {
-          callback(data as VideoAppointmentEventData);
+          callback({ ...(data as VideoAppointmentEventData), eventType: VideoAppointmentEvents.VIDEO_CONSULTATION_STARTED });
+        }
+      );
+      const unsubscribeAppointmentStarted = subscribe(
+        VideoAppointmentEvents.APPOINTMENT_CONSULTATION_STARTED,
+        (data: unknown) => {
+          callback({ ...(data as VideoAppointmentEventData), eventType: VideoAppointmentEvents.APPOINTMENT_CONSULTATION_STARTED });
         }
       );
       const unsubscribeEnded = subscribe(
         VideoAppointmentEvents.VIDEO_CONSULTATION_ENDED,
         (data: unknown) => {
-          callback(data as VideoAppointmentEventData);
+          callback({ ...(data as VideoAppointmentEventData), eventType: VideoAppointmentEvents.VIDEO_CONSULTATION_ENDED });
         }
       );
       const unsubscribeConsultationEvent = subscribe(
         VideoAppointmentEvents.CONSULTATION_EVENT,
         (data: unknown) => {
-          callback(data as VideoAppointmentEventData);
+          callback({ ...(data as VideoAppointmentEventData), eventType: VideoAppointmentEvents.CONSULTATION_EVENT });
         }
       );
 
       return () => {
         unsubscribeStarted();
+        unsubscribeAppointmentStarted();
         unsubscribeEnded();
         unsubscribeConsultationEvent();
       };
@@ -201,7 +203,7 @@ export function useVideoAppointmentWebSocket() {
       emit(VideoAppointmentEvents.APPOINTMENT_UPDATED, {
         action,
         ...data,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -221,7 +223,7 @@ export function useVideoAppointmentWebSocket() {
         appointmentId,
         action: 'participant_joined',
         participant,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -241,7 +243,7 @@ export function useVideoAppointmentWebSocket() {
         appointmentId,
         action: 'participant_left',
         participant,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -261,7 +263,7 @@ export function useVideoAppointmentWebSocket() {
         appointmentId,
         action: 'recording_started',
         recordingData,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -281,7 +283,7 @@ export function useVideoAppointmentWebSocket() {
         appointmentId,
         action: 'recording_stopped',
         recordingData,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -449,7 +451,7 @@ export function useVideoAppointmentWebSocket() {
         appointmentId,
         message,
         attachments,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -468,7 +470,7 @@ export function useVideoAppointmentWebSocket() {
       emit(VideoAppointmentEvents.VIDEO_CHAT_TYPING, {
         appointmentId,
         isTyping,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]

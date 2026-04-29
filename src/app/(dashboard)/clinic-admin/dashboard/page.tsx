@@ -18,6 +18,7 @@ import {
   resolveQueueDisplayLabel,
 } from "@/lib/queue/queue-adapter";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { formatDateTimeInIST } from "@/lib/utils/date-time";
 import {
   Settings,
   Clock,
@@ -78,8 +79,8 @@ export default function ClinicAdminDashboard() {
       id: apt.id,
       type: "appointment",
       message: `Appointment scheduled for ${apt.patient?.name || apt.patient?.firstName || apt.patientName || "a patient"}`,
-      time: new Date(apt.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      date: new Date(apt.createdAt).toLocaleDateString(),
+      time: formatDateTimeInIST(apt.createdAt || Date.now(), { hour: "2-digit", minute: "2-digit" }, "en-IN"),
+      date: formatDateTimeInIST(apt.createdAt, { day: "2-digit", month: "short", year: "numeric" }, "en-IN"),
     }));
   }, [appointments]);
 

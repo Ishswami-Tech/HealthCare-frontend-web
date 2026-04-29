@@ -179,12 +179,15 @@ function deriveOpenViduServerUrl(): string {
         /^backend-service-v1(?!-video)(?=\.)/,
         'backend-service-v1-video'
       );
+      const normalizedHost = hostname !== parsed.hostname ? hostname : parsed.hostname;
+      const port = parsed.port.length > 0 ? `:${parsed.port}` : '';
+
       if (hostname !== parsed.hostname) {
-        return `${parsed.protocol}//${hostname}${parsed.port ? `:${parsed.port}` : ''}`;
+        return `${parsed.protocol}//${normalizedHost}${port}`;
       }
 
       if (parsed.hostname.includes('openvidu') || parsed.hostname.includes('-video')) {
-        return `${parsed.protocol}//${parsed.host}`;
+        return `${parsed.protocol}//${normalizedHost}${port}`;
       }
     } catch {
       const normalized = raw.replace(/\/+$/, '');
@@ -197,12 +200,35 @@ function deriveOpenViduServerUrl(): string {
   return '';
 }
 
+function normalizeWebSocketBaseUrl(rawUrl: string | undefined): string {
+  if (!rawUrl || !rawUrl.trim()) {
+    return '';
+  }
+
+  const trimmed = rawUrl.trim();
+  try {
+    const normalized = /^[a-z]+:\/\//i.test(trimmed)
+      ? trimmed
+      : /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(trimmed)
+        ? `http://${trimmed}`
+        : `https://${trimmed}`;
+    const parsed = new URL(normalized);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    const cleaned = trimmed.replace(/\/+$/, '');
+    if (/^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(cleaned)) {
+      return `http://${cleaned}`;
+    }
+    return cleaned;
+  }
+}
+
 function isVideoNoShowEnabled(): boolean {
   const value = env.NEXT_PUBLIC_VIDEO_NO_SHOW_ENABLED;
   if (typeof value === 'string') {
     return value.toLowerCase() === 'true';
   }
-  return true;
+  return false;
 }
 
 // ============================================================================
@@ -270,7 +296,9 @@ export const APP_CONFIG = {
   // WEBSOCKET CONFIGURATION
   // ============================================
   WEBSOCKET: {
-    URL: env.NEXT_PUBLIC_WEBSOCKET_URL || env.NEXT_PUBLIC_WS_URL || currentEnvDefaults.websocketUrl,
+    URL: normalizeWebSocketBaseUrl(
+      env.NEXT_PUBLIC_WEBSOCKET_URL || env.NEXT_PUBLIC_WS_URL || currentEnvDefaults.websocketUrl
+    ),
     TIMEOUT: parseInt(env.NEXT_PUBLIC_WS_TIMEOUT || '10000', 10),
     MAX_RECONNECT_ATTEMPTS: parseInt(env.NEXT_PUBLIC_WS_MAX_RECONNECT_ATTEMPTS || '5', 10),
   },

@@ -36,6 +36,7 @@ export interface ConnectionOptions {
   autoReconnect?: boolean;
   reconnectionAttempts?: number;
   reconnectionDelay?: number;
+  onAuthError?: (error: Error) => void;
 }
 
 export const useWebSocketStore = create<WebSocketState>()(
@@ -62,12 +63,18 @@ export const useWebSocketStore = create<WebSocketState>()(
           autoReconnect = true,
           reconnectionAttempts = 5,
           reconnectionDelay = 1000,
+          onAuthError,
         } = options;
 
-        // Disconnect existing connection if any
         const currentSocket = get().socket;
-        if (currentSocket?.connected) {
+        if (currentSocket) {
+          try {
+            currentSocket.removeAllListeners();
+          } catch {
+            // Ignore listener cleanup failures during reconnect teardown.
+          }
           currentSocket.disconnect();
+          set({ socket: null, isConnected: false });
         }
 
         set({ connectionStatus: 'connecting', error: null });
@@ -78,6 +85,13 @@ export const useWebSocketStore = create<WebSocketState>()(
           // It automatically handles protocol upgrade and /socket.io path
           let normalizedUrl = url.trim();
           
+          // Ensure bare localhost endpoints stay on HTTP unless explicitly configured otherwise
+          if (!/^[a-z]+:\/\//i.test(normalizedUrl)) {
+            normalizedUrl = /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(normalizedUrl)
+              ? `http://${normalizedUrl}`
+              : `https://${normalizedUrl}`;
+          }
+
           // Remove /socket.io if present (Socket.IO adds it automatically)
           normalizedUrl = normalizedUrl.replace(/\/socket\.io\/?$/, '');
           
@@ -87,26 +101,36 @@ export const useWebSocketStore = create<WebSocketState>()(
           
           // Add namespace if provided (Socket.IO namespaces start with /)
           const fullUrl = namespace ? `${normalizedUrl}${namespace}` : normalizedUrl;
-          
-          console.debug('🔌 Connecting to Socket.IO:', fullUrl);
+
+          const auth: Record<string, string> = {};
+          if (typeof token === 'string' && token.trim().length > 0) {
+            auth.token = token;
+          }
+          if (typeof tenantId === 'string' && tenantId.trim().length > 0) {
+            auth.tenantId = tenantId;
+          }
+          if (typeof userId === 'string' && userId.trim().length > 0) {
+            auth.userId = userId;
+          }
+
+          const query: Record<string, string> = {};
+          if (typeof tenantId === 'string' && tenantId.trim().length > 0) {
+            query.tenantId = tenantId;
+          }
+          if (typeof userId === 'string' && userId.trim().length > 0) {
+            query.userId = userId;
+          }
           
           const socket = io(fullUrl, {
-            auth: {
-              token,
-              tenantId,
-              userId,
-            },
-            query: {
-              tenantId,
-              userId,
-            },
+            withCredentials: true,
+            ...(Object.keys(auth).length ? { auth } : {}),
+            ...(Object.keys(query).length ? { query } : {}),
             autoConnect: true,
             reconnection: autoReconnect,
             reconnectionAttempts,
             reconnectionDelay,
             reconnectionDelayMax: 5000,
             timeout: 20000,
-            forceNew: true,
           });
 
           // Connection event handlers
@@ -134,13 +158,24 @@ export const useWebSocketStore = create<WebSocketState>()(
           });
 
           socket.on('connect_error', (error: Error & { type?: string; description?: string; context?: unknown }) => {
-            console.error('🔥 Socket.IO connection error:', {
-              message: error.message,
-              type: error.type,
-              description: error.description,
-              context: error.context,
-              url: fullUrl,
-            });
+            const message = String(error?.message || '');
+            const isAuthError = /jwt expired|authentication required|no token or session/i.test(message);
+            if (isAuthError) {
+              try {
+                socket.disconnect();
+              } catch {
+                // Ignore disconnect errors during auth recovery.
+              }
+              if (onAuthError) {
+                onAuthError(error);
+              }
+              set({
+                connectionStatus: 'error',
+                error: message || 'Authentication failed',
+              });
+              return;
+            }
+
             set((state) => ({
               connectionStatus: 'error',
               error: error.message || 'Connection failed',
@@ -174,7 +209,6 @@ export const useWebSocketStore = create<WebSocketState>()(
           });
 
           socket.on('reconnect_error', (error) => {
-            console.error('🔥 WebSocket reconnection error:', error);
             set({
               connectionStatus: 'error',
               error: `Reconnection failed: ${error.message}`,
@@ -182,7 +216,6 @@ export const useWebSocketStore = create<WebSocketState>()(
           });
 
           socket.on('reconnect_failed', () => {
-            console.error('💀 WebSocket reconnection failed completely');
             set({
               connectionStatus: 'error',
               error: 'Failed to reconnect after maximum attempts',
@@ -203,7 +236,6 @@ export const useWebSocketStore = create<WebSocketState>()(
           set({ socket });
 
         } catch (error) {
-          console.error('🔥 Failed to create WebSocket connection:', error);
           set({
             connectionStatus: 'error',
             error: error instanceof Error ? error.message : 'Failed to create connection',
@@ -238,7 +270,6 @@ export const useWebSocketStore = create<WebSocketState>()(
           }));
           // Event emitted successfully
         } else {
-          console.warn('⚠️ Cannot emit event: WebSocket not connected');
           set({
             error: 'Cannot emit event: WebSocket not connected',
           });
@@ -257,7 +288,6 @@ export const useWebSocketStore = create<WebSocketState>()(
             // Unsubscribed from WebSocket event
           };
         } else {
-          console.warn('⚠️ Cannot subscribe to event: WebSocket not connected');
           return () => {};
         }
       },

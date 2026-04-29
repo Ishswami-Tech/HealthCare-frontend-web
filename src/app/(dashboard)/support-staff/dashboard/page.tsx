@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useSupportStaffRequests } from "@/hooks/query/useSupportStaff";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatTimeInIST } from "@/lib/utils/date-time";
 
 export default function SupportStaffDashboard() {
   const { session } = useAuth();
@@ -37,7 +38,7 @@ export default function SupportStaffDashboard() {
         type: r.type || "General Support",
         requester: r.requesterName || r.patient?.name || "Unknown User",
         priority: r.priority || "normal",
-        time: r.createdAt ? new Date(r.createdAt).toLocaleTimeString() : "Recent",
+        time: r.createdAt ? formatTimeInIST(r.createdAt) : "Recent",
         status: r.status,
       }));
   }, [requests]);

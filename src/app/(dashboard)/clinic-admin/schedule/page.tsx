@@ -26,6 +26,7 @@ import {
 } from "@/hooks/query/useDoctors";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   Calendar,
   Plus,
@@ -655,15 +656,12 @@ export default function ClinicAdminSchedule() {
                           <div>
                             <h3 className="font-medium">{holiday.title}</h3>
                             <p className="text-sm text-slate-600 dark:text-slate-300">
-                              {new Date(holiday.date).toLocaleDateString(
-                                "en-IN",
-                                {
-                                  weekday: "long",
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                }
-                              )}
+                              {formatDateInIST(holiday.date, {
+                                weekday: "long",
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">

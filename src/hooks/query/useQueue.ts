@@ -74,7 +74,7 @@ export const useQueue = (clinicId?: string, filters?: {
   }, {
     enabled: enabled !== false,
     // Websocket invalidation owns freshness when connected; polling becomes fallback only.
-    refetchInterval: isConnected ? 2 * 60 * 1000 : 30000,
+    refetchInterval: isConnected ? false : 30000,
   });
 };
 
@@ -89,7 +89,7 @@ export const useQueueStats = (locationId?: string, options?: { enabled?: boolean
     return await getQueueStats(locationId);
   }, {
     enabled: !!locationId && options?.enabled !== false,
-    refetchInterval: isConnected ? 2 * 60 * 1000 : 60000,
+    refetchInterval: isConnected ? false : 60000,
   });
 };
 
