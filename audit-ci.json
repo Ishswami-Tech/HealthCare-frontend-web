@@ -2,7 +2,7 @@
   "moderate": true,
   "high": true,
   "allowlist": [
-    "GHSA-7fh5-64p2-3v2j",
+    "GHSA-qx2v-qp2m-jg93",
     "GHSA-w5hq-g745-h8pq"
   ]
 }
