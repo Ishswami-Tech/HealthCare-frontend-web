@@ -32,9 +32,6 @@ const nextConfig: NextConfig = {
    * Turbopack (disabled for Tailwind CSS v4 compatibility)
    * ===================================================== */
   turbopack: {
-    resolveAlias: {
-      uuid: './src/lib/shims/uuid.ts',
-    },
   },
 
   /* =====================================================
