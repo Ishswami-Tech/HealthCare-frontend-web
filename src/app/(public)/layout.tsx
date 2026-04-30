@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Script from "next/script";
 import { Inter, Playfair_Display } from "next/font/google";
 import { cn } from "@/lib/utils";
 
@@ -59,8 +60,10 @@ export default function PublicLayout({
   return (
     <>
       {/* SEO Schema Markup */}
-      <script
+      <Script
+        id="public-layout-schema"
         type="application/ld+json"
+        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify([
             organizationSchema,

@@ -203,16 +203,24 @@ export function useWebSocketSubscription(
   deps: React.DependencyList = []
 ) {
   const { subscribe, isConnected } = useWebSocketContext();
+  const callbackRef = React.useRef(callback);
+  const depsKey = JSON.stringify(deps);
+
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
 
   useEffect(() => {
     if (!isConnected) return;
 
-    const unsubscribe = subscribe(event, callback);
+    const unsubscribe = subscribe(event, (data: unknown) => {
+      callbackRef.current(data);
+    });
 
     return () => {
       unsubscribe();
     };
-  }, [event, isConnected, subscribe, ...deps]);
+  }, [event, isConnected, subscribe, depsKey]);
 }
 
 // Utility component for showing WebSocket status

@@ -100,24 +100,29 @@ export class OpenViduAPI {
               ? 'wss:'
               : tokenUrl.protocol;
 
-      const isLoopbackHost = /^(localhost|127\.0\.0\.1|\[::1\]|::1)$/i.test(tokenUrl.hostname);
+      const serverHostname = serverBase.hostname;
       const serverPort = serverBase.port;
+      const tokenHostnameMatchesServer = tokenUrl.hostname === serverHostname;
+      const tokenPortMatchesServer = tokenUrl.port === serverPort;
+      const isLoopbackHost = /^(localhost|127\.0\.0\.1|\[::1\]|::1)$/i.test(tokenUrl.hostname);
 
-      // Only rewrite tokens that still point at a local development host.
-      // Production tokens should be preserved verbatim so we do not invalidate
-      // the server-issued token payload by changing its origin too aggressively.
-      if (!isLoopbackHost && !serverPort) {
-        return token;
-      }
-
-      if (tokenUrl.host === serverBase.host && tokenUrl.protocol === normalizedProtocol) {
+      // Rewrite the browser-facing endpoint to the configured public OpenVidu origin.
+      // This avoids leaking an internal :4443 origin into the client when the app is
+      // deployed behind a reverse proxy / CDN that serves OpenVidu over the public host.
+      if (tokenHostnameMatchesServer && tokenPortMatchesServer && tokenUrl.protocol === normalizedProtocol) {
         return token;
       }
 
       tokenUrl.protocol = normalizedProtocol;
-      tokenUrl.hostname = serverBase.hostname;
+      tokenUrl.hostname = serverHostname;
       if (serverPort) {
         tokenUrl.port = serverPort;
+      } else {
+        tokenUrl.port = '';
+      }
+
+      if (!serverPort && isLoopbackHost) {
+        tokenUrl.port = '';
       }
 
       return tokenUrl.toString();
