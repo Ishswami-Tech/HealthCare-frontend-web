@@ -22,6 +22,14 @@
     "test:ws:verbose": "node scripts/test-websocket.js test --verbose",
     "get-token": "node scripts/test-websocket.js get-token"
   },
+  "overrides": {
+    "openvidu-browser": {
+      "uuid": "file:src/lib/shims/uuid-compat"
+    },
+    "next-auth": {
+      "uuid": "file:src/lib/shims/uuid-compat"
+    }
+  },
   "dependencies": {
     "@cashfreepayments/cashfree-js": "^1.0.6",
     "@hookform/error-message": "^2.0.1",
@@ -87,7 +95,7 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
-    "uuid": "^8.3.2",
+    "uuid": "^14.0.0",
     "zod": "^4.3.5",
     "zustand": "^5.0.10"
   },
@@ -110,10 +118,10 @@
       "postcss": "8.5.10"
     },
     "next-auth": {
-      "uuid": "file:vendor/uuid-compat"
+      "uuid": "file:src/lib/shims/uuid-compat"
     },
     "openvidu-browser": {
-      "uuid": "file:vendor/uuid-compat"
+      "uuid": "file:src/lib/shims/uuid-compat"
     }
   }
 }
