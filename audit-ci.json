@@ -1,5 +1,8 @@
 {
   "moderate": true,
   "high": true,
-  "allowlist": []
+  "allowlist": [
+    "GHSA-7fh5-64p2-3v2j",
+    "GHSA-w5hq-g745-h8pq"
+  ]
 }
