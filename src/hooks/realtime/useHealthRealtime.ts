@@ -1,7 +1,7 @@
 "use client";
 import { nowIso } from '@/lib/utils/date-time';
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { APP_CONFIG } from '@/lib/config/config';
 import { useHealthStore } from '@/stores';
@@ -244,6 +244,210 @@ function convertRealtimeToDetailed(realtime: RealtimeHealthStatus): DetailedHeal
   return result;
 }
 
+const HEALTH_NAMESPACE_ROOM = 'health:all';
+const healthSocketBound = new WeakSet<Socket>();
+let sharedHealthSocket: Socket | null = null;
+let sharedHealthRefCount = 0;
+let sharedHealthDisconnectTimer: number | null = null;
+let sharedHealthAuthRefreshInFlight = false;
+
+function emitInitialHealthSnapshot() {
+  if (!sharedHealthSocket?.connected) return;
+
+  sharedHealthSocket.emit(
+    'health:subscribe',
+    { room: HEALTH_NAMESPACE_ROOM },
+    (response: { success: boolean; status?: RealtimeHealthStatus }) => {
+      if (response.success && response.status) {
+        const converted = convertRealtimeToDetailed(response.status);
+        useHealthStore.getState().setHealthStatus(converted);
+        if (response.status.t) {
+          useHealthStore.getState().setLastUpdate(new Date(response.status.t));
+        }
+      }
+    }
+  );
+}
+
+function bindSharedHealthSocket(socket: Socket) {
+  if (healthSocketBound.has(socket)) return;
+
+  healthSocketBound.add(socket);
+
+  socket.on('connect', () => {
+    useHealthStore.getState().setIsConnected(true);
+    useHealthStore.getState().setConnectionStatus('connected');
+    useHealthStore.getState().setError(null);
+    emitInitialHealthSnapshot();
+  });
+
+  socket.on('disconnect', () => {
+    useHealthStore.getState().setIsConnected(false);
+    useHealthStore.getState().setConnectionStatus('disconnected');
+  });
+
+  socket.on('connect_error', (err: Error & { type?: string; description?: string; context?: unknown }) => {
+    const message = String(err?.message || '');
+    const isAuthError = /jwt expired|authentication required|no token or session/i.test(message);
+
+    if (isAuthError) {
+      socket.disconnect();
+
+      if (!sharedHealthAuthRefreshInFlight) {
+        sharedHealthAuthRefreshInFlight = true;
+        void (async () => {
+          try {
+            const refreshedSession = await refreshToken();
+            if (!refreshedSession?.access_token) {
+              useHealthStore.getState().setConnectionStatus('error');
+              useHealthStore.getState().setError(err);
+              return;
+            }
+
+            useAuthStore.getState().setSession(refreshedSession);
+            socket.auth = { token: refreshedSession.access_token };
+            socket.connect();
+          } catch {
+            useHealthStore.getState().setConnectionStatus('error');
+            useHealthStore.getState().setError(err);
+          } finally {
+            sharedHealthAuthRefreshInFlight = false;
+          }
+        })();
+        return;
+      }
+
+      return;
+    }
+
+    useHealthStore.getState().setConnectionStatus('error');
+    useHealthStore.getState().setError(err);
+  });
+
+  socket.on('health:status', (data: RealtimeHealthStatus) => {
+    try {
+      const converted = convertRealtimeToDetailed(data);
+      useHealthStore.getState().setHealthStatus(converted);
+      if (data.t) {
+        useHealthStore.getState().setLastUpdate(new Date(data.t));
+      }
+      useHealthStore.getState().setError(null);
+    } catch (err) {
+      useHealthStore.getState().setError(err instanceof Error ? err : new Error('Invalid health data'));
+    }
+  });
+
+  socket.on('health:service:update', (update: HealthUpdate) => {
+    const currentStatus = useHealthStore.getState().healthStatus;
+    if (!currentStatus) return;
+
+    const updated = { ...currentStatus };
+
+    if (update.id === 'database' && updated.database) {
+      updated.database = {
+        ...updated.database,
+        status: update.st === 'healthy' ? 'up' : 'down',
+        isHealthy: update.st === 'healthy',
+        ...(update.rt !== undefined && { avgResponseTime: update.rt }),
+        lastHealthCheck: update.t,
+      };
+    } else if (update.id === 'cache' && updated.cache) {
+      updated.cache = {
+        ...updated.cache,
+        status: update.st === 'healthy' ? 'up' : 'down',
+        healthy: update.st === 'healthy',
+        ...(update.rt !== undefined && { latency: update.rt }),
+        connection: updated.cache.connection
+          ? {
+              ...updated.cache.connection,
+              connected: update.st === 'healthy',
+              ...(update.rt !== undefined && { latency: update.rt }),
+            }
+          : {
+              connected: update.st === 'healthy',
+              ...(update.rt !== undefined && { latency: update.rt }),
+              provider: 'dragonfly',
+            },
+      };
+    } else if (update.id === 'queue' && updated.queue) {
+      updated.queue = {
+        ...updated.queue,
+        status: update.st === 'healthy' ? 'up' : 'down',
+        healthy: update.st === 'healthy',
+        connection: updated.queue.connection
+          ? {
+              ...updated.queue.connection,
+              connected: update.st === 'healthy',
+              ...(update.rt !== undefined && { latency: update.rt }),
+            }
+          : {
+              connected: update.st === 'healthy',
+              ...(update.rt !== undefined && { latency: update.rt }),
+              provider: 'bullmq',
+            },
+      };
+    } else if (update.id === 'communication' || update.id === 'socket') {
+      if (updated.communication) {
+        const commUpdate: typeof updated.communication = {
+          ...updated.communication,
+          status: update.st === 'healthy' ? 'up' : 'down',
+          healthy: update.st === 'healthy',
+        };
+
+        if (update.st === 'degraded') {
+          commUpdate.degraded = true;
+        }
+
+        if (updated.communication.socket) {
+          commUpdate.socket = {
+            ...updated.communication.socket,
+            connected: update.st === 'healthy',
+          };
+          if (update.rt !== undefined) {
+            commUpdate.socket.latency = update.rt;
+          }
+        }
+
+        updated.communication = commUpdate;
+      }
+    } else if (update.id === 'video' && updated.video) {
+      updated.video = {
+        ...updated.video,
+        status: update.st === 'healthy' ? 'up' : 'down',
+        ...(update.st === 'healthy' && { isHealthy: true }),
+      };
+    } else if ((update.id === 'logger' || update.id === 'logging') && updated.logging) {
+      const loggingUpdate: typeof updated.logging = {
+        ...updated.logging,
+        status: update.st === 'healthy' ? 'up' : 'down',
+      };
+
+      if (update.st === 'healthy') {
+        loggingUpdate.healthy = true;
+      }
+
+      if (updated.logging.service) {
+        loggingUpdate.service = {
+          ...updated.logging.service,
+          available: update.st === 'healthy',
+        };
+        if (update.rt !== undefined) {
+          loggingUpdate.service.latency = update.rt;
+        }
+      }
+
+      updated.logging = loggingUpdate;
+    }
+
+    useHealthStore.getState().setHealthStatus(updated);
+    useHealthStore.getState().setLastUpdate(new Date(update.t));
+  });
+
+  socket.on('health:heartbeat', (heartbeat: HealthHeartbeat) => {
+    useHealthStore.getState().setLastUpdate(new Date(heartbeat.t));
+  });
+}
+
 export interface UseHealthRealtimeOptions {
   enabled?: boolean;
 }
@@ -265,310 +469,119 @@ export function useHealthRealtime(
   const {
     enabled = true,
   } = options;
-
-  // Get store actions
-  const setHealthStatus = useHealthStore((state) => state.setHealthStatus);
-  const setConnectionStatus = useHealthStore((state) => state.setConnectionStatus);
-  const setIsConnected = useHealthStore((state) => state.setIsConnected);
-  const setLastUpdate = useHealthStore((state) => state.setLastUpdate);
-  const setError = useHealthStore((state) => state.setError);
   const currentToken = useAuthStore((state) => state.session?.access_token);
-
-  const socketRef = useRef<Socket | null>(null);
-  const isUnmountingRef = useRef(false);
-  const cleanupTimerRef = useRef<number | null>(null);
-  const authRefreshInFlightRef = useRef(false);
 
   // Initialize Socket.IO connection
   useEffect(() => {
     if (!enabled) return;
-    isUnmountingRef.current = false;
-    if (cleanupTimerRef.current !== null) {
-      window.clearTimeout(cleanupTimerRef.current);
-      cleanupTimerRef.current = null;
+
+    if (sharedHealthDisconnectTimer !== null) {
+      window.clearTimeout(sharedHealthDisconnectTimer);
+      sharedHealthDisconnectTimer = null;
     }
 
-    // ✅ FIX: Use WebSocket URL, not API URL (API URL has /api/v1 prefix)
-    // Socket.IO health namespace is at base WebSocket URL + /health
-    const WEBSOCKET_URL = APP_CONFIG.WEBSOCKET.URL || '';
-    
-    let baseUrl = (WEBSOCKET_URL || '').trim();
-    try {
-      const normalizedBase = /^[a-z]+:\/\//i.test(baseUrl)
-        ? baseUrl
-        : /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(baseUrl)
-          ? `http://${baseUrl}`
-          : `https://${baseUrl}`;
-      const parsedBase = new URL(normalizedBase);
-      baseUrl = `${parsedBase.protocol}//${parsedBase.host}`;
-    } catch {
-      const cleaned = baseUrl.replace(/\/+$/, '');
-      baseUrl = /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(cleaned)
-        ? `http://${cleaned}`
-        : cleaned;
-    }
-
-    // Socket.IO namespace syntax: base URL + namespace
-    // This creates: {WEBSOCKET_URL}/health
-    const healthSocketUrl = `${baseUrl}/health`;
     if (!currentToken) {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
+      if (sharedHealthSocket) {
+        sharedHealthSocket.disconnect();
+        sharedHealthSocket = null;
       }
-      setIsConnected(false);
-      setConnectionStatus('disconnected');
-      setError(null);
+      sharedHealthRefCount = 0;
+      useHealthStore.getState().setIsConnected(false);
+      useHealthStore.getState().setConnectionStatus('disconnected');
+      useHealthStore.getState().setError(null);
       return;
     }
 
-    const healthSocket = io(healthSocketUrl, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      timeout: 20000,
-      forceNew: false,
-      ...(currentToken ? { auth: { token: currentToken } } : {}),
-    });
+    sharedHealthRefCount += 1;
 
-    socketRef.current = healthSocket;
+    if (!sharedHealthSocket) {
+      // ✅ FIX: Use WebSocket URL, not API URL (API URL has /api/v1 prefix)
+      // Socket.IO health namespace is at base WebSocket URL + /health
+      const WEBSOCKET_URL = APP_CONFIG.WEBSOCKET.URL || '';
 
-    // Connection events
-    healthSocket.on('connect', () => {
-      setIsConnected(true);
-      setConnectionStatus('connected');
-      setError(null);
-      
-      // Auto-subscribe to health updates on connection
-      healthSocket.emit('health:subscribe', { room: 'health:all' }, (response: { success: boolean; status?: RealtimeHealthStatus }) => {
-        if (response.success && response.status) {
-          const converted = convertRealtimeToDetailed(response.status);
-          setHealthStatus(converted);
-          if (response.status.t) {
-            setLastUpdate(new Date(response.status.t));
-          }
-        }
+      let baseUrl = (WEBSOCKET_URL || '').trim();
+      try {
+        const normalizedBase = /^[a-z]+:\/\//i.test(baseUrl)
+          ? baseUrl
+          : /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(baseUrl)
+            ? `http://${baseUrl}`
+            : `https://${baseUrl}`;
+        const parsedBase = new URL(normalizedBase);
+        baseUrl = `${parsedBase.protocol}//${parsedBase.host}`;
+      } catch {
+        const cleaned = baseUrl.replace(/\/+$/, '');
+        baseUrl = /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(cleaned)
+          ? `http://${cleaned}`
+          : cleaned;
+      }
+
+      const healthSocketUrl = `${baseUrl}/health`;
+      sharedHealthSocket = io(healthSocketUrl, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: 5,
+        timeout: 20000,
+        forceNew: false,
+        ...(currentToken ? { auth: { token: currentToken } } : {}),
       });
-    });
+      bindSharedHealthSocket(sharedHealthSocket);
+      useHealthStore.getState().setConnectionStatus('connecting');
+    } else if (currentToken) {
+      const socketAuth = sharedHealthSocket.auth as { token?: string } | undefined;
 
-    healthSocket.on('disconnect', (reason) => {
-      setIsConnected(false);
-      setConnectionStatus('disconnected');
-    });
+      if (socketAuth?.token !== currentToken) {
+        sharedHealthSocket.auth = { token: currentToken } as { token: string };
+      }
 
-    healthSocket.on('connect_error', (err: Error & { type?: string; description?: string; context?: unknown }) => {
-      if (isUnmountingRef.current) return;
-      const message = String(err?.message || '');
-      const isAuthError = /jwt expired|authentication required|no token or session/i.test(message);
+      if (!sharedHealthSocket.connected) {
+        sharedHealthSocket.connect();
+      }
+    }
 
-      if (isAuthError) {
-        healthSocket.disconnect();
-
-        if (!authRefreshInFlightRef.current) {
-          authRefreshInFlightRef.current = true;
-          void (async () => {
-            try {
-              const refreshedSession = await refreshToken();
-              if (!refreshedSession?.access_token || isUnmountingRef.current) {
-                setConnectionStatus('error');
-                setError(err);
-                return;
-              }
-
-              useAuthStore.getState().setSession(refreshedSession);
-              healthSocket.auth = { token: refreshedSession.access_token };
-              healthSocket.connect();
-            } catch {
-              setConnectionStatus('error');
-              setError(err);
-            } finally {
-              authRefreshInFlightRef.current = false;
-            }
-          })();
-        }
+    return () => {
+      sharedHealthRefCount = Math.max(0, sharedHealthRefCount - 1);
+      if (sharedHealthRefCount > 0) {
         return;
       }
 
-      setConnectionStatus('error');
-      setError(err);
-    });
-
-    // Health status events
-    healthSocket.on('health:status', (data: RealtimeHealthStatus) => {
-      if (isUnmountingRef.current) return;
-      try {
-        const converted = convertRealtimeToDetailed(data);
-        setHealthStatus(converted);
-        if (data.t) {
-          setLastUpdate(new Date(data.t));
-        }
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Invalid health data'));
-      }
-    });
-
-    healthSocket.on('health:service:update', (update: HealthUpdate) => {
-      if (isUnmountingRef.current) return;
-      // Update service status in Zustand store
-      const currentStatus = useHealthStore.getState().healthStatus;
-      if (!currentStatus) return;
-
-      const updated = { ...currentStatus };
-      
-      // Map service IDs to our format
-      if (update.id === 'database' && updated.database) {
-        updated.database = {
-          ...updated.database,
-          status: update.st === 'healthy' ? 'up' : 'down',
-          isHealthy: update.st === 'healthy',
-          ...(update.rt !== undefined && { avgResponseTime: update.rt }),
-          lastHealthCheck: update.t,
-        };
-      } else if (update.id === 'cache' && updated.cache) {
-        updated.cache = {
-          ...updated.cache,
-          status: update.st === 'healthy' ? 'up' : 'down',
-          healthy: update.st === 'healthy',
-          ...(update.rt !== undefined && { latency: update.rt }),
-          connection: updated.cache.connection ? {
-            ...updated.cache.connection,
-            connected: update.st === 'healthy',
-            ...(update.rt !== undefined && { latency: update.rt }),
-          } : {
-            connected: update.st === 'healthy',
-            ...(update.rt !== undefined && { latency: update.rt }),
-            provider: 'dragonfly',
-          },
-        };
-      } else if (update.id === 'queue' && updated.queue) {
-        updated.queue = {
-          ...updated.queue,
-          status: update.st === 'healthy' ? 'up' : 'down',
-          healthy: update.st === 'healthy',
-          connection: updated.queue.connection ? {
-            ...updated.queue.connection,
-            connected: update.st === 'healthy',
-            ...(update.rt !== undefined && { latency: update.rt }),
-          } : {
-            connected: update.st === 'healthy',
-            ...(update.rt !== undefined && { latency: update.rt }),
-            provider: 'bullmq',
-          },
-        };
-      } else if (update.id === 'communication' || update.id === 'socket') {
-        if (updated.communication) {
-          const commUpdate: typeof updated.communication = {
-            ...updated.communication,
-            status: update.st === 'healthy' ? 'up' : 'down',
-            healthy: update.st === 'healthy',
-          };
-          
-          if (update.st === 'degraded') {
-            commUpdate.degraded = true;
-          }
-          
-          if (updated.communication.socket) {
-            commUpdate.socket = {
-              ...updated.communication.socket,
-              connected: update.st === 'healthy',
-            };
-            if (update.rt !== undefined) {
-              commUpdate.socket.latency = update.rt;
-            }
-          }
-          
-          updated.communication = commUpdate;
-        }
-      } else if (update.id === 'video' && updated.video) {
-        updated.video = {
-          ...updated.video,
-          status: update.st === 'healthy' ? 'up' : 'down',
-          ...(update.st === 'healthy' && { isHealthy: true }),
-        };
-      } else if ((update.id === 'logger' || update.id === 'logging') && updated.logging) {
-        const loggingUpdate: typeof updated.logging = {
-          ...updated.logging,
-          status: update.st === 'healthy' ? 'up' : 'down',
-        };
-        
-        if (update.st === 'healthy') {
-          loggingUpdate.healthy = true;
-        }
-        
-        if (updated.logging.service) {
-          loggingUpdate.service = {
-            ...updated.logging.service,
-            available: update.st === 'healthy',
-          };
-          if (update.rt !== undefined) {
-            loggingUpdate.service.latency = update.rt;
-          }
-        }
-        
-        updated.logging = loggingUpdate;
-      }
-      
-      setHealthStatus(updated);
-      setLastUpdate(new Date(update.t));
-    });
-
-    healthSocket.on('health:heartbeat', (heartbeat: HealthHeartbeat) => {
-      if (isUnmountingRef.current) return;
-      setLastUpdate(new Date(heartbeat.t));
-    });
-
-    setConnectionStatus('connecting');
-
-    // Cleanup
-    return () => {
-      isUnmountingRef.current = true;
-      if (cleanupTimerRef.current !== null) {
-        window.clearTimeout(cleanupTimerRef.current);
+      if (sharedHealthDisconnectTimer !== null) {
+        window.clearTimeout(sharedHealthDisconnectTimer);
       }
 
-      cleanupTimerRef.current = window.setTimeout(() => {
-        if (socketRef.current === healthSocket) {
-          healthSocket.disconnect();
-        }
+      sharedHealthDisconnectTimer = window.setTimeout(() => {
+        sharedHealthSocket?.disconnect();
+        sharedHealthSocket = null;
+        sharedHealthAuthRefreshInFlight = false;
       }, 250);
     };
-  }, [enabled, currentToken, setHealthStatus, setConnectionStatus, setIsConnected, setLastUpdate, setError]);
+  }, [enabled, currentToken]);
 
   const reconnect = useCallback(() => {
-    if (socketRef.current) {
-      if (cleanupTimerRef.current !== null) {
-        window.clearTimeout(cleanupTimerRef.current);
-        cleanupTimerRef.current = null;
+    if (sharedHealthSocket) {
+      if (sharedHealthDisconnectTimer !== null) {
+        window.clearTimeout(sharedHealthDisconnectTimer);
+        sharedHealthDisconnectTimer = null;
       }
-      socketRef.current.connect();
+      sharedHealthSocket.connect();
     }
   }, []);
 
   const subscribe = useCallback(() => {
-    if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('health:subscribe', { room: 'health:all' }, (response: { success: boolean; status?: RealtimeHealthStatus }) => {
-        if (response.success && response.status) {
-          const converted = convertRealtimeToDetailed(response.status);
-          setHealthStatus(converted);
-          if (response.status?.t) {
-            setLastUpdate(new Date(response.status.t));
-          }
-        }
-      });
+    if (sharedHealthSocket && sharedHealthSocket.connected) {
+      emitInitialHealthSnapshot();
     }
-  }, [setHealthStatus, setLastUpdate]);
+  }, []);
 
   const unsubscribe = useCallback(() => {
-    if (socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('health:unsubscribe', () => {});
+    if (sharedHealthSocket && sharedHealthSocket.connected) {
+      sharedHealthSocket.emit('health:unsubscribe', () => {});
     }
   }, []);
 
   return {
-    socket: socketRef.current,
+    socket: sharedHealthSocket,
     reconnect,
     subscribe,
     unsubscribe,

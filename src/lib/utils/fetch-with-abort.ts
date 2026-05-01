@@ -1,4 +1,5 @@
 import { APP_CONFIG } from '@/lib/config/config';
+import { dedupeRequest } from '@/hooks/core/requestDeduper';
 
 export interface FetchWithAbortOptions extends RequestInit {
   timeout?: number;
@@ -72,11 +73,24 @@ export async function fetchWithAbort(
       headers.set(BACKEND_PROTECTION_HEADER, backendProtectionKey);
     }
 
-    const response = await fetch(url, {
-      ...fetchOptions,
-      headers,
-      signal: controller.signal,
-    });
+    const response = await dedupeRequest(
+      'fetch',
+      {
+        url,
+        method: fetchOptions.method || 'GET',
+        body: typeof fetchOptions.body === 'string'
+          ? fetchOptions.body
+          : fetchOptions.body
+            ? JSON.stringify(fetchOptions.body)
+            : '',
+        requireAuth,
+      },
+      () => fetch(url, {
+        ...fetchOptions,
+        headers,
+        signal: controller.signal,
+      })
+    );
 
     clearTimeout(timeoutId);
     return response;

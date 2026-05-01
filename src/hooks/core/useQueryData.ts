@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 // ✅ Import query configuration for default options
 import { queryClientConfig } from '../query/config';
+import { dedupeQueryRequest } from './requestDeduper';
 
 /**
  * useQueryData Hook
@@ -46,7 +47,7 @@ export const useQueryData = <
     refetch     // Function to manually trigger a refetch
   } = useQuery<TData, TError>({
     queryKey,
-    queryFn: queryFn as any,
+    queryFn: () => dedupeQueryRequest(queryKey, () => queryFn() as Promise<TData> | TData) as any,
     ...defaultOptions,
     ...options, // User options override defaults
   } as any);

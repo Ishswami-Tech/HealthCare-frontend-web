@@ -48,7 +48,11 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
     const data = await response.json();
     
     const backendData = data as Record<string, any>;
-    return {
+
+    // ✅ LOG RAW BACKEND DATA
+    logger.info('Health check raw backend data', { data: backendData });
+
+    const result: DetailedHealthStatus = {
       uptime: backendData.systemMetrics?.uptime || backendData.realtime?.uptime || 0,
       system: {
         cpu: backendData.realtime?.system?.cpu || 0,
@@ -92,6 +96,12 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
         healthy: backendData.services?.logger?.status === 'healthy',
       }
     };
+
+    // ✅ LOG FOR VERCEL OBSERVABILITY
+    logger.info('[HealthCheck] Action Response', { response: result });
+
+    return result;
+
 
   } catch (error: unknown) {
     if (error instanceof FetchTimeoutError) {

@@ -8,6 +8,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateQueueStatus, callNextPatient } from '@/lib/actions/queue.server';
 import { nowIso } from '@/lib/utils/date-time';
+import { dedupeRequest } from '@/hooks/core/requestDeduper';
 
 type QueueListItem = {
   id?: string;
@@ -74,19 +75,20 @@ export function useOptimisticUpdateQueueStatus(clinicId?: string) {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ patientId, status }: { patientId: string; status: string }) => {
-      const result = await updateQueueStatus(patientId, status) as {
-        success?: boolean;
-        error?: string;
-        data?: unknown;
-      } | null;
+    mutationFn: (variables: { patientId: string; status: string }) =>
+      dedupeRequest('mutation', ['queueStatus', clinicId, variables], async () => {
+        const result = await updateQueueStatus(variables.patientId, variables.status) as {
+          success?: boolean;
+          error?: string;
+          data?: unknown;
+        } | null;
 
-      if (!result?.success) {
-        throw new Error(result?.error || 'Failed to update queue status');
-      }
+        if (!result?.success) {
+          throw new Error(result?.error || 'Failed to update queue status');
+        }
 
-      return result.data;
-    },
+        return result.data;
+      }),
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: ['queue'], exact: false });
 
@@ -119,8 +121,21 @@ export function useOptimisticUpdateQueueStatus(clinicId?: string) {
     },
   });
 
+  const dedupedMutation = {
+    ...mutation,
+    mutate: (variables: { patientId: string; status: string }, customOptions?: any) => {
+      void dedupeRequest('mutation', ['queueStatus', clinicId, variables], () =>
+        mutation.mutateAsync(variables, customOptions)
+      );
+    },
+    mutateAsync: (variables: { patientId: string; status: string }, customOptions?: any) =>
+      dedupeRequest('mutation', ['queueStatus', clinicId, variables], () =>
+        mutation.mutateAsync(variables, customOptions)
+      ),
+  };
+
   return {
-    mutation,
+    mutation: dedupedMutation,
     isPending: mutation.isPending,
   };
 }
@@ -132,22 +147,23 @@ export function useOptimisticCallNextPatient(clinicId?: string, doctorId?: strin
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({ appointmentId }: { appointmentId: string }) => {
-      if (!doctorId) throw new Error('Doctor ID is required');
-      if (!appointmentId) throw new Error('Appointment ID is required');
+    mutationFn: (variables: { appointmentId: string }) =>
+      dedupeRequest('mutation', ['callNextPatient', clinicId, doctorId, variables], async () => {
+        if (!doctorId) throw new Error('Doctor ID is required');
+        if (!variables.appointmentId) throw new Error('Appointment ID is required');
 
-      const result = await callNextPatient(doctorId, appointmentId) as {
-        success?: boolean;
-        error?: string;
-        data?: unknown;
-      } | null;
+        const result = await callNextPatient(doctorId, variables.appointmentId) as {
+          success?: boolean;
+          error?: string;
+          data?: unknown;
+        } | null;
 
-      if (!result?.success) {
-        throw new Error(result?.error || 'Failed to call next patient');
-      }
+        if (!result?.success) {
+          throw new Error(result?.error || 'Failed to call next patient');
+        }
 
-      return result.data;
-    },
+        return result.data;
+      }),
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: ['queue'], exact: false });
 
@@ -167,8 +183,21 @@ export function useOptimisticCallNextPatient(clinicId?: string, doctorId?: strin
     },
   });
 
+  const dedupedMutation = {
+    ...mutation,
+    mutate: (variables: { appointmentId: string }, customOptions?: any) => {
+      void dedupeRequest('mutation', ['callNextPatient', clinicId, doctorId, variables], () =>
+        mutation.mutateAsync(variables, customOptions)
+      );
+    },
+    mutateAsync: (variables: { appointmentId: string }, customOptions?: any) =>
+      dedupeRequest('mutation', ['callNextPatient', clinicId, doctorId, variables], () =>
+        mutation.mutateAsync(variables, customOptions)
+      ),
+  };
+
   return {
-    mutation,
+    mutation: dedupedMutation,
     isPending: mutation.isPending,
   };
 }
