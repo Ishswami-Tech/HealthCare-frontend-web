@@ -152,15 +152,19 @@ export interface UpdateAppointmentData {
   symptoms?: string[];
   diagnosis?: string;
   prescription?: string;
+  treatmentPlan?: string;
   followUpDate?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CompleteAppointmentData {
   diagnosis?: string;
   prescription?: string;
   notes?: string;
+  treatmentPlan?: string;
   followUpDate?: string;
   followUpNotes?: string;
+  metadata?: Record<string, unknown>;
   doctorId?: string; // ✅ Consolidated: merged from duplicate definition
 }
 

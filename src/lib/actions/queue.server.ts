@@ -11,6 +11,7 @@ import { logger } from '@/lib/utils/logger';
  */
 export async function getQueue(filters?: {
   type?: string;
+  treatmentType?: string;
   status?: string;
   doctorId?: string;
   clinicId?: string;
@@ -18,7 +19,8 @@ export async function getQueue(filters?: {
 }) {
   try {
     const query = new URLSearchParams();
-    if (filters?.type) query.set('type', filters.type);
+    const canonicalTreatmentType = filters?.treatmentType || filters?.type;
+    if (canonicalTreatmentType) query.set('treatmentType', canonicalTreatmentType);
     if (filters?.status) query.set('status', filters.status);
     if (filters?.doctorId) query.set('doctorId', filters.doctorId);
     if (filters?.clinicId) query.set('clinicId', filters.clinicId);

@@ -15,7 +15,7 @@ import { useClinicContext } from "@/hooks/query/useClinics";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useDoctorPatients } from "@/hooks/query/useDoctors";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
-import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { PatientClinicalRecordView } from "@/components/patient/PatientClinicalRecordView";
 import { usePatientStore } from "@/stores";
@@ -125,11 +125,6 @@ export default function DoctorPatients() {
   const drawerPatient = usePatientStore((state) => state.selectedPatient);
   const setSelectedPatient = usePatientStore((state) => state.setSelectedPatient);
   const isPendingPatients = patientsQuery.isPending;
-  const realTimeAppointments = useRealTimeAppointments({
-    doctorId,
-    limit: 300,
-  } as any);
-
   const { data: appointmentsData } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
     ...(doctorId ? { doctorId } : {}),
@@ -170,10 +165,9 @@ export default function DoctorPatients() {
   }, [patients]);
 
   const appointments = useMemo(() => {
-    const source = realTimeAppointments.data || appointmentsData;
-    if (!source) return [];
-    return Array.isArray(source) ? source : (source as RecordLike).appointments || [];
-  }, [appointmentsData, realTimeAppointments.data]);
+    if (!appointmentsData) return [];
+    return Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData as RecordLike).appointments || [];
+  }, [appointmentsData]);
 
   const filteredPatients = patientsWithProfile.filter((patient: RecordLike) => {
     const name = patient.name || `${patient.firstName || ""} ${patient.lastName || ""}`.trim() || "";

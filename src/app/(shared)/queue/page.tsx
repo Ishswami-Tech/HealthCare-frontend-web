@@ -23,7 +23,6 @@ import {
   usePauseQueue,
   useQueue,
   useQueueFilters,
-  useQueueStats,
   useTransferQueueEntry,
 } from "@/hooks/query/useQueue";
 import { useDoctors } from "@/hooks/query/useDoctors";
@@ -42,7 +41,11 @@ import {
 } from "@/lib/queue/queue-adapter";
 import { formatISODateInIST } from "@/lib/utils/date-time";
 import { Permission } from "@/types/rbac.types";
-import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import {
+  useRealTimeQueueStatus,
+  useWebSocketQuerySync,
+} from "@/hooks/realtime/useRealTimeQueries";
+import { useQueueWebSocketIntegration } from "@/hooks/realtime/useWebSocketIntegration";
 import { PageLoading, Skeleton } from "@/components/ui/loading";
 import {
   Dialog,
@@ -342,6 +345,7 @@ export default function QueuePage() {
   const userRole = (session?.user?.role as Role) || Role.SUPER_ADMIN;
   const doctorId = session?.user?.id;
   const [activeQueue, setActiveQueue] = useState("consultations");
+  const [activeTreatmentFilter, setActiveTreatmentFilter] = useState("ALL");
   const [activeConsultationLane, setActiveConsultationLane] = useState("GENERAL_CONSULTATION");
   const [activeTherapyLane, setActiveTherapyLane] = useState("PROCEDURAL_CARE");
 
@@ -357,6 +361,10 @@ export default function QueuePage() {
   const { data: locations = [] } = useActiveLocations(clinicId || "");
   const locationId = locations[0]?.id || "";
   const queueClinicId = clinicId || undefined;
+  const {
+    subscribeToQueue: subscribeClinicQueue,
+    unsubscribeFromQueue: unsubscribeClinicQueue,
+  } = useQueueWebSocketIntegration("healthcare-queue");
 
   const queueFilters: {
     enabled: boolean;
@@ -381,8 +389,21 @@ export default function QueuePage() {
     queueFilters
   );
 
-  const { data: queueStats } = useQueueStats(locationId);
+  const { data: queueStats } = useRealTimeQueueStatus(undefined, locationId || undefined);
   const { data: doctorsData } = useDoctors(clinicId || "", { limit: 200 });
+
+  useEffect(() => {
+    if (!clinicId) return;
+
+    subscribeClinicQueue({
+      clinicId,
+      ...(locationId ? { locationId } : {}),
+    });
+
+    return () => {
+      unsubscribeClinicQueue();
+    };
+  }, [clinicId, locationId, subscribeClinicQueue, unsubscribeClinicQueue]);
 
   const assignableDoctors = useMemo(() => {
     const normalize = (users: any[]) =>
@@ -421,6 +442,17 @@ export default function QueuePage() {
     );
     return treatmentGroup?.filters ?? [];
   }, [queueFilterCatalog]);
+  const treatmentTypeBarFilters = useMemo<QueueFilterOption[]>(() => {
+    const options = treatmentQueueFilters.filter((option) => normalizeQueueToken(option.value));
+    return [
+      {
+        value: "ALL",
+        label: "All types",
+        description: "Show every queue treatment type.",
+      },
+      ...options,
+    ];
+  }, [treatmentQueueFilters]);
 
   const queueTransferOptions = useMemo<QueueFilterOption[]>(() => treatmentQueueFilters, [treatmentQueueFilters]);
   const procedureQueueFilters = useMemo<QueueFilterOption[]>(
@@ -449,9 +481,65 @@ export default function QueuePage() {
     [rawQueueEntries]
   );
 
+  const matchesTreatmentFilter = useCallback(
+    (item: QueueDisplayItem) => {
+      if (activeTreatmentFilter === "ALL") return true;
+
+      const tokens = [
+        item.treatmentType,
+        item.queueCategory,
+        item.queueType,
+        item.queueLane,
+        item.serviceBucket,
+        item.displayLabel,
+        item.serviceType,
+      ]
+        .filter(Boolean)
+        .map((token) => normalizeQueueToken(token));
+
+      return tokens.includes(activeTreatmentFilter);
+    },
+    [activeTreatmentFilter]
+  );
+
   const scopedQueueEntries = useMemo(() => {
-    return queueEntries;
-  }, [queueEntries]);
+    return queueEntries.filter(matchesTreatmentFilter);
+  }, [queueEntries, matchesTreatmentFilter]);
+
+  const getTreatmentFilterCount = useCallback(
+    (filterValue: string) => {
+      const normalizedFilter = normalizeQueueToken(filterValue);
+      if (normalizedFilter === "ALL") {
+        return queueEntries.length;
+      }
+
+      return queueEntries.filter((item) => {
+        const tokens = [
+          item.treatmentType,
+          item.queueCategory,
+          item.queueType,
+          item.queueLane,
+          item.serviceBucket,
+          item.displayLabel,
+          item.serviceType,
+        ]
+          .filter(Boolean)
+          .map((token) => normalizeQueueToken(token));
+
+        return tokens.includes(normalizedFilter);
+      }).length;
+    },
+    [queueEntries]
+  );
+
+  useEffect(() => {
+    if (
+      treatmentTypeBarFilters.length > 0 &&
+      !treatmentTypeBarFilters.some((option) => normalizeQueueToken(option.value) === activeTreatmentFilter)
+    ) {
+      setActiveTreatmentFilter("ALL");
+    }
+  }, [activeTreatmentFilter, treatmentTypeBarFilters]);
 
   useEffect(() => {
     if (
@@ -500,6 +588,7 @@ export default function QueuePage() {
 
   const queueStatsSummary = useMemo(() => {
     const useApiQueueStats =
+      activeTreatmentFilter === "ALL" &&
       userRole !== Role.DOCTOR && userRole !== Role.ASSISTANT_DOCTOR;
     const apiQueueStats = queueStats as any;
     const totalInQueue = scopedQueueEntries.length;
@@ -530,7 +619,7 @@ export default function QueuePage() {
           ? apiQueueStats.completedToday
           : scopedQueueEntries.filter((item: QueueDisplayItem) => item.status === QUEUE_STATUS.COMPLETED).length,
     };
-  }, [queueStats, scopedQueueEntries, userRole]);
+  }, [activeTreatmentFilter, queueStats, scopedQueueEntries, userRole]);
 
   const queueScopeLabel = useMemo(() => {
     if (userRole === Role.SUPER_ADMIN) {
@@ -1016,6 +1105,44 @@ export default function QueuePage() {
           </Button>
         </div>
       )}
+
+      <Card className="mb-5 border-border/60 bg-background/90 shadow-sm backdrop-blur-sm">
+        <CardHeader className="space-y-2 px-4 pb-2 pt-4">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <Activity className="h-5 w-5" />
+            Treatment Type Filter
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Narrow the shared queue by backend treatment catalog, then continue using the consult and procedure lanes below.
+          </p>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2 px-4 pb-4 pt-0">
+          {treatmentTypeBarFilters.map((option) => {
+            const normalizedOption = normalizeQueueToken(option.value);
+            const isActive = normalizedOption === activeTreatmentFilter;
+
+            return (
+              <Badge
+                key={option.value}
+                asChild
+                variant="outline"
+                className={`cursor-pointer gap-2 px-3 py-2 text-sm font-semibold shadow-sm transition ${
+                  isActive
+                    ? "border-emerald-500 bg-emerald-600 text-white ring-1 ring-emerald-300 dark:border-emerald-400 dark:bg-emerald-500 dark:text-white"
+                    : "border-border bg-background text-foreground hover:bg-muted/40"
+                }`}
+              >
+                <button type="button" onClick={() => setActiveTreatmentFilter(normalizedOption)}>
+                  <span className="truncate">{option.label}</span>
+                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-current">
+                    {getTreatmentFilterCount(option.value)}
+                  </span>
+                </button>
+              </Badge>
+            );
+          })}
+        </CardContent>
+      </Card>
 
       {/* Queue Statistics for authorized users */}
       <ProtectedComponent

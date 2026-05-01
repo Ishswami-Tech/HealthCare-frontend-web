@@ -174,6 +174,8 @@ export async function cancelAppointment(id: string, reason?: string) {
 
     revalidatePath(`/dashboard/appointments/${id}`);
     revalidateCache('appointments');
+    revalidateCache('appointment');
+    revalidateCache('myAppointments');
     revalidateCache('queue');
 
     return { success: true };

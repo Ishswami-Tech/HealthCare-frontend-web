@@ -561,6 +561,8 @@ export const API_ENDPOINTS = {
       CREATE: '/pharmacy/prescriptions',
       UPDATE_STATUS: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/status`,
       DISPENSE: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/dispense`,
+      REVERSE_DISPENSE: (prescriptionId: string) =>
+        `/pharmacy/prescriptions/${prescriptionId}/reverse-dispense`,
       PAYMENT_SUMMARY: (prescriptionId: string) =>
         `/pharmacy/prescriptions/${prescriptionId}/payment-summary`,
       PROCESS_PAYMENT: (prescriptionId: string) =>
@@ -576,6 +578,7 @@ export const API_ENDPOINTS = {
     SEARCH: (clinicId: string) => `/clinics/${clinicId}/medicines/search`,
     CATEGORIES: '/pharmacy/categories',
     SUPPLIERS: '/pharmacy/suppliers',
+    AUDIT_BATCHES: '/pharmacy/audit/batches',
     EXPORT: (clinicId: string) => `/clinics/${clinicId}/pharmacy/export`,
   },
   

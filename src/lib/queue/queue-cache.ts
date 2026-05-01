@@ -13,6 +13,7 @@ const ALL_QUEUES_KEY = '__all__';
 
 export type QueueListFilters = {
   type?: string;
+  treatmentType?: string;
   status?: string;
   doctorId?: string;
   date?: string;

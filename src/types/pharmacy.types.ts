@@ -60,7 +60,7 @@ export interface Prescription {
   doctorId: string;
   clinicId: string;
   prescriptionNumber: string;
-  status: 'PENDING' | 'FILLED' | 'DISPENSED' | 'CANCELLED';
+  status: 'PENDING' | 'PARTIAL' | 'FILLED' | 'DISPENSED' | 'CANCELLED';
   medications: PrescriptionMedication[];
   diagnosis?: string;
   notes?: string;
@@ -150,6 +150,7 @@ export interface PrescriptionMedication {
   id: string;
   prescriptionId: string;
   medicineId: string;
+  prescriptionItemId?: string;
   medicine?: Medicine;
   dosage: string;
   frequency: string;
@@ -157,6 +158,9 @@ export interface PrescriptionMedication {
   instructions?: string;
   quantity: number;
   dispensedQuantity?: number;
+  dispensedBatchNumber?: string;
+  dispensedBatchExpiryDate?: string;
+  dispenseBatchHistory?: DispenseBatchHistoryEntry[];
   unitPrice: number;
   totalPrice: number;
   isDispensed: boolean;
@@ -164,6 +168,13 @@ export interface PrescriptionMedication {
   
   // Relations
   prescription?: Prescription;
+}
+
+export interface DispenseBatchHistoryEntry {
+  quantity: number;
+  batchNumber?: string | null;
+  expiryDate?: string | null;
+  dispensedAt: string;
 }
 
 // ===== INVENTORY TYPES =====
@@ -462,13 +473,54 @@ export interface CreatePrescriptionData {
   validUntil?: string;
 }
 
+export interface DispensePrescriptionMedication {
+  medicineId: string;
+  prescriptionItemId?: string;
+  substituteMedicineId?: string;
+  substitutionReason?: string;
+  quantityDispensed: number;
+  batchNumber: string;
+  expiryDate: string;
+}
+
 export interface DispensePrescriptionData {
+  dispensedMedications?: DispensePrescriptionMedication[];
+  paymentMethod?: 'CASH' | 'CARD' | 'UPI' | 'BANK_TRANSFER' | 'INSURANCE';
+  paidAmount?: number;
+  pharmacistId?: string;
+  dispensedAt?: string;
+  notes?: string | undefined;
+}
+
+export interface ReversalPrescriptionItem {
+  prescriptionItemId?: string;
+  quantity?: number;
+}
+
+export interface ReversePrescriptionDispenseData {
+  reason: string;
+  items?: ReversalPrescriptionItem[];
+}
+
+export interface PharmacyBatchAuditEntry {
   prescriptionId: string;
-  medications: {
-    medicationId: string;
-    dispensedQuantity: number;
-  }[];
-  paymentMethod: 'CASH' | 'CARD' | 'UPI' | 'BANK_TRANSFER' | 'INSURANCE';
-  paidAmount: number;
-  notes?: string;
+  prescriptionItemId: string;
+  patientId: string;
+  patientName: string;
+  doctorId: string;
+  doctorName: string;
+  medicineId: string;
+  medicineName: string;
+  originalMedicineId: string;
+  originalMedicineName: string;
+  substituteMedicineId?: string | null;
+  substituteMedicineName?: string | null;
+  batchNumber?: string | null;
+  expiryDate?: string | null;
+  quantity: number;
+  eventType: 'DISPENSE' | 'SUBSTITUTION' | 'REVERSAL';
+  eventAt: string;
+  reason?: string | null;
+  reversedAt?: string | null;
+  reversalReason?: string | null;
 }

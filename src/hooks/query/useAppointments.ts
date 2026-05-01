@@ -718,6 +718,7 @@ export const useConfirmVideoSlot = () => {
  */
 export const useUpdateAppointment = () => {
   const { hasPermission } = useRBAC();
+  const queryClient = useQueryClient();
   
   return useMutationOperation(
     async ({ id, data }: { id: string; data: UpdateAppointmentData }) => {
@@ -739,6 +740,32 @@ export const useUpdateAppointment = () => {
       loadingMessage: 'Updating appointment...',
       successMessage: 'Appointment updated successfully',
       invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
+      onSuccess: (updatedAppointment) => {
+        const appointmentId = String((updatedAppointment as any)?.appointmentId || (updatedAppointment as any)?.id || '');
+        if (!appointmentId) {
+          return;
+        }
+
+        void queryClient.setQueryData(['appointment', appointmentId], updatedAppointment);
+        void queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['myAppointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['userUpcomingAppointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['doctorAppointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['doctorSchedule'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['video-appointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+      },
     }
   );
 };
@@ -925,6 +952,7 @@ export const useCompleteAppointment = () => {
         medications?: string[];
         followUpDate?: string;
         followUpNotes?: string;
+        metadata?: Record<string, unknown>;
       }
     }) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
@@ -945,6 +973,10 @@ export const useCompleteAppointment = () => {
         ['appointments'],
         ['appointment'],
         ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['video-appointments'],
         ['prescriptions'],
         ['patient-prescriptions'],
         ['medical-records'],
@@ -1159,14 +1191,14 @@ export const useQueue = (queueType: string) => {
   
   // Memoize query key
   const queryKey = useMemo(
-    () => getQueueListQueryKey(undefined, { type: queueType }),
+    () => getQueueListQueryKey(undefined, { treatmentType: queueType }),
     [queueType]
   );
   
   // Memoize query function
   const queryFn = useCallback(async () => {
     // ✅ Fix: queueType is passed as filter object
-    const result = await getQueue({ type: queueType }) as any;
+    const result = await getQueue({ treatmentType: queueType }) as any;
     if (!result) {
       throw new Error('Failed to fetch queue');
     }
@@ -1781,10 +1813,10 @@ export const useDoctorQueue = (doctorId: string) => {
   const { hasPermission } = useRBAC();
   
   return useQueryData(
-    getQueueListQueryKey(undefined, { type: 'doctor', doctorId }),
+    getQueueListQueryKey(undefined, { doctorId }),
     async () => {
       // ✅ Fix: Pass object to getQueue
-      const result = (await getQueue({ type: 'doctor', doctorId })) as any;
+      const result = (await getQueue({ doctorId })) as any;
       if (!result) {
         throw new Error('Failed to fetch queue');
       }

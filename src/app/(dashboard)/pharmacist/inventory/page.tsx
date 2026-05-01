@@ -30,6 +30,7 @@ export default function InventoryPage() {
   useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
   // Enable real-time WebSocket sync
@@ -48,6 +49,7 @@ export default function InventoryPage() {
     id: item.id || item.medicineId,
     name: item.name || item.medicineName,
     category: item.category || item.medicineCategory || "General",
+    type: item.type || item.medicineType || "OTHER",
     currentStock: item.currentStock || item.quantity || 0,
     minStock: item.minStock || item.minThreshold || 10,
     maxStock: item.maxStock || item.maxThreshold || 100,
@@ -99,6 +101,21 @@ export default function InventoryPage() {
         accessorKey: "category",
         header: "Category",
         cell: ({ row }) => <Badge variant="outline">{row.original.category}</Badge>,
+      },
+      {
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ row }) => (
+          <Badge
+            className={
+              row.original.type === "AYURVEDIC"
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-slate-100 text-slate-800"
+            }
+          >
+            {row.original.type}
+          </Badge>
+        ),
       },
       {
         accessorKey: "stock",
@@ -199,14 +216,21 @@ export default function InventoryPage() {
   const lowStockItems = inventoryItems.filter((item: any) => item.status === 'low' || item.status === 'critical').length;
   const expiringItems = inventoryItems.filter((item: any) => isExpiringSoon(item.expiryDate)).length;
   const totalValue = inventoryItems.reduce((sum: number, item: any) => sum + (item.currentStock * item.costPerUnit), 0);
+  const lowStockWatchlist = inventoryItems
+    .filter((item: any) => item.status === "low" || item.status === "critical")
+    .slice(0, 5);
+  const expiringWatchlist = inventoryItems
+    .filter((item: any) => isExpiringSoon(item.expiryDate))
+    .slice(0, 5);
 
 
   // Filter inventory items
   const filteredInventory = inventoryItems.filter((item: any) => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !filterCategory || item.category === filterCategory;
+    const matchesType = !filterType || item.type === filterType;
     const matchesStatus = !filterStatus || item.status === filterStatus;
-    return matchesSearch && matchesCategory && matchesStatus;
+    return matchesSearch && matchesCategory && matchesType && matchesStatus;
   });
 
   // Show loading state
@@ -298,6 +322,62 @@ export default function InventoryPage() {
         </Card>
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-yellow-200/80 dark:border-yellow-900/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  Low stock watchlist
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {lowStockWatchlist.length > 0 ? (
+                  lowStockWatchlist.map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                      <div className="min-w-0">
+                        <div className="font-medium text-foreground truncate">{item.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.currentStock} / {item.minStock} {item.unit}
+                        </div>
+                      </div>
+                      <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No low stock medicines right now.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-red-200/80 dark:border-red-900/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Calendar className="h-4 w-4 text-red-600" />
+                  Expiry watchlist
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {expiringWatchlist.length > 0 ? (
+                  expiringWatchlist.map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                      <div className="min-w-0">
+                        <div className="font-medium text-foreground truncate">{item.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Expiry: {formatDateInIST(item.expiryDate)}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="border-red-200 text-red-700">
+                        {isExpiringSoon(item.expiryDate) ? "Expiring soon" : "Safe"}
+                      </Badge>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No expiring medicines in the next 90 days.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Filters */}
           <Card>
             <CardContent className="p-4">
@@ -313,7 +393,27 @@ export default function InventoryPage() {
                     />
                   </div>
                 </div>
-                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <Select
+                  value={filterType || "all"}
+                  onValueChange={(value) => setFilterType(value === "all" ? "" : value)}
+                >
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="AYURVEDIC">Ayurvedic</SelectItem>
+                    <SelectItem value="HERBAL">Herbal</SelectItem>
+                    <SelectItem value="CLASSICAL">Classical</SelectItem>
+                    <SelectItem value="PROPRIETARY">Proprietary</SelectItem>
+                    <SelectItem value="SIDDHA">Siddha</SelectItem>
+                    <SelectItem value="UNANI">Unani</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={filterCategory || "all"}
+                  onValueChange={(value) => setFilterCategory(value === "all" ? "" : value)}
+                >
                   <SelectTrigger className="w-[150px]">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
@@ -326,7 +426,10 @@ export default function InventoryPage() {
                     <SelectItem value="avaleha">Avaleha</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <Select
+                  value={filterStatus || "all"}
+                  onValueChange={(value) => setFilterStatus(value === "all" ? "" : value)}
+                >
                   <SelectTrigger className="w-[150px]">
                     <SelectValue placeholder="Stock Status" />
                   </SelectTrigger>

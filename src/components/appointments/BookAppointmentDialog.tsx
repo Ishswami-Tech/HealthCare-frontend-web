@@ -269,7 +269,7 @@ export function BookAppointmentDialog({
     gender: "",
     address: "",
   });
-  const isPrivilegedScheduler = ["RECEPTIONIST", "DOCTOR", "ASSISTANT_DOCTOR", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
+  const isPrivilegedScheduler = ["RECEPTIONIST", "DOCTOR", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
   const targetPatientId = isPrivilegedScheduler ? selectedPatientId : session?.user?.id || "";
   const shouldLoadLocations = open && consultationMode !== "VIDEO" && (!shouldResolvePatientClinic || !myClinicLoading);
   const shouldLoadServices = open;
@@ -602,7 +602,6 @@ export function BookAppointmentDialog({
       }
 
       void queryClient.invalidateQueries({ queryKey: availabilityQueryKey, exact: true });
-      void queryClient.refetchQueries({ queryKey: availabilityQueryKey, exact: true, type: "active" });
     };
 
     const unsubscribeCreated = subscribe("appointment.created", shouldRefreshAvailability);
@@ -740,13 +739,6 @@ export function BookAppointmentDialog({
     }
   }, [open]);
 
-  // Auto-pick first location
-  useEffect(() => {
-    if (!selectedLocationId && locations.length > 0) {
-      setSelectedLocationId((locations[0] as any)?.id || "");
-    }
-  }, [locations, selectedLocationId]);
-
   useEffect(() => {
     if (
       selectedServiceId &&
@@ -795,8 +787,8 @@ export function BookAppointmentDialog({
       const freshSlots = await validateLatestAvailability();
 
       if (finalAppointmentType === "VIDEO_CALL") {
-        if (selectedVideoSlots.length !== 3) {
-          showErrorToast("Please select exactly 3 preferred video slots.");
+        if (selectedVideoSlots.length < 3 || selectedVideoSlots.length > 4) {
+          showErrorToast("Please select 3 to 4 preferred video slots.");
           return;
         }
 
@@ -804,7 +796,7 @@ export function BookAppointmentDialog({
         if (stillAvailableSlots.length !== selectedVideoSlots.length) {
           setSelectedVideoSlots(stillAvailableSlots);
         }
-        if (stillAvailableSlots.length !== 3) {
+        if (stillAvailableSlots.length < 3) {
           showErrorToast("One or more preferred video slots are no longer available. Please select fresh slots.");
           return;
         }
@@ -826,7 +818,6 @@ export function BookAppointmentDialog({
         setBookedAppointmentId(proposedAppointment.id);
         queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
         queryClient.invalidateQueries({ queryKey: ["appointments"] });
-        queryClient.refetchQueries({ queryKey: ["appointments"], exact: false, type: "active" });
         queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
         queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(activeClinicId), exact: false });
         queryClient.invalidateQueries({ queryKey: ["appointment", proposedAppointment.id] });
@@ -931,7 +922,6 @@ export function BookAppointmentDialog({
       setBookedAppointmentId(apptId);
       queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
-      queryClient.refetchQueries({ queryKey: ["appointments"], exact: false, type: "active" });
       queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
       queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(activeClinicId), exact: false });
       queryClient.invalidateQueries({ queryKey: ["appointment", apptId] });
@@ -989,7 +979,6 @@ export function BookAppointmentDialog({
 
       if (lowerErrorMessage.includes("time slot is no longer available")) {
         queryClient.invalidateQueries({ queryKey: availabilityQueryKey, exact: true });
-        queryClient.refetchQueries({ queryKey: availabilityQueryKey, exact: true, type: "active" });
         if (consultationMode === "VIDEO") {
           setSelectedVideoSlots([]);
         } else {
@@ -1035,7 +1024,7 @@ export function BookAppointmentDialog({
     }
     if (step === 3) return !!selectedDoctorId;
     if (step === 4) return !!selectedDate;
-    if (step === 5) return consultationMode === "VIDEO" ? selectedVideoSlots.length === 3 : !!selectedSlot;
+    if (step === 5) return consultationMode === "VIDEO" ? selectedVideoSlots.length >= 3 && selectedVideoSlots.length <= 4 : !!selectedSlot;
     return true;
   }, [step, selectedLocationId, consultationMode, selectedServiceId, selectedDoctorId, selectedDate, selectedSlot, selectedVideoSlots, isPrivilegedScheduler, selectedPatientId]);
 
@@ -1629,14 +1618,14 @@ export function BookAppointmentDialog({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground">
-                  Select 3 slots
+                  Select 3-4 slots
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   15 min each. Doctor confirms one.
                 </p>
               </div>
               <div className="shrink-0 rounded-full bg-primary/12 text-primary px-2.5 py-1 text-[11px] font-bold border border-primary/15">
-                {selectedVideoSlots.length}/3
+                {selectedVideoSlots.length}/4
               </div>
             </div>
 
@@ -1672,7 +1661,7 @@ export function BookAppointmentDialog({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-              {[0, 1, 2].map((index) => {
+              {[0, 1, 2, 3].map((index) => {
                 const slot = selectedVideoSlots[index];
                 return (
                   <div
@@ -1737,7 +1726,7 @@ export function BookAppointmentDialog({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {period.slots.map((slot) => {
                       const isSelected = selectedVideoSlots.includes(slot);
-                      const selectionLimitReached = !isSelected && selectedVideoSlots.length >= 3;
+                      const selectionLimitReached = !isSelected && selectedVideoSlots.length >= 4;
 
                       return (
                         <button
@@ -1748,7 +1737,7 @@ export function BookAppointmentDialog({
                                 return current.filter((currentSlot) => currentSlot !== slot);
                               }
 
-                              if (current.length >= 3) {
+                              if (current.length >= 4) {
                                 return current;
                               }
 

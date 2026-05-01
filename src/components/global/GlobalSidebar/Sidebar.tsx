@@ -129,7 +129,7 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
     SUPER_ADMIN: "/super-admin/settings",
     CLINIC_ADMIN: "/clinic-admin/settings",
     DOCTOR: "/doctor/profile",
-    ASSISTANT_DOCTOR: "/doctor/profile",
+    ASSISTANT_DOCTOR: "/assistant-doctor/profile",
     PATIENT: "/patient/profile",
     RECEPTIONIST: "/receptionist/profile",
     PHARMACIST: "/pharmacist/profile",

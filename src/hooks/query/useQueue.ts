@@ -1,5 +1,4 @@
 import React, { useEffect, useCallback } from 'react';
-import { useQueueWebSocket } from '@/stores/websocket.store';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
@@ -49,6 +48,7 @@ import {
  */
 export const useQueue = (clinicId?: string, filters?: {
   type?: string;
+  treatmentType?: string;
   status?: string;
   doctorId?: string;
   date?: string;
@@ -57,9 +57,10 @@ export const useQueue = (clinicId?: string, filters?: {
   const normalizedClinicId = clinicId?.trim();
   const { isConnected } = useWebSocketStatus();
   const { enabled, ...queueRequestFilters } = filters ?? {};
+  const canonicalTreatmentType = filters?.treatmentType || filters?.type;
   const queueFilters: QueueListFilters | undefined = filters
     ? {
-        ...(filters.type ? { type: filters.type } : {}),
+        ...(canonicalTreatmentType ? { treatmentType: canonicalTreatmentType } : {}),
         ...(filters.status ? { status: filters.status } : {}),
         ...(filters.doctorId ? { doctorId: filters.doctorId } : {}),
         ...(filters.date ? { date: filters.date } : {}),
@@ -247,28 +248,28 @@ export const useQueueAnalytics = (period: 'day' | 'week' | 'month' | 'year' = 'd
  * Hook for consultation queue
  */
 export const useConsultationQueue = (clinicId?: string) => {
-  return useQueue(clinicId, { type: 'consultation' });
+  return useQueue(clinicId, { treatmentType: 'consultation' });
 };
 
 /**
  * Hook for panchakarma queue
  */
 export const usePanchkarmaQueue = (clinicId?: string) => {
-  return useQueue(clinicId, { type: 'panchakarma' });
+  return useQueue(clinicId, { treatmentType: 'panchakarma' });
 };
 
 /**
  * Hook for agnikarma queue
  */
 export const useAgnikarmaQueue = (clinicId?: string) => {
-  return useQueue(clinicId, { type: 'agnikarma' });
+  return useQueue(clinicId, { treatmentType: 'agnikarma' });
 };
 
 /**
  * Hook for nadi pariksha queue
  */
 export const useNadiParikshaQueue = (clinicId?: string) => {
-  return useQueue(clinicId, { type: 'nadi-pariksha' });
+  return useQueue(clinicId, { treatmentType: 'nadi-pariksha' });
 };
 
 // ===== QUEUE UTILITIES =====
@@ -345,79 +346,6 @@ export const useQueueUtils = () => {
     getQueueStatusIcon,
     getPriorityColor,
     formatWaitTime,
-  };
-};
-
-// ===== REAL-TIME QUEUE HOOKS =====
-
-/**
- * Hook for real-time queue updates using WebSocket
- */
-export const useRealTimeQueue = (clinicId?: string, locationId?: string, queueType?: string) => {
-  const { data: queueData, refetch } = useQueue(clinicId, { 
-    type: queueType,
-    enabled: !!clinicId 
-  } as any);
-
-  const { connectToQueue, subscribe, isConnected, disconnect, emit } = useQueueWebSocket();
-
-  useEffect(() => {
-    if (!clinicId) return;
-
-    // Connect to WebSocket with clinicId+locationId filters
-    connectToQueue({
-      reconnectionAttempts: 10,
-    });
-
-    const matchesScope = (payload: any) =>
-      payload.clinicId === clinicId &&
-      (!locationId || !payload.locationId || payload.locationId === locationId);
-
-    const unsubscribeUpdate = subscribe('queue.updated', (payload: any) => {
-      if (matchesScope(payload)) refetch();
-    });
-
-    const unsubscribePosition = subscribe('queue.position.updated', (payload: any) => {
-      if (matchesScope(payload)) refetch();
-    });
-
-    // Additional events emitted by worker after projection updates
-    const unsubscribeStarted = subscribe('queue.entry.started', (payload: any) => {
-      if (matchesScope(payload)) refetch();
-    });
-
-    const unsubscribeCompleted = subscribe('queue.entry.completed', (payload: any) => {
-      if (matchesScope(payload)) refetch();
-    });
-
-    const unsubscribePaused = subscribe('queue.paused', (payload: any) => {
-      if (matchesScope(payload)) refetch();
-    });
-
-    const unsubscribeResumed = subscribe('queue.resumed', (payload: any) => {
-      if (matchesScope(payload)) refetch();
-    });
-
-    emit('subscribe_queue', { 
-      queueName: `queue:clinic:${clinicId}`, 
-      filters: { clinicId, locationId, type: queueType } 
-    });
-
-    return () => {
-      if (typeof unsubscribeUpdate === 'function') unsubscribeUpdate();
-      if (typeof unsubscribePosition === 'function') unsubscribePosition();
-      if (typeof unsubscribeStarted === 'function') unsubscribeStarted();
-      if (typeof unsubscribeCompleted === 'function') unsubscribeCompleted();
-      if (typeof unsubscribePaused === 'function') unsubscribePaused();
-      if (typeof unsubscribeResumed === 'function') unsubscribeResumed();
-      disconnect();
-    };
-  }, [clinicId, locationId, queueType, refetch, connectToQueue, subscribe, emit, disconnect]);
-
-  return {
-    queueData,
-    refetch,
-    isConnected,
   };
 };
 

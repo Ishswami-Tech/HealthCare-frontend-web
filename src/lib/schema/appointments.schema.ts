@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const appointmentTypeSchema = z.enum(['IN_PERSON', 'VIDEO_CALL', 'HOME_VISIT']);
+
 export const scanQRSchema = z.object({
   code: z.string().min(1, 'QR code is required'),
   locationId: z.string().uuid().optional(),
@@ -13,9 +15,9 @@ export const createAppointmentSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
   duration: z.number().min(3).max(480),
-  type: z.string().min(1).max(100),
+  type: appointmentTypeSchema,
   notes: z.string().max(1000).optional(),
-  clinicId: z.string().uuid().optional(),
+  clinicId: z.string().trim().min(1).max(100).optional(),
   locationId: z.string().uuid().optional(),
   symptoms: z.array(z.string()).optional(),
   priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).default('NORMAL'),
@@ -25,19 +27,22 @@ export const updateAppointmentSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   duration: z.number().min(3).max(480).optional(),
-  type: z.string().min(1).max(100).optional(),
+  type: appointmentTypeSchema.optional(),
   notes: z.string().max(1000).optional(),
   status: z.enum(['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
   symptoms: z.array(z.string()).optional(),
   diagnosis: z.string().max(1000).optional(),
   prescription: z.string().max(1000).optional(),
+  treatmentPlan: z.string().max(2000).optional(),
   followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const completeAppointmentSchema = z.object({
   diagnosis: z.string().max(1000).optional(),
   prescription: z.string().max(1000).optional(),
   notes: z.string().max(1000).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   followUpNotes: z.string().max(1000).optional(),
 });
@@ -103,6 +108,7 @@ export const updateAppointmentStatusSchema = z.object({
   diagnosis: z.string().optional(),
   treatmentPlan: z.string().optional(),
   prescription: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   followUpRequired: z.boolean().optional(),
   followUpDate: z.string().optional(),
   followUpType: z.string().optional(),

@@ -1,5 +1,5 @@
-import { useQueryData, useMutationOperation } from '../core';
-import { TOAST_IDS } from '../utils/use-toast';
+import { useQueryData, useMutationOperation } from "../core";
+import { TOAST_IDS } from "../utils/use-toast";
 import {
   getMedicines,
   getMedicineById,
@@ -21,46 +21,66 @@ import {
   searchMedicines,
   getMedicineCategories,
   getSuppliers,
-  exportPharmacyData
-} from '@/lib/actions/pharmacy.server';
+  exportPharmacyData,
+  reversePrescriptionDispense,
+  getPharmacyBatchAudit,
+} from "@/lib/actions/pharmacy.server";
+import type {
+  DispensePrescriptionData,
+  ReversePrescriptionDispenseData,
+} from "@/types/pharmacy.types";
 
 // ===== MEDICINES HOOKS =====
 
 /**
  * Hook to get all medicines for a clinic
  */
-export const useMedicines = (clinicId: string, filters?: {
-  search?: string;
-  category?: string;
-  manufacturer?: string;
-  inStock?: boolean;
-  prescriptionRequired?: boolean;
-  limit?: number;
-  offset?: number;
-}) => {
-  return useQueryData(['medicines', clinicId, filters], async () => {
-    return await getMedicines(clinicId, filters);
-  }, {
-    enabled: !!clinicId,
-  });
+export const useMedicines = (
+  clinicId: string,
+  filters?: {
+    search?: string;
+    category?: string;
+    manufacturer?: string;
+    inStock?: boolean;
+    lowStock?: boolean;
+    expiringSoon?: boolean;
+    prescriptionRequired?: boolean;
+    expiringDays?: number;
+    limit?: number;
+    offset?: number;
+  },
+) => {
+  return useQueryData(
+    ["medicines", clinicId, filters],
+    async () => {
+      return await getMedicines(clinicId, filters);
+    },
+    {
+      enabled: !!clinicId,
+    },
+  );
 };
 
 /**
  * Hook to get medicine by ID
  */
 export const useMedicine = (medicineId: string) => {
-  return useQueryData(['medicine', medicineId], async () => {
-    return await getMedicineById(medicineId);
-  }, {
-    enabled: !!medicineId,
-  });
+  return useQueryData(
+    ["medicine", medicineId],
+    async () => {
+      return await getMedicineById(medicineId);
+    },
+    {
+      enabled: !!medicineId,
+    },
+  );
 };
 
 /**
  * Hook to get medicine categories
  */
 export const useMedicineCategories = () => {
-  return useQueryData(['medicineCategories'], async () => {
+  return useQueryData(["medicineCategories"], async () => {
     return await getMedicineCategories();
   });
 };
@@ -70,7 +90,11 @@ export const useMedicineCategories = () => {
  */
 export const useSearchMedicines = () => {
   return useMutationOperation(
-    async ({ clinicId, query, filters }: {
+    async ({
+      clinicId,
+      query,
+      filters,
+    }: {
       clinicId: string;
       query: string;
       filters?: {
@@ -84,10 +108,10 @@ export const useSearchMedicines = () => {
     },
     {
       toastId: TOAST_IDS.MEDICINE.SEARCH,
-      loadingMessage: 'Searching medicines...',
-      successMessage: 'Search completed',
+      loadingMessage: "Searching medicines...",
+      successMessage: "Search completed",
       showToast: false,
-    }
+    },
   );
 };
 
@@ -96,39 +120,57 @@ export const useSearchMedicines = () => {
 /**
  * Hook to get prescriptions for a clinic
  */
-export const usePrescriptions = (clinicId: string, filters?: {
-  patientId?: string;
-  doctorId?: string;
-  status?: string;
-  startDate?: string;
-  endDate?: string;
-  limit?: number;
-  enabled?: boolean;
-}) => {
-  return useQueryData(['prescriptions', clinicId, filters], async () => {
-    return await getPrescriptions(clinicId, filters);
-  }, {
-    enabled: !!clinicId && (filters?.enabled !== false),
-  });
+export const usePrescriptions = (
+  clinicId: string,
+  filters?: {
+    patientId?: string;
+    doctorId?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    enabled?: boolean;
+  },
+) => {
+  return useQueryData(
+    ["prescriptions", clinicId, filters],
+    async () => {
+      return await getPrescriptions(clinicId, filters);
+    },
+    {
+      enabled: !!clinicId && filters?.enabled !== false,
+    },
+  );
 };
 
-export const useMedicineDeskQueue = (clinicId: string, enabled: boolean = true) => {
-  return useQueryData(['medicineDeskQueue', clinicId], async () => {
-    return await getMedicineDeskQueue(clinicId);
-  }, {
-    enabled: !!clinicId && enabled,
-  });
+export const useMedicineDeskQueue = (
+  clinicId: string,
+  enabled: boolean = true,
+) => {
+  return useQueryData(
+    ["medicineDeskQueue", clinicId],
+    async () => {
+      return await getMedicineDeskQueue(clinicId);
+    },
+    {
+      enabled: !!clinicId && enabled,
+    },
+  );
 };
 
 /**
  * Hook to get prescription by ID
  */
 export const usePrescription = (prescriptionId: string) => {
-  return useQueryData(['prescription', prescriptionId], async () => {
-    return await getPrescriptionById(prescriptionId);
-  }, {
-    enabled: !!prescriptionId,
-  });
+  return useQueryData(
+    ["prescription", prescriptionId],
+    async () => {
+      return await getPrescriptionById(prescriptionId);
+    },
+    {
+      enabled: !!prescriptionId,
+    },
+  );
 };
 
 // ===== INVENTORY HOOKS =====
@@ -136,18 +178,26 @@ export const usePrescription = (prescriptionId: string) => {
 /**
  * Hook to get inventory for a clinic
  */
-export const useInventory = (clinicId: string, filters?: {
-  lowStock?: boolean;
-  expiringSoon?: boolean;
-  category?: string;
-  limit?: number;
-  enabled?: boolean;
-}) => {
-  return useQueryData(['inventory', clinicId, filters], async () => {
-    return await getInventory(clinicId, filters);
-  }, {
-    enabled: !!clinicId && (filters?.enabled !== false),
-  });
+export const useInventory = (
+  clinicId: string,
+  filters?: {
+    lowStock?: boolean;
+    expiringSoon?: boolean;
+    expiringDays?: number;
+    category?: string;
+    limit?: number;
+    enabled?: boolean;
+  },
+) => {
+  return useQueryData(
+    ["inventory", clinicId, filters],
+    async () => {
+      return await getInventory(clinicId, filters);
+    },
+    {
+      enabled: !!clinicId && filters?.enabled !== false,
+    },
+  );
 };
 
 // ===== ORDERS HOOKS =====
@@ -155,19 +205,26 @@ export const useInventory = (clinicId: string, filters?: {
 /**
  * Hook to get pharmacy orders for a clinic
  */
-export const usePharmacyOrders = (clinicId: string, filters?: {
-  supplierId?: string;
-  status?: string;
-  startDate?: string;
-  endDate?: string;
-  limit?: number;
-  enabled?: boolean;
-}) => {
-  return useQueryData(['pharmacyOrders', clinicId, filters], async () => {
-    return await getPharmacyOrders(clinicId, filters);
-  }, {
-    enabled: !!clinicId && (filters?.enabled !== false),
-  });
+export const usePharmacyOrders = (
+  clinicId: string,
+  filters?: {
+    supplierId?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    enabled?: boolean;
+  },
+) => {
+  return useQueryData(
+    ["pharmacyOrders", clinicId, filters],
+    async () => {
+      return await getPharmacyOrders(clinicId, filters);
+    },
+    {
+      enabled: !!clinicId && filters?.enabled !== false,
+    },
+  );
 };
 
 // ===== SALES HOOKS =====
@@ -175,19 +232,26 @@ export const usePharmacyOrders = (clinicId: string, filters?: {
 /**
  * Hook to get pharmacy sales for a clinic
  */
-export const usePharmacySales = (clinicId: string, filters?: {
-  startDate?: string;
-  endDate?: string;
-  pharmacistId?: string;
-  paymentMethod?: string;
-  limit?: number;
-  enabled?: boolean;
-}) => {
-  return useQueryData(['pharmacySales', clinicId, filters], async () => {
-    return await getPharmacySales(clinicId, filters);
-  }, {
-    enabled: !!clinicId && (filters?.enabled !== false),
-  });
+export const usePharmacySales = (
+  clinicId: string,
+  filters?: {
+    startDate?: string;
+    endDate?: string;
+    pharmacistId?: string;
+    paymentMethod?: string;
+    limit?: number;
+    enabled?: boolean;
+  },
+) => {
+  return useQueryData(
+    ["pharmacySales", clinicId, filters],
+    async () => {
+      return await getPharmacySales(clinicId, filters);
+    },
+    {
+      enabled: !!clinicId && filters?.enabled !== false,
+    },
+  );
 };
 
 // ===== STATISTICS HOOKS =====
@@ -195,12 +259,45 @@ export const usePharmacySales = (clinicId: string, filters?: {
 /**
  * Hook to get pharmacy statistics for a clinic
  */
-export const usePharmacyStats = (clinicId: string, period?: 'day' | 'week' | 'month' | 'year') => {
-  return useQueryData(['pharmacyStats', clinicId, period], async () => {
-    return await getPharmacyStats(clinicId, period);
-  }, {
-    enabled: !!clinicId,
-  });
+export const usePharmacyStats = (
+  clinicId: string,
+  period?: "day" | "week" | "month" | "year",
+) => {
+  return useQueryData(
+    ["pharmacyStats", clinicId, period],
+    async () => {
+      return await getPharmacyStats(clinicId, period);
+    },
+    {
+      enabled: !!clinicId,
+    },
+  );
+};
+
+/**
+ * Hook to get pharmacy batch audit entries for a clinic
+ */
+export const usePharmacyBatchAudit = (
+  clinicId: string,
+  filters?: {
+    prescriptionId?: string;
+    medicineId?: string;
+    batchNumber?: string;
+    patientId?: string;
+    startDate?: string;
+    endDate?: string;
+    enabled?: boolean;
+  },
+) => {
+  return useQueryData(
+    ["pharmacyBatchAudit", clinicId, filters],
+    async () => {
+      return await getPharmacyBatchAudit(clinicId, filters);
+    },
+    {
+      enabled: !!clinicId && filters?.enabled !== false,
+    },
+  );
 };
 
 // ===== SUPPLIERS HOOKS =====
@@ -209,7 +306,7 @@ export const usePharmacyStats = (clinicId: string, period?: 'day' | 'week' | 'mo
  * Hook to get suppliers
  */
 export const useSuppliers = () => {
-  return useQueryData(['suppliers'], async () => {
+  return useQueryData(["suppliers"], async () => {
     return await getSuppliers();
   });
 };
@@ -221,7 +318,10 @@ export const useSuppliers = () => {
  */
 export const useCreateMedicine = () => {
   return useMutationOperation(
-    async ({ clinicId, ...medicineData }: {
+    async ({
+      clinicId,
+      ...medicineData
+    }: {
       clinicId: string;
       name: string;
       genericName?: string;
@@ -246,10 +346,10 @@ export const useCreateMedicine = () => {
     },
     {
       toastId: TOAST_IDS.MEDICINE.CREATE,
-      loadingMessage: 'Creating medicine...',
-      successMessage: 'Medicine created successfully',
-      invalidateQueries: [['medicines']],
-    }
+      loadingMessage: "Creating medicine...",
+      successMessage: "Medicine created successfully",
+      invalidateQueries: [["medicines"]],
+    },
   );
 };
 
@@ -258,7 +358,11 @@ export const useCreateMedicine = () => {
  */
 export const useUpdateMedicine = () => {
   return useMutationOperation(
-    async ({ clinicId, medicineId, updates }: {
+    async ({
+      clinicId,
+      medicineId,
+      updates,
+    }: {
       clinicId: string;
       medicineId: string;
       updates: any;
@@ -267,10 +371,10 @@ export const useUpdateMedicine = () => {
     },
     {
       toastId: TOAST_IDS.MEDICINE.UPDATE,
-      loadingMessage: 'Updating medicine...',
-      successMessage: 'Medicine updated successfully',
-      invalidateQueries: [['medicines']],
-    }
+      loadingMessage: "Updating medicine...",
+      successMessage: "Medicine updated successfully",
+      invalidateQueries: [["medicines"]],
+    },
   );
 };
 
@@ -279,7 +383,10 @@ export const useUpdateMedicine = () => {
  */
 export const useDeleteMedicine = () => {
   return useMutationOperation(
-    async ({ clinicId, medicineId }: {
+    async ({
+      clinicId,
+      medicineId,
+    }: {
       clinicId: string;
       medicineId: string;
     }) => {
@@ -287,10 +394,10 @@ export const useDeleteMedicine = () => {
     },
     {
       toastId: TOAST_IDS.MEDICINE.DELETE,
-      loadingMessage: 'Deleting medicine...',
-      successMessage: 'Medicine deleted successfully',
-      invalidateQueries: [['medicines']],
-    }
+      loadingMessage: "Deleting medicine...",
+      successMessage: "Medicine deleted successfully",
+      invalidateQueries: [["medicines"]],
+    },
   );
 };
 
@@ -299,7 +406,10 @@ export const useDeleteMedicine = () => {
  */
 export const useCreatePrescription = () => {
   return useMutationOperation(
-    async ({ clinicId, ...prescriptionData }: {
+    async ({
+      clinicId,
+      ...prescriptionData
+    }: {
       clinicId: string;
       patientId: string;
       doctorId: string;
@@ -319,10 +429,10 @@ export const useCreatePrescription = () => {
     },
     {
       toastId: TOAST_IDS.PRESCRIPTION.CREATE,
-      loadingMessage: 'Creating prescription...',
-      successMessage: 'Prescription created successfully',
-      invalidateQueries: [['prescriptions']],
-    }
+      loadingMessage: "Creating prescription...",
+      successMessage: "Prescription created successfully",
+      invalidateQueries: [["prescriptions"]],
+    },
   );
 };
 
@@ -331,7 +441,11 @@ export const useCreatePrescription = () => {
  */
 export const useUpdatePrescriptionStatus = () => {
   return useMutationOperation(
-    async ({ prescriptionId, status, notes }: {
+    async ({
+      prescriptionId,
+      status,
+      notes,
+    }: {
       prescriptionId: string;
       status: string;
       notes?: string;
@@ -340,10 +454,14 @@ export const useUpdatePrescriptionStatus = () => {
     },
     {
       toastId: TOAST_IDS.PHARMACY.PRESCRIPTION_UPDATE,
-      loadingMessage: 'Updating prescription status...',
-      successMessage: 'Prescription status updated successfully',
-      invalidateQueries: [['prescriptions'], ['medicineDeskQueue'], ['pharmacyStats']],
-    }
+      loadingMessage: "Updating prescription status...",
+      successMessage: "Prescription status updated successfully",
+      invalidateQueries: [
+        ["prescriptions"],
+        ["medicineDeskQueue"],
+        ["pharmacyStats"],
+      ],
+    },
   );
 };
 
@@ -352,18 +470,54 @@ export const useUpdatePrescriptionStatus = () => {
  */
 export const useDispensePrescription = () => {
   return useMutationOperation(
-    async ({ prescriptionId, dispensingData }: {
+    async ({
+      prescriptionId,
+      dispensingData,
+    }: {
       prescriptionId: string;
-      dispensingData: any;
+      dispensingData: DispensePrescriptionData;
     }) => {
       return await dispensePrescription(prescriptionId, dispensingData);
     },
     {
       toastId: TOAST_IDS.PHARMACY.PRESCRIPTION_UPDATE,
-      loadingMessage: 'Dispensing prescription...',
-      successMessage: 'Prescription dispensed successfully',
-      invalidateQueries: [['prescriptions'], ['medicineDeskQueue'], ['pharmacyStats']],
-    }
+      loadingMessage: "Dispensing prescription...",
+      successMessage: "Prescription dispensed successfully",
+      invalidateQueries: [
+        ["prescriptions"],
+        ["medicineDeskQueue"],
+        ["pharmacyStats"],
+        ["pharmacyBatchAudit"],
+      ],
+    },
+  );
+};
+
+/**
+ * Hook to reverse a dispense correction
+ */
+export const useReversePrescriptionDispense = () => {
+  return useMutationOperation(
+    async ({
+      prescriptionId,
+      reversalData,
+    }: {
+      prescriptionId: string;
+      reversalData: ReversePrescriptionDispenseData;
+    }) => {
+      return await reversePrescriptionDispense(prescriptionId, reversalData);
+    },
+    {
+      toastId: TOAST_IDS.PHARMACY.PRESCRIPTION_UPDATE,
+      loadingMessage: "Reversing dispense...",
+      successMessage: "Dispense reversed successfully",
+      invalidateQueries: [
+        ["prescriptions"],
+        ["medicineDeskQueue"],
+        ["pharmacyStats"],
+        ["pharmacyBatchAudit"],
+      ],
+    },
   );
 };
 
@@ -372,7 +526,11 @@ export const useDispensePrescription = () => {
  */
 export const useUpdateInventory = () => {
   return useMutationOperation(
-    async ({ clinicId, medicineId, inventoryData }: {
+    async ({
+      clinicId,
+      medicineId,
+      inventoryData,
+    }: {
       clinicId: string;
       medicineId: string;
       inventoryData: any;
@@ -381,10 +539,10 @@ export const useUpdateInventory = () => {
     },
     {
       toastId: TOAST_IDS.PHARMACY.INVENTORY_UPDATE,
-      loadingMessage: 'Updating inventory...',
-      successMessage: 'Inventory updated successfully',
-      invalidateQueries: [['inventory']],
-    }
+      loadingMessage: "Updating inventory...",
+      successMessage: "Inventory updated successfully",
+      invalidateQueries: [["inventory"]],
+    },
   );
 };
 
@@ -393,7 +551,11 @@ export const useUpdateInventory = () => {
  */
 export const useCreatePharmacyOrder = () => {
   return useMutationOperation(
-    async ({ clinicId, medicines, ...orderData }: {
+    async ({
+      clinicId,
+      medicines,
+      ...orderData
+    }: {
       clinicId: string;
       supplierId: string;
       medicines: {
@@ -404,14 +566,17 @@ export const useCreatePharmacyOrder = () => {
       expectedDeliveryDate?: string;
       notes?: string;
     }) => {
-      return await createPharmacyOrder(clinicId, { ...orderData, items: medicines });
+      return await createPharmacyOrder(clinicId, {
+        ...orderData,
+        items: medicines,
+      });
     },
     {
       toastId: TOAST_IDS.PHARMACY.ORDER_CREATE,
-      loadingMessage: 'Creating pharmacy order...',
-      successMessage: 'Pharmacy order created successfully',
-      invalidateQueries: [['pharmacyOrders']],
-    }
+      loadingMessage: "Creating pharmacy order...",
+      successMessage: "Pharmacy order created successfully",
+      invalidateQueries: [["pharmacyOrders"]],
+    },
   );
 };
 
@@ -420,10 +585,13 @@ export const useCreatePharmacyOrder = () => {
  */
 export const useExportPharmacyData = () => {
   return useMutationOperation(
-    async ({ clinicId, ...filters }: {
+    async ({
+      clinicId,
+      ...filters
+    }: {
       clinicId: string;
-      type: 'medicines' | 'prescriptions' | 'sales' | 'inventory';
-      format: 'csv' | 'excel' | 'pdf';
+      type: "medicines" | "prescriptions" | "sales" | "inventory";
+      format: "csv" | "excel" | "pdf";
       startDate?: string;
       endDate?: string;
     }) => {
@@ -431,8 +599,8 @@ export const useExportPharmacyData = () => {
     },
     {
       toastId: TOAST_IDS.ANALYTICS.REPORT_DOWNLOAD,
-      loadingMessage: 'Exporting pharmacy data...',
-      successMessage: 'Pharmacy data exported successfully',
-    }
+      loadingMessage: "Exporting pharmacy data...",
+      successMessage: "Pharmacy data exported successfully",
+    },
   );
 };

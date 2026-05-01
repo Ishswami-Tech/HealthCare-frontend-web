@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +27,7 @@ import { BookAppointmentDialog } from "@/components/appointments/BookAppointment
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
+import { useStartAppointment, useCompleteAppointment, useUpdateAppointment } from "@/hooks/query/useAppointments";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
@@ -106,6 +106,44 @@ interface TransformedAppointment {
   paymentStatus: string;
   paymentCompleted: boolean;
   paymentPending: boolean;
+  diagnosis?: string;
+  prescription?: string;
+  treatmentPlan?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface ConsultationDraftState {
+  diagnosis?: string;
+  prescription?: string;
+  notes?: string;
+  treatmentPlan?: string;
+  savedAt?: string;
+  savedBy?: string | null;
+}
+
+function readConsultationDraftMetadata(metadata: unknown): ConsultationDraftState | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const draft = record.consultationDraft;
+
+  if (!draft || typeof draft !== "object" || Array.isArray(draft)) {
+    return null;
+  }
+
+  const draftRecord = draft as Record<string, unknown>;
+  const draftState: ConsultationDraftState = {};
+
+  if (typeof draftRecord.diagnosis === "string") draftState.diagnosis = draftRecord.diagnosis;
+  if (typeof draftRecord.prescription === "string") draftState.prescription = draftRecord.prescription;
+  if (typeof draftRecord.notes === "string") draftState.notes = draftRecord.notes;
+  if (typeof draftRecord.treatmentPlan === "string") draftState.treatmentPlan = draftRecord.treatmentPlan;
+  if (typeof draftRecord.savedAt === "string") draftState.savedAt = draftRecord.savedAt;
+  if (typeof draftRecord.savedBy === "string") draftState.savedBy = draftRecord.savedBy;
+
+  return draftState;
 }
 
 function extractAppointments(value: unknown): any[] {
@@ -181,6 +219,8 @@ export default function DoctorAppointments() {
   // Mutations for appointment actions
   const startAppointmentMutation = useStartAppointment();
   const completeAppointmentMutation = useCompleteAppointment();
+  const updateAppointmentMutation = useUpdateAppointment();
+  const hydratedAppointmentIdRef = useRef<string>("");
 
   // Transform appointments data
   const appointments = useMemo(() => {
@@ -225,6 +265,13 @@ export default function DoctorAppointments() {
           paymentStatus: paymentDisplay.paymentStatus,
           paymentCompleted: paymentDisplay.paymentCompleted,
           paymentPending: paymentDisplay.paymentPending,
+          diagnosis: typeof app.diagnosis === "string" ? app.diagnosis : "",
+          prescription: typeof app.prescription === "string" ? app.prescription : "",
+          treatmentPlan: typeof app.treatmentPlan === "string" ? app.treatmentPlan : "",
+          metadata:
+            app.metadata && typeof app.metadata === "object" && !Array.isArray(app.metadata)
+              ? (app.metadata as Record<string, unknown>)
+              : {},
         };
       })
       .sort((left: TransformedAppointment, right: TransformedAppointment) => {
@@ -415,9 +462,16 @@ export default function DoctorAppointments() {
     notes?: string;
   }) => {
     try {
+      const completionData = {
+        ...(data?.diagnosis ? { diagnosis: data.diagnosis } : {}),
+        ...(data?.prescription ? { prescription: data.prescription } : {}),
+        ...(data?.notes ? { notes: data.notes } : {}),
+        ...(data?.prescription ? { treatmentPlan: data.prescription } : {}),
+      };
+
       await completeAppointmentMutation.mutateAsync({
         id: appointmentId,
-        data: data || {},
+        data: completionData,
       });
       showSuccessToast("Consultation completed successfully", {
         id: TOAST_IDS.GLOBAL.SUCCESS,
@@ -432,6 +486,102 @@ export default function DoctorAppointments() {
       });
     }
   };
+
+  const saveConsultationDraft = async (appointmentId: string) => {
+    const trimmedDiagnosis = diagnosis.trim();
+    const trimmedPrescription = prescription.trim();
+    const trimmedNotes = consultationNotes.trim();
+    const trimmedTreatmentPlan = trimmedPrescription;
+
+    if (!trimmedDiagnosis && !trimmedPrescription && !trimmedNotes) {
+      showInfoToast("Enter diagnosis, notes, or prescription before saving a draft", {
+        id: TOAST_IDS.GLOBAL.INFO,
+      });
+      return;
+    }
+
+    try {
+      const draftPayload = {
+        ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
+        ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
+        ...(trimmedTreatmentPlan ? { treatmentPlan: trimmedTreatmentPlan } : {}),
+        ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+      };
+
+      const draftMetadata: Record<string, unknown> = {
+        consultationDraft: {
+          ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
+          ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
+          ...(trimmedTreatmentPlan ? { treatmentPlan: trimmedTreatmentPlan } : {}),
+          ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+          savedAt: new Date().toISOString(),
+          savedBy: user?.id || null,
+        },
+      };
+
+      await updateAppointmentMutation.mutateAsync({
+        id: appointmentId,
+        data: {
+          ...draftPayload,
+          metadata: draftMetadata,
+        },
+      });
+
+      setSelectedAppointment((current) =>
+        current && current.id === appointmentId
+          ? {
+              ...current,
+              diagnosis: trimmedDiagnosis,
+              prescription: trimmedPrescription,
+              treatmentPlan: trimmedTreatmentPlan,
+              metadata: {
+                ...(current.metadata || {}),
+                consultationDraft: {
+                  ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
+                  ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
+                  ...(trimmedTreatmentPlan ? { treatmentPlan: trimmedTreatmentPlan } : {}),
+                  ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+                  savedAt: new Date().toISOString(),
+                  savedBy: user?.id || null,
+                },
+              },
+            }
+          : current
+      );
+
+      showSuccessToast("Consultation draft saved successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
+    } catch (error: unknown) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to save consultation draft", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
+    }
+  };
+
+  const selectedAppointmentId = selectedAppointment?.id || "";
+  const selectedAppointmentSnapshot =
+    selectedAppointment ||
+    appointments.find((appointment) => appointment.id === selectedAppointmentId) ||
+    null;
+
+  useEffect(() => {
+    if (!selectedAppointmentSnapshot) {
+      hydratedAppointmentIdRef.current = "";
+      return;
+    }
+
+    if (hydratedAppointmentIdRef.current === selectedAppointmentSnapshot.id) {
+      return;
+    }
+
+    hydratedAppointmentIdRef.current = selectedAppointmentSnapshot.id;
+
+    const draft = readConsultationDraftMetadata(selectedAppointmentSnapshot.metadata);
+    setDiagnosis(draft?.diagnosis ?? selectedAppointmentSnapshot.diagnosis ?? "");
+    setPrescription(draft?.prescription ?? selectedAppointmentSnapshot.prescription ?? "");
+    setConsultationNotes(draft?.notes ?? "");
+  }, [selectedAppointmentId, selectedAppointmentSnapshot]);
 
   return (
     <>
@@ -698,24 +848,20 @@ export default function DoctorAppointments() {
                           className="w-full"
                           onClick={() => {
                             if (selectedAppointment) {
-                              completeConsultation(selectedAppointment.id, {
-                                diagnosis,
-                                prescription,
-                                notes: consultationNotes,
-                              });
+                              saveConsultationDraft(selectedAppointment.id);
                             }
                           }}
-                          disabled={completeAppointmentMutation.isPending}
+                          disabled={updateAppointmentMutation.isPending}
                         >
-                          {completeAppointmentMutation.isPending ? (
+                          {updateAppointmentMutation.isPending ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Saving...
+                              Saving draft...
                             </>
                           ) : (
                             <>
                               <FileText className="mr-2 h-4 w-4" />
-                              Save Consultation Notes
+                              Save Draft
                             </>
                           )}
                         </Button>
@@ -741,13 +887,10 @@ export default function DoctorAppointments() {
                           <Button
                             variant="outline"
                             className="w-full"
-                            onClick={() => {
-                              showInfoToast("Prescription saved as draft", {
-                                id: TOAST_IDS.GLOBAL.INFO,
-                              });
-                            }}
+                            onClick={() => selectedAppointment && saveConsultationDraft(selectedAppointment.id)}
+                            disabled={updateAppointmentMutation.isPending}
                           >
-                            Save as Draft
+                            {updateAppointmentMutation.isPending ? "Saving..." : "Save as Draft"}
                           </Button>
                           <Button
                             className="w-full"

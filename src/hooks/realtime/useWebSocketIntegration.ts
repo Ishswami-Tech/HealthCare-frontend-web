@@ -572,36 +572,37 @@ export function useQueueWebSocketIntegration(queueName: string) {
   const { isConnected, emit, subscribe } = useWebSocketStore();
   const queryClient = useQueryClient();
   const { currentClinic } = useAppStore();
+  const normalizedQueueName = queueName.trim();
 
   const subscribeToQueue = useCallback((filters?: Record<string, unknown>) => {
-    if (isConnected) {
-      emit('subscribe_queue', { queueName, filters });
+    if (isConnected && normalizedQueueName) {
+      emit('subscribe_queue', { queueName: normalizedQueueName, filters });
     }
-  }, [isConnected, emit, queueName]);
+  }, [isConnected, emit, normalizedQueueName]);
 
   const unsubscribeFromQueue = useCallback(() => {
-    if (isConnected) {
-      emit('unsubscribe_queue', { queueName });
+    if (isConnected && normalizedQueueName) {
+      emit('unsubscribe_queue', { queueName: normalizedQueueName });
     }
-  }, [isConnected, emit, queueName]);
+  }, [isConnected, emit, normalizedQueueName]);
 
   const getQueueMetrics = useCallback((detailed = false) => {
-    if (isConnected) {
-      emit('get_queue_metrics', { queueNames: [queueName], detailed });
+    if (isConnected && normalizedQueueName) {
+      emit('get_queue_metrics', { queueNames: [normalizedQueueName], detailed });
     }
-  }, [isConnected, emit, queueName]);
+  }, [isConnected, emit, normalizedQueueName]);
 
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || !normalizedQueueName) return;
 
     const unsubscribeQueueStatus = subscribe('queue_status', (rawData: unknown) => {
       const data = rawData as Record<string, unknown>;
-      if (data.queueName === queueName) {
+      if (data.queueName === normalizedQueueName) {
         queryClient.setQueryData(
           getQueueStatusQueryKey(
             currentClinic?.id,
             typeof data.locationId === 'string' ? data.locationId : undefined,
-            queueName
+            normalizedQueueName
           ),
           normalizeQueueStatusSnapshot(data.status)
         );
@@ -610,8 +611,8 @@ export function useQueueWebSocketIntegration(queueName: string) {
 
     const unsubscribeQueueMetrics = subscribe('queue_metrics_update', (rawData: unknown) => {
       const data = rawData as Record<string, unknown>;
-      if (data.queueName === queueName) {
-        queryClient.setQueryData(['queue-metrics', queueName], data.metrics);
+      if (data.queueName === normalizedQueueName) {
+        queryClient.setQueryData(['queue-metrics', normalizedQueueName], data.metrics);
       }
     });
 
@@ -619,7 +620,7 @@ export function useQueueWebSocketIntegration(queueName: string) {
       unsubscribeQueueStatus();
       unsubscribeQueueMetrics();
     };
-  }, [currentClinic?.id, isConnected, queryClient, queueName, subscribe]);
+  }, [currentClinic?.id, isConnected, queryClient, normalizedQueueName, subscribe]);
 
   return {
     subscribeToQueue,

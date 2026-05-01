@@ -14,7 +14,8 @@ import {
   Receipt,
   TrendingUp,
   DollarSign,
-  CreditCard
+  CreditCard,
+  ShieldCheck
 } from "lucide-react";
 
 import { Permission } from "@/types/rbac.types";
@@ -64,6 +65,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Patients", href: "/assistant-doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Prescriptions", href: "/assistant-doctor/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },
+    { title: "Coverage", href: "/assistant-doctor/coverage", icon: ShieldCheck, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
     { title: "Video Consultation", href: "/assistant-doctor/video", icon: Video, permission: Permission.VIEW_VIDEO_APPOINTMENTS },
   ],

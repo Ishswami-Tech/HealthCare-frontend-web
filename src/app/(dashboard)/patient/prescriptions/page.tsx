@@ -44,6 +44,12 @@ type DisplayMedication = {
   instructions?: string;
   category: string;
   description?: string;
+  dispenseBatchHistory?: Array<{
+    quantity: number;
+    batchNumber?: string | null;
+    expiryDate?: string | null;
+    dispensedAt: string;
+  }>;
 };
 
 type DisplayPrescription = {
@@ -79,6 +85,7 @@ function normalizePrescriptionStatus(status?: string) {
   if (value === "FILLED" || value === "DISPENSED") {
     return "DISPENSED";
   }
+  if (value === "PARTIAL") return "PARTIAL";
   if (value === "CANCELLED") return "CANCELLED";
   if (value === "COMPLETED") return "COMPLETED";
   return "PENDING";
@@ -108,6 +115,18 @@ function normalizePrescription(raw: PrescriptionResponseItem): DisplayPrescripti
     ...(item.instructions ? { instructions: item.instructions } : {}),
     ...(item.medicine?.description || item.medicine?.properties
       ? { description: item.medicine?.description || item.medicine?.properties }
+      : {}),
+    ...(Array.isArray(item.dispenseBatchHistory)
+      ? {
+          dispenseBatchHistory: item.dispenseBatchHistory
+            .map((history) => ({
+              quantity: Number(history.quantity || 0),
+              ...(history.batchNumber ? { batchNumber: history.batchNumber } : {}),
+              ...(history.expiryDate ? { expiryDate: history.expiryDate } : {}),
+              dispensedAt: String(history.dispensedAt || nowIso()),
+            }))
+            .filter((history) => history.quantity > 0),
+        }
       : {}),
   }));
 
@@ -142,6 +161,8 @@ function getStatusColor(status: string) {
   switch (status.toUpperCase()) {
     case "DISPENSED":
       return theme.badges.green;
+    case "PARTIAL":
+      return theme.badges.orange;
     case "PENDING":
       return theme.badges.yellow;
     case "COMPLETED":
@@ -290,6 +311,7 @@ export default function PatientPrescriptions() {
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="dispensed">Dispensed</SelectItem>
+                      <SelectItem value="partial">Partially dispensed</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -357,6 +379,16 @@ export default function PatientPrescriptions() {
                                   {medication.instructions ? (
                                     <p className={`text-[10px] sm:text-xs ${theme.iconColors.green}`}>
                                       {medication.instructions}
+                                    </p>
+                                  ) : null}
+                                  {medication.dispenseBatchHistory && medication.dispenseBatchHistory.length > 0 ? (
+                                    <p className={`text-[10px] sm:text-xs ${theme.textColors.tertiary}`}>
+                                      Batches:{" "}
+                                      {medication.dispenseBatchHistory
+                                        .map((entry) =>
+                                          `${entry.batchNumber || "Batch"} x ${entry.quantity}`
+                                        )
+                                        .join(", ")}
                                     </p>
                                   ) : null}
                                   <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs pt-1">
