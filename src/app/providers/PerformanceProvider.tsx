@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useReportWebVitals } from 'next/web-vitals';
 import { fetchWithAbort } from '@/lib/utils/fetch-with-abort';
+import { APP_CONFIG } from '@/lib/config/config';
 
 // ============================================================================
 // WEB VITALS TRACKING WITH NEXT.JS 15
@@ -65,7 +66,7 @@ function trackWebVital(name: string, value: number) {
   }
 
   // Send to custom analytics endpoint
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' && APP_CONFIG.FEATURES.ANALYTICS) {
     void fetchWithAbort('/api/analytics/web-vitals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
