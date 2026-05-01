@@ -1,3 +1,5 @@
+import { APP_CONFIG } from '@/lib/config/config';
+
 export interface FetchWithAbortOptions extends RequestInit {
   timeout?: number;
   requireAuth?: boolean;
@@ -13,6 +15,37 @@ export class TimeoutError extends Error {
 
 export { TimeoutError as FetchTimeoutError };
 
+const BACKEND_PROTECTION_HEADER = 'x-internal-request-token';
+
+function getBackendProtectionKey(): string | undefined {
+  if (typeof window !== 'undefined') {
+    return undefined;
+  }
+
+  const value = process.env.BACKEND_PROTECTION_KEY?.trim();
+  return value && value.length > 0 ? value : undefined;
+}
+
+function shouldAttachBackendProtectionHeader(url: string): boolean {
+  const key = getBackendProtectionKey();
+  if (!key) {
+    return false;
+  }
+
+  const backendBaseUrl = APP_CONFIG.API.BASE_URL || APP_CONFIG.API.HEALTH_BASE_URL;
+  if (!backendBaseUrl) {
+    return false;
+  }
+
+  try {
+    const requestUrl = new URL(url, backendBaseUrl);
+    const backendUrl = new URL(backendBaseUrl);
+    return requestUrl.origin === backendUrl.origin;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Fetch with AbortController and timeout support
  * @param url - Request URL
@@ -24,6 +57,8 @@ export async function fetchWithAbort(
   options: FetchWithAbortOptions = {}
 ): Promise<Response> {
   const { timeout = 10000, requireAuth = true, ...fetchOptions } = options;
+  const backendProtectionKey = getBackendProtectionKey();
+  const shouldAttachProtectionHeader = shouldAttachBackendProtectionHeader(url);
 
   // Create AbortController for timeout
   const controller = new AbortController();
@@ -32,8 +67,14 @@ export async function fetchWithAbort(
   }, timeout);
 
   try {
+    const headers = new Headers(fetchOptions.headers || {});
+    if (backendProtectionKey && shouldAttachProtectionHeader) {
+      headers.set(BACKEND_PROTECTION_HEADER, backendProtectionKey);
+    }
+
     const response = await fetch(url, {
       ...fetchOptions,
+      headers,
       signal: controller.signal,
     });
 
