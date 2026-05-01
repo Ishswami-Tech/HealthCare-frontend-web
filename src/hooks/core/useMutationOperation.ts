@@ -19,6 +19,7 @@ import {
 } from "@/hooks/utils/use-toast";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { isSessionInvalidError, triggerClientAuthRecovery } from "@/lib/utils/auth-recovery";
+import { dedupeRequest, hasInflightRequest } from "./requestDeduper";
 
 
 export interface MutationOperationOptions<TData, TVariables, TError = Error> {
@@ -148,8 +149,14 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
     [toastId, errorMessage, showToast, showLoading, onError]
   );
 
+  const wrappedMutationFn = useCallback(
+    (variables: TVariables) =>
+      dedupeRequest("mutation", [toastId, variables], () => mutationFn(variables)),
+    [mutationFn, toastId]
+  );
+
   const mutation = useMutation<TData, TError, TVariables>({
-    mutationFn,
+    mutationFn: wrappedMutationFn,
     onSuccess: handleSuccess,
     onError: handleError,
     ...mutationOptions,
@@ -160,10 +167,14 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
    */
   const mutate = useCallback(
     (variables: TVariables, customOptions?: any) => {
-      if (showLoading) {
+      const requestKey = [toastId, variables];
+      if (showLoading && !hasInflightRequest("mutation-operation", requestKey)) {
         showLoadingToast(loadingMessage, toastId);
       }
-      return mutation.mutate(variables, customOptions);
+      void dedupeRequest("mutation-operation", requestKey, () =>
+        mutation.mutateAsync(variables, customOptions)
+      );
+      return undefined;
     },
     [mutation, loadingMessage, toastId, showLoading]
   );
@@ -173,11 +184,16 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
    */
   const mutateAsync = useCallback(
     async (variables: TVariables, customOptions?: any) => {
-      if (showLoading) {
+      const requestKey = [toastId, variables];
+      if (showLoading && !hasInflightRequest("mutation-operation", requestKey)) {
         showLoadingToast(loadingMessage, toastId);
       }
       try {
-        const result = await mutation.mutateAsync(variables, customOptions);
+        const result = await dedupeRequest(
+          "mutation-operation",
+          requestKey,
+          () => mutation.mutateAsync(variables, customOptions)
+        );
         return result;
       } catch (error) {
         // Error is handled by onError

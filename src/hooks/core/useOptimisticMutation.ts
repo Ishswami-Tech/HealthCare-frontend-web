@@ -5,9 +5,10 @@
  * Provides optimistic UI updates for mutations
  */
 
-import { useOptimistic, useTransition, useMemo } from 'react';
+import { useOptimistic, useTransition, useMemo, useCallback } from 'react';
 import { useMutation, UseMutationOptions } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
+import { dedupeRequest } from './requestDeduper';
 
 export interface OptimisticMutationOptions<TData, TVariables, TError = Error> {
   /**
@@ -71,8 +72,14 @@ export function useOptimisticMutation<TData, TVariables, TError = Error>(
   );
   
   // Mutation with optimistic updates
+  const wrappedMutationFn = useCallback(
+    (variables: TVariables) =>
+      dedupeRequest("mutation", [options.queryKey, variables], () => options.mutationFn(variables)),
+    [options.mutationFn, options.queryKey]
+  );
+
   const mutation = useMutation({
-    mutationFn: options.mutationFn,
+    mutationFn: wrappedMutationFn,
     onMutate: async (variables: TVariables) => {
       // Cancel outgoing queries
       await queryClient.cancelQueries({ queryKey: options.queryKey });
@@ -134,11 +141,24 @@ export function useOptimisticMutation<TData, TVariables, TError = Error>(
       return rest;
     })(),
   });
+
+  const dedupedMutation = {
+    ...mutation,
+    mutate: (variables: TVariables, customOptions?: any) => {
+      void dedupeRequest("mutation", [options.queryKey, variables], () =>
+        mutation.mutateAsync(variables, customOptions)
+      );
+    },
+    mutateAsync: (variables: TVariables, customOptions?: any) =>
+      dedupeRequest("mutation", [options.queryKey, variables], () =>
+        mutation.mutateAsync(variables, customOptions)
+      ),
+  };
   
   return {
     optimisticData,
     addOptimistic,
-    mutation,
+    mutation: dedupedMutation,
     isPending: isPending || mutation.isPending,
   };
 }

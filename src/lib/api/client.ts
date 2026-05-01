@@ -19,6 +19,7 @@ import { fetchWithAbort, TimeoutError } from '@/lib/utils/fetch-with-abort';
 import { getAccessToken, getSessionId, getClinicId } from '@/lib/utils/token-manager';
 import { useAuthStore } from '@/stores/auth.store';
 import { triggerClientAuthRecovery } from '@/lib/utils/auth-recovery';
+import { dedupeRequest } from '@/hooks/core/requestDeduper';
 import type { Session } from '@/types/auth.types';
 
 // ✅ Custom Error Classes
@@ -382,8 +383,16 @@ export class ApiClient {
     }
     
     // Execute request
-    const requestPromise = this.executeRequest<T>(url, options);
-    
+    const requestPromise = dedupeRequest(
+      'api-client',
+      {
+        url,
+        method,
+        body: options.body ?? null,
+      },
+      () => this.executeRequest<T>(url, options)
+    );
+
     // Cache GET requests for deduplication
     if (method === 'GET') {
       this.requestCache[cacheKey] = {

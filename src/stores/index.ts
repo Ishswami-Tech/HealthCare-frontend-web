@@ -21,7 +21,7 @@ export * from './patients.store';
 
 // Store provider for SSR compatibility
 import { ReactNode, useEffect } from 'react';
-import { useAppStore } from './app.store';
+import { useAppStore, type User as AppUser } from './app.store';
 import { useAuthStore } from './auth.store';
 import { useWebSocketStore } from './websocket.store';
 import { useHealthStore } from './health.store';
@@ -32,6 +32,40 @@ interface StoreProviderProps {
 }
 
 export function StoreProvider({ children }: StoreProviderProps) {
+  const authSession = useAuthStore((state) => state.session);
+  const authUser = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  useEffect(() => {
+    const appStore = useAppStore.getState();
+
+    if (!authSession || !authUser) {
+      appStore.setSession(null);
+      appStore.setUser(null);
+      appStore.setAuthenticated(false);
+      return;
+    }
+
+    const mappedUser = {
+      id: authUser.id,
+      email: authUser.email,
+      name: authUser.name || `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim(),
+      role: authUser.role as AppUser['role'],
+      clinicId: authUser.clinicId ?? '',
+      avatarUrl: authUser.profilePicture ?? '',
+      permissions: [],
+      isActive:
+        typeof (authUser as { isActive?: boolean }).isActive === 'boolean'
+          ? Boolean((authUser as { isActive?: boolean }).isActive)
+          : true,
+      lastLoginAt: (authUser as { lastLoginAt?: string }).lastLoginAt ?? '',
+    } satisfies AppUser;
+
+    appStore.setSession(authSession);
+    appStore.setUser(mappedUser);
+    appStore.setAuthenticated(isAuthenticated);
+  }, [authSession, authUser, isAuthenticated]);
+
   useEffect(() => {
     // Initialize store data on mount
   }, []);
