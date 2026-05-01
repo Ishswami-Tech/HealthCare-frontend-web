@@ -410,7 +410,7 @@ export function useCreatePayment() {
     {
       toastId: 'payment-create',
       loadingMessage: 'Processing payment...',
-      successMessage: 'Payment processed successfully',
+      successMessage: 'Payment verified.',
       invalidateQueries: [['payments'], ['invoices']],
     }
   );

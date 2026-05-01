@@ -14,7 +14,8 @@ import {
   Receipt,
   TrendingUp,
   DollarSign,
-  CreditCard
+  CreditCard,
+  ShieldCheck
 } from "lucide-react";
 
 import { Permission } from "@/types/rbac.types";
@@ -64,6 +65,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Patients", href: "/assistant-doctor/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Prescriptions", href: "/assistant-doctor/prescriptions", icon: Pill, permission: Permission.MANAGE_PRESCRIPTIONS },
+    { title: "Coverage", href: "/assistant-doctor/coverage", icon: ShieldCheck, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
     { title: "Video Consultation", href: "/assistant-doctor/video", icon: Video, permission: Permission.VIEW_VIDEO_APPOINTMENTS },
   ],
@@ -72,7 +74,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Appointments", href: "/patient/appointments", icon: Calendar, permission: Permission.VIEW_APPOINTMENTS },
     { title: "Prescriptions", href: "/patient/prescriptions", icon: Pill, permission: Permission.VIEW_PHARMACY },
     { title: "Billing & Payments", href: "/patient/billing", icon: Wallet, permission: Permission.VIEW_BILLING },
-    { title: "Video Consultation", href: "/patient/video", icon: Video, permission: Permission.VIEW_VIDEO_APPOINTMENTS },
+    { title: "Video Consultation", href: "/video-appointments", icon: Video, permission: Permission.VIEW_VIDEO_APPOINTMENTS },
     { title: "Medical Records", href: "/patient/medical-records", icon: FileText, permission: Permission.VIEW_MEDICAL_RECORDS },
     { title: "Self Check-In", href: "/patient/check-in", icon: QrCode, permission: Permission.CREATE_APPOINTMENTS },
   ],
@@ -82,8 +84,7 @@ export const sidebarLinksByRole: Record<string, SidebarLink[]> = {
     { title: "Patients", href: "/receptionist/patients", icon: Users, permission: Permission.VIEW_PATIENTS },
     { title: "Queue", href: "/queue", icon: Activity, permission: Permission.VIEW_QUEUE },
     { title: "Video Consultation", href: "/receptionist/video", icon: Video, permission: Permission.VIEW_VIDEO_APPOINTMENTS },
-    { title: "Collections", href: "/receptionist/collections", icon: CreditCard, permission: Permission.MANAGE_BILLING },
-    { title: "Billing", href: "/billing", icon: Wallet, permission: Permission.MANAGE_BILLING },
+    { title: "Billing & Collections", href: "/billing?tab=invoices", icon: Wallet, permission: Permission.MANAGE_BILLING },
     { title: "Check-In", href: "/receptionist/check-in", icon: ClipboardList, permission: Permission.MANAGE_QUEUE },
   ],
   PHARMACIST: [

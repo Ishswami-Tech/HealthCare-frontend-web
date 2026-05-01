@@ -77,6 +77,46 @@ export async function createPatient(patientData: {
 }
 
 /**
+ * Quick register patient and create profile atomically
+ */
+export async function quickRegisterPatient(patientData: {
+  email?: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  dateOfBirth?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zipCode?: string;
+  allergies?: string[];
+  medicalHistory?: string[];
+  emergencyContact?: {
+    name: string;
+    relationship: string;
+    phone: string;
+  };
+  insurance?: {
+    provider: string;
+    policyNumber: string;
+    groupNumber?: string;
+    primaryHolder?: string;
+    coverageStartDate?: string;
+    coverageEndDate?: string;
+    coverageType?: string;
+  };
+}) {
+  const { data } = await authenticatedApi('/patients/quick-register', {
+    method: 'POST',
+    body: JSON.stringify(patientData),
+  });
+  return data;
+}
+
+/**
  * Update patient
  */
 export async function updatePatient(patientId: string, updates: {

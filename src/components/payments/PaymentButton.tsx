@@ -108,10 +108,19 @@ export function PaymentButton({
     if (appointmentId) {
       if (userRole === "PATIENT") {
         queryClient.invalidateQueries({ queryKey: ["myAppointments"], exact: false });
+        queryClient.refetchQueries({ queryKey: ["myAppointments"], exact: false, type: "active" });
       } else {
         queryClient.invalidateQueries({ queryKey: ["appointments"], exact: false });
+        queryClient.refetchQueries({ queryKey: ["appointments"], exact: false, type: "active" });
       }
       queryClient.invalidateQueries({ queryKey: ["appointment", appointmentId], exact: false });
+      queryClient.refetchQueries({ queryKey: ["appointment", appointmentId], exact: false, type: "active" });
+      queryClient.invalidateQueries({ queryKey: ["video-appointments"], exact: false });
+      queryClient.refetchQueries({ queryKey: ["video-appointments"], exact: false, type: "active" });
+      queryClient.invalidateQueries({ queryKey: ["video-appointment", appointmentId], exact: false });
+      queryClient.refetchQueries({ queryKey: ["video-appointment", appointmentId], exact: false, type: "active" });
+      queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"], exact: false });
+      queryClient.refetchQueries({ queryKey: ["userUpcomingAppointments"], exact: false, type: "active" });
     }
 
     if (prescriptionId) {
@@ -280,7 +289,7 @@ export function PaymentButton({
           clinicId: resolvedClinicId,
         });
         invalidateSuccessfulPaymentQueries();
-        showSuccessToast("Payment successful!", {
+        showSuccessToast("Payment verified.", {
           id: TOAST_IDS.PAYMENT.SUCCESS,
         });
         onSuccess?.(orderId);
@@ -298,7 +307,7 @@ export function PaymentButton({
           clinicId: resolvedClinicId,
         });
         invalidateSuccessfulPaymentQueries();
-        showSuccessToast("Payment verified successfully!", {
+        showSuccessToast("Payment verified.", {
           id: TOAST_IDS.PAYMENT.SUCCESS,
         });
         onSuccess?.(orderId);

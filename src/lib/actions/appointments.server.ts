@@ -11,6 +11,7 @@ import { validateClinicAccess } from '@/lib/config/permissions';
 import { logger } from '@/lib/utils/logger';
 import { isApiError } from '@/lib/utils/error-handler';
 import { API_ENDPOINTS, APP_CONFIG } from '@/lib/config/config';
+import { formatISODateInIST, formatTimeInIST } from '@/lib/utils/appointmentUtils';
 import type { 
   Appointment, 
   CreateAppointmentData, 
@@ -32,6 +33,7 @@ import {
   proposeVideoSlotsSchema,
   updateAppointmentStatusSchema,
   rescheduleAppointmentSchema,
+  confirmVideoFinalSlotSchema,
   rejectVideoProposalSchema
 } from '@/lib/schema/appointments.schema';
 
@@ -87,13 +89,12 @@ function normalizeAppointment(raw: Appointment | (Appointment & { appointmentDat
   }
 
   // Use IST timezone for both date and time to ensure correct clinic-local values
-  const istDate = parsedDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-  const istTime = parsedDate.toLocaleTimeString('en-US', {
-    timeZone: 'Asia/Kolkata',
+  const istDate = formatISODateInIST(parsedDate);
+  const istTime = formatTimeInIST(parsedDate, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).replace(/^24:/, '00:');
+  });
 
   return {
     ...normalizedRaw,
@@ -142,6 +143,47 @@ export async function updateAppointmentStatus(id: string, data: any) {
       error instanceof Error ? error : new Error(String(error));
     logger.error('Failed to update appointment status', normalizedError);
     return { success: false, error: normalizedError.message || 'Failed to update status' };
+  }
+}
+
+/**
+ * Cancel an appointment using the dedicated ownership-aware backend route.
+ */
+export async function cancelAppointment(id: string, reason?: string) {
+  try {
+    const session = await getServerSession();
+    if (!session?.user) return { success: false, error: 'Unauthorized' };
+
+    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.DELETE(id), {
+      method: 'DELETE',
+    });
+
+    const { ipAddress, userAgent } = await getClientInfo();
+    await auditLog({
+      userId: session.user.id,
+      action: 'APPOINTMENT_CANCELLED',
+      resource: 'APPOINTMENT',
+      resourceId: id,
+      result: 'SUCCESS',
+      riskLevel: 'LOW',
+      ipAddress,
+      userAgent,
+      sessionId: session.session_id,
+      metadata: { reason },
+    });
+
+    revalidatePath(`/dashboard/appointments/${id}`);
+    revalidateCache('appointments');
+    revalidateCache('appointment');
+    revalidateCache('myAppointments');
+    revalidateCache('queue');
+
+    return { success: true };
+  } catch (error) {
+    const normalizedError =
+      error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to cancel appointment', normalizedError);
+    return { success: false, error: normalizedError.message || 'Failed to cancel appointment' };
   }
 }
 
@@ -324,9 +366,11 @@ export async function updateAssistantDoctorCoverage(
  */
 export async function getAppointments(filters?: AppointmentFilters & { omitClinicId?: boolean }) {
   try {
+    const session = await getServerSession();
     const { omitClinicId, ...restFilters } = filters || {};
     const queryParams = new URLSearchParams(restFilters as any).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.GET_ALL}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.GET_ALL;
+    const resolvedClinicId = restFilters.clinicId || session?.user?.clinicId;
     
     const { status, data } = await authenticatedApi<{
       data?: Appointment[] | { appointments?: Appointment[]; pagination?: any };
@@ -334,7 +378,8 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
       pagination?: any;
       meta?: any;
     }>(endpoint, {
-      ...(restFilters.clinicId ? { headers: { 'X-Clinic-ID': restFilters.clinicId } } : {}),
+      ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
+      omitClinicId: true,
     });
 
     // Detect profile-incomplete 403 returned gracefully by authenticatedApi
@@ -379,6 +424,8 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
  */
 export async function getMyAppointments(filters?: any) {
   try {
+    const session = await getServerSession();
+    const resolvedClinicId = session?.user?.clinicId || APP_CONFIG.CLINIC.ID;
     const normalizedFilters = {
       page: 1,
       limit: 100,
@@ -392,12 +439,28 @@ export async function getMyAppointments(filters?: any) {
     const queryParams = new URLSearchParams(queryInput).toString();
     const endpoint = queryParams ? `${API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS}?${queryParams}` : API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS;
     
-    const { data } = await authenticatedApi<{
+    const { status, data } = await authenticatedApi<{
       data?: Appointment[] | { appointments?: Appointment[]; pagination?: any };
       appointments?: Appointment[];
       pagination?: any;
       meta?: any;
-    }>(endpoint, {});
+    }>(endpoint, {
+      ...(resolvedClinicId ? { headers: { 'X-Clinic-ID': resolvedClinicId } } : {}),
+      omitClinicId: true,
+    });
+
+    // Detect profile-incomplete 403 returned gracefully by authenticatedApi
+    if (status === 403 && !data) {
+      return {
+        success: false,
+        error: 'Profile incomplete. Please complete your profile to access appointments.',
+        code: 'PROFILE_INCOMPLETE' as const,
+      };
+    }
+
+    if (!data) {
+      return { success: false, error: 'No appointment data available' };
+    }
     const payload =
       Array.isArray(data)
         ? data
@@ -415,7 +478,15 @@ export async function getMyAppointments(filters?: any) {
       data.meta;
     return { success: true, appointments, meta };
   } catch (error) {
-    logger.error('Failed to get my appointments', error instanceof Error ? error : new Error(String(error)));
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to get my appointments', error instanceof Error ? error : new Error(errorMessage));
+    if (errorMessage.includes('Profile Incomplete') || errorMessage.includes('requiresProfileCompletion')) {
+      return {
+        success: false,
+        error: 'Profile incomplete. Please complete your profile to access appointments.',
+        code: 'PROFILE_INCOMPLETE' as const,
+      };
+    }
     return { success: false, error: 'Failed to fetch appointments' };
   }
 }
@@ -481,74 +552,92 @@ export async function updateAppointment(id: string, data: UpdateAppointmentData)
 }
 
 /**
- * Cancel appointment
- * @deprecated Use updateAppointmentStatus instead
+ * Check in appointment
  */
-export async function cancelAppointment(id: string, reason?: string) {
+export async function checkInAppointment(
+  id: string,
+  options?: {
+    reason?: string;
+    locationId?: string;
+  }
+) {
   try {
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.STATUS(id), {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'CANCELLED', reason }),
-    });
+    const fallbackReason = options?.reason || 'Manual receptionist check-in override';
+    const staffRoles = new Set(['RECEPTIONIST', 'DOCTOR', 'ASSISTANT_DOCTOR', 'NURSE']);
+    const isStaff = staffRoles.has(String(session.user.role || '').toUpperCase());
+
+    try {
+      await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id), {
+        method: 'POST',
+        body: JSON.stringify({
+          checkInMethod: 'manual',
+          notes: 'Manual receptionist check-in',
+        }),
+      });
+    } catch (checkInError) {
+      if (!isStaff) {
+        throw checkInError;
+      }
+
+      await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.FORCE_CHECK_IN(id), {
+        method: 'POST',
+        body: JSON.stringify({
+          reason: fallbackReason,
+          ...(options?.locationId ? { locationId: options.locationId } : {}),
+        }),
+      });
+    }
 
     const { ipAddress, userAgent } = await getClientInfo();
     await auditLog({
       userId: session.user.id,
-      action: 'APPOINTMENT_CANCELLED',
+      action: 'APPOINTMENT_CHECKED_IN',
       resource: 'APPOINTMENT',
       resourceId: id,
       result: 'SUCCESS',
-      riskLevel: 'MEDIUM',
+      riskLevel: 'LOW',
       ipAddress,
       userAgent,
       sessionId: session.session_id,
-      metadata: { reason }
+      metadata: {
+        checkInMethod: 'manual',
+        forceFallbackEnabled: true,
+        ...(options?.locationId ? { locationId: options.locationId } : {}),
+      },
     });
 
-    revalidatePath('/dashboard/appointments');
     revalidateCache('appointments');
-    
+    revalidateCache('queue');
     return { success: true };
   } catch (error) {
-    logger.error('Failed to cancel appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to cancel appointment' };
+    logger.error('Failed to check in appointment', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: 'Failed to check in appointment' };
   }
 }
 
 /**
- * Confirm appointment
- * @deprecated Use updateAppointmentStatus instead
+ * Force check-in appointment for staff receptionist/manual workflow.
  */
-export async function confirmAppointment(id: string) {
-  try {
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.STATUS(id), {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'CONFIRMED' }),
-    });
-    revalidateCache('appointments');
-    return { success: true };
-  } catch (error) {
-    logger.error('Failed to confirm appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to confirm appointment' };
+export async function forceCheckInAppointment(
+  id: string,
+  options?: {
+    reason?: string;
+    locationId?: string;
   }
-}
-
-/**
- * Check in appointment
- */
-export async function checkInAppointment(id: string) {
+) {
   try {
     const session = await getServerSession();
     if (!session?.user) return { success: false, error: 'Unauthorized' };
 
-    await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.CHECK_IN(id), {
+    const reason = options?.reason || 'Manual receptionist check-in override';
+    const { data } = await authenticatedApi(API_ENDPOINTS.APPOINTMENTS.FORCE_CHECK_IN(id), {
       method: 'POST',
       body: JSON.stringify({
-        checkInMethod: 'manual',
-        notes: 'Manual receptionist check-in',
+        reason,
+        ...(options?.locationId ? { locationId: options.locationId } : {}),
       }),
     });
 
@@ -563,15 +652,19 @@ export async function checkInAppointment(id: string) {
       ipAddress,
       userAgent,
       sessionId: session.session_id,
-      metadata: { checkInMethod: 'manual' },
+      metadata: {
+        checkInMethod: 'manual',
+        forceFallbackEnabled: false,
+        ...(options?.locationId ? { locationId: options.locationId } : {}),
+      },
     });
 
     revalidateCache('appointments');
     revalidateCache('queue');
-    return { success: true };
+    return { success: true, data };
   } catch (error) {
-    logger.error('Failed to check in appointment', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to check in appointment' };
+    logger.error('Failed to force check in appointment', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to force check in appointment' };
   }
 }
 
@@ -666,6 +759,7 @@ export async function scanLocationQRAndCheckIn(data: {
   code: string;
   locationId?: string;
   appointmentId?: string;
+  coordinates?: { lat: number; lng: number };
 }) {
   try {
     const validatedData = scanQRSchema.parse(data);
@@ -673,6 +767,7 @@ export async function scanLocationQRAndCheckIn(data: {
       qrCode: validatedData.code,
       ...(validatedData.locationId ? { locationId: validatedData.locationId } : {}),
       ...(validatedData.appointmentId ? { appointmentId: validatedData.appointmentId } : {}),
+      ...(validatedData.coordinates ? { coordinates: validatedData.coordinates } : {}),
     };
     const { data: response } = await authenticatedApi<any>(API_ENDPOINTS.APPOINTMENTS.SCAN_QR, {
       method: 'POST',
@@ -917,6 +1012,7 @@ export async function proposeVideoAppointment(data: any) {
       ...(validatedData.clinicId ? { headers: { 'X-Clinic-ID': validatedData.clinicId } } : {}),
     });
     revalidateCache('appointments');
+    revalidateCache('video-appointments');
     return { success: true, appointment };
   } catch (error) {
     logger.error('Failed to propose video appointment', error instanceof Error ? error : new Error(String(error)));
@@ -934,9 +1030,54 @@ export async function confirmVideoSlot(appointmentId: string, confirmedSlotIndex
       body: JSON.stringify({ confirmedSlotIndex })
     });
     revalidateCache('appointments');
+    revalidateCache('video-appointments');
+    revalidateCache('myAppointments');
+    revalidatePath('/patient/dashboard');
+    revalidatePath('/patient/appointments');
+    revalidatePath('/doctor/video');
     return { success: true, appointment };
   } catch (error) {
     logger.error('Failed to confirm video slot', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Failed to confirm video slot' };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to confirm video slot',
+    };
+  }
+}
+
+/**
+ * Confirm final video slot
+ */
+export async function confirmFinalVideoSlot(
+  appointmentId: string,
+  data: {
+    confirmedSlotIndex?: number;
+    date?: string;
+    time?: string;
+    reason?: string;
+  }
+) {
+  try {
+    const validatedData = confirmVideoFinalSlotSchema.parse(data);
+    const { data: appointment } = await authenticatedApi<Appointment>(
+      API_ENDPOINTS.APPOINTMENTS.VIDEO_CONFIRM_FINAL_SLOT(appointmentId),
+      {
+        method: 'POST',
+        body: JSON.stringify(validatedData),
+      }
+    );
+    revalidateCache('appointments');
+    revalidateCache('video-appointments');
+    revalidateCache('myAppointments');
+    revalidatePath('/doctor/video');
+    revalidatePath('/patient/dashboard');
+    revalidatePath('/patient/appointments');
+    return { success: true, appointment };
+  } catch (error) {
+    logger.error('Failed to confirm final video slot', error instanceof Error ? error : new Error(String(error)));
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to confirm final video slot',
+    };
   }
 }

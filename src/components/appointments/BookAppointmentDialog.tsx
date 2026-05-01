@@ -8,6 +8,9 @@ import type {
   TreatmentType,
 } from "@/types/appointment.types";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -30,7 +33,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useQueryClient } from "@/hooks/core";
 import { useDoctors } from "@/hooks/query/useDoctors";
-import { usePatients } from "@/hooks/query/usePatients";
+import { usePatients, useQuickRegisterPatient } from "@/hooks/query/usePatients";
 import {
   useAppointmentServices,
   useCreateAppointment,
@@ -44,19 +47,27 @@ import {
   useCreateInPersonAppointmentWithSubscription,
 } from "@/hooks/query/useBilling";
 import { useSendAppointmentReminder } from "@/hooks/query/useCommunication";
-import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
+import { useActiveLocations, useClinicContext, useMyClinic } from "@/hooks/query/useClinics";
+import { useWebSocketContext } from "@/app/providers/WebSocketProvider";
 import { useRBAC } from "@/hooks/utils/useRBAC";
+import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
+import {
+  dismissToast,
+  showErrorToast,
+  showSuccessToast,
+} from "@/hooks/utils/use-toast";
 import { Permission } from "@/types/rbac.types";
 import { APP_CONFIG } from "@/lib/config/config";
-import { toast } from "sonner";
 import { theme } from "@/lib/utils/theme-utils";
+import { cn } from "@/lib/utils";
+import { formatISODateInIST } from "@/lib/utils/date-time";
 import { format } from "date-fns";
 import {
-  Activity, Plus, Leaf, Waves, Clock,
+  Activity, Plus, Leaf, Waves, Clock, Search,
   Flame, Heart, Brain, Droplets, Wind, CheckCircle,
-  ChevronLeft, User, Loader2,
+  ChevronLeft, User, Loader2, UserPlus, AlertTriangle, Stethoscope,
   CalendarIcon, Sun, CloudSun, Moon, QrCode, Download,
-  Check, ArrowRight, Video, MapPin, Building,
+  Check, ArrowRight, Video, MapPin, Building, Wifi, WifiOff,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -83,9 +94,14 @@ interface BookAppointmentDialogProps {
 
 function getConsultationVisual(treatmentType: TreatmentType): ConsultationVisual {
   const iconClass = "w-5 h-5";
-  const visuals: Record<TreatmentType, ConsultationVisual> = {
+  const visuals: Record<string, ConsultationVisual> = {
     GENERAL_CONSULTATION: { icon: <Activity className={iconClass} />, color: theme.badges.blue },
     FOLLOW_UP: { icon: <CheckCircle className={iconClass} />, color: theme.badges.gray },
+    SPECIAL_CASE: { icon: <AlertTriangle className={iconClass} />, color: theme.badges.yellow },
+    DIAGNOSTIC_PREVENTIVE: { icon: <Search className={iconClass} />, color: theme.badges.blue },
+    SENIOR_CITIZEN: { icon: <User className={iconClass} />, color: theme.badges.gray },
+    PROCEDURAL_CARE: { icon: <Stethoscope className={iconClass} />, color: theme.badges.red },
+    AYURVEDIC_PROCEDURES: { icon: <Leaf className={iconClass} />, color: theme.badges.emerald },
     THERAPY: { icon: <Leaf className={iconClass} />, color: theme.badges.emerald },
     SURGERY: { icon: <Flame className={iconClass} />, color: theme.badges.red },
     LAB_TEST: { icon: <Droplets className={iconClass} />, color: theme.badges.blue },
@@ -105,7 +121,7 @@ function getConsultationVisual(treatmentType: TreatmentType): ConsultationVisual
     RAKTAMOKSHANA: { icon: <Flame className={iconClass} />, color: theme.badges.red },
   };
 
-  return visuals[treatmentType];
+  return visuals[treatmentType] || { icon: <Activity className={iconClass} />, color: theme.badges.blue };
 }
 
 // ─── Slot grouping helper ────────────────────────────────────────────────────
@@ -140,16 +156,14 @@ const VIDEO_APPOINTMENT_SLOT_DURATION_MINUTES = 15;
  */
 const getTodayIST = () => {
   const now = new Date();
-  // Get date parts in IST
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Kolkata',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
   });
-  const istDateString = formatter.format(now); // "YYYY-MM-DD"
-  // Create a local date object set to that day (start of day)
-  return new Date(istDateString);
+  const [year, month, day] = formatter.format(now).split('-').map(Number);
+  return new Date(year ?? now.getFullYear(), (month ?? 1) - 1, day ?? now.getDate());
 };
 
 const formatDateIST = (date: Date) =>
@@ -178,6 +192,19 @@ const isSubscriptionCurrent = (subscription?: { status?: string; endDate?: strin
   return Number.isFinite(endDate.getTime()) && endDate.getTime() >= Date.now();
 };
 
+const normalizePatientGender = (value: string) => {
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "MALE" || normalized === "FEMALE" || normalized === "OTHER") {
+    return normalized as "MALE" | "FEMALE" | "OTHER";
+  }
+  return undefined;
+};
+
+const createTemporaryPatientPassword = (phone: string) => {
+  const digits = phone.replace(/\D/g, "").slice(-6) || "123456";
+  return `Pt@${digits}`;
+};
+
 export function BookAppointmentDialog({
   trigger,
   clinicId,
@@ -192,6 +219,7 @@ export function BookAppointmentDialog({
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
+  const { isConnected, connectionStatus, subscribe } = useWebSocketContext();
   const { session } = useAuth();
   const { hasPermission } = useRBAC();
   const userRole = (session?.user?.role || "").toUpperCase();
@@ -199,7 +227,10 @@ export function BookAppointmentDialog({
   const postBookingLabel = userRole === "RECEPTIONIST" ? "View Reception Desk" : "View My Appointments";
   const patientCheckInRoute = "/patient/check-in";
   const { clinicId: contextClinicId } = useClinicContext();
-  const activeClinicId = clinicId || contextClinicId || APP_CONFIG.CLINIC.ID;
+  const { data: myClinic, isPending: myClinicLoading } = useMyClinic();
+  const hasExplicitClinicId = !!clinicId || !!contextClinicId || !!session?.user?.clinicId;
+  const shouldResolvePatientClinic = userRole === "PATIENT" && !hasExplicitClinicId;
+  const activeClinicId = clinicId || contextClinicId || session?.user?.clinicId || myClinic?.id || APP_CONFIG.CLINIC.ID;
 
   // ─── Dialog / Step state ──────────────────────────────────────────────────
   const [open, setOpen] = useState(defaultOpen);
@@ -221,23 +252,43 @@ export function BookAppointmentDialog({
   const [requiresVideoPayment, setRequiresVideoPayment] = useState(false);
   const [videoPaymentCompleted, setVideoPaymentCompleted] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId || "");
-  const isPrivilegedScheduler = ["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [showQuickCreatePatient, setShowQuickCreatePatient] = useState(false);
+  const [recentlyCreatedPatient, setRecentlyCreatedPatient] = useState<{
+    id: string;
+    displayName: string;
+    phone?: string;
+    email?: string;
+  } | null>(null);
+  const [newPatient, setNewPatient] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    dateOfBirth: "",
+    gender: "",
+    address: "",
+  });
+  const isPrivilegedScheduler = ["RECEPTIONIST", "DOCTOR", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
   const targetPatientId = isPrivilegedScheduler ? selectedPatientId : session?.user?.id || "";
-  const shouldLoadLocations = open;
+  const shouldLoadLocations = open && consultationMode !== "VIDEO" && (!shouldResolvePatientClinic || !myClinicLoading);
   const shouldLoadServices = open;
-  const shouldLoadDoctors = open && step >= 3 && !!activeClinicId && !!selectedLocationId;
+  const shouldLoadDoctors = open && step >= 3 && !!activeClinicId && (consultationMode === "VIDEO" || !!selectedLocationId);
   const shouldLoadPatients = open && isPrivilegedScheduler && !!activeClinicId;
+  const quickRegisterPatientMutation = useQuickRegisterPatient();
 
   // ─── Queries ─────────────────────────────────────────────────────────────
-  const { data: locations = [] } = useActiveLocations(activeClinicId, {
+  const { data: locations = [], isPending: locationsLoading, isFetching: locationsFetching } = useActiveLocations(activeClinicId, {
     enabled: shouldLoadLocations,
   });
   const { data: appointmentServices = [], isPending: servicesLoading } = useAppointmentServices(shouldLoadServices);
   const { data: doctorsData, isPending: doctorsLoading } = useDoctors(
     activeClinicId,
-    {
-      locationId: selectedLocationId,
-    },
+    consultationMode === "VIDEO"
+      ? undefined
+      : {
+          locationId: selectedLocationId,
+        },
     {
       enabled: shouldLoadDoctors,
     }
@@ -247,7 +298,7 @@ export function BookAppointmentDialog({
   // returns 403 Forbidden. Pass an empty clinicId to disable the query.
   const { data: patientsData = [] } = usePatients(
     isPrivilegedScheduler ? activeClinicId : "",
-    { limit: 1000, isActive: true },
+    { limit: 200, isActive: true },
     { enabled: shouldLoadPatients }
   );
 
@@ -258,15 +309,42 @@ export function BookAppointmentDialog({
     !!activeClinicId &&
     !!selectedDoctorId &&
     !!dateString &&
-    !!selectedLocationId;
+    (consultationMode === "VIDEO" || !!selectedLocationId);
+  const availabilityRefetchIntervalMs =
+    consultationMode === "VIDEO"
+      ? 5000
+      : step >= 4 && !isConnected
+        ? 10000
+        : undefined;
+  const availabilityQueryKey = useMemo(
+    () => [
+      "doctorAvailability",
+      activeClinicId,
+      selectedDoctorId,
+      dateString,
+      consultationMode === "VIDEO" ? undefined : selectedLocationId,
+      consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
+    ],
+    [activeClinicId, selectedDoctorId, dateString, selectedLocationId, consultationMode]
+  );
 
-  const { data: availability, isPending: availabilityLoading, error: availabilityError } = useDoctorAvailability(
+  const {
+    data: availability,
+    isPending: availabilityLoading,
+    error: availabilityError,
+    refetch: refetchAvailability,
+  } = useDoctorAvailability(
     activeClinicId,
     selectedDoctorId,
     dateString,
-    selectedLocationId,
+    consultationMode === "VIDEO" ? undefined : selectedLocationId,
     consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON",
-    { enabled: shouldLoadAvailability }
+    {
+      enabled: shouldLoadAvailability,
+      ...(availabilityRefetchIntervalMs
+        ? { refetchIntervalMs: availabilityRefetchIntervalMs }
+        : {}),
+    }
   );
 
   const { mutateAsync: createAppointment, isPending: isBooking } = useCreateAppointment(activeClinicId);
@@ -286,7 +364,10 @@ export function BookAppointmentDialog({
   const { mutate: sendReminder } = useSendAppointmentReminder();
   const shouldLoadSubscriptions = open && step >= 6 && !!targetPatientId;
   const { data: subscriptionsData = [] } = useSubscriptions(targetPatientId, shouldLoadSubscriptions);
-  const { data: backendActiveSubscription } = useActiveSubscription(targetPatientId, activeClinicId, shouldLoadSubscriptions);
+  const {
+    data: backendActiveSubscription,
+    isPending: backendActiveSubscriptionLoading,
+  } = useActiveSubscription(targetPatientId, activeClinicId, shouldLoadSubscriptions);
 
   // ─── Derived ─────────────────────────────────────────────────────────────
   const modeAppointmentType: AppointmentType =
@@ -359,9 +440,25 @@ export function BookAppointmentDialog({
     }));
   }, [patientsData]);
 
+  const filteredPatientsList = useMemo(() => {
+    const query = patientSearch.trim().toLowerCase();
+    if (!query) {
+      return patientsList;
+    }
+
+    return patientsList.filter((patient: any) => {
+      const name = String(patient.displayName || "").toLowerCase();
+      const phone = String(patient.phone || "").toLowerCase();
+      const email = String(patient.email || "").toLowerCase();
+      return name.includes(query) || phone.includes(query) || email.includes(query);
+    });
+  }, [patientsList, patientSearch]);
+
   const selectedPatient = useMemo(
-    () => patientsList.find((patient: any) => (patient.userId || patient.id) === selectedPatientId),
-    [patientsList, selectedPatientId]
+    () =>
+      patientsList.find((patient: any) => (patient.userId || patient.id) === selectedPatientId) ||
+      (recentlyCreatedPatient?.id === selectedPatientId ? recentlyCreatedPatient : null),
+    [patientsList, selectedPatientId, recentlyCreatedPatient]
   );
 
   const activeSubscription = useMemo(() => {
@@ -384,12 +481,45 @@ export function BookAppointmentDialog({
     return candidates[0];
   }, [subscriptionsData, activeClinicId, backendActiveSubscription]);
 
+  const isPatientInPersonBooking = consultationMode === "IN_PERSON" && userRole === "PATIENT";
+  const isSubscriptionGateLoading = isPatientInPersonBooking && backendActiveSubscriptionLoading;
+  const needsSubscriptionPlan = isPatientInPersonBooking && !isSubscriptionGateLoading && !activeSubscription;
+
   const slots = useMemo(() => {
     if (Array.isArray((availability as any)?.availableSlots)) return (availability as any).availableSlots;
     if (Array.isArray((availability as any)?.data?.availableSlots)) return (availability as any).data.availableSlots;
     if (Array.isArray((availability as any)?.data?.data?.availableSlots)) return (availability as any).data.data.availableSlots;
     return [];
   }, [availability]);
+  const extractAvailabilitySlots = useCallback((source: unknown) => {
+    if (Array.isArray(source)) {
+      return source.filter((slot): slot is string => typeof slot === "string");
+    }
+    if (!source || typeof source !== "object") {
+      return [];
+    }
+
+    const record = source as {
+      availableSlots?: unknown;
+      data?: unknown;
+    };
+    if (Array.isArray(record.availableSlots)) {
+      return record.availableSlots.filter((slot): slot is string => typeof slot === "string");
+    }
+    if (record.data && typeof record.data === "object") {
+      const nested = record.data as { availableSlots?: unknown; data?: unknown };
+      if (Array.isArray(nested.availableSlots)) {
+        return nested.availableSlots.filter((slot): slot is string => typeof slot === "string");
+      }
+      if (nested.data && typeof nested.data === "object") {
+        const nestedDeep = nested.data as { availableSlots?: unknown };
+        if (Array.isArray(nestedDeep.availableSlots)) {
+          return nestedDeep.availableSlots.filter((slot): slot is string => typeof slot === "string");
+        }
+      }
+    }
+    return [];
+  }, []);
 
   const restrictions = useMemo(() => {
     const r =
@@ -418,8 +548,158 @@ export function BookAppointmentDialog({
     () => (consultationBlocked ? [] : (slots as string[])),
     [consultationBlocked, slots]
   );
+  const validateLatestAvailability = useCallback(async () => {
+    const refreshed = await refetchAvailability({ cancelRefetch: true });
+    const refreshedSlots = extractAvailabilitySlots(
+      refreshed?.data ?? queryClient.getQueryData(availabilityQueryKey)
+    );
+
+    return refreshedSlots;
+  }, [
+    activeClinicId,
+    availabilityQueryKey,
+    consultationMode,
+    connectionStatus,
+    dateString,
+    extractAvailabilitySlots,
+    isConnected,
+    queryClient,
+    refetchAvailability,
+    selectedDoctorId,
+    selectedLocationId,
+  ]);
+
+  useEffect(() => {
+    if (!open || step < 4 || !isConnected || !selectedDoctorId || !dateString) {
+      return;
+    }
+
+    const shouldRefreshAvailability = (rawData: unknown) => {
+      const data = rawData as {
+        clinicId?: string;
+        doctorId?: string;
+        appointment?: { doctorId?: string; locationId?: string; date?: string; appointmentDate?: string };
+        appointmentId?: string;
+      };
+
+      if (data.clinicId && data.clinicId !== activeClinicId) {
+        return;
+      }
+
+      const eventDoctorId = data.doctorId || data.appointment?.doctorId;
+      if (eventDoctorId && eventDoctorId !== selectedDoctorId) {
+        return;
+      }
+
+      const eventDate = data.appointment?.date || data.appointment?.appointmentDate;
+      if (eventDate && formatISODateInIST(eventDate) !== dateString) {
+        return;
+      }
+
+      const eventLocationId = data.appointment?.locationId;
+      if (consultationMode !== "VIDEO" && selectedLocationId && eventLocationId && eventLocationId !== selectedLocationId) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: availabilityQueryKey, exact: true });
+    };
+
+    const unsubscribeCreated = subscribe("appointment.created", shouldRefreshAvailability);
+    const unsubscribeUpdated = subscribe("appointment.updated", shouldRefreshAvailability);
+    const unsubscribeDeleted = subscribe("appointment.deleted", shouldRefreshAvailability);
+    const unsubscribeConfirmed = subscribe("appointment.confirmed", shouldRefreshAvailability);
+    const unsubscribeSlotConfirmed = subscribe("appointment.slot.confirmed", shouldRefreshAvailability);
+    const unsubscribeRescheduled = subscribe("appointment.rescheduled", shouldRefreshAvailability);
+    const unsubscribeCancelled = subscribe("appointment.cancelled", shouldRefreshAvailability);
+    const unsubscribeCheckedIn = subscribe("appointment.checked_in", shouldRefreshAvailability);
+    const unsubscribeCompleted = subscribe("appointment.completed", shouldRefreshAvailability);
+    const unsubscribeAvailabilityChanged = subscribe("doctor.availability.changed", shouldRefreshAvailability);
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeUpdated();
+      unsubscribeDeleted();
+      unsubscribeConfirmed();
+      unsubscribeSlotConfirmed();
+      unsubscribeRescheduled();
+      unsubscribeCancelled();
+      unsubscribeCheckedIn();
+      unsubscribeCompleted();
+      unsubscribeAvailabilityChanged();
+    };
+  }, [
+    activeClinicId,
+    availabilityQueryKey,
+    consultationMode,
+    dateString,
+    isConnected,
+    open,
+    queryClient,
+    selectedDoctorId,
+    selectedLocationId,
+    step,
+    subscribe,
+  ]);
+
+  useEffect(() => {
+    if (consultationMode === "VIDEO" && selectedVideoSlots.length > 0) {
+      const filteredSlots = selectedVideoSlots.filter((slot) => effectiveSlots.includes(slot));
+      if (filteredSlots.length !== selectedVideoSlots.length) {
+        setSelectedVideoSlots(filteredSlots);
+      }
+    }
+    if (consultationMode !== "VIDEO" && selectedSlot && !effectiveSlots.includes(selectedSlot)) {
+      setSelectedSlot("");
+    }
+  }, [consultationMode, effectiveSlots, selectedSlot, selectedVideoSlots]);
 
   const slotGroups = useMemo(() => groupSlotsByPeriod(effectiveSlots as string[]), [effectiveSlots]);
+  const liveSyncMode =
+    connectionStatus === "connected"
+      ? "live"
+      : connectionStatus === "connecting" || connectionStatus === "reconnecting"
+        ? "connecting"
+        : "fallback";
+  const liveSyncLabel =
+    liveSyncMode === "live"
+      ? "Live synced"
+      : liveSyncMode === "connecting"
+        ? "Connecting to realtime updates"
+        : "Polling fallback";
+  const liveSyncDescription =
+    liveSyncMode === "live"
+      ? "Availability updates are coming from websocket events."
+      : liveSyncMode === "connecting"
+        ? "Realtime connection is starting; availability will refresh automatically until it is ready."
+        : "Websocket is unavailable, so availability refreshes automatically.";
+  const liveSyncClasses =
+    liveSyncMode === "live"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+      : liveSyncMode === "connecting"
+        ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300"
+        : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300";
+  const showLiveSyncBanner = APP_CONFIG.ENVIRONMENT === "development";
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+  }, [
+    open,
+    activeClinicId,
+    consultationMode,
+    connectionStatus,
+    dateString,
+    effectiveSlots.length,
+    isConnected,
+    selectedDate,
+    selectedDoctorId,
+    selectedLocationId,
+    selectedServiceId,
+    selectedSlot,
+    selectedVideoSlots,
+    step,
+  ]);
 
   useEffect(() => {
     if (open) {
@@ -441,17 +721,23 @@ export function BookAppointmentDialog({
         setBookedAppointmentId("");
         setRequiresVideoPayment(false);
         setVideoPaymentCompleted(false);
+        setSelectedPatientId(initialPatientId || "");
+        setPatientSearch("");
+        setShowQuickCreatePatient(false);
+        setRecentlyCreatedPatient(null);
+        setNewPatient({
+          firstName: "",
+          lastName: "",
+          phone: "",
+          email: "",
+          dateOfBirth: "",
+          gender: "",
+          address: "",
+        });
       }
       // Otherwise, keep all existing state (user resumes from where they left off)
     }
   }, [open]);
-
-  // Auto-pick first location
-  useEffect(() => {
-    if (!selectedLocationId && locations.length > 0) {
-      setSelectedLocationId((locations[0] as any)?.id || "");
-    }
-  }, [locations, selectedLocationId]);
 
   useEffect(() => {
     if (
@@ -471,8 +757,8 @@ export function BookAppointmentDialog({
       tab: "plans" | "subscriptions" | "payments",
       message: string
     ) => {
-      toast.dismiss("subscription-coverage-check");
-      toast.error(message);
+      dismissToast("subscription-coverage-check");
+      showErrorToast(message);
       router.push(`${patientBillingRoute}?tab=${tab}`);
     };
 
@@ -498,10 +784,20 @@ export function BookAppointmentDialog({
       const finalAppointmentType: AppointmentType =
         consultationMode === "VIDEO" ? "VIDEO_CALL" : "IN_PERSON";
       const selectedDateString = formatDateIST(selectedDate);
+      const freshSlots = await validateLatestAvailability();
 
       if (finalAppointmentType === "VIDEO_CALL") {
-        if (selectedVideoSlots.length !== 3) {
-          toast.error("Please select exactly 3 preferred video slots.");
+        if (selectedVideoSlots.length < 3 || selectedVideoSlots.length > 4) {
+          showErrorToast("Please select 3 to 4 preferred video slots.");
+          return;
+        }
+
+        const stillAvailableSlots = selectedVideoSlots.filter((slot) => freshSlots.includes(slot));
+        if (stillAvailableSlots.length !== selectedVideoSlots.length) {
+          setSelectedVideoSlots(stillAvailableSlots);
+        }
+        if (stillAvailableSlots.length < 3) {
+          showErrorToast("One or more preferred video slots are no longer available. Please select fresh slots.");
           return;
         }
 
@@ -511,7 +807,8 @@ export function BookAppointmentDialog({
           clinicId: activeClinicId,
           ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
           duration: appointmentDurationMinutes,
-          proposedSlots: selectedVideoSlots.map((time) => ({
+          treatmentType: selectedService?.treatmentType || selectedServiceId,
+          proposedSlots: stillAvailableSlots.map((time) => ({
             date: selectedDateString,
             time,
           })),
@@ -522,7 +819,7 @@ export function BookAppointmentDialog({
         queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
         queryClient.invalidateQueries({ queryKey: ["appointments"] });
         queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
-        queryClient.invalidateQueries({ queryKey: ["appointmentStats"] });
+        queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(activeClinicId), exact: false });
         queryClient.invalidateQueries({ queryKey: ["appointment", proposedAppointment.id] });
         if (shouldCollectVideoPayment) {
           setRequiresVideoPayment(true);
@@ -532,7 +829,19 @@ export function BookAppointmentDialog({
         }
 
         onBooked?.();
+        showSuccessToast(
+          `Video appointment requested with ${selectedDoctor?.name || 'doctor'}` +
+          (selectedDate ? ` for ${format(selectedDate, 'd MMM yyyy')}` : '') +
+          ' — awaiting doctor confirmation.',
+          { id: 'booking-success' }
+        );
         setStep(7);
+        return;
+      }
+
+      if (!freshSlots.includes(selectedSlot)) {
+        setSelectedSlot("");
+        showErrorToast("That time slot is no longer available. Please select a fresh slot.");
         return;
       }
 
@@ -602,11 +911,7 @@ export function BookAppointmentDialog({
           patientId: targetPatientId,
         };
 
-        console.log("[BookAppointmentDialog] handleBook Payload:", payload);
-
         const appointment = await createAppointment(payload);
-
-        console.log("[BookAppointmentDialog] handleBook Response:", appointment);
 
         if (!appointment?.id) {
           throw new Error("Failed to create appointment; check console for details.");
@@ -618,13 +923,19 @@ export function BookAppointmentDialog({
       queryClient.invalidateQueries({ queryKey: ["myAppointments"] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["userUpcomingAppointments"] });
-      queryClient.invalidateQueries({ queryKey: ["appointmentStats"] });
+      queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(activeClinicId), exact: false });
       queryClient.invalidateQueries({ queryKey: ["appointment", apptId] });
       // Send appointment reminder via push + email + WhatsApp
       if (hasPermission(Permission.SEND_NOTIFICATIONS)) {
         sendReminder({ appointmentId: apptId, reminderType: 'all' });
       }
       onBooked?.();
+      showSuccessToast(
+        `Appointment booked${selectedDoctor?.name ? ` with ${selectedDoctor.name}` : ''}` +
+        (selectedDate ? ` on ${format(selectedDate, 'd MMM yyyy')}` : '') +
+        '.',
+        { id: 'booking-success' }
+      );
       setStep(7); // step 7 = success/QR screen
     } catch (err: any) {
       const errorMessage =
@@ -664,8 +975,18 @@ export function BookAppointmentDialog({
         return;
       }
 
-      toast.dismiss("subscription-coverage-check");
-      toast.error(errorMessage);
+      dismissToast("subscription-coverage-check");
+
+      if (lowerErrorMessage.includes("time slot is no longer available")) {
+        queryClient.invalidateQueries({ queryKey: availabilityQueryKey, exact: true });
+        if (consultationMode === "VIDEO") {
+          setSelectedVideoSlots([]);
+        } else {
+          setSelectedSlot("");
+        }
+      }
+
+      showErrorToast(errorMessage);
     }
   }, [
     selectedService,
@@ -691,20 +1012,21 @@ export function BookAppointmentDialog({
     activeSubscription,
     router,
     queryClient,
+    availabilityQueryKey,
+    validateLatestAvailability,
   ]);
 
   // ─── Navigation ──────────────────────────────────────────────────────────
   const canNext = useMemo(() => {
-    if (step === 1) return !!selectedLocationId && !!consultationMode;
+    if (step === 1) return !!consultationMode && (consultationMode === "VIDEO" || !!selectedLocationId);
     if (step === 2) {
-      const isOfficeStaff = ["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
-      return !!selectedServiceId && (!isOfficeStaff || !!selectedPatientId);
+      return !!selectedServiceId && (!isPrivilegedScheduler || !!selectedPatientId);
     }
     if (step === 3) return !!selectedDoctorId;
     if (step === 4) return !!selectedDate;
-    if (step === 5) return consultationMode === "VIDEO" ? selectedVideoSlots.length === 3 : !!selectedSlot;
+    if (step === 5) return consultationMode === "VIDEO" ? selectedVideoSlots.length >= 3 && selectedVideoSlots.length <= 4 : !!selectedSlot;
     return true;
-  }, [step, selectedLocationId, consultationMode, selectedServiceId, selectedDoctorId, selectedDate, selectedSlot, selectedVideoSlots, userRole, selectedPatientId]);
+  }, [step, selectedLocationId, consultationMode, selectedServiceId, selectedDoctorId, selectedDate, selectedSlot, selectedVideoSlots, isPrivilegedScheduler, selectedPatientId]);
 
   const TOTAL_STEPS = 6;
   const goNext = () => {
@@ -767,51 +1089,65 @@ export function BookAppointmentDialog({
   // ─── Step 1: Location + Mode ─────────────────────────────────────────────
   const renderStep1 = () => (
     <div className="flex flex-col gap-5">
-      {/* Location */}
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Visit Location</p>
-        {(locations as any[]).length === 0 ? (
-          <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
-            <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
-            Loading locations...
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {(locations as any[]).map((loc) => (
-              <button
-                key={loc.id}
-                onClick={() => {
-                  setSelectedLocationId(loc.id);
-                  // Auto-proceed if consultation mode is also selected (it has a default)
-                  if (consultationMode) setTimeout(goNext, 150);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
-                  selectedLocationId === loc.id
-                    ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                    : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
-                }`}
-              >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  selectedLocationId === loc.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}>
-                  <MapPin className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`font-semibold text-sm ${ selectedLocationId === loc.id ? "text-primary" : ""}`}>
-                    {loc.name || loc.address || "Location"}
-                  </p>
-                  {loc.address && loc.name && (
-                    <p className="text-xs text-muted-foreground truncate">{loc.address}</p>
+      {consultationMode === "VIDEO" ? (
+        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+          Video consultations do not require a physical location.
+        </div>
+      ) : shouldResolvePatientClinic && myClinicLoading ? (
+        <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
+          <Loader2 className="w-7 h-7 mx-auto mb-2 opacity-60 animate-spin" />
+          Resolving your clinic...
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Visit Location</p>
+          {locationsLoading && (locations as any[]).length === 0 ? (
+            <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
+              <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
+              Loading locations...
+            </div>
+          ) : (locations as any[]).length === 0 ? (
+            <div className="text-center py-6 border border-dashed rounded-xl text-muted-foreground text-sm">
+              <Building className="w-7 h-7 mx-auto mb-2 opacity-30" />
+              No active locations found for this clinic.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(locations as any[]).map((loc) => (
+                <button
+                  key={loc.id}
+                  onClick={() => {
+                    setSelectedLocationId(loc.id);
+                    if (consultationMode) setTimeout(goNext, 150);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                    selectedLocationId === loc.id
+                      ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                      : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
+                  }`}
+                >
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    selectedLocationId === loc.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}>
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-semibold text-sm ${ selectedLocationId === loc.id ? "text-primary" : ""}`}>
+                      {loc.name || loc.address || "Location"}
+                    </p>
+                    {loc.address && loc.name && (
+                      <p className="text-xs text-muted-foreground truncate">{loc.address}</p>
+                    )}
+                  </div>
+                  {selectedLocationId === loc.id && (
+                    <Check className="w-4 h-4 text-primary shrink-0" />
                   )}
-                </div>
-                {selectedLocationId === loc.id && (
-                  <Check className="w-4 h-4 text-primary shrink-0" />
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Mode */}
       <div className="flex flex-col gap-2">
@@ -825,8 +1161,7 @@ export function BookAppointmentDialog({
               key={value}
               onClick={() => {
                 setConsultationMode(value);
-                // Auto-proceed if location is also selected
-                if (selectedLocationId) setTimeout(goNext, 150);
+                if (value === "VIDEO" || selectedLocationId) setTimeout(goNext, 150);
               }}
               className={`flex flex-col items-center gap-2 px-4 py-4 rounded-xl border transition-all ${
                 consultationMode === value
@@ -858,39 +1193,266 @@ export function BookAppointmentDialog({
         ? visibleServices
         : visibleServices.filter((t) => t.category === serviceFilter);
 
+    const handleCreateQuickPatient = async () => {
+      const firstName = newPatient.firstName.trim();
+      const lastName = newPatient.lastName.trim();
+      const phone = newPatient.phone.trim();
+
+      if (!firstName || !lastName || !phone) {
+        showErrorToast("First name, last name, and phone number are required");
+        return;
+      }
+
+      try {
+        const temporaryPassword = createTemporaryPatientPassword(phone);
+        const normalizedGender = normalizePatientGender(newPatient.gender);
+        const email = newPatient.email.trim();
+        const quickRegisterResult = await quickRegisterPatientMutation.mutateAsync({
+          ...(email ? { email } : {}),
+          password: temporaryPassword,
+          firstName,
+          lastName,
+          phone,
+          ...(normalizedGender ? { gender: normalizedGender } : {}),
+          ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
+          ...(newPatient.address.trim() ? { address: newPatient.address.trim() } : {}),
+        });
+        const userId =
+          (quickRegisterResult as any)?.user?.id ||
+          (quickRegisterResult as any)?.userId ||
+          (quickRegisterResult as any)?.id;
+        if (!userId) {
+          throw new Error("Quick registration completed without a usable patient ID");
+        }
+        const resolvedEmail =
+          (quickRegisterResult as any)?.generatedEmail || email || `patient.${phone.replace(/\D/g, "")}@clinic.local`;
+
+        const displayName = `${firstName} ${lastName}`.trim();
+        setSelectedPatientId(userId);
+        setPatientSearch(displayName);
+        setRecentlyCreatedPatient({ id: userId, displayName, phone, email: resolvedEmail });
+        setShowQuickCreatePatient(false);
+        setNewPatient({
+          firstName: "",
+          lastName: "",
+          phone: "",
+          email: "",
+          dateOfBirth: "",
+          gender: "",
+          address: "",
+        });
+
+        await queryClient.invalidateQueries({ queryKey: ["patients"], exact: false });
+        showSuccessToast(`Patient created successfully. Temporary password: ${temporaryPassword}`);
+      } catch (error) {
+        showErrorToast(error instanceof Error ? error.message : "Failed to create patient");
+      }
+    };
+
     return (
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">What type of consultation do you need?</p>
-        {["RECEPTIONIST", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole) ? (
-          <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-4">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Select Patient
-            </label>
-            <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Choose a patient for this booking" />
-              </SelectTrigger>
-              <SelectContent>
-                {patientsList.map((patient: any) => (
-                  <SelectItem key={patient.userId || patient.id} value={patient.userId || patient.id}>
-                    {patient.displayName}
-                    {patient.phone ? ` • ${patient.phone}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedPatient ? (
+        {isPrivilegedScheduler && (
+          <div className="space-y-3 rounded-2xl border border-border bg-muted/20 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Patient</p>
+                <p className="text-sm text-muted-foreground">Search an existing patient or register a new one before booking.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowQuickCreatePatient((value) => !value)}
+                className="gap-2 self-start"
+              >
+                <UserPlus className="h-4 w-4" />
+                {showQuickCreatePatient ? "Close quick add" : "Register New Patient"}
+              </Button>
+            </div>
+
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={patientSearch}
+                onChange={(event) => setPatientSearch(event.target.value)}
+                placeholder="Search by patient name, phone, or email"
+                className="h-11 pl-10"
+              />
+            </div>
+
+            {locationsFetching && (locations as any[]).length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Booking for {selectedPatient.displayName}
-                {selectedPatient.phone ? ` • ${selectedPatient.phone}` : ""}
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Receptionist bookings must be linked to an existing patient.
+                Refreshing location data in the background.
               </p>
             )}
+
+            <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+              {filteredPatientsList.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-6 text-center text-sm text-muted-foreground">
+                  No patient matches the search.
+                </div>
+              ) : (
+                filteredPatientsList.map((patient: any) => {
+                  const patientId = patient.userId || patient.id;
+                  const isSelected = selectedPatientId === patientId;
+                  return (
+                    <button
+                      key={patientId}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPatientId(patientId);
+                        setRecentlyCreatedPatient(null);
+                      }}
+                      className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
+                          : "border-border bg-card hover:border-emerald-300 hover:bg-muted/30"
+                      }`}
+                    >
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                        isSelected ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"
+                      }`}>
+                        {String(patient.displayName || "P").charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`truncate font-semibold ${isSelected ? "text-emerald-700 dark:text-emerald-300" : ""}`}>
+                          {patient.displayName}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {patient.phone || "No phone"}{patient.email ? ` - ${patient.email}` : ""}
+                        </p>
+                      </div>
+                      {isSelected && <Check className="h-4 w-4 text-emerald-600" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {showQuickCreatePatient && (
+              <Card className="border-emerald-200/70 bg-background/80 shadow-sm dark:border-emerald-900/50">
+                <CardContent className="space-y-4 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Quick register patient</p>
+                      <p className="text-xs text-muted-foreground">
+                        This creates the patient identity and profile, then returns you to booking.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">First name</Label>
+                      <Input
+                        value={newPatient.firstName}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, firstName: event.target.value }))}
+                        placeholder="John"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Last name</Label>
+                      <Input
+                        value={newPatient.lastName}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, lastName: event.target.value }))}
+                        placeholder="Doe"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone</Label>
+                      <Input
+                        value={newPatient.phone}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, phone: event.target.value }))}
+                        placeholder="+91 98765 43210"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email</Label>
+                      <Input
+                        type="email"
+                        value={newPatient.email}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, email: event.target.value }))}
+                        placeholder="patient@example.com"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date of birth</Label>
+                      <Input
+                        type="date"
+                        value={newPatient.dateOfBirth}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, dateOfBirth: event.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gender</Label>
+                      <Select value={newPatient.gender} onValueChange={(value) => setNewPatient((current) => ({ ...current, gender: value }))}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MALE">Male</SelectItem>
+                          <SelectItem value="FEMALE">Female</SelectItem>
+                          <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
+                      <Textarea
+                        value={newPatient.address}
+                        onChange={(event) => setNewPatient((current) => ({ ...current, address: event.target.value }))}
+                        placeholder="Street, city, state"
+                        className="min-h-20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowQuickCreatePatient(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                      onClick={handleCreateQuickPatient}
+                      disabled={quickRegisterPatientMutation.isPending}
+                    >
+                      {quickRegisterPatientMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4" />
+                          Create Patient
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {selectedPatient ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+                <span className="font-semibold">Booking for {selectedPatient.displayName}</span>
+                {selectedPatient.phone ? <span className="ml-2 opacity-80">- {selectedPatient.phone}</span> : null}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-3 text-sm text-muted-foreground">
+                Select or create a patient to continue booking.
+              </div>
+            )}
           </div>
-        ) : null}
+        )}
         {servicesLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -1047,6 +1609,7 @@ export function BookAppointmentDialog({
       { key: "afternoon" as const, label: "Afternoon", icon: <CloudSun className="w-4 h-4" />, range: "12pm – 5pm", slots: slotGroups.afternoon },
       { key: "evening" as const, label: "Evening", icon: <Moon className="w-4 h-4" />, range: "After 5pm", slots: slotGroups.evening },
     ];
+    const visiblePeriods = periods.filter((period) => period.slots.length > 0);
 
     if (consultationMode === "VIDEO") {
       return (
@@ -1055,16 +1618,35 @@ export function BookAppointmentDialog({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground">
-                  Select 3 slots
+                  Select 3-4 slots
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   15 min each. Doctor confirms one.
                 </p>
               </div>
               <div className="shrink-0 rounded-full bg-primary/12 text-primary px-2.5 py-1 text-[11px] font-bold border border-primary/15">
-                {selectedVideoSlots.length}/3
+                {selectedVideoSlots.length}/4
               </div>
             </div>
+
+            {showLiveSyncBanner ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                    liveSyncClasses
+                  )}
+                >
+                  {liveSyncMode === "live" ? (
+                    <Wifi className="h-3.5 w-3.5" />
+                  ) : (
+                    <WifiOff className="h-3.5 w-3.5" />
+                  )}
+                  {liveSyncLabel}
+                </span>
+                <span className="text-[11px] text-muted-foreground">{liveSyncDescription}</span>
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
               <span className="inline-flex items-center gap-1 font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 px-2 py-1 rounded-full border border-blue-200/70 dark:border-blue-900">
@@ -1079,7 +1661,7 @@ export function BookAppointmentDialog({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-              {[0, 1, 2].map((index) => {
+              {[0, 1, 2, 3].map((index) => {
                 const slot = selectedVideoSlots[index];
                 return (
                   <div
@@ -1131,58 +1713,56 @@ export function BookAppointmentDialog({
             </div>
           ) : (
             <div className="space-y-4">
-              {periods.map((period) =>
-                period.slots.length === 0 ? null : (
-                  <div key={period.key}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-muted-foreground">{period.icon}</span>
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{period.label}</span>
-                      <span className="text-[10px] text-muted-foreground">({period.range})</span>
-                      <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
-                        {period.slots.length} slots
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {period.slots.map((slot) => {
-                        const isSelected = selectedVideoSlots.includes(slot);
-                        const selectionLimitReached = !isSelected && selectedVideoSlots.length >= 3;
-
-                        return (
-                          <button
-                            key={slot}
-                            onClick={() => {
-                              setSelectedVideoSlots((current) => {
-                                if (current.includes(slot)) {
-                                  return current.filter((currentSlot) => currentSlot !== slot);
-                                }
-
-                                if (current.length >= 3) {
-                                  return current;
-                                }
-
-                                return [...current, slot];
-                              });
-                            }}
-                            disabled={selectionLimitReached}
-                            className={`py-2 px-2 rounded-lg border transition-all text-center flex flex-col items-center gap-0.5 ${
-                              isSelected
-                                ? "bg-emerald-500 text-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20"
-                                : selectionLimitReached
-                                  ? "bg-slate-100/80 border-slate-200 text-slate-400 dark:bg-slate-900/60 dark:border-slate-800 dark:text-slate-500 opacity-70 cursor-not-allowed"
-                                  : "bg-card border-border hover:border-primary/40 hover:bg-primary/5"
-                            }`}
-                          >
-                            <span className="text-xs font-semibold">{slot}</span>
-                            <span className={`text-[9px] font-medium ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
-                              {isSelected ? `Choice ${selectedVideoSlots.indexOf(slot) + 1}` : `${appointmentDurationMinutes} min`}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+              {visiblePeriods.map((period) => (
+                <div key={period.key} className="transition-all duration-200 ease-out">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-muted-foreground">{period.icon}</span>
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{period.label}</span>
+                    <span className="text-[10px] text-muted-foreground">({period.range})</span>
+                    <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
+                      {period.slots.length} slots
+                    </span>
                   </div>
-                )
-              )}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {period.slots.map((slot) => {
+                      const isSelected = selectedVideoSlots.includes(slot);
+                      const selectionLimitReached = !isSelected && selectedVideoSlots.length >= 4;
+
+                      return (
+                        <button
+                          key={slot}
+                          onClick={() => {
+                            setSelectedVideoSlots((current) => {
+                              if (current.includes(slot)) {
+                                return current.filter((currentSlot) => currentSlot !== slot);
+                              }
+
+                              if (current.length >= 4) {
+                                return current;
+                              }
+
+                              return [...current, slot];
+                            });
+                          }}
+                          disabled={selectionLimitReached}
+                          className={`py-2 px-2 rounded-lg border transition-all text-center flex flex-col items-center gap-0.5 ${
+                            isSelected
+                              ? "bg-emerald-500 text-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20"
+                              : selectionLimitReached
+                                ? "bg-slate-100/80 border-slate-200 text-slate-400 dark:bg-slate-900/60 dark:border-slate-800 dark:text-slate-500 opacity-70 cursor-not-allowed"
+                                : "bg-card border-border hover:border-primary/40 hover:bg-primary/5"
+                          }`}
+                        >
+                          <span className="text-xs font-semibold">{slot}</span>
+                          <span className={`text-[9px] font-medium ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
+                            {isSelected ? `Choice ${selectedVideoSlots.indexOf(slot) + 1}` : `${appointmentDurationMinutes} min`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -1196,6 +1776,24 @@ export function BookAppointmentDialog({
             Available slots for <span className="font-semibold text-foreground">{selectedDoctor?.name}</span> on{" "}
             <span className="font-semibold text-foreground">{selectedDate ? format(selectedDate, "d MMM") : ""}</span>
           </p>
+          {showLiveSyncBanner ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                  liveSyncClasses
+                )}
+              >
+                {liveSyncMode === "live" ? (
+                  <Wifi className="h-3.5 w-3.5" />
+                ) : (
+                  <WifiOff className="h-3.5 w-3.5" />
+                )}
+                {liveSyncLabel}
+              </span>
+              <span className="text-[11px] text-muted-foreground">{liveSyncDescription}</span>
+            </div>
+          ) : null}
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
               <Clock className="w-3 h-3" /> {appointmentDurationMinutes} min per slot
@@ -1225,41 +1823,39 @@ export function BookAppointmentDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            {periods.map((period) =>
-              period.slots.length === 0 ? null : (
-                <div key={period.key}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-muted-foreground">{period.icon}</span>
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{period.label}</span>
-                    <span className="text-[10px] text-muted-foreground">({period.range})</span>
-                    <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
-                      {period.slots.length} slots
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                    {period.slots.map((slot) => (
-                      <button
-                        key={slot}
-                        onClick={() => {
-                          setSelectedSlot(slot);
-                          setTimeout(goNext, 150);
-                        }}
-                        className={`py-2 px-2 rounded-xl border transition-all text-center flex flex-col items-center gap-0.5 ${
-                          selectedSlot === slot
-                            ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/20"
-                            : "bg-card border-border hover:border-primary/50 hover:bg-primary/5"
-                        }`}
-                      >
-                        <span className="text-xs font-semibold">{slot}</span>
-                        <span className={`text-[9px] font-medium ${selectedSlot === slot ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                          {appointmentDurationMinutes} min
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+            {visiblePeriods.map((period) => (
+              <div key={period.key} className="transition-all duration-200 ease-out">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-muted-foreground">{period.icon}</span>
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{period.label}</span>
+                  <span className="text-[10px] text-muted-foreground">({period.range})</span>
+                  <span className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
+                    {period.slots.length} slots
+                  </span>
                 </div>
-              )
-            )}
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {period.slots.map((slot) => (
+                    <button
+                      key={slot}
+                      onClick={() => {
+                        setSelectedSlot(slot);
+                        setTimeout(goNext, 150);
+                      }}
+                      className={`py-2 px-2 rounded-xl border transition-all text-center flex flex-col items-center gap-0.5 ${
+                        selectedSlot === slot
+                          ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/20"
+                          : "bg-card border-border hover:border-primary/50 hover:bg-primary/5"
+                      }`}
+                    >
+                      <span className="text-xs font-semibold">{slot}</span>
+                      <span className={`text-[9px] font-medium ${selectedSlot === slot ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                        {appointmentDurationMinutes} min
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -1294,6 +1890,55 @@ export function BookAppointmentDialog({
           </div>
         ))}
       </div>
+
+      {consultationMode === "VIDEO" && shouldCollectVideoPayment && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Video visit fee</p>
+            <p className="text-lg font-bold text-foreground">INR {videoPaymentAmount.toFixed(0)}</p>
+          </div>
+          <p className="text-xs text-emerald-700 dark:text-emerald-300">
+            Submit the request first, then pay to unlock doctor confirmation.
+          </p>
+        </div>
+      )}
+
+      {isPatientInPersonBooking && (
+        <div
+          className={`rounded-2xl border p-4 space-y-2 ${
+            needsSubscriptionPlan
+              ? "border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
+              : "border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/30"
+          }`}
+        >
+          <p
+            className={`text-sm font-semibold ${
+              needsSubscriptionPlan
+                ? "text-amber-800 dark:text-amber-200"
+                : "text-blue-800 dark:text-blue-200"
+            }`}
+          >
+            {isSubscriptionGateLoading
+              ? "Checking your plan"
+              : needsSubscriptionPlan
+              ? "Plan required"
+              : "Plan check"}
+          </p>
+          <p
+            className={`text-xs ${
+              needsSubscriptionPlan
+                ? "text-amber-700 dark:text-amber-300"
+                : "text-blue-700 dark:text-blue-300"
+            }`}
+          >
+            {isSubscriptionGateLoading
+              ? "We’re checking your plan before booking this in-person appointment."
+              : needsSubscriptionPlan
+              ? "You need an active plan for this clinic to continue."
+              : "We’ll verify your plan before confirming this appointment."}
+          </p>
+        </div>
+      )}
 
       {/* Additional fields */}
       <div className="space-y-3">
@@ -1336,14 +1981,14 @@ export function BookAppointmentDialog({
       <div className="text-center">
         <h3 className="text-lg font-bold">
           {consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
-            ? "Complete Payment to Confirm"
+            ? "Pay to Continue"
             : consultationMode === "VIDEO"
             ? "Video Appointment Request Sent"
-            : "Appointment Confirmed!"}
+            : "Appointment Booked!"}
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
           {consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
-            ? "Your preferred slots are saved. Complete the payment below so the request can be finalized from your side."
+            ? "Your preferred slots are saved. Pay below so the doctor can review and confirm one of them."
             : consultationMode === "VIDEO"
             ? "Your 3 preferred slots were sent to the doctor. One of them will be confirmed."
             : "Your appointment has been booked successfully."}
@@ -1355,12 +2000,12 @@ export function BookAppointmentDialog({
           <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <Video className="w-4 h-4" />
             {requiresVideoPayment && !videoPaymentCompleted
-              ? "Payment Required"
+              ? "Payment required"
               : "Video Slot Proposal Submitted"}
           </div>
           <p className="text-xs text-muted-foreground text-center">
             {requiresVideoPayment && !videoPaymentCompleted
-              ? "The doctor can review your selected slots after payment is completed. Once paid, you can track the request from your appointments page."
+              ? "The doctor can review your selected slots after payment is completed."
               : "The doctor will review your selected slots and confirm one. You can track the status from your appointments page."}
           </p>
           <div className="w-full rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-3 text-center text-sm text-blue-700 dark:text-blue-300">
@@ -1382,13 +2027,14 @@ export function BookAppointmentDialog({
                 amount={videoPaymentAmount}
                 description={selectedService?.label || "Video consultation"}
                 className="w-full"
+                autoStart
                 onSuccess={() => {
                   setRequiresVideoPayment(false);
                   setVideoPaymentCompleted(true);
                   onBooked?.();
                 }}
               >
-                Complete Payment
+                Pay now
               </PaymentButton>
             </div>
           ) : null}
@@ -1422,6 +2068,22 @@ export function BookAppointmentDialog({
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 font-bold">3.</span>
                 <span>You can open the check-in page anytime from the button below.</span>
+              </div>
+            </div>
+          )}
+          {shouldCollectVideoPayment && (
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 p-3 text-xs text-emerald-900 dark:text-emerald-100 space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 font-bold">1.</span>
+                <span>Submit the request with your preferred slots.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 font-bold">2.</span>
+                <span>Complete payment for this video appointment.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 font-bold">3.</span>
+                <span>The doctor can then confirm one of your proposed slots.</span>
               </div>
             </div>
           )}
@@ -1472,7 +2134,7 @@ export function BookAppointmentDialog({
               }
             }}
           >
-            {postBookingLabel}
+            {isPatientInPersonFlow ? "View Check-in Status" : postBookingLabel}
           </Button>
         )}
       </div>
@@ -1500,14 +2162,14 @@ export function BookAppointmentDialog({
     "Confirm Appointment",
     consultationMode === "VIDEO" && requiresVideoPayment && !videoPaymentCompleted
       ? "Complete Payment"
-      : "Booking Confirmed! 🎉",
+      : "Booking Complete! 🎉",
   ][step - 1];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white rounded-xl px-6 py-6 font-semibold shadow-glow-subtle hover:shadow-glow-medium transition-all transform hover:-translate-y-0.5 active:scale-95">
+          <Button className="flex items-center gap-2 rounded-xl border-0 bg-emerald-600 px-6 py-6 font-semibold text-white shadow-glow-subtle transition-all hover:bg-emerald-700 hover:shadow-glow-medium transform hover:-translate-y-0.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500/30">
             <Plus className="w-5 h-5" />
             Book Appointment
           </Button>
@@ -1515,12 +2177,11 @@ export function BookAppointmentDialog({
       </DialogTrigger>
 
       <DialogContent className="
-        w-full max-w-none sm:max-w-md
-        h-dvh sm:h-[650px]
-        flex flex-col p-0 gap-0 overflow-hidden
-        rounded-none sm:rounded-2xl
-        top-0 sm:top-1/2 left-0 sm:left-1/2
-        translate-y-0 sm:-translate-y-1/2 sm:-translate-x-1/2
+        top-0 left-0 h-[100dvh] w-[100vw] max-w-none translate-x-0 translate-y-0
+        flex flex-col gap-0 overflow-hidden rounded-none border-0 p-0
+        md:top-1/2 md:left-1/2 md:h-[90dvh] md:w-[min(78vw,48rem)] md:max-w-2xl
+        lg:top-1/2 lg:left-1/2 lg:h-[90dvh] lg:w-[min(66vw,42rem)] lg:max-w-xl
+        sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border
       ">
         {/* Header */}
         <div className="px-4 sm:px-5 pt-4 pb-3 border-b shrink-0">
@@ -1546,35 +2207,38 @@ export function BookAppointmentDialog({
 
         {/* Footer — hide on success screen */}
         {step < 7 && (
-          <div className="px-4 sm:px-6 py-4 border-t bg-background flex items-center gap-4 shrink-0">
+          <div className="px-4 sm:px-6 py-4 border-t bg-background flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:gap-4 shrink-0">
             <Button
               variant="outline"
               onClick={step > 1 ? goBack : () => setOpen(false)}
-              className="h-11 px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2"
+              className="h-11 w-full px-6 rounded-xl border-border/50 transition-all active:scale-95 gap-2 sm:w-auto"
             >
               <ChevronLeft className="w-4 h-4" /> {step > 1 ? "Back" : "Cancel"}
             </Button>
-            
-            <div className="flex-1" />
+            <div className="hidden flex-1 sm:block" />
 
             {step < 6 ? (
               <Button
                 onClick={goNext}
                 disabled={!canNext}
-                className="h-11 px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2"
+                className="h-11 w-full px-8 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
               >
                 Continue <ArrowRight className="w-4 h-4" />
               </Button>
             ) : (
               <Button
                 onClick={handleBook}
-                disabled={consultationMode === "VIDEO" ? isProposingVideoAppointment : isCreatingInPersonAppointment}
-                className="h-11 px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2"
+                disabled={
+                  consultationMode === "VIDEO"
+                    ? isProposingVideoAppointment
+                    : isCreatingInPersonAppointment || isSubscriptionGateLoading
+                }
+                className="h-11 w-full px-8 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-glow-subtle hover:shadow-glow-medium transition-all active:scale-95 gap-2 sm:w-auto"
               >
-                {(consultationMode === "VIDEO" ? isProposingVideoAppointment : isCreatingInPersonAppointment) ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> {consultationMode === "VIDEO" ? "Sending request..." : "Booking..."}</>
+                {(consultationMode === "VIDEO" ? isProposingVideoAppointment : isCreatingInPersonAppointment || isSubscriptionGateLoading) ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> {consultationMode === "VIDEO" ? "Preparing request..." : "Checking plan..."}</>
                 ) : (
-                  <><Check className="w-4 h-4" /> {consultationMode === "VIDEO" ? "Send Video Request" : "Confirm & Book"}</>
+                  <><Check className="w-4 h-4" /> {consultationMode === "VIDEO" ? (shouldCollectVideoPayment ? `Send request • Pay INR ${videoPaymentAmount.toFixed(0)}` : "Send video request") : needsSubscriptionPlan ? "Choose plan to continue" : "Confirm & Book"}</>
                 )}
               </Button>
             )}

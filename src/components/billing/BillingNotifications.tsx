@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Bell, BellRing, X, CheckCircle, AlertCircle, Info, Receipt, DollarSign, TrendingUp } from "lucide-react";
 import { showSuccessToast, showErrorToast } from "@/hooks/utils/use-toast";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 interface BillingNotification {
   id: string;
@@ -193,7 +194,7 @@ export function BillingNotifications({ onMarkAsRead, onClearAll }: BillingNotifi
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 30) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+    return formatDateInIST(date);
   };
 
   return (

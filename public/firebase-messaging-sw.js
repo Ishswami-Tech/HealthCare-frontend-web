@@ -27,9 +27,6 @@ self.addEventListener("message", (event) => {
 // Initialize Firebase
 function initializeFirebase() {
   if (!firebaseConfig || !firebaseConfig.apiKey || !firebaseConfig.projectId) {
-    console.warn(
-      "[firebase-messaging-sw.js] Firebase config not available or incomplete"
-    );
     return;
   }
 

@@ -45,6 +45,23 @@ export interface ParticipantInfo {
   displayName?: string;
 }
 
+export function normalizeOpenViduServerUrl(value: string): string {
+  const raw = value.trim();
+  if (!raw) {
+    return raw;
+  }
+
+  try {
+    const parsed = new URL(
+      /^https?:\/\//i.test(raw) || /^wss?:\/\//i.test(raw) ? raw : `https://${raw}`
+    );
+    const keepPort = parsed.port.length > 0 ? `:${parsed.port}` : '';
+    return `${parsed.protocol}//${parsed.hostname}${keepPort}`;
+  } catch {
+    return raw.replace(/\/+$/, '');
+  }
+}
+
 // ✅ OpenVidu API Integration
 export class OpenViduAPI {
   private session: Session | null = null;
@@ -58,6 +75,62 @@ export class OpenViduAPI {
     this.openvidu = new OpenVidu();
   }
 
+  private normalizeTokenUrl(token: string): string {
+    const openviduServerUrl = normalizeOpenViduServerUrl(this.config.openviduServerUrl || '');
+    if (!openviduServerUrl) {
+      return token;
+    }
+
+    try {
+      const tokenUrl = new URL(token);
+      const serverBase = new URL(
+        /^https?:\/\//i.test(openviduServerUrl) || /^wss?:\/\//i.test(openviduServerUrl)
+          ? openviduServerUrl
+          : `https://${openviduServerUrl}`
+      );
+
+      const normalizedProtocol =
+        serverBase.protocol === 'http:'
+          ? 'ws:'
+          : serverBase.protocol === 'https:'
+            ? 'wss:'
+            : serverBase.protocol === 'ws:'
+              ? 'ws:'
+              : serverBase.protocol === 'wss:'
+              ? 'wss:'
+              : tokenUrl.protocol;
+
+      const serverHostname = serverBase.hostname;
+      const serverPort = serverBase.port;
+      const tokenHostnameMatchesServer = tokenUrl.hostname === serverHostname;
+      const tokenPortMatchesServer = tokenUrl.port === serverPort;
+      const isLoopbackHost = /^(localhost|127\.0\.0\.1|\[::1\]|::1)$/i.test(tokenUrl.hostname);
+
+      // Rewrite the browser-facing endpoint to the configured public OpenVidu origin.
+      // This avoids leaking an internal :4443 origin into the client when the app is
+      // deployed behind a reverse proxy / CDN that serves OpenVidu over the public host.
+      if (tokenHostnameMatchesServer && tokenPortMatchesServer && tokenUrl.protocol === normalizedProtocol) {
+        return token;
+      }
+
+      tokenUrl.protocol = normalizedProtocol;
+      tokenUrl.hostname = serverHostname;
+      if (serverPort) {
+        tokenUrl.port = serverPort;
+      } else {
+        tokenUrl.port = '';
+      }
+
+      if (!serverPort && isLoopbackHost) {
+        tokenUrl.port = '';
+      }
+
+      return tokenUrl.toString();
+    } catch {
+      return token;
+    }
+  }
+
   // ✅ Initialize OpenVidu Session
   async initialize(): Promise<void> {
     try {
@@ -68,7 +141,8 @@ export class OpenViduAPI {
       this.setupEventListeners();
 
       // Connect to session
-      await this.session.connect(this.config.token, {
+      const connectionToken = this.normalizeTokenUrl(this.config.token);
+      await this.session.connect(connectionToken, {
         clientData: JSON.stringify({
           displayName: this.config.userInfo.displayName,
           email: this.config.userInfo.email,
@@ -376,7 +450,6 @@ export class VideoAppointmentService {
     try {
       if (this.currentCall) {
         await this.currentCall.endCall();
-        await this.currentCall.dispose();
         this.currentCall = null;
       }
     } catch (error) {

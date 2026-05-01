@@ -7,10 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCurrentClinic, useClinicStats, useActiveLocations } from "@/hooks/query/useClinics";
 import { useMedicineDeskQueue } from "@/hooks/query/usePharmacy";
-import { useRealTimeAppointments, useRealTimeQueueStatus } from "@/hooks/realtime/useRealTimeQueries";
+import { useQueue } from "@/hooks/query/useQueue";
+import { useRealTimeAppointments } from "@/hooks/realtime/useRealTimeQueries";
 import { cn } from "@/lib/utils";
-import { getQueuePositionLabel, normalizeQueueEntry } from "@/lib/queue/queue-adapter";
+import {
+  extractQueueEntries,
+  getQueuePositionLabel,
+  getQueueStatusLabel,
+  normalizeQueueEntry,
+  resolveQueueDisplayLabel,
+} from "@/lib/queue/queue-adapter";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { formatDateTimeInIST } from "@/lib/utils/date-time";
 import {
   Settings,
   Clock,
@@ -39,20 +47,18 @@ export default function ClinicAdminDashboard() {
   const { data: appointmentsData } = useRealTimeAppointments({
     limit: 100,
   });
-  const { isPending: isLoadingQueue } = useRealTimeQueueStatus(undefined, locationId);
+  const { data: liveQueueData, isPending: isLoadingQueue } = useQueue(clinicId || undefined, {
+    enabled: !!clinicId,
+  });
   const { data: medicineDeskQueue = [] } = useMedicineDeskQueue(clinicId || "", !!clinicId);
 
   const appointments = (appointmentsData as any)?.data || [];
   const queueItems = useMemo(
     () =>
-      appointments
-        .filter((item: any) => ["CONFIRMED", "IN_PROGRESS"].includes(String(item.status || "").toUpperCase()))
-        .sort((a: any, b: any) => {
-          const aToken = typeof a.queuePosition === "number" ? a.queuePosition : 9999;
-          const bToken = typeof b.queuePosition === "number" ? b.queuePosition : 9999;
-          return aToken - bToken;
-        }),
-    [appointments]
+      extractQueueEntries(liveQueueData)
+        .filter((item) => !["COMPLETED", "CANCELLED", "NO_SHOW"].includes(String(item.status || "").toUpperCase()))
+        .sort((a, b) => a.position - b.position),
+    [liveQueueData]
   );
 
   const stats = useMemo(() => {
@@ -73,8 +79,8 @@ export default function ClinicAdminDashboard() {
       id: apt.id,
       type: "appointment",
       message: `Appointment scheduled for ${apt.patient?.name || apt.patient?.firstName || apt.patientName || "a patient"}`,
-      time: new Date(apt.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      date: new Date(apt.createdAt).toLocaleDateString(),
+      time: formatDateTimeInIST(apt.createdAt || Date.now(), { hour: "2-digit", minute: "2-digit" }, "en-IN"),
+      date: formatDateTimeInIST(apt.createdAt, { day: "2-digit", month: "short", year: "numeric" }, "en-IN"),
     }));
   }, [appointments]);
 
@@ -132,7 +138,7 @@ export default function ClinicAdminDashboard() {
   }
 
   return (
-    <DashboardPageShell className="min-h-screen bg-transparent p-4 sm:p-8 sm:space-y-8">
+    <DashboardPageShell className="min-h-screen bg-transparent p-4 sm:p-6 sm:space-y-6">
       <DashboardPageHeader
         eyebrow="Clinic Admin"
         title="Control Hub"
@@ -150,15 +156,21 @@ export default function ClinicAdminDashboard() {
               variant="ghost"
               size="sm"
               onClick={() => refetchStats()}
-              className="h-10 px-4 font-bold flex items-center gap-2"
+              className="h-10 px-4 font-bold flex items-center gap-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200 dark:hover:bg-blue-950/40"
             >
               <RefreshCcw className="w-4 h-4" />
               Sync Data
             </Button>
-            <Button asChild className="h-10 px-6 font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-2 rounded-xl">
+            <Button asChild className="h-10 px-6 font-bold shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">
               <Link href="/clinic-admin/schedule">
                 <Plus className="w-4 h-4" />
                 Manage Schedule
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-10 px-6 font-bold flex items-center gap-2 rounded-xl border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50">
+              <Link href="/queue">
+                <Activity className="w-4 h-4" />
+                Open Queue Workspace
               </Link>
             </Button>
           </div>
@@ -219,7 +231,7 @@ export default function ClinicAdminDashboard() {
             isUp: medicineDeskItems.filter((item) => item.paymentStatus === "PAID").length > 0
           }
         ].map((item, i) => (
-          <Card key={i} className="group border-none shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
+          <Card key={i} className={cn("group border-none shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden ring-1", item.bg, "ring-neutral-200 dark:ring-neutral-800")}>
             <div className={cn("h-1 w-full opacity-30 group-hover:opacity-100 transition-opacity", item.color.replace('text', 'bg'))} />
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -248,7 +260,7 @@ export default function ClinicAdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-foreground">
         {/* Live Queue Tracker */}
-        <Card className="lg:col-span-8 border-none shadow-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
+        <Card className="lg:col-span-8 border-none shadow-lg bg-blue-50/60 dark:bg-blue-950/10 ring-1 ring-blue-100 dark:ring-blue-900 overflow-hidden">
           <CardHeader className="p-6 border-b bg-neutral-50/50 dark:bg-neutral-900/50 flex flex-row items-center justify-between">
             <div className="space-y-1">
               <CardTitle className="text-xl font-black flex items-center gap-2">
@@ -268,28 +280,25 @@ export default function ClinicAdminDashboard() {
               </div>
             ) : queueItems.length > 0 ? (
               <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                {queueItems.map((item: any, idx: number) => (
-                  <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors group">
+                {queueItems.map((item, idx: number) => (
+                  <div key={item.entryId || item.appointmentId || idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors group">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary/10 to-blue-500/10 flex items-center justify-center font-black text-primary text-sm shadow-sm group-hover:scale-110 transition-transform">
-                        {item.tokenNumber || item.queuePosition || idx + 1}
+                        {item.tokenNumber || item.position || idx + 1}
                       </div>
                         <div>
                           <h4 className="font-bold text-sm">{item.patientName || "Walk-in Patient"}</h4>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-[10px] font-bold uppercase text-muted-foreground">
-                              {item.doctorName || "Unassigned Doctor"}
-                              {String(item.doctorRole || "").toUpperCase() === "ASSISTANT_DOCTOR"
-                                ? " (ASSISTANT)"
-                                : ""}
+                              {item.doctorName || (item.assignedDoctorId ? "Assigned Doctor" : "Unassigned Doctor")}
                             </span>
                             <span className="w-1 h-1 bg-neutral-300 rounded-full" />
                             <span className="text-[10px] font-bold uppercase text-primary/80">
-                              {item.serviceType || item.type || item.treatmentType || "Consultation"}
+                              {resolveQueueDisplayLabel(item)}
                             </span>
                             {item.primaryDoctorId &&
                             String(item.primaryDoctorId) !==
-                              String(item.assignedDoctorId || item.doctorId || "") ? (
+                              String(item.assignedDoctorId || "") ? (
                               <>
                                 <span className="w-1 h-1 bg-neutral-300 rounded-full" />
                                 <span className="text-[10px] font-bold uppercase text-amber-600">
@@ -303,7 +312,7 @@ export default function ClinicAdminDashboard() {
                     <div className="flex items-center gap-6">
                       <div className="text-right hidden sm:block">
                         <p className="text-xs font-bold">
-                          {item.checkInTime || item.checkedInAt || item.time || "Now"}
+                          {item.appointmentTime || item.checkedInAt || item.startedAt || "Now"}
                         </p>
                         <p className="text-[10px] font-bold text-muted-foreground uppercase">
                           {typeof item.waitTime === "number" ? `${item.waitTime}m wait` : item.waitTime || "Live queue"}
@@ -311,13 +320,13 @@ export default function ClinicAdminDashboard() {
                       </div>
                       <Badge className={cn(
                         "rounded-lg border-none px-3 py-1 text-[10px] font-black uppercase tracking-widest",
-                        item.status === "IN_PROGRESS"
+                        String(item.status || "").toUpperCase() === "IN_PROGRESS"
                           ? "bg-blue-500 text-white"
-                          : item.status === "CONFIRMED"
+                          : String(item.status || "").toUpperCase() === "CONFIRMED"
                             ? "bg-emerald-500 text-white"
                             : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
                       )}>
-                        {item.status === "CONFIRMED" ? "QUEUED" : item.status || "WAITING"}
+                        {getQueueStatusLabel(item)}
                       </Badge>
                     </div>
                   </div>
@@ -345,7 +354,7 @@ export default function ClinicAdminDashboard() {
         {/* Sidebar Insights */}
         <div className="lg:col-span-4 space-y-8 text-neutral-900">
           {/* Recent Performance */}
-          <Card className="border-none shadow-lg bg-blue-600 text-white overflow-hidden relative">
+        <Card className="border-none shadow-lg bg-blue-600 text-white overflow-hidden relative">
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <TrendingUp className="w-24 h-24" />
             </div>
@@ -365,7 +374,7 @@ export default function ClinicAdminDashboard() {
               </div>
               <div className="flex gap-4">
                 <div className="flex-1 p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
-                  <p className="text-[10px] font-black uppercase text-white/60 mb-1">Queued</p>
+                  <p className="text-[10px] font-black uppercase text-white/60 mb-1">Confirmed</p>
                   <p className="text-xl font-black">{queueItems.length}</p>
                 </div>
                 <div className="flex-1 p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
@@ -377,7 +386,7 @@ export default function ClinicAdminDashboard() {
           </Card>
 
           {/* Activity Log */}
-          <Card className="border-none shadow-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800">
+          <Card className="border-none shadow-lg bg-purple-50/60 dark:bg-purple-950/10 ring-1 ring-purple-100 dark:ring-purple-900">
             <CardHeader className="p-6 border-b">
               <CardTitle className="text-lg font-black flex items-center gap-2">
                 <Activity className="w-5 h-5 text-purple-600" />
@@ -406,7 +415,7 @@ export default function ClinicAdminDashboard() {
         </div>
       </div>
 
-      <Card className="border-none shadow-lg bg-white dark:bg-neutral-900 ring-1 ring-neutral-200 dark:ring-neutral-800 overflow-hidden">
+      <Card className="border-none shadow-lg bg-amber-50/60 dark:bg-amber-950/10 ring-1 ring-amber-100 dark:ring-amber-900 overflow-hidden">
         <CardHeader className="p-6 border-b bg-neutral-50/50 dark:bg-neutral-900/50">
           <CardTitle className="text-xl font-black flex items-center gap-2">
             <Activity className="w-5 h-5 text-amber-600" />
@@ -438,7 +447,7 @@ export default function ClinicAdminDashboard() {
                           : "bg-amber-500 text-white"
                       }
                     >
-                      {item.paymentStatus === "PAID" ? "Paid" : "Awaiting Payment"}
+                      {item.paymentStatus === "PAID" ? "Payment verified" : "Payment pending"}
                     </Badge>
                     {item.pendingAmount > 0 ? (
                       <span className="text-sm font-medium text-muted-foreground">

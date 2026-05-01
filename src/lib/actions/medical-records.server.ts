@@ -1,6 +1,7 @@
 'use server';
 
 import { authenticatedApi } from './auth.server';
+import { updatePrescription as updatePrescriptionAction } from './prescriptions.server';
 import { API_ENDPOINTS } from '../config/config';
 
 // ===== MEDICAL RECORDS MANAGEMENT =====
@@ -175,25 +176,7 @@ export async function updatePrescription(prescriptionId: string, updates: {
   notes?: string;
   status?: 'active' | 'completed' | 'cancelled' | 'PENDING' | 'FILLED' | 'CANCELLED';
 }) {
-  // Backend status endpoint only accepts { status: PrescriptionStatus }
-  if (updates.status) {
-    const statusMap: Record<string, string> = {
-      active: 'PENDING',
-      completed: 'FILLED',
-      cancelled: 'CANCELLED',
-      PENDING: 'PENDING',
-      FILLED: 'FILLED',
-      CANCELLED: 'CANCELLED',
-    };
-    const backendStatus = statusMap[updates.status] || updates.status;
-    const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.UPDATE(prescriptionId), {
-      method: 'PATCH',
-      body: JSON.stringify({ status: backendStatus }),
-    });
-    return data;
-  }
-  // Backend does not support updating medicines/notes - return success for backward compatibility
-  return { id: prescriptionId, ...updates };
+  return updatePrescriptionAction(prescriptionId, updates);
 }
 
 /**
@@ -208,8 +191,15 @@ export async function getPrescriptionById(prescriptionId: string) {
  * Generate prescription PDF
  */
 export async function generatePrescriptionPDF(prescriptionId: string) {
-  const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.GENERATE_PDF(prescriptionId));
-  return data;
+  const { data } = await authenticatedApi(API_ENDPOINTS.PRESCRIPTIONS.GET_BY_ID(prescriptionId));
+  const prescription = data as { pdfUrl?: string; url?: string } | undefined;
+  const pdfUrl = prescription?.pdfUrl || prescription?.url;
+
+  if (!pdfUrl) {
+    throw new Error('Prescription PDF is not available from the backend yet');
+  }
+
+  return { pdfUrl };
 }
 
 // ===== MEDICINES MANAGEMENT =====

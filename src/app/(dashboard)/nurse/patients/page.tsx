@@ -16,9 +16,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useNursePatients } from "@/hooks/query/useNurse";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 export default function NursePatients() {
   const { user } = useAuth();
@@ -32,7 +33,7 @@ export default function NursePatients() {
   const { isPending } = useNursePatients({ nurseId } as any);
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['nursePatients', nurseId]]);
+  useWebSocketQuerySync();
 
   const filteredPatients = patients.filter((patient: any) => {
     return (
@@ -133,7 +134,7 @@ export default function NursePatients() {
                         </div>
                         <p className="text-sm text-gray-600">{patient.condition || "Treatment"}</p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                          <span>Admitted: {patient.admissionDate ? new Date(patient.admissionDate).toLocaleDateString("en-IN") : "TBA"}</span>
+                          <span>Admitted: {patient.admissionDate ? formatDateInIST(patient.admissionDate) : "TBA"}</span>
                           <span>Doctor: {patient.doctor || "TBA"}</span>
                         </div>
                       </div>

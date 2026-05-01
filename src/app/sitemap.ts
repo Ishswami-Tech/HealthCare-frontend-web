@@ -1,9 +1,9 @@
+import { nowIso } from '@/lib/utils/date-time';
 import { MetadataRoute } from 'next';
 import { baseSEO } from '@/lib/config/seo';
-
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = baseSEO.siteUrl;
-  const currentDate = new Date().toISOString();
+  const currentDate = nowIso();
 
   // Static routes with priorities and change frequencies
   const staticRoutes = [

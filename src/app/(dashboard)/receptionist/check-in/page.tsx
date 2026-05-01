@@ -19,11 +19,22 @@ import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { useAppointments, useCheckInAppointment } from "@/hooks/query/useAppointments";
+import { useAppointments, useForceCheckInAppointment } from "@/hooks/query/useAppointments";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import {
+  getAppointmentStatusDisplayName,
+  getReceptionistAppointmentDateLabel,
+  getReceptionistAppointmentTimeLabel,
+} from "@/lib/utils/appointmentUtils";
+import { getAppointmentViewState } from "@/lib/utils/appointmentUtils";
+import { formatDateInIST } from "@/lib/utils/date-time";
+
 
 interface AppointmentListItem {
   id: string;
+  locationId?: string;
   status?: string;
   type?: string;
   date?: string;
@@ -31,6 +42,7 @@ interface AppointmentListItem {
   startTime?: string;
   time?: string;
   payment?: { status?: string };
+  checkedInAt?: string | null;
   patientName?: string;
   patientPhone?: string;
   doctorName?: string;
@@ -60,6 +72,7 @@ interface AppointmentListItem {
 
 interface CheckInRow {
   id: string;
+  locationId?: string;
   patientName: string;
   patientPhone: string;
   doctorName: string;
@@ -101,71 +114,35 @@ const getPersonName = (
 const getPatientPhone = (appointment: AppointmentListItem) =>
   appointment.patientPhone || appointment.patient?.phone || appointment.patient?.user?.phone || "";
 
-const getDisplayTime = (appointment: AppointmentListItem) => {
-  if (appointment.startTime) {
-    const parsed = new Date(appointment.startTime);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-    }
-  }
-
-  if (appointment.time && /^\d{2}:\d{2}/.test(appointment.time)) {
-    const parsed = new Date(`2000-01-01T${appointment.time.slice(0, 5)}:00`);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-    }
-  }
-
-  return "-";
-};
-
-const getDisplayDate = (appointment: AppointmentListItem) => {
-  const appointmentDateValue =
-    appointment.startTime ||
-    appointment.appointmentDate ||
-    (appointment.date ? `${appointment.date}T${appointment.time || "00:00"}` : null);
-
-  if (!appointmentDateValue) return "-";
-
-  const parsed = new Date(appointmentDateValue);
-  if (Number.isNaN(parsed.getTime())) return "-";
-
-  return parsed.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
 
 export default function ReceptionistCheckInPage() {
-  useAuth();
+  const { session } = useAuth();
+  useWebSocketQuerySync();
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const [confirmedAppointmentIds, setConfirmedAppointmentIds] = useState<string[]>([]);
   const todayDate = getTodayDateInIst();
-  const checkInMutation = useCheckInAppointment();
+  const forceCheckInMutation = useForceCheckInAppointment();
+  const assignedLocationId = useMemo(() => {
+    const user = session?.user as Record<string, unknown> | undefined;
+    const candidate =
+      (typeof user?.locationId === "string" ? user.locationId : "") ||
+      (typeof user?.clinicLocationId === "string" ? user.clinicLocationId : "") ||
+      (typeof user?.assignedLocationId === "string" ? user.assignedLocationId : "");
+    return candidate || null;
+  }, [session?.user]);
 
   const { data: appointmentsData, isPending: isLoading, refetch } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
     date: todayDate,
+    ...(assignedLocationId ? { locationId: assignedLocationId } : {}),
     limit: 100,
   });
 
   const appointments: AppointmentListItem[] = Array.isArray(appointmentsData)
     ? appointmentsData
     : appointmentsData?.appointments || [];
-
-  const canConfirmArrival = (appointment: AppointmentListItem) =>
-    ["SCHEDULED"].includes((appointment.status || "").toUpperCase()) &&
-    String(appointment.type || "").toUpperCase() !== "VIDEO_CALL";
 
   const filteredAppointments = useMemo(
     () =>
@@ -174,46 +151,72 @@ export default function ReceptionistCheckInPage() {
         const doctorName = getPersonName(apt.doctor, apt.doctorName);
         const patientPhone = getPatientPhone(apt);
         const normalizedSearch = searchTerm.toLowerCase();
+        const rowLocationId = apt.locationId || assignedLocationId || undefined;
+
+        const matchesLocation =
+          !assignedLocationId || rowLocationId === assignedLocationId;
 
         return (
-          !searchTerm ||
-          patientName.toLowerCase().includes(normalizedSearch) ||
-          doctorName.toLowerCase().includes(normalizedSearch) ||
-          patientPhone.includes(searchTerm)
+          matchesLocation &&
+          (
+            !searchTerm ||
+            patientName.toLowerCase().includes(normalizedSearch) ||
+            doctorName.toLowerCase().includes(normalizedSearch) ||
+            patientPhone.includes(searchTerm)
+          )
         );
       }),
-    [appointments, searchTerm]
+    [appointments, assignedLocationId, searchTerm]
   );
 
   const checkInRows = useMemo<CheckInRow[]>(
     () =>
       filteredAppointments.map((apt) => {
+        const viewState = getAppointmentViewState(apt);
         const status = apt.status || "Scheduled";
         const normalizedStatus = String(status).toUpperCase();
+        const rowLocationId = apt.locationId || assignedLocationId || undefined;
+        const isRecentlyCheckedIn = confirmedAppointmentIds.includes(apt.id);
+        const isConfirmedArrival = isRecentlyCheckedIn || Boolean(apt.checkedInAt);
 
         return {
           id: apt.id,
+          ...(rowLocationId ? { locationId: rowLocationId } : {}),
           patientName: getPersonName(apt.patient, apt.patientName) || "Unknown",
           patientPhone: getPatientPhone(apt),
           doctorName: getPersonName(apt.doctor, apt.doctorName) || "Unknown",
-          dateLabel: getDisplayDate(apt),
-          timeLabel: getDisplayTime(apt),
+          dateLabel: getReceptionistAppointmentDateLabel(apt as unknown as Record<string, unknown>),
+          timeLabel: getReceptionistAppointmentTimeLabel(apt as unknown as Record<string, unknown>),
           status,
-          paymentStatus: String(apt.payment?.status || "N/A").toUpperCase(),
-          canCheckIn: canConfirmArrival(apt),
-          isConfirmedArrival: ["CONFIRMED", "IN_PROGRESS", "COMPLETED"].includes(
-            normalizedStatus
-          ),
+          paymentStatus: viewState.paymentStatus,
+          canCheckIn: !isConfirmedArrival && ["SCHEDULED", "CONFIRMED"].includes(normalizedStatus),
+          isConfirmedArrival,
         };
       }),
-    [filteredAppointments]
+    [confirmedAppointmentIds, filteredAppointments]
   );
 
-  const handleCheckIn = async (appointmentId: string) => {
+  const handleCheckIn = async (appointmentId: string, locationId?: string) => {
+    const locationToSend = assignedLocationId || locationId;
+    if (!locationToSend) {
+      showErrorToast("Reception location is required for manual check-in.", {
+        id: TOAST_IDS.APPOINTMENT.CHECK_IN,
+      });
+      return;
+    }
     setCheckingInId(appointmentId);
     try {
-      await checkInMutation.mutateAsync(appointmentId);
+      await forceCheckInMutation.mutateAsync({
+        appointmentId,
+        reason: "Reception desk manual check-in for this location",
+        ...(locationToSend ? { locationId: locationToSend } : {}),
+      });
+      setConfirmedAppointmentIds((current) =>
+        current.includes(appointmentId) ? current : [...current, appointmentId]
+      );
       await refetch?.();
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.APPOINTMENT.CHECK_IN, duration: 5000 });
     } finally {
       setCheckingInId(null);
     }
@@ -275,7 +278,9 @@ export default function ReceptionistCheckInPage() {
                 : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-none shadow-none"
             }
           >
-            {row.original.status.replace("_", " ")}
+            {row.original.isConfirmedArrival
+              ? "Arrived"
+              : getAppointmentStatusDisplayName(row.original.status || "")}
           </Badge>
         ),
       },
@@ -292,7 +297,7 @@ export default function ReceptionistCheckInPage() {
             {row.original.canCheckIn ? (
               <Button
                 size="sm"
-                onClick={() => handleCheckIn(row.original.id)}
+                onClick={() => handleCheckIn(row.original.id, row.original.locationId)}
                 disabled={checkingInId === row.original.id}
               >
                 {checkingInId === row.original.id ? (
@@ -305,9 +310,9 @@ export default function ReceptionistCheckInPage() {
                 )}
               </Button>
             ) : row.original.isConfirmedArrival ? (
-              <span className="flex items-center gap-1 text-sm font-medium text-emerald-600 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-full">
+              <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300">
                 <CheckCircle2 className="h-4 w-4" />
-                Confirmed
+                Arrived
               </span>
             ) : (
               <span className="text-sm text-muted-foreground">-</span>
@@ -321,8 +326,8 @@ export default function ReceptionistCheckInPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-100">
-        <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
+      <div className="flex min-h-[400px] items-center justify-center rounded-xl border border-border bg-card p-6">
+        <Loader2 className="h-10 w-10 animate-spin text-emerald-600 dark:text-emerald-300" />
       </div>
     );
   }
@@ -336,7 +341,7 @@ export default function ReceptionistCheckInPage() {
         meta={
           <span className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Calendar className="h-4 w-4 text-emerald-500" />
-            {new Date().toLocaleDateString("en-IN", {
+            {formatDateInIST(new Date(), {
               weekday: "long",
               year: "numeric",
               month: "long",
@@ -369,6 +374,7 @@ export default function ReceptionistCheckInPage() {
             data={checkInRows}
             emptyMessage="No appointments found"
             pageSize={10}
+            compact
           />
         </CardContent>
       </Card>

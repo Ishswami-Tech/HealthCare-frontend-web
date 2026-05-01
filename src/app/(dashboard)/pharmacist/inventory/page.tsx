@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DataTable } from "@/components/ui/data-table";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useInventory } from "@/hooks/query/usePharmacy";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import { 
   Package,
   AlertTriangle,
@@ -27,6 +30,7 @@ export default function InventoryPage() {
   useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
   // Enable real-time WebSocket sync
@@ -45,6 +49,7 @@ export default function InventoryPage() {
     id: item.id || item.medicineId,
     name: item.name || item.medicineName,
     category: item.category || item.medicineCategory || "General",
+    type: item.type || item.medicineType || "OTHER",
     currentStock: item.currentStock || item.quantity || 0,
     minStock: item.minStock || item.minThreshold || 10,
     maxStock: item.maxStock || item.maxThreshold || 100,
@@ -80,113 +85,152 @@ export default function InventoryPage() {
     return diffDays <= 90; // Expiring within 90 days
   };
 
-  const InventoryCard = ({ item }: { item: any }) => {
-    return (
-      <Card className="hover:shadow-md transition-shadow">
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-semibold text-lg">{item.name}</h3>
-                <Badge variant="outline">{item.category}</Badge>
-              </div>
-              <p className="text-sm text-gray-600 mb-2">ID: {item.id}</p>
-              <p className="text-sm text-gray-600">Supplier: {item.supplier}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className={getStatusColor(item.status)}>
-                {item.status}
-              </Badge>
-              {isExpiringSoon(item.expiryDate) && (
-                <Badge variant="destructive" className="flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  Expiring Soon
-                </Badge>
-              )}
-            </div>
+  const inventoryColumns: ColumnDef<any>[] = useMemo(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Medicine",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="font-semibold text-foreground">{row.original.name}</span>
+            <span className="text-xs text-muted-foreground">ID: {row.original.id}</span>
           </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <p className="text-sm text-gray-600">Current Stock</p>
-              <p className="text-xl font-bold">
+        ),
+      },
+      {
+        accessorKey: "category",
+        header: "Category",
+        cell: ({ row }) => <Badge variant="outline">{row.original.category}</Badge>,
+      },
+      {
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ row }) => (
+          <Badge
+            className={
+              row.original.type === "AYURVEDIC"
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-slate-100 text-slate-800"
+            }
+          >
+            {row.original.type}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "stock",
+        header: "Stock",
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <div className="flex flex-col gap-1">
+              <span className="font-semibold">
                 {item.currentStock} {item.unit}
-              </p>
-              <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                <div 
-                  className={`h-2 rounded-full ${
-                    item.status === 'critical' ? 'bg-red-500' :
-                    item.status === 'low' ? 'bg-yellow-500' :
-                    item.status === 'adequate' ? 'bg-blue-500' : 'bg-green-500'
+              </span>
+              <div className="h-2 rounded-full bg-muted overflow-hidden dark:bg-slate-800">
+                <div
+                  className={`h-full rounded-full ${
+                    item.status === "critical"
+                      ? "bg-red-500"
+                      : item.status === "low"
+                        ? "bg-amber-500"
+                        : item.status === "adequate"
+                          ? "bg-blue-500"
+                          : "bg-green-500"
                   }`}
                   style={{ width: `${getStockPercentage(item.currentStock, item.maxStock)}%` }}
-                ></div>
+                />
               </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-600">Stock Range</p>
-              <p className="text-sm">
-                Min: {item.minStock} • Max: {item.maxStock} {item.unit}
-              </p>
-              <p className="text-sm text-gray-600 mt-1">
-                Cost: ₹{item.costPerUnit}/{item.unit}
-              </p>
-            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "range",
+        header: "Stock Range",
+        cell: ({ row }) => (
+          <div className="text-sm text-muted-foreground">
+            <div>Min: {row.original.minStock}</div>
+            <div>Max: {row.original.maxStock}</div>
+            <div>Cost: ₹{row.original.costPerUnit}/{row.original.unit}</div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-gray-600">Expiry Date</p>
-                <p className={isExpiringSoon(item.expiryDate) ? 'text-red-600 font-medium' : ''}>
-                  {new Date(item.expiryDate).toLocaleDateString()}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Package className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-gray-600">Last Restocked</p>
-                <p>{new Date(item.lastRestocked).toLocaleDateString()}</p>
-              </div>
-            </div>
+        ),
+      },
+      {
+        accessorKey: "expiryDate",
+        header: "Expiry",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className={isExpiringSoon(row.original.expiryDate) ? "font-semibold text-red-600 dark:text-red-300" : "text-foreground"}>
+              {formatDateInIST(row.original.expiryDate)}
+            </span>
+            {isExpiringSoon(row.original.expiryDate) && (
+              <span className="text-xs text-red-600 dark:text-red-300">Expiring soon</span>
+            )}
           </div>
-
-          <div className="flex items-center gap-2">
+        ),
+      },
+      {
+        accessorKey: "supplier",
+        header: "Supplier",
+        cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.supplier}</span>,
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge className={getStatusColor(row.original.status)}>
+            {row.original.status}
+          </Badge>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" className="flex items-center gap-1">
               <Eye className="w-3 h-3" />
-              View Details
+              View
             </Button>
             <Button size="sm" variant="outline" className="flex items-center gap-1">
               <Edit className="w-3 h-3" />
-              Update Stock
+              Update
             </Button>
-            {(item.status === 'critical' || item.status === 'low') && (
+            {(row.original.status === "critical" || row.original.status === "low") && (
               <Button size="sm" className="flex items-center gap-1">
                 <Plus className="w-3 h-3" />
                 Reorder
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
-    );
-  };
+        ),
+      },
+    ],
+    [getStockPercentage, getStatusColor, isExpiringSoon]
+  );
+
 
   // Calculate summary stats
   const totalItems = inventoryItems.length;
   const lowStockItems = inventoryItems.filter((item: any) => item.status === 'low' || item.status === 'critical').length;
   const expiringItems = inventoryItems.filter((item: any) => isExpiringSoon(item.expiryDate)).length;
   const totalValue = inventoryItems.reduce((sum: number, item: any) => sum + (item.currentStock * item.costPerUnit), 0);
+  const lowStockWatchlist = inventoryItems
+    .filter((item: any) => item.status === "low" || item.status === "critical")
+    .slice(0, 5);
+  const expiringWatchlist = inventoryItems
+    .filter((item: any) => isExpiringSoon(item.expiryDate))
+    .slice(0, 5);
 
 
   // Filter inventory items
   const filteredInventory = inventoryItems.filter((item: any) => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !filterCategory || item.category === filterCategory;
+    const matchesType = !filterType || item.type === filterType;
     const matchesStatus = !filterStatus || item.status === filterStatus;
-    return matchesSearch && matchesCategory && matchesStatus;
+    return matchesSearch && matchesCategory && matchesType && matchesStatus;
   });
 
   // Show loading state
@@ -278,6 +322,62 @@ export default function InventoryPage() {
         </Card>
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-yellow-200/80 dark:border-yellow-900/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  Low stock watchlist
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {lowStockWatchlist.length > 0 ? (
+                  lowStockWatchlist.map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                      <div className="min-w-0">
+                        <div className="font-medium text-foreground truncate">{item.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.currentStock} / {item.minStock} {item.unit}
+                        </div>
+                      </div>
+                      <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No low stock medicines right now.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-red-200/80 dark:border-red-900/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Calendar className="h-4 w-4 text-red-600" />
+                  Expiry watchlist
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {expiringWatchlist.length > 0 ? (
+                  expiringWatchlist.map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                      <div className="min-w-0">
+                        <div className="font-medium text-foreground truncate">{item.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Expiry: {formatDateInIST(item.expiryDate)}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="border-red-200 text-red-700">
+                        {isExpiringSoon(item.expiryDate) ? "Expiring soon" : "Safe"}
+                      </Badge>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No expiring medicines in the next 90 days.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Filters */}
           <Card>
             <CardContent className="p-4">
@@ -293,7 +393,27 @@ export default function InventoryPage() {
                     />
                   </div>
                 </div>
-                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <Select
+                  value={filterType || "all"}
+                  onValueChange={(value) => setFilterType(value === "all" ? "" : value)}
+                >
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="AYURVEDIC">Ayurvedic</SelectItem>
+                    <SelectItem value="HERBAL">Herbal</SelectItem>
+                    <SelectItem value="CLASSICAL">Classical</SelectItem>
+                    <SelectItem value="PROPRIETARY">Proprietary</SelectItem>
+                    <SelectItem value="SIDDHA">Siddha</SelectItem>
+                    <SelectItem value="UNANI">Unani</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={filterCategory || "all"}
+                  onValueChange={(value) => setFilterCategory(value === "all" ? "" : value)}
+                >
                   <SelectTrigger className="w-[150px]">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
@@ -306,7 +426,10 @@ export default function InventoryPage() {
                     <SelectItem value="avaleha">Avaleha</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <Select
+                  value={filterStatus || "all"}
+                  onValueChange={(value) => setFilterStatus(value === "all" ? "" : value)}
+                >
                   <SelectTrigger className="w-[150px]">
                     <SelectValue placeholder="Stock Status" />
                   </SelectTrigger>
@@ -322,12 +445,17 @@ export default function InventoryPage() {
             </CardContent>
           </Card>
 
-          {/* Inventory Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredInventory.map((item: any) => (
-              <InventoryCard key={item.id} item={item} />
-            ))}
-          </div>
+          {/* Inventory Table */}
+          <Card>
+            <CardContent className="p-4">
+              <DataTable
+                columns={inventoryColumns}
+                data={filteredInventory}
+                pageSize={10}
+                emptyMessage="No inventory items found."
+              />
+            </CardContent>
+          </Card>
         </div>
     
   );

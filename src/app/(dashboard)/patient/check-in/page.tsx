@@ -33,7 +33,32 @@ import {
   type QrCheckInAppointment,
   type QrCheckInSelectionCandidate,
 } from "@/hooks/query/useAppointments";
+import { formatTimeInIST } from "@/lib/utils/date-time";
 import { theme } from "@/lib/utils/theme-utils";
+
+type CheckInCoordinates = { lat: number; lng: number };
+
+function getCurrentCoordinates(): Promise<CheckInCoordinates> {
+  return new Promise((resolve, reject) => {
+    if (!("geolocation" in navigator)) {
+      reject(new Error("Location access is not supported by this device."));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        reject(new Error("Location access is required to verify you are within range of the clinic."));
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+}
 
 export default function PatientCheckInPage() {
   const router = useRouter();
@@ -42,6 +67,7 @@ export default function PatientCheckInPage() {
   const [manualCode, setManualCode] = useState("");
   const [eligibleAppointments, setEligibleAppointments] = useState<QrCheckInSelectionCandidate[]>([]);
   const [pendingQrCode, setPendingQrCode] = useState("");
+  const [pendingCoordinates, setPendingCoordinates] = useState<CheckInCoordinates | null>(null);
   const [selectingAppointment, setSelectingAppointment] = useState(false);
   const scanLocationQrAndCheckInMutation = useScanLocationQrAndCheckIn();
 
@@ -57,7 +83,11 @@ export default function PatientCheckInPage() {
     if ("vibrate" in navigator) navigator.vibrate(100);
 
     try {
-      const result = await scanLocationQrAndCheckInMutation.mutateAsync({ code: decodedText });
+      const coordinates = await getCurrentCoordinates();
+      const result = await scanLocationQrAndCheckInMutation.mutateAsync({
+        code: decodedText,
+        coordinates,
+      });
 
       if (result.success && result.appointment) {
         setSuccessData(result.appointment);
@@ -74,6 +104,7 @@ export default function PatientCheckInPage() {
       ) {
         setEligibleAppointments(result.appointments);
         setPendingQrCode(decodedText);
+        setPendingCoordinates(coordinates);
         setSelectingAppointment(true);
         setIsProcessing(false);
         showInfoToast("Multiple appointments found. Please select one.", {
@@ -101,6 +132,7 @@ export default function PatientCheckInPage() {
       const result = await scanLocationQrAndCheckInMutation.mutateAsync({
         code: pendingQrCode,
         appointmentId,
+        ...(pendingCoordinates ? { coordinates: pendingCoordinates } : {}),
       });
 
       if (result.success && result.appointment) {
@@ -125,11 +157,7 @@ export default function PatientCheckInPage() {
     const doctorName = successData.doctorName ?? "Assigned Doctor";
     const locationName = successData.locationName ?? "Booked Clinic Location";
     const timeDisplay = successData.checkedInAt
-      ? new Date(successData.checkedInAt).toLocaleTimeString("en-IN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        })
+      ? formatTimeInIST(successData.checkedInAt)
       : "—";
 
     return (
@@ -216,11 +244,7 @@ export default function PatientCheckInPage() {
             const doctorName = (apt.doctorName ?? apt.doctor?.name ?? derivedDoctorName) || "Doctor";
             const timeStr =
               apt.startTime || apt.time
-                ? new Date(apt.startTime || apt.time || "").toLocaleTimeString("en-IN", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: true,
-                  })
+                ? formatTimeInIST(apt.startTime || apt.time || "")
                 : "—";
 
             return (
@@ -271,12 +295,12 @@ export default function PatientCheckInPage() {
   }
 
   return (
-    <DashboardLayout title="QR Check-In">
+    <DashboardLayout title="Location Check-In">
       <PatientPageShell className="max-w-xl mx-auto">
         <PatientPageHeader
-          eyebrow="QR CHECK-IN"
-          title="QR Check-in"
-          description="Scan the QR at your booked clinic location to confirm appointment and join the live queue."
+          eyebrow="LOCATION CHECK-IN"
+          title="Check-in with Location Code"
+          description="Scan the clinic QR or enter the location code from the poster. Your device location is validated before arrival is confirmed."
         />
 
         <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
@@ -300,7 +324,7 @@ export default function PatientCheckInPage() {
                 <div className={`flex items-start gap-3 ${theme.containers.featureBlue} p-4 rounded-xl w-full max-w-sm`}>
                   <Info className={`h-4 w-4 ${theme.iconColors.blue} shrink-0 mt-0.5`} />
                   <p className={`text-[11px] ${theme.textColors.info} leading-relaxed font-medium`}>
-                    QR check-in works only at the booked appointment location. Once scanned, you are added to the live queue.
+                    Check-in is allowed only when your device is within the clinic&apos;s configured geofence, the location code is valid, and a matching appointment exists for today.
                   </p>
                 </div>
               </motion.div>
@@ -327,11 +351,11 @@ export default function PatientCheckInPage() {
         <div className="text-center">
           <Drawer>
             <DrawerTrigger asChild>
-              <Button
-                variant="ghost"
-                className="text-xs text-muted-foreground hover:text-foreground font-semibold transition-colors h-auto py-3"
-              >
-                Can&apos;t scan? Check-in Manually
+                <Button
+                  variant="ghost"
+                  className="text-xs text-muted-foreground hover:text-foreground font-semibold transition-colors h-auto py-3"
+                >
+                Enter Location Code Manually
               </Button>
             </DrawerTrigger>
             <DrawerContent className="bg-background border rounded-t-4xl">
@@ -340,15 +364,15 @@ export default function PatientCheckInPage() {
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-4 border">
                     <QrCode className="h-6 w-6" />
                   </div>
-                  <DrawerTitle className="text-2xl font-bold">Manual Code</DrawerTitle>
+                  <DrawerTitle className="text-2xl font-bold">Enter Location Code</DrawerTitle>
                   <DrawerDescription className="text-muted-foreground font-medium">
-                    Enter the code encoded in the clinic QR poster to check in manually.
+                    Enter the code shown on the clinic location QR poster. The system checks your appointment, clinic location, and current proximity before confirming.
                   </DrawerDescription>
                 </DrawerHeader>
                 <div className="p-4 pb-0">
                   <form id="manual-checkin-form" onSubmit={handleManualCheckIn} className="space-y-6">
                     <Input
-                      placeholder="Paste code from the clinic QR poster"
+                      placeholder="Enter location code"
                       value={manualCode}
                       onChange={(e) => setManualCode(e.target.value.toUpperCase())}
                       className="h-12 sm:h-14 rounded-xl bg-muted/50 px-3 text-center text-xs font-bold uppercase tracking-wide sm:text-lg sm:tracking-widest"
@@ -364,7 +388,7 @@ export default function PatientCheckInPage() {
                     className="w-full h-14 rounded-xl text-base font-bold"
                     disabled={manualCode.length < 4 || isProcessing}
                   >
-                    {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify & Check-in"}
+                    {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Validate & Check-in"}
                   </Button>
                   <DrawerClose asChild>
                     <Button variant="outline" className="h-14 rounded-xl font-bold">

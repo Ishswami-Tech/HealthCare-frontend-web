@@ -39,7 +39,6 @@ hooks/
 |   |-- useWebSocketIntegration.ts
 |   |-- useFCM.ts
 |   |-- useRealTimeQueries.ts
-|   |-- useRealTimeIntegration.ts
 |   |-- useHealthRealtime.ts
 |   `-- useVideoAppointmentSocketIO.ts
 |

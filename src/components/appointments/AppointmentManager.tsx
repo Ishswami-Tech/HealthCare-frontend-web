@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -27,6 +28,7 @@ import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/ho
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   useCancelAppointment,
   useMyAppointments,
@@ -40,14 +42,21 @@ import {
 } from "@/types/appointment.types";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { cn } from "@/lib/utils";
+import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 import {
   formatDateInIST,
+  formatISODateInIST,
+  getAppointmentPaymentDisplayState,
   getAppointmentStatusBadgeLabel,
   getAppointmentDateTimeValue,
   getDisplayAppointmentDuration,
+  getAppointmentViewState,
+  getVideoAppointmentJoinBlockedReason,
   isVideoAppointmentPaymentCompleted,
+  isVideoAppointmentJoinable,
   normalizeAppointmentStatus,
   normalizePatientAppointment,
+  getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
@@ -88,6 +97,10 @@ interface AppointmentManagerProps {
   autoOpenBookDialog?: boolean;
 }
 
+function getEffectiveAppointmentId(appointment: AppointmentWithRelations | any): string {
+  return String(appointment?.appointmentId || appointment?.id || "");
+}
+
 export default function AppointmentManager({ 
   filterType, 
   defaultConsultationMode, 
@@ -103,9 +116,10 @@ export default function AppointmentManager({
 
   // Real-time WebSocket integration
   const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
+  useWebSocketQuerySync();
 
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("SCHEDULED");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
@@ -165,35 +179,26 @@ export default function AppointmentManager({
     // Admin views already fetch filtered by clinic/patient — don't re-filter.
     if (isAdminView) return allAppointments;
 
-    const currentUserId = user?.id;
-    // If no user id yet (loading), return all appointments rather than empty
-    if (!currentUserId) return allAppointments;
-
-    return allAppointments.filter((appointment: any) => {
-      // Collect every possible ID field and match against session user ID
-      // The backend may return patientId as a Patient entity ID *or* User ID
-      // depending on how the relation was resolved, so we check all candidates.
-      const candidateIds = [
-        appointment?.patientId,
-        appointment?.patient?.id,
-        appointment?.patient?.userId,
-        appointment?.patient?.user?.id,
-        appointment?.userId,
-        appointment?.user?.id,
-      ].filter((value): value is string => typeof value === "string" && value.length > 0);
-
-      // Include the appointment if any candidate matches the current user
-      return candidateIds.includes(currentUserId) || candidateIds.length === 0;
-    });
-  }, [allAppointments, user?.id, isAdminView]);
+    // Patient view uses /appointments/my-appointments (already server scoped).
+    // Do not perform client-side patientId/userId filtering here.
+    return allAppointments;
+  }, [allAppointments, isAdminView]);
 
   const normalizedAppointments = useMemo(() => {
     return patientScopedAppointments
       .map((appointment) => {
         const normalized = normalizePatientAppointment(appointment);
+        const viewState = getAppointmentViewState(appointment);
+        const paymentDisplay = getAppointmentPaymentDisplayState(appointment);
+        const displayStatus =
+          viewState.awaitingDoctorSlotConfirmation
+            ? "SCHEDULED"
+            : viewState.isVideo && !paymentDisplay.paymentCompleted
+            ? "SCHEDULED"
+            : normalized.status;
         return {
           ...appointment,
-          status: normalized.status,
+          status: displayStatus,
           type: normalized.type,
           location: {
             ...(appointment.location || {}),
@@ -249,7 +254,14 @@ export default function AppointmentManager({
       const matchesEndDate = !endDate || (appointmentDate !== null && appointmentDate <= endDate);
       return matchesType && matchesStatus && matchesSearch && matchesStartDate && matchesEndDate;
     });
-  }, [normalizedAppointments, statusFilter, searchQuery, dateFilter.start, dateFilter.end]);
+  }, [normalizedAppointments, statusFilter, searchQuery, dateFilter.start, dateFilter.end, filterType]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  useEffect(() => {
+    setCurrentPage((previousPage) => Math.min(previousPage, totalPages));
+  }, [totalPages]);
 
   // Stats
   const stats = useMemo(() => {
@@ -263,22 +275,12 @@ export default function AppointmentManager({
   const formatDate = (date: string) => {
     const parsed = new Date(date);
     if (Number.isNaN(parsed.getTime())) return "Date TBD";
-    return parsed.toLocaleDateString("en-IN", {
-      timeZone: "Asia/Kolkata",
+    return formatDateInIST(parsed, {
       weekday: "short",
       day: "numeric",
       month: "short",
       year: "numeric",
     });
-  };
-
-  const formatTime = (time: string | undefined) => {
-    if (!time) return "—";
-    const parts = time.split(":");
-    const hour = parseInt(parts[0] ?? "0");
-    const m = parts[1] ?? "00";
-    const suffix = hour >= 12 ? "PM" : "AM";
-    return `${hour % 12 || 12}:${m} ${suffix}`;
   };
 
   const parseDateValue = (value: string) => {
@@ -308,7 +310,7 @@ export default function AppointmentManager({
 
 
   const handleCancelAppointment = useCallback((id: string) => {
-    cancelAppointment({ id, reason: "Cancelled by patient during testing" }, {
+    cancelAppointment({ id, reason: "Cancelled via appointment manager" }, {
       onSuccess: () => showSuccessToast("Appointment cancelled", { id: TOAST_IDS.APPOINTMENT.DELETE, description: "Your appointment has been cancelled." }),
       onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to cancel", { id: TOAST_IDS.APPOINTMENT.DELETE }),
     });
@@ -316,7 +318,8 @@ export default function AppointmentManager({
 
   const handleRescheduleSubmit = () => {
     if (!selectedAppointment) return;
-    rescheduleAppointment({ id: selectedAppointment.id, data: { date: rescheduleData.date, time: rescheduleData.time } }, {
+    const appointmentId = getEffectiveAppointmentId(selectedAppointment);
+    rescheduleAppointment({ id: appointmentId, data: { date: rescheduleData.date, time: rescheduleData.time } }, {
       onSuccess: () => {
         showSuccessToast("Appointment rescheduled", { id: TOAST_IDS.APPOINTMENT.UPDATE, description: "Your appointment has been rescheduled." });
         setIsRescheduleDialogOpen(false);
@@ -327,7 +330,8 @@ export default function AppointmentManager({
 
   const handleRejectProposal = () => {
     if (!selectedAppointment) return;
-    rejectVideoProposal({ id: selectedAppointment.id, reason: rejectReason }, {
+    const appointmentId = getEffectiveAppointmentId(selectedAppointment);
+    rejectVideoProposal({ id: appointmentId, reason: rejectReason }, {
       onSuccess: () => {
         showSuccessToast("Proposal rejected", { id: TOAST_IDS.APPOINTMENT.UPDATE });
         setIsRejectDialogOpen(false);
@@ -337,6 +341,45 @@ export default function AppointmentManager({
       onError: (error: Error) => showErrorToast(sanitizeErrorMessage(error) || "Failed to reject", { id: TOAST_IDS.APPOINTMENT.UPDATE }),
     });
   };
+
+  const handleJoinVideo = useCallback(async (appointment: any) => {
+    try {
+      const appointmentId = getEffectiveAppointmentId(appointment);
+      if (!appointmentId) {
+        showErrorToast("Missing appointment details for this video session.", {
+          id: TOAST_IDS.VIDEO.ERROR,
+        });
+        return;
+      }
+
+      const refreshedQuery = await refetch();
+      const refreshedAppointments = (() => {
+        const data = (refreshedQuery as any)?.data;
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.appointments)) return data.appointments;
+        if (Array.isArray(data?.data?.appointments)) return data.data.appointments;
+        if (Array.isArray(data?.data)) return data.data;
+        return [];
+      })();
+
+      const latestAppointment =
+        refreshedAppointments.find((item: any) => getEffectiveAppointmentId(item) === appointmentId) || appointment;
+
+      if (!isVideoAppointmentJoinable(latestAppointment)) {
+        showErrorToast(getVideoAppointmentJoinBlockedReason(latestAppointment), {
+          id: TOAST_IDS.VIDEO.ERROR,
+        });
+        return;
+      }
+
+      window.location.href = buildVideoSessionRoute(appointmentId);
+    } catch (error: unknown) {
+      showErrorToast(
+        error instanceof Error ? error.message : "Failed to join video",
+        { id: TOAST_IDS.VIDEO.ERROR }
+      );
+    }
+  }, [refetch]);
 
   useEffect(() => {
     if (isRealTimeEnabled && isConnected && !hasShownRealtimeToastRef.current) {
@@ -358,6 +401,7 @@ export default function AppointmentManager({
     iconColor,
     cardBorder,
     cardHover,
+    className,
   }: {
     label: string;
     value: number;
@@ -368,8 +412,9 @@ export default function AppointmentManager({
     iconColor: string;
     cardBorder: string;
     cardHover: string;
+    className?: string;
   }) => (
-    <div className={`rounded-2xl border ${cardBorder} bg-white p-4 flex items-center gap-3 transition-all ${cardHover} hover:shadow-sm`}>
+    <div className={`rounded-2xl border ${cardBorder} bg-card p-4 flex items-center gap-3 transition-all ${cardHover} hover:shadow-sm ${className || ""}`}>
       <div className={`rounded-xl ${iconBg} p-2.5 border ${iconBorder} ${iconColor}`}>{icon}</div>
       <div>
         <p className="text-2xl font-extrabold text-foreground tracking-tight">{value}</p>
@@ -379,8 +424,10 @@ export default function AppointmentManager({
   );
 
   const AppointmentCard = ({ apt }: { apt: AppointmentWithRelations }) => {
-    const cfg = (STATUS_CONFIG[apt.status] ?? STATUS_CONFIG["SCHEDULED"]) as { label: string; color: string; dot: string; bg: string };
-    const statusLabel = getAppointmentStatusBadgeLabel((apt as any).raw || apt);
+    const viewState = getAppointmentViewState(apt);
+    const effectiveStatus = viewState.normalizedStatus;
+    const cfg = (STATUS_CONFIG[effectiveStatus] ?? STATUS_CONFIG["SCHEDULED"]) as { label: string; color: string; dot: string; bg: string };
+    const statusLabel = viewState.displayStatusLabel;
     const isExpanded = expandedCard === apt.id;
     const appointmentDateTime = getAppointmentDateTimeValue(apt);
     const normalizedAppointment = normalizePatientAppointment(apt);
@@ -392,22 +439,19 @@ export default function AppointmentManager({
         : apt.type === "IN_PERSON"
           ? "In-Person Visit"
           : String(apt.type || "Appointment").replace(/_/g, " ");
-    const displayTime =
-      apt.time ||
-      (appointmentDateTime
-        ? `${String(appointmentDateTime.getHours()).padStart(2, "0")}:${String(
-            appointmentDateTime.getMinutes()
-          ).padStart(2, "0")}`
-        : undefined);
+    const displayTimeLabel = getReceptionistAppointmentTimeLabel(
+      apt as unknown as Record<string, unknown>
+    );
+    const rawTimeValue = apt.time || "";
     const normalizedDate = appointmentDateTime?.toISOString() || apt.date;
     const displayDuration = getDisplayAppointmentDuration(apt);
 
-    const isCancelled = apt.status === "CANCELLED" || apt.status === "NO_SHOW";
+    const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW";
     return (
       <div className={`rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md ${
         isCancelled
-          ? "bg-red-50 border-red-200 hover:border-red-300"
-          : `bg-white border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
+          ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50 hover:border-red-300"
+          : `bg-card border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
       }`}>
         {/* Card header */}
         <div
@@ -429,7 +473,7 @@ export default function AppointmentManager({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-3 min-w-0">
               {/* Avatar */}
-              <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 text-sm font-bold text-emerald-700">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/70 flex items-center justify-center shrink-0 text-sm font-bold text-emerald-700 dark:text-emerald-300">
                 {doctorName.charAt(0)}
               </div>
               <div className="min-w-0">
@@ -464,7 +508,7 @@ export default function AppointmentManager({
             </span>
             <span className="flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" />
-              {formatTime(displayTime)}
+              {displayTimeLabel}
             </span>
             {displayDuration && (
               <span className="flex items-center gap-1.5">
@@ -509,15 +553,15 @@ export default function AppointmentManager({
 
               {/* Actions — unified to avoid duplicate buttons */}
               <div className="flex flex-wrap gap-3 mt-4">
-                {apt.status === "SCHEDULED" && (
+                {effectiveStatus === "SCHEDULED" && (
                   <Button
                     variant="outline"
                     className="h-10 px-5 rounded-lg border-border/50 bg-background/50 text-sm hover:bg-accent/50 transition-all active:scale-95 flex-1 sm:flex-none"
                     onClick={() => {
                       setSelectedAppointment(apt as AppointmentWithRelations);
                       setRescheduleData({
-                        date: normalizedDate ? normalizedDate.slice(0, 10) : "",
-                        time: displayTime || "",
+                        date: normalizedDate ? formatISODateInIST(normalizedDate) : "",
+                        time: rawTimeValue || "",
                       });
                       setIsRescheduleDialogOpen(true);
                     }}
@@ -526,7 +570,7 @@ export default function AppointmentManager({
                     Reschedule
                   </Button>
                 )}
-                {apt.status === "SCHEDULED" && apt.type !== "VIDEO_CALL" && (
+                {effectiveStatus === "SCHEDULED" && apt.type !== "VIDEO_CALL" && (
                   <Button
                     className="h-10 px-6 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
                     onClick={() => {
@@ -537,11 +581,11 @@ export default function AppointmentManager({
                     Go To Check-In
                   </Button>
                 )}
-                {apt.status === "SCHEDULED" && (
+                {effectiveStatus === "SCHEDULED" && (
                   <Button
                     variant="outline"
                     className="h-10 px-5 rounded-lg border-red-200/50 bg-red-50/30 text-red-600 hover:bg-red-100/50 hover:text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 text-sm transition-all active:scale-95 flex-1 sm:flex-none"
-                    onClick={() => handleCancelAppointment(apt.id)}
+                    onClick={() => handleCancelAppointment(getEffectiveAppointmentId(apt))}
                     disabled={cancellingAppointment}
                   >
                     <XCircle className="w-4 h-4 mr-2" />
@@ -549,11 +593,10 @@ export default function AppointmentManager({
                   </Button>
                 )}
                 {apt.type === "VIDEO_CALL" &&
-                  ["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes((apt as any).raw?.status) &&
-                  isVideoAppointmentPaymentCompleted(apt) && (
+                  isVideoAppointmentJoinable(apt) && (
                   <Button
                     className="h-10 px-6 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
-                    onClick={() => window.location.href = `/patient/video?appointmentId=${apt.id}`}
+                    onClick={() => void handleJoinVideo(apt)}
                   >
                     <Video className="w-4 h-4 mr-2" />
                     Join Video
@@ -562,15 +605,13 @@ export default function AppointmentManager({
                 {apt.type === "VIDEO_CALL" &&
                   !isVideoAppointmentPaymentCompleted(apt) && (
                   <PaymentButton
-                    appointmentId={apt.id}
+                    appointmentId={getEffectiveAppointmentId(apt)}
                     amount={apt.invoice?.amount || 500}
+                    appointmentType="VIDEO_CALL"
                     className="h-10 px-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-sm transition-all active:scale-95 flex-1"
                     onSuccess={() => {
-                      if (["SCHEDULED", "CONFIRMED", "IN_PROGRESS"].includes((apt as any).raw?.status)) {
-                        window.location.href = `/patient/video?appointmentId=${apt.id}`;
-                      } else {
-                         window.location.reload();
-                      }
+                      void refetch();
+                      setCurrentPage(1);
                     }}
                   >
                     <CreditCard className="w-4 h-4 mr-2" />
@@ -579,25 +620,11 @@ export default function AppointmentManager({
                 )}
                 {apt.type === "VIDEO_CALL" &&
                   isVideoAppointmentPaymentCompleted(apt) &&
-                  (
-                    (apt as any).raw?.status === "AWAITING_SLOT_CONFIRMATION" ||
-                    (
-                      String((apt as any).raw?.status || "").toUpperCase() === "SCHEDULED" &&
-                      (
-                        (apt as any).raw?.confirmedSlotIndex === null ||
-                        (apt as any).raw?.confirmedSlotIndex === undefined ||
-                        Number.isNaN(Number((apt as any).raw?.confirmedSlotIndex))
-                      )
-                    )
-                  ) && (
-                    <Button
-                      variant="outline"
-                      className="h-10 px-6 rounded-lg border-amber-200 bg-amber-50 text-amber-700 text-sm pointer-events-none flex-1"
-                      disabled
-                    >
+                  viewState.awaitingDoctorSlotConfirmation && (
+                    <Badge className="h-10 px-4 rounded-lg border-amber-200 bg-amber-50 text-amber-700 text-sm font-semibold flex items-center">
                       <Clock className="w-4 h-4 mr-2" />
                       Awaiting Doctor Confirmation
-                    </Button>
+                    </Badge>
                   )}
               </div>
             </div>
@@ -620,16 +647,16 @@ export default function AppointmentManager({
   }
 
   return (
-    <Card className="max-w-6xl mx-auto bg-white rounded-xl border border-border sm:rounded-2xl shadow-sm overflow-hidden">
+    <Card className="max-w-6xl mx-auto bg-card rounded-xl border border-border sm:rounded-2xl shadow-sm overflow-hidden">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="text-xl font-bold flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
                <Calendar className="w-5 h-5 text-emerald-600" />
             </div>
             Current Appointments
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start sm:gap-3 lg:w-auto lg:justify-end">
             {isRealTimeEnabled && (
               <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${isConnected ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-amber-500"}`} />
@@ -644,13 +671,12 @@ export default function AppointmentManager({
                 {...(propClinicId ? { clinicId: propClinicId } : {})}
                 {...(propPatientId ? { initialPatientId: propPatientId } : {})}
                 trigger={
-                  <Button
-                    variant="outline"
-                    className="gap-2 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 rounded-xl px-4 font-semibold h-10 transition-all active:scale-95"
-                  >
-                    <Calendar className="h-4 w-4" />
-                    Book Appointment
-                  </Button>
+                <Button
+                  className="w-full sm:w-auto gap-2 rounded-xl border-0 bg-emerald-600 px-6 font-bold h-10 text-white shadow-md transition-all active:scale-95 hover:bg-emerald-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                >
+                  <CalendarPlus className="h-5 w-5" />
+                  Book Appointment
+                </Button>
                 }
               />
             )}
@@ -658,11 +684,14 @@ export default function AppointmentManager({
             <Button
               variant="outline"
               onClick={() => refetch()}
-              className="h-10 w-10 rounded-xl flex items-center justify-center p-0 border-border/50 hover:bg-accent/50 transition-all shadow-sm"
+              className="h-10 w-full gap-2 rounded-xl border-sky-200 bg-sky-50 px-4 py-2 text-sky-700 hover:bg-sky-100 hover:text-sky-800 transition-all shadow-sm dark:border-sky-900/70 dark:bg-sky-950/25 dark:text-sky-300 dark:hover:bg-sky-950/45 sm:w-auto"
               disabled={appointmentsFetching}
               title="Refresh Appointments"
             >
-              <RefreshCw className={`w-4 h-4 text-muted-foreground ${appointmentsFetching ? "animate-spin" : ""}`} />
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200">
+                <RefreshCw className={`w-3.5 h-3.5 ${appointmentsFetching ? "animate-spin" : ""}`} />
+              </span>
+              <span className="text-sm font-medium">Refresh</span>
             </Button>
           </div>
         </div>
@@ -671,46 +700,50 @@ export default function AppointmentManager({
       <CardContent className="space-y-6">
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
           <StatCard
             label="Total"
             value={stats.total}
             icon={<Stethoscope className="w-5 h-5" />}
-            iconBg="bg-blue-50"
-            iconBorder="border-blue-100"
+            iconBg="bg-blue-50 dark:bg-blue-950/30"
+            iconBorder="border-blue-100 dark:border-blue-900"
             iconColor="text-blue-600"
-            cardBorder="border-blue-100"
+            cardBorder="border-blue-100 dark:border-blue-900"
             cardHover="hover:border-blue-300"
+            className="bg-blue-50/70 dark:bg-blue-950/20"
           />
           <StatCard
             label="Upcoming"
             value={stats.upcoming}
             icon={<Calendar className="w-5 h-5" />}
-            iconBg="bg-emerald-50"
-            iconBorder="border-emerald-100"
+            iconBg="bg-emerald-50 dark:bg-emerald-950/30"
+            iconBorder="border-emerald-100 dark:border-emerald-900"
             iconColor="text-emerald-600"
-            cardBorder="border-emerald-100"
+            cardBorder="border-emerald-100 dark:border-emerald-900"
             cardHover="hover:border-emerald-300"
+            className="bg-emerald-50/70 dark:bg-emerald-950/20"
           />
           <StatCard
             label="In Progress"
             value={stats.inProgress}
             icon={<Zap className="w-5 h-5" />}
-            iconBg="bg-amber-50"
-            iconBorder="border-amber-100"
+            iconBg="bg-amber-50 dark:bg-amber-950/30"
+            iconBorder="border-amber-100 dark:border-amber-900"
             iconColor="text-amber-600"
-            cardBorder="border-amber-100"
+            cardBorder="border-amber-100 dark:border-amber-900"
             cardHover="hover:border-amber-300"
+            className="bg-amber-50/70 dark:bg-amber-950/20"
           />
           <StatCard
             label="Completed"
             value={stats.completed}
             icon={<CheckCircle className="w-5 h-5" />}
-            iconBg="bg-violet-50"
-            iconBorder="border-violet-100"
+            iconBg="bg-violet-50 dark:bg-violet-950/30"
+            iconBorder="border-violet-100 dark:border-violet-900"
             iconColor="text-violet-600"
-            cardBorder="border-violet-100"
+            cardBorder="border-violet-100 dark:border-violet-900"
             cardHover="hover:border-violet-300"
+            className="bg-violet-50/70 dark:bg-violet-950/20"
           />
       </div>
 
@@ -727,7 +760,7 @@ export default function AppointmentManager({
           />
         </div>
 
-        <div className="bg-white border border-border/60 p-1 sm:p-1.5 h-12 sm:h-14 rounded-xl sm:rounded-2xl max-w-full flex gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide shadow-sm">
+        <div className="bg-card border border-border/60 p-1 sm:p-1.5 h-12 sm:h-14 rounded-xl sm:rounded-2xl max-w-full flex gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide shadow-sm">
           {(["ALL", "SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as StatusFilter[]).map(s => {
             const isActive = statusFilter === s;
             const labelMap: Record<string, string> = {
@@ -768,7 +801,7 @@ export default function AppointmentManager({
               <Button
                 variant="outline"
                 className={cn(
-                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-slate-200 bg-white",
+                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-border bg-background",
                   !dateFilter.start && "text-muted-foreground"
                 )}
               >
@@ -791,7 +824,7 @@ export default function AppointmentManager({
               <Button
                 variant="outline"
                 className={cn(
-                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-slate-200 bg-white",
+                  "h-10 w-44 justify-start text-left text-sm font-normal rounded-lg border-border bg-background",
                   !dateFilter.end && "text-muted-foreground"
                 )}
               >
@@ -862,11 +895,11 @@ export default function AppointmentManager({
           {/* Pagination info */}
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground font-medium">
-              Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredAppointments.length)}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length} appointments
+              Showing {filteredAppointments.length === 0 ? 0 : (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredAppointments.length)} of {filteredAppointments.length} appointments
             </p>
           </div>
           {filteredAppointments
-            .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+            .slice((safeCurrentPage - 1) * ITEMS_PER_PAGE, safeCurrentPage * ITEMS_PER_PAGE)
             .map((apt) => (
               <AppointmentCard key={apt.id} apt={apt} />
             ))}
@@ -877,18 +910,18 @@ export default function AppointmentManager({
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                disabled={safeCurrentPage === 1}
                 className="h-9 px-4 rounded-lg border-border/60 text-sm"
               >
                 ← Prev
               </Button>
-              {Array.from({ length: Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
                   className={cn(
                     "w-9 h-9 rounded-lg text-sm font-semibold transition-all",
-                    page === currentPage
+                    page === safeCurrentPage
                       ? "bg-emerald-600 text-white shadow-sm"
                       : "border border-border/60 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
                   )}
@@ -899,8 +932,8 @@ export default function AppointmentManager({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE), p + 1))}
-                disabled={currentPage === Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE)}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage === totalPages}
                 className="h-9 px-4 rounded-lg border-border/60 text-sm"
               >
                 Next →

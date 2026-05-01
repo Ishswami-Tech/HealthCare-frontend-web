@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useNursePatients } from "@/hooks/query/useNurse";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import {
+  formatISODateInIST,
+  formatTimeInIST,
+} from "@/lib/utils/date-time";
 
 export default function NurseDashboard() {
   const { session } = useAuth();
@@ -41,12 +45,12 @@ export default function NurseDashboard() {
   } as any);
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['nursePatients', user?.clinicId]]);
+  useWebSocketQuerySync();
 
   const stats = useMemo(() => {
-    const todayDate = new Date().toISOString().split('T')[0];
+    const todayDate = formatISODateInIST(new Date());
     const vitalsRecordedToday = patients.filter((p: any) =>
-      p.vitals?.some((v: any) => v.recordedAt?.startsWith(todayDate))
+      p.vitals?.some((v: any) => formatISODateInIST(v.recordedAt) === todayDate)
     ).length;
     return {
       activePatients: patients.length,
@@ -111,7 +115,7 @@ export default function NurseDashboard() {
         if (!latestVitals?.recordedAt) return <span className="text-xs text-muted-foreground">Never</span>;
         return (
           <span className="text-xs">
-            {new Date(latestVitals.recordedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {formatTimeInIST(latestVitals.recordedAt)}
           </span>
         );
       },

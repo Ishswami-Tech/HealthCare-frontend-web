@@ -272,7 +272,7 @@ const CONNECTION_CONFIG = {
 } as const;
 
 export function ConnectionStatus({ status, label, showLabel = true, className }: ConnectionStatusProps) {
-  const config = CONNECTION_CONFIG[status];
+  const config = CONNECTION_CONFIG[status] || CONNECTION_CONFIG.disconnected;
   const Icon = config.icon;
 
   return (

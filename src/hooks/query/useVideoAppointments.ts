@@ -10,8 +10,17 @@ import { useVideoAppointmentWebSocket } from '../realtime/useVideoAppointmentSoc
 import { useAuth } from '../auth/useAuth';
 import { Permission } from '@/types/rbac.types';
 import { Role } from '@/types/auth.types';
-import { videoAppointmentService, type OpenViduAPI } from '@/lib/video/openvidu';
+import {
+  videoAppointmentService,
+  normalizeOpenViduServerUrl,
+  type OpenViduAPI,
+} from '@/lib/video/openvidu';
 import { APP_CONFIG } from '@/lib/config/config';
+import {
+  getVideoSessionDecision,
+} from '@/lib/utils/appointmentUtils';
+import { isApiError } from '@/lib/utils/error-handler';
+import { normalizeVideoSessionAppointmentId } from '@/lib/utils/video-session-route';
 import { TOAST_IDS } from '../utils/use-toast';
 import {
   generateVideoToken,
@@ -73,8 +82,10 @@ export function getVideoTokenRole(role?: string | null): VideoTokenRole {
   switch (normalizeVideoRole(role)) {
     case 'DOCTOR':
     case 'ASSISTANT_DOCTOR':
-    case 'NURSE':
+    case 'THERAPIST':
+    case 'COUNSELOR':
       return 'doctor';
+    case 'NURSE':
     case 'RECEPTIONIST':
       return 'receptionist';
     case 'CLINIC_ADMIN':
@@ -109,12 +120,14 @@ export interface VideoAppointment {
   roomName: string;
   doctorId: string;
   patientId: string;
+  treatmentType?: string;
   startTime: string;
   endTime: string;
   status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled' | 'proposed';
   sessionId?: string;
   recordingUrl?: string;
   notes?: string;
+  paymentCompleted?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -150,12 +163,18 @@ export interface VideoAppointmentFilters {
 
 // ✅ Video Appointments Query Hook with WebSocket Integration
 export function useVideoAppointments(filters?: VideoAppointmentFilters) {
-  const clinicId = useCurrentClinicId();
   const { session } = useAuth();
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
-  const { subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents, isConnected } = useVideoAppointmentWebSocket();
+  const {
+    subscribeToVideoAppointments,
+    subscribeToConsultationEvents,
+    subscribeToParticipantEvents,
+    subscribeToRecordingEvents,
+    isConnected,
+  } = useVideoAppointmentWebSocket();
 
+  const clinicId = useCurrentClinicId();
   const isPatient = (session?.user?.role as string) === Role.PATIENT;
   // PATIENT can fetch video history without clinicId; staff need clinicId
   const canFetch = hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS) && (!!clinicId || isPatient);
@@ -237,12 +256,30 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
       }
     });
 
+    const unsubscribeConsultation = subscribeToConsultationEvents((data) => {
+      if (data.appointmentId) {
+        queryClient.invalidateQueries({ queryKey: ['video-appointment', data.appointmentId] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
+    });
+
     return () => {
       unsubscribeAppointments();
       unsubscribeParticipants();
       unsubscribeRecording();
+      unsubscribeConsultation();
     };
-  }, [isConnected, queryClient, subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents]);
+  }, [
+    isConnected,
+    queryClient,
+    subscribeToVideoAppointments,
+    subscribeToConsultationEvents,
+    subscribeToParticipantEvents,
+    subscribeToRecordingEvents,
+  ]);
 
   return query;
 }
@@ -251,58 +288,93 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
 export function useVideoAppointment(id: string) {
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
-  const { subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents } = useVideoAppointmentWebSocket();
+  const resolvedAppointmentId = normalizeVideoSessionAppointmentId(id);
+  const {
+    subscribeToVideoAppointments,
+    subscribeToConsultationEvents,
+    subscribeToParticipantEvents,
+    subscribeToRecordingEvents,
+  } = useVideoAppointmentWebSocket();
 
   const query = useQueryData(
-    ['video-appointment', id],
+    ['video-appointment', resolvedAppointmentId],
     async () => {
       const hasAccess = hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
 
-      const result = await getConsultationStatus(id);
-      
-      return { success: true, data: result, appointment: result };
+      try {
+        const result = await getConsultationStatus(resolvedAppointmentId);
+        return { success: true, data: result, appointment: result };
+      } catch (error) {
+        if (
+          isApiError(error) &&
+          (error.statusCode === 404 || error.code === 'DATABASE_RECORD_NOT_FOUND')
+        ) {
+          return { success: true, data: null, appointment: null };
+        }
+
+        throw error;
+      }
     },
     {
-      enabled: !!id && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
+      enabled: !!resolvedAppointmentId && hasPermission(Permission.VIEW_VIDEO_APPOINTMENTS),
       staleTime: 1 * 60 * 1000, // 1 minute - WebSocket handles real-time updates
       gcTime: 5 * 60 * 1000, // 5 minutes
       refetchInterval: false, // Disable polling - WebSocket handles updates
       refetchOnWindowFocus: false,
+      retry: false,
     }
   );
 
   // ✅ Subscribe to real-time updates for this specific appointment
   useEffect(() => {
-    if (!id) return;
+    if (!resolvedAppointmentId) return;
 
     // Subscribe to video appointment updates
     const unsubscribeAppointments = subscribeToVideoAppointments((data) => {
-      if (data.appointmentId === id) {
-        queryClient.invalidateQueries({ queryKey: ['video-appointment', id] });
+      if (data.appointmentId === resolvedAppointmentId) {
+        queryClient.invalidateQueries({ queryKey: ['video-appointment', resolvedAppointmentId] });
       }
     });
 
     // Subscribe to participant events
     const unsubscribeParticipants = subscribeToParticipantEvents((data) => {
-      if (data.appointmentId === id) {
-        queryClient.invalidateQueries({ queryKey: ['video-appointment', id] });
+      if (data.appointmentId === resolvedAppointmentId) {
+        queryClient.invalidateQueries({ queryKey: ['video-appointment', resolvedAppointmentId] });
       }
     });
 
     // Subscribe to recording events
     const unsubscribeRecording = subscribeToRecordingEvents((data) => {
-      if (data.appointmentId === id) {
-        queryClient.invalidateQueries({ queryKey: ['video-appointment', id] });
+      if (data.appointmentId === resolvedAppointmentId) {
+        queryClient.invalidateQueries({ queryKey: ['video-appointment', resolvedAppointmentId] });
       }
+    });
+
+    const unsubscribeConsultation = subscribeToConsultationEvents((data) => {
+      if (data.appointmentId === resolvedAppointmentId) {
+        queryClient.invalidateQueries({ queryKey: ['video-appointment', resolvedAppointmentId] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['video-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
     });
 
     return () => {
       unsubscribeAppointments();
       unsubscribeParticipants();
       unsubscribeRecording();
+      unsubscribeConsultation();
     };
-  }, [id, queryClient, subscribeToVideoAppointments, subscribeToParticipantEvents, subscribeToRecordingEvents]);
+  }, [
+    resolvedAppointmentId,
+    queryClient,
+    subscribeToVideoAppointments,
+    subscribeToConsultationEvents,
+    subscribeToParticipantEvents,
+    subscribeToRecordingEvents,
+  ]);
 
   return query;
 }
@@ -366,17 +438,22 @@ export function useCreateVideoAppointment() {
 export function useUpdateVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
+  const { user } = useAuth();
 
   return useMutationOperation<{ success: boolean; data: any }, UpdateVideoAppointmentData>(
     async (data: UpdateVideoAppointmentData) => {
       const hasAccess = hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+      const resolvedUserId = user?.id;
+      if (!resolvedUserId) {
+        throw new Error('User not authenticated');
+      }
 
       // Update consultation status by ending or starting it
       if (data.status === 'completed' || data.status === 'cancelled') {
         const result = await endVideoConsultation({
           appointmentId: data.appointmentId,
-          userId: '', // Will be set from session
+          userId: resolvedUserId,
           userRole: 'doctor',
           endReason: data.status === 'cancelled' ? 'Cancelled by user' : 'Completed',
         });
@@ -386,7 +463,7 @@ export function useUpdateVideoAppointment() {
       // For other status updates, we might need to start consultation
       const result = await startVideoConsultation({
         appointmentId: data.appointmentId,
-        userId: '', // Will be set from session
+        userId: resolvedUserId,
         userRole: 'doctor',
       });
       
@@ -409,50 +486,6 @@ export function useUpdateVideoAppointment() {
   );
 }
 
-// ✅ Join Video Appointment Mutation Hook with WebSocket Integration
-export function useJoinVideoAppointment() {
-  const { hasPermission } = useRBAC();
-  const { sendParticipantJoined } = useVideoAppointmentWebSocket();
-  const { user } = useAuth();
-
-  return useMutationOperation<{ success: boolean; data: any; token: any }, { appointmentId: string; userId: string; role?: string }>(
-    async (data: { appointmentId: string; userId: string; role?: string }) => {
-      const hasAccess = hasPermission(Permission.JOIN_VIDEO_APPOINTMENTS);
-      if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
-
-      const roleCandidate = data.role ?? user?.role;
-      const videoRole = getVideoTokenRole(roleCandidate);
-
-      // Generate token for joining
-      const tokenResult = await generateVideoToken({
-        appointmentId: data.appointmentId,
-        userId: data.userId,
-        userRole: videoRole,
-        userInfo: {
-          displayName: user?.name || videoRole,
-          email: user?.email || `${videoRole}@example.com`,
-        },
-      }) as { token: string; roomName: string; roomId: string; meetingUrl: string };
-      
-      return { success: true, data: tokenResult, token: tokenResult };
-    },
-    {
-      toastId: TOAST_IDS.VIDEO.JOIN,
-      loadingMessage: 'Joining video appointment...',
-      successMessage: 'Joining video appointment...',
-      onSuccess: (_, variables) => {
-        // Send WebSocket event for participant joined
-        const resolvedRole = getVideoTokenRole(variables.role ?? user?.role);
-        sendParticipantJoined(variables.appointmentId, {
-          userId: variables.userId,
-          displayName: user?.name || resolvedRole,
-          role: resolvedRole,
-        });
-      },
-    }
-  );
-}
-
 // ✅ End Video Appointment Mutation Hook with WebSocket Integration
 export function useEndVideoAppointment() {
   const { hasPermission } = useRBAC();
@@ -463,10 +496,14 @@ export function useEndVideoAppointment() {
     async (appointmentId: string) => {
       const hasAccess = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+      const resolvedUserId = user?.id;
+      if (!resolvedUserId) {
+        throw new Error('User not authenticated');
+      }
 
       const result = await endVideoConsultation({
         appointmentId,
-        userId: '', // Will be set from session
+        userId: resolvedUserId,
         userRole: getVideoTokenRole(user?.role),
       });
       
@@ -491,16 +528,21 @@ export function useEndVideoAppointment() {
 export function useDeleteVideoAppointment() {
   const queryClient = useQueryClient();
   const { hasPermission } = useRBAC();
+  const { user } = useAuth();
 
   return useMutationOperation<{ success: boolean; data: any }, string>(
     async (appointmentId: string) => {
       const hasAccess = hasPermission(Permission.DELETE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+      const resolvedUserId = user?.id;
+      if (!resolvedUserId) {
+        throw new Error('User not authenticated');
+      }
 
       // End consultation to effectively "delete" it
       const result = await endVideoConsultation({
         appointmentId,
-        userId: '', // Will be set from session
+        userId: resolvedUserId,
         userRole: 'doctor',
         endReason: 'Deleted by user',
       });
@@ -523,11 +565,14 @@ export function useDeleteVideoAppointment() {
 export function useRescheduleVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
+  const { user } = useAuth();
 
   return useMutationOperation<{ success: boolean; data: any }, { appointmentId: string; date: string; time: string; reason: string }>(
     async (data: { appointmentId: string; date: string; time: string; reason: string }) => {
-      const hasAccess = hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS);
+      const isPatient = String(user?.role || '').toUpperCase() === Role.PATIENT;
+      const hasAccess = isPatient || hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+      if (!data.appointmentId) throw new Error('Appointment ID is required');
 
       const result = await rescheduleAppointment(data.appointmentId, {
         date: data.date,
@@ -535,7 +580,7 @@ export function useRescheduleVideoAppointment() {
         reason: data.reason
       });
       
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw new Error(result.error || 'Failed to reschedule appointment');
       
       return { success: true, data: result };
     },
@@ -592,19 +637,21 @@ export function useRejectVideoProposal() {
 export function useCancelVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
+  const { user } = useAuth();
 
   return useMutationOperation<{ success: boolean; data: any }, { appointmentId: string; reason: string }>(
     async (data: { appointmentId: string; reason: string }) => {
-      // Assuming same permission as update or specific cancel permission
-      const hasAccess = hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS); 
+      const isPatient = String(user?.role || '').toUpperCase() === Role.PATIENT;
+      const hasAccess = isPatient || hasPermission(Permission.UPDATE_VIDEO_APPOINTMENTS);
       if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
+      if (!data.appointmentId) throw new Error('Appointment ID is required');
 
       const result = await updateAppointmentStatus(data.appointmentId, {
         status: 'CANCELLED',
         reason: data.reason,
       });
       
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw new Error(result.error || 'Failed to cancel appointment');
       
       return { success: true, data: result };
     },
@@ -689,13 +736,27 @@ export function useVideoCall() {
   // ✅ Start Video Call
   const startCall = useCallback(async (appointmentData: VideoAppointment, userInfo: { userId?: string; role?: string; displayName?: string; email?: string }) => {
     try {
-      const videoRole = getVideoTokenRole(userInfo.role || user?.role);
+      const sessionDecision = getVideoSessionDecision(appointmentData);
+      if (sessionDecision.blockedReason) {
+        throw new Error(sessionDecision.blockedReason);
+      }
+
+      if (appointmentData.paymentCompleted === false) {
+        throw new Error('Payment is required to join this appointment.');
+      }
+        const resolvedUserId = userInfo.userId || user?.id;
+
+        if (!resolvedUserId) {
+          throw new Error("Unable to start OpenVidu call without a user id");
+        }
+
+        const videoRole = getVideoTokenRole(userInfo.role || user?.role);
       const openViduRole = getOpenViduRole(userInfo.role || user?.role);
 
       // First, generate token from backend
       const tokenResult = await generateVideoToken({
         appointmentId: appointmentData.appointmentId,
-        userId: userInfo.userId || user?.id || '',
+        userId: resolvedUserId,
         userRole: videoRole,
         userInfo: {
           displayName: userInfo.displayName || user?.name || 'User',
@@ -703,20 +764,36 @@ export function useVideoCall() {
         },
       }) as { token: string; roomName: string; roomId: string; meetingUrl: string };
 
+      // Only ask the backend to start a consultation when this is a not-yet-started session.
+      // In-progress sessions already have an active consultation and should join directly.
+      if (sessionDecision.shouldCallConsultationStart) {
+        await startVideoConsultation({
+          appointmentId: appointmentData.appointmentId,
+          userId: resolvedUserId,
+          userRole: videoRole,
+        });
+      }
+
       // Get OpenVidu server URL from config or environment
       const openviduServerUrl = APP_CONFIG.VIDEO.OPENVIDU_URL;
+      const normalizedOpenViduServerUrl = normalizeOpenViduServerUrl(openviduServerUrl);
+      console.warn('[VIDEO][OpenVidu] Browser host configured for this session:', {
+        appointmentId: appointmentData.appointmentId,
+        openviduServerUrl,
+        normalizedOpenViduServerUrl,
+      });
 
       // Start video appointment with token
       const call = await videoAppointmentService.startVideoAppointment(
         appointmentData as any,
         {
-          userId: userInfo.userId || user?.id || '',
+          userId: resolvedUserId,
           displayName: userInfo.displayName || user?.name || 'User',
           email: userInfo.email || user?.email || '',
           role: openViduRole,
         },
         tokenResult.token,
-        openviduServerUrl
+        normalizedOpenViduServerUrl
       );
 
       // Initialize without container - React will handle rendering
@@ -732,7 +809,7 @@ export function useVideoCall() {
       });
       
       sendParticipantJoined(appointmentData.appointmentId, {
-        userId: userInfo.userId || user?.id || '',
+        userId: resolvedUserId,
         displayName: userInfo.displayName || user?.name || 'User',
         role: videoRole,
       });
@@ -756,6 +833,23 @@ export function useVideoCall() {
   // ✅ End Video Call
   const endCall = useCallback(async (appointmentId: string) => {
     try {
+      const resolvedUserId = user?.id;
+
+      if (!resolvedUserId) {
+        throw new Error("Unable to end OpenVidu call without a user id");
+      }
+
+      let consultationEndError: unknown = null;
+      try {
+        await endVideoConsultation({
+          appointmentId,
+          userId: resolvedUserId,
+          userRole: getVideoTokenRole(user?.role),
+        });
+      } catch (error) {
+        consultationEndError = error;
+      }
+
       await videoAppointmentService.endVideoAppointment();
       
       setPublisher(null);
@@ -770,6 +864,12 @@ export function useVideoCall() {
         title: 'Video Call Ended',
         description: 'Video appointment has been ended',
       });
+
+      if (consultationEndError) {
+        throw consultationEndError instanceof Error
+          ? consultationEndError
+          : new Error('Failed to end video consultation on the server');
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -778,7 +878,7 @@ export function useVideoCall() {
       });
       throw error;
     }
-  }, [sendVideoAppointmentEvent, toast]);
+  }, [sendVideoAppointmentEvent, toast, user?.id, user?.role]);
 
   // ✅ Get Current Call
   const getCurrentCall = useCallback(() => {
@@ -1325,12 +1425,37 @@ export function useCallTranscription(appointmentId: string) {
   );
 }
 
-export function useCallQuality(appointmentId: string) {
+export function useCallQuality(appointmentId: string, userId?: string) {
+  const { user } = useAuth();
+  const resolvedUserId = userId ?? user?.id;
+
   return useQueryData(
-    ['video-call-quality', appointmentId],
-    async () => await getCallQuality(appointmentId),
+    ['video-call-quality', appointmentId, resolvedUserId ?? 'current'],
+    async () => {
+      try {
+        if (!resolvedUserId) {
+          throw new Error('User not authenticated');
+        }
+        return await getCallQuality(appointmentId, resolvedUserId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (
+          message.includes('service is currently unavailable') ||
+          message.includes('Service is currently unavailable') ||
+          message.includes('503')
+        ) {
+          console.warn('[VIDEO][CallQuality] Backend unavailable, falling back to empty state:', {
+            appointmentId,
+            message,
+          });
+          return null;
+        }
+        throw error;
+      }
+    },
     {
-      enabled: !!appointmentId,
+      enabled: Boolean(appointmentId && resolvedUserId),
+      retry: false,
     }
   );
 }

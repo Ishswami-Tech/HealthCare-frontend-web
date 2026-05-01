@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { theme } from "@/lib/utils/theme-utils";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import { PageLoading, ErrorState } from "@/components/ui/loading";
 import { PasswordChangeModal, DataExportModal } from "@/components/patient/PatientModals";
 import {
@@ -581,7 +582,7 @@ export default function PatientProfile() {
                     </div>
                     <div className="pt-4 border-t">
                       <div className={`text-sm ${theme.textColors.secondary}`}>
-                        <strong>Last Health Checkup:</strong> {new Date(profileData.medicalHistory.lastCheckup).toLocaleDateString()}
+                        <strong>Last Health Checkup:</strong> {formatDateInIST(profileData.medicalHistory.lastCheckup)}
                       </div>
                     </div>
                   </CardContent>

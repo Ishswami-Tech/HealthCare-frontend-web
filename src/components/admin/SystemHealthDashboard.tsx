@@ -39,6 +39,7 @@ import { useDetailedHealthStatus } from '@/hooks/query/useHealth';
 import { useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useAppStore } from '@/stores';
 import { StatusDot, StatusType } from '@/components/common/StatusIndicator';
+import { formatDateTimeInIST, formatTimeInIST } from '@/lib/utils/date-time';
 
 // Helper to map status string to StatusType
 const mapStatus = (status?: string, healthy?: boolean): StatusType => {
@@ -181,10 +182,7 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {lastUpdate 
-                ? new Date(lastUpdate).toLocaleTimeString()
-                : 'Never'
-              }
+              {lastUpdate ? formatTimeInIST(lastUpdate) : 'Never'}
             </div>
             <p className="text-xs text-muted-foreground">
               Auto-refresh: {autoRefresh ? 'On' : 'Off'}
@@ -264,7 +262,7 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
                   <TableCell>
                     {service.lastChecked ? (
                       <span className="text-sm text-gray-500">
-                        {service.lastChecked.toLocaleTimeString()}
+                        {formatTimeInIST(service.lastChecked)}
                       </span>
                     ) : (
                       <span className="text-gray-400">Never</span>
@@ -337,7 +335,7 @@ export function SystemHealthDashboard({ className }: { className?: string }) {
                   <div className="font-medium">{notification.title}</div>
                   <div className="text-xs opacity-80 mt-1">{notification.message}</div>
                   <div className="text-xs opacity-60 mt-1">
-                    {new Date(notification.timestamp).toLocaleString()}
+                    {formatDateTimeInIST(notification.timestamp)}
                   </div>
                 </div>
               ))}
@@ -389,10 +387,7 @@ export function CompactSystemHealth({ className }: { className?: string }) {
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">Last Check</span>
           <span className="text-xs text-gray-500">
-            {lastUpdate 
-              ? new Date(lastUpdate).toLocaleTimeString()
-              : 'Never'
-            }
+            {lastUpdate ? formatTimeInIST(lastUpdate) : 'Never'}
           </span>
         </div>
       </CardContent>

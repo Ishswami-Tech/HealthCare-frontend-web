@@ -114,14 +114,7 @@ export interface DetailedHealthStatus {
 }
 
 export const useHealthStatus = () => {
-  return useQueryData<DetailedHealthStatus>(
-    ['healthStatus'],
-    async () => {
-      const result = await getDetailedHealthStatus();
-      return result;
-    },
-    { refetchInterval: false } // No polling - use Socket.IO only
-  );
+  return useDetailedHealthStatus();
 };
 
 /**

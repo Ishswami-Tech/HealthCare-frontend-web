@@ -17,6 +17,11 @@ import {
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTherapistAppointments, useCreateTherapistAppointment, useUpdateTherapistAppointment, useDeleteTherapistAppointment } from "@/hooks/query/useTherapist";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import {
+  formatDateInIST,
+  formatISODateInIST,
+  getReceptionistAppointmentTimeLabel,
+} from "@/lib/utils/appointmentUtils";
 
 export default function TherapistAppointments() {
   useAuth();
@@ -47,19 +52,24 @@ export default function TherapistAppointments() {
   const safeSearch = searchQuery.trim().toLowerCase();
 
   const safeDate = (value: unknown): Date | null => {
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? null : value;
+    }
+
     if (typeof value !== "string" || !value) return null;
+
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   };
 
   const formatDate = (value: unknown): string => {
     const parsed = safeDate(value);
-    return parsed ? parsed.toLocaleDateString("en-IN") : "N/A";
+    return parsed ? formatDateInIST(parsed, { day: "2-digit", month: "short", year: "numeric" }, "en-IN") : "N/A";
   };
 
   const isToday = (value: unknown): boolean => {
     const parsed = safeDate(value);
-    return parsed ? parsed.toDateString() === new Date().toDateString() : false;
+    return parsed ? formatISODateInIST(parsed) === formatISODateInIST(new Date()) : false;
   };
 
   const getStatusValue = (value: unknown): string =>
@@ -116,7 +126,7 @@ export default function TherapistAppointments() {
       <div>
         <h1 className="text-3xl font-bold">Appointments</h1>
         <p className="text-gray-600">
-          Manage your therapy sessions and appointments
+          Manage your sessions and appointments
         </p>
       </div>
 
@@ -205,9 +215,9 @@ export default function TherapistAppointments() {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {appointments.filter((a) => a.type === "Therapy Session").length}
+                  {appointments.filter((a) => a.type === "Session").length}
                 </div>
-                <div className="text-sm text-gray-600">Therapy Sessions</div>
+                <div className="text-sm text-gray-600">Procedural Sessions</div>
               </div>
             </div>
           </CardContent>
@@ -258,7 +268,9 @@ export default function TherapistAppointments() {
                 const clientId = appointment.clientId || "N/A";
                 const appointmentType = appointment.type || "Session";
                 const duration = appointment.duration || "N/A";
-                const time = appointment.time || "N/A";
+                const time = getReceptionistAppointmentTimeLabel(
+                  appointment as unknown as Record<string, unknown>
+                );
                 return (
                   <div
                   key={appointment.id}

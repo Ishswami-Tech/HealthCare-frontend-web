@@ -9,6 +9,7 @@ import "./globals.css";
 import { AppProvider } from "@/app/providers/AppProvider";
 import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
 import { Suspense } from "react";
+import Script from "next/script";
 import { APP_CONFIG } from "@/lib/config/config";
 import { DEFAULT_LANGUAGE } from "@/lib/i18n/config";
 import { LoadingSpinner } from "@/components/ui/loading";
@@ -21,7 +22,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Ishswami Healthcare - Your Health, Our Priority",
+  title: "Viddhakarma - Your Health, Our Priority",
   description:
     "Experience healthcare like never before. Connect with top doctors, manage appointments, and access your medical records - all in one secure platform.",
   keywords: [
@@ -32,9 +33,9 @@ export const metadata = {
     "telemedicine",
     "health records",
   ],
-  authors: [{ name: "Ishswami Healthcare" }],
-  creator: "Ishswami Healthcare",
-  publisher: "Ishswami Healthcare",
+  authors: [{ name: "Viddhakarma" }],
+  creator: "Viddhakarma",
+  publisher: "Viddhakarma",
   formatDetection: {
     email: false,
     address: false,
@@ -44,17 +45,17 @@ export const metadata = {
     ? new URL(APP_CONFIG.APP.URL) 
     : new URL('http://localhost:3000'),
   openGraph: {
-    title: "Ishswami Healthcare - Your Health, Our Priority",
+    title: "Viddhakarma - Your Health, Our Priority",
     description:
       "Experience healthcare like never before. Connect with top doctors, manage appointments, and access your medical records - all in one secure platform.",
     url: "/",
-    siteName: "Ishswami Healthcare",
+    siteName: "Viddhakarma",
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "Ishswami Healthcare Platform",
+        alt: "Viddhakarma Platform",
       },
     ],
     locale: "en_US",
@@ -62,7 +63,7 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ishswami Healthcare - Your Health, Our Priority",
+    title: "Viddhakarma - Your Health, Our Priority",
     description:
       "Experience healthcare like never before. Connect with top doctors, manage appointments, and access your medical records - all in one secure platform.",
     images: ["/og-image.jpg"],
@@ -98,7 +99,7 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="//accounts.google.com" />
         <link rel="dns-prefetch" href="//www.google-analytics.com" />
         
-        <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       </head>
       <body className={cn(inter.className, "antialiased")} suppressHydrationWarning>
         <PerformanceProvider
@@ -109,7 +110,7 @@ export default async function RootLayout({
           <Suspense
             fallback={
               <div className="min-h-screen bg-background flex items-center justify-center">
-                <LoadingSpinner size="lg" color="primary" text="Preparing Ishswami Healthcare..." />
+                <LoadingSpinner size="lg" color="primary" text="Preparing Viddhakarma..." />
               </div>
             }
           >

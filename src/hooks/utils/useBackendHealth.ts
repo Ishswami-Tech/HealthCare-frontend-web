@@ -275,7 +275,6 @@ export function useBackendHealth() {
      } else {
          // Wait 60 seconds before enabling polling fallback
          timeoutId = setTimeout(() => {
-             console.warn("⚠️ WebSocket disconnected for 60s - Enabling REST Fallback");
              setShouldPoll(true);
              checkAllServices(true); // Trigger immediate fallback check
          }, FALLBACK_DELAY_MS);

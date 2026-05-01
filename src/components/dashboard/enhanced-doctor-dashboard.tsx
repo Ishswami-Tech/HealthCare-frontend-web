@@ -12,6 +12,8 @@ import React from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   Calendar,
   Users,
@@ -36,6 +38,7 @@ export default function EnhancedDoctorDashboard() {
   const { session } = useAuth();
   const user = session?.user;
   const { clinicId } = useClinicContext();
+  useWebSocketQuerySync();
   
   // Fetch real data
   const { data: appointments } = useMyAppointments();
@@ -48,7 +51,7 @@ export default function EnhancedDoctorDashboard() {
     todayAppointments: allAppointments.filter((apt: any) =>
       new Date(apt.date).toDateString() === todayStr
     ).length,
-    checkedInPatients: allAppointments.filter((apt: any) => apt.status === "CONFIRMED").length,
+    checkedInPatients: allAppointments.filter((apt: any) => Boolean(apt.checkedInAt) || apt.status === "IN_PROGRESS").length,
     completedToday: allAppointments.filter((apt: any) =>
       new Date(apt.date).toDateString() === todayStr && apt.status === "COMPLETED"
     ).length,
@@ -81,7 +84,7 @@ export default function EnhancedDoctorDashboard() {
       const status = apt.status as string;
       return (
         new Date(apt.date).toDateString() === todayStr &&
-        ["CONFIRMED", "IN_PROGRESS", "SCHEDULED"].includes(status)
+        (Boolean(apt.checkedInAt) || status === "IN_PROGRESS")
       );
     })
     .sort((a: any, b: any) => (a.time || "").localeCompare(b.time || ""))
@@ -91,6 +94,7 @@ export default function EnhancedDoctorDashboard() {
       patientName: `${apt.patient?.firstName || ""} ${apt.patient?.lastName || ""}`.trim() || "Unknown Patient",
       time: apt.time || "",
       status: apt.status === "IN_PROGRESS" ? "in-progress" as const : "waiting" as const,
+      checkedInAt: apt.checkedInAt || null,
       type: apt.type || "Consultation",
       duration: `${apt.duration || 30} min`,
       priority: (apt.priority?.toLowerCase() || "normal") as "normal" | "high" | "critical",
@@ -130,7 +134,7 @@ export default function EnhancedDoctorDashboard() {
                     Good morning, Dr. {user?.firstName || "Doctor"}
                   </h1>
                   <p className="text-sm text-muted-foreground">
-                    {new Date().toLocaleDateString("en-IN", {
+                    {formatDateInIST(new Date(), {
                       weekday: "long",
                       year: "numeric",
                       month: "long",

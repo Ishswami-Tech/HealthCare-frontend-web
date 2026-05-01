@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppointments } from "@/hooks/query/useAppointments";
 import { useQueue, useQueueStats } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatISODateInIST, getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import {
   Building2,
   Calendar,
@@ -31,10 +32,15 @@ export default function ClinicLocationHeadDashboard() {
 
   useWebSocketQuerySync();
 
-  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const today = useMemo(() => formatISODateInIST(new Date()), []);
+  const historyStartDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 90);
+    return formatISODateInIST(date);
+  }, []);
 
   const { data: appointmentsResult, isPending: appointmentsPending } = useAppointments(
-    clinicId ? { clinicId, ...(today ? { date: today } : {}) } : undefined
+    clinicId ? { clinicId, startDate: historyStartDate, ...(today ? { endDate: today } : {}) } : undefined
   );
 
   const { data: queueData, isPending: queuePending } = useQueue(clinicId ?? undefined, {
@@ -49,6 +55,18 @@ export default function ClinicLocationHeadDashboard() {
     return Array.isArray(raw) ? raw : [];
   }, [appointmentsResult]);
 
+  const todayAppointments = useMemo(
+    () =>
+      appointments.filter((appointment: Record<string, unknown>) => {
+        const dateTime = getAppointmentDateTimeValue(appointment);
+        const aptDate =
+          (dateTime ? formatISODateInIST(dateTime) : "") ||
+          formatISODateInIST(String(appointment.date || appointment.appointmentDate || ""));
+        return aptDate === today;
+      }),
+    [appointments, today]
+  );
+
   const queueEntries = useMemo(() => {
     const raw = Array.isArray(queueData)
       ? queueData
@@ -59,19 +77,19 @@ export default function ClinicLocationHeadDashboard() {
   const queueStats = queueStatsRaw as Record<string, unknown> | undefined;
 
   const stats = useMemo(() => {
-    const totalToday = appointments.length;
-    const completed = appointments.filter(
+    const totalToday = todayAppointments.length;
+    const completed = todayAppointments.filter(
       (a: Record<string, unknown>) => String(a.status ?? "").toUpperCase() === "COMPLETED"
     ).length;
     const waiting = queueEntries.filter(
       (e: Record<string, unknown>) => String(e.status ?? "").toUpperCase() === "WAITING"
     ).length;
-    const inProgress = appointments.filter(
+    const inProgress = todayAppointments.filter(
       (a: Record<string, unknown>) => String(a.status ?? "").toUpperCase() === "IN_PROGRESS"
     ).length;
 
     return { totalToday, completed, waiting, inProgress };
-  }, [appointments, queueEntries]);
+  }, [todayAppointments, queueEntries]);
 
   const upcomingAppointments = useMemo(
     () =>
@@ -96,7 +114,7 @@ export default function ClinicLocationHeadDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -123,61 +141,61 @@ export default function ClinicLocationHeadDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-slate-100 shadow-sm">
+        <Card className="border-blue-200 bg-blue-50 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-500 uppercase tracking-tight">
+            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-blue-700 dark:text-blue-300">
               Today
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalToday}</div>
-            <p className="text-xs text-slate-400 mt-1">Total appointments</p>
+            <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.totalToday}</div>
+            <p className="mt-1 text-xs text-blue-700/80 dark:text-blue-200/80">Total appointments</p>
           </CardContent>
         </Card>
-        <Card className="border-blue-100 shadow-sm">
+        <Card className="border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-blue-600 uppercase tracking-tight">
+            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-emerald-700 dark:text-emerald-300">
               Queue
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
               {queueStats ? Number(queueStats.waiting ?? stats.waiting) : stats.waiting}
             </div>
-            <p className="text-xs text-slate-400 mt-1">Waiting patients</p>
+            <p className="mt-1 text-xs text-emerald-700/80 dark:text-emerald-200/80">Waiting patients</p>
           </CardContent>
         </Card>
-        <Card className="border-amber-100 shadow-sm">
+        <Card className="border-indigo-200 bg-indigo-50 shadow-sm dark:border-indigo-500/20 dark:bg-indigo-500/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-amber-600 uppercase tracking-tight">
+            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-indigo-700 dark:text-indigo-300">
               In Progress
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{stats.inProgress}</div>
-            <p className="text-xs text-slate-400 mt-1">Active consultations</p>
+            <div className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">{stats.inProgress}</div>
+            <p className="mt-1 text-xs text-indigo-700/80 dark:text-indigo-200/80">Active consultations</p>
           </CardContent>
         </Card>
-        <Card className="border-emerald-100 shadow-sm">
+        <Card className="border-green-200 bg-green-50 shadow-sm dark:border-green-500/20 dark:bg-green-500/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-emerald-600 uppercase tracking-tight">
+            <CardTitle className="text-xs font-semibold uppercase tracking-tight text-green-700 dark:text-green-300">
               Completed
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">{stats.completed}</div>
-            <p className="text-xs text-slate-400 mt-1">Done today</p>
+            <div className="text-2xl font-bold text-green-900 dark:text-green-100">{stats.completed}</div>
+            <p className="mt-1 text-xs text-green-700/80 dark:text-green-200/80">Done today</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's Appointments */}
+        {/* Recent Appointments */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-blue-600" />
-              Today&apos;s Appointments
+              Recent Appointments
             </CardTitle>
             <Button
               variant="ghost"
@@ -192,7 +210,7 @@ export default function ClinicLocationHeadDashboard() {
             {upcomingAppointments.length === 0 ? (
               <div className="text-center py-10 text-muted-foreground">
                 <Calendar className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No appointments scheduled for today</p>
+                <p className="text-sm">No recent appointments found</p>
               </div>
             ) : (
               <div className="space-y-2">

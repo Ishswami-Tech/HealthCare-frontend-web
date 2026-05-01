@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { useHealthStatus } from "@/hooks/query/useHealth";
+import { useDetailedHealthStatus } from "@/hooks/query/useHealth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ export const BackendHealthCheck: React.FC<BackendHealthCheckProps> = ({
     error,
     refetch,
     isFetching,
-  } = useHealthStatus();
+  } = useDetailedHealthStatus();
   
   // Type assertion for health status
   const healthData = health as { status?: string; details?: any } | undefined;

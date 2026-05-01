@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import {
   SignalHigh,
 } from "lucide-react";
 import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointmentSocketIO";
+import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useCallQuality,
   useUpdateCallQualityMetrics,
@@ -36,7 +38,9 @@ export function CallQualityIndicator({
   showDetails = false,
 }: CallQualityIndicatorProps) {
   const [quality, setQuality] = useState<CallQualityMetrics | null>(null);
-  const { data: callQuality, isPending: isLoading } = useCallQuality(appointmentId);
+  const { user } = useAuth();
+  const isUserReady = Boolean(user?.id);
+  const { data: callQuality, isPending: isLoading } = useCallQuality(appointmentId, user?.id);
   const updateCallQualityMutation = useUpdateCallQualityMetrics();
   const isReportingIssue = updateCallQualityMutation.isPending;
   const { subscribeToCallQuality, isConnected } =
@@ -129,7 +133,7 @@ export function CallQualityIndicator({
   const fallbackMetrics: CallQualityMetrics = {
     consultationId: appointmentId,
     userId: "",
-    timestamp: new Date().toISOString(),
+    timestamp: nowIso(),
     network: {
       latency: 0,
       jitter: 0,
@@ -161,6 +165,15 @@ export function CallQualityIndicator({
       showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
+
+  if (!isUserReady) {
+    return (
+      <Badge variant="outline" className={className}>
+        <Wifi className="h-3 w-3 mr-1 animate-pulse" />
+        Preparing...
+      </Badge>
+    );
+  }
 
   if (isLoading) {
     return (

@@ -1,4 +1,5 @@
 // Enhanced logging utility for healthcare application
+import { nowIso } from '@/lib/utils/date-time';
 import { APP_CONFIG } from '@/lib/config/config';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -18,7 +19,7 @@ class Logger {
   }
 
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
-    const timestamp = new Date().toISOString();
+    const timestamp = nowIso();
     const contextStr = context ? ` [${JSON.stringify(context)}]` : '';
     return `[${timestamp}] ${level.toUpperCase()}: ${message}${contextStr}`;
   }

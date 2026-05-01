@@ -59,6 +59,10 @@ export function getErrorMessageForStatus(status: number, backendMessage?: string
       return ERROR_MESSAGES.UNAUTHORIZED;
     case 403:
       return ERROR_MESSAGES.FORBIDDEN;
+    case 423:
+      return backendMessage && backendMessage.trim().length > 0
+        ? backendMessage
+        : 'This resource is currently unavailable. Please try again later.';
     case 404:
       // ✅ More specific message for 404 - could be endpoint not found or service down
       // Check if backend message suggests endpoint issue

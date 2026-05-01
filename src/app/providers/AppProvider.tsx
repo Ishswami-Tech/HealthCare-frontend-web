@@ -101,7 +101,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                       visibleToasts={4}
                       closeButton
                       toastOptions={{
-                        duration: 4000,
+                        duration: 5000,
                         className: "text-sm",
                       }}
                     />

@@ -31,6 +31,8 @@ interface MedicalNotesProps {
   className?: string;
 }
 
+const EMPTY_MEDICAL_NOTES: MedicalNote[] = [];
+
 export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
   const { user } = useAuth();
   const [notes, setNotes] = useState<MedicalNote[]>([]);
@@ -49,14 +51,16 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
   });
   const { subscribeToMedicalNotes, isConnected } =
     useVideoAppointmentWebSocket();
-  const { data: fetchedNotes = [], isPending: isLoading } = useMedicalNotes(appointmentId);
+  const { data: fetchedNotes, isPending: isLoading } = useMedicalNotes(appointmentId);
   const createMedicalNoteMutation = useCreateMedicalNote();
   const deleteMedicalNoteMutation = useDeleteMedicalNote();
   const isSaving = createMedicalNoteMutation.isPending;
 
+  const resolvedNotes = fetchedNotes ?? EMPTY_MEDICAL_NOTES;
+
   useEffect(() => {
-    setNotes(fetchedNotes);
-  }, [fetchedNotes]);
+    setNotes(resolvedNotes);
+  }, [resolvedNotes]);
 
   // Subscribe to real-time note updates
   useEffect(() => {

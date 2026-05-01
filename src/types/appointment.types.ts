@@ -13,7 +13,6 @@ import type { Invoice } from './billing.types';
 export type AppointmentStatus = 
   | 'SCHEDULED'
   | 'CONFIRMED' 
-  | 'AWAITING_SLOT_CONFIRMATION'
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CANCELLED'
@@ -100,6 +99,33 @@ export interface AssistantDoctorCoverageAssignment {
   isActive: boolean;
 }
 
+export interface AppointmentPaymentRecord {
+  id?: string;
+  status?: string;
+  paymentStatus?: string;
+  state?: string;
+  payment_state?: string;
+  amount?: number;
+  currency?: string;
+  provider?: string;
+  transactionId?: string;
+  transactionStatus?: string;
+  metadata?: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AppointmentBillingRecord {
+  paymentStatus?: string;
+  amount?: number;
+  totalAmount?: number;
+  payment?: AppointmentPaymentRecord | AppointmentPaymentRecord[] | null;
+  payments?: AppointmentPaymentRecord[] | null;
+  invoice?: Invoice | null;
+  status?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface CreateAppointmentData {
   patientId: string;
   doctorId: string;
@@ -126,15 +152,19 @@ export interface UpdateAppointmentData {
   symptoms?: string[];
   diagnosis?: string;
   prescription?: string;
+  treatmentPlan?: string;
   followUpDate?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CompleteAppointmentData {
   diagnosis?: string;
   prescription?: string;
   notes?: string;
+  treatmentPlan?: string;
   followUpDate?: string;
   followUpNotes?: string;
+  metadata?: Record<string, unknown>;
   doctorId?: string; // ✅ Consolidated: merged from duplicate definition
 }
 
@@ -299,6 +329,9 @@ export interface Appointment {
   parentAppointment?: Appointment;
   followUpAppointments?: Appointment[];
   invoice?: Invoice;
+  payment?: AppointmentPaymentRecord | AppointmentPaymentRecord[] | null;
+  payments?: AppointmentPaymentRecord[] | null;
+  billing?: AppointmentBillingRecord | null;
 }
 
 export interface AppointmentWithRelations extends Appointment {

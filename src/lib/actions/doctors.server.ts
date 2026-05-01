@@ -59,6 +59,7 @@ export async function createDoctor(doctorData: {
   qualification?: string;
   consultationFee?: number;
   clinicId?: string;
+  workingHours?: unknown;
   schedule?: {
     dayOfWeek: number;
     startTime: string;
@@ -121,10 +122,27 @@ export async function updateDoctorSchedule(doctorId: string, schedule: {
   startTime: string;
   endTime: string;
   isAvailable: boolean;
-}[]) {
-  void doctorId;
-  void schedule;
-  return unsupportedDoctorRoute('PUT /appointments/doctor/:doctorId/availability');
+}[], clinicId?: string) {
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+  const workingHours = schedule.reduce<Record<string, { start: string; end: string } | null>>(
+    (acc, item) => {
+      const day = dayNames[item.dayOfWeek] || null;
+      if (!day) {
+        return acc;
+      }
+      acc[day] = item.isAvailable && item.startTime && item.endTime
+        ? { start: item.startTime, end: item.endTime }
+        : null;
+      return acc;
+    },
+    {}
+  );
+
+  return createDoctor({
+    userId: doctorId,
+    ...(clinicId ? { clinicId } : {}),
+    workingHours,
+  });
 }
 
 

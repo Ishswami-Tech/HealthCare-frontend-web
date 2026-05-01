@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { HoverAnimation } from "@/components/ui/animated-wrapper";
 import { useTranslation, useLanguageSwitcher } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useRouter } from "next/navigation";
@@ -296,11 +295,10 @@ const Navigation = () => {
           <div className="flex items-center justify-between h-16 md:h-20 min-h-16 max-w-7xl mx-auto">
             {/* Left Section - Logo Only */}
             <div className="flex items-center shrink-0 min-w-0">
-              <HoverAnimation type="scale">
-                <Link
-                  href="/"
-                  className="flex items-center space-x-2 sm:space-x-3 touch-manipulation"
-                >
+              <Link
+                href="/"
+                className="flex items-center space-x-2 sm:space-x-3 touch-manipulation"
+              >
                   <motion.div
                     className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
                     whileHover={{ rotate: 360 }}
@@ -320,8 +318,7 @@ const Navigation = () => {
                       {t("navigation.clinicSubtitle")}
                     </p>
                   </div>
-                </Link>
-              </HoverAnimation>
+              </Link>
             </div>
 
             {/* Center Navigation */}
@@ -497,56 +494,48 @@ const Navigation = () => {
                 </div>
               ) : isAuthEnabled ? (
                 <div className="flex items-center space-x-1 sm:space-x-2">
-                  <HoverAnimation type="scale">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={handleLogin}
-                      className="text-orange-600 hover:bg-orange-50 text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
-                    >
-                      <span className="hidden sm:inline">Login</span>
-                      <span className="sm:hidden">Login</span>
-                    </Button>
-                  </HoverAnimation>
-                  <HoverAnimation type="scale">
-                    <Button
-                      size="sm"
-                      onClick={handleRegister}
-                      className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
-                    >
-                      <span className="hidden sm:inline">Register</span>
-                      <span className="sm:hidden">Sign Up</span>
-                    </Button>
-                  </HoverAnimation>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleLogin}
+                    className="text-orange-600 hover:bg-orange-50 text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
+                  >
+                    <span className="hidden sm:inline">Login</span>
+                    <span className="sm:hidden">Login</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleRegister}
+                    className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
+                  >
+                    <span className="hidden sm:inline">Register</span>
+                    <span className="sm:hidden">Sign Up</span>
+                  </Button>
                 </div>
               ) : null}
 
               {/* Primary CTA Button */}
-              <HoverAnimation type="scale">
-                <Button
-                  size="sm"
-                  className="hidden lg:flex bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
-                  onClick={() => (window.location.href = "tel:9860370961")}
-                >
-                  <Phone className="w-3 h-3 mr-1" />
-                  {t("navigation.bookConsultation")}
-                </Button>
-              </HoverAnimation>
+              <Button
+                size="sm"
+                className="hidden lg:flex bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
+                onClick={() => (window.location.href = "tel:9860370961")}
+              >
+                <Phone className="w-3 h-3 mr-1" />
+                {t("navigation.bookConsultation")}
+              </Button>
 
               {/* Mobile Book Consultation Button */}
-              <HoverAnimation type="scale">
-                <Button
-                  size="sm"
-                  className="lg:hidden bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
-                  onClick={() => (window.location.href = "tel:9860370961")}
-                >
-                  <Phone className="w-3 h-3 mr-1" />
-                  <span className="hidden sm:inline">
-                    {t("navigation.bookConsultation")}
-                  </span>
-                  <span className="sm:hidden">Book</span>
-                </Button>
-              </HoverAnimation>
+              <Button
+                size="sm"
+                className="lg:hidden bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
+                onClick={() => (window.location.href = "tel:9860370961")}
+              >
+                <Phone className="w-3 h-3 mr-1" />
+                <span className="hidden sm:inline">
+                  {t("navigation.bookConsultation")}
+                </span>
+                <span className="sm:hidden">Book</span>
+              </Button>
 
               {/* Mobile Menu Button */}
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>

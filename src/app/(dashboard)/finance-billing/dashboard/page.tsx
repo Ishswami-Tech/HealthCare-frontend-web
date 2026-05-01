@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "@/components/ui/loader";
-import { useAuth } from "@/hooks/auth/useAuth";
+import { useCurrentClinicId } from "@/hooks/query/useClinics";
 import {
   useClinicInvoices,
   useClinicPayments,
@@ -14,6 +14,7 @@ import {
 } from "@/hooks/query/useBilling";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import type { Invoice, Payment, BillingAnalytics } from "@/types/billing.types";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   DollarSign,
   FileText,
@@ -30,8 +31,7 @@ import {
 
 export default function FinanceBillingDashboard() {
   const router = useRouter();
-  const { session } = useAuth();
-  const clinicId = session?.user?.clinicId ?? "";
+  const clinicId = useCurrentClinicId();
 
   useWebSocketQuerySync();
 
@@ -115,7 +115,7 @@ export default function FinanceBillingDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -270,7 +270,7 @@ export default function FinanceBillingDashboard() {
                         <p className="text-xs text-muted-foreground">
                           {inv.patientName ?? "Patient"}
                           {inv.createdAt
-                            ? ` · ${new Date(inv.createdAt).toLocaleDateString()}`
+                            ? ` · ${formatDateInIST(inv.createdAt)}`
                             : ""}
                         </p>
                       </div>
@@ -294,7 +294,7 @@ export default function FinanceBillingDashboard() {
                           onClick={(e) => {
                             e.stopPropagation();
                             window.open(
-                              `/billing/invoices/${inv.id}/download`,
+                              `/api/billing/invoices/${inv.id}/download`,
                               "_blank",
                               "noopener,noreferrer"
                             );

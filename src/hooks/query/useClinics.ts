@@ -1,9 +1,12 @@
 import { useQueryData, useMutationOperation } from '../core';
+import { useAuth } from '@/hooks/auth/useAuth';
 import { TOAST_IDS } from '../utils/use-toast';
-import { useAuth } from '../auth/useAuth';
 import { useRBAC } from '../utils/useRBAC';
+import { useAppStore } from '@/stores';
+import { useAuthStore } from '@/stores/auth.store';
 import { Permission } from '@/types/rbac.types';
 import { APP_CONFIG } from '@/lib/config/config';
+import { clinicApiClient } from '@/lib/api/client';
 import { 
   CreateClinicData,
   UpdateClinicData,
@@ -35,9 +38,6 @@ import {
   testClinicCommunication,
 } from '@/lib/actions/clinic-communication.server';
 
-// API URL configuration - use centralized config
-const API_URL = APP_CONFIG.API.BASE_URL;
-
 // ✅ Get clinic ID from centralized config (not directly from env)
 // This ensures proper fallback and type safety
 const CLINIC_ID = APP_CONFIG.CLINIC.ID;
@@ -59,30 +59,15 @@ async function apiCall<T>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<{ status: number; data: T }> {
-  const url = `${API_URL}${endpoint}`;
-  
-  // ✅ PERFORMANCE: Use fetch with AbortController
-  const { fetchWithAbort } = await import('@/lib/utils/fetch-with-abort');
-  const response = await fetchWithAbort(url, {
-    timeout: 10000,
+  const response = await clinicApiClient.request<T>(endpoint, {
     credentials: 'include',
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    // ✅ Use centralized error handler
-    const { handleApiError } = await import('@/lib/utils/error-handler');
-    const errorMessage = await handleApiError(response, errorData);
-    throw new Error(errorMessage);
-  }
-
-  const data = await response.json();
-  return { status: response.status, data };
+  return {
+    status: response.statusCode || 200,
+    data: response.data as T,
+  };
 }
 
 // ===== CLINIC CRUD HOOKS =====
@@ -111,10 +96,16 @@ export const useCreateClinic = () => {
 /**
  * Hook to get all clinics
  */
-export const useClinics = () => {
-  return useQueryData(['clinics'], async () => {
-    return await getClinics();
-  });
+export const useClinics = (options?: { enabled?: boolean }) => {
+  return useQueryData(
+    ['clinics'],
+    async () => {
+      return await getClinics();
+    },
+    {
+      enabled: options?.enabled ?? true,
+    }
+  );
 };
 
 
@@ -184,7 +175,7 @@ export const useMyClinic = () => {
       return response.data;
     },
     {
-      enabled: !!session?.user?.id && !isPending,
+      enabled: !!session?.user?.id && !!token && !isPending,
     }
   );
 };
@@ -724,6 +715,10 @@ export const useActiveLocations = (clinicId: string, options?: {
     },
     {
       enabled: !!clinicId && (options?.enabled ?? true),
+      staleTime: 10 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: true,
     }
   );
 };
@@ -853,11 +848,15 @@ export interface PaginationParams {
 
 // ✅ Current Clinic ID Hook (separate to avoid circular imports)
 export const useCurrentClinicId = () => {
-  const { session } = useAuth();
+  const currentClinic = useAppStore(state => state.currentClinic);
+  const sessionUser = useAuthStore(state => state.session?.user as { clinicId?: string; clinic?: { id?: string } } | undefined);
   
-  // Try to get clinic ID from user session
-  const clinicId = (session?.user as { clinicId?: string; clinic?: { id: string } })?.clinicId || 
-                  (session?.user as { clinicId?: string; clinic?: { id: string } })?.clinic?.id;
+  const clinicId =
+    currentClinic?.id ||
+    sessionUser?.clinicId ||
+    sessionUser?.clinic?.id ||
+    APP_CONFIG.CLINIC.ID ||
+    "";
   
   return clinicId;
 };

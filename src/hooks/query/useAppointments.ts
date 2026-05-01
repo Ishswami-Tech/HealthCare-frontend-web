@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 // ✅ Appointments Hooks - Backend Integration
 // This file provides hooks that integrate with the backend appointments system
@@ -12,6 +13,7 @@ import { useQueryData, useMutationOperation, useOptimisticMutation, useQueryClie
 import { TOAST_IDS, useToast } from '../utils/use-toast';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { useAuth } from '../auth/useAuth';
+import { Role } from '@/types/auth.types';
 import { clinicApiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/config/config';
 import {
@@ -22,15 +24,18 @@ import {
   updateAppointmentStatus, // Consolidated status update
   bulkUpdateAppointmentStatus,
   getUserUpcomingAppointments,
+  cancelAppointment,
   testAppointmentContext,
   proposeVideoAppointment,
   confirmVideoSlot,
+  confirmFinalVideoSlot,
   rescheduleAppointment,
   rejectVideoProposal,
   reassignAppointmentDoctor,
   getAssistantDoctorCoverage,
   updateAssistantDoctorCoverage,
   checkInAppointment,
+  forceCheckInAppointment,
   scanLocationQRAndCheckIn,
 } from '@/lib/actions/appointments.server';
 import {
@@ -43,6 +48,12 @@ import {
   getQueueListQueryKey,
   getQueueStatsQueryKey,
 } from '@/lib/queue/queue-cache';
+import {
+  serializeAppointmentQueryKey,
+  getAppointmentQueryKey,
+  getAppointmentStatsQueryKey,
+  toAppointmentFilterParams,
+} from '@/lib/query/appointment-query-keys';
 import type { 
   CreateAppointmentData, 
   UpdateAppointmentData,
@@ -53,42 +64,263 @@ import type {
 } from '@/types/appointment.types';
 
 const extractAppointments = (payload: unknown): Appointment[] => {
-  if (Array.isArray(payload)) return payload as Appointment[];
+  const dedupe = (items: Appointment[]) =>
+    Array.from(
+      new Map(
+        items.map((appointment) => {
+          const compositeKey = [
+            String((appointment as any)?.date || (appointment as any)?.appointmentDate || ""),
+            String((appointment as any)?.time || (appointment as any)?.appointmentTime || ""),
+            String((appointment as any)?.doctorId || (appointment as any)?.doctor?.id || ""),
+            String((appointment as any)?.patientId || (appointment as any)?.patient?.id || ""),
+            String((appointment as any)?.type || (appointment as any)?.appointmentType || ""),
+            String((appointment as any)?.status || ""),
+            String((appointment as any)?.locationId || (appointment as any)?.location?.id || ""),
+            String((appointment as any)?.clinicId || (appointment as any)?.clinic?.id || ""),
+          ].join("|");
+
+          const id = String(appointment?.id || "");
+          return [compositeKey || id, appointment];
+        })
+      ).values()
+    );
+
+  if (Array.isArray(payload)) return dedupe(payload as Appointment[]);
   if (payload && typeof payload === 'object') {
     const record = payload as { appointments?: unknown; data?: unknown };
-    if (Array.isArray(record.appointments)) return record.appointments as Appointment[];
-    if (Array.isArray(record.data)) return record.data as Appointment[];
+    if (Array.isArray(record.appointments)) return dedupe(record.appointments as Appointment[]);
+    if (Array.isArray(record.data)) return dedupe(record.data as Appointment[]);
     if (record.data && typeof record.data === 'object') {
       const nested = record.data as { appointments?: unknown };
-      if (Array.isArray(nested.appointments)) return nested.appointments as Appointment[];
+      if (Array.isArray(nested.appointments)) return dedupe(nested.appointments as Appointment[]);
     }
   }
   return [];
 };
 
-const serializeAppointmentFilters = (
-  filters: AppointmentFilters & { omitClinicId?: boolean }
-): Record<string, string | number> => {
-  const params: Record<string, string | number> = {};
+const getAppointmentCacheId = (appointment: unknown): string => {
+  if (!appointment || typeof appointment !== 'object') {
+    return '';
+  }
 
-  Object.entries(filters).forEach(([key, value]) => {
-    if (key === 'omitClinicId' || value === undefined || value === null || value === '') {
-      return;
+  const record = appointment as Record<string, unknown>;
+  return String(record.appointmentId || record.id || '');
+};
+
+const getAppointmentTimestamp = (appointment: unknown): number => {
+  if (!appointment || typeof appointment !== 'object') {
+    return 0;
+  }
+
+  const record = appointment as Record<string, unknown>;
+  const timestamp = String(record.updatedAt || record.updated_at || record.createdAt || record.created_at || '');
+  const parsed = new Date(timestamp);
+  return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
+};
+
+const patchConfirmedAppointmentInPayload = (payload: unknown, updatedAppointment: Appointment): unknown => {
+  const targetId = getAppointmentCacheId(updatedAppointment);
+  const incomingTimestamp = getAppointmentTimestamp(updatedAppointment);
+  if (!targetId) {
+    return payload;
+  }
+
+  const mergeAppointment = (item: unknown): unknown => {
+    if (!item || typeof item !== 'object') {
+      return item;
     }
 
-    if (Array.isArray(value)) {
-      if (value.length > 0) {
-        params[key] = value.join(',');
-      }
-      return;
+    const itemRecord = item as Record<string, unknown>;
+    const itemId = getAppointmentCacheId(itemRecord);
+    if (!itemId || itemId !== targetId) {
+      return item;
     }
 
-    if (typeof value === 'string' || typeof value === 'number') {
-      params[key] = value;
+    const currentTimestamp = getAppointmentTimestamp(itemRecord);
+    if (currentTimestamp > 0 && incomingTimestamp > 0 && currentTimestamp > incomingTimestamp) {
+      return item;
     }
-  });
 
-  return params;
+    return {
+      ...itemRecord,
+      ...updatedAppointment,
+      id: (updatedAppointment as any).id || itemRecord.id,
+      appointmentId: (updatedAppointment as any).appointmentId || itemRecord.appointmentId || itemRecord.id,
+      status: (updatedAppointment as any).status || itemRecord.status,
+      rawStatus: (updatedAppointment as any).rawStatus || (updatedAppointment as any).status || itemRecord.rawStatus || itemRecord.status,
+      confirmedSlotIndex:
+        (updatedAppointment as any).confirmedSlotIndex ??
+        (updatedAppointment as any).confirmed_slot_index ??
+        itemRecord.confirmedSlotIndex ??
+        itemRecord.confirmed_slot_index ??
+        null,
+      confirmed_slot_index:
+        (updatedAppointment as any).confirmed_slot_index ??
+        (updatedAppointment as any).confirmedSlotIndex ??
+        itemRecord.confirmed_slot_index ??
+        itemRecord.confirmedSlotIndex ??
+        null,
+      date:
+        (updatedAppointment as any).date ||
+        itemRecord.date ||
+        itemRecord.appointmentDate ||
+        itemRecord.startTime ||
+        null,
+      appointmentDate:
+        (updatedAppointment as any).appointmentDate ||
+        (updatedAppointment as any).date ||
+        itemRecord.appointmentDate ||
+        itemRecord.date ||
+        null,
+      time:
+        (updatedAppointment as any).time ||
+        itemRecord.time ||
+        itemRecord.appointmentTime ||
+        itemRecord.startTime ||
+        null,
+      appointmentTime:
+        (updatedAppointment as any).appointmentTime ||
+        (updatedAppointment as any).time ||
+        itemRecord.appointmentTime ||
+        itemRecord.time ||
+        null,
+      startTime:
+        (updatedAppointment as any).startTime ||
+        (updatedAppointment as any).time ||
+        itemRecord.startTime ||
+        itemRecord.appointmentTime ||
+        null,
+      endTime:
+        (updatedAppointment as any).endTime ||
+        itemRecord.endTime ||
+        null,
+    };
+  };
+
+  if (Array.isArray(payload)) {
+    return payload.map(mergeAppointment);
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const nextRecord: Record<string, unknown> = { ...record };
+  let changed = false;
+
+  if (Array.isArray(record.appointments)) {
+    nextRecord.appointments = record.appointments.map(mergeAppointment);
+    changed = true;
+  }
+
+  if (Array.isArray(record.data)) {
+    nextRecord.data = record.data.map(mergeAppointment);
+    changed = true;
+  }
+
+  if (record.data && typeof record.data === 'object') {
+    const nestedData = record.data as Record<string, unknown>;
+    if (Array.isArray(nestedData.appointments)) {
+      nextRecord.data = {
+        ...nestedData,
+        appointments: nestedData.appointments.map(mergeAppointment),
+      };
+      changed = true;
+    }
+    if (Array.isArray(nestedData.data)) {
+      nextRecord.data = {
+        ...nestedData,
+        data: nestedData.data.map(mergeAppointment),
+      };
+      changed = true;
+    }
+  }
+
+  return changed ? nextRecord : payload;
+};
+
+const normalizeConfirmedVideoAppointment = (
+  appointment: Appointment,
+  appointmentId: string
+): Appointment => {
+  const confirmedSlotIndex =
+    (appointment as any).confirmedSlotIndex ??
+    (appointment as any).confirmed_slot_index ??
+    null;
+
+  return {
+    ...appointment,
+    id: (appointment as any).appointmentId || (appointment as any).id || appointmentId,
+    appointmentId: (appointment as any).appointmentId || appointmentId || (appointment as any).id,
+    status: 'CONFIRMED',
+    rawStatus: 'CONFIRMED',
+    confirmedSlotIndex,
+    confirmed_slot_index: confirmedSlotIndex,
+    updatedAt: (appointment as any).updatedAt || nowIso(),
+  } as Appointment;
+};
+
+const upsertAppointmentInPayload = (payload: unknown, appointmentToInsert: Appointment): unknown => {
+  const targetId = getAppointmentCacheId(appointmentToInsert);
+  if (!targetId) {
+    return payload;
+  }
+
+  const insertOrReplace = (items: unknown): unknown => {
+    if (!Array.isArray(items)) {
+      return items;
+    }
+
+    const existingIndex = items.findIndex((item) => getAppointmentCacheId(item) === targetId);
+    if (existingIndex >= 0) {
+      return items.map((item, index) => (index === existingIndex ? { ...item, ...appointmentToInsert } : item));
+    }
+
+    return [...items, appointmentToInsert];
+  };
+
+  if (Array.isArray(payload)) {
+    return insertOrReplace(payload);
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const nextRecord: Record<string, unknown> = { ...record };
+  let changed = false;
+
+  if (Array.isArray(record.appointments)) {
+    nextRecord.appointments = insertOrReplace(record.appointments);
+    changed = true;
+  }
+
+  if (Array.isArray(record.data)) {
+    nextRecord.data = insertOrReplace(record.data);
+    changed = true;
+  }
+
+  if (record.data && typeof record.data === 'object') {
+    const nestedData = record.data as Record<string, unknown>;
+    if (Array.isArray(nestedData.appointments)) {
+      nextRecord.data = {
+        ...nestedData,
+        appointments: insertOrReplace(nestedData.appointments),
+      };
+      changed = true;
+    }
+    if (Array.isArray(nestedData.data)) {
+      nextRecord.data = {
+        ...nestedData,
+        data: insertOrReplace(nestedData.data),
+      };
+      changed = true;
+    }
+  }
+
+  return changed ? nextRecord : payload;
 };
 
 // ✅ Appointment Management Hooks
@@ -96,13 +328,16 @@ const serializeAppointmentFilters = (
 /**
  * Hook for fetching appointments with filters (Optimized for 100K users)
  */
-export const useAppointments = (clinicIdOrFilters?: string | (AppointmentFilters & { omitClinicId?: boolean })) => {
+export const useAppointments = (
+  clinicIdOrFilters?: string | (AppointmentFilters & { omitClinicId?: boolean }),
+  options?: { enabled?: boolean }
+) => {
   const clinicId = useCurrentClinicId();
   const { hasPermission } = useRBAC();
   
   // Memoize query key for performance
   const queryKey = useMemo(
-    () => ['appointments', clinicId, clinicIdOrFilters], 
+    () => serializeAppointmentQueryKey(clinicId, clinicIdOrFilters),
     [clinicId, clinicIdOrFilters]
   );
   
@@ -127,7 +362,7 @@ export const useAppointments = (clinicIdOrFilters?: string | (AppointmentFilters
 
     const response = await clinicApiClient.get<unknown>(
       API_ENDPOINTS.APPOINTMENTS.GET_ALL,
-      serializeAppointmentFilters(filters)
+      toAppointmentFilterParams(filters)
     );
     if (!response.success) {
       throw new Error(response.message || response.error || 'Failed to fetch appointments');
@@ -146,7 +381,10 @@ export const useAppointments = (clinicIdOrFilters?: string | (AppointmentFilters
     queryKey,
     queryFn,
     {
-      enabled: (!!clinicId || (typeof clinicIdOrFilters === 'object' && (!!clinicIdOrFilters.omitClinicId || !!clinicIdOrFilters.clinicId))) && hasPermission(Permission.VIEW_APPOINTMENTS),
+      enabled:
+        (options?.enabled ?? true) &&
+        (!!clinicId || (typeof clinicIdOrFilters === 'object' && (!!clinicIdOrFilters.omitClinicId || !!clinicIdOrFilters.clinicId))) &&
+        hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000, // 5 minutes for better caching
       gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
       refetchOnWindowFocus: false, // Reduce unnecessary refetches
@@ -245,7 +483,7 @@ export const useCreateAppointment = (clinicId?: string) => {
   // Use optimistic mutation hook
   const queryClient = useQueryClient();
   const { optimisticData, addOptimistic, mutation, isPending } = useOptimisticMutation({
-    queryKey: ['appointments', clinicId],
+    queryKey: serializeAppointmentQueryKey(clinicId),
     mutationFn,
     optimisticUpdate: (current, variables) => {
       // Create optimistic appointment
@@ -253,8 +491,8 @@ export const useCreateAppointment = (clinicId?: string) => {
         ...variables,
         id: `temp-${Date.now()}`,
         status: 'SCHEDULED',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
         tempId: true,
       } as Appointment & { tempId: boolean };
       return [...current, optimisticAppointment];
@@ -263,9 +501,11 @@ export const useCreateAppointment = (clinicId?: string) => {
       onSuccess: (appointment: Appointment) => {
         // Invalidate both appointments and myAppointments so all views refresh
         void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+        void queryClient.invalidateQueries({ queryKey: getAppointmentQueryKey(clinicId), exact: false });
+        void queryClient.refetchQueries({ queryKey: getAppointmentQueryKey(clinicId), exact: false, type: 'active' });
         void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
         void queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
-        void queryClient.invalidateQueries({ queryKey: ['appointmentStats'], exact: false });
+        void queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(), exact: false });
         if (appointment) {
           toast({
             title: 'Success',
@@ -310,6 +550,7 @@ export const useCreateAppointment = (clinicId?: string) => {
  */
 export const useProposeVideoAppointment = () => {
   const { hasPermission } = useRBAC();
+  const queryClient = useQueryClient();
   return useMutationOperation(
     async (data: {
       patientId: string;
@@ -317,6 +558,7 @@ export const useProposeVideoAppointment = () => {
       clinicId: string;
       locationId?: string;
       duration: number;
+      treatmentType: string;
       proposedSlots: Array<{ date: string; time: string }>;
       notes?: string;
     }) => {
@@ -336,7 +578,54 @@ export const useProposeVideoAppointment = () => {
       toastId: TOAST_IDS.APPOINTMENT.CREATE,
       loadingMessage: 'Proposing video appointment...',
       successMessage: 'Slots proposed. Doctor will confirm one.',
-      invalidateQueries: [['appointments'], ['video-appointments'], ['myAppointments']],
+      invalidateQueries: [
+        ['appointments'],
+        ['video-appointments'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['doctorAvailability'],
+        ['clinicDoctors'],
+        ['clinicLocations'],
+        ['clinics'],
+        ['clinic'],
+        ['myClinic'],
+        ['queue'],
+      ],
+      onSuccess: (appointment) => {
+        const createdAppointment = appointment as any;
+        const appointmentId = String(createdAppointment?.appointmentId || createdAppointment?.id || '');
+        if (!appointmentId) {
+          return;
+        }
+
+        const normalizedCreatedAppointment = {
+          ...createdAppointment,
+          id: createdAppointment.appointmentId || createdAppointment.id || appointmentId,
+          appointmentId: createdAppointment.appointmentId || appointmentId || createdAppointment.id,
+          status: (createdAppointment as any).status || 'SCHEDULED',
+          rawStatus: (createdAppointment as any).rawStatus || (createdAppointment as any).status || 'SCHEDULED',
+        } as Appointment;
+
+        void queryClient.setQueryData(['appointment', appointmentId], normalizedCreatedAppointment);
+        void queryClient.setQueryData(['video-appointment', appointmentId], normalizedCreatedAppointment);
+        void queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, normalizedCreatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['myAppointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, normalizedCreatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['video-appointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, normalizedCreatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['userUpcomingAppointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, normalizedCreatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['doctorAppointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, normalizedCreatedAppointment)
+        );
+      },
     }
   );
 };
@@ -346,6 +635,7 @@ export const useProposeVideoAppointment = () => {
  */
 export const useConfirmVideoSlot = () => {
   const { hasPermission } = useRBAC();
+  const queryClient = useQueryClient();
   return useMutationOperation(
     async ({ appointmentId, confirmedSlotIndex }: { appointmentId: string; confirmedSlotIndex: number }) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
@@ -364,7 +654,61 @@ export const useConfirmVideoSlot = () => {
       toastId: TOAST_IDS.APPOINTMENT.UPDATE,
       loadingMessage: 'Confirming slot...',
       successMessage: 'Slot confirmed. Patient can now pay.',
-      invalidateQueries: [['appointments'], ['video-appointments'], ['appointment']],
+      invalidateQueries: [
+        ['appointments'],
+        ['video-appointments'],
+        ['appointment'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['video-appointment'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['doctorAvailability'],
+        ['clinicDoctors'],
+        ['clinicLocations'],
+        ['clinics'],
+        ['clinic'],
+        ['myClinic'],
+      ],
+      onSuccess: (confirmedAppointment) => {
+        const appointmentId = String((confirmedAppointment as any)?.appointmentId || (confirmedAppointment as any)?.id || '');
+        const updatedAppointment = normalizeConfirmedVideoAppointment(
+          confirmedAppointment as Appointment,
+          appointmentId
+        );
+
+        if (appointmentId) {
+          void queryClient.setQueryData(['appointment', appointmentId], updatedAppointment);
+          void queryClient.setQueryData(['video-appointment', appointmentId], updatedAppointment);
+        }
+        void queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['video-appointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['appointment'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['myAppointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['userUpcomingAppointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['video-appointment'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['doctorAppointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['doctorSchedule'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['doctorAvailability'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+      },
     }
   );
 };
@@ -374,6 +718,7 @@ export const useConfirmVideoSlot = () => {
  */
 export const useUpdateAppointment = () => {
   const { hasPermission } = useRBAC();
+  const queryClient = useQueryClient();
   
   return useMutationOperation(
     async ({ id, data }: { id: string; data: UpdateAppointmentData }) => {
@@ -395,6 +740,32 @@ export const useUpdateAppointment = () => {
       loadingMessage: 'Updating appointment...',
       successMessage: 'Appointment updated successfully',
       invalidateQueries: [['appointments'], ['appointment'], ['myAppointments']],
+      onSuccess: (updatedAppointment) => {
+        const appointmentId = String((updatedAppointment as any)?.appointmentId || (updatedAppointment as any)?.id || '');
+        if (!appointmentId) {
+          return;
+        }
+
+        void queryClient.setQueryData(['appointment', appointmentId], updatedAppointment);
+        void queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['myAppointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['userUpcomingAppointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['doctorAppointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['doctorSchedule'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['video-appointments'], exact: false }, (current) =>
+          upsertAppointmentInPayload(current, updatedAppointment as Appointment)
+        );
+      },
     }
   );
 };
@@ -402,15 +773,18 @@ export const useUpdateAppointment = () => {
 // ✅ Fix: cancelAppointment return type (void/success only)
 export const useCancelAppointment = () => {
   const { hasPermission } = useRBAC();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   
   return useMutationOperation<{ success: boolean }, { id: string; reason?: string }>(
     async ({ id, reason }: { id: string; reason?: string }) => {
-      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+      const isPatient = String(user?.role || '').toUpperCase() === Role.PATIENT;
+      const hasAccess = isPatient || hasPermission(Permission.UPDATE_APPOINTMENTS);
+      if (!hasAccess) {
         throw new Error('Insufficient permissions to cancel appointment');
       }
       
-      const result = await updateAppointmentStatus(id, { status: 'CANCELLED', reason });
+      const result = await cancelAppointment(id, reason);
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -487,15 +861,30 @@ export const useUserUpcomingAppointments = () => {
 export const useCheckInAppointment = () => {
   const { hasPermission } = useRBAC();
   
-  return useMutationOperation<{ success: boolean }, string>(
-    async (appointmentId: string) => {
+  return useMutationOperation<
+    { success: boolean },
+    string | { appointmentId: string; reason?: string; locationId?: string }
+  >(
+    async (
+      payload: string | { appointmentId: string; reason?: string; locationId?: string }
+    ) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
         throw new Error('Insufficient permissions to check in appointment');
       }
+
+      const appointmentId = typeof payload === 'string' ? payload : payload.appointmentId;
       
-      const result = await checkInAppointment(appointmentId);
+      const result = await checkInAppointment(
+        appointmentId,
+        typeof payload === 'string'
+          ? undefined
+          : {
+              ...(payload.reason ? { reason: payload.reason } : {}),
+              ...(payload.locationId ? { locationId: payload.locationId } : {}),
+            }
+      );
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Failed to check in appointment');
       }
       return { success: true };
     },
@@ -563,6 +952,7 @@ export const useCompleteAppointment = () => {
         medications?: string[];
         followUpDate?: string;
         followUpNotes?: string;
+        metadata?: Record<string, unknown>;
       }
     }) => {
       if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
@@ -583,10 +973,149 @@ export const useCompleteAppointment = () => {
         ['appointments'],
         ['appointment'],
         ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['video-appointments'],
         ['prescriptions'],
         ['patient-prescriptions'],
         ['medical-records'],
       ],
+    }
+  );
+};
+
+/**
+ * Hook for confirming the final video slot, including custom doctor-picked slots.
+ */
+export const useConfirmFinalVideoSlot = () => {
+  const { hasPermission } = useRBAC();
+  const queryClient = useQueryClient();
+  return useMutationOperation(
+    async (data: {
+      appointmentId: string;
+      confirmedSlotIndex?: number;
+      date?: string;
+      time?: string;
+      reason?: string;
+    }) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error('Insufficient permissions');
+      }
+      const payload: {
+        confirmedSlotIndex?: number;
+        date?: string;
+        time?: string;
+        reason?: string;
+      } = {};
+      if (data.confirmedSlotIndex !== undefined) payload.confirmedSlotIndex = data.confirmedSlotIndex;
+      if (data.date !== undefined) payload.date = data.date;
+      if (data.time !== undefined) payload.time = data.time;
+      if (data.reason !== undefined) payload.reason = data.reason;
+      const result = await confirmFinalVideoSlot(data.appointmentId, payload);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to confirm final slot');
+      }
+      if (!result.appointment) {
+        throw new Error('No appointment returned');
+      }
+      return result.appointment;
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Confirming final slot...',
+      successMessage: 'Final slot confirmed successfully',
+      invalidateQueries: [
+        ['appointments'],
+        ['video-appointments'],
+        ['appointment'],
+        ['myAppointments'],
+        ['userUpcomingAppointments'],
+        ['video-appointment'],
+        ['doctorAppointments'],
+        ['doctorSchedule'],
+        ['doctorAvailability'],
+        ['clinicDoctors'],
+        ['clinicLocations'],
+        ['clinics'],
+        ['clinic'],
+      ['myClinic'],
+      ],
+      onSuccess: (confirmedAppointment) => {
+        const appointmentId = String((confirmedAppointment as any)?.appointmentId || (confirmedAppointment as any)?.id || '');
+        const updatedAppointment = normalizeConfirmedVideoAppointment(
+          confirmedAppointment as Appointment,
+          appointmentId
+        );
+
+        if (appointmentId) {
+          void queryClient.setQueryData(['appointment', appointmentId], updatedAppointment);
+          void queryClient.setQueryData(['video-appointment', appointmentId], updatedAppointment);
+        }
+        void queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['video-appointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['myAppointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['userUpcomingAppointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['doctorAppointments'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['doctorSchedule'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+        void queryClient.setQueriesData({ queryKey: ['doctorAvailability'], exact: false }, (current) =>
+          patchConfirmedAppointmentInPayload(current, updatedAppointment)
+        );
+      },
+    }
+  );
+};
+
+/**
+ * Hook for receptionist force check-in
+ */
+export const useForceCheckInAppointment = () => {
+  const { hasPermission } = useRBAC();
+
+  return useMutationOperation<
+    { success: boolean },
+    string | { appointmentId: string; reason?: string; locationId?: string }
+  >(
+    async (
+      payload: string | { appointmentId: string; reason?: string; locationId?: string }
+    ) => {
+      if (!hasPermission(Permission.UPDATE_APPOINTMENTS)) {
+        throw new Error('Insufficient permissions to check in appointment');
+      }
+
+      const appointmentId = typeof payload === 'string' ? payload : payload.appointmentId;
+
+      const result = await forceCheckInAppointment(
+        appointmentId,
+        typeof payload === 'string'
+          ? undefined
+          : {
+              ...(payload.reason ? { reason: payload.reason } : {}),
+              ...(payload.locationId ? { locationId: payload.locationId } : {}),
+            }
+      );
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to force check in appointment');
+      }
+      return { success: true };
+    },
+    {
+      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      loadingMessage: 'Checking in patient...',
+      successMessage: 'Patient check-in confirmed successfully',
+      invalidateQueries: [['appointments'], ['appointment'], ['myAppointments'], ['queue']],
     }
   );
 };
@@ -645,10 +1174,11 @@ export const useReassignAppointmentDoctor = () => {
       return { success: true };
     },
     {
-      toastId: TOAST_IDS.APPOINTMENT.UPDATE,
+      toastId: TOAST_IDS.APPOINTMENT.REASSIGN,
       loadingMessage: "Reassigning appointment...",
       successMessage: "Appointment reassigned successfully",
       invalidateQueries: [["appointments"], ["appointment"], ["myAppointments"]],
+      showLoading: false,
     }
   );
 };
@@ -661,14 +1191,14 @@ export const useQueue = (queueType: string) => {
   
   // Memoize query key
   const queryKey = useMemo(
-    () => getQueueListQueryKey(undefined, { type: queueType }),
+    () => getQueueListQueryKey(undefined, { treatmentType: queueType }),
     [queueType]
   );
   
   // Memoize query function
   const queryFn = useCallback(async () => {
     // ✅ Fix: queueType is passed as filter object
-    const result = await getQueue({ type: queueType }) as any;
+    const result = await getQueue({ treatmentType: queueType }) as any;
     if (!result) {
       throw new Error('Failed to fetch queue');
     }
@@ -860,6 +1390,8 @@ export const useMyAppointments = (filters?: {
   date?: string;
   page?: number;
   limit?: number;
+}, options?: {
+  enabled?: boolean;
 }) => {
   const { hasPermission } = useRBAC();
   const { session } = useAuth();
@@ -887,7 +1419,7 @@ export const useMyAppointments = (filters?: {
       } as any;
     },
     {
-      enabled: !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
+      enabled: (options?.enabled ?? true) && !!userId && hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 2 * 60 * 1000, // reuse recent appointment data across patient pages
       gcTime: 10 * 60 * 1000,
       refetchOnMount: true, // Refetch when invalidated so payment callback navigation refreshes the list
@@ -916,6 +1448,7 @@ export const useDoctorAvailability = (
   appointmentType?: string,
   options?: {
     enabled?: boolean;
+    refetchIntervalMs?: number;
   }
 ) => {
   
@@ -939,10 +1472,11 @@ export const useDoctorAvailability = (
     },
     {
       enabled: !!doctorId && !!date && (options?.enabled ?? true), // Enabled for everyone, including guests
-      staleTime: 30 * 1000, // 30 seconds — availability is time-sensitive
+      staleTime: options?.refetchIntervalMs ? 0 : 30 * 1000, // Video availability refreshes more aggressively
       gcTime: 2 * 60 * 1000, // 2 minutes garbage collection
       refetchOnMount: true, // Always re-fetch when dialog opens
       refetchOnWindowFocus: false, // Don't refetch on tab switch
+      refetchInterval: options?.refetchIntervalMs ?? false,
       retry: (failureCount, error: Error) => {
         if (error.message.includes('Access denied')) {
           return false;
@@ -996,7 +1530,7 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
       
       const response = await clinicApiClient.get<unknown>(
         API_ENDPOINTS.APPOINTMENTS.GET_ALL,
-        serializeAppointmentFilters({ ...filters, clinicId })
+        toAppointmentFilterParams({ ...filters, clinicId })
       );
       if (!response.success) {
         // ✅ Use centralized error handler
@@ -1167,7 +1701,7 @@ export const useAppointmentStats = () => {
   const clinicId = useCurrentClinicId();
   
   return useQueryData(
-    ['appointmentStats', clinicId],
+    getAppointmentStatsQueryKey(clinicId),
     async () => {
       if (!clinicId) {
         throw new Error('No clinic ID available');
@@ -1279,10 +1813,10 @@ export const useDoctorQueue = (doctorId: string) => {
   const { hasPermission } = useRBAC();
   
   return useQueryData(
-    getQueueListQueryKey(undefined, { type: 'doctor', doctorId }),
+    getQueueListQueryKey(undefined, { doctorId }),
     async () => {
       // ✅ Fix: Pass object to getQueue
-      const result = (await getQueue({ type: 'doctor', doctorId })) as any;
+      const result = (await getQueue({ doctorId })) as any;
       if (!result) {
         throw new Error('Failed to fetch queue');
       }
@@ -1505,7 +2039,12 @@ export interface QrCheckInResult {
 export const useScanLocationQrAndCheckIn = () => {
   return useMutationOperation<
     QrCheckInResult,
-    { code: string; locationId?: string; appointmentId?: string }
+    {
+      code: string;
+      locationId?: string;
+      appointmentId?: string;
+      coordinates?: { lat: number; lng: number };
+    }
   >(
     async (data) => {
       const result = (await scanLocationQRAndCheckIn(data)) as QrCheckInResult;

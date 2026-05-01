@@ -29,6 +29,7 @@ import {
   type Annotation,
 } from "@/hooks/query";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { formatTimeInIST } from "@/lib/utils/date-time";
 
 interface ScreenAnnotationProps {
   appointmentId: string;
@@ -38,6 +39,8 @@ interface ScreenAnnotationProps {
 
 type AnnotationTool = "drawing" | "text" | "arrow" | "highlight" | "shape";
 type ShapeType = "rectangle" | "circle" | "line";
+
+const EMPTY_ANNOTATIONS: Annotation[] = [];
 
 export function ScreenAnnotation({
   appointmentId,
@@ -59,15 +62,17 @@ export function ScreenAnnotation({
   const [deletingAnnotationId, setDeletingAnnotationId] = useState<string | null>(null);
 
   const { subscribeToAnnotations, isConnected } = useVideoAppointmentWebSocket();
-  const { data: fetchedAnnotations = [] } = useAnnotations(appointmentId);
+  const { data: fetchedAnnotations } = useAnnotations(appointmentId);
   const createAnnotationMutation = useCreateAnnotation();
   const deleteAnnotationMutation = useDeleteAnnotation();
   const isSavingAnnotation = createAnnotationMutation.isPending;
 
+  const resolvedAnnotations = fetchedAnnotations ?? EMPTY_ANNOTATIONS;
+
   useEffect(() => {
-    setAnnotations(fetchedAnnotations);
-    drawAnnotations(fetchedAnnotations);
-  }, [fetchedAnnotations]);
+    setAnnotations(resolvedAnnotations);
+    drawAnnotations(resolvedAnnotations);
+  }, [resolvedAnnotations]);
 
   // Subscribe to real-time annotation updates
   useEffect(() => {
@@ -467,7 +472,7 @@ export function ScreenAnnotation({
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{annotation.annotationType}</Badge>
                     <span className="text-muted-foreground">
-                      {new Date(annotation.createdAt).toLocaleTimeString()}
+                      {formatTimeInIST(annotation.createdAt)}
                     </span>
                   </div>
                   {annotation.userId === user?.id && (

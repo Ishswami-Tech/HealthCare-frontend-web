@@ -4,15 +4,28 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils/index"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({
+  className,
+  compact = false,
+  scrollable = false,
+  ...props
+}: React.ComponentProps<"table"> & { compact?: boolean; scrollable?: boolean }) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className={cn(
+        "relative w-full",
+        compact ? (scrollable ? "overflow-x-auto" : "overflow-hidden") : "overflow-x-auto"
+      )}
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn(
+          "caption-bottom text-sm",
+          scrollable ? "min-w-max w-max" : "w-full",
+          compact && !scrollable && "table-fixed",
+          className
+        )}
         {...props}
       />
     </div>
@@ -65,12 +78,17 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({
+  className,
+  compact = false,
+  ...props
+}: React.ComponentProps<"th"> & { compact?: boolean }) {
   return (
     <th
       data-slot="table-head"
       className={cn(
-        "text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "text-foreground h-10 px-2 text-left align-middle font-medium [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        compact ? "whitespace-normal break-words" : "whitespace-nowrap",
         className
       )}
       {...props}
@@ -78,12 +96,17 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({
+  className,
+  compact = false,
+  ...props
+}: React.ComponentProps<"td"> & { compact?: boolean }) {
   return (
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        compact ? "whitespace-normal break-words" : "whitespace-nowrap",
         className
       )}
       {...props}

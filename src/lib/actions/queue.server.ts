@@ -11,6 +11,7 @@ import { logger } from '@/lib/utils/logger';
  */
 export async function getQueue(filters?: {
   type?: string;
+  treatmentType?: string;
   status?: string;
   doctorId?: string;
   clinicId?: string;
@@ -18,7 +19,8 @@ export async function getQueue(filters?: {
 }) {
   try {
     const query = new URLSearchParams();
-    if (filters?.type) query.set('type', filters.type);
+    const canonicalTreatmentType = filters?.treatmentType || filters?.type;
+    if (canonicalTreatmentType) query.set('treatmentType', canonicalTreatmentType);
     if (filters?.status) query.set('status', filters.status);
     if (filters?.doctorId) query.set('doctorId', filters.doctorId);
     if (filters?.clinicId) query.set('clinicId', filters.clinicId);
@@ -30,6 +32,19 @@ export async function getQueue(filters?: {
     return data;
   } catch (error) {
     logger.error('getQueue failed', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
+/**
+ * Get queue filter catalog
+ */
+export async function getQueueFilters() {
+  try {
+    const { data } = await authenticatedApi(API_ENDPOINTS.QUEUE.FILTERS, {});
+    return data;
+  } catch (error) {
+    logger.error('getQueueFilters failed', error instanceof Error ? error : new Error(String(error)));
     return null;
   }
 }
@@ -124,6 +139,35 @@ export async function removeFromQueue(queueId: string, reason?: string) {
   } catch (error) {
     logger.error('removeFromQueue failed', error instanceof Error ? error : new Error(String(error)));
     return null;
+  }
+}
+
+/**
+ * Bulk cancel queue entries
+ * Useful for cleaning up stale data from past dates
+ */
+export async function bulkCancelQueueEntries(queueIds: string[], reason: string = 'Cleaning up stale queue entries') {
+  try {
+    if (!queueIds || queueIds.length === 0) return { success: true, count: 0 };
+    
+    logger.info(`Bulk cancelling ${queueIds.length} queue entries`);
+    
+    // In a real system, we'd have a specific backend endpoint for this.
+    // For now, we iterate through and cancel them.
+    const results = await Promise.all(
+      queueIds.map(id => removeFromQueue(id, reason))
+    );
+    
+    revalidateCache('queue');
+    revalidateCache('appointments');
+    
+    return { 
+      success: true, 
+      count: results.filter(r => r !== null).length 
+    };
+  } catch (error) {
+    logger.error('bulkCancelQueueEntries failed', error instanceof Error ? error : new Error(String(error)));
+    return { success: false, error: String(error) };
   }
 }
 

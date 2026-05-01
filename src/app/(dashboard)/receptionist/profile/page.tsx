@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 
 import { useAuth } from "@/hooks/auth/useAuth";
+import { formatDateInIST, formatDateTimeInIST } from "@/lib/utils/date-time";
 import {
   Activity,
   UserCheck,
@@ -130,8 +131,8 @@ export default function ReceptionistProfile() {
             <CardContent className="p-6">
               <div className="flex items-center gap-6">
                 <div className="relative">
-                  <div className="w-24 h-24 bg-linear-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-green-800 font-semibold text-3xl">
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-green-100 to-blue-100 dark:from-emerald-950/50 dark:to-blue-950/50">
+                    <span className="text-3xl font-semibold text-green-800 dark:text-green-200">
                       {profileData.personalInfo.firstName.charAt(0)}
                     </span>
                   </div>
@@ -146,7 +147,7 @@ export default function ReceptionistProfile() {
                   <h2 className="text-2xl font-bold">
                     {profileData.personalInfo.firstName} {profileData.personalInfo.lastName}
                   </h2>
-                  <div className="flex items-center gap-4 mt-2 text-gray-600">
+                  <div className="mt-2 flex items-center gap-4 text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Award className="w-4 h-4" />
                       {profileData.workInfo.position}
@@ -172,12 +173,12 @@ export default function ReceptionistProfile() {
                 <div className="text-right">
                   <div className="grid grid-cols-1 gap-4 text-center">
                     <div>
-                      <div className="text-sm text-gray-600 font-medium">{profileData.workInfo.department || "—"}</div>
-                      <div className="text-xs text-gray-500">Department</div>
+                      <div className="text-sm font-medium text-muted-foreground">{profileData.workInfo.department || "—"}</div>
+                      <div className="text-xs text-muted-foreground">Department</div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-600 font-medium">{profileData.workInfo.workLocation || "—"}</div>
-                      <div className="text-xs text-gray-500">Location</div>
+                      <div className="text-sm font-medium text-muted-foreground">{profileData.workInfo.workLocation || "—"}</div>
+                      <div className="text-xs text-muted-foreground">Location</div>
                     </div>
                   </div>
                 </div>
@@ -186,7 +187,7 @@ export default function ReceptionistProfile() {
           </Card>
 
           <Tabs defaultValue="personal" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="personal">Personal Info</TabsTrigger>
               <TabsTrigger value="work">Work Info</TabsTrigger>
               <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -344,9 +345,9 @@ export default function ReceptionistProfile() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label>Joining Date</Label>
-                        <Input 
-                          value={new Date(profileData.workInfo.joiningDate).toLocaleDateString()} 
-                          disabled 
+                        <Input
+                          value={profileData.workInfo.joiningDate ? formatDateInIST(profileData.workInfo.joiningDate) : ""}
+                          disabled
                         />
                       </div>
                       <div>
@@ -388,19 +389,19 @@ export default function ReceptionistProfile() {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span>Schedule Appointments</span>
-                          <Badge className={profileData.systemAccess.canScheduleAppointments ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                          <Badge className={profileData.systemAccess.canScheduleAppointments ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}>
                             {profileData.systemAccess.canScheduleAppointments ? 'Enabled' : 'Disabled'}
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Edit Patient Information</span>
-                          <Badge className={profileData.systemAccess.canEditPatientInfo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                          <Badge className={profileData.systemAccess.canEditPatientInfo ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}>
                             {profileData.systemAccess.canEditPatientInfo ? 'Enabled' : 'Disabled'}
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Process Payments</span>
-                          <Badge className={profileData.systemAccess.canProcessPayments ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                          <Badge className={profileData.systemAccess.canProcessPayments ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}>
                             {profileData.systemAccess.canProcessPayments ? 'Enabled' : 'Disabled'}
                           </Badge>
                         </div>
@@ -408,13 +409,13 @@ export default function ReceptionistProfile() {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span>Access Reports</span>
-                          <Badge className={profileData.systemAccess.canAccessReports ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                          <Badge className={profileData.systemAccess.canAccessReports ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}>
                             {profileData.systemAccess.canAccessReports ? 'Enabled' : 'Disabled'}
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Manage Inventory</span>
-                          <Badge className={profileData.systemAccess.canManageInventory ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                          <Badge className={profileData.systemAccess.canManageInventory ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}>
                             {profileData.systemAccess.canManageInventory ? 'Enabled' : 'Disabled'}
                           </Badge>
                         </div>
@@ -422,8 +423,8 @@ export default function ReceptionistProfile() {
                     </div>
                     
                     <div className="pt-4 border-t">
-                      <div className="text-sm text-gray-600">
-                        <strong>Last Login:</strong> {new Date(profileData.systemAccess.lastLogin).toLocaleString()}
+                      <div className="text-sm text-muted-foreground">
+                        <strong>Last Login:</strong> {profileData.systemAccess.lastLogin ? formatDateTimeInIST(profileData.systemAccess.lastLogin) : "—"}
                       </div>
                     </div>
                   </CardContent>
@@ -527,7 +528,7 @@ export default function ReceptionistProfile() {
                       <div className="flex items-center justify-between">
                         <div>
                           <Label>Email Notifications</Label>
-                          <p className="text-sm text-gray-600">Receive notifications via email</p>
+                          <p className="text-sm text-muted-foreground">Receive notifications via email</p>
                         </div>
                         <Switch
                           checked={profileData.notificationSettings.emailNotifications}
@@ -538,7 +539,7 @@ export default function ReceptionistProfile() {
                       <div className="flex items-center justify-between">
                         <div>
                           <Label>SMS Notifications</Label>
-                          <p className="text-sm text-gray-600">Receive notifications via SMS</p>
+                          <p className="text-sm text-muted-foreground">Receive notifications via SMS</p>
                         </div>
                         <Switch
                           checked={profileData.notificationSettings.smsNotifications}
@@ -549,7 +550,7 @@ export default function ReceptionistProfile() {
                       <div className="flex items-center justify-between">
                         <div>
                           <Label>Appointment Alerts</Label>
-                          <p className="text-sm text-gray-600">Get notified of upcoming appointments</p>
+                          <p className="text-sm text-muted-foreground">Get notified of upcoming appointments</p>
                         </div>
                         <Switch
                           checked={profileData.notificationSettings.appointmentAlerts}
@@ -560,7 +561,7 @@ export default function ReceptionistProfile() {
                       <div className="flex items-center justify-between">
                         <div>
                           <Label>Patient Updates</Label>
-                          <p className="text-sm text-gray-600">Notifications about patient status changes</p>
+                          <p className="text-sm text-muted-foreground">Notifications about patient status changes</p>
                         </div>
                         <Switch
                           checked={profileData.notificationSettings.patientUpdates}
@@ -571,7 +572,7 @@ export default function ReceptionistProfile() {
                       <div className="flex items-center justify-between">
                         <div>
                           <Label>System Updates</Label>
-                          <p className="text-sm text-gray-600">System maintenance and update notifications</p>
+                          <p className="text-sm text-muted-foreground">System maintenance and update notifications</p>
                         </div>
                         <Switch
                           checked={profileData.notificationSettings.systemUpdates}
@@ -636,19 +637,19 @@ export default function ReceptionistProfile() {
                     <div className="space-y-3 text-sm">
                       <div className="flex justify-between">
                         <span>Last Password Change:</span>
-                        <span className="text-gray-600">45 days ago</span>
+                        <span className="text-muted-foreground">45 days ago</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Two-Factor Authentication:</span>
-                        <Badge variant="outline" className="bg-red-50 text-red-700">Disabled</Badge>
+                        <Badge variant="outline" className="bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300">Disabled</Badge>
                       </div>
                       <div className="flex justify-between">
                         <span>Session Timeout:</span>
-                        <span className="text-gray-600">4 hours</span>
+                        <span className="text-muted-foreground">4 hours</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Active Sessions:</span>
-                        <span className="text-gray-600">2 devices</span>
+                        <span className="text-muted-foreground">2 devices</span>
                       </div>
                     </div>
                     
@@ -666,4 +667,3 @@ export default function ReceptionistProfile() {
     
   );
 }
-

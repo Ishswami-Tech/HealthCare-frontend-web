@@ -5,6 +5,7 @@ import {
   getPatients,
   getPatientById,
   createPatient,
+  quickRegisterPatient,
   updatePatient,
   deletePatient,
   getPatientAppointments,
@@ -224,6 +225,52 @@ export const useCreatePatient = () => {
       loadingMessage: 'Creating patient...',
       successMessage: 'Patient created successfully',
       invalidateQueries: [['patients']],
+    }
+  );
+};
+
+/**
+ * Hook to quick register patient and create profile atomically
+ */
+export const useQuickRegisterPatient = () => {
+  return useMutationOperation(
+    async (patientData: {
+      email?: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      dateOfBirth?: string;
+      gender?: 'MALE' | 'FEMALE' | 'OTHER';
+      address?: string;
+      city?: string;
+      state?: string;
+      country?: string;
+      zipCode?: string;
+      allergies?: string[];
+      medicalHistory?: string[];
+      emergencyContact?: {
+        name: string;
+        relationship: string;
+        phone: string;
+      };
+      insurance?: {
+        provider: string;
+        policyNumber: string;
+        groupNumber?: string;
+        primaryHolder?: string;
+        coverageStartDate?: string;
+        coverageEndDate?: string;
+        coverageType?: string;
+      };
+    }) => {
+      return await quickRegisterPatient(patientData);
+    },
+    {
+      toastId: TOAST_IDS.PATIENT.CREATE,
+      loadingMessage: 'Registering patient...',
+      successMessage: 'Patient registered successfully',
+      invalidateQueries: [['patients'], ['users']],
     }
   );
 };

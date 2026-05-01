@@ -155,6 +155,8 @@ export * from './redirect';
 export * from './fetch-with-abort';
 export * from './token-manager';
 export * from './appointmentUtils';
+export * from './clock';
+export * from './date-time';
 export * from './theme-utils';
 export * from './audit';
 export * from './logger';
@@ -177,4 +179,3 @@ export function clean<T extends object>(obj: T): T {
   });
   return result;
 }
-

@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 import React, { useState, useMemo, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/auth/useAuth";
 import {
   useMyAppointments,
@@ -21,15 +26,22 @@ import {
   useCancelAppointment,
   useAppointmentStats,
 } from "@/hooks/query/useAppointments";
-import { useJoinVideoAppointment } from "@/hooks/query/useVideoAppointments";
+import { VideoAppointmentRoom } from "@/components/video/VideoAppointmentRoom";
+import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { useRBAC } from "@/hooks/utils/useRBAC";
-import {
-  useRealTimeAppointments,
-  useWebSocketQuerySync,
-} from "@/hooks/realtime/useRealTimeQueries";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { useDebouncedCallback } from "@/lib/utils/performance";
-import { isVideoAppointmentPaymentCompleted } from "@/lib/utils/appointmentUtils";
+import {
+  getAppointmentStatusDisplayName,
+  getAppointmentViewState,
+  getVideoAppointmentJoinBlockedReason,
+  isVideoAppointmentJoinable,
+  getAppointmentDateTimeValue,
+  formatDateInIST,
+  formatTimeInIST,
+  getReceptionistAppointmentTimeLabel,
+} from "@/lib/utils/appointmentUtils";
 import { PAGINATION } from "@/hooks/query/config";
 import { Pagination } from "@/components/virtual/VirtualizedList";
 import {
@@ -56,6 +68,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { PatientQueueCard } from "@/components/dashboard/PatientQueueCard";
+import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
 // Appointment status constants - must match backend enum values
 const APPOINTMENT_STATUS = {
@@ -76,6 +89,8 @@ export default function AppointmentsPage() {
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [page, setPage] = useState(1);
+  const [isVideoRoomOpen, setIsVideoRoomOpen] = useState(false);
+  const [activeVideoAppointment, setActiveVideoAppointment] = useState<VideoAppointment | null>(null);
 
   // Debounce search to reduce API calls (optimized for 10M users)
   const debouncedSetSearch = useDebouncedCallback((value: string) => {
@@ -103,7 +118,7 @@ export default function AppointmentsPage() {
     Permission.VIEW_ALL_APPOINTMENTS
   );
 
-  // Fetch appointments data with proper permissions, real-time updates, and pagination
+  // Fetch appointments data with proper permissions and websocket-backed invalidation.
   // Always call hooks, but conditionally enable them
   const allAppointmentsQuery = useAppointments({
     ...(clinicId ? { clinicId } : {}),
@@ -126,33 +141,19 @@ export default function AppointmentsPage() {
     ? allAppointmentsQuery
     : myAppointmentsQuery;
 
-  // Real-time appointments hook for live updates (with pagination)
-  const realTimeAppointments = useRealTimeAppointments({
-    doctorId: filterDoctor || undefined,
-    type: filterType ? [filterType as any] : undefined,
-    status: filterStatus ? [filterStatus as any] : undefined,
-    searchQuery: debouncedSearchTerm || undefined,
-  } as any);
-
-  // Use real-time data if available, otherwise fall back to regular query
-  const appointmentsData =
-    realTimeAppointments.isRealTimeEnabled && realTimeAppointments.data
-      ? realTimeAppointments.data
-      : shouldFetchAllAppointments
-      ? (appointmentsQuery.data as any)?.appointments ||
-        (appointmentsQuery.data as any)?.data ||
-        appointmentsQuery.data
-      : (appointmentsQuery.data as any)?.appointments ||
-        (appointmentsQuery.data as any)?.data?.appointments ||
-        appointmentsQuery.data;
+  const appointmentsData = shouldFetchAllAppointments
+    ? (appointmentsQuery.data as any)?.appointments ||
+      (appointmentsQuery.data as any)?.data ||
+      appointmentsQuery.data
+    : (appointmentsQuery.data as any)?.appointments ||
+      (appointmentsQuery.data as any)?.data?.appointments ||
+      appointmentsQuery.data;
 
   const appointments = Array.isArray(appointmentsData) ? appointmentsData : [];
-  const isLoading =
-    appointmentsQuery.isPending || realTimeAppointments.isPending;
-  const error = appointmentsQuery.error || realTimeAppointments.error;
+  const isLoading = appointmentsQuery.isPending;
+  const error = appointmentsQuery.error;
   const refetchAppointments = () => {
     appointmentsQuery.refetch();
-    realTimeAppointments.refetch();
   };
 
   // Fetch appointment statistics for authorized users
@@ -161,16 +162,11 @@ export default function AppointmentsPage() {
   // Mutation hooks for appointment actions
   const updateAppointmentMutation = useUpdateAppointment();
   const cancelAppointmentMutation = useCancelAppointment();
-  const joinVideoAppointment = useJoinVideoAppointment();
 
   const [activeTab, setActiveTab] = useState("upcoming");
 
   const getAppointmentDateTime = useCallback((appointment: { date?: string; time?: string }) => {
-    if (!appointment?.date) return null;
-
-    const dateTimeValue = `${appointment.date}T${appointment.time || "00:00"}:00`;
-    const parsed = new Date(dateTimeValue);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    return getAppointmentDateTimeValue(appointment);
   }, []);
 
   // Memoize filtered appointments for performance (optimized for 10M users)
@@ -324,30 +320,57 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleJoinVideo = async (appointmentId: string) => {
+  const handleJoinVideo = async (appointment: any) => {
     try {
-      const userId = session?.user?.id || "";
-      const result = await joinVideoAppointment.mutateAsync({
-        appointmentId,
-        userId,
-        role: (userRole === Role.DOCTOR || userRole === Role.ASSISTANT_DOCTOR) ? "doctor" : "patient",
-      });
-
-      const resultData = result as { token?: { token?: string } | string };
-      const token =
-        typeof resultData?.token === "string"
-          ? resultData.token
-          : resultData?.token?.token;
-
-      if (token) {
-        // Open video consultation in new window
-        window.open(
-          `/video-consultation/${appointmentId}?token=${token}`,
-          "_blank"
-        );
+      const appointmentId = String(appointment.appointmentId || appointment.id || "");
+      if (!appointmentId) {
+        showErrorToast("Missing appointment details for this video session.", {
+          id: TOAST_IDS.VIDEO.ERROR,
+        });
+        return;
       }
+
+      const refreshedQuery = await appointmentsQuery.refetch();
+      const refreshedAppointments = (() => {
+        const data = (refreshedQuery as any)?.data;
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.appointments)) return data.appointments;
+        if (Array.isArray(data?.data?.appointments)) return data.data.appointments;
+        if (Array.isArray(data?.data)) return data.data;
+        return [];
+      })();
+
+      const latestAppointment =
+        refreshedAppointments.find((item: any) => String(item?.appointmentId || item?.id || "") === appointmentId) || appointment;
+
+      if (!isVideoAppointmentJoinable(latestAppointment)) {
+        showErrorToast(getVideoAppointmentJoinBlockedReason(latestAppointment), {
+          id: TOAST_IDS.VIDEO.ERROR,
+        });
+        return;
+      }
+
+      setActiveVideoAppointment({
+        id: String(latestAppointment.appointmentId || latestAppointment.id),
+        appointmentId: latestAppointment.appointmentId || latestAppointment.id,
+        roomName: latestAppointment.roomName || latestAppointment.doctorName || `room-${latestAppointment.appointmentId || latestAppointment.id}`,
+        doctorId: latestAppointment.doctorId || latestAppointment.doctor?.id || latestAppointment.doctor?.userId || "",
+        patientId: latestAppointment.patientId || latestAppointment.patient?.id || latestAppointment.patient?.userId || "",
+        startTime: latestAppointment.startTime || latestAppointment.dateTime || nowIso(),
+        endTime: latestAppointment.endTime || latestAppointment.dateTime || nowIso(),
+        status: String(latestAppointment.status || "scheduled").toLowerCase() as VideoAppointment["status"],
+        sessionId: latestAppointment.sessionId,
+        recordingUrl: latestAppointment.recordingUrl,
+        notes: latestAppointment.notes,
+        createdAt: latestAppointment.createdAt || nowIso(),
+        updatedAt: latestAppointment.updatedAt || nowIso(),
+      });
+      setIsVideoRoomOpen(true);
     } catch (error: unknown) {
-      console.error("Failed to join video:", error);
+      showErrorToast(
+        error instanceof Error ? error.message : "Failed to join video",
+        { id: TOAST_IDS.VIDEO.ERROR }
+      );
     }
   };
 
@@ -360,6 +383,12 @@ export default function AppointmentsPage() {
       appointment: any;
       showActions?: boolean;
     }) => {
+      const viewState = getAppointmentViewState(appointment);
+      const canShowJoinVideo =
+        appointment.mode === "video" &&
+        isVideoAppointmentJoinable(appointment) &&
+        !viewState.awaitingDoctorSlotConfirmation;
+
       // Component implementation
       return (
         <Card className="hover:shadow-md transition-shadow">
@@ -387,11 +416,27 @@ export default function AppointmentsPage() {
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm">{appointment.date}</span>
+                    <span className="text-sm">
+                      {getAppointmentDateTime(appointment)
+                        ? formatDateInIST(getAppointmentDateTime(appointment) as Date, {
+                            weekday: "short",
+                            day: "2-digit",
+                            month: "short",
+                          })
+                        : appointment.date || "Date TBD"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm">{appointment.time}</span>
+                    <span className="text-sm">
+                      {getAppointmentDateTime(appointment)
+                        ? formatTimeInIST(getAppointmentDateTime(appointment) as Date, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true,
+                          })
+                        : getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {appointment.mode === "video" ? (
@@ -414,7 +459,7 @@ export default function AppointmentsPage() {
                     {appointment.type}
                   </Badge>
                   <Badge className={getStatusColor(appointment.status)}>
-                    {appointment.status}
+                    {getAppointmentStatusDisplayName(appointment.status)}
                   </Badge>
                 </div>
               </div>
@@ -475,20 +520,15 @@ export default function AppointmentsPage() {
 
                   {/* Video Join Button for video appointments */}
                   {appointment.mode === "video" &&
-                    (appointment.status === APPOINTMENT_STATUS.CONFIRMED ||
-                      appointment.status === APPOINTMENT_STATUS.IN_PROGRESS) &&
-                    isVideoAppointmentPaymentCompleted(appointment) && (
+                    canShowJoinVideo && (
                       <Button
                         size="sm"
                         variant="default"
                         className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700"
-                        onClick={() => handleJoinVideo(appointment.id)}
-                        disabled={joinVideoAppointment.isPending}
+                        onClick={() => handleJoinVideo(appointment)}
                       >
                         <Video className="w-3 h-3" />
-                        {joinVideoAppointment.isPending
-                          ? "Joining..."
-                          : "Join Video"}
+                        Join Video
                       </Button>
                     )}
 
@@ -532,61 +572,61 @@ export default function AppointmentsPage() {
       >
         {appointmentStats && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card>
+            <Card className="border-blue-100 bg-blue-50/70 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
+                    <p className="text-sm font-medium text-blue-700 dark:text-blue-200">
                       Total Today
                     </p>
-                    <p className="text-2xl font-bold">
+                    <p className="text-2xl font-bold text-blue-900 dark:text-blue-50">
                       {appointmentStats?.todayAppointments || 0}
                     </p>
                   </div>
-                  <Calendar className="h-8 w-8 text-blue-600" />
+                  <Calendar className="h-8 w-8 text-blue-600 dark:text-blue-300" />
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="border-emerald-100 bg-emerald-50/70 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/20">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Confirmed
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-200">
+                      Completed
                     </p>
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-100">
                       {appointmentStats?.completedAppointments || 0}
                     </p>
                   </div>
-                  <CheckCircle className="h-8 w-8 text-green-600" />
+                  <CheckCircle className="h-8 w-8 text-emerald-600 dark:text-emerald-300" />
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="border-amber-100 bg-amber-50/70 shadow-sm dark:border-amber-900 dark:bg-amber-950/20">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Pending</p>
-                    <p className="text-2xl font-bold text-yellow-600">
+                    <p className="text-sm font-medium text-amber-700 dark:text-amber-200">Pending</p>
+                    <p className="text-2xl font-bold text-amber-700 dark:text-amber-100">
                       {appointmentStats?.totalAppointments || 0}
                     </p>
                   </div>
-                  <AlertCircle className="h-8 w-8 text-yellow-600" />
+                  <AlertCircle className="h-8 w-8 text-amber-600 dark:text-amber-300" />
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="border-rose-100 bg-rose-50/70 shadow-sm dark:border-rose-900 dark:bg-rose-950/20">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
+                    <p className="text-sm font-medium text-rose-700 dark:text-rose-200">
                       Cancelled
                     </p>
-                    <p className="text-2xl font-bold text-red-600">
+                    <p className="text-2xl font-bold text-rose-700 dark:text-rose-100">
                       {appointmentStats?.cancelledAppointments || 0}
                     </p>
                   </div>
-                  <XCircle className="h-8 w-8 text-red-600" />
+                  <XCircle className="h-8 w-8 text-rose-600 dark:text-rose-300" />
                 </div>
               </CardContent>
             </Card>
@@ -616,7 +656,10 @@ export default function AppointmentsPage() {
       {/* Patient Live Queue Status */}
       {userRole === Role.PATIENT && (
         <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-           <PatientQueueCard />
+           <PatientQueueCard
+             appointmentsData={appointmentsData}
+             isAppointmentsPending={isLoading}
+           />
         </div>
       )}
 
@@ -731,9 +774,9 @@ export default function AppointmentsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="past" className="space-y-4">
-          {pastAppointments.length > 0 ? (
-            <>
+      <TabsContent value="past" className="space-y-4">
+        {pastAppointments.length > 0 ? (
+          <>
               {pastAppointments.map((appointment) => (
                 <AppointmentCard
                   key={appointment.id}
@@ -762,10 +805,27 @@ export default function AppointmentsPage() {
                   Your appointment history will appear here.
                 </p>
               </CardContent>
-            </Card>
+          </Card>
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isVideoRoomOpen} onOpenChange={setIsVideoRoomOpen}>
+        <DialogContent className="max-w-7xl w-full h-[90vh] p-0 overflow-hidden rounded-xl">
+          <div className="h-full">
+            {activeVideoAppointment && (
+              <VideoAppointmentRoom
+                appointment={activeVideoAppointment}
+                autoStart={true}
+                onLeaveRoom={() => {
+                  setIsVideoRoomOpen(false);
+                  setActiveVideoAppointment(null);
+                }}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

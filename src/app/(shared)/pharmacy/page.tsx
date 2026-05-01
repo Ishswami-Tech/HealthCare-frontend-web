@@ -19,6 +19,7 @@ import {
 } from "@/hooks/query/usePharmacy";
 import { useClinicContext } from "@/hooks/query/useClinics";
 import { usePharmacyPermissions } from "@/hooks/utils/useRBAC";
+import { formatISODateInIST } from "@/lib/utils/date-time";
 import {
   Pill,
   Search,
@@ -108,8 +109,8 @@ export default function PharmacySystem() {
     outOfStock: (medicines as any)?.filter((med: any) => med.stockQuantity === 0)?.length || 0,
     todaysOrders:
       (prescriptions as any)?.filter((p: any) => {
-        const today = new Date().toDateString();
-        const prescDate = new Date(p.createdAt).toDateString();
+        const today = formatISODateInIST(new Date());
+        const prescDate = formatISODateInIST(p.createdAt);
         return today === prescDate;
       })?.length || 0,
     pendingDeliveries:

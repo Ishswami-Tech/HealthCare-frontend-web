@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useSupportStaffRequests } from "@/hooks/query/useSupportStaff";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatTimeInIST } from "@/lib/utils/date-time";
 
 export default function SupportStaffDashboard() {
   const { session } = useAuth();
@@ -24,7 +25,7 @@ export default function SupportStaffDashboard() {
   const { data: requestsData, isPending } = useSupportStaffRequests({ staffId } as any);
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['supportStaffRequests', staffId]]);
+  useWebSocketQuerySync();
 
   const requests = requestsData?.requests || [];
 
@@ -37,7 +38,7 @@ export default function SupportStaffDashboard() {
         type: r.type || "General Support",
         requester: r.requesterName || r.patient?.name || "Unknown User",
         priority: r.priority || "normal",
-        time: r.createdAt ? new Date(r.createdAt).toLocaleTimeString() : "Recent",
+        time: r.createdAt ? formatTimeInIST(r.createdAt) : "Recent",
         status: r.status,
       }));
   }, [requests]);
@@ -96,7 +97,7 @@ export default function SupportStaffDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Support Dashboard</h1>
         <p className="text-muted-foreground">

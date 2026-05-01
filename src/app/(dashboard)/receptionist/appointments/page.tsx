@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bell, Calendar, Loader2, QrCode, Search, Stethoscope, UserCheck, Eye, MoreHorizontal, UserMinus } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
+import {
+  getReceptionistAppointmentDateLabel,
+  getReceptionistAppointmentTimeLabel,
+  parseReceptionistAppointmentDateTime,
+} from "@/lib/utils/appointmentUtils";
 
 import AppointmentManager from "@/components/appointments/AppointmentManager";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar as DateCalendar } from "@/components/ui/calendar";
@@ -47,12 +53,18 @@ import {
 } from "@/hooks/query/useAppointments";
 import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
 import { useCallNextPatient as useQueueCallNextPatient } from "@/hooks/query/useQueue";
+import { useQueueFilters } from "@/hooks/query/useQueue";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { getQueuePositionLabel, resolveQueueDisplayLabel } from "@/lib/queue/queue-adapter";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import {
+  getAppointmentViewState,
+  shouldShowAppointmentOnReceptionDashboard,
+} from "@/lib/utils/appointmentUtils";
 
 type ViewAppointment = {
   id: string;
+  locationId?: string;
   patientName: string;
   patientPhone: string;
   doctorId: string;
@@ -64,19 +76,22 @@ type ViewAppointment = {
   timeLabel: string;
   status: string;
   paymentStatus: string;
+  paymentCompleted: boolean;
   queuePosition: number | null;
   queueType: string;
   notes: string;
+  cancellationReason?: string;
   waitLabel: string;
   isWalkIn: boolean;
   isDelegated: boolean;
   doctor?: any;
+  sortAt: number;
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  SCHEDULED: "bg-slate-100 text-slate-800",
-  CONFIRMED: "bg-emerald-100 text-emerald-800",
-  IN_PROGRESS: "bg-blue-100 text-blue-800",
+  SCHEDULED: "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-300",
+  CONFIRMED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+  IN_PROGRESS: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
   COMPLETED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
   NO_SHOW: "bg-slate-100 text-slate-800 dark:bg-slate-900/50 dark:text-slate-300",
   CANCELLED: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
@@ -86,8 +101,8 @@ function normalizeAppointment(
   app: any,
   serviceCatalogMap: Map<string, { label: string; serviceBucket: string; queueCategory: string }>
 ): ViewAppointment {
-  const startAt = app.startTime || app.appointmentDate || (app.date && app.time ? `${app.date}T${app.time}` : null);
-  const parsed = startAt ? new Date(startAt) : null;
+  const parsed = parseReceptionistAppointmentDateTime(app as unknown as Record<string, unknown>);
+  const viewState = getAppointmentViewState(app);
   const patientName =
     app.patientName ||
     app.patient?.name ||
@@ -108,6 +123,7 @@ function normalizeAppointment(
 
   return {
     id: app.id,
+    locationId: app.locationId || app.location?.id || undefined,
     patientName,
     patientPhone,
     doctorId: app.doctor?.id || app.doctorId || "",
@@ -115,19 +131,15 @@ function normalizeAppointment(
     assignedDoctorId: app.assignedDoctorId || app.metadata?.assignedDoctorId || app.doctorId || "",
     doctorName,
     doctorRole: String(app.doctor?.role || app.doctor?.user?.role || "").toUpperCase(),
-    dateLabel:
-      parsed && !Number.isNaN(parsed.getTime())
-        ? parsed.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-        : app.date || "TBD",
-    timeLabel:
-      parsed && !Number.isNaN(parsed.getTime())
-        ? parsed.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
-        : app.time || "TBD",
-    status: String(app.status || "SCHEDULED").toUpperCase(),
-    paymentStatus: String(app.payment?.status || "N/A").toUpperCase(),
+    dateLabel: getReceptionistAppointmentDateLabel(app as unknown as Record<string, unknown>),
+    timeLabel: getReceptionistAppointmentTimeLabel(app as unknown as Record<string, unknown>),
+    status: viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : viewState.normalizedStatus,
+    paymentStatus: viewState.paymentStatus,
+    paymentCompleted: viewState.paymentCompleted,
     queuePosition: typeof app.queuePosition === "number" ? app.queuePosition : null,
     queueType: resolveQueueDisplayLabel(app, serviceCatalogMap),
-    notes: app.notes || app.reason || "",
+    notes: app.notes || app.cancellationReason || app.reason || "",
+    cancellationReason: app.cancellationReason || undefined,
     waitLabel:
       typeof app.estimatedWaitTime === "number"
         ? `${app.estimatedWaitTime} min`
@@ -141,19 +153,34 @@ function normalizeAppointment(
       Boolean(app.primaryDoctorId || app.metadata?.primaryDoctorId) &&
       String(app.primaryDoctorId || app.metadata?.primaryDoctorId || "") !==
         String(app.assignedDoctorId || app.metadata?.assignedDoctorId || app.doctorId || ""),
-    doctor: app.doctor || app.metadata?.doctor
+    doctor: app.doctor || app.metadata?.doctor,
+    sortAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed.getTime() : 0,
   };
 }
 
 export default function ReceptionistAppointmentsPage() {
-  useAuth();
+  const { session } = useAuth();
   const { clinicId } = useClinicContext();
   useWebSocketQuerySync();
   const { data: serviceCatalog = [] } = useAppointmentServices();
+  const { data: queueFilterCatalog = [] } = useQueueFilters({ enabled: !!clinicId });
+  const typedQueueFilterCatalog = queueFilterCatalog as Array<{
+    key?: string;
+    filters?: Array<{ label?: string; value?: string }>;
+  }>;
+  const assignedLocationId = useMemo(() => {
+    const user = session?.user as Record<string, unknown> | undefined;
+    const candidate =
+      (typeof user?.locationId === "string" ? user.locationId : "") ||
+      (typeof user?.clinicLocationId === "string" ? user.clinicLocationId : "") ||
+      (typeof user?.assignedLocationId === "string" ? user.assignedLocationId : "");
+    return candidate || null;
+  }, [session?.user]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [queueFilter, setQueueFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("date-desc");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
@@ -164,6 +191,14 @@ export default function ReceptionistAppointmentsPage() {
   const reassignAppointmentMutation = useReassignAppointmentDoctor();
   const callNextPatientMutation = useQueueCallNextPatient();
 
+  useEffect(() => {
+    if (assignedLocationId && assignedLocationId !== selectedLocationId) {
+      setSelectedLocationId(assignedLocationId);
+    }
+  }, [assignedLocationId, selectedLocationId]);
+
+  const effectiveLocationId = assignedLocationId || selectedLocationId;
+
   const {
     data: appointmentsData,
     isPending,
@@ -171,11 +206,11 @@ export default function ReceptionistAppointmentsPage() {
   } = useAppointments({
     ...(clinicId ? { clinicId } : {}),
     ...(selectedDate ? { date: selectedDate } : {}),
-    ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
-    limit: 1000,
+    ...(effectiveLocationId ? { locationId: effectiveLocationId } : {}),
+    limit: 200,
   });
   const { data: locations = [] } = useActiveLocations(clinicId || "");
-  const { data: doctorsData } = useDoctors(clinicId || "", { limit: 500 });
+  const { data: doctorsData } = useDoctors(clinicId || "", { limit: 200 });
 
   const assignableDoctors = useMemo(() => {
     const normalize = (users: any[]) =>
@@ -214,11 +249,13 @@ export default function ReceptionistAppointmentsPage() {
       ])
     );
 
-    return raw.map((appointment: any) => normalizeAppointment(appointment, serviceMap));
+    return raw
+      .filter(shouldShowAppointmentOnReceptionDashboard)
+      .map((appointment: any) => normalizeAppointment(appointment, serviceMap));
   }, [appointmentsData, serviceCatalog]);
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((appointment: ViewAppointment) => {
+    const base = appointments.filter((appointment: ViewAppointment) => {
       const matchesSearch =
         !searchTerm ||
         appointment.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -226,13 +263,33 @@ export default function ReceptionistAppointmentsPage() {
         appointment.patientPhone.includes(searchTerm);
       const matchesStatus = statusFilter === "all" || appointment.status === statusFilter;
       const matchesQueue = queueFilter === "all" || appointment.queueType === queueFilter;
-      return matchesSearch && matchesStatus && matchesQueue;
+      const matchesAssignedLocation =
+        !assignedLocationId || !appointment.locationId || appointment.locationId === assignedLocationId;
+      return matchesSearch && matchesStatus && matchesQueue && matchesAssignedLocation;
     });
-  }, [appointments, queueFilter, searchTerm, statusFilter]);
+    return [...base].sort((left, right) => {
+      if (sortOrder === "date-asc") return left.sortAt - right.sortAt;
+      if (sortOrder === "patient-asc") return left.patientName.localeCompare(right.patientName);
+      if (sortOrder === "patient-desc") return right.patientName.localeCompare(left.patientName);
+      return right.sortAt - left.sortAt;
+    });
+  }, [appointments, assignedLocationId, queueFilter, searchTerm, sortOrder, statusFilter]);
 
-  const availableQueueTypes = useMemo(
-    () =>
-      (
+  const availableQueueTypes = useMemo<string[]>(
+    () => {
+      const treatmentGroup = typedQueueFilterCatalog.find(
+        (group) => String(group.key || "").toLowerCase() === "treatments"
+      );
+      const backendLabels =
+        treatmentGroup?.filters
+          ?.map((option: { label?: string; value?: string }) => option.label || option.value)
+          .filter((label: string | undefined): label is string => Boolean(label)) || [];
+
+      if (backendLabels.length > 0) {
+        return [...new Set(backendLabels)].sort();
+      }
+
+      return (
         Array.from(
           new Set(
             appointments
@@ -240,8 +297,9 @@ export default function ReceptionistAppointmentsPage() {
               .filter((queueType: string) => Boolean(queueType))
           )
         ) as string[]
-      ).sort(),
-    [appointments]
+      ).sort();
+    },
+    [appointments, typedQueueFilterCatalog]
   );
 
   const selectedCalendarDate = useMemo(
@@ -299,10 +357,90 @@ export default function ReceptionistAppointmentsPage() {
     return Array.from(grouped.values()).sort((a, b) => b.confirmed - a.confirmed || b.scheduled - a.scheduled);
   }, [filteredAppointments]);
 
-  async function handleConfirmArrival(appointmentId: string) {
+  const doctorQueueColumns = useMemo<ColumnDef<(typeof doctorBacklog)[number]>[]>(
+    () => [
+      {
+        accessorKey: "doctorName",
+        header: "Doctor",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="font-semibold text-foreground">{row.original.doctorName}</span>
+            <span className="text-xs text-muted-foreground">Doctor</span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "scheduled",
+        header: "Scheduled",
+        cell: ({ row }) => (
+          <Badge variant="outline" className="bg-muted/40 text-foreground border-border">
+            {row.original.scheduled}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "confirmed",
+        header: "Confirmed",
+        cell: ({ row }) => (
+          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+            {row.original.confirmed}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "inProgress",
+        header: "In Progress",
+        cell: ({ row }) => (
+          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+            {row.original.inProgress}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "nextPatient",
+        header: "Next Patient",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">{row.original.nextPatient || "No waiting patients"}</span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <Button
+            size="sm"
+            className="h-8 px-3 text-xs font-bold gap-2 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white"
+            onClick={() => void handleNotifyNext(row.original.doctorId, row.original.nextAppointmentId)}
+            disabled={activeDoctorId === row.original.doctorId || row.original.confirmed === 0}
+          >
+            {activeDoctorId === row.original.doctorId ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Bell className="h-3.5 w-3.5" />
+            )}
+            Call Next
+          </Button>
+        ),
+      },
+    ],
+    [activeDoctorId]
+  );
+
+  async function handleConfirmArrival(appointmentId: string, locationId?: string) {
+    const locationToSend = assignedLocationId || locationId;
+    if (assignedLocationId && locationId && assignedLocationId !== locationId) {
+      showErrorToast("This appointment does not belong to your assigned location", {
+        id: TOAST_IDS.APPOINTMENT.UPDATE,
+      });
+      return;
+    }
     setActiveActionId(appointmentId);
     try {
-      await checkInMutation.mutateAsync(appointmentId);
+      await checkInMutation.mutateAsync({
+        appointmentId,
+        reason: "Reception desk manual check-in for this location",
+        ...(locationToSend ? { locationId: locationToSend } : {}),
+      });
       await refetch?.();
     } finally {
       setActiveActionId(null);
@@ -394,10 +532,13 @@ export default function ReceptionistAppointmentsPage() {
       accessorKey: "queue",
       header: "Queue",
       cell: ({ row }) => (
-        <div className="flex flex-col text-xs">
-          <span className="font-medium">{row.original.queueType}</span>
-          <span className="text-muted-foreground">Pos: {row.original.queuePosition ?? "N/A"}</span>
-          <span className="text-muted-foreground">Wait: {row.original.waitLabel}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm font-medium">{row.original.queueType || "—"}</span>
+          {row.original.queuePosition != null && (
+            <Badge variant="outline" className="text-[10px] h-4 px-1 leading-none">
+              #{row.original.queuePosition}
+            </Badge>
+          )}
         </div>
       ),
     },
@@ -408,6 +549,8 @@ export default function ReceptionistAppointmentsPage() {
         const appointment = row.original;
         const canConfirmArrival = appointment.status === "SCHEDULED";
         const canReassign = appointment.status === "SCHEDULED" || appointment.status === "CONFIRMED";
+        const canMarkNoShow =
+          appointment.status === "SCHEDULED" || appointment.status === "CONFIRMED";
 
         return (
           <div className="flex items-center gap-2">
@@ -416,7 +559,7 @@ export default function ReceptionistAppointmentsPage() {
                 size="sm"
                 variant="outline"
                 className="h-8 px-2 text-xs"
-                onClick={() => handleConfirmArrival(appointment.id)}
+                onClick={() => handleConfirmArrival(appointment.id, appointment.locationId)}
                 disabled={activeActionId === appointment.id}
               >
                 {activeActionId === appointment.id ? (
@@ -456,14 +599,18 @@ export default function ReceptionistAppointmentsPage() {
                   </>
                 )}
                 
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  className="text-red-600"
-                  onClick={() => handleMarkNoShow(appointment.id)}
-                  disabled={activeActionId === appointment.id}
-                >
-                  Mark No Show
-                </DropdownMenuItem>
+                {canMarkNoShow && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-red-600"
+                      onClick={() => handleMarkNoShow(appointment.id)}
+                      disabled={activeActionId === appointment.id}
+                    >
+                      Mark No Show
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -480,20 +627,12 @@ export default function ReceptionistAppointmentsPage() {
         description="Unified workspace for appointment management, queue flow, and doctor reassignment."
         meta={<span className="text-sm font-medium text-muted-foreground">Showing {filteredAppointments.length} of {appointments.length} appointments</span>}
         actionsSlot={
-          <>
-            <Button asChild variant="outline">
-              <Link href="/receptionist/check-in">
-                <QrCode className="w-4 h-4 mr-2" />
-                QR Check-In
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="#appointment-manager">
-                <Calendar className="w-4 h-4 mr-2" />
-                New Appointment
-              </Link>
-            </Button>
-          </>
+          <Button asChild variant="outline">
+            <Link href="/receptionist/check-in">
+              <QrCode className="w-4 h-4 mr-2" />
+              QR Check-In
+            </Link>
+          </Button>
         }
       />
 
@@ -504,124 +643,105 @@ export default function ReceptionistAppointmentsPage() {
         />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Card className="border-slate-100 shadow-sm bg-white dark:bg-slate-800">
-          <CardContent className="p-4">
-            <div className="text-sm font-medium text-slate-500 uppercase tracking-tight">Total</div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-slate-100 shadow-sm bg-white dark:bg-slate-800">
-          <CardContent className="p-4">
-            <div className="text-sm font-medium text-slate-500 uppercase tracking-tight">Scheduled</div>
-            <div className="text-2xl font-bold text-slate-700 dark:text-slate-200">{stats.scheduled}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-emerald-100 shadow-sm bg-white dark:bg-slate-800">
-          <CardContent className="p-4">
-            <div className="text-sm font-medium text-emerald-600 uppercase tracking-tight">Queued</div>
-            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{stats.confirmed}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-blue-100 shadow-sm bg-white dark:bg-slate-800">
-          <CardContent className="p-4">
-            <div className="text-sm font-medium text-blue-600 uppercase tracking-tight">In Progress</div>
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.inProgress}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-emerald-100 shadow-sm bg-white dark:bg-slate-800">
-          <CardContent className="p-4">
-            <div className="text-sm font-medium text-emerald-600 uppercase tracking-tight">Completed</div>
-            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{stats.completed}</div>
-          </CardContent>
-        </Card>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+      <div className="space-y-6">
+        <div>
           <Card>
-            <CardHeader className="space-y-4 border-b bg-slate-50/50 dark:bg-slate-900/10 p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <CardTitle className="text-xl inline-flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-emerald-500" />
+            <CardHeader className="border-b bg-muted/40 dark:bg-muted/20 px-4 py-3 space-y-3">
+              {/* Row 1: Title + Live badge */}
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-base font-bold inline-flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <Calendar className="h-4 w-4 text-emerald-600" />
+                  </div>
                   Appointment Queue Workspace
                 </CardTitle>
-                <div className="flex items-center gap-2 text-sm text-slate-500 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm self-start sm:self-center">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-background px-3 py-1.5 rounded-full border border-border shadow-sm shrink-0">
+                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Live Sync Active
                 </div>
               </div>
-              
-              <div className="flex flex-col xl:flex-row gap-4 items-stretch xl:items-center justify-between">
-                <div className="relative flex-1 max-w-2xl">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input 
-                    placeholder="Search by patient name, doctor, phone, or appointment ID..." 
-                    className="pl-10 h-11 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-emerald-500/20 text-base"
+
+              {/* Row 2: Search + filters in one scrollable row */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Search */}
+                <div className="relative w-52 shrink-0">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search patient, doctor..."
+                    className="pl-8 h-9 text-sm border-border bg-background focus:ring-emerald-500/20"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2 min-w-[140px]">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-11 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                        <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                        <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                        <SelectItem value="COMPLETED">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 min-w-[140px]">
-                    <Select value={queueFilter} onValueChange={setQueueFilter}>
-                      <SelectTrigger className="h-11 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                        <SelectValue placeholder="Queue" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Queues</SelectItem>
-                        {availableQueueTypes.map((queueType) => (
-                          <SelectItem key={queueType} value={queueType}>
-                            {queueType}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
 
-                  {locations.length > 1 && (
-                    <div className="flex items-center gap-2 min-w-[140px]">
-                      <Select
-                        value={selectedLocationId || "all"}
-                        onValueChange={(val) =>
-                          setSelectedLocationId(val === "all" ? null : val)
-                        }
-                      >
-                        <SelectTrigger className="h-11 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                          <SelectValue placeholder="Location" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Locations</SelectItem>
-                          {(locations as any[]).map((loc) => (
-                            <SelectItem key={loc.id} value={loc.id}>
-                              {loc.name || loc.address || "Location"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
+                {/* Status */}
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                    <SelectItem value="NO_SHOW">No Show</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Sort */}
+                <Select value={sortOrder} onValueChange={setSortOrder}>
+                  <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
+                    <SelectValue placeholder="Sort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date-desc">Latest first</SelectItem>
+                    <SelectItem value="date-asc">Earliest first</SelectItem>
+                    <SelectItem value="patient-asc">Patient A–Z</SelectItem>
+                    <SelectItem value="patient-desc">Patient Z–A</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Queue */}
+                <Select value={queueFilter} onValueChange={setQueueFilter}>
+                  <SelectTrigger className="h-9 w-[120px] shrink-0 border-border bg-background text-sm">
+                    <SelectValue placeholder="All Queues" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Queues</SelectItem>
+                    {availableQueueTypes.map((queueType) => (
+                      <SelectItem key={queueType} value={queueType}>{queueType}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Location (only if not assigned) */}
+                {!assignedLocationId && locations.length > 1 && (
+                  <Select
+                    value={selectedLocationId || "all"}
+                    onValueChange={(val) => setSelectedLocationId(val === "all" ? null : val)}
+                  >
+                    <SelectTrigger className="h-9 w-[130px] shrink-0 border-border bg-background text-sm">
+                      <SelectValue placeholder="All Locations" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Locations</SelectItem>
+                      {(locations as any[]).map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id}>
+                          {loc.name || loc.address || "Location"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Date picker */}
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full sm:w-auto h-10 justify-start text-left font-normal border-slate-200 dark:border-slate-700">
-                      <Calendar className="mr-2 h-4 w-4 text-emerald-500" />
+                    <Button variant="outline" className="h-9 text-sm px-3 shrink-0 border-border bg-background gap-1.5 font-normal">
+                      <Calendar className="h-3.5 w-3.5 text-emerald-500" />
                       {selectedCalendarDate ? format(selectedCalendarDate, "dd MMM yyyy") : "All dates"}
                     </Button>
                   </PopoverTrigger>
@@ -630,10 +750,7 @@ export default function ReceptionistAppointmentsPage() {
                       mode="single"
                       selected={selectedCalendarDate}
                       onSelect={(date) => {
-                        if (!date) {
-                          setSelectedDate("");
-                          return;
-                        }
+                        if (!date) { setSelectedDate(""); return; }
                         setSelectedDate(format(date, "yyyy-MM-dd"));
                       }}
                     />
@@ -651,59 +768,55 @@ export default function ReceptionistAppointmentsPage() {
                 </Popover>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4">
               <DataTable 
                 columns={columns} 
                 data={filteredAppointments} 
                 pageSize={10}
+                compact
               />
             </CardContent>
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Stethoscope className="w-5 h-5" />
-                Doctor Queue
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {doctorBacklog.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">No active queues</p>
-              ) : (
-                doctorBacklog.map((doctor) => (
-                  <div key={doctor.doctorId} className="p-3 border rounded-lg space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold">{doctor.doctorName}</span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => handleNotifyNext(doctor.doctorId, doctor.nextAppointmentId)}
-                        disabled={activeDoctorId === doctor.doctorId || doctor.confirmed === 0}
-                      >
-                        {activeDoctorId === doctor.doctorId ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Bell className="h-4 w-4 text-blue-600" />
-                        )}
-                      </Button>
-                    </div>
-                    <div className="flex gap-2">
-                      <Badge variant="outline" className="text-[10px]">Q: {doctor.confirmed}</Badge>
-                      <Badge variant="outline" className="text-[10px]">Active: {doctor.inProgress}</Badge>
-                    </div>
-                    {doctor.nextPatient && (
-                      <p className="text-[10px] text-muted-foreground">Next: {doctor.nextPatient}</p>
+        <Card className="border-border/60 shadow-sm overflow-hidden bg-card">
+          <CardHeader className="border-b border-border px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-600/10 flex items-center justify-center">
+                  <Stethoscope className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-bold text-foreground">
+                    Active Doctor Queues
+                    {doctorBacklog.length > 0 && (
+                      <span className="ml-3 px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-bold ring-1 ring-inset ring-blue-700/10">
+                        {doctorBacklog.length} Active
+                      </span>
                     )}
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                  </CardTitle>
+                  <p className="mt-0.5 text-sm font-medium text-muted-foreground">Real-time clinical workload and patient flow</p>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            {doctorBacklog.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/30 py-10 text-muted-foreground">
+                <Stethoscope className="w-8 h-8 text-muted-foreground/50" />
+                <p className="text-sm font-medium">No active doctor queues at the moment</p>
+              </div>
+            ) : (
+              <DataTable
+                columns={doctorQueueColumns}
+                data={doctorBacklog}
+                pageSize={9}
+                emptyMessage="No active doctor queues at the moment"
+                compact
+              />
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog
@@ -742,7 +855,11 @@ export default function ReceptionistAppointmentsPage() {
               </div>
               <div>
                 <p className="text-muted-foreground">Payment</p>
-                <p className="font-medium">{selectedAppointment.paymentStatus}</p>
+                <Badge className={selectedAppointment.paymentCompleted
+                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
+                  : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"}>
+                  {selectedAppointment.paymentCompleted ? "Payment verified" : "Payment pending"}
+                </Badge>
               </div>
               <div>
                 <p className="text-muted-foreground">Queue</p>

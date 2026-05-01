@@ -2,6 +2,7 @@
 
 import { useDetailedHealthStatus } from "@/hooks/query/useHealth";
 import { cn } from "@/lib/utils/index";
+import { formatTimeInIST } from "@/lib/utils/date-time";
 import { CheckCircle2, AlertTriangle, RefreshCw, Loader2, Activity, XCircle, Clock, Server, Database, Wifi, HardDrive, Video, Zap, Rocket, GitBranch } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -57,7 +58,7 @@ function StatusServiceRow({ service }: { service: ServiceStatus }) {
                   </p>
                   {service.lastChecked && (
                       <p className="text-[10px] text-muted-foreground/70 dark:text-slate-600">
-                          Last checked: {service.lastChecked.toLocaleTimeString()}
+                          Last checked: {formatTimeInIST(service.lastChecked)}
                       </p>
                   )}
                </div>

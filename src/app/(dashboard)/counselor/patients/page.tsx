@@ -14,9 +14,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCounselorClients } from "@/hooks/query/useCounselor";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 export default function CounselorPatients() {
   const { session } = useAuth();
@@ -31,7 +32,7 @@ export default function CounselorPatients() {
   const { isPending } = useCounselorClients(counselorId);
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['counselorClients', counselorId]]);
+  useWebSocketQuerySync();
 
   const filteredClients = clients.filter((client: any) => {
     const matchesStatus =
@@ -152,7 +153,7 @@ export default function CounselorPatients() {
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             Last:{" "}
-                            {new Date(client.lastSession).toLocaleDateString("en-IN")}
+                            {formatDateInIST(client.lastSession, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                           </span>
                         </div>
                       </div>

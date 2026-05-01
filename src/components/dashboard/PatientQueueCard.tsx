@@ -1,7 +1,6 @@
 "use client";
 
 import { useRealTimeQueueStatus } from "@/hooks/realtime/useRealTimeQueries";
-import { useMyAppointments } from "@/hooks/query/useAppointments";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useMemo } from "react";
@@ -19,22 +18,33 @@ type QueueAwareAppointment = Appointment & {
   };
 };
 
-export function PatientQueueCard() {
-  const { data: appointmentsData, isPending: isAppointmentsPending } = useMyAppointments();
+type PatientQueueCardProps = {
+  appointmentsData?: unknown;
+  isAppointmentsPending?: boolean;
+};
+
+export function PatientQueueCard({
+  appointmentsData,
+  isAppointmentsPending = false,
+}: PatientQueueCardProps) {
+  const appointmentPayload = appointmentsData as
+    | { appointments?: unknown; data?: unknown }
+    | undefined;
 
   const activeAppointment = useMemo<QueueAwareAppointment | null>(() => {
     const appointments = Array.isArray(appointmentsData)
       ? appointmentsData
-      : appointmentsData?.appointments ||
-        appointmentsData?.data?.appointments ||
-        appointmentsData?.data ||
+      : appointmentPayload?.appointments ||
+        (appointmentPayload?.data as { appointments?: unknown } | undefined)?.appointments ||
+        appointmentPayload?.data ||
         [];
 
     if (!Array.isArray(appointments)) return null;
 
     return (appointments as QueueAwareAppointment[]).find((apt) => {
       const status = normalizeAppointmentStatus(apt?.status);
-      return status === "CONFIRMED" || status === "IN_PROGRESS";
+      const isArrived = Boolean((apt as QueueAwareAppointment & { checkedInAt?: string | null }).checkedInAt);
+      return (status === "IN_PROGRESS" || isArrived) && status !== "CANCELLED" && status !== "COMPLETED";
     }) || null;
   }, [appointmentsData]);
 
@@ -68,7 +78,9 @@ export function PatientQueueCard() {
   const normalizedStatus = normalizeAppointmentStatus(activeAppointment.status);
 
   let peopleAhead = 0;
-  if (normalizedStatus === "CONFIRMED" && userToken > currentToken) {
+  const isArrived = Boolean((activeAppointment as QueueAwareAppointment & { checkedInAt?: string | null }).checkedInAt) || normalizedStatus === "IN_PROGRESS";
+
+  if (isArrived && userToken > currentToken) {
     peopleAhead = userToken - currentToken;
   }
 
@@ -97,7 +109,7 @@ export function PatientQueueCard() {
               : "bg-muted text-muted-foreground border-none shadow-none"
           )}
         >
-          {isInProgress ? "Now Serving" : "Waiting"}
+          {isInProgress ? "Now Serving" : isArrived ? "Waiting" : "Not Checked In"}
         </Badge>
       </div>
 

@@ -19,6 +19,11 @@ import { useTherapistAppointments, useTherapistClients } from "@/hooks/query/use
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import {
+  formatDateInIST,
+  formatISODateInIST,
+  getReceptionistAppointmentTimeLabel,
+} from "@/lib/utils/appointmentUtils";
 
 export default function TherapistDashboard() {
   useAuth();
@@ -38,9 +43,9 @@ export default function TherapistDashboard() {
   // Calculate stats from real data
   const appointmentsArray = appointmentsData?.appointments || [];
   const stats = useMemo(() => {
-    const today = new Date().toDateString();
+    const today = formatISODateInIST(new Date());
     const todayAppointments = appointmentsArray.filter(
-      (apt: any) => apt.date === today
+      (apt: any) => formatISODateInIST(apt.date || apt.startTime || apt.createdAt) === today
     );
 
     return {
@@ -62,10 +67,18 @@ export default function TherapistDashboard() {
     }));
   }, [clientsArray]);
 
-  const todaySessions = useMemo(() => {
-    const today = new Date().toDateString();
+  const recentSessions = useMemo(() => {
     return appointmentsArray
-      .filter((apt: any) => apt.date === today)
+      .slice()
+      .sort((a: any, b: any) => {
+        const first = new Date(`${a.date || ""}T${a.time || "00:00"}`).getTime();
+        const second = new Date(`${b.date || ""}T${b.time || "00:00"}`).getTime();
+        if (Number.isNaN(first) && Number.isNaN(second)) return 0;
+        if (Number.isNaN(first)) return 1;
+        if (Number.isNaN(second)) return -1;
+        return second - first;
+      })
+      .slice(0, 5)
       .map((apt: any) => ({
         id: apt.id,
         patientName: apt.patientName,
@@ -105,6 +118,21 @@ export default function TherapistDashboard() {
         return <CheckCircle className="w-4 h-4" />;
       default:
         return <Clock className="w-4 h-4" />;
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "CONFIRMED":
+        return "Confirmed";
+      case "IN_PROGRESS":
+        return "In Progress";
+      case "SCHEDULED":
+        return "Scheduled";
+      case "COMPLETED":
+        return "Completed";
+      default:
+        return status.replaceAll("_", " ").toLowerCase();
     }
   };
 
@@ -152,7 +180,7 @@ export default function TherapistDashboard() {
               {stats.completedToday}
             </div>
             <p className="text-xs text-muted-foreground">
-              Therapy sessions finished
+              Procedural sessions finished
             </p>
           </CardContent>
         </Card>
@@ -192,7 +220,7 @@ export default function TherapistDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
-              Today&apos;s Appointments
+              Recent Appointments
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -200,13 +228,13 @@ export default function TherapistDashboard() {
               <div className="flex items-center justify-center min-h-[200px]">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               </div>
-            ) : todaySessions.length === 0 ? (
+            ) : recentSessions.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500">No appointments scheduled for today</p>
+                <p className="text-gray-500">No recent appointments found</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {todaySessions.map((appointment) => (
+                {recentSessions.map((appointment) => (
                   <div
                     key={appointment.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
@@ -226,13 +254,15 @@ export default function TherapistDashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium">{appointment.time}</div>
-                      <Badge
-                        className={`${getStatusColor(appointment.status)} flex items-center gap-1`}
-                      >
-                        {getStatusIcon(appointment.status)}
-                        {appointment.status.replace("_", " ").toLowerCase()}
-                      </Badge>
+                      <div className="font-medium">
+                        {getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>)}
+                      </div>
+                        <Badge
+                          className={`${getStatusColor(appointment.status)} flex items-center gap-1`}
+                        >
+                          {getStatusIcon(appointment.status)}
+                        {getStatusLabel(appointment.status)}
+                        </Badge>
                     </div>
                   </div>
                 ))}
@@ -277,7 +307,7 @@ export default function TherapistDashboard() {
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             Last:{" "}
-                            {new Date(client.lastVisit).toLocaleDateString("en-IN")}
+                            {formatDateInIST(client.lastVisit, { day: "2-digit", month: "short", year: "numeric" }, "en-IN")}
                           </span>
                         </div>
                       </div>
@@ -295,7 +325,7 @@ export default function TherapistDashboard() {
         </Card>
       </div>
 
-      {/* Therapy Specialties */}
+      {/* Specialties */}
       <Card>
         <CardHeader>
           <CardTitle>Your Specialties</CardTitle>

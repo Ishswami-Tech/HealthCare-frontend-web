@@ -26,6 +26,7 @@ import {
 } from "@/hooks/query/useDoctors";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   Calendar,
   Plus,
@@ -42,7 +43,7 @@ import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-t
 export default function ClinicAdminSchedule() {
   useAuth();
   const { clinicId } = useClinicContext();
-  const scheduleWritesSupported = false;
+  const scheduleWritesSupported = !!clinicId;
 
   // Fetch real doctors data
   const { data: doctorsData, isPending: isPendingDoctors } = useDoctors(
@@ -259,9 +260,10 @@ export default function ClinicAdminSchedule() {
         isAvailable: sched.available,
       }));
 
-      await updateScheduleMutation.mutate({
+      await updateScheduleMutation.mutateAsync({
         doctorId: selectedDoctorId,
         schedule: scheduleToSave,
+        ...(clinicId ? { clinicId } : {}),
       });
 
       showSuccessToast("Schedule updated successfully", {
@@ -330,18 +332,18 @@ export default function ClinicAdminSchedule() {
           </div>
 
           {!scheduleWritesSupported && (
-            <Card className="border-amber-200 bg-amber-50">
-              <CardContent className="flex items-start gap-3 p-4 text-amber-900">
+          <Card className="border-amber-100 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/20">
+              <CardContent className="flex items-start gap-3 p-4 text-amber-900 dark:text-amber-100">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <div className="text-sm">
-                  Doctor schedule editing is disabled because the current backend only exposes doctor availability read routes.
+                  Clinic context is required to save doctor schedules.
                 </div>
               </CardContent>
             </Card>
           )}
 
           <Tabs defaultValue="doctor-schedules" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
               <TabsTrigger
                 value="doctor-schedules"
                 className="flex items-center gap-2"
@@ -365,7 +367,7 @@ export default function ClinicAdminSchedule() {
             <TabsContent value="doctor-schedules">
               <div className="grid gap-6">
                 {/* Doctor Selection */}
-                <Card>
+                <Card className="border-blue-100 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/20">
                   <CardHeader>
                     <CardTitle>Select Doctor</CardTitle>
                   </CardHeader>
@@ -395,7 +397,7 @@ export default function ClinicAdminSchedule() {
                 </Card>
 
                 {/* Weekly Schedule */}
-                <Card>
+                <Card className="border-indigo-100 bg-indigo-50/70 dark:border-indigo-900 dark:bg-indigo-950/20">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Calendar className="w-5 h-5" />
@@ -425,7 +427,7 @@ export default function ClinicAdminSchedule() {
                           {schedule.available && (
                             <>
                               <div>
-                                <Label className="text-xs text-gray-600">
+                                <Label className="text-xs text-blue-700 dark:text-blue-200">
                                   Start Time
                                 </Label>
                                 <Input
@@ -443,7 +445,7 @@ export default function ClinicAdminSchedule() {
                               </div>
 
                               <div>
-                                <Label className="text-xs text-gray-600">
+                                <Label className="text-xs text-blue-700 dark:text-blue-200">
                                   End Time
                                 </Label>
                                 <Input
@@ -461,7 +463,7 @@ export default function ClinicAdminSchedule() {
                               </div>
 
                               <div>
-                                <Label className="text-xs text-gray-600">
+                                <Label className="text-xs text-blue-700 dark:text-blue-200">
                                   Slot Duration (min)
                                 </Label>
                                 <Select
@@ -492,7 +494,7 @@ export default function ClinicAdminSchedule() {
                               <div className="text-center">
                                 <Badge
                                   variant="outline"
-                                  className="bg-green-50 text-green-800"
+                                  className="bg-emerald-50 text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-200"
                                 >
                                   {Math.floor(
                                     (new Date(
@@ -514,7 +516,7 @@ export default function ClinicAdminSchedule() {
                             <div className="col-span-4 text-center">
                               <Badge
                                 variant="outline"
-                                className="bg-gray-50 text-gray-600"
+                              className="bg-slate-50 text-slate-600 dark:bg-slate-900/40 dark:text-slate-300"
                               >
                                 Not Available
                               </Badge>
@@ -527,7 +529,7 @@ export default function ClinicAdminSchedule() {
                 </Card>
 
                 {/* Consultation Types & Duration */}
-                <Card>
+                <Card className="border-emerald-100 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20">
                   <CardHeader>
                     <CardTitle>
                       Consultation Types & Default Durations
@@ -545,17 +547,17 @@ export default function ClinicAdminSchedule() {
                           <Badge>45 min</Badge>
                         </div>
                         <div className="flex items-center justify-between p-3 border rounded-lg">
-                          <span>Dosha Analysis</span>
+                          <span>Diagnostic / Preventive Care</span>
                           <Badge>60 min</Badge>
                         </div>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center justify-between p-3 border rounded-lg">
-                          <span>Panchakarma Session</span>
+                          <span>Procedural Session</span>
                           <Badge>90 min</Badge>
                         </div>
                         <div className="flex items-center justify-between p-3 border rounded-lg">
-                          <span>Shirodhara</span>
+                          <span>Procedural Care</span>
                           <Badge>60 min</Badge>
                         </div>
                         <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -572,7 +574,7 @@ export default function ClinicAdminSchedule() {
             <TabsContent value="holidays">
               <div className="grid gap-6">
                 {/* Add New Holiday */}
-                <Card>
+                <Card className="border-amber-100 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/20">
                   <CardHeader>
                     <CardTitle>Add New Holiday</CardTitle>
                   </CardHeader>
@@ -630,7 +632,7 @@ export default function ClinicAdminSchedule() {
                         </Select>
                       </div>
                       <div className="flex items-end">
-                        <Button onClick={addHoliday} className="w-full">
+                        <Button onClick={addHoliday} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
                           <Plus className="w-4 h-4 mr-2" />
                           Add Holiday
                         </Button>
@@ -640,7 +642,7 @@ export default function ClinicAdminSchedule() {
                 </Card>
 
                 {/* Holidays List */}
-                <Card>
+                <Card className="border-slate-100 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/20">
                   <CardHeader>
                     <CardTitle>Scheduled Holidays</CardTitle>
                   </CardHeader>
@@ -653,16 +655,13 @@ export default function ClinicAdminSchedule() {
                         >
                           <div>
                             <h3 className="font-medium">{holiday.title}</h3>
-                            <p className="text-sm text-gray-600">
-                              {new Date(holiday.date).toLocaleDateString(
-                                "en-IN",
-                                {
-                                  weekday: "long",
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                }
-                              )}
+                            <p className="text-sm text-slate-600 dark:text-slate-300">
+                              {formatDateInIST(holiday.date, {
+                                weekday: "long",
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -671,6 +670,7 @@ export default function ClinicAdminSchedule() {
                               variant="outline"
                               size="sm"
                               onClick={() => removeHoliday(holiday.id)}
+                              className="border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -692,10 +692,10 @@ export default function ClinicAdminSchedule() {
 
             <TabsContent value="conflicts">
               <div className="grid gap-6">
-                <Card>
+                <Card className="border-rose-100 bg-rose-50/70 dark:border-rose-900 dark:bg-rose-950/20">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <AlertCircle className="w-5 h-5 text-orange-600" />
+                      <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-300" />
                       Schedule Conflicts
                     </CardTitle>
                   </CardHeader>
@@ -714,13 +714,13 @@ export default function ClinicAdminSchedule() {
                               key={conflict.id}
                               className={`flex items-start gap-3 p-4 rounded-lg border ${
                                 isHighSeverity
-                                  ? "bg-red-50 border-red-200"
-                                  : "bg-yellow-50 border-yellow-200"
+                                  ? "bg-rose-50 border-rose-200 dark:bg-rose-950/20 dark:border-rose-900"
+                                  : "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900"
                               }`}
                             >
                               <AlertCircle
                                 className={`w-5 h-5 mt-0.5 ${
-                                  isHighSeverity ? "text-red-600" : "text-yellow-600"
+                                  isHighSeverity ? "text-rose-600 dark:text-rose-300" : "text-amber-600 dark:text-amber-300"
                                 }`}
                               />
                               <div className="flex-1">
@@ -740,7 +740,7 @@ export default function ClinicAdminSchedule() {
                                 </p>
                                 <p
                                   className={`text-xs mt-1 ${
-                                    isHighSeverity ? "text-red-600" : "text-yellow-600"
+                                    isHighSeverity ? "text-rose-600 dark:text-rose-300" : "text-amber-600 dark:text-amber-300"
                                   }`}
                                 >
                                   Update the doctor schedule and save to resolve.
@@ -751,7 +751,7 @@ export default function ClinicAdminSchedule() {
                         })
                       ) : (
                         <div className="text-center py-8">
-                          <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                          <CheckCircle className="w-12 h-12 text-emerald-600 dark:text-emerald-300 mx-auto mb-4" />
                           <h3 className="text-lg font-semibold text-green-800">
                             All Clear!
                           </h3>

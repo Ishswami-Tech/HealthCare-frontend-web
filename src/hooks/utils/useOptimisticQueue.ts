@@ -7,6 +7,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateQueueStatus, callNextPatient } from '@/lib/actions/queue.server';
+import { nowIso } from '@/lib/utils/date-time';
 
 type QueueListItem = {
   id?: string;
@@ -100,9 +101,9 @@ export function useOptimisticUpdateQueueStatus(clinicId?: string) {
 
           return matches
             ? {
-                ...item,
-                status: variables.status,
-                updatedAt: new Date().toISOString(),
+              ...item,
+              status: variables.status,
+              updatedAt: nowIso(),
               }
             : item;
         })

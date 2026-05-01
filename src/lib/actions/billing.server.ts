@@ -1,4 +1,4 @@
-// Billing Server Actions
+﻿// Billing Server Actions
 // Integrated with backend billing API
 
 'use server';
@@ -6,6 +6,7 @@
 import { authenticatedApi } from './auth.server';
 import { z } from 'zod';
 import { API_ENDPOINTS } from '../config/config';
+import { nowIso as nowIsoTimestamp } from '@/lib/utils/date-time';
 import type {
   BillingPlan,
   Subscription,
@@ -21,7 +22,6 @@ import type {
 } from '@/types/billing.types';
 import { createInvoiceSchema, createPaymentSchema } from '@/lib/schema/billing.schema';
 import type { PaymentProvider } from '@/lib/payments/providers';
-
 type RawBillingPlan = Record<string, unknown>;
 type RawSubscription = Record<string, unknown>;
 type RawInvoice = Record<string, unknown>;
@@ -76,8 +76,8 @@ function normalizeBillingPlan(raw: RawBillingPlan): BillingPlan {
     ...(normalizedFeatures.length > 0 ? { features: normalizedFeatures } : {}),
     isActive: raw.isActive !== false,
     ...(raw.clinicId ? { clinicId: String(raw.clinicId) } : {}),
-    createdAt: String(raw.createdAt ?? new Date().toISOString()),
-    updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+    createdAt: String(raw.createdAt ?? nowIsoTimestamp()),
+    updatedAt: String(raw.updatedAt ?? nowIsoTimestamp()),
   };
 }
 
@@ -94,7 +94,7 @@ function normalizeSubscription(raw: RawSubscription): Subscription {
     planId: String(raw.planId ?? ''),
     ...(planRaw ? { plan: planRaw } : {}),
     status: String(raw.status ?? 'INCOMPLETE') as Subscription['status'],
-    startDate: String(raw.startDate ?? new Date().toISOString()),
+    startDate: String(raw.startDate ?? nowIsoTimestamp()),
     ...(raw.endDate ? { endDate: String(raw.endDate) } : {}),
     ...(raw.currentPeriodStart ? { currentPeriodStart: String(raw.currentPeriodStart) } : {}),
     ...(raw.currentPeriodEnd ? { currentPeriodEnd: String(raw.currentPeriodEnd) } : {}),
@@ -114,8 +114,8 @@ function normalizeSubscription(raw: RawSubscription): Subscription {
     ...(raw.appointmentsRemaining !== undefined && raw.appointmentsRemaining !== null
       ? { appointmentsLimit: Number(raw.appointmentsUsed ?? 0) + Number(raw.appointmentsRemaining) }
       : {}),
-    createdAt: String(raw.createdAt ?? new Date().toISOString()),
-    updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+    createdAt: String(raw.createdAt ?? nowIsoTimestamp()),
+    updatedAt: String(raw.updatedAt ?? nowIsoTimestamp()),
   };
 }
 
@@ -162,12 +162,12 @@ function normalizeInvoice(raw: RawInvoice): Invoice {
     amount,
     currency: String(raw.currency ?? 'INR'),
     status: String(raw.status ?? 'DRAFT') as Invoice['status'],
-    dueDate: String(raw.dueDate ?? new Date().toISOString()),
+    dueDate: String(raw.dueDate ?? nowIsoTimestamp()),
     ...(raw.paidAt ? { paidDate: String(raw.paidAt) } : {}),
     items,
     ...(raw.pdfUrl ? { pdfUrl: String(raw.pdfUrl) } : {}),
-    createdAt: String(raw.createdAt ?? new Date().toISOString()),
-    updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+    createdAt: String(raw.createdAt ?? nowIsoTimestamp()),
+    updatedAt: String(raw.updatedAt ?? nowIsoTimestamp()),
   };
 }
 
@@ -184,8 +184,8 @@ function normalizePayment(raw: RawPayment): Payment {
     status: String(raw.status ?? 'PENDING') as Payment['status'],
     ...(raw.transactionId ? { transactionId: String(raw.transactionId) } : {}),
     ...(raw.paidAt ? { paymentDate: String(raw.paidAt) } : {}),
-    createdAt: String(raw.createdAt ?? new Date().toISOString()),
-    updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+    createdAt: String(raw.createdAt ?? nowIsoTimestamp()),
+    updatedAt: String(raw.updatedAt ?? nowIsoTimestamp()),
     ...(raw.metadata && typeof raw.metadata === 'object'
       ? { metadata: raw.metadata as Record<string, unknown> }
       : {}),
@@ -194,7 +194,7 @@ function normalizePayment(raw: RawPayment): Payment {
 
 // ============ Billing Plans ============
 
-// 🔒 TENANT ISOLATION: clinicId is auto-provided via X-Clinic-ID header by authenticatedApi.
+// ðŸ”’ TENANT ISOLATION: clinicId is auto-provided via X-Clinic-ID header by authenticatedApi.
 // The backend ClinicGuard uses the header, not query params, for tenant scoping.
 export async function getBillingPlans(_clinicId?: string): Promise<{
   success: boolean;
@@ -525,7 +525,7 @@ export async function getSubscriptionUsageStats(id: string): Promise<{
   }
 }
 
-// ✅ Validation Schemas Imported from '@/lib/schema/billing.schema'
+// âœ… Validation Schemas Imported from '@/lib/schema/billing.schema'
 
 // ============ Invoices ============
 
@@ -797,7 +797,7 @@ export async function createPayment(data: CreatePaymentData): Promise<{
   }
 }
 
-// ✅ NEW: Missing Payment Processing Actions
+// âœ… NEW: Missing Payment Processing Actions
 
 export async function processSubscriptionPayment(
   subscriptionId: string,
@@ -1006,3 +1006,4 @@ export async function getBillingAnalytics(_clinicId: string): Promise<{
     return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch billing analytics' };
   }
 }
+

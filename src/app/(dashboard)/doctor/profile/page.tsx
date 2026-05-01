@@ -22,6 +22,7 @@ import {
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { formatDateInIST } from "@/lib/utils/appointmentUtils";
 import { 
   UserCheck,
   Save,
@@ -256,7 +257,7 @@ export default function DoctorProfile() {
           </Card>
 
           <Tabs defaultValue="personal" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="personal">Personal Info</TabsTrigger>
               <TabsTrigger value="professional">Professional</TabsTrigger>
               <TabsTrigger value="consultation">Consultation</TabsTrigger>
@@ -644,7 +645,7 @@ export default function DoctorProfile() {
                               <p className="text-gray-700 text-sm">{review.review}</p>
                             </div>
                             <div className="text-xs text-gray-500">
-                              {new Date(review.date).toLocaleDateString()}
+                              {formatDateInIST(review.date)}
                             </div>
                           </div>
                         </div>

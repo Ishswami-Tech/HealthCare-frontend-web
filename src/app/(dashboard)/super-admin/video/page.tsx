@@ -226,7 +226,7 @@ function ActiveSessionsMonitor() {
 export default function SuperAdminVideoPage() {
   return (
     <Tabs defaultValue="live" className="space-y-4">
-      <TabsList>
+      <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="live" className="gap-2">
           <Activity className="h-4 w-4" />
           Live Monitor

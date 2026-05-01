@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "@/lib/i18n/context";
 // import { Progress } from "@/components/ui/progress"; // TODO: Add Progress component to shadcn/ui
 import { cn } from "@/lib/utils";
+import { formatDateInIST } from "@/lib/utils/date-time";
 import {
   User,
   Activity,
@@ -181,7 +182,7 @@ export default function PrakritiVikritiCard({
         </div>
         {assessmentDate && (
           <p className="text-sm text-gray-600">
-            {t("prakritiVikriti.assessmentDate")}: {new Date(assessmentDate).toLocaleDateString()}
+            {t("prakritiVikriti.assessmentDate")}: {formatDateInIST(assessmentDate)}
           </p>
         )}
       </CardHeader>

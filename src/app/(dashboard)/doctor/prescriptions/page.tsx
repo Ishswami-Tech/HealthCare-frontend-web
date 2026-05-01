@@ -9,6 +9,7 @@ import { Loader2 } from "@/components/ui/loader";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -33,18 +34,21 @@ import {
   Edit2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { showInfoToast } from "@/hooks/utils/use-toast";
 import {
   usePrescriptions,
   useCreatePrescription,
   useUpdatePrescription,
   useDeletePrescription,
 } from "@/hooks/query/usePrescriptions";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { formatDateInIST } from "@/lib/utils/date-time";
 
 export default function DoctorPrescriptions() {
   const { session } = useAuth();
   const user = session?.user;
+  const doctorId = user?.id || "";
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -52,15 +56,13 @@ export default function DoctorPrescriptions() {
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [editForm, setEditForm] = useState({ diagnosis: "", notes: "", status: "active", medicines: "" });
 
-  const doctorId = user?.id;
-
   const { data: prescriptionsData, isPending } = usePrescriptions(doctorId);
   const createMutation = useCreatePrescription();
   const updateMutation = useUpdatePrescription();
   const deleteMutation = useDeletePrescription();
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['prescriptions', doctorId]]);
+  useWebSocketQuerySync();
 
   const prescriptions = prescriptionsData?.prescriptions || [];
 
@@ -99,7 +101,7 @@ export default function DoctorPrescriptions() {
     if (prescription.pdfUrl) {
       window.open(prescription.pdfUrl, "_blank");
     } else {
-      import("sonner").then(({ toast }) => toast.info("PDF not available for this prescription"));
+      showInfoToast("PDF not available for this prescription");
     }
   };
 
@@ -317,14 +319,11 @@ export default function DoctorPrescriptions() {
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
                           <span>
-                            {new Date(prescription.date).toLocaleDateString(
-                              "en-IN",
-                              {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              }
-                            )}
+                            {formatDateInIST(prescription.date, {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -400,6 +399,9 @@ export default function DoctorPrescriptions() {
             <DialogTitle>
               {editingPrescription ? "Edit Prescription" : "New Prescription"}
             </DialogTitle>
+            <DialogDescription>
+              Create or update a prescription with the patient’s medication plan and clinical notes.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">

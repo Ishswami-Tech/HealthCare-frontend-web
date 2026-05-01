@@ -921,7 +921,7 @@ export const en: TranslationKeys = {
   // Landing Page Content
   landing: {
     // Header/Navigation
-    brandName: 'Ishswami',
+    brandName: 'Viddhakarma',
     welcome: 'Welcome',
     loginButton: 'Login',
     getStartedButton: 'Get Started',
@@ -982,7 +982,7 @@ export const en: TranslationKeys = {
     twitter: 'Twitter',
     facebook: 'Facebook',
     linkedin: 'LinkedIn',
-    copyright: '© 2024 Ishswami. All rights reserved.',
+    copyright: '© 2024 Viddhakarma. All rights reserved.',
 
     // Toast Messages
     loginRequired: 'Please login to access the dashboard',

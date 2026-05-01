@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 /**
  * ✅ Consolidated Notifications Hook
@@ -101,7 +102,7 @@ export function useNotifications(enabled: boolean = true) {
         message: n.message || n.body || n.content || "",
         data: n.data || n.metadata || {},
         isRead: n.isRead || n.read || false,
-        createdAt: n.createdAt || n.created_at || new Date().toISOString(),
+        createdAt: n.createdAt || n.created_at || nowIso(),
         scheduledFor: n.scheduledFor || n.scheduled_for,
       }));
 

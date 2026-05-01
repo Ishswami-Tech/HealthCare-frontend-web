@@ -26,6 +26,8 @@ interface CallTranscriptionProps {
   className?: string;
 }
 
+const EMPTY_TRANSCRIPTION: TranscriptionSegment[] = [];
+
 export function CallTranscription({
   appointmentId,
   className,
@@ -36,15 +38,17 @@ export function CallTranscription({
   const [searchTerm, setSearchTerm] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const {
-    data: transcriptionSegments = [],
+    data: transcriptionSegments,
     isPending: isLoading,
   } = useCallTranscription(appointmentId);
 
   const { subscribeToTranscription, isConnected } = useVideoAppointmentWebSocket();
 
+  const resolvedTranscriptionSegments = transcriptionSegments ?? EMPTY_TRANSCRIPTION;
+
   useEffect(() => {
-    setTranscription(transcriptionSegments);
-  }, [transcriptionSegments]);
+    setTranscription(resolvedTranscriptionSegments);
+  }, [resolvedTranscriptionSegments]);
 
   // Subscribe to real-time transcription
   useEffect(() => {

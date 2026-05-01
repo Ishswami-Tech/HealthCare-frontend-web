@@ -95,6 +95,7 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
         invalidateQueries.forEach((queryKey) => {
           queryClientRef.current.invalidateQueries({
             queryKey: Array.isArray(queryKey) ? queryKey : [queryKey],
+            exact: false,
           });
         });
       }

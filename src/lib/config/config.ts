@@ -89,6 +89,7 @@ const envSchema = z.object({
   
   // Video Configuration
   NEXT_PUBLIC_OPENVIDU_SERVER_URL: z.string().optional(),
+  NEXT_PUBLIC_VIDEO_NO_SHOW_ENABLED: z.string().optional(),
   NEXT_PUBLIC_JITSI_DOMAIN: z.string().optional(),
   NEXT_PUBLIC_JITSI_BASE_URL: z.string().optional(),
   NEXT_PUBLIC_JITSI_WS_URL: z.string().optional(),
@@ -161,6 +162,75 @@ const envDefaults = {
 
 const currentEnvDefaults = envDefaults[currentEnvironment];
 
+function deriveOpenViduServerUrl(): string {
+  const candidates = [
+    env.NEXT_PUBLIC_OPENVIDU_SERVER_URL,
+    env.NEXT_PUBLIC_BACKEND_URL,
+    env.NEXT_PUBLIC_API_URL,
+    env.NEXT_PUBLIC_API_BASE_URL,
+    currentEnvDefaults.apiUrl,
+  ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+  for (const candidate of candidates) {
+    const raw = candidate.trim();
+    try {
+      const parsed = new URL(/^[a-z]+:\/\//i.test(raw) ? raw : `https://${raw}`);
+      const hostname = parsed.hostname.replace(
+        /^backend-service-v1(?!-video)(?=\.)/,
+        'backend-service-v1-video'
+      );
+      const normalizedHost = hostname !== parsed.hostname ? hostname : parsed.hostname;
+      const port = parsed.port.length > 0 ? `:${parsed.port}` : '';
+
+      if (hostname !== parsed.hostname) {
+        return `${parsed.protocol}//${normalizedHost}${port}`;
+      }
+
+      if (parsed.hostname.includes('openvidu') || parsed.hostname.includes('-video')) {
+        return `${parsed.protocol}//${normalizedHost}${port}`;
+      }
+    } catch {
+      const normalized = raw.replace(/\/+$/, '');
+      if (normalized.includes('backend-service-v1.') && !normalized.includes('backend-service-v1-video.')) {
+        return normalized.replace('backend-service-v1.', 'backend-service-v1-video.');
+      }
+    }
+  }
+
+  return '';
+}
+
+function normalizeWebSocketBaseUrl(rawUrl: string | undefined): string {
+  if (!rawUrl || !rawUrl.trim()) {
+    return '';
+  }
+
+  const trimmed = rawUrl.trim();
+  try {
+    const normalized = /^[a-z]+:\/\//i.test(trimmed)
+      ? trimmed
+      : /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(trimmed)
+        ? `http://${trimmed}`
+        : `https://${trimmed}`;
+    const parsed = new URL(normalized);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    const cleaned = trimmed.replace(/\/+$/, '');
+    if (/^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(cleaned)) {
+      return `http://${cleaned}`;
+    }
+    return cleaned;
+  }
+}
+
+function isVideoNoShowEnabled(): boolean {
+  const value = env.NEXT_PUBLIC_VIDEO_NO_SHOW_ENABLED;
+  if (typeof value === 'string') {
+    return value.toLowerCase() === 'true';
+  }
+  return false;
+}
+
 // ============================================================================
 // CENTRAL APPLICATION CONFIGURATION
 // ============================================================================
@@ -226,7 +296,9 @@ export const APP_CONFIG = {
   // WEBSOCKET CONFIGURATION
   // ============================================
   WEBSOCKET: {
-    URL: env.NEXT_PUBLIC_WEBSOCKET_URL || env.NEXT_PUBLIC_WS_URL || currentEnvDefaults.websocketUrl,
+    URL: normalizeWebSocketBaseUrl(
+      env.NEXT_PUBLIC_WEBSOCKET_URL || env.NEXT_PUBLIC_WS_URL || currentEnvDefaults.websocketUrl
+    ),
     TIMEOUT: parseInt(env.NEXT_PUBLIC_WS_TIMEOUT || '10000', 10),
     MAX_RECONNECT_ATTEMPTS: parseInt(env.NEXT_PUBLIC_WS_MAX_RECONNECT_ATTEMPTS || '5', 10),
   },
@@ -284,7 +356,8 @@ export const APP_CONFIG = {
   // ============================================
   VIDEO: {
     // âš ï¸ SECURITY: Video server URLs must come from environment variables
-    OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || '',
+    OPENVIDU_URL: env.NEXT_PUBLIC_OPENVIDU_SERVER_URL || deriveOpenViduServerUrl(),
+    NO_SHOW_ENABLED: isVideoNoShowEnabled(),
     // Jitsi Configuration (Fallback Video Provider)
     JITSI: {
       DOMAIN: env.NEXT_PUBLIC_JITSI_DOMAIN || '',
@@ -404,7 +477,9 @@ export const API_ENDPOINTS = {
     VIDEO_PROPOSE: '/appointments/video/propose',
     VIDEO_REJECT_PROPOSAL: (id: string) => `/appointments/${id}/video/reject`,
     VIDEO_CONFIRM_SLOT: (id: string) => `/appointments/${id}/video/confirm-slot`,
+    VIDEO_CONFIRM_FINAL_SLOT: (id: string) => `/appointments/${id}/video/confirm-final-slot`,
     CHECK_IN: (id: string) => `/appointments/${id}/check-in`,
+    FORCE_CHECK_IN: (id: string) => `/appointments/${id}/force-check-in`,
     SCAN_QR: '/appointments/check-in/scan-qr',
     START: (id: string) => `/appointments/${id}/start-consultation`,
     COMPLETE: (id: string) => `/appointments/${id}/complete`,
@@ -426,11 +501,6 @@ export const API_ENDPOINTS = {
       GENERATE: (locationId: string) => `/appointments/locations/${locationId}/qr-code`,
       VERIFY: '/appointments/verify-qr',
     },
-    NOTIFICATIONS: {
-      GET: (userId: string) => `/appointments/notifications/${userId}`,
-      SEND_REMINDER: (appointmentId: string) => `/appointments/${appointmentId}/reminder`,
-      MARK_READ: (notificationId: string) => `/appointments/notifications/${notificationId}/read`,
-    },
     ANALYTICS: '/appointments/analytics/wait-times',
     UPCOMING: '/appointments/upcoming',
     TEST_CONTEXT: '/appointments/test/context',
@@ -440,6 +510,7 @@ export const API_ENDPOINTS = {
   QUEUE: {
     BASE: '/queue',
     GET: '/queue',
+    FILTERS: '/queue/filters',
     GET_BY_TYPE: (queueType: string) => `/queue/${queueType}`,
     STATS: '/queue/stats',
     UPDATE_STATUS: (patientId: string) => `/queue/${patientId}/status`,
@@ -490,6 +561,8 @@ export const API_ENDPOINTS = {
       CREATE: '/pharmacy/prescriptions',
       UPDATE_STATUS: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/status`,
       DISPENSE: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/dispense`,
+      REVERSE_DISPENSE: (prescriptionId: string) =>
+        `/pharmacy/prescriptions/${prescriptionId}/reverse-dispense`,
       PAYMENT_SUMMARY: (prescriptionId: string) =>
         `/pharmacy/prescriptions/${prescriptionId}/payment-summary`,
       PROCESS_PAYMENT: (prescriptionId: string) =>
@@ -505,6 +578,7 @@ export const API_ENDPOINTS = {
     SEARCH: (clinicId: string) => `/clinics/${clinicId}/medicines/search`,
     CATEGORIES: '/pharmacy/categories',
     SUPPLIERS: '/pharmacy/suppliers',
+    AUDIT_BATCHES: '/pharmacy/audit/batches',
     EXPORT: (clinicId: string) => `/clinics/${clinicId}/pharmacy/export`,
   },
   
@@ -621,9 +695,9 @@ export const API_ENDPOINTS = {
   HEALTH: {
     BASE: '/health',
     DETAILED: '/health?detailed=true',
-    STATUS: '/health/status',
-    READY: '/health/ready',
-    LIVE: '/health/status',
+    STATUS: '/health',
+    READY: '/health',
+    LIVE: '/health',
   },
   
   // Billing Endpoints
@@ -666,7 +740,7 @@ export const API_ENDPOINTS = {
       MARK_PAID: (id: string) => `/billing/invoices/${id}/mark-paid`,
       GENERATE_PDF: (id: string) => `/billing/invoices/${id}/generate-pdf`,
       SEND_WHATSAPP: (id: string) => `/billing/invoices/${id}/send-whatsapp`,
-      DOWNLOAD: (fileName: string) => `/billing/invoices/download/${fileName}`,
+      DOWNLOAD: (fileName: string) => `/api/billing/invoices/download/${fileName}`,
     },
     PAYMENTS: {
       BASE: '/billing/payments',
@@ -949,7 +1023,6 @@ export const API_ENDPOINTS = {
     CREATE: '/pharmacy/prescriptions',
     UPDATE: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/status`,
     GET_BY_ID: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}`,
-    GENERATE_PDF: (prescriptionId: string) => `/pharmacy/prescriptions/${prescriptionId}/pdf`,
   },
   
   // Medicines Endpoints

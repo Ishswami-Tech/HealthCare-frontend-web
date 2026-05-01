@@ -25,6 +25,7 @@ import {
 import TherapyBadge, {
   TherapyType,
 } from "@/components/ayurveda/TherapyBadge";
+import { formatTimeInIST } from "@/lib/utils/date-time";
 
 export interface QueueItem {
   id: string;
@@ -212,10 +213,7 @@ export default function TherapyQueuePanel({
             <div>
               <span className="text-gray-600">Checked in:</span>
               <p className="font-medium">
-                {new Date(item.checkedInAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {formatTimeInIST(item.checkedInAt)}
                 <span className="text-xs text-gray-500 ml-1">
                   ({calculateWaitTime(item.checkedInAt)}m ago)
                 </span>
@@ -227,10 +225,7 @@ export default function TherapyQueuePanel({
             <div>
               <span className="text-gray-600">Started:</span>
               <p className="font-medium">
-                {new Date(item.startedAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {formatTimeInIST(item.startedAt)}
                 <span className="text-xs text-gray-500 ml-1">
                   ({calculateSessionTime(item.startedAt)}m ago)
                 </span>
@@ -370,7 +365,7 @@ export default function TherapyQueuePanel({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Timer className="w-5 h-5" />
-          Therapy Queue Management
+          Procedural Queue Management
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -379,7 +374,7 @@ export default function TherapyQueuePanel({
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
             <TabsTrigger value="agnikarma">Agnikarma</TabsTrigger>
             <TabsTrigger value="panchakarma">Panchakarma</TabsTrigger>
             <TabsTrigger value="shirodhara">Shirodhara</TabsTrigger>

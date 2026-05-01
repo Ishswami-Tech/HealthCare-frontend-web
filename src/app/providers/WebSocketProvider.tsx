@@ -58,30 +58,14 @@ export function WebSocketProvider({
 
   // ✅ Retry logic is handled by useWebSocketIntegration hook
 
-  // Initialize WebSocket manager
+  // Cleanup on unmount
   useEffect(() => {
-    if (shouldConnect && user) {
-      const initializeWebSocket = async () => {
-        try {
-          // Use environment-aware WebSocket URL
-          const { APP_CONFIG } = await import("@/lib/config/config");
-          websocketManager.initialize({
-            url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || APP_CONFIG.WEBSOCKET.URL || '',
-            autoConnect: false, // We handle connection through the integration hook
-          });
-        } catch (error) {
-          console.error("Failed to initialize WebSocket manager:", error);
-        }
-      };
-
-      initializeWebSocket();
-    }
-
-    // Cleanup on unmount
     return () => {
+      // The integration hook owns the actual connection lifecycle.
+      // Destroying the shared manager here keeps stale sockets from surviving route teardown.
       websocketManager.destroy();
     };
-  }, [shouldConnect, user]);
+  }, []);
 
   // Context value
   const contextValue: WebSocketContextType = {
@@ -219,16 +203,24 @@ export function useWebSocketSubscription(
   deps: React.DependencyList = []
 ) {
   const { subscribe, isConnected } = useWebSocketContext();
+  const callbackRef = React.useRef(callback);
+  const depsKey = JSON.stringify(deps);
+
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
 
   useEffect(() => {
     if (!isConnected) return;
 
-    const unsubscribe = subscribe(event, callback);
+    const unsubscribe = subscribe(event, (data: unknown) => {
+      callbackRef.current(data);
+    });
 
     return () => {
       unsubscribe();
     };
-  }, [event, isConnected, subscribe, ...deps]);
+  }, [event, isConnected, subscribe, depsKey]);
 }
 
 // Utility component for showing WebSocket status

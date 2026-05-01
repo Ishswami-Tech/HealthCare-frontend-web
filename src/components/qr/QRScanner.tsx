@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { showErrorToast } from "@/hooks/utils/use-toast";
 import { Camera, Zap, ZapOff, SwitchCamera, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -88,7 +88,7 @@ export function QRScanner({
       setIsScanning(true);
     } catch (err) {
       console.error("Failed to start scanner", err);
-      toast.error("Camera access denied or error occurred");
+      showErrorToast("Camera access denied or error occurred");
     } finally {
       setIsInitializing(false);
     }

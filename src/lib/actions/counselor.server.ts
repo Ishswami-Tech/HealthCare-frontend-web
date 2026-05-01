@@ -3,6 +3,7 @@
 import { authenticatedApi } from './auth.server';
 import { cookies } from 'next/headers';
 import type { CounselorAppointment, CounselorClient, CounselorSession } from '@/types/medical-records.types';
+import { nowIso } from '@/lib/utils/date-time';
 
 // ===== COUNSELOR SERVER ACTIONS =====
 // Counselors are doctors with the COUNSELOR role.
@@ -159,7 +160,7 @@ export async function updateCounselorClientSession(
         type: 'TREATMENT',
         title: 'Counseling Session',
         description: sessionData.notes || '',
-        date: sessionData.sessionDate || new Date().toISOString(),
+        date: sessionData.sessionDate || nowIso(),
         ...(sessionData.nextSessionDate ? { followUpDate: sessionData.nextSessionDate } : {}),
       }),
     }

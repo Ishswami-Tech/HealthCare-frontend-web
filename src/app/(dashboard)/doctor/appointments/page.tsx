@@ -1,6 +1,8 @@
 ﻿"use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,19 +22,30 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { VideoAppointmentRoom } from "@/components/video/VideoAppointmentRoom";
+import { DataTable } from "@/components/ui/data-table";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
-import { useAppointments, useStartAppointment, useCompleteAppointment } from "@/hooks/query/useAppointments";
+import { useStartAppointment, useCompleteAppointment, useUpdateAppointment } from "@/hooks/query/useAppointments";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
-import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { useRealTimeAppointments, useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { showSuccessToast, showErrorToast, showInfoToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import {
-  getAppointmentPaymentStatus,
+  getAppointmentViewState,
+  getAppointmentDateTimeValue,
+  formatDateInIST,
+  formatTimeInIST,
+  formatISODateInIST,
+  getReceptionistAppointmentDateLabel,
+  getReceptionistAppointmentTimeLabel,
+  shouldShowAppointmentOnDoctorDashboard,
+} from "@/lib/utils/appointmentUtils";
+import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
+import {
+  getAppointmentPaymentDisplayState,
   getDisplayAppointmentDuration,
-  isAppointmentAwaitingPayment,
 } from "@/lib/utils/appointmentUtils";
 import {
   Calendar,
@@ -74,6 +87,8 @@ interface TransformedAppointment {
   type: string;
   duration: string;
   appointmentDate: string;
+  startTime?: string;
+  createdAt?: string;
   patientPhone: string;
   patientEmail: string;
   chiefComplaint: string;
@@ -89,7 +104,63 @@ interface TransformedAppointment {
   checkedInAt: string | null;
   queuePosition: number | null;
   paymentStatus: string;
+  paymentCompleted: boolean;
   paymentPending: boolean;
+  diagnosis?: string;
+  prescription?: string;
+  treatmentPlan?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface ConsultationDraftState {
+  diagnosis?: string;
+  prescription?: string;
+  notes?: string;
+  treatmentPlan?: string;
+  savedAt?: string;
+  savedBy?: string | null;
+}
+
+function readConsultationDraftMetadata(metadata: unknown): ConsultationDraftState | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const draft = record.consultationDraft;
+
+  if (!draft || typeof draft !== "object" || Array.isArray(draft)) {
+    return null;
+  }
+
+  const draftRecord = draft as Record<string, unknown>;
+  const draftState: ConsultationDraftState = {};
+
+  if (typeof draftRecord.diagnosis === "string") draftState.diagnosis = draftRecord.diagnosis;
+  if (typeof draftRecord.prescription === "string") draftState.prescription = draftRecord.prescription;
+  if (typeof draftRecord.notes === "string") draftState.notes = draftRecord.notes;
+  if (typeof draftRecord.treatmentPlan === "string") draftState.treatmentPlan = draftRecord.treatmentPlan;
+  if (typeof draftRecord.savedAt === "string") draftState.savedAt = draftRecord.savedAt;
+  if (typeof draftRecord.savedBy === "string") draftState.savedBy = draftRecord.savedBy;
+
+  return draftState;
+}
+
+function extractAppointments(value: unknown): any[] {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of ["appointments", "data", "items", "records"]) {
+      const candidate = record[key];
+      if (Array.isArray(candidate)) return candidate;
+      if (candidate && typeof candidate === "object") {
+        const nested = candidate as Record<string, unknown>;
+        if (Array.isArray(nested.appointments)) return nested.appointments as any[];
+        if (Array.isArray(nested.data)) return nested.data as any[];
+      }
+    }
+  }
+  return [];
 }
 
 const getPaymentBadgeClasses = (paymentStatus: string) => {
@@ -109,6 +180,7 @@ const getPaymentBadgeClasses = (paymentStatus: string) => {
 };
 
 export default function DoctorAppointments() {
+  const router = useRouter();
   const { session } = useAuth();
   const user = session?.user;
   const { clinicId } = useClinicContext();
@@ -118,60 +190,95 @@ export default function DoctorAppointments() {
   const [consultationNotes, setConsultationNotes] = useState("");
   const [prescription, setPrescription] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
-  const [videoRoomAppointment, setVideoRoomAppointment] = useState<VideoAppointment | null>(null);
-  const [isVideoRoomOpen, setIsVideoRoomOpen] = useState(false);
+  const historyStartDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 90);
+    return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
+  }, []);
+  const futureEndDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 365);
+    return formatDateInIST(date, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
+  }, []);
 
   // Fetch real appointment data
-  const appointmentsQuery = useAppointments({
-    ...(clinicId ? { clinicId } : {}),
-    ...(user?.id ? { doctorId: user.id } : {}),
-    ...(statusFilter !== APPOINTMENT_STATUS.ALL && { status: statusFilter as AppointmentStatus }),
-    limit: 100,
-  });
+  const realTimeAppointments = useRealTimeAppointments({
+    doctorId: user?.id || undefined,
+    ...(statusFilter !== APPOINTMENT_STATUS.ALL ? { status: statusFilter } : {}),
+    startDate: historyStartDate,
+    endDate: futureEndDate,
+    limit: 500,
+  } as any);
 
-  const appointmentsData = appointmentsQuery.data;
-  const isLoadingAppointments = appointmentsQuery.isPending;
+  const appointmentsData = realTimeAppointments.data;
+  const isLoadingAppointments = realTimeAppointments.isFetching && !realTimeAppointments.data;
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
 
+  // Mutations for appointment actions
+  const startAppointmentMutation = useStartAppointment();
+  const completeAppointmentMutation = useCompleteAppointment();
+  const updateAppointmentMutation = useUpdateAppointment();
+  const hydratedAppointmentIdRef = useRef<string>("");
+
   // Transform appointments data
   const appointments = useMemo(() => {
-    if (!appointmentsData) return [];
-    const apps = Array.isArray(appointmentsData) ? appointmentsData : appointmentsData.appointments || [];
+    const apps = extractAppointments(appointmentsData);
+    const visibleApps = apps.filter(shouldShowAppointmentOnDoctorDashboard);
 
-    return apps.map((app: any): TransformedAppointment => {
-      const displayDuration = getDisplayAppointmentDuration(app);
-      const paymentStatus = getAppointmentPaymentStatus(app);
+    return visibleApps
+      .map((app: any): TransformedAppointment => {
+        const displayDuration = getDisplayAppointmentDuration(app);
+        const paymentDisplay = getAppointmentPaymentDisplayState(app);
+        const viewState = getAppointmentViewState(app);
+        const appointmentDateTime = getAppointmentDateTimeValue(app);
 
-      return {
-        id: app.id,
-        appointmentId: app.id,
-        patientId: app.patientId || app.patient?.id || app.patient?.userId || "",
-        doctorId: app.doctorId || app.doctor?.id || app.doctor?.userId || "",
-        patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
-        patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
-        patientGender: app.patient?.gender || "Unknown",
-        time: app.startTime ? new Date(app.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "TBD",
-        status: (app.status || "SCHEDULED") as AppointmentStatus,
-        type: app.type || app.appointmentType || "Consultation",
-        duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
-        appointmentDate: app.startTime
-          ? new Date(app.startTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
-          : new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
-        patientPhone: app.patient?.phone || "",
-        patientEmail: app.patient?.email || "",
-        chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
-        medicalHistory: app.patient?.medicalHistory || [],
-        allergies: app.patient?.allergies || [],
-        currentMedications: app.patient?.currentMedications || [],
-        vitalSigns: app.vitalSigns || null,
-        checkedInAt: app.checkedInAt ? new Date(app.checkedInAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null,
-        queuePosition: app.queuePosition || null,
-        paymentStatus,
-        paymentPending: isAppointmentAwaitingPayment(app),
-      };
-    });
+        return {
+          id: app.id,
+          appointmentId: app.id,
+          patientId: app.patientId || app.patient?.id || app.patient?.userId || "",
+          doctorId: app.doctorId || app.doctor?.id || app.doctor?.userId || "",
+          patientName: app.patient?.name || `${app.patient?.firstName || ""} ${app.patient?.lastName || ""}`.trim() || "Unknown Patient",
+          patientAge: app.patient?.age || (app.patient?.dateOfBirth ? Math.floor((new Date().getTime() - new Date(app.patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365)) : null),
+          patientGender: app.patient?.gender || "Unknown",
+          time: appointmentDateTime
+            ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
+            : getReceptionistAppointmentTimeLabel(app as Record<string, unknown>),
+          status: (viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : viewState.normalizedStatus) as AppointmentStatus,
+          type: app.type || app.appointmentType || "Consultation",
+          duration: typeof displayDuration === "number" ? `${displayDuration} min` : "30 min",
+          appointmentDate: appointmentDateTime
+            ? formatDateInIST(appointmentDateTime, { weekday: "short", day: "2-digit", month: "short" })
+            : getReceptionistAppointmentDateLabel(app as Record<string, unknown>),
+          startTime: app.startTime || "",
+          createdAt: app.createdAt || app.updatedAt || "",
+          patientPhone: app.patient?.phone || "",
+          patientEmail: app.patient?.email || "",
+          chiefComplaint: app.chiefComplaint || app.reason || "Not specified",
+          medicalHistory: app.patient?.medicalHistory || [],
+          allergies: app.patient?.allergies || [],
+          currentMedications: app.patient?.currentMedications || [],
+          vitalSigns: app.vitalSigns || null,
+          checkedInAt: app.checkedInAt ? formatTimeInIST(app.checkedInAt) : null,
+          queuePosition: app.queuePosition || null,
+          paymentStatus: paymentDisplay.paymentStatus,
+          paymentCompleted: paymentDisplay.paymentCompleted,
+          paymentPending: paymentDisplay.paymentPending,
+          diagnosis: typeof app.diagnosis === "string" ? app.diagnosis : "",
+          prescription: typeof app.prescription === "string" ? app.prescription : "",
+          treatmentPlan: typeof app.treatmentPlan === "string" ? app.treatmentPlan : "",
+          metadata:
+            app.metadata && typeof app.metadata === "object" && !Array.isArray(app.metadata)
+              ? (app.metadata as Record<string, unknown>)
+              : {},
+        };
+      })
+      .sort((left: TransformedAppointment, right: TransformedAppointment) => {
+        const leftTime = new Date(left.startTime || left.createdAt || 0).getTime();
+        const rightTime = new Date(right.startTime || right.createdAt || 0).getTime();
+        return rightTime - leftTime;
+      });
   }, [appointmentsData]);
 
   const filteredAppointments = useMemo(() => {
@@ -194,8 +301,11 @@ export default function DoctorAppointments() {
       case APPOINTMENT_STATUS.CONFIRMED: return 'bg-green-100 text-green-800';
       case APPOINTMENT_STATUS.SCHEDULED: return 'bg-gray-100 text-gray-800';
       case APPOINTMENT_STATUS.COMPLETED: return 'bg-purple-100 text-purple-800';
-      case APPOINTMENT_STATUS.CANCELLED: case APPOINTMENT_STATUS.NO_SHOW: return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case APPOINTMENT_STATUS.CANCELLED:
+      case APPOINTMENT_STATUS.NO_SHOW:
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -211,17 +321,134 @@ export default function DoctorAppointments() {
     return labels[status] || status;
   };
 
-  // Mutations for appointment actions
-  const startAppointmentMutation = useStartAppointment();
-  const completeAppointmentMutation = useCompleteAppointment();
+  const appointmentColumns = useMemo<ColumnDef<TransformedAppointment>[]>(
+    () => [
+      {
+        accessorKey: "patientName",
+        header: "Patient",
+        cell: ({ row }) => {
+          const app = row.original;
+          return (
+            <div className="min-w-0">
+              <div className="font-medium text-foreground">{app.patientName}</div>
+              <div className="text-xs text-muted-foreground">
+                {app.patientAge ? `${app.patientAge} years` : "Age not set"}
+                {app.patientGender ? ` â€¢ ${app.patientGender}` : ""}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ row }) => {
+          const app = row.original;
+          return (
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-foreground">{app.type}</div>
+              <div className="text-xs text-muted-foreground">
+                {app.time} â€¢ {app.duration}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+          const app = row.original;
+          return <Badge className={getStatusColor(app.status)}>{getStatusLabel(app.status)}</Badge>;
+        },
+      },
+      {
+        accessorKey: "paymentStatus",
+        header: "Video Payment",
+        cell: ({ row }) => {
+          const app = row.original;
+          return app.type === "VIDEO_CALL" ? (
+            <Badge className={getPaymentBadgeClasses(app.paymentCompleted ? "PAID" : app.paymentStatus)}>
+              {app.paymentCompleted ? "Payment verified" : "Payment pending"}
+            </Badge>
+          ) : (
+            <span className="text-sm text-muted-foreground">Not applicable</span>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          const app = row.original;
+          return (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setSelectedAppointment(app)}>
+                <Eye className="w-4 h-4" />
+              </Button>
+              {app.status === APPOINTMENT_STATUS.CONFIRMED && app.checkedInAt && (
+              <Button
+                size="sm"
+                onClick={() => startConsultation(app.id, app.type === "VIDEO_CALL" ? { openVideoAfterStart: true } : undefined)}
+                disabled={startAppointmentMutation.isPending || (app.type === "VIDEO_CALL" && !app.paymentCompleted)}
+                title={app.type === "VIDEO_CALL" && !app.paymentCompleted ? "Video request is waiting for payment" : undefined}
+              >
+                  <Play className="mr-1 h-4 w-4" />
+                  {app.type === "VIDEO_CALL" ? "Start video" : "Start"}
+                </Button>
+              )}
+              {app.status === APPOINTMENT_STATUS.CONFIRMED && !app.checkedInAt && (
+                <Button size="sm" variant="outline" disabled title="Patient must be checked in before consultation can start">
+                  <Play className="mr-1 h-4 w-4" />
+                  Waiting check-in
+                </Button>
+              )}
+              {app.status === APPOINTMENT_STATUS.IN_PROGRESS && (
+                <>
+                  {app.type === "VIDEO_CALL" ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(buildVideoSessionRoute(app.id))}
+                      disabled={!app.paymentCompleted}
+                    >
+                      <Video className="mr-1 h-4 w-4" />
+                      Open video
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      completeConsultation(app.id, {
+                        diagnosis,
+                        prescription,
+                        notes: consultationNotes,
+                      })
+                    }
+                    disabled={completeAppointmentMutation.isPending}
+                  >
+                    <CheckCircle className="mr-1 h-4 w-4" />
+                    Complete
+                  </Button>
+                </>
+              )}
+            </div>
+          );
+        },
+      },
+    ],
+    [completeAppointmentMutation.isPending, consultationNotes, diagnosis, prescription, startAppointmentMutation.isPending, user?.id]
+  );
 
-  const startConsultation = async (appointmentId: string) => {
+  const startConsultation = async (appointmentId: string, options?: { openVideoAfterStart?: boolean }) => {
     try {
       await startAppointmentMutation.mutateAsync(appointmentId);
       showSuccessToast("Consultation started successfully", {
         id: TOAST_IDS.GLOBAL.SUCCESS,
       });
-      appointmentsQuery.refetch();
+      if (options?.openVideoAfterStart) {
+        router.push(buildVideoSessionRoute(appointmentId));
+      }
     } catch (error: unknown) {
       showErrorToast(error instanceof Error ? error.message : "Failed to start consultation", {
         id: TOAST_IDS.GLOBAL.ERROR,
@@ -235,9 +462,16 @@ export default function DoctorAppointments() {
     notes?: string;
   }) => {
     try {
+      const completionData = {
+        ...(data?.diagnosis ? { diagnosis: data.diagnosis } : {}),
+        ...(data?.prescription ? { prescription: data.prescription } : {}),
+        ...(data?.notes ? { notes: data.notes } : {}),
+        ...(data?.prescription ? { treatmentPlan: data.prescription } : {}),
+      };
+
       await completeAppointmentMutation.mutateAsync({
         id: appointmentId,
-        data: data || {},
+        data: completionData,
       });
       showSuccessToast("Consultation completed successfully", {
         id: TOAST_IDS.GLOBAL.SUCCESS,
@@ -246,13 +480,108 @@ export default function DoctorAppointments() {
       setPrescription("");
       setConsultationNotes("");
       setSelectedAppointment(null);
-      appointmentsQuery.refetch();
     } catch (error: unknown) {
       showErrorToast(error instanceof Error ? error.message : "Failed to complete consultation", {
         id: TOAST_IDS.GLOBAL.ERROR,
       });
     }
   };
+
+  const saveConsultationDraft = async (appointmentId: string) => {
+    const trimmedDiagnosis = diagnosis.trim();
+    const trimmedPrescription = prescription.trim();
+    const trimmedNotes = consultationNotes.trim();
+    const trimmedTreatmentPlan = trimmedPrescription;
+
+    if (!trimmedDiagnosis && !trimmedPrescription && !trimmedNotes) {
+      showInfoToast("Enter diagnosis, notes, or prescription before saving a draft", {
+        id: TOAST_IDS.GLOBAL.INFO,
+      });
+      return;
+    }
+
+    try {
+      const draftPayload = {
+        ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
+        ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
+        ...(trimmedTreatmentPlan ? { treatmentPlan: trimmedTreatmentPlan } : {}),
+        ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+      };
+
+      const draftMetadata: Record<string, unknown> = {
+        consultationDraft: {
+          ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
+          ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
+          ...(trimmedTreatmentPlan ? { treatmentPlan: trimmedTreatmentPlan } : {}),
+          ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+          savedAt: new Date().toISOString(),
+          savedBy: user?.id || null,
+        },
+      };
+
+      await updateAppointmentMutation.mutateAsync({
+        id: appointmentId,
+        data: {
+          ...draftPayload,
+          metadata: draftMetadata,
+        },
+      });
+
+      setSelectedAppointment((current) =>
+        current && current.id === appointmentId
+          ? {
+              ...current,
+              diagnosis: trimmedDiagnosis,
+              prescription: trimmedPrescription,
+              treatmentPlan: trimmedTreatmentPlan,
+              metadata: {
+                ...(current.metadata || {}),
+                consultationDraft: {
+                  ...(trimmedDiagnosis ? { diagnosis: trimmedDiagnosis } : {}),
+                  ...(trimmedPrescription ? { prescription: trimmedPrescription } : {}),
+                  ...(trimmedTreatmentPlan ? { treatmentPlan: trimmedTreatmentPlan } : {}),
+                  ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+                  savedAt: new Date().toISOString(),
+                  savedBy: user?.id || null,
+                },
+              },
+            }
+          : current
+      );
+
+      showSuccessToast("Consultation draft saved successfully", {
+        id: TOAST_IDS.GLOBAL.SUCCESS,
+      });
+    } catch (error: unknown) {
+      showErrorToast(error instanceof Error ? error.message : "Failed to save consultation draft", {
+        id: TOAST_IDS.GLOBAL.ERROR,
+      });
+    }
+  };
+
+  const selectedAppointmentId = selectedAppointment?.id || "";
+  const selectedAppointmentSnapshot =
+    selectedAppointment ||
+    appointments.find((appointment) => appointment.id === selectedAppointmentId) ||
+    null;
+
+  useEffect(() => {
+    if (!selectedAppointmentSnapshot) {
+      hydratedAppointmentIdRef.current = "";
+      return;
+    }
+
+    if (hydratedAppointmentIdRef.current === selectedAppointmentSnapshot.id) {
+      return;
+    }
+
+    hydratedAppointmentIdRef.current = selectedAppointmentSnapshot.id;
+
+    const draft = readConsultationDraftMetadata(selectedAppointmentSnapshot.metadata);
+    setDiagnosis(draft?.diagnosis ?? selectedAppointmentSnapshot.diagnosis ?? "");
+    setPrescription(draft?.prescription ?? selectedAppointmentSnapshot.prescription ?? "");
+    setConsultationNotes(draft?.notes ?? "");
+  }, [selectedAppointmentId, selectedAppointmentSnapshot]);
 
   return (
     <>
@@ -265,12 +594,26 @@ export default function DoctorAppointments() {
           <DashboardPageHeader
             eyebrow="Doctor Appointments"
             title="My Appointments"
-            description={`Today is ${new Date().toLocaleDateString("en-IN", {
+            description={`Today is ${formatDateInIST(new Date(), {
               weekday: "long",
               month: "long",
               day: "numeric",
             })}. Review every scheduled, video, in-person, completed, and cancelled appointment in one place.`}
-            actionsSlot={<WebSocketStatusIndicator />}
+            actionsSlot={
+              <div className="flex flex-wrap items-center gap-3">
+                <BookAppointmentDialog
+                  {...(clinicId ? { clinicId } : {})}
+                  {...(user?.id ? { initialDoctorId: user.id } : {})}
+                  trigger={
+                    <Button className="rounded-xl border-0 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500/30">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Book Appointment
+                    </Button>
+                  }
+                />
+                <WebSocketStatusIndicator />
+              </div>
+            }
           />
 
           {/* Stats Overview */}
@@ -320,7 +663,7 @@ export default function DoctorAppointments() {
                 <div className="text-2xl font-bold text-purple-600">
                   {
                     appointments.filter((a: TransformedAppointment) =>
-                      a.appointmentDate === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+                      a.appointmentDate === formatISODateInIST(new Date())
                     ).length
                   }
                 </div>
@@ -360,405 +703,233 @@ export default function DoctorAppointments() {
             </CardContent>
           </Card>
 
-          {/* Appointments List */}
-          <div className="grid gap-4">
-            {filteredAppointments.map((appointment: TransformedAppointment) => (
-              <Card key={appointment.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
-                        <span className="text-blue-800 font-semibold text-lg">
-                          {appointment.patientName?.charAt(0) || "?"}
-                        </span>
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold">{appointment.patientName}</h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span>{appointment.patientAge} years - {appointment.patientGender}</span>
-                          <span>{appointment.type}</span>
-                          <span>{appointment.duration}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Clock className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm font-medium">{appointment.time}</span>
-                          {appointment.checkedInAt && (
-                            <span className="text-xs text-green-600">
-                              (Checked in at {appointment.checkedInAt})
-                            </span>
-                          )}
-                        </div>
-                        {appointment.type === "VIDEO_CALL" && (
-                          <div className="mt-2">
-                            <Badge className={getPaymentBadgeClasses(appointment.paymentStatus)}>
-                              Payment {appointment.paymentStatus.replace(/_/g, " ")}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
+          <DataTable
+            columns={appointmentColumns}
+            data={filteredAppointments}
+            emptyMessage="No appointments found"
+            pageSize={10}
+          />
+
+          <Dialog open={!!selectedAppointment} onOpenChange={(open) => !open && setSelectedAppointment(null)}>
+            <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto">
+              {selectedAppointment && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <span>Patient Details: {selectedAppointment.patientName}</span>
+                      <span className="text-sm font-normal text-muted-foreground">
+                        {selectedAppointment.type} â€¢ {selectedAppointment.time}
+                      </span>
+                    </DialogTitle>
+                  </DialogHeader>
+
+                  <div className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</p>
+                      <Badge className={getStatusColor(selectedAppointment.status)}>{getStatusLabel(selectedAppointment.status)}</Badge>
                     </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <Badge className={getStatusColor(appointment.status)}>
-                          {getStatusLabel(appointment.status)}
-                        </Badge>
-                        {appointment.queuePosition && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            Queue Position: {appointment.queuePosition}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setSelectedAppointment(appointment)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        
-                        {appointment.status === APPOINTMENT_STATUS.CONFIRMED && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => startConsultation(appointment.id)}
-                            disabled={startAppointmentMutation.isPending || (appointment.type === "VIDEO_CALL" && appointment.paymentPending)}
-                            className="flex items-center gap-1"
-                            title={appointment.type === "VIDEO_CALL" && appointment.paymentPending ? "Video appointment is waiting for patient payment" : undefined}
-                          >
-                            {startAppointmentMutation.isPending ? (
-                              <>
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                Starting...
-                              </>
-                            ) : (
-                              <>
-                                <Play className="w-3 h-3" />
-                                Start
-                              </>
-                            )}
-                          </Button>
-                        )}
-                        {appointment.status === APPOINTMENT_STATUS.CONFIRMED &&
-                          appointment.type === "VIDEO_CALL" &&
-                          appointment.paymentPending && (
-                            <Badge className="bg-amber-100 text-amber-800">
-                              Awaiting Payment
-                            </Badge>
-                          )}
-                        
-                        {appointment.status === APPOINTMENT_STATUS.IN_PROGRESS && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex items-center gap-1"
-                              onClick={() => {
-                                if (appointment.type === "VIDEO_CALL" && appointment.paymentPending) {
-                                  return;
-                                }
-                                const videoAppt: VideoAppointment = {
-                                  id: appointment.id,
-                                  appointmentId: appointment.id,
-                                  roomName: `room-${appointment.id}`,
-                                  doctorId: appointment.doctorId || user?.id || "",
-                                  patientId: appointment.patientId || "",
-                                  startTime: new Date().toISOString(),
-                                  endTime: new Date().toISOString(),
-                                  status: "in-progress",
-                                  createdAt: new Date().toISOString(),
-                                  updatedAt: new Date().toISOString(),
-                                };
-                                setVideoRoomAppointment(videoAppt);
-                                setIsVideoRoomOpen(true);
-                              }}
-                              disabled={appointment.type === "VIDEO_CALL" && appointment.paymentPending}
-                            >
-                              <Video className="w-3 h-3" />
-                              Video
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              onClick={() => completeConsultation(appointment.id, {
-                              diagnosis: diagnosis,
-                              prescription: prescription,
-                              notes: consultationNotes,
-                            })}
-                              disabled={completeAppointmentMutation.isPending}
-                              className="flex items-center gap-1"
-                            >
-                              {completeAppointmentMutation.isPending ? (
-                                <>
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                  Completing...
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle className="w-3 h-3" />
-                                  Complete
-                                </>
-                              )}
-                            </Button>
-                          </>
-                        )}
-                      </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Video Payment</p>
+                      <Badge className={getPaymentBadgeClasses(selectedAppointment.paymentCompleted ? "PAID" : selectedAppointment.paymentStatus)}>
+                        {selectedAppointment.paymentCompleted ? "Payment verified" : "Payment pending"}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contact</p>
+                      <p className="text-sm text-foreground">{selectedAppointment.patientPhone || selectedAppointment.patientEmail || "Not available"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Queue</p>
+                      <p className="text-sm text-foreground">{selectedAppointment.queuePosition ?? "â€”"}</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
 
-          {filteredAppointments.length === 0 && (
-            <Card>
-              <CardContent className="text-center py-8">
-                <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No appointments found</h3>
-                <p className="text-gray-600">Try adjusting your search criteria</p>
-              </CardContent>
-            </Card>
-          )}
+                  <Tabs defaultValue="patient-info" className="space-y-4">
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="patient-info">Patient Info</TabsTrigger>
+                      <TabsTrigger value="consultation">Consultation</TabsTrigger>
+                      <TabsTrigger value="prescription">Prescription</TabsTrigger>
+                    </TabsList>
 
-          {/* Patient Details Modal/Sidebar */}
-          {selectedAppointment && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Patient Details: {selectedAppointment.patientName}</span>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setSelectedAppointment(null)}
-                  >
-                    Close
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="patient-info" className="space-y-4">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="patient-info">Patient Info</TabsTrigger>
-                    <TabsTrigger value="consultation">Consultation</TabsTrigger>
-                    <TabsTrigger value="prescription">Prescription</TabsTrigger>
-                  </TabsList>
+                    <TabsContent value="patient-info">
+                      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="mb-2 font-semibold">Contact Information</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-4 w-4" />
+                                <span>{selectedAppointment.patientPhone || "Not available"}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <MessageSquare className="h-4 w-4" />
+                                <span>{selectedAppointment.patientEmail || "Not available"}</span>
+                              </div>
+                            </div>
+                          </div>
 
-                  <TabsContent value="patient-info">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <h4 className="mb-2 font-semibold">Chief Complaint</h4>
+                            <p className="text-sm text-muted-foreground">{selectedAppointment.chiefComplaint}</p>
+                          </div>
+
+                          <div>
+                            <h4 className="mb-2 font-semibold">Medical History</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {Array.isArray(selectedAppointment.medicalHistory)
+                                ? selectedAppointment.medicalHistory.join(", ") || "None"
+                                : selectedAppointment.medicalHistory || "None"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {selectedAppointment.vitalSigns && (
+                            <div>
+                              <h4 className="mb-2 font-semibold">Vital Signs</h4>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div>BP: {selectedAppointment.vitalSigns.bp ?? "-"}</div>
+                                <div>Pulse: {selectedAppointment.vitalSigns.pulse ?? "-"}</div>
+                                <div>Temp: {selectedAppointment.vitalSigns.temperature ?? "-"}</div>
+                                <div>Weight: {selectedAppointment.vitalSigns.weight ?? "-"}</div>
+                              </div>
+                            </div>
+                          )}
+
+                          <div>
+                            <h4 className="mb-2 font-semibold">Allergies</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {Array.isArray(selectedAppointment.allergies)
+                                ? selectedAppointment.allergies.join(", ") || "None"
+                                : selectedAppointment.allergies || "None"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <h4 className="mb-2 font-semibold">Current Medications</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {Array.isArray(selectedAppointment.currentMedications)
+                                ? selectedAppointment.currentMedications.join(", ") || "None"
+                                : selectedAppointment.currentMedications || "None"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="consultation">
                       <div className="space-y-4">
                         <div>
-                          <h4 className="font-semibold mb-2">Contact Information</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex items-center gap-2">
-                              <Phone className="w-4 h-4" />
-                              <span>{selectedAppointment.patientPhone}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <MessageSquare className="w-4 h-4" />
-                              <span>{selectedAppointment.patientEmail}</span>
-                            </div>
-                          </div>
+                          <label htmlFor="diagnosis" className="mb-2 block text-sm font-medium">
+                            Diagnosis
+                          </label>
+                          <Input
+                            id="diagnosis"
+                            value={diagnosis}
+                            onChange={(e) => setDiagnosis(e.target.value)}
+                            placeholder="Enter diagnosis..."
+                          />
                         </div>
 
                         <div>
-                          <h4 className="font-semibold mb-2">Chief Complaint</h4>
-                          <p className="text-sm text-gray-700">{selectedAppointment.chiefComplaint}</p>
+                          <label htmlFor="consultationNotes" className="mb-2 block text-sm font-medium">
+                            Consultation Notes
+                          </label>
+                          <Textarea
+                            id="consultationNotes"
+                            value={consultationNotes}
+                            onChange={(e) => setConsultationNotes(e.target.value)}
+                            placeholder="Enter detailed consultation notes..."
+                            rows={6}
+                          />
                         </div>
 
-                        {selectedAppointment.type === "VIDEO_CALL" && (
-                          <div>
-                            <h4 className="font-semibold mb-2">Payment Status</h4>
-                            <Badge className={getPaymentBadgeClasses(selectedAppointment.paymentStatus)}>
-                              {selectedAppointment.paymentStatus.replace(/_/g, " ")}
-                            </Badge>
-                          </div>
-                        )}
-
-                        <div>
-                          <h4 className="font-semibold mb-2">Medical History</h4>
-                          <p className="text-sm text-gray-700">
-                            {Array.isArray(selectedAppointment.medicalHistory)
-                              ? selectedAppointment.medicalHistory.join(", ") || "None"
-                              : selectedAppointment.medicalHistory || "None"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        {selectedAppointment.vitalSigns && (
-                          <div>
-                            <h4 className="font-semibold mb-2">Vital Signs</h4>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div>BP: {selectedAppointment.vitalSigns.bp ?? "-"}</div>
-                              <div>Pulse: {selectedAppointment.vitalSigns.pulse ?? "-"}</div>
-                              <div>Temp: {selectedAppointment.vitalSigns.temperature ?? "-"}</div>
-                              <div>Weight: {selectedAppointment.vitalSigns.weight ?? "-"}</div>
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <h4 className="font-semibold mb-2">Allergies</h4>
-                          <p className="text-sm text-gray-700">
-                            {Array.isArray(selectedAppointment.allergies)
-                              ? selectedAppointment.allergies.join(", ") || "None"
-                              : selectedAppointment.allergies || "None"}
-                          </p>
-                        </div>
-
-                        <div>
-                          <h4 className="font-semibold mb-2">Current Medications</h4>
-                          <p className="text-sm text-gray-700">
-                            {Array.isArray(selectedAppointment.currentMedications)
-                              ? selectedAppointment.currentMedications.join(", ") || "None"
-                              : selectedAppointment.currentMedications || "None"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="consultation">
-                    <div className="space-y-4">
-                      <div>
-                        <label htmlFor="diagnosis" className="block text-sm font-medium mb-2">
-                          Diagnosis
-                        </label>
-                        <Input
-                          id="diagnosis"
-                          value={diagnosis}
-                          onChange={(e) => setDiagnosis(e.target.value)}
-                          placeholder="Enter diagnosis..."
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="consultationNotes" className="block text-sm font-medium mb-2">
-                          Consultation Notes
-                        </label>
-                        <Textarea
-                          id="consultationNotes"
-                          value={consultationNotes}
-                          onChange={(e) => setConsultationNotes(e.target.value)}
-                          placeholder="Enter detailed consultation notes..."
-                          rows={6}
-                        />
-                      </div>
-
-                      <Button 
-                        className="w-full"
-                        onClick={() => {
-                          if (selectedAppointment) {
-                            completeConsultation(selectedAppointment.id, {
-                              diagnosis: diagnosis,
-                              prescription: prescription,
-                              notes: consultationNotes,
-                            });
-                          }
-                        }}
-                        disabled={completeAppointmentMutation.isPending}
-                      >
-                        {completeAppointmentMutation.isPending ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="w-4 h-4 mr-2" />
-                            Save Consultation Notes
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="prescription">
-                    <div className="space-y-4">
-                      <div>
-                        <label htmlFor="prescription" className="block text-sm font-medium mb-2">
-                          Prescription & Treatment Plan
-                        </label>
-                        <Textarea
-                          id="prescription"
-                          value={prescription}
-                          onChange={(e) => setPrescription(e.target.value)}
-                          placeholder="Enter medications, dosage, and treatment instructions..."
-                          rows={8}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <Button 
-                          variant="outline" 
-                          className="w-full"
-                          onClick={() => {
-                            // Save prescription as draft (could be a separate mutation)
-                            showInfoToast("Prescription saved as draft", {
-                              id: TOAST_IDS.GLOBAL.INFO,
-                            });
-                          }}
-                        >
-                          Save as Draft
-                        </Button>
-                        <Button 
+                        <Button
                           className="w-full"
                           onClick={() => {
                             if (selectedAppointment) {
-                              completeConsultation(selectedAppointment.id, {
-                                diagnosis: diagnosis,
-                                prescription: prescription,
-                                notes: consultationNotes,
-                              });
+                              saveConsultationDraft(selectedAppointment.id);
                             }
                           }}
-                          disabled={completeAppointmentMutation.isPending}
+                          disabled={updateAppointmentMutation.isPending}
                         >
-                          {completeAppointmentMutation.isPending ? (
+                          {updateAppointmentMutation.isPending ? (
                             <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Saving...
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Saving draft...
                             </>
                           ) : (
                             <>
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              Generate Prescription
+                              <FileText className="mr-2 h-4 w-4" />
+                              Save Draft
                             </>
                           )}
                         </Button>
                       </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          )}
+                    </TabsContent>
 
-          {/* Video Consultation Dialog */}
-          {videoRoomAppointment && (
-            <Dialog open={isVideoRoomOpen} onOpenChange={setIsVideoRoomOpen}>
-              <DialogContent className="max-w-7xl w-full h-[90vh] p-0">
-                <DialogHeader className="sr-only">
-                  <DialogTitle>Video Consultation - {videoRoomAppointment.appointmentId}</DialogTitle>
-                </DialogHeader>
-                <VideoAppointmentRoom
-                  appointment={videoRoomAppointment}
-                  onEndCall={() => {
-                    setIsVideoRoomOpen(false);
-                    setVideoRoomAppointment(null);
-                    appointmentsQuery.refetch();
-                  }}
-                  onLeaveRoom={() => {
-                    setIsVideoRoomOpen(false);
-                    setVideoRoomAppointment(null);
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
+                    <TabsContent value="prescription">
+                      <div className="space-y-4">
+                        <div>
+                          <label htmlFor="prescription" className="mb-2 block text-sm font-medium">
+                            Prescription & Treatment Plan
+                          </label>
+                          <Textarea
+                            id="prescription"
+                            value={prescription}
+                            onChange={(e) => setPrescription(e.target.value)}
+                            placeholder="Enter medications, dosage, and treatment instructions..."
+                            rows={8}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => selectedAppointment && saveConsultationDraft(selectedAppointment.id)}
+                            disabled={updateAppointmentMutation.isPending}
+                          >
+                            {updateAppointmentMutation.isPending ? "Saving..." : "Save as Draft"}
+                          </Button>
+                          <Button
+                            className="w-full"
+                            onClick={() => {
+                              if (selectedAppointment) {
+                                completeConsultation(selectedAppointment.id, {
+                                  diagnosis,
+                                  prescription,
+                                  notes: consultationNotes,
+                                });
+                              }
+                            }}
+                            disabled={completeAppointmentMutation.isPending}
+                          >
+                            {completeAppointmentMutation.isPending ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Generate Prescription
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
+
         </DashboardPageShell>
       )}
     </>
   );
 }
+
 

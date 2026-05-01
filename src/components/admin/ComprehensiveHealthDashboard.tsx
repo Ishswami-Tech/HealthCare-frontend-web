@@ -42,6 +42,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { formatDateTimeInIST, formatTimeInIST } from "@/lib/utils/date-time";
 
 interface ServiceCardProps {
   title: string;
@@ -272,8 +273,8 @@ export function ComprehensiveHealthDashboard({
             <div className="text-sm text-gray-500">Last Updated</div>
             <div className="text-sm font-medium">
               {lastUpdate
-                ? lastUpdate.toLocaleTimeString()
-                : lastRefresh.toLocaleTimeString()}
+                ? formatTimeInIST(lastUpdate)
+                : formatTimeInIST(lastRefresh)}
             </div>
           </div>
           <Button
@@ -353,7 +354,7 @@ export function ComprehensiveHealthDashboard({
             label="Last Health Check"
             value={
               health.database?.lastHealthCheck
-                ? new Date(health.database.lastHealthCheck).toLocaleString()
+                ? formatDateTimeInIST(health.database.lastHealthCheck)
                 : undefined
             }
             icon={Clock}

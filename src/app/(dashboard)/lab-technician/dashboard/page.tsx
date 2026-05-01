@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useLabTechnicianResults } from "@/hooks/query/useLabTechnician";
-import { useWebSocketQuerySync } from "@/hooks/query/utils/use-websocket-query-sync";
+import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
+import { formatDateTimeInIST } from "@/lib/utils/date-time";
 
 export default function LabTechnicianDashboard() {
   const { session } = useAuth();
@@ -25,7 +26,7 @@ export default function LabTechnicianDashboard() {
   const { data: labResultsData, isPending } = useLabTechnicianResults({ labTechnicianId: technicianId } as any);
 
   // Sync with WebSocket for real-time updates
-  useWebSocketQuerySync([['labTechnicianResults', technicianId]]);
+  useWebSocketQuerySync();
 
   const labResults = labResultsData?.results || [];
 
@@ -38,7 +39,7 @@ export default function LabTechnicianDashboard() {
         patientName: r.patientName || r.patient?.name || "Unknown Patient",
         testType: r.testName || r.testType || "General Lab Test",
         priority: r.priority || "normal",
-        requestedAt: r.createdAt ? new Date(r.createdAt).toLocaleString() : "TBA",
+        requestedAt: r.createdAt ? formatDateTimeInIST(r.createdAt, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }, "en-IN") : "TBA",
       }));
   }, [labResults]);
 
@@ -51,7 +52,7 @@ export default function LabTechnicianDashboard() {
         patientName: r.patientName || r.patient?.name || "Unknown Patient",
         testType: r.testName || r.testType || "General Lab Test",
         status: r.status,
-        completedAt: r.reportedAt || r.updatedAt ? new Date(r.reportedAt || r.updatedAt).toLocaleString() : "Recent",
+        completedAt: r.reportedAt || r.updatedAt ? formatDateTimeInIST(r.reportedAt || r.updatedAt, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }, "en-IN") : "Recent",
       }));
   }, [labResults]);
 
@@ -138,7 +139,7 @@ export default function LabTechnicianDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Lab Technician Dashboard</h1>
         <p className="text-muted-foreground">

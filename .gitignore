@@ -29,6 +29,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+debug_queue.json
 
 
 # vercel
@@ -54,4 +55,3 @@ next-env.d.ts
 !.env.local.example
 .env.production
 .env.production.local
-

@@ -19,10 +19,13 @@ import {
   FileText,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/context";
-import { 
+import {
   getAppointmentStatusColor, 
   formatAppointmentDate, 
-  formatAppointmentTime 
+  getAppointmentViewState,
+  isVideoAppointmentJoinable,
+  normalizeAppointmentStatus,
+  getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
 
 interface AppointmentCardProps {
@@ -63,6 +66,15 @@ function AppointmentCardComponent({
   className,
 }: AppointmentCardProps) {
   const { t } = useTranslation();
+  const viewState = getAppointmentViewState(appointment);
+  const normalizedType = String(appointment.type || "").toUpperCase();
+  const normalizedStatus = normalizeAppointmentStatus(appointment.status);
+  const displayTime = getReceptionistAppointmentTimeLabel(appointment as Record<string, unknown>);
+  const canShowJoin =
+    Boolean(onJoin) &&
+    (normalizedType === "VIDEO" || normalizedType === "VIDEO_CALL") &&
+    !viewState.awaitingDoctorSlotConfirmation &&
+    isVideoAppointmentJoinable(appointment);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -94,10 +106,10 @@ function AppointmentCardComponent({
     <Card
       className={cn(
         "hover:shadow-md transition-all duration-300 border-l-4",
-        appointment.status === "scheduled" && "border-l-primary",
-        appointment.status === "completed" && "border-l-primary",
-        appointment.status === "cancelled" && "border-l-destructive",
-        appointment.status === "in-progress" && "border-l-primary",
+        normalizedStatus === "SCHEDULED" && "border-l-primary",
+        normalizedStatus === "COMPLETED" && "border-l-primary",
+        normalizedStatus === "CANCELLED" && "border-l-destructive",
+        normalizedStatus === "IN_PROGRESS" && "border-l-primary",
         className
       )}
     >
@@ -110,7 +122,7 @@ function AppointmentCardComponent({
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
-              {formatAppointmentTime(appointment.time)}
+              {displayTime}
             </div>
           </div>
           <Badge className={cn("text-xs", getAppointmentStatusColor(appointment.status))}>
@@ -195,7 +207,7 @@ function AppointmentCardComponent({
 
         {/* Actions */}
         <div className="flex gap-2 pt-2">
-          {appointment.status === "scheduled" && onJoin && (
+          {canShowJoin && (
             <Button
               size="sm"
               className="flex-1 hover:scale-105 transition-transform"
@@ -214,7 +226,7 @@ function AppointmentCardComponent({
             </Button>
           )}
 
-          {appointment.status === "scheduled" && onReschedule && (
+          {normalizedStatus === "SCHEDULED" && onReschedule && (
             <Button
               variant="outline"
               size="sm"
@@ -225,7 +237,7 @@ function AppointmentCardComponent({
             </Button>
           )}
 
-          {appointment.status === "scheduled" && onCancel && (
+          {normalizedStatus === "SCHEDULED" && onCancel && (
             <Button
               variant="outline"
               size="sm"

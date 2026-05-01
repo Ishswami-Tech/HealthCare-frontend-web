@@ -1,9 +1,12 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 import { useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { APP_CONFIG } from '@/lib/config/config';
 import { useHealthStore } from '@/stores';
+import { useAuthStore } from '@/stores/auth.store';
+import { refreshToken } from '@/lib/actions/auth.server';
 import { DetailedHealthStatus } from '../query/useHealth';
 
 // Realtime health status types matching backend format
@@ -69,7 +72,7 @@ function convertRealtimeToDetailed(realtime: RealtimeHealthStatus): DetailedHeal
   const result: DetailedHealthStatus = {};
   
   // Helper to safely get timestamp
-  const getTimestamp = (ts: string | undefined) => ts || new Date().toISOString();
+  const getTimestamp = (ts: string | undefined) => ts || nowIso();
 
   // Database
   if (services.database) {
@@ -269,39 +272,56 @@ export function useHealthRealtime(
   const setIsConnected = useHealthStore((state) => state.setIsConnected);
   const setLastUpdate = useHealthStore((state) => state.setLastUpdate);
   const setError = useHealthStore((state) => state.setError);
+  const currentToken = useAuthStore((state) => state.session?.access_token);
 
   const socketRef = useRef<Socket | null>(null);
   const isUnmountingRef = useRef(false);
+  const cleanupTimerRef = useRef<number | null>(null);
+  const authRefreshInFlightRef = useRef(false);
 
   // Initialize Socket.IO connection
   useEffect(() => {
     if (!enabled) return;
     isUnmountingRef.current = false;
+    if (cleanupTimerRef.current !== null) {
+      window.clearTimeout(cleanupTimerRef.current);
+      cleanupTimerRef.current = null;
+    }
 
     // ✅ FIX: Use WebSocket URL, not API URL (API URL has /api/v1 prefix)
     // Socket.IO health namespace is at base WebSocket URL + /health
     const WEBSOCKET_URL = APP_CONFIG.WEBSOCKET.URL || '';
     
-    // Normalize URL (remove /socket.io if present, convert ws:// to http://)
-    let normalizedUrl = (WEBSOCKET_URL || '').trim();
-    normalizedUrl = normalizedUrl.replace(/\/socket\.io\/?$/, '');
-    normalizedUrl = normalizedUrl.replace(/^ws:\/\//, 'http://');
-    normalizedUrl = normalizedUrl.replace(/^wss:\/\//, 'https://');
-    
+    let baseUrl = (WEBSOCKET_URL || '').trim();
+    try {
+      const normalizedBase = /^[a-z]+:\/\//i.test(baseUrl)
+        ? baseUrl
+        : /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(baseUrl)
+          ? `http://${baseUrl}`
+          : `https://${baseUrl}`;
+      const parsedBase = new URL(normalizedBase);
+      baseUrl = `${parsedBase.protocol}//${parsedBase.host}`;
+    } catch {
+      const cleaned = baseUrl.replace(/\/+$/, '');
+      baseUrl = /^(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/.*)?$/i.test(cleaned)
+        ? `http://${cleaned}`
+        : cleaned;
+    }
+
     // Socket.IO namespace syntax: base URL + namespace
     // This creates: {WEBSOCKET_URL}/health
-    // Remove trailing slash from normalized URL before adding namespace
-    const baseUrl = normalizedUrl.replace(/\/$/, '');
     const healthSocketUrl = `${baseUrl}/health`;
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('🔌 Connecting to health namespace:', {
-        baseUrl,
-        healthSocketUrl,
-        websocketUrl: WEBSOCKET_URL,
-      });
+    if (!currentToken) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      setIsConnected(false);
+      setConnectionStatus('disconnected');
+      setError(null);
+      return;
     }
-    
+
     const healthSocket = io(healthSocketUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -310,21 +330,13 @@ export function useHealthRealtime(
       reconnectionAttempts: 5,
       timeout: 20000,
       forceNew: false,
-      // Health namespace typically doesn't require auth, but add if needed
-      // auth: { token: await getAccessToken() },
+      ...(currentToken ? { auth: { token: currentToken } } : {}),
     });
 
     socketRef.current = healthSocket;
 
     // Connection events
     healthSocket.on('connect', () => {
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('✅ Health monitoring connected via Socket.IO to /health namespace', {
-          id: healthSocket.id,
-          url: healthSocketUrl,
-          transport: healthSocket.io.engine.transport.name,
-        });
-      }
       setIsConnected(true);
       setConnectionStatus('connected');
       setError(null);
@@ -337,57 +349,55 @@ export function useHealthRealtime(
           if (response.status.t) {
             setLastUpdate(new Date(response.status.t));
           }
-          if (process.env.NODE_ENV === 'development') {
-            console.debug('✅ Auto-subscribed to health updates on connection');
-          }
         }
       });
     });
 
     healthSocket.on('disconnect', (reason) => {
-      const expectedDevDisconnect =
-        reason === 'io client disconnect' ||
-        (process.env.NODE_ENV === 'development' && isUnmountingRef.current);
-
-      if (!expectedDevDisconnect) {
-        console.debug('❌ Health monitoring disconnected:', reason);
-      }
       setIsConnected(false);
       setConnectionStatus('disconnected');
-      
-      // ⚠️ FALLBACK: Start REST polling if Socket.IO disconnects
-      // Note: BackendStatusIndicator also has polling fallback
-      // This ensures health data is still available even if Socket.IO fails
-      if (reason === 'io server disconnect' || reason === 'transport close') {
-        console.warn('⚠️ Socket.IO disconnected, component will use REST polling fallback');
-      }
     });
 
     healthSocket.on('connect_error', (err: Error & { type?: string; description?: string; context?: unknown }) => {
-      const isExpectedDevAbort =
-        isUnmountingRef.current ||
-        err.message.includes('WebSocket is closed before the connection is established');
+      if (isUnmountingRef.current) return;
+      const message = String(err?.message || '');
+      const isAuthError = /jwt expired|authentication required|no token or session/i.test(message);
 
-      if (!isExpectedDevAbort) {
-        console.error('❌ Health monitoring connection error:', {
-          message: err.message,
-          type: err.type,
-          description: err.description,
-          context: err.context,
-          url: healthSocketUrl,
-        });
+      if (isAuthError) {
+        healthSocket.disconnect();
+
+        if (!authRefreshInFlightRef.current) {
+          authRefreshInFlightRef.current = true;
+          void (async () => {
+            try {
+              const refreshedSession = await refreshToken();
+              if (!refreshedSession?.access_token || isUnmountingRef.current) {
+                setConnectionStatus('error');
+                setError(err);
+                return;
+              }
+
+              useAuthStore.getState().setSession(refreshedSession);
+              healthSocket.auth = { token: refreshedSession.access_token };
+              healthSocket.connect();
+            } catch {
+              setConnectionStatus('error');
+              setError(err);
+            } finally {
+              authRefreshInFlightRef.current = false;
+            }
+          })();
+        }
+        return;
       }
+
       setConnectionStatus('error');
       setError(err);
-      
-      // ⚠️ FALLBACK: Connection error - component will use REST polling fallback
-      if (!isExpectedDevAbort) {
-        console.warn('⚠️ Socket.IO connection error, component will use REST polling fallback');
-      }
     });
 
     // Health status events
     healthSocket.on('health:status', (data: RealtimeHealthStatus) => {
+      if (isUnmountingRef.current) return;
       try {
         const converted = convertRealtimeToDetailed(data);
         setHealthStatus(converted);
@@ -396,12 +406,12 @@ export function useHealthRealtime(
         }
         setError(null);
       } catch (err) {
-        console.error('Error converting health status:', err);
         setError(err instanceof Error ? err : new Error('Invalid health data'));
       }
     });
 
     healthSocket.on('health:service:update', (update: HealthUpdate) => {
+      if (isUnmountingRef.current) return;
       // Update service status in Zustand store
       const currentStatus = useHealthStore.getState().healthStatus;
       if (!currentStatus) return;
@@ -506,6 +516,7 @@ export function useHealthRealtime(
     });
 
     healthSocket.on('health:heartbeat', (heartbeat: HealthHeartbeat) => {
+      if (isUnmountingRef.current) return;
       setLastUpdate(new Date(heartbeat.t));
     });
 
@@ -514,12 +525,24 @@ export function useHealthRealtime(
     // Cleanup
     return () => {
       isUnmountingRef.current = true;
-      healthSocket.disconnect();
+      if (cleanupTimerRef.current !== null) {
+        window.clearTimeout(cleanupTimerRef.current);
+      }
+
+      cleanupTimerRef.current = window.setTimeout(() => {
+        if (socketRef.current === healthSocket) {
+          healthSocket.disconnect();
+        }
+      }, 250);
     };
-  }, [enabled, setHealthStatus, setConnectionStatus, setIsConnected, setLastUpdate, setError]);
+  }, [enabled, currentToken, setHealthStatus, setConnectionStatus, setIsConnected, setLastUpdate, setError]);
 
   const reconnect = useCallback(() => {
     if (socketRef.current) {
+      if (cleanupTimerRef.current !== null) {
+        window.clearTimeout(cleanupTimerRef.current);
+        cleanupTimerRef.current = null;
+      }
       socketRef.current.connect();
     }
   }, []);
@@ -551,3 +574,6 @@ export function useHealthRealtime(
     unsubscribe,
   };
 }
+
+
+

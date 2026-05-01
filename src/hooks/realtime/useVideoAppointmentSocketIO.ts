@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from '@/lib/utils/date-time';
 
 /**
  * Video Appointment Socket.IO Hook
@@ -8,15 +9,18 @@
 
 import { useCallback } from 'react';
 import { useWebSocketStore } from '@/stores';
-import { useWebSocketIntegration } from './useWebSocketIntegration';
 
 // Video appointment event types (Socket.IO events)
 export const VideoAppointmentEvents = {
-  VIDEO_APPOINTMENT_CREATED: 'video_appointment:created',
-  VIDEO_APPOINTMENT_UPDATED: 'video_appointment:updated',
-  VIDEO_APPOINTMENT_JOINED: 'video_appointment:joined',
-  VIDEO_APPOINTMENT_LEFT: 'video_appointment:left',
-  VIDEO_APPOINTMENT_ENDED: 'video_appointment:ended',
+  APPOINTMENT_CREATED: 'appointment.created',
+  APPOINTMENT_UPDATED: 'appointment.updated',
+  APPOINTMENT_JOINED: 'appointment.joined',
+  APPOINTMENT_LEFT: 'appointment.left',
+  APPOINTMENT_ENDED: 'appointment.ended',
+  APPOINTMENT_CONSULTATION_STARTED: 'appointment.consultation_started',
+  VIDEO_CONSULTATION_STARTED: 'video.consultation.started',
+  VIDEO_CONSULTATION_ENDED: 'video.consultation.ended',
+  CONSULTATION_EVENT: 'consultation.event',
   VIDEO_PARTICIPANT_JOINED: 'video_participant:joined',
   VIDEO_PARTICIPANT_LEFT: 'video_participant:left',
   VIDEO_RECORDING_STARTED: 'video_recording:started',
@@ -63,12 +67,6 @@ export interface VideoAppointmentEventData {
  */
 export function useVideoAppointmentWebSocket() {
   const { subscribe, emit, isConnected } = useWebSocketStore();
-  
-  // Ensure WebSocket connection is active
-  useWebSocketIntegration({
-    autoConnect: true,
-    subscribeToAppointments: true,
-  });
 
   /**
    * Subscribe to video appointment updates
@@ -80,10 +78,52 @@ export function useVideoAppointmentWebSocket() {
         return () => {}; // Return no-op unsubscribe
       }
 
-      const unsubscribe = subscribe(VideoAppointmentEvents.VIDEO_APPOINTMENT_UPDATED, (data: unknown) => {
+      const unsubscribe = subscribe(VideoAppointmentEvents.APPOINTMENT_UPDATED, (data: unknown) => {
         callback(data as VideoAppointmentEventData);
       });
       return unsubscribe;
+    },
+    [subscribe, isConnected]
+  );
+
+  const subscribeToConsultationEvents = useCallback(
+    (callback: (data: VideoAppointmentEventData) => void) => {
+      if (!isConnected) {
+        console.warn('Socket.IO not connected, subscription will be queued');
+        return () => {};
+      }
+
+      const unsubscribeStarted = subscribe(
+        VideoAppointmentEvents.VIDEO_CONSULTATION_STARTED,
+        (data: unknown) => {
+          callback({ ...(data as VideoAppointmentEventData), eventType: VideoAppointmentEvents.VIDEO_CONSULTATION_STARTED });
+        }
+      );
+      const unsubscribeAppointmentStarted = subscribe(
+        VideoAppointmentEvents.APPOINTMENT_CONSULTATION_STARTED,
+        (data: unknown) => {
+          callback({ ...(data as VideoAppointmentEventData), eventType: VideoAppointmentEvents.APPOINTMENT_CONSULTATION_STARTED });
+        }
+      );
+      const unsubscribeEnded = subscribe(
+        VideoAppointmentEvents.VIDEO_CONSULTATION_ENDED,
+        (data: unknown) => {
+          callback({ ...(data as VideoAppointmentEventData), eventType: VideoAppointmentEvents.VIDEO_CONSULTATION_ENDED });
+        }
+      );
+      const unsubscribeConsultationEvent = subscribe(
+        VideoAppointmentEvents.CONSULTATION_EVENT,
+        (data: unknown) => {
+          callback({ ...(data as VideoAppointmentEventData), eventType: VideoAppointmentEvents.CONSULTATION_EVENT });
+        }
+      );
+
+      return () => {
+        unsubscribeStarted();
+        unsubscribeAppointmentStarted();
+        unsubscribeEnded();
+        unsubscribeConsultationEvent();
+      };
     },
     [subscribe, isConnected]
   );
@@ -160,10 +200,10 @@ export function useVideoAppointmentWebSocket() {
         return;
       }
 
-      emit(VideoAppointmentEvents.VIDEO_APPOINTMENT_UPDATED, {
+      emit(VideoAppointmentEvents.APPOINTMENT_UPDATED, {
         action,
         ...data,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -183,7 +223,7 @@ export function useVideoAppointmentWebSocket() {
         appointmentId,
         action: 'participant_joined',
         participant,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -203,7 +243,7 @@ export function useVideoAppointmentWebSocket() {
         appointmentId,
         action: 'participant_left',
         participant,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -223,7 +263,7 @@ export function useVideoAppointmentWebSocket() {
         appointmentId,
         action: 'recording_started',
         recordingData,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -243,7 +283,7 @@ export function useVideoAppointmentWebSocket() {
         appointmentId,
         action: 'recording_stopped',
         recordingData,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -411,7 +451,7 @@ export function useVideoAppointmentWebSocket() {
         appointmentId,
         message,
         attachments,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -430,7 +470,7 @@ export function useVideoAppointmentWebSocket() {
       emit(VideoAppointmentEvents.VIDEO_CHAT_TYPING, {
         appointmentId,
         isTyping,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso(),
       });
     },
     [emit, isConnected]
@@ -439,6 +479,7 @@ export function useVideoAppointmentWebSocket() {
   return {
     // Subscriptions
     subscribeToVideoAppointments,
+    subscribeToConsultationEvents,
     subscribeToParticipantEvents,
     subscribeToRecordingEvents,
     subscribeToChatMessages,
@@ -461,4 +502,3 @@ export function useVideoAppointmentWebSocket() {
     isConnected,
   };
 }
-

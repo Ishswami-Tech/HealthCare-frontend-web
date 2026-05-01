@@ -32,7 +32,6 @@ const nextConfig: NextConfig = {
    * Turbopack (disabled for Tailwind CSS v4 compatibility)
    * ===================================================== */
   turbopack: {
-   
   },
 
   /* =====================================================
@@ -59,9 +58,9 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'platform-lookaside.fbsbx.com' },
       { protocol: 'https', hostname: 'graph.facebook.com' },
-      { protocol: 'https', hostname: 'api.ishswami.in' },
-      { protocol: 'https', hostname: 'backend-service-v1.ishswami.in' },
-      { protocol: 'https', hostname: 'ishswami.in' },
+      { protocol: 'https', hostname: 'api.Viddhakarma.in' },
+      { protocol: 'https', hostname: 'backend-service-v1.Viddhakarma.in' },
+      { protocol: 'https', hostname: 'Viddhakarma.in' },
       { protocol: 'https', hostname: 'ui-avatars.com' },
       { protocol: 'http', hostname: 'localhost' },
     ],
@@ -109,12 +108,7 @@ const nextConfig: NextConfig = {
    * API Rewrite (proxy only, no CORS)
    * ===================================================== */
   async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`,
-      },
-    ];
+    return [];
   },
 
   /* =====================================================

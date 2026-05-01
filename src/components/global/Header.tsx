@@ -20,10 +20,25 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLayoutStore } from "@/stores/layout.store";
 import { motion } from "framer-motion";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 interface HeaderProps {
   className?: string;
   children?: React.ReactNode;
+}
+
+const AVATAR_GRADIENTS = [
+  "from-sky-500 via-blue-500 to-indigo-600",
+  "from-emerald-500 via-teal-500 to-cyan-600",
+  "from-orange-500 via-amber-500 to-rose-500",
+  "from-violet-500 via-fuchsia-500 to-pink-600",
+  "from-rose-500 via-red-500 to-orange-500",
+] as const;
+
+function getAvatarGradient(initials?: string) {
+  const value = String(initials || "U").toUpperCase();
+  const hash = value.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length];
 }
 
 export function Header({ className, children }: HeaderProps) {
@@ -64,18 +79,20 @@ export function Header({ className, children }: HeaderProps) {
 
   return (
     <header className={cn(
-      "sticky top-0 z-40 w-full transition-all duration-200",
+      "sticky top-0 z-40 w-full transition-all duration-200 border-b border-border/10 bg-background/80 backdrop-blur-md",
       className
     )}>
-      <div className="flex h-16 items-center px-6 gap-4 max-w-6xl mx-auto">
+      <div className="flex h-12 md:h-14 items-center px-3 md:px-5 gap-3 max-w-6xl mx-auto">
         {/* Left side content (title, breadcrumbs, etc) */}
-        <div className="flex-1 flex items-center">
+        <div className="flex-1 flex items-center min-w-0">
+          <SidebarTrigger className="-ml-1 mr-1.5 md:hidden shrink-0 h-7 w-7" />
+          
           {pageTitle && (
             <motion.h1 
               key={pageTitle}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="text-lg font-bold tracking-tight text-foreground truncate pl-1 border-l-2 border-primary/50 ml-1"
+              className="text-sm md:text-base font-bold tracking-tight text-foreground truncate pl-1 border-l-2 border-primary/50 ml-1"
             >
               {pageTitle}
             </motion.h1>
@@ -95,8 +112,8 @@ export function Header({ className, children }: HeaderProps) {
               <div className="hidden sm:block h-4 w-px bg-border/40 mx-2" />
 
               {/* 2. Utility Cluster */}
-              <div className="flex items-center gap-1.5 p-1 bg-muted/30 dark:bg-muted/10 rounded-full border border-border/50 backdrop-blur-md shadow-sm">
-                <NotificationBell className="h-8 w-8 rounded-full hover:bg-muted/50 transition-colors" />
+              <div className="flex items-center gap-1 p-0.5 bg-muted/30 dark:bg-muted/10 rounded-full border border-border/50 backdrop-blur-md shadow-sm">
+                <NotificationBell className="h-7 w-7 rounded-full hover:bg-muted/50 transition-colors" />
                 
                 <div className="h-4 w-px bg-border/40 mx-0.5" />
                 
@@ -109,18 +126,23 @@ export function Header({ className, children }: HeaderProps) {
                   size="icon" 
                   showFlag={true} 
                   showLabel={false}
-                  className="h-8 w-8 rounded-full hover:bg-muted/50 transition-colors" 
+                  className="h-7 w-7 rounded-full hover:bg-muted/50 transition-colors" 
                 />
 
                 {/* 3. Profile Dropdown (Connected to Zustand) */}
                 {displayUser && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button className="h-8 w-8 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-primary/20 hover:ring-primary/40 transition-all overflow-hidden">
+                      <button
+                        className={cn(
+                          "h-7 w-7 rounded-full bg-linear-to-br flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-primary/20 hover:ring-primary/40 transition-all overflow-hidden",
+                          getAvatarGradient(displayUser.initials)
+                        )}
+                      >
                         {displayUser.avatar ? (
                           <img src={displayUser.avatar} alt={displayUser.name} className="h-full w-full object-cover" />
                         ) : (
-                          displayUser.initials
+                          <span className="tracking-wide">{displayUser.initials}</span>
                         )}
                       </button>
                     </DropdownMenuTrigger>

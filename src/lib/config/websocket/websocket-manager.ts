@@ -143,62 +143,6 @@ export class WebSocketManager {
     };
   }
 
-  // Healthcare-specific connection helpers
-  connectToQueue(options: Omit<ConnectionOptions, 'namespace'> = {}) {
-    return this.connect({
-      ...options,
-      namespace: '/queue-status',
-    });
-  }
-
-  connectToAppointments(options: Omit<ConnectionOptions, 'namespace'> = {}) {
-    return this.connect({
-      ...options,
-      namespace: '/appointments',
-    });
-  }
-
-  connectToNotifications(options: Omit<ConnectionOptions, 'namespace'> = {}) {
-    return this.connect({
-      ...options,
-      namespace: '/notifications',
-    });
-  }
-
-  // Queue-specific methods
-  subscribeToQueue(queueName: string, filters?: any) {
-    if (!this.isInitialized) {
-      throw new Error('WebSocketManager not initialized');
-    }
-
-    this.emit('subscribe_queue', { queueName, filters }, '/queue-status');
-  }
-
-  unsubscribeFromQueue(queueName: string) {
-    if (!this.isInitialized) {
-      throw new Error('WebSocketManager not initialized');
-    }
-
-    this.emit('unsubscribe_queue', { queueName }, '/queue-status');
-  }
-
-  getQueueMetrics(queueNames?: string[], detailed = false) {
-    if (!this.isInitialized) {
-      throw new Error('WebSocketManager not initialized');
-    }
-
-    this.emit('get_queue_metrics', { queueNames, detailed }, '/queue-status');
-  }
-
-  // Appointment-specific methods
-  subscribeToAppointmentUpdates(filters?: { clinicId?: string; doctorId?: string; patientId?: string }) {
-    if (!this.isInitialized) {
-      throw new Error('WebSocketManager not initialized');
-    }
-
-    this.emit('subscribe_appointments', filters || {}, '/appointments');
-  }
-
   // Utility methods
   isConnected(namespace = ''): boolean {
     const connectionKey = `${this.defaultUrl}${namespace}`;
@@ -230,20 +174,3 @@ export class WebSocketManager {
 
 // Singleton instance
 export const websocketManager = WebSocketManager.getInstance();
-
-// React Hook for easy access
-export function useWebSocketManager() {
-  return websocketManager;
-}
-
-// Environment-specific configuration
-export const getWebSocketConfig = () => {
-  // Use centralized config for WebSocket URL
-  return {
-    url: APP_CONFIG.WEBSOCKET.URL,
-    reconnectionAttempts: APP_CONFIG.WEBSOCKET.MAX_RECONNECT_ATTEMPTS,
-    reconnectionDelay: APP_CONFIG.IS_DEVELOPMENT ? 1000 : 2000,
-    timeout: APP_CONFIG.WEBSOCKET.TIMEOUT,
-    autoConnect: true,
-  };
-};

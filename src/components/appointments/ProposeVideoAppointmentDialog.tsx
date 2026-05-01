@@ -24,8 +24,10 @@ import { Plus, Trash2, Loader2 } from "lucide-react";
 import { useProposeVideoAppointment } from "@/hooks/query/useAppointments";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { usePatients } from "@/hooks/query/usePatients";
+import { useAppointmentServices } from "@/hooks/query/useAppointments";
 import { useActiveLocations, useClinicContext } from "@/hooks/query/useClinics";
 import { Role } from "@/types/auth.types";
+import type { TreatmentType } from "@/types/appointment.types";
 
 const TIME_OPTIONS = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"];
 
@@ -48,6 +50,7 @@ export function ProposeVideoAppointmentDialog({
 }: ProposeVideoAppointmentDialogProps) {
   const { clinicId } = useClinicContext();
   const { data: locations = [] } = useActiveLocations(clinicId || "");
+  const { data: services = [] } = useAppointmentServices(true);
   const proposeMutation = useProposeVideoAppointment();
   const { data: doctorsData } = useDoctors(clinicId || "", { limit: 100 });
   // Only fetch patients when RECEPTIONIST – backend GET /clinics/:id/patients denies PATIENT
@@ -71,6 +74,7 @@ export function ProposeVideoAppointmentDialog({
   const patientId = userRole === Role.RECEPTIONIST ? selectedPatientId : initialPatientId;
 
   const [doctorId, setDoctorId] = useState(initialDoctorId || "");
+  const [selectedTreatmentType, setSelectedTreatmentType] = useState<TreatmentType>("GENERAL_CONSULTATION");
   const [duration, setDuration] = useState(initialDuration || 15);
   const [proposedSlots, setProposedSlots] = useState<Array<{ date: string; time: string }>>([
     { date: "", time: "" },
@@ -121,6 +125,7 @@ export function ProposeVideoAppointmentDialog({
       clinicId,
       ...((locations[0] as { id?: string } | undefined)?.id ? { locationId: (locations[0] as { id?: string }).id } : {}),
       duration,
+      treatmentType: selectedTreatmentType,
       proposedSlots: validSlots,
       ...(notes ? { notes } : {}),
     });
@@ -175,6 +180,21 @@ export function ProposeVideoAppointmentDialog({
                 {doctors.map((doc: { id: string; user?: { name?: string; firstName?: string }; userId?: string }) => (
                   <SelectItem key={doc.id} value={doc.id}>
                     {doc.user?.name ?? doc.user?.firstName ?? doc.userId ?? doc.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>Service</Label>
+            <Select value={selectedTreatmentType} onValueChange={(value) => setSelectedTreatmentType(value as TreatmentType)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select service" />
+              </SelectTrigger>
+              <SelectContent>
+                {services.map((service) => (
+                  <SelectItem key={service.treatmentType} value={service.treatmentType}>
+                    {service.label}
                   </SelectItem>
                 ))}
               </SelectContent>
