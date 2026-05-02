@@ -134,6 +134,7 @@ export function Header({ className, children }: HeaderProps) {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
+                        type="button"
                         className={cn(
                           "h-7 w-7 rounded-full bg-linear-to-br flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-primary/20 hover:ring-primary/40 transition-all overflow-hidden",
                           getAvatarGradient(displayUser.initials)

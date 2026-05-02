@@ -62,6 +62,61 @@ export function normalizeOpenViduServerUrl(value: string): string {
   }
 }
 
+type UserNameLike = {
+  displayName?: string | null | undefined;
+  name?: string | null | undefined;
+  firstName?: string | null | undefined;
+  lastName?: string | null | undefined;
+  email?: string | null | undefined;
+};
+
+export function resolveVideoDisplayName(user?: UserNameLike | null): string {
+  const displayName = String(user?.displayName || "").trim();
+  if (displayName) {
+    return displayName;
+  }
+
+  const name = String(user?.name || "").trim();
+  if (name) {
+    return name;
+  }
+
+  const firstName = String(user?.firstName || "").trim();
+  const lastName = String(user?.lastName || "").trim();
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+  if (fullName) {
+    return fullName;
+  }
+
+  const email = String(user?.email || "").trim();
+  if (email) {
+    const emailPrefix = email.split("@")[0] || "";
+    const emailName = emailPrefix.replace(/[._-]+/g, " ").trim();
+    if (emailName) {
+      return emailName;
+    }
+  }
+
+  return "User";
+}
+
+function getPublicOpenViduWsUri(value: string): string {
+  const raw = normalizeOpenViduServerUrl(value);
+  if (!raw) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(
+      /^https?:\/\//i.test(raw) || /^wss?:\/\//i.test(raw) ? raw : `https://${raw}`
+    );
+    const protocol = parsed.protocol === 'http:' ? 'ws:' : 'wss:';
+    return `${protocol}//${parsed.hostname}/openvidu`;
+  } catch {
+    return '';
+  }
+}
+
 // ✅ OpenVidu API Integration
 export class OpenViduAPI {
   private session: Session | null = null;
@@ -76,59 +131,40 @@ export class OpenViduAPI {
   }
 
   private normalizeTokenUrl(token: string): string {
-    const openviduServerUrl = normalizeOpenViduServerUrl(this.config.openviduServerUrl || '');
-    if (!openviduServerUrl) {
-      return token;
+    return token.trim();
+  }
+
+  private patchSessionTransport(): void {
+    if (!this.session) {
+      return;
     }
 
-    try {
-      const tokenUrl = new URL(token);
-      const serverBase = new URL(
-        /^https?:\/\//i.test(openviduServerUrl) || /^wss?:\/\//i.test(openviduServerUrl)
-          ? openviduServerUrl
-          : `https://${openviduServerUrl}`
-      );
-
-      const normalizedProtocol =
-        serverBase.protocol === 'http:'
-          ? 'ws:'
-          : serverBase.protocol === 'https:'
-            ? 'wss:'
-            : serverBase.protocol === 'ws:'
-              ? 'ws:'
-              : serverBase.protocol === 'wss:'
-              ? 'wss:'
-              : tokenUrl.protocol;
-
-      const serverHostname = serverBase.hostname;
-      const serverPort = serverBase.port;
-      const tokenHostnameMatchesServer = tokenUrl.hostname === serverHostname;
-      const tokenPortMatchesServer = tokenUrl.port === serverPort;
-      const isLoopbackHost = /^(localhost|127\.0\.0\.1|\[::1\]|::1)$/i.test(tokenUrl.hostname);
-
-      // Rewrite the browser-facing endpoint to the configured public OpenVidu origin.
-      // This avoids leaking an internal :4443 origin into the client when the app is
-      // deployed behind a reverse proxy / CDN that serves OpenVidu over the public host.
-      if (tokenHostnameMatchesServer && tokenPortMatchesServer && tokenUrl.protocol === normalizedProtocol) {
-        return token;
-      }
-
-      tokenUrl.protocol = normalizedProtocol;
-      tokenUrl.hostname = serverHostname;
-      if (serverPort) {
-        tokenUrl.port = serverPort;
-      } else {
-        tokenUrl.port = '';
-      }
-
-      if (!serverPort && isLoopbackHost) {
-        tokenUrl.port = '';
-      }
-
-      return tokenUrl.toString();
-    } catch {
-      return token;
+    const publicWsUri = getPublicOpenViduWsUri(this.config.openviduServerUrl || '');
+    if (!publicWsUri) {
+      return;
     }
+
+    const publicHttpUri = publicWsUri
+      .replace(/^wss:\/\//i, 'https://')
+      .replace(/^ws:\/\//i, 'http://')
+      .replace(/\/openvidu$/i, '');
+
+    const openviduAny = this.openvidu as unknown as {
+      startWs?: (onConnectSuccess: (error: Error) => void) => void;
+      wsUri?: string;
+      httpUri?: string;
+    };
+
+    const originalStartWs = openviduAny.startWs?.bind(this.openvidu);
+    if (!originalStartWs) {
+      return;
+    }
+
+    openviduAny.startWs = (onConnectSuccess: (error: Error) => void) => {
+      openviduAny.wsUri = publicWsUri;
+      openviduAny.httpUri = publicHttpUri;
+      return originalStartWs(onConnectSuccess);
+    };
   }
 
   // ✅ Initialize OpenVidu Session
@@ -139,9 +175,15 @@ export class OpenViduAPI {
       
       // Set up event listeners
       this.setupEventListeners();
+      this.patchSessionTransport();
 
       // Connect to session
       const connectionToken = this.normalizeTokenUrl(this.config.token);
+      console.warn('[VIDEO][OpenVidu] Connecting with transport:', {
+        sessionId: this.config.sessionId,
+        token: connectionToken,
+        wsUri: (this.openvidu as unknown as { getWsUri?: () => string }).getWsUri?.() || 'unknown',
+      });
       await this.session.connect(connectionToken, {
         clientData: JSON.stringify({
           displayName: this.config.userInfo.displayName,
@@ -161,6 +203,7 @@ export class OpenViduAPI {
       // Session initialized successfully
     } catch (error) {
       console.error('Failed to initialize OpenVidu session:', error);
+      await this.dispose().catch(() => undefined);
       throw new Error('Failed to initialize video call');
     }
   }
@@ -261,10 +304,21 @@ export class OpenViduAPI {
     }
   }
 
-  toggleVideo(): void {
-    if (this.publisher) {
-      this.publisher.publishVideo(!this.publisher.stream.videoActive);
+  toggleVideo(): boolean {
+    if (!this.publisher) {
+      return false;
     }
+
+    const nextVideoActive = !this.publisher.stream.videoActive;
+
+    if (nextVideoActive) {
+      this.publisher.publishVideo(true);
+    } else {
+      // Free the camera hardware so the browser light turns off immediately.
+      this.publisher.publishVideo(false, true);
+    }
+
+    return !nextVideoActive;
   }
 
   // ✅ Share Screen

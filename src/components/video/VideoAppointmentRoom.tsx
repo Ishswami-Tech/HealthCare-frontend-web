@@ -67,7 +67,7 @@ import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointme
 import { useAuth } from "@/hooks/auth/useAuth";
 import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
-import { normalizeOpenViduServerUrl, type OpenViduAPI } from "@/lib/video/openvidu";
+import { normalizeOpenViduServerUrl, resolveVideoDisplayName, type OpenViduAPI } from "@/lib/video/openvidu";
 import type { ParticipantInfo } from "@/lib/video/openvidu";
 
 interface VideoAppointmentRoomProps {
@@ -123,6 +123,9 @@ export function VideoAppointmentRoom({
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [activePanel, setActivePanel] = useState<"chat" | "notes" | "participants">("chat");
   const autoStartTriggeredRef = useRef(false);
+  const startCallInFlightRef = useRef(false);
+  const callRef = useRef<OpenViduAPI | null>(null);
+  const isMountedRef = useRef(true);
   const [hasConsultationStarted, setHasConsultationStarted] = useState(false);
   const resolvedAppointmentId = String(appointment.appointmentId || appointment.id || "");
   const currentUserId = user?.id ?? null;
@@ -346,6 +349,11 @@ export function VideoAppointmentRoom({
 
   // âœ… Start video call
   const handleStartCall = useCallback(async () => {
+    if (startCallInFlightRef.current || call) {
+      return;
+    }
+
+    startCallInFlightRef.current = true;
     try {
       if (!user?.id) {
         throw new Error("User session is not ready. Please try joining again.");
@@ -362,19 +370,24 @@ export function VideoAppointmentRoom({
 
       const userInfo = {
         userId: user.id,
-        displayName: user?.name || "Unknown User",
+        displayName: resolveVideoDisplayName(user),
         email: user?.email || "",
         role: user?.role || "patient",
       };
 
       // Start call without container - React handles rendering
       const videoCall = await startCall({ ...latestAppointment, appointmentId: resolvedAppointmentId }, userInfo);
+      if (!isMountedRef.current) {
+        await videoCall.dispose().catch(() => undefined);
+        return;
+      }
+      callRef.current = videoCall;
       setCall(videoCall);
 
       // Send WebSocket event for participant joined
       sendParticipantJoined(resolvedAppointmentId, {
         userId: userInfo.userId,
-        displayName: userInfo.displayName || user?.name || 'User',
+        displayName: userInfo.displayName || resolveVideoDisplayName(user),
         role: userInfo.role || user?.role || 'patient',
       });
 
@@ -384,9 +397,22 @@ export function VideoAppointmentRoom({
         id: TOAST_IDS.VIDEO.ERROR,
       });
     } finally {
+      startCallInFlightRef.current = false;
       setIsConnecting(false);
     }
-  }, [latestAppointment, resolvedAppointmentId, sendParticipantJoined, startCall, user, videoSessionDecision.blockedReason]);
+  }, [call, latestAppointment, resolvedAppointmentId, sendParticipantJoined, startCall, user, videoSessionDecision.blockedReason]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+
+      const currentCall = callRef.current;
+      callRef.current = null;
+      if (currentCall) {
+        void currentCall.dispose().catch(() => undefined);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     autoStartTriggeredRef.current = false;
@@ -436,12 +462,13 @@ export function VideoAppointmentRoom({
       if (call) {
         await endCall(resolvedAppointmentId);
         setCall(null);
+        callRef.current = null;
       }
 
       // Send WebSocket event for participant left
       sendParticipantLeft(resolvedAppointmentId, {
         userId: currentUserId ?? "",
-        displayName: user?.name || "Unknown User",
+        displayName: resolveVideoDisplayName(user),
         role: user?.role || "patient",
       });
 
@@ -475,14 +502,15 @@ export function VideoAppointmentRoom({
     if (call) {
       call.dispose();
       setCall(null);
+      callRef.current = null;
     }
 
     // Send WebSocket event for participant left
-    sendParticipantLeft(resolvedAppointmentId, {
-      userId: currentUserId ?? "",
-      displayName: user?.name || "Unknown User",
-      role: user?.role || "patient",
-    });
+      sendParticipantLeft(resolvedAppointmentId, {
+        userId: currentUserId ?? "",
+        displayName: resolveVideoDisplayName(user),
+        role: user?.role || "patient",
+      });
 
     if (onLeaveRoom) {
       onLeaveRoom();
@@ -491,6 +519,18 @@ export function VideoAppointmentRoom({
 
   // âœ… Get call controls
   const controls = call ? getCallControls(call) : null;
+
+  useEffect(() => {
+    if (!call) {
+      setIsAudioMuted(false);
+      setIsVideoMuted(false);
+      return;
+    }
+
+    setIsAudioMuted(call.isAudioMuted());
+    setIsVideoMuted(call.isVideoMuted());
+  }, [call]);
+
   const appointmentStartDate = getAppointmentDateTimeValue(appointment);
   const appointmentEndDate = appointment.endTime ? new Date(appointment.endTime) : null;
   const appointmentDateLabel = appointmentStartDate
@@ -528,8 +568,12 @@ export function VideoAppointmentRoom({
   // âœ… Toggle video
   const toggleVideo = () => {
     if (controls) {
-      controls.toggleVideo();
-      setIsVideoMuted(!isVideoMuted);
+      const nextMuted = controls.toggleVideo();
+      if (typeof nextMuted === "boolean") {
+        setIsVideoMuted(nextMuted);
+      } else {
+        setIsVideoMuted((prev) => !prev);
+      }
     }
   };
 

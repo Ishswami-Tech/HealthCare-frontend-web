@@ -13,6 +13,7 @@ import { Role } from '@/types/auth.types';
 import {
   videoAppointmentService,
   normalizeOpenViduServerUrl,
+  resolveVideoDisplayName,
   type OpenViduAPI,
 } from '@/lib/video/openvidu';
 import { APP_CONFIG } from '@/lib/config/config';
@@ -759,7 +760,7 @@ export function useVideoCall() {
         userId: resolvedUserId,
         userRole: videoRole,
         userInfo: {
-          displayName: userInfo.displayName || user?.name || 'User',
+          displayName: userInfo.displayName || resolveVideoDisplayName(user),
           email: userInfo.email || user?.email || '',
         },
       }) as { token: string; roomName: string; roomId: string; meetingUrl: string };
@@ -788,7 +789,7 @@ export function useVideoCall() {
         appointmentData as any,
         {
           userId: resolvedUserId,
-          displayName: userInfo.displayName || user?.name || 'User',
+          displayName: userInfo.displayName || resolveVideoDisplayName(user),
           email: userInfo.email || user?.email || '',
           role: openViduRole,
         },
@@ -810,7 +811,7 @@ export function useVideoCall() {
       
       sendParticipantJoined(appointmentData.appointmentId, {
         userId: resolvedUserId,
-        displayName: userInfo.displayName || user?.name || 'User',
+        displayName: userInfo.displayName || resolveVideoDisplayName(user),
         role: videoRole,
       });
       
@@ -954,17 +955,19 @@ export function useVideoCallControls() {
       // ✅ Toggle Video
       toggleVideo: () => {
         try {
-          call.toggleVideo();
+          const nextMuted = call.toggleVideo();
           toast({
             title: 'Video Toggled',
-            description: 'Video has been toggled',
+            description: nextMuted ? 'Camera turned off' : 'Camera turned on',
           });
+          return nextMuted;
         } catch (error) {
           toast({
             title: 'Error',
             description: 'Failed to toggle video',
             variant: 'destructive',
           });
+          return null;
         }
       },
 
