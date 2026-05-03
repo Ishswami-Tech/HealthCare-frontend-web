@@ -1,7 +1,6 @@
 "use client";
 
 import { useDetailedHealthStatus } from "@/hooks/query/useHealth";
-import { APP_CONFIG } from "@/lib/config/config";
 import { cn } from "@/lib/utils/index";
 import { formatTimeInIST } from "@/lib/utils/date-time";
 import { CheckCircle2, AlertTriangle, RefreshCw, Loader2, Activity, XCircle, Clock, Server, Database, Wifi, HardDrive, Video, Zap, Rocket, GitBranch } from "lucide-react";
@@ -139,24 +138,8 @@ const mapStatus = (status?: string, healthy?: boolean): string => {
     return "loading";
 };
 
-const buildUrl = (baseUrl: string, path: string): string => {
-    const normalizedBase = baseUrl && baseUrl !== "Unknown" ? baseUrl.replace(/\/+$/, "") : "";
-    return normalizedBase ? `${normalizedBase}${path}` : "Unknown";
-};
-
-const normalizeSocketHealthUrl = (rawUrl: string): string => {
-    if (!rawUrl || rawUrl === "Unknown") return "Unknown";
-
-    try {
-        const parsed = new URL(rawUrl);
-        return `${parsed.protocol}//${parsed.host}/health`;
-    } catch {
-        return `${rawUrl.replace(/\/+$/, "")}/health`;
-    }
-};
-
 export default function StatusPage() {
-  const { data: healthStatus, refetch, isFetching, lastUpdate, connectionStatus } = useDetailedHealthStatus();
+  const { data: healthStatus, refetch, isFetching, lastUpdate } = useDetailedHealthStatus();
 
   // Track Next.js app uptime (client-side)
   const [appUptime, setAppUptime] = useState(0);
@@ -170,43 +153,6 @@ export default function StatusPage() {
 
     return () => clearInterval(interval);
   }, []);
-
-  const resolvedWebSocketUrl = APP_CONFIG.WEBSOCKET.URL || APP_CONFIG.API.RAW_URL || APP_CONFIG.APP.URL || "Unknown";
-  const resolvedAppUrl = APP_CONFIG.APP.URL || "Unknown";
-  const resolvedApiUrl = APP_CONFIG.API.RAW_URL || "Unknown";
-  const resolvedApiBaseUrl = APP_CONFIG.API.BASE_URL || "Unknown";
-  const resolvedHealthUrl = buildUrl(APP_CONFIG.API.HEALTH_BASE_URL || resolvedApiUrl, "/health?detailed=true");
-  const resolvedHealthSocketUrl = normalizeSocketHealthUrl(resolvedWebSocketUrl);
-
-  useEffect(() => {
-    console.info("[StatusPage] making REST health request to", resolvedHealthUrl);
-    console.info("[StatusPage] opening Socket.IO health connection to", resolvedHealthSocketUrl);
-    console.info("[StatusPage] resolved API base URL", resolvedApiBaseUrl);
-  // Run once for the resolved deployment config displayed on this page.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    console.info("[StatusPage] Socket.IO health status", {
-      url: resolvedHealthSocketUrl,
-      status: connectionStatus,
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectionStatus]);
-
-  useEffect(() => {
-    if (!lastUpdate) return;
-
-    console.info("[StatusPage] health data update", {
-      sourceCandidates: {
-        rest: resolvedHealthUrl,
-        socket: resolvedHealthSocketUrl,
-      },
-      received: Boolean(healthStatus),
-      lastUpdate,
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastUpdate, healthStatus]);
 
   // We don't use useTheme here anymore to avoid hydration mismatch with duplicate headers/toggles
   // const [mounted, setMounted] = useState(false); // Removed unused
@@ -308,21 +254,6 @@ export default function StatusPage() {
 
       {/* Main Content (Header removed to avoid double-header issue) */}
       <div className="container mx-auto max-w-4xl px-6 py-6 relative z-10">
-          <div className="mb-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-border bg-card/70 p-4 shadow-sm dark:bg-slate-950/50">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Frontend App</p>
-              <p className="mt-2 break-all text-sm font-medium text-foreground dark:text-slate-100">{resolvedAppUrl}</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card/70 p-4 shadow-sm dark:bg-slate-950/50">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">API Server</p>
-              <p className="mt-2 break-all text-sm font-medium text-foreground dark:text-slate-100">{resolvedApiUrl}</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card/70 p-4 shadow-sm dark:bg-slate-950/50">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">WebSocket</p>
-              <p className="mt-2 break-all text-sm font-medium text-foreground dark:text-slate-100">{resolvedWebSocketUrl}</p>
-            </div>
-          </div>
-
           <div className="flex justify-between items-center mb-8">
               <h1 className="text-2xl font-bold flex items-center gap-2">
                   <Activity className="h-6 w-6 text-primary" />
@@ -332,8 +263,6 @@ export default function StatusPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  console.info("[StatusPage] manual refresh: making REST health request to", resolvedHealthUrl);
-                  console.info("[StatusPage] manual refresh: reconnecting Socket.IO health to", resolvedHealthSocketUrl);
                   void refetch();
                 }}
                 disabled={isFetching}

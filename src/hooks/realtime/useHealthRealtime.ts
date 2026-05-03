@@ -251,6 +251,22 @@ let sharedHealthRefCount = 0;
 let sharedHealthDisconnectTimer: number | null = null;
 let sharedHealthAuthRefreshInFlight = false;
 
+const logHealthSocket = (event: string, details?: Record<string, unknown>) => {
+  console.info('[HealthSocket]', event, details || {});
+};
+
+const getSocketTransportPath = (socket: Socket) => {
+  const socketWithOptions = socket as Socket & {
+    io?: {
+      opts?: {
+        path?: string;
+      };
+    };
+  };
+
+  return socketWithOptions.io?.opts?.path;
+};
+
 function emitInitialHealthSnapshot() {
   if (!sharedHealthSocket?.connected) return;
 
@@ -275,6 +291,11 @@ function bindSharedHealthSocket(socket: Socket) {
   healthSocketBound.add(socket);
 
   socket.on('connect', () => {
+    logHealthSocket('connect', {
+      id: socket.id,
+      path: getSocketTransportPath(socket),
+      transport: socket.io?.engine?.transport?.name,
+    });
     useHealthStore.getState().setIsConnected(true);
     useHealthStore.getState().setConnectionStatus('connected');
     useHealthStore.getState().setError(null);
@@ -282,6 +303,10 @@ function bindSharedHealthSocket(socket: Socket) {
   });
 
   socket.on('disconnect', () => {
+    logHealthSocket('disconnect', {
+      id: socket.id,
+      path: getSocketTransportPath(socket),
+    });
     useHealthStore.getState().setIsConnected(false);
     useHealthStore.getState().setConnectionStatus('disconnected');
   });
@@ -289,6 +314,14 @@ function bindSharedHealthSocket(socket: Socket) {
   socket.on('connect_error', (err: Error & { type?: string; description?: string; context?: unknown }) => {
     const message = String(err?.message || '');
     const isAuthError = /jwt expired|authentication required|no token or session/i.test(message);
+
+    logHealthSocket('connect_error', {
+      message,
+      type: err?.type,
+      description: err?.description,
+      path: getSocketTransportPath(socket),
+      authError: isAuthError,
+    });
 
     if (isAuthError) {
       socket.disconnect();
@@ -299,6 +332,9 @@ function bindSharedHealthSocket(socket: Socket) {
           try {
             const refreshedSession = await refreshToken();
             if (!refreshedSession?.access_token) {
+              logHealthSocket('auth_refresh_failed', {
+                path: getSocketTransportPath(socket),
+              });
               useHealthStore.getState().setConnectionStatus('error');
               useHealthStore.getState().setError(err);
               return;
@@ -306,8 +342,14 @@ function bindSharedHealthSocket(socket: Socket) {
 
             useAuthStore.getState().setSession(refreshedSession);
             socket.auth = { token: refreshedSession.access_token };
+            logHealthSocket('auth_refresh_success', {
+              path: getSocketTransportPath(socket),
+            });
             socket.connect();
           } catch {
+            logHealthSocket('auth_refresh_error', {
+              path: getSocketTransportPath(socket),
+            });
             useHealthStore.getState().setConnectionStatus('error');
             useHealthStore.getState().setError(err);
           } finally {
@@ -325,6 +367,10 @@ function bindSharedHealthSocket(socket: Socket) {
   });
 
   socket.on('health:status', (data: RealtimeHealthStatus) => {
+    logHealthSocket('health:status', {
+      path: getSocketTransportPath(socket),
+      services: Object.keys(data.s || data.services || {}),
+    });
     try {
       const converted = convertRealtimeToDetailed(data);
       useHealthStore.getState().setHealthStatus(converted);
@@ -444,6 +490,11 @@ function bindSharedHealthSocket(socket: Socket) {
   });
 
   socket.on('health:heartbeat', (heartbeat: HealthHeartbeat) => {
+    logHealthSocket('health:heartbeat', {
+      path: getSocketTransportPath(socket),
+      timestamp: heartbeat.t,
+      overall: heartbeat.o,
+    });
     useHealthStore.getState().setLastUpdate(new Date(heartbeat.t));
   });
 }
@@ -480,18 +531,6 @@ export function useHealthRealtime(
       sharedHealthDisconnectTimer = null;
     }
 
-    if (!currentToken) {
-      if (sharedHealthSocket) {
-        sharedHealthSocket.disconnect();
-        sharedHealthSocket = null;
-      }
-      sharedHealthRefCount = 0;
-      useHealthStore.getState().setIsConnected(false);
-      useHealthStore.getState().setConnectionStatus('disconnected');
-      useHealthStore.getState().setError(null);
-      return;
-    }
-
     sharedHealthRefCount += 1;
 
     if (!sharedHealthSocket) {
@@ -516,6 +555,10 @@ export function useHealthRealtime(
       }
 
       const healthSocketUrl = `${baseUrl}/health`;
+      logHealthSocket('connect_attempt', {
+        url: healthSocketUrl,
+        hasAuthToken: Boolean(currentToken),
+      });
       sharedHealthSocket = io(healthSocketUrl, {
         transports: ['websocket', 'polling'],
         reconnection: true,
@@ -536,8 +579,18 @@ export function useHealthRealtime(
       }
 
       if (!sharedHealthSocket.connected) {
+      logHealthSocket('reconnect_attempt', {
+          path: getSocketTransportPath(sharedHealthSocket),
+          hasAuthToken: Boolean(currentToken),
+        });
         sharedHealthSocket.connect();
       }
+    } else if (!sharedHealthSocket.connected) {
+      logHealthSocket('reconnect_attempt', {
+        path: getSocketTransportPath(sharedHealthSocket),
+        hasAuthToken: Boolean(currentToken),
+      });
+      sharedHealthSocket.connect();
     }
 
     return () => {
@@ -551,6 +604,9 @@ export function useHealthRealtime(
       }
 
       sharedHealthDisconnectTimer = window.setTimeout(() => {
+        logHealthSocket('disconnect_cleanup', {
+          path: sharedHealthSocket ? getSocketTransportPath(sharedHealthSocket) : undefined,
+        });
         sharedHealthSocket?.disconnect();
         sharedHealthSocket = null;
         sharedHealthAuthRefreshInFlight = false;
@@ -564,6 +620,9 @@ export function useHealthRealtime(
         window.clearTimeout(sharedHealthDisconnectTimer);
         sharedHealthDisconnectTimer = null;
       }
+      logHealthSocket('manual_reconnect', {
+        path: getSocketTransportPath(sharedHealthSocket),
+      });
       sharedHealthSocket.connect();
     }
   }, []);

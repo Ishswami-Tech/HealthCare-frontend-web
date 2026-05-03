@@ -1,112 +1,45 @@
 'use server';
 
-import { logger } from '@/lib/utils/logger';
 import { fetchWithAbort, FetchTimeoutError } from '@/lib/utils/fetch-with-abort';
 import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
 import type { DetailedHealthStatus } from '@/hooks/query/useHealth';
 
-const hasBackendProtectionKey = () => Boolean(process.env.BACKEND_PROTECTION_KEY?.trim());
-
-type HealthDebugDetails = {
-  status?: number;
-  contentType?: string;
-  responseBody?: string;
-};
-
-const createUnavailableStatus = (
-  error: string,
-  url: string,
-  details?: HealthDebugDetails
-): DetailedHealthStatus => ({
-  debug: {
-    source: 'fallback',
-    url,
-    ok: false,
-    error,
-    backendProtectionHeaderAttached: hasBackendProtectionKey(),
-    timestamp: new Date().toISOString(),
-    ...(details || {}),
-  },
+const createUnavailableStatus = (error: string): DetailedHealthStatus => ({
   database: { status: 'unavailable', isHealthy: false },
   cache: { status: 'unavailable', healthy: false },
   queue: { status: 'unavailable', healthy: false },
   communication: { status: 'unavailable', healthy: false },
-  video: { status: 'unavailable', isHealthy: false },
-  logging: { status: 'unavailable', healthy: false },
+  video: { status: 'unavailable', isHealthy: false, error },
+  logging: { status: 'unavailable', healthy: false, error },
 });
 
 export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
-  const HEALTH_URL = `${APP_CONFIG.API.HEALTH_BASE_URL}${API_ENDPOINTS.HEALTH.DETAILED}`;
+  const healthUrl = `${APP_CONFIG.API.HEALTH_BASE_URL}${API_ENDPOINTS.HEALTH.DETAILED}`;
 
   try {
-    logger.info('Health check request starting', {
-      url: HEALTH_URL,
-      method: 'GET',
-      backendProtectionHeaderAttached: hasBackendProtectionKey(),
-    });
-
-    const response = await fetchWithAbort(HEALTH_URL, {
+    const response = await fetchWithAbort(healthUrl, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
+        Accept: 'application/json',
+        'Cache-Control': 'no-cache',
       },
       timeout: 5000,
-      cache: 'no-store'
-    });
-
-    logger.info('Health check response received', {
-      url: HEALTH_URL,
-      status: response.status,
-      contentType: response.headers.get('content-type') || '',
+      cache: 'no-store',
     });
 
     if (response.status >= 400) {
-      const responseBody = (await response.text()).slice(0, 300);
-      logger.error('Health check returned error response', {
-        url: HEALTH_URL,
-        status: response.status,
-        contentType: response.headers.get('content-type') || '',
-        responseBody,
-      });
-
-      return createUnavailableStatus(`Backend health returned HTTP ${response.status}`, HEALTH_URL, {
-        status: response.status,
-        contentType: response.headers.get('content-type') || '',
-        responseBody,
-      });
+      return createUnavailableStatus(`Backend health returned HTTP ${response.status}`);
     }
 
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.toLowerCase().includes('application/json')) {
-      logger.error('Health check returned non-JSON response', {
-        url: HEALTH_URL,
-        status: response.status,
-        contentType,
-      });
-      return createUnavailableStatus('Backend health returned non-JSON response', HEALTH_URL, {
-        status: response.status,
-        contentType,
-      });
+      return createUnavailableStatus('Backend health returned non-JSON response');
     }
 
     const data = await response.json();
-    
     const backendData = data as Record<string, any>;
 
-    // ✅ LOG RAW BACKEND DATA
-    logger.info('Health check raw backend data', { data: backendData });
-
-    const result: DetailedHealthStatus = {
-      debug: {
-        source: 'server-action-rest',
-        url: HEALTH_URL,
-        ok: true,
-        status: response.status,
-        contentType,
-        backendProtectionHeaderAttached: hasBackendProtectionKey(),
-        timestamp: new Date().toISOString(),
-      },
+    return {
       uptime: backendData.systemMetrics?.uptime || backendData.realtime?.uptime || 0,
       system: {
         cpu: backendData.realtime?.system?.cpu || 0,
@@ -148,25 +81,15 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
       logging: {
         status: backendData.services?.logger?.status === 'healthy' ? 'up' : 'down',
         healthy: backendData.services?.logger?.status === 'healthy',
-      }
+      },
     };
-
-    // ✅ LOG FOR VERCEL OBSERVABILITY
-    logger.info('[HealthCheck] Action Response', { response: result });
-
-    return result;
-
-
   } catch (error: unknown) {
     if (error instanceof FetchTimeoutError) {
-      logger.error('Health check timed out', { url: HEALTH_URL });
-      return createUnavailableStatus('Backend health request timed out', HEALTH_URL);
+      return createUnavailableStatus('Backend health request timed out');
     }
 
-    logger.error('Health check failed', error instanceof Error ? error : new Error(String(error)));
     return createUnavailableStatus(
-      error instanceof Error ? error.message : 'Backend health request failed',
-      HEALTH_URL
+      error instanceof Error ? error.message : 'Backend health request failed'
     );
   }
 }
