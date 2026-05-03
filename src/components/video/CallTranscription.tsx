@@ -55,35 +55,33 @@ export function CallTranscription({
     if (!isConnected) return;
 
     const unsubscribe = subscribeToTranscription((data) => {
-      if (data.appointmentId === appointmentId) {
-        if (data.action === "transcription_started") {
-          setIsTranscribing(true);
-          showInfoToast("Transcription started", {
-            id: TOAST_IDS.VIDEO.JOIN,
-            description: "Call is now being transcribed",
-          });
-        } else if (data.action === "transcription_stopped") {
-          setIsTranscribing(false);
-          showInfoToast("Transcription stopped", {
-            id: TOAST_IDS.VIDEO.END,
-            description: "Transcription has been stopped",
-          });
-        } else if (data.action === "transcription_segment") {
-          const segment = data.segment as unknown as TranscriptionSegment;
-          setTranscription((prev) => {
-            // Avoid duplicates
-            if (prev.some((s) => s.id === segment.id)) return prev;
-            return [...prev, segment].sort((a, b) => a.startTime - b.startTime);
-          });
+      if (data.action === "transcription_started") {
+        setIsTranscribing(true);
+        showInfoToast("Transcription started", {
+          id: TOAST_IDS.VIDEO.JOIN,
+          description: "Call is now being transcribed",
+        });
+      } else if (data.action === "transcription_stopped") {
+        setIsTranscribing(false);
+        showInfoToast("Transcription stopped", {
+          id: TOAST_IDS.VIDEO.END,
+          description: "Transcription has been stopped",
+        });
+      } else if (data.action === "transcription_segment") {
+        const segment = data.segment as unknown as TranscriptionSegment;
+        setTranscription((prev) => {
+          // Avoid duplicates
+          if (prev.some((s) => s.id === segment.id)) return prev;
+          return [...prev, segment].sort((a, b) => a.startTime - b.startTime);
+        });
 
-          // Auto-scroll to bottom
-          setTimeout(() => {
-            scrollAreaRef.current?.scrollTo({
-              top: scrollAreaRef.current.scrollHeight,
-              behavior: "smooth",
-            });
-          }, 100);
-        }
+        // Auto-scroll to bottom
+        setTimeout(() => {
+          scrollAreaRef.current?.scrollTo({
+            top: scrollAreaRef.current.scrollHeight,
+            behavior: "smooth",
+          });
+        }, 100);
       }
     });
 

@@ -1,5 +1,5 @@
 export function buildVideoSessionRoute(appointmentId: string): string {
-  return `/video-appointments/${encodeURIComponent(appointmentId)}`;
+  return `/video-appointments/meet/${encodeURIComponent(appointmentId)}`;
 }
 
 export function buildVideoSessionMeetRoute(appointmentId: string): string {

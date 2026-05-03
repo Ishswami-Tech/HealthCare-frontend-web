@@ -8,7 +8,6 @@ interface SpeakerLayoutProps {
   subscribers: any[]; // OpenVidu Subscribers
   isHandRaised?: boolean;
   raisedHands?: Set<string>;
-  isBlurred?: boolean;
 }
 
 export function SpeakerLayout({ 
@@ -16,7 +15,6 @@ export function SpeakerLayout({
   subscribers,
   isHandRaised = false,
   raisedHands = new Set(),
-  isBlurred = false,
 }: SpeakerLayoutProps) {
   const allParticipants: { streamManager: any; isLocal: boolean }[] = [];
   
@@ -54,7 +52,6 @@ export function SpeakerLayout({
                   ? isHandRaised 
                   : raisedHands.has(mainParticipant.streamManager?.stream?.connection?.connectionId)
               }
-              isBlurred={mainParticipant.isLocal ? isBlurred : false}
             />
           )}
         </div>
@@ -75,7 +72,6 @@ export function SpeakerLayout({
                       ? isHandRaised 
                       : raisedHands.has(participant.streamManager?.stream?.connection?.connectionId)
                   }
-                  isBlurred={participant.isLocal ? isBlurred : false}
                 />
               </div>
             );

@@ -1,4 +1,4 @@
-import { VideoAppointmentSession } from "@/components/video/VideoAppointmentSession";
+import { redirect } from "next/navigation";
 import { normalizeVideoSessionAppointmentId } from "@/lib/utils/video-session-route";
 
 type VideoAppointmentSessionPageParams = {
@@ -14,6 +14,11 @@ export default async function VideoAppointmentSessionPage({
   const appointmentId = Array.isArray(resolvedParams.appointmentId)
     ? resolvedParams.appointmentId[0]
     : resolvedParams.appointmentId;
+  const normalizedAppointmentId = normalizeVideoSessionAppointmentId(appointmentId || "");
 
-  return <VideoAppointmentSession appointmentId={normalizeVideoSessionAppointmentId(appointmentId || "")} />;
+  if (!normalizedAppointmentId) {
+    redirect("/appointments");
+  }
+
+  redirect(`/video-appointments/meet/${encodeURIComponent(normalizedAppointmentId)}`);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useDetailedHealthStatus } from "@/hooks/query/useHealth";
+import { APP_CONFIG } from "@/lib/config/config";
 import { cn } from "@/lib/utils/index";
 import { formatTimeInIST } from "@/lib/utils/date-time";
 import { CheckCircle2, AlertTriangle, RefreshCw, Loader2, Activity, XCircle, Clock, Server, Database, Wifi, HardDrive, Video, Zap, Rocket, GitBranch } from "lucide-react";
@@ -238,6 +239,9 @@ export default function StatusPage() {
   // const isError = healthPercentage <= 60; // Unused
 
   const glowColor = isHealthy ? "rgba(16, 185, 129, 0.15)" : isDegraded ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)";
+  const resolvedWebSocketUrl = APP_CONFIG.WEBSOCKET.URL || APP_CONFIG.API.RAW_URL || APP_CONFIG.APP.URL || "Unknown";
+  const resolvedAppUrl = APP_CONFIG.APP.URL || "Unknown";
+  const resolvedApiUrl = APP_CONFIG.API.RAW_URL || "Unknown";
 
   // Backend server uptime from health status
   const systemUptime = healthStatus?.uptime || 0;
@@ -255,6 +259,21 @@ export default function StatusPage() {
 
       {/* Main Content (Header removed to avoid double-header issue) */}
       <div className="container mx-auto max-w-4xl px-6 py-6 relative z-10">
+          <div className="mb-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-card/70 p-4 shadow-sm dark:bg-slate-950/50">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Frontend App</p>
+              <p className="mt-2 break-all text-sm font-medium text-foreground dark:text-slate-100">{resolvedAppUrl}</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card/70 p-4 shadow-sm dark:bg-slate-950/50">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">API Server</p>
+              <p className="mt-2 break-all text-sm font-medium text-foreground dark:text-slate-100">{resolvedApiUrl}</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card/70 p-4 shadow-sm dark:bg-slate-950/50">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">WebSocket</p>
+              <p className="mt-2 break-all text-sm font-medium text-foreground dark:text-slate-100">{resolvedWebSocketUrl}</p>
+            </div>
+          </div>
+
           <div className="flex justify-between items-center mb-8">
               <h1 className="text-2xl font-bold flex items-center gap-2">
                   <Activity className="h-6 w-6 text-primary" />

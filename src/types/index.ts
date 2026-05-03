@@ -86,5 +86,7 @@ export type {
   VideoSessionParticipant,
   ListAllVideoSessionsResponse,
   VideoRecording,
+  VirtualBackgroundSettings,
+  BackgroundPreset,
 } from './video.types';
 

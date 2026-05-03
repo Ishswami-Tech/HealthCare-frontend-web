@@ -1,37 +1,31 @@
 "use client";
 
 import React from "react";
-import GoogleMeetVideoRoom from "@/components/video/meet-ui/GoogleMeetVideoRoom";
+import VideoAppointmentRoom from "@/components/video/meet-ui/VideoAppointmentRoom";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 
 type VideoAppointmentMeetRoomProps = {
   appointment: VideoAppointment;
   onLeaveRoom?: () => void;
-  autoStart?: boolean;
   startWithAudioEnabled?: boolean;
   startWithVideoEnabled?: boolean;
-  startWithAudioSource?: string | undefined;
-  startWithVideoSource?: string | undefined;
+  initialMediaStream?: MediaStream | null;
 };
 
 export function VideoAppointmentMeetRoom({
   appointment,
   onLeaveRoom,
-  autoStart = true,
   startWithAudioEnabled = true,
   startWithVideoEnabled = true,
-  startWithAudioSource,
-  startWithVideoSource,
+  initialMediaStream = null,
 }: VideoAppointmentMeetRoomProps) {
   return (
-    <div className="meet-room fixed inset-0 z-50 min-h-[100svh] w-full overflow-hidden bg-[var(--color-meet-black)] text-white">
-      <GoogleMeetVideoRoom
+    <div className="meet-room fixed inset-0 z-50 min-h-[100svh] w-full overflow-hidden bg-background text-foreground dark:bg-[var(--color-meet-black)] dark:text-white">
+      <VideoAppointmentRoom
         appointment={appointment}
-        autoStart={autoStart}
         startWithAudioEnabled={startWithAudioEnabled}
         startWithVideoEnabled={startWithVideoEnabled}
-        startWithAudioSource={startWithAudioSource}
-        startWithVideoSource={startWithVideoSource}
+        initialMediaStream={initialMediaStream}
         {...(onLeaveRoom ? { onLeaveRoom } : {})}
       />
     </div>

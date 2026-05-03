@@ -128,6 +128,9 @@ export class OpenViduAPI {
   private openvidu: OpenVidu;
   private activeAudioDeviceId: string | null = null;
   private activeVideoDeviceId: string | null = null;
+  private virtualBackgroundFilter: any | null = null;
+  private virtualBackgroundType: 'blur' | 'image' | 'video' | 'none' = 'none';
+  private virtualBackgroundUrl: string | null = null;
 
   constructor(config: OpenViduConfig) {
     this.config = config;
@@ -354,6 +357,15 @@ export class OpenViduAPI {
   private handleStreamCreated(stream: Stream): void {
     if (!this.session) return;
 
+    const localConnectionId = this.session.connection?.connectionId;
+    if (localConnectionId && stream.connection?.connectionId === localConnectionId) {
+      return;
+    }
+
+    if (this.subscribers.has(stream.streamId)) {
+      return;
+    }
+
     const subscriber = this.session.subscribe(stream, undefined);
     this.subscribers.set(stream.streamId, subscriber);
   }
@@ -388,7 +400,7 @@ export class OpenViduAPI {
     if (nextVideoActive) {
       this.publisher.publishVideo(true);
     } else {
-      // Free the camera hardware so the browser light turns off immediately.
+      // Free the camera hardware immediately so the browser camera light turns off.
       this.publisher.publishVideo(false, true);
     }
 
@@ -397,6 +409,97 @@ export class OpenViduAPI {
     }));
 
     return !nextVideoActive;
+  }
+
+  async applyVirtualBackground(options: {
+    enabled: boolean;
+    type: 'blur' | 'image' | 'video' | 'none';
+    blurIntensity?: number;
+    imageUrl?: string;
+    videoUrl?: string;
+  }): Promise<void> {
+    if (!this.publisher) {
+      return;
+    }
+
+    const nextType = options.enabled ? options.type : 'none';
+    const nextUrl =
+      nextType === 'image'
+        ? options.imageUrl || null
+        : nextType === 'video'
+          ? options.videoUrl || null
+          : null;
+
+    if (
+      this.virtualBackgroundFilter &&
+      this.virtualBackgroundType === nextType &&
+      this.virtualBackgroundUrl === nextUrl
+    ) {
+      return;
+    }
+
+    if (this.virtualBackgroundFilter) {
+      try {
+        await this.publisher.stream.removeFilter();
+      } catch (error) {
+        console.warn('[VIDEO] Failed to remove previous virtual background filter:', error);
+      } finally {
+        this.virtualBackgroundFilter = null;
+        this.virtualBackgroundType = 'none';
+        this.virtualBackgroundUrl = null;
+      }
+    }
+
+    if (nextType === 'none') {
+      return;
+    }
+
+    if (nextType === 'blur') {
+      this.virtualBackgroundFilter = await this.publisher.stream.applyFilter('VB:blur', {});
+      this.virtualBackgroundType = 'blur';
+      this.virtualBackgroundUrl = null;
+      return;
+    }
+
+    if (nextType === 'image') {
+      if (!nextUrl) {
+        throw new Error('Virtual background image URL is required');
+      }
+      this.virtualBackgroundFilter = await this.publisher.stream.applyFilter('VB:image', {
+        url: nextUrl,
+      });
+      this.virtualBackgroundType = 'image';
+      this.virtualBackgroundUrl = nextUrl;
+      return;
+    }
+
+    if (nextType === 'video') {
+      if (!nextUrl) {
+        throw new Error('Virtual background video URL is required');
+      }
+      this.virtualBackgroundFilter = await this.publisher.stream.applyFilter('VB:image', {
+        url: nextUrl,
+      });
+      this.virtualBackgroundType = 'video';
+      this.virtualBackgroundUrl = nextUrl;
+    }
+  }
+
+  async clearVirtualBackground(): Promise<void> {
+    if (!this.publisher || !this.virtualBackgroundFilter) {
+      this.virtualBackgroundFilter = null;
+      this.virtualBackgroundType = 'none';
+      this.virtualBackgroundUrl = null;
+      return;
+    }
+
+    try {
+      await this.publisher.stream.removeFilter();
+    } finally {
+      this.virtualBackgroundFilter = null;
+      this.virtualBackgroundType = 'none';
+      this.virtualBackgroundUrl = null;
+    }
   }
 
   // ✅ Share Screen
@@ -456,7 +559,19 @@ export class OpenViduAPI {
       // Reinitialize camera publisher
       await this.initializePublisher();
       if (this.publisher) {
-        await this.session.publish(this.publisher);
+      await this.session.publish(this.publisher);
+        if (this.virtualBackgroundType !== 'none') {
+          await this.applyVirtualBackground({
+            enabled: true,
+            type: this.virtualBackgroundType,
+            ...(this.virtualBackgroundType === 'image' && this.virtualBackgroundUrl
+              ? { imageUrl: this.virtualBackgroundUrl }
+              : {}),
+            ...(this.virtualBackgroundType === 'video' && this.virtualBackgroundUrl
+              ? { videoUrl: this.virtualBackgroundUrl }
+              : {}),
+          }).catch(() => undefined);
+        }
         // Notify application that we've switched back to the camera publisher
         window.dispatchEvent(new CustomEvent('openvidu-publisher-changed', {
           detail: { publisher: this.publisher }
@@ -474,10 +589,13 @@ export class OpenViduAPI {
     if (!this.session) return [];
 
     const participants: ParticipantInfo[] = [];
+    const seen = new Set<string>();
     
     // Add local participant (You)
     const local = this.getCurrentParticipant();
     if (local) {
+      const localKey = `${local.connectionId}:${local.userId || local.displayName || ''}`;
+      seen.add(localKey);
       participants.push({
         ...local,
         displayName: `${local.displayName || 'You'} (You)`
@@ -486,6 +604,11 @@ export class OpenViduAPI {
 
     this.session.remoteConnections.forEach((connection) => {
       const parsed = this.parseConnectionData(connection.data || '');
+      const key = `${connection.connectionId}:${parsed.userId || parsed.displayName || ''}`;
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
       
       participants.push({
         connectionId: connection.connectionId,
@@ -593,6 +716,7 @@ export class OpenViduAPI {
   // ✅ Dispose
   async dispose(): Promise<void> {
     try {
+      await this.clearVirtualBackground().catch(() => undefined);
       if (this.publisher && this.session) {
         await this.session.unpublish(this.publisher);
         this.publisher = null;

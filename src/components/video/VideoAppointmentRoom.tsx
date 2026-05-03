@@ -45,7 +45,6 @@ import { MedicalNotes } from "./MedicalNotes";
 import { CallQualityIndicator } from "./CallQualityIndicator";
 import { ScreenAnnotation } from "./ScreenAnnotation";
 import { CallTranscription } from "./CallTranscription";
-import { EnhancedRecordingControls } from "./EnhancedRecordingControls";
 import { EnhancedParticipantControls } from "./EnhancedParticipantControls";
 import { UserVideoComponent } from "./UserVideoComponent";
 import {
@@ -188,8 +187,8 @@ export function VideoAppointmentRoom({
   const isDoctor = user?.role === 'DOCTOR' || user?.role === 'ASSISTANT_DOCTOR';
   const isPatient = user?.role === 'PATIENT';
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'CLINIC_ADMIN';
-  // canRecord: only doctors and admins can initiate recordings
-  const canRecord = isDoctor || isAdmin;
+  // canRecord stays wired for later, but the UI trigger is disabled by default during testing.
+  const canRecord = (isDoctor || isAdmin) && APP_CONFIG.FEATURES.VIDEO_RECORDING;
   // canEndForAll: doctors and admins can end the session for everyone; patients only leave
   const canEndForAll = isDoctor || isAdmin;
 
@@ -198,52 +197,48 @@ export function VideoAppointmentRoom({
     if (!isConnected) return;
 
     const unsubscribeParticipants = subscribeToParticipantEvents((data) => {
-      if (data.appointmentId === resolvedAppointmentId) {
-        if (data.action === "participant_joined" && data.participant) {
-          const participantData = data.participant;
-          const participant: ParticipantInfo = {
-            connectionId: participantData.userId,
-            data: JSON.stringify(participantData),
-            role: participantData.role || 'participant',
-            userId: participantData.userId,
-            displayName: participantData.displayName,
-          };
-          setParticipants((prev) => {
-            if (prev.some(p => p.userId === participant.userId)) return prev;
-            return [...prev, participant];
-          });
-          showInfoToast("Participant joined", {
-            id: TOAST_IDS.VIDEO.JOIN,
-            description: `${participantData.displayName} joined the call`,
-          });
-        } else if (data.action === "participant_left" && data.participant) {
-          const participantData = data.participant;
-          setParticipants((prev) =>
-            prev.filter((p) => (p.userId || p.connectionId) !== participantData.userId)
-          );
-          showInfoToast("Participant left", {
-            id: TOAST_IDS.VIDEO.END,
-            description: `${participantData.displayName} left the call`,
-          });
-        }
+      if (data.action === "participant_joined" && data.participant) {
+        const participantData = data.participant;
+        const participant: ParticipantInfo = {
+          connectionId: participantData.userId,
+          data: JSON.stringify(participantData),
+          role: participantData.role || 'participant',
+          userId: participantData.userId,
+          displayName: participantData.displayName,
+        };
+        setParticipants((prev) => {
+          if (prev.some(p => p.userId === participant.userId)) return prev;
+          return [...prev, participant];
+        });
+        showInfoToast("Participant joined", {
+          id: TOAST_IDS.VIDEO.JOIN,
+          description: `${participantData.displayName} joined the call`,
+        });
+      } else if (data.action === "participant_left" && data.participant) {
+        const participantData = data.participant;
+        setParticipants((prev) =>
+          prev.filter((p) => (p.userId || p.connectionId) !== participantData.userId)
+        );
+        showInfoToast("Participant left", {
+          id: TOAST_IDS.VIDEO.END,
+          description: `${participantData.displayName} left the call`,
+        });
       }
     });
 
     const unsubscribeRecording = subscribeToRecordingEvents((data) => {
-      if (data.appointmentId === resolvedAppointmentId) {
-        if (data.action === "recording_started") {
-          setIsRecording(true);
-          showSuccessToast("Recording started", {
-            id: TOAST_IDS.VIDEO.JOIN,
-            description: "Video recording has started",
-          });
-        } else if (data.action === "recording_stopped") {
-          setIsRecording(false);
-          showInfoToast("Recording stopped", {
-            id: TOAST_IDS.VIDEO.END,
-            description: "Video recording has stopped",
-          });
-        }
+      if (data.action === "recording_started") {
+        setIsRecording(true);
+        showSuccessToast("Recording started", {
+          id: TOAST_IDS.VIDEO.JOIN,
+          description: "Video recording has started",
+        });
+      } else if (data.action === "recording_stopped") {
+        setIsRecording(false);
+        showInfoToast("Recording stopped", {
+          id: TOAST_IDS.VIDEO.END,
+          description: "Video recording has stopped",
+        });
       }
     });
 
@@ -285,24 +280,18 @@ export function VideoAppointmentRoom({
     if (!isConnected) return;
 
     const unsubscribeChat = subscribeToChatMessages((data) => {
-      if (data.appointmentId === resolvedAppointmentId) {
-        // Chat component handles its own state updates via WebSocket
-        // This subscription ensures we're listening to real-time messages
-      }
+      // Chat component handles its own state updates via WebSocket
+      // This subscription ensures we're listening to real-time messages
     });
 
     const unsubscribeWaitingRoom = subscribeToWaitingRoom((data) => {
-      if (data.appointmentId === resolvedAppointmentId) {
-        // Waiting room component handles its own state updates
-        // This ensures real-time queue updates
-      }
+      // Waiting room component handles its own state updates
+      // This ensures real-time queue updates
     });
 
     const unsubscribeNotes = subscribeToMedicalNotes((data) => {
-      if (data.appointmentId === resolvedAppointmentId) {
-        // Medical notes component handles its own state updates
-        // This ensures real-time note synchronization
-      }
+      // Medical notes component handles its own state updates
+      // This ensures real-time note synchronization
     });
 
     return () => {
@@ -322,24 +311,18 @@ export function VideoAppointmentRoom({
     if (!isConnected) return;
 
     const unsubscribeQuality = subscribeToCallQuality((data) => {
-      if (data.appointmentId === resolvedAppointmentId) {
-        // Call quality component handles its own state updates
-        // This ensures real-time quality warnings
-      }
+      // Call quality component handles its own state updates
+      // This ensures real-time quality warnings
     });
 
     const unsubscribeAnnotations = subscribeToAnnotations((data) => {
-      if (data.appointmentId === resolvedAppointmentId) {
-        // Screen annotation component handles its own state updates
-        // This ensures real-time annotation synchronization
-      }
+      // Screen annotation component handles its own state updates
+      // This ensures real-time annotation synchronization
     });
 
     const unsubscribeTranscription = subscribeToTranscription((data) => {
-      if (data.appointmentId === resolvedAppointmentId) {
-        // Call transcription component handles its own state updates
-        // This ensures real-time transcription segments
-      }
+      // Call transcription component handles its own state updates
+      // This ensures real-time transcription segments
     });
 
     return () => {
@@ -905,16 +888,6 @@ export function VideoAppointmentRoom({
                   <span className="text-[10px] text-muted-foreground sm:text-[11px]">Hand</span>
                 </div>
 
-                {canRecord && isRecording && (
-                  <div className="flex flex-col items-center gap-1">
-                    <EnhancedRecordingControls
-                      appointmentId={resolvedAppointmentId}
-                      isRecording={isRecording}
-                      onRecordingChange={setIsRecording}
-                    />
-                    <span className="text-[11px] text-muted-foreground">Record</span>
-                  </div>
-                )}
                 {canRecord && !isRecording && (
                   <div className="flex flex-col items-center gap-1">
                     <Button

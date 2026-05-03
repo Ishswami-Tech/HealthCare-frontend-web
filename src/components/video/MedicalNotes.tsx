@@ -20,6 +20,7 @@ import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointme
 import {
   useCreateMedicalNote,
   useDeleteMedicalNote,
+  useUpdateMedicalNote,
   useMedicalNotes,
   type MedicalNote,
 } from "@/hooks/query";
@@ -29,15 +30,23 @@ import { format } from "date-fns";
 interface MedicalNotesProps {
   appointmentId: string;
   className?: string;
+  compact?: boolean;
 }
 
 const EMPTY_MEDICAL_NOTES: MedicalNote[] = [];
 
-export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
+function notesSignature(notes: MedicalNote[]) {
+  return notes
+    .map((note) => `${note.id}:${note.updatedAt || note.createdAt}:${note.content}`)
+    .join("|");
+}
+
+export function MedicalNotes({ appointmentId, className, compact = false }: MedicalNotesProps) {
   const { user } = useAuth();
   const [notes, setNotes] = useState<MedicalNote[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState({ title: "", content: "" });
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [newNote, setNewNote] = useState({
     content: "",
@@ -54,37 +63,38 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
   const { data: fetchedNotes, isPending: isLoading } = useMedicalNotes(appointmentId);
   const createMedicalNoteMutation = useCreateMedicalNote();
   const deleteMedicalNoteMutation = useDeleteMedicalNote();
+  const updateMedicalNoteMutation = useUpdateMedicalNote();
   const isSaving = createMedicalNoteMutation.isPending;
+  const isUpdating = updateMedicalNoteMutation.isPending;
 
   const resolvedNotes = fetchedNotes ?? EMPTY_MEDICAL_NOTES;
+  const resolvedNotesKey = notesSignature(resolvedNotes);
 
   useEffect(() => {
-    setNotes(resolvedNotes);
-  }, [resolvedNotes]);
+    setNotes((prev) => (notesSignature(prev) === resolvedNotesKey ? prev : resolvedNotes));
+  }, [resolvedNotes, resolvedNotesKey]);
 
   // Subscribe to real-time note updates
   useEffect(() => {
     if (!isConnected) return;
 
     const unsubscribe = subscribeToMedicalNotes((data) => {
-      if (data.appointmentId === appointmentId) {
-        if (data.action === "note_created" || data.action === "note_updated") {
-          const note = data.note as unknown as MedicalNote;
-          setNotes((prev) => {
-            const existing = prev.findIndex((n) => n.id === note.id);
-            if (existing >= 0) {
-              const updated = [...prev];
-              updated[existing] = note;
-              return updated;
-            }
-            return [...prev, note];
-          });
-        }
+      if (data.action === "note_created" || data.action === "note_updated") {
+        const note = data.note as unknown as MedicalNote;
+        setNotes((prev) => {
+          const existing = prev.findIndex((n) => n.id === note.id);
+          if (existing >= 0) {
+            const updated = [...prev];
+            updated[existing] = note;
+            return updated;
+          }
+          return [...prev, note];
+        });
       }
     });
 
     return unsubscribe;
-  }, [isConnected, appointmentId, subscribeToMedicalNotes]);
+  }, [isConnected, subscribeToMedicalNotes]);
 
   const handleCreateNote = async () => {
     if (!newNote.content.trim()) return;
@@ -116,12 +126,36 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
       const editingNote = notes.find((n) => n.id === noteId);
       if (!editingNote) return;
 
-      // Backend doesn't support update, show error message
-      setEditingId(null);
-      showInfoToast("Update not supported", {
-        id: TOAST_IDS.GLOBAL.INFO,
-        description: "Please delete and create a new note to update.",
+      const nextTitle = editingDraft.title.trim();
+      const nextContent = editingDraft.content.trim();
+      if (!nextContent) {
+        showInfoToast("Note is empty", {
+          id: TOAST_IDS.GLOBAL.INFO,
+          description: "Please enter note content before saving.",
+        });
+        return;
+      }
+
+      const result = await updateMedicalNoteMutation.mutateAsync({
+        noteId,
+        data: {
+          userId: user?.id || editingNote.userId,
+          title: nextTitle,
+          content: nextContent,
+        },
       });
+
+      if (result) {
+        setNotes((prev) =>
+          prev.map((note) => (note.id === noteId ? { ...note, ...result } : note))
+        );
+        setEditingId(null);
+        setEditingDraft({ title: "", content: "" });
+        showSuccessToast("Note updated", {
+          id: TOAST_IDS.GLOBAL.SUCCESS,
+          description: "Medical note has been updated",
+        });
+      }
     } catch (error) {
       showErrorToast(error, { id: TOAST_IDS.GLOBAL.ERROR });
     }
@@ -163,14 +197,15 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
 
   return (
     <Card className={className}>
-      <CardHeader className="pb-3">
+      <CardHeader className={compact ? "pb-2 px-3 pt-3" : "pb-3"}>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Medical Notes</CardTitle>
+          <CardTitle className={compact ? "text-sm" : "text-lg"}>Medical Notes</CardTitle>
           {!isCreating && (
             <Button
               size="sm"
               onClick={() => setIsCreating(true)}
               variant="outline"
+              className={compact ? "h-8 px-2.5 text-xs" : undefined}
             >
               <Plus className="h-4 w-4 mr-2" />
               New Note
@@ -178,18 +213,18 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
           )}
         </div>
       </CardHeader>
-      <CardContent className="p-0 flex flex-col h-[400px]">
-        <ScrollArea className="flex-1 px-4">
+      <CardContent className={compact ? "p-0 flex flex-col h-[280px] sm:h-[320px]" : "p-0 flex flex-col h-[400px]"}>
+        <ScrollArea className={compact ? "flex-1 px-3" : "flex-1 px-4"}>
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-muted-foreground">Loading notes...</p>
+              <p className={compact ? "text-xs text-muted-foreground" : "text-sm text-muted-foreground"}>Loading notes...</p>
             </div>
           ) : (
-            <div className="space-y-4 py-4">
+            <div className={compact ? "space-y-3 py-3" : "space-y-4 py-4"}>
               {/* Create Note Form */}
               {isCreating && (
                 <Card className="border-primary">
-                  <CardContent className="pt-4 space-y-3">
+                  <CardContent className={compact ? "pt-3 space-y-2.5" : "pt-4 space-y-3"}>
                     <Input
                       placeholder="Note title (optional)..."
                       value={newNote.title}
@@ -210,7 +245,7 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
                         }))
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className={compact ? "h-9 text-xs" : undefined}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -233,11 +268,11 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
                           content: e.target.value,
                         }))
                       }
-                      rows={4}
+                      rows={compact ? 3 : 4}
                     />
 
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={handleCreateNote} disabled={isSaving}>
+                      <Button size="sm" onClick={handleCreateNote} disabled={isSaving} className={compact ? "h-8 px-2.5 text-xs" : undefined}>
                         <Save className="h-4 w-4 mr-2" />
                         {isSaving ? "Saving..." : "Save"}
                       </Button>
@@ -245,6 +280,7 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
                         size="sm"
                         variant="outline"
                         disabled={isSaving}
+                        className={compact ? "h-8 px-2.5 text-xs" : undefined}
                         onClick={() => {
                           setIsCreating(false);
                           setNewNote({
@@ -264,16 +300,16 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
 
               {/* Notes List */}
               {notes.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <div className={compact ? "text-center py-5 text-muted-foreground" : "text-center py-8 text-muted-foreground"}>
+                  <FileText className={compact ? "h-10 w-10 mx-auto mb-2 opacity-50" : "h-12 w-12 mx-auto mb-4 opacity-50"} />
                   <p>No notes yet</p>
                 </div>
               ) : (
                 notes.map((note) => (
                   <Card key={note.id} className="border-l-4 border-l-primary">
-                    <CardContent className="pt-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
+                    <CardContent className={compact ? "pt-3" : "pt-4"}>
+                      <div className={compact ? "flex items-start justify-between mb-1.5 gap-2" : "flex items-start justify-between mb-2"}>
+                        <div className="flex items-center gap-2 min-w-0">
                           <Badge
                             variant={
                               getTypeColor(
@@ -292,7 +328,7 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
                           >
                             {note.noteType}
                           </Badge>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground truncate">
                             {note.user?.name || "Unknown"} •{" "}
                             {format(new Date(note.createdAt), "MMM dd, HH:mm")}
                           </span>
@@ -302,7 +338,13 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => setEditingId(note.id)}
+                              onClick={() => {
+                                setEditingId(note.id);
+                                setEditingDraft({
+                                  title: note.title || "",
+                                  content: note.content,
+                                });
+                              }}
                               disabled={deletingNoteId === note.id}
                             >
                               <Edit className="h-3 w-3" />
@@ -321,53 +363,54 @@ export function MedicalNotes({ appointmentId, className }: MedicalNotesProps) {
 
                       {editingId === note.id ? (
                         <div className="space-y-2">
+                          <Input
+                            value={editingDraft.title}
+                            onChange={(e) =>
+                              setEditingDraft((prev) => ({
+                                ...prev,
+                                title: e.target.value,
+                              }))
+                            }
+                            placeholder="Note title (optional)..."
+                          />
                           <Textarea
-                            defaultValue={note.content}
+                            value={editingDraft.content}
+                            onChange={(e) =>
+                              setEditingDraft((prev) => ({
+                                ...prev,
+                                content: e.target.value,
+                              }))
+                            }
                             rows={3}
-                            ref={(el) => {
-                              if (el) {
-                                el.focus();
-                                el.setSelectionRange(
-                                  el.value.length,
-                                  el.value.length
-                                );
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Escape") {
-                                setEditingId(null);
-                              } else if (
-                                e.key === "Enter" &&
-                                (e.metaKey || e.ctrlKey)
-                              ) {
-                                handleUpdateNote(note.id);
-                              }
-                            }}
                           />
                           <div className="flex gap-2">
                             <Button
                               size="sm"
-                              onClick={() => handleUpdateNote(note.id)}
+                              onClick={() => void handleUpdateNote(note.id)}
+                              disabled={isUpdating}
                             >
-                              Save
+                              {isUpdating ? "Saving..." : "Save"}
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => setEditingId(null)}
+                              onClick={() => {
+                                setEditingId(null);
+                                setEditingDraft({ title: "", content: "" });
+                              }}
                             >
                               Cancel
                             </Button>
                           </div>
                         </div>
                       ) : (
-                        <p className="text-sm whitespace-pre-wrap">
+                        <p className={compact ? "text-xs sm:text-sm whitespace-pre-wrap" : "text-sm whitespace-pre-wrap"}>
                           {note.content}
                         </p>
                       )}
 
                       {note.title && (
-                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                        <p className={compact ? "text-[10px] font-medium text-muted-foreground mb-1" : "text-xs font-medium text-muted-foreground mb-1"}>
                           {note.title}
                         </p>
                       )}

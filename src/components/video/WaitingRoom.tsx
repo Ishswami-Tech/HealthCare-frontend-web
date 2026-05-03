@@ -83,28 +83,26 @@ export function WaitingRoom({
         participant?: WaitingRoomParticipant;
         token?: string;
       };
-      if (eventData.appointmentId === appointmentId) {
-        if (eventData.action === "waiting_room_joined") {
-          setQueue((prev) => {
-            const participant = eventData.participant;
-            if (!participant || prev.some((p) => p.userId === participant.userId)) return prev;
-            return [...prev, participant];
-          });
-        } else if (eventData.action === "waiting_room_left") {
-          setQueue((prev) =>
-            prev.filter((p) => p.userId !== (eventData.participant?.userId || ""))
-          );
-        } else if (eventData.action === "waiting_room_admitted") {
-          if (eventData.participant?.userId === user?.id) {
-            setIsInWaitingRoom(false);
-            if (eventData.token && onAdmitted) {
-              onAdmitted(eventData.token);
-            }
+      if (eventData.action === "waiting_room_joined") {
+        setQueue((prev) => {
+          const participant = eventData.participant;
+          if (!participant || prev.some((p) => p.userId === participant.userId)) return prev;
+          return [...prev, participant];
+        });
+      } else if (eventData.action === "waiting_room_left") {
+        setQueue((prev) =>
+          prev.filter((p) => p.userId !== (eventData.participant?.userId || ""))
+        );
+      } else if (eventData.action === "waiting_room_admitted") {
+        if (eventData.participant?.userId === user?.id) {
+          setIsInWaitingRoom(false);
+          if (eventData.token && onAdmitted) {
+            onAdmitted(eventData.token);
           }
-          setQueue((prev) =>
-            prev.filter((p) => p.userId !== (eventData.participant?.userId || ""))
-          );
         }
+        setQueue((prev) =>
+          prev.filter((p) => p.userId !== (eventData.participant?.userId || ""))
+        );
       }
     });
 

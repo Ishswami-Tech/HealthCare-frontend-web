@@ -29,7 +29,6 @@ import {
   endVideoConsultation,
   getConsultationStatus,
   getVideoConsultationHistory,
-  getRecording,
   listAllVideoSessions,
   terminateVideoSession,
   joinWaitingRoom,
@@ -45,9 +44,10 @@ import {
   createAnnotation,
   getAnnotations,
   deleteAnnotation,
-  pauseRecording,
-  resumeRecording,
-  setRecordingQuality,
+  updateMedicalNote,
+  updateVirtualBackground,
+  getVirtualBackgroundPresets,
+  getVirtualBackgroundSettings,
   manageParticipantEnhanced,
   getTranscription,
   getCallQuality,
@@ -59,6 +59,10 @@ import {
   type TranscriptionSegment,
   type CallQualityMetrics,
 } from '@/lib/actions/video.server';
+import type {
+  VirtualBackgroundSettings,
+  BackgroundPreset,
+} from '@/types/video.types';
 export type {
   WaitingRoomParticipant,
   ChatMessage,
@@ -673,25 +677,6 @@ export function useCancelVideoAppointment() {
 }
 
 // âœ… Get Video Recording Query Hook
-export function useVideoRecording(appointmentId: string) {
-  const { hasPermission } = useRBAC();
-
-  return useQueryData(
-    ['video-recording', appointmentId],
-    async () => {
-      const hasAccess = hasPermission(Permission.VIEW_VIDEO_RECORDINGS);
-      if (!hasAccess) throw new Error('Access denied: Insufficient permissions');
-
-      const result = await getRecording(appointmentId);
-      
-      return { success: true, data: result, recording: result };
-    },
-    {
-      enabled: !!appointmentId && hasPermission(Permission.VIEW_VIDEO_RECORDINGS),
-    }
-  );
-}
-
 // âœ… Video Call Management Hook with WebSocket Integration
 export function useVideoCall() {
   const { toast } = useToast();
@@ -1059,6 +1044,7 @@ export function useVideoCallControls() {
       getActiveVideoDeviceId: () => {
         try { return call.getActiveVideoDeviceId(); } catch { return null; }
       },
+
     };
   };
 
@@ -1182,6 +1168,7 @@ export function useSendVideoChatMessage() {
       toastId: TOAST_IDS.VIDEO.ERROR,
       loadingMessage: 'Sending message...',
       successMessage: 'Message sent',
+      invalidateQueries: [['video-chat-messages']],
       showToast: false,
     }
   );
@@ -1267,6 +1254,32 @@ export function useDeleteMedicalNote() {
   );
 }
 
+export function useUpdateMedicalNote() {
+  return useMutationOperation(
+    async ({
+      noteId,
+      data,
+    }: {
+      noteId: string;
+      data: {
+        userId: string;
+        content?: string;
+        title?: string;
+        prescription?: unknown;
+        symptoms?: unknown[];
+        treatmentPlan?: unknown;
+      };
+    }) => await updateMedicalNote(noteId, data),
+    {
+      toastId: TOAST_IDS.GLOBAL.SUCCESS,
+      loadingMessage: 'Updating note...',
+      successMessage: 'Medical note updated',
+      invalidateQueries: [['video-medical-notes']],
+      showToast: false,
+    }
+  );
+}
+
 export function useAnnotations(appointmentId: string) {
   return useQueryData(
     ['video-annotations', appointmentId],
@@ -1325,66 +1338,6 @@ export function useDeleteAnnotation() {
       loadingMessage: 'Deleting annotation...',
       successMessage: 'Annotation deleted',
       invalidateQueries: [['video-annotations']],
-      showToast: false,
-    }
-  );
-}
-
-export function usePauseVideoRecording() {
-  return useMutationOperation(
-    async (appointmentId: string) => {
-      const result = await pauseRecording(appointmentId);
-      if (!result.success) {
-        throw new Error('Failed to pause recording');
-      }
-      return result;
-    },
-    {
-      toastId: TOAST_IDS.VIDEO.END,
-      loadingMessage: 'Pausing recording...',
-      successMessage: 'Recording paused',
-      showToast: false,
-    }
-  );
-}
-
-export function useResumeVideoRecording() {
-  return useMutationOperation(
-    async (appointmentId: string) => {
-      const result = await resumeRecording(appointmentId);
-      if (!result.success) {
-        throw new Error('Failed to resume recording');
-      }
-      return result;
-    },
-    {
-      toastId: TOAST_IDS.VIDEO.JOIN,
-      loadingMessage: 'Resuming recording...',
-      successMessage: 'Recording resumed',
-      showToast: false,
-    }
-  );
-}
-
-export function useSetVideoRecordingQuality() {
-  return useMutationOperation(
-    async ({
-      appointmentId,
-      quality,
-    }: {
-      appointmentId: string;
-      quality: 'low' | 'medium' | 'high' | 'ultra';
-    }) => {
-      const result = await setRecordingQuality(appointmentId, quality);
-      if (!result.success) {
-        throw new Error('Failed to update recording quality');
-      }
-      return result;
-    },
-    {
-      toastId: TOAST_IDS.VIDEO.JOIN,
-      loadingMessage: 'Updating recording quality...',
-      successMessage: 'Recording quality updated',
       showToast: false,
     }
   );
@@ -1489,6 +1442,55 @@ export function useUpdateCallQualityMetrics() {
       toastId: TOAST_IDS.VIDEO.ERROR,
       loadingMessage: 'Reporting quality issue...',
       successMessage: 'Issue reported',
+      showToast: false,
+    }
+  );
+}
+
+export function useVirtualBackgroundSettings(appointmentId: string) {
+  return useQueryData(
+    ['video-virtual-background', appointmentId],
+    async () => {
+      const result = await getVirtualBackgroundSettings(appointmentId);
+      return result;
+    },
+    {
+      enabled: !!appointmentId,
+    }
+  );
+}
+
+export function useVirtualBackgroundPresets() {
+  return useQueryData(
+    ['video-virtual-background-presets'],
+    async () => getVirtualBackgroundPresets(),
+    {
+      staleTime: 10 * 60 * 1000,
+    }
+  );
+}
+
+export function useUpdateVirtualBackground() {
+  return useMutationOperation(
+    async ({
+      appointmentId,
+      data,
+    }: {
+      appointmentId: string;
+      data: {
+        enabled: boolean;
+        type: 'blur' | 'image' | 'video' | 'none';
+        blurIntensity?: number;
+        imageUrl?: string;
+        videoUrl?: string;
+        customBackgroundId?: string;
+      };
+    }) => await updateVirtualBackground(appointmentId, data),
+    {
+      toastId: TOAST_IDS.GLOBAL.SUCCESS,
+      loadingMessage: 'Applying background...',
+      successMessage: 'Background updated',
+      invalidateQueries: [['video-virtual-background']],
       showToast: false,
     }
   );

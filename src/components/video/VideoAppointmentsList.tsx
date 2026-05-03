@@ -22,6 +22,7 @@ const DEFAULT_STATUS_CONFIG = {
 
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ProtectedComponent } from "@/components/rbac/ProtectedComponent";
 import { Permission } from "@/types/rbac.types";
@@ -70,7 +71,6 @@ import {
   CheckCircle,
   FileText,
   ArrowRight,
-  ArrowUpRight,
 } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -117,7 +117,7 @@ import { useClinicContext } from "@/hooks/query/useClinics";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { CalendarPlus, Filter } from "lucide-react";
-import { buildVideoSessionMeetRoute, buildVideoSessionRoute } from "@/lib/utils/video-session-route";
+import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 
 // ─── Module-scope pure helpers ───────────────────────────────────────────────
 
@@ -425,7 +425,6 @@ export function VideoAppointmentsList({
   const isDoctorRole = role === "doctor";
   const [filterStatus, setFilterStatus] = useState(isDoctorRole ? "all" : "scheduled");
 
-  const canJoin = hasPermission(Permission.JOIN_VIDEO_APPOINTMENTS);
   const canEnd = hasPermission(Permission.END_VIDEO_APPOINTMENTS);
   const canViewRecordings = hasPermission(Permission.VIEW_VIDEO_RECORDINGS);
   const resolvedClinicId = filterClinicId || clinicContextId || String(session?.user?.clinicId || "");
@@ -607,57 +606,6 @@ export function VideoAppointmentsList({
 
   const stats = computeStats(appointments);
   const { total: totalAppointments, active: activeAppointments, scheduled: scheduledAppointments, completed: completedAppointmentsCount, cancelled: cancelledAppointments } = stats;
-
-  const handleJoinAppointment = async (appointment: VideoAppointment) => {
-    if (!canJoin) {
-      showErrorToast("No permission to join sessions.", { id: TOAST_IDS.VIDEO.PERMISSION });
-      return;
-    }
-    if (enforceTimeSlotWindow && !isWithinJoinWindow(appointment)) {
-      showErrorToast("Join is allowed only during the appointment time slot.", {
-        id: TOAST_IDS.VIDEO.ERROR,
-      });
-      return;
-    }
-    try {
-      const appointmentId = getEffectiveAppointmentId(appointment);
-      if (!appointmentId) {
-        showErrorToast("Missing appointment ID for this video appointment.", { id: TOAST_IDS.VIDEO.ERROR });
-        return;
-      }
-
-      const refreshedResult = await refetch();
-      const refreshedAppointments = extractAppointments((refreshedResult as any)?.data);
-      const latestAppointment =
-        refreshedAppointments.find((item) => getEffectiveAppointmentId(item) === appointmentId) || appointment;
-
-      if (!isJoinableVideoAppointment(latestAppointment)) {
-        showErrorToast(getVideoAppointmentJoinBlockedReason(latestAppointment), {
-          id: TOAST_IDS.VIDEO.ERROR,
-        });
-        return;
-      }
-
-      router.push(buildVideoSessionRoute(appointmentId));
-    } catch (error) {
-      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
-    }
-  };
-
-  const handleOpenMeetInNewTab = (appointment: VideoAppointment) => {
-    if (!canJoin) {
-      showErrorToast("No permission to join sessions.", { id: TOAST_IDS.VIDEO.PERMISSION });
-      return;
-    }
-
-    const appointmentId = getEffectiveAppointmentId(appointment);
-    if (!appointmentId) {
-      showErrorToast("Missing appointment ID for this video appointment.", { id: TOAST_IDS.VIDEO.ERROR });
-      return;
-    }
-
-    window.open(buildVideoSessionMeetRoute(appointmentId), "_blank", "noopener,noreferrer");
-  };
 
   const handleEndAppointment = async (appointmentId: string) => {
     if (!canEnd) return;
@@ -1071,20 +1019,12 @@ export function VideoAppointmentsList({
                       ["scheduled", "confirmed", "queued", "in-progress"].includes(effectiveStatus) &&
                       isJoinableVideoAppointment(appointment) &&
                       (!enforceTimeSlotWindow || isWithinJoinWindow(appointment)) && (
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" onClick={() => handleJoinAppointment(appointment)} className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">
-                          Join Session
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleOpenMeetInNewTab(appointment)}
-                          className="h-8 px-3 rounded-xl text-xs"
-                        >
-                          <ArrowUpRight className="mr-1.5 h-3.5 w-3.5" />
-                          Open Full Screen
-                        </Button>
-                      </div>
+                      <Link
+                        href={buildVideoSessionRoute(getEffectiveAppointmentId(appointment))}
+                        className="inline-flex h-8 items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
+                      >
+                        Join Session
+                      </Link>
                     )}
                     {showEndButton && appointment.status === "in-progress" && (
                       <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(getEffectiveAppointmentId(appointment))} className="h-8 px-3 rounded-xl text-xs" disabled={endVideoAppointment.isPending}>

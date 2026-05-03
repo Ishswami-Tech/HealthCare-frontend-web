@@ -99,10 +99,10 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
     const initializeWebSocket = async () => {
       try {
         // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
-        const websocketUrl = APP_CONFIG.WEBSOCKET.URL;
-        if (!websocketUrl) {
-          throw new Error('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL must be set in environment variables');
-        }
+        const websocketUrl =
+          APP_CONFIG.WEBSOCKET.URL ||
+          APP_CONFIG.API.RAW_URL ||
+          (typeof window !== 'undefined' ? window.location.origin : '');
 
         const accessToken = session?.access_token;
         if (!accessToken) {

@@ -3,6 +3,7 @@
 import { authenticatedApi, getServerSession } from './auth.server';
 import { API_ENDPOINTS } from '../config/config';
 import { isApiError } from '@/lib/utils/error-handler';
+import type { BackgroundPreset, VirtualBackgroundSettings } from '@/types/video.types';
 
 // ===== VIDEO TOKEN MANAGEMENT =====
 
@@ -155,45 +156,6 @@ export async function getVideoConsultationHistory(filters?: {
   
   const endpoint = `${API_ENDPOINTS.VIDEO.HISTORY}${params.toString() ? `?${params.toString()}` : ''}`;
   const { data: response } = await authenticatedApi(endpoint, {});
-  return response;
-}
-
-// ===== RECORDING MANAGEMENT =====
-
-/**
- * Start recording
- */
-export async function startRecording(data: {
-  appointmentId: string;
-  userId: string;
-  recordingType?: 'audio' | 'video' | 'both';
-}) {
-  const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.RECORDING.START, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return response;
-}
-
-/**
- * Stop recording
- */
-export async function stopRecording(data: {
-  appointmentId: string;
-  userId: string;
-}) {
-  const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.RECORDING.STOP, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return response;
-}
-
-/**
- * Get recording for appointment
- */
-export async function getRecording(appointmentId: string) {
-  const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.RECORDING.GET(appointmentId), {});
   return response;
 }
 
@@ -567,6 +529,27 @@ export async function createMedicalNote(
       }),
     }
   );
+  return response as MedicalNote;
+}
+
+/**
+ * Update medical note during consultation
+ */
+export async function updateMedicalNote(
+  noteId: string,
+  data: {
+    userId: string;
+    content?: string;
+    title?: string;
+    prescription?: unknown;
+    symptoms?: unknown[];
+    treatmentPlan?: unknown;
+  }
+) {
+  const { data: response } = await authenticatedApi(API_ENDPOINTS.VIDEO.NOTES.UPDATE(noteId), {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
   return response as MedicalNote;
 }
 
@@ -962,50 +945,64 @@ export async function saveTranscriptToEHR(appointmentId: string) {
   return response as { ehrRecordId: string };
 }
 
-// ===== PHASE 2: ENHANCED RECORDING CONTROLS =====
-// Note: Recording endpoints still use appointmentId
-
 /**
- * Pause recording
+ * Get current virtual background settings
  */
-export async function pauseRecording(appointmentId: string) {
+export async function getVirtualBackgroundSettings(appointmentId: string) {
+  const consultationId = await getConsultationId(appointmentId);
   const { data: response } = await authenticatedApi(
-    API_ENDPOINTS.VIDEO.RECORDING_ENHANCED.PAUSE(appointmentId),
-    {
-      method: 'POST',
-    }
+    API_ENDPOINTS.VIDEO.VIRTUAL_BACKGROUND.GET(consultationId),
+    {}
   );
-  return response as { success: boolean };
+  return response as VirtualBackgroundSettings | null;
 }
 
 /**
- * Resume recording
+ * Get available virtual background presets
  */
-export async function resumeRecording(appointmentId: string) {
+export async function getVirtualBackgroundPresets() {
   const { data: response } = await authenticatedApi(
-    API_ENDPOINTS.VIDEO.RECORDING_ENHANCED.RESUME(appointmentId),
-    {
-      method: 'POST',
-    }
+    API_ENDPOINTS.VIDEO.VIRTUAL_BACKGROUND.PRESETS,
+    {}
   );
-  return response as { success: boolean };
+  return Array.isArray(response) ? (response as BackgroundPreset[]) : [];
 }
 
 /**
- * Set recording quality
+ * Update virtual background settings
  */
-export async function setRecordingQuality(
+export async function updateVirtualBackground(
   appointmentId: string,
-  quality: 'low' | 'medium' | 'high' | 'ultra'
+  data: {
+    enabled: boolean;
+    type: 'blur' | 'image' | 'video' | 'none';
+    blurIntensity?: number;
+    imageUrl?: string;
+    videoUrl?: string;
+    customBackgroundId?: string;
+  }
 ) {
+  const consultationId = await getConsultationId(appointmentId);
+  const session = await getServerSession();
+  const userId = session?.user?.id || '';
+
+  if (!userId) {
+    const { ERROR_MESSAGES } = await import('@/lib/config/config');
+    throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
+  }
+
   const { data: response } = await authenticatedApi(
-    API_ENDPOINTS.VIDEO.RECORDING_ENHANCED.SET_QUALITY(appointmentId),
+    API_ENDPOINTS.VIDEO.VIRTUAL_BACKGROUND.UPDATE,
     {
       method: 'POST',
-      body: JSON.stringify({ quality }),
+      body: JSON.stringify({
+        consultationId,
+        userId,
+        ...data,
+      }),
     }
   );
-  return response as { success: boolean };
+  return response as VirtualBackgroundSettings;
 }
 
 // ===== PHASE 2: ENHANCED PARTICIPANT CONTROLS =====

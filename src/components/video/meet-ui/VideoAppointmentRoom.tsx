@@ -1,17 +1,16 @@
-
+﻿
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Info,
-  Loader2, 
-  Phone, 
+  Loader2,
+  Phone,
   XCircle,
   Search,
   UserPlus,
   MoreVertical,
-  ChevronDown,
-  ChevronUp
+  ChevronDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -37,32 +36,53 @@ import { MedicalNotes } from "../MedicalNotes";
 import { EnhancedParticipantControls } from "../EnhancedParticipantControls";
 import { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useVideoAppointmentTabOwnership } from "@/hooks/utils/useVideoAppointmentTabOwnership";
+import { getAvatarTone } from "@/lib/utils/avatar-colors";
+import {
+  useUpdateVirtualBackground,
+  useVirtualBackgroundPresets,
+  useVirtualBackgroundSettings,
+} from "@/hooks/query/useVideoAppointments";
+import APP_CONFIG from "@/lib/config/config";
 
-interface GoogleMeetVideoRoomProps {
+interface VideoAppointmentRoomProps {
   appointment: VideoAppointment;
   onLeaveRoom?: () => void;
-  autoStart?: boolean;
   startWithAudioEnabled?: boolean;
   startWithVideoEnabled?: boolean;
-  startWithAudioSource?: string | undefined;
-  startWithVideoSource?: string | undefined;
+  initialMediaStream?: MediaStream | null;
 }
 
-export default function GoogleMeetVideoRoom({
+type VirtualBackgroundMode = "none" | "blur-light" | "blur-medium" | "blur-strong";
+
+const VIRTUAL_BACKGROUND_FALLBACKS: Array<{
+  id: VirtualBackgroundMode;
+  label: string;
+  blurIntensity: number;
+}> = [
+  { id: "none", label: "Off", blurIntensity: 0 },
+  { id: "blur-light", label: "Light blur", blurIntensity: 30 },
+  { id: "blur-medium", label: "Medium blur", blurIntensity: 60 },
+  { id: "blur-strong", label: "Strong blur", blurIntensity: 85 },
+];
+
+export default function VideoAppointmentRoom({
   appointment,
   onLeaveRoom,
   startWithAudioEnabled = true,
   startWithVideoEnabled = true,
-  startWithAudioSource,
-  startWithVideoSource,
-}: GoogleMeetVideoRoomProps) {
+  initialMediaStream = null,
+}: VideoAppointmentRoomProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const resolvedAppointmentId = appointment.appointmentId;
+  const meetingLink = `${(
+    APP_CONFIG.APP.URL?.replace(/\/+$/, "") ||
+    (typeof window !== "undefined" ? window.location.origin : "")
+  )}/video-appointments/meet/${encodeURIComponent(resolvedAppointmentId)}`;
   const currentUserId = user?.id;
   const isDoctor = user?.role === "DOCTOR" || user?.role === "ASSISTANT_DOCTOR";
   const isAdmin = user?.role === "CLINIC_ADMIN" || user?.role === "SUPER_ADMIN";
-  const canEndForAll = isDoctor || isAdmin;
 
   // Use the refined video hooks
   const { 
@@ -76,12 +96,20 @@ export default function GoogleMeetVideoRoom({
   const { getCallControls } = useVideoCallControls();
   
   const { 
-    sendVideoAppointmentEvent,
-    sendParticipantJoined,
     sendParticipantLeft,
     sendRecordingStarted,
-    sendRecordingStopped
+    sendRecordingStopped,
+    subscribeToVirtualBackground,
+    isConnected
   } = useVideoAppointmentWebSocket();
+  const {
+    isOwnershipLost,
+    claimOwnership,
+    releaseOwnership,
+  } = useVideoAppointmentTabOwnership(resolvedAppointmentId);
+  const { data: virtualBackgroundSettings } = useVirtualBackgroundSettings(resolvedAppointmentId);
+  const { data: virtualBackgroundPresets = [] } = useVirtualBackgroundPresets();
+  const updateVirtualBackgroundMutation = useUpdateVirtualBackground();
 
   // Component local state
   const [isConnecting, setIsConnecting] = useState(false);
@@ -94,6 +122,9 @@ export default function GoogleMeetVideoRoom({
   const [isLocalSpeaking, setIsLocalSpeaking] = useState(false);
   const [call, setCall] = useState<OpenViduAPI | null>(null);
   const callRef = useRef<OpenViduAPI | null>(null);
+  const [sessionMovedMessage, setSessionMovedMessage] = useState<string | null>(null);
+  const [virtualBackgroundMode, setVirtualBackgroundMode] = useState<VirtualBackgroundMode>("none");
+  const [virtualBackgroundBlurIntensity, setVirtualBackgroundBlurIntensity] = useState(0);
 
   // Handle incoming signals and audio volume
   useEffect(() => {
@@ -134,6 +165,29 @@ export default function GoogleMeetVideoRoom({
     };
   }, [getCurrentCall, call]);
 
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const unsubscribe = subscribeToVirtualBackground((data) => {
+      if (data.consultationId !== appointment.appointmentId) return;
+      if (data.userId && data.userId !== currentUserId) return;
+
+      if (data.enabled === false || data.type === "none") {
+        setVirtualBackgroundMode("none");
+        setVirtualBackgroundBlurIntensity(0);
+        return;
+      }
+
+      const intensity = typeof data.blurIntensity === "number" ? data.blurIntensity : 60;
+      const mode =
+        intensity >= 75 ? "blur-strong" : intensity >= 45 ? "blur-medium" : "blur-light";
+      setVirtualBackgroundMode(mode);
+      setVirtualBackgroundBlurIntensity(intensity);
+    });
+
+    return unsubscribe;
+  }, [appointment.appointmentId, currentUserId, isConnected, subscribeToVirtualBackground]);
+
   // Toggle hand raise signal
   const toggleHandRaise = () => {
     const nextState = !isHandRaised;
@@ -170,10 +224,7 @@ export default function GoogleMeetVideoRoom({
     p.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.userId?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  const [isBlurred, setIsBlurred] = useState(false);
-  const [call, setCall] = useState<OpenViduAPI | null>(null);
-  const [isBlurred, setIsBlurred] = useState(false);
-  const callRef = useRef<OpenViduAPI | null>(null);
+  const participantsSignatureRef = useRef("");
 
   const videoSessionDecision = getVideoSessionDecision(appointment);
 
@@ -195,9 +246,146 @@ export default function GoogleMeetVideoRoom({
     });
   };
 
+  const resolveVirtualBackgroundChoice = (
+    mode: VirtualBackgroundMode
+  ): { enabled: boolean; type: "blur" | "image" | "video" | "none"; blurIntensity: number } => {
+    switch (mode) {
+      case "blur-light":
+        return { enabled: true, type: "blur", blurIntensity: 30 };
+      case "blur-medium":
+        return { enabled: true, type: "blur", blurIntensity: 60 };
+      case "blur-strong":
+        return { enabled: true, type: "blur", blurIntensity: 85 };
+      case "none":
+      default:
+        return { enabled: false, type: "none", blurIntensity: 0 };
+    }
+  };
+
+  const cycleVirtualBackground = async () => {
+    const currentIndex = VIRTUAL_BACKGROUND_FALLBACKS.findIndex((item) => item.id === virtualBackgroundMode);
+    const nextMode = VIRTUAL_BACKGROUND_FALLBACKS[(currentIndex + 1) % VIRTUAL_BACKGROUND_FALLBACKS.length]?.id || "none";
+    const nextChoice = resolveVirtualBackgroundChoice(nextMode);
+
+    setVirtualBackgroundMode(nextMode);
+    setVirtualBackgroundBlurIntensity(nextChoice.blurIntensity);
+
+    try {
+      if (call) {
+        if (nextChoice.enabled) {
+          await call.applyVirtualBackground(nextChoice);
+        } else {
+          await call.clearVirtualBackground();
+        }
+      }
+
+      await updateVirtualBackgroundMutation.mutateAsync({
+        appointmentId: resolvedAppointmentId,
+        data: nextChoice,
+      });
+      toast({
+        title: "Background updated",
+        description:
+          nextMode === "none"
+            ? "Background effects are off"
+            : `Applied ${VIRTUAL_BACKGROUND_FALLBACKS.find((item) => item.id === nextMode)?.label || "blur"}`,
+      });
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
+    }
+  };
+
+  useEffect(() => {
+    if (!virtualBackgroundSettings) return;
+
+    const mode =
+      !virtualBackgroundSettings.enabled || virtualBackgroundSettings.type === "none"
+        ? "none"
+        : virtualBackgroundSettings.type === "blur"
+          ? virtualBackgroundSettings.blurIntensity && virtualBackgroundSettings.blurIntensity >= 75
+            ? "blur-strong"
+            : virtualBackgroundSettings.blurIntensity && virtualBackgroundSettings.blurIntensity >= 45
+              ? "blur-medium"
+              : "blur-light"
+          : "none";
+
+    const normalizedMode = mode as VirtualBackgroundMode;
+    setVirtualBackgroundMode(normalizedMode);
+    if (virtualBackgroundSettings.blurIntensity !== undefined) {
+      setVirtualBackgroundBlurIntensity(virtualBackgroundSettings.blurIntensity);
+    }
+  }, [virtualBackgroundSettings]);
+
+  useEffect(() => {
+    if (virtualBackgroundPresets.length === 0) return;
+    if (virtualBackgroundSettings) return;
+
+    const defaultPreset = virtualBackgroundPresets.find((preset) => preset.isDefault);
+    if (defaultPreset?.type === "blur" && defaultPreset.blurIntensity !== undefined) {
+      setVirtualBackgroundMode(
+        defaultPreset.blurIntensity >= 75
+          ? "blur-strong"
+          : defaultPreset.blurIntensity >= 45
+            ? "blur-medium"
+            : "blur-light"
+      );
+      setVirtualBackgroundBlurIntensity(defaultPreset.blurIntensity);
+    }
+  }, [virtualBackgroundPresets, virtualBackgroundSettings]);
+
+  useEffect(() => {
+    if (!call) {
+      return;
+    }
+
+    const applyToPublisher = async () => {
+      if (!virtualBackgroundSettings || !virtualBackgroundSettings.enabled || virtualBackgroundSettings.type === "none") {
+        await call.clearVirtualBackground();
+        return;
+      }
+
+      await call.applyVirtualBackground({
+        enabled: true,
+        type: virtualBackgroundSettings.type,
+        ...(virtualBackgroundSettings.blurIntensity !== undefined
+          ? { blurIntensity: virtualBackgroundSettings.blurIntensity }
+          : {}),
+        ...(virtualBackgroundSettings.imageUrl ? { imageUrl: virtualBackgroundSettings.imageUrl } : {}),
+        ...(virtualBackgroundSettings.videoUrl ? { videoUrl: virtualBackgroundSettings.videoUrl } : {}),
+      });
+    };
+
+    void applyToPublisher().catch((error) => {
+      console.warn("[VIDEO] Failed to apply virtual background:", error);
+    });
+  }, [call, virtualBackgroundSettings]);
+
+  useEffect(() => {
+    if (!call || virtualBackgroundSettings) {
+      return;
+    }
+
+    const applyDefaultPreset = async () => {
+      const choice = resolveVirtualBackgroundChoice(virtualBackgroundMode);
+      if (choice.enabled) {
+        await call.applyVirtualBackground(choice);
+      } else {
+        await call.clearVirtualBackground();
+      }
+    };
+
+    void applyDefaultPreset().catch((error) => {
+      console.warn("[VIDEO] Failed to apply default virtual background:", error);
+    });
+  }, [call, virtualBackgroundMode, virtualBackgroundSettings]);
+
   const handleStartCall = async () => {
     try {
       setIsConnecting(true);
+      claimOwnership();
+      setSessionMovedMessage(null);
+      const previewAudioTrack = initialMediaStream?.getAudioTracks()[0]?.clone();
+      const previewVideoTrack = initialMediaStream?.getVideoTracks()[0]?.clone();
       const videoCall = await startCall(
         appointment,
         {
@@ -208,8 +396,8 @@ export default function GoogleMeetVideoRoom({
         {
           publishAudio: startWithAudioEnabled,
           publishVideo: startWithVideoEnabled,
-          ...(startWithAudioSource !== undefined && { audioSource: startWithAudioSource }),
-          ...(startWithVideoSource !== undefined && { videoSource: startWithVideoSource }),
+          ...(previewAudioTrack && startWithAudioEnabled ? { audioSource: previewAudioTrack } : {}),
+          ...(previewVideoTrack && startWithVideoEnabled ? { videoSource: previewVideoTrack } : {}),
         }
       );
       setCall(videoCall);
@@ -230,10 +418,12 @@ export default function GoogleMeetVideoRoom({
   const handleEndCall = async (options?: { skipToast?: boolean }) => {
     try {
       if (call) {
+        releaseOwnership();
         await endCall(resolvedAppointmentId);
         call.dispose();
         setCall(null);
         callRef.current = null;
+        initialMediaStream?.getTracks().forEach((track) => track.stop());
       }
 
       if (!options?.skipToast) {
@@ -246,10 +436,13 @@ export default function GoogleMeetVideoRoom({
 
   const handleLeaveRoom = () => {
     if (call) {
+      releaseOwnership();
       call.dispose();
       setCall(null);
       callRef.current = null;
     }
+
+    initialMediaStream?.getTracks().forEach((track) => track.stop());
 
     sendParticipantLeft(resolvedAppointmentId, {
       userId: currentUserId ?? "",
@@ -261,6 +454,27 @@ export default function GoogleMeetVideoRoom({
       onLeaveRoom();
     }
   };
+
+  useEffect(() => {
+    if (!isOwnershipLost) {
+      return;
+    }
+
+    if (callRef.current) {
+      callRef.current.dispose().catch(() => undefined);
+      callRef.current = null;
+    }
+
+    setCall(null);
+    setIsConnecting(false);
+    setSessionMovedMessage("This session is now active in another tab.");
+  }, [isOwnershipLost]);
+
+  useEffect(() => {
+    return () => {
+      releaseOwnership();
+    };
+  }, [releaseOwnership]);
 
   const controls = call ? getCallControls(call) : null;
 
@@ -340,7 +554,13 @@ export default function GoogleMeetVideoRoom({
 
   const updateParticipants = () => {
     const current = call ? call.getParticipants() : (controls ? controls.getParticipants() : []);
-    setParticipants(current);
+    const signature = current
+      .map((participant) => `${participant.connectionId}:${participant.userId || ""}:${participant.displayName || ""}:${participant.role || ""}`)
+      .join("|");
+    if (signature !== participantsSignatureRef.current) {
+      participantsSignatureRef.current = signature;
+      setParticipants(current);
+    }
   };
 
   useEffect(() => {
@@ -392,32 +612,46 @@ export default function GoogleMeetVideoRoom({
   const appointmentDateLabel = appointmentStartDate ? formatDateInIST(appointmentStartDate, { day: "2-digit", month: "short", year: "numeric" }) : "Date pending";
   const appointmentTimeLabel = appointmentStartDate ? formatTimeInIST(appointmentStartDate, { hour: "2-digit", minute: "2-digit", hour12: true }) : "Time pending";
 
+  if (sessionMovedMessage) {
+    return (
+      <div className="flex h-full min-h-0 w-full items-center justify-center bg-background px-4 py-8 text-foreground dark:bg-[#202124] dark:text-white">
+        <div className="max-w-lg rounded-3xl border border-border bg-card p-6 text-center shadow-2xl dark:border-white/10 dark:bg-white/5">
+          <p className="text-lg font-semibold">Session moved</p>
+          <p className="mt-2 text-sm text-muted-foreground dark:text-gray-300">{sessionMovedMessage}</p>
+          <p className="mt-4 text-xs uppercase tracking-[0.2em] text-muted-foreground dark:text-gray-400">
+            Open the active tab to continue the consultation.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <TooltipProvider>
       {/* Root: flex-column → video+sidebar row on top, control bar pinned at bottom */}
-      <div className="flex flex-col h-full w-full min-h-0 bg-[#202124] overflow-hidden">
+      <div className="flex flex-col h-full w-full min-h-0 bg-background text-foreground dark:bg-[#202124] dark:text-white overflow-hidden">
 
         {/* Top row: video area + optional sidebar, side-by-side */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden lg:flex-row">
 
           {/* Video Area — shrinks horizontally with smooth transition when sidebar opens */}
-          <div className="flex-1 relative bg-[#202124] min-w-0 overflow-hidden transition-all duration-300 ease-in-out">
+          <div className="flex-1 relative bg-background min-w-0 overflow-hidden transition-all duration-300 ease-in-out dark:bg-[#202124]">
             {!isInCall() ? (
               !isConnecting && (
-                <div className="flex h-full flex-col items-center justify-center p-6 text-white">
-                  <div className="w-full max-w-xl rounded-2xl border border-gray-700 bg-[#3c4043] p-8 text-center shadow-lg">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#202124] mb-4">
-                      <Phone className="h-8 w-8 text-white" />
+                <div className="flex h-full flex-col items-center justify-center p-6 text-foreground dark:text-white">
+                  <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-8 text-center shadow-lg dark:border-gray-700 dark:bg-[#3c4043]">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4 dark:bg-[#202124]">
+                      <Phone className="h-8 w-8 text-foreground dark:text-white" />
                     </div>
                     <h2 className="mt-4 text-2xl font-semibold">Ready to Join</h2>
-                    <p className="mx-auto mt-2 max-w-md text-sm text-gray-300">
+                    <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground dark:text-gray-300">
                       Check your camera and microphone before joining.
                     </p>
                     <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
                       <Button
                         onClick={handleStartCall}
                         size="lg"
-                        className="w-full sm:w-auto rounded-full bg-[#8ab4f8] hover:bg-[#aecbfa] px-8 text-[#202124] font-semibold"
+                        className="w-full sm:w-auto rounded-full bg-[#8ab4f8] hover:bg-[#aecbfa] px-8 text-meet-black font-semibold"
                       >
                         <Phone className="mr-2 h-5 w-5" />
                         {videoSessionDecision.label}
@@ -428,7 +662,7 @@ export default function GoogleMeetVideoRoom({
               )
             ) : (
               (layout === "speaker" || isScreenSharing) ? (
-                <SpeakerLayout 
+              <SpeakerLayout 
                   publisher={publisher} 
                   subscribers={subscribers} 
                   isHandRaised={isHandRaised}
@@ -445,9 +679,9 @@ export default function GoogleMeetVideoRoom({
             )}
 
             {isConnecting && (
-              <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#202124] bg-opacity-90 text-white">
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/90 text-foreground dark:bg-[#202124] dark:text-white">
                 <div className="text-center">
-                  <Loader2 className="mx-auto h-12 w-12 animate-spin text-[#8ab4f8]" />
+                  <Loader2 className="mx-auto h-12 w-12 animate-spin text-[var(--color-meet-blue)]" />
                   <p className="mt-4 text-lg font-medium">Joining the call...</p>
                 </div>
               </div>
@@ -458,15 +692,15 @@ export default function GoogleMeetVideoRoom({
             {showSidePanel && (
               <motion.div 
                 key="side-panel"
-                initial={{ opacity: 0, x: 20, width: 0 }}
-                animate={{ opacity: 1, x: 0, width: 380 }}
-                exit={{ opacity: 0, x: 20, width: 0 }}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
-                className="flex flex-col min-h-0 py-4 pr-4 z-40 overflow-hidden"
+                className="fixed inset-0 z-40 flex min-h-0 w-full bg-background/95 p-3 backdrop-blur-sm lg:static lg:inset-auto lg:w-[380px] lg:bg-transparent lg:p-0 lg:py-4 lg:pr-4 lg:backdrop-blur-0"
               >
-                <div className="flex-1 flex flex-col bg-[#202124] border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative">
-                  <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 shrink-0">
-                    <h3 className="font-semibold text-lg text-white">
+                <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl relative dark:bg-[#202124] dark:border-white/10 lg:flex-1 lg:rounded-2xl">
+                  <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0 sm:px-6 sm:py-5 dark:border-white/10">
+                    <h3 className="font-semibold text-lg text-foreground dark:text-white">
                       {activePanel === "chat"
                         ? "In-call messages"
                         : activePanel === "participants"
@@ -477,7 +711,7 @@ export default function GoogleMeetVideoRoom({
                       variant="ghost"
                       size="icon"
                       onClick={() => setShowSidePanel(false)}
-                      className="rounded-full h-8 w-8 hover:bg-white/10 text-gray-400 hover:text-white"
+                      className="rounded-full h-8 w-8 hover:bg-muted text-muted-foreground hover:text-foreground dark:hover:bg-white/10 dark:text-gray-400 dark:hover:text-white"
                     >
                       <span className="sr-only">Close</span>
                       <XCircle size={20} />
@@ -488,7 +722,7 @@ export default function GoogleMeetVideoRoom({
                     {activePanel === "chat" && (
                       <VideoChat
                         appointmentId={resolvedAppointmentId}
-                        className="h-full rounded-none border-0 shadow-none bg-transparent text-white"
+                        className="h-full min-h-0 rounded-none border-0 shadow-none bg-transparent text-foreground dark:text-white"
                       />
                     )}
 
@@ -497,14 +731,13 @@ export default function GoogleMeetVideoRoom({
                         <div className="p-4 space-y-4">
                           <Button 
                             onClick={() => {
-                              const link = `https://healthcare.app/meet/${resolvedAppointmentId}`;
-                              navigator.clipboard.writeText(link);
+                              navigator.clipboard.writeText(meetingLink);
                               toast({
                                 title: "Meeting link copied",
                                 description: "Invitation link has been copied to your clipboard.",
                               });
                             }}
-                            className="w-full justify-start gap-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full h-11 px-6 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                            className="w-full justify-start gap-3 bg-[var(--color-meet-blue)] hover:bg-[var(--color-hover-primary)] text-white rounded-full h-11 px-6 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
                           >
                             <UserPlus size={18} />
                             <span className="font-medium">Add people</span>
@@ -514,7 +747,7 @@ export default function GoogleMeetVideoRoom({
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                             <Input
                               placeholder="Search for people"
-                              className="bg-[#202124] border-white/10 text-white pl-9 h-11 rounded-xl focus:ring-blue-500 focus:border-blue-500"
+                              className="bg-background border-border text-foreground pl-9 h-11 rounded-xl focus:ring-blue-500 focus:border-blue-500 dark:bg-[#202124] dark:border-white/10 dark:text-white"
                               value={searchTerm}
                               onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -525,22 +758,22 @@ export default function GoogleMeetVideoRoom({
                           {participants.length === 0 ? (
                             <div className="px-4 py-8 text-center">
                               <Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-400 mb-2" />
-                              <p className="text-sm text-gray-400">Loading participants...</p>
+                              <p className="text-sm text-muted-foreground dark:text-gray-400">Loading participants...</p>
                             </div>
                           ) : (
                             <div className="space-y-1">
                               {filteredParticipants.map((participant) => (
                                 <div 
                                   key={participant.connectionId} 
-                                  className="group flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                                  className="group flex items-center justify-between p-2 rounded-xl hover:bg-muted transition-colors cursor-pointer dark:hover:bg-white/5"
                                 >
                                   <div className="flex items-center gap-3 min-w-0">
                                     <div className="relative shrink-0">
-                                      <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-sm">
+                                      <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm ${getAvatarTone(participant.displayName || participant.userId || participant.connectionId).backgroundClass}`}>
                                         {(participant.displayName || "U").charAt(0).toUpperCase()}
                                       </div>
                                       {participant.isSpeaking && (
-                                        <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-blue-500 rounded-full border-2 border-[#202124] flex items-center justify-center">
+                                        <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-[var(--color-meet-blue)] rounded-full border-2 border-background flex items-center justify-center dark:border-[#202124]">
                                           <div className="flex gap-[1px] items-end h-2">
                                             <div className="w-[1.5px] h-1 bg-white animate-pulse" />
                                             <div className="w-[1.5px] h-2 bg-white animate-pulse delay-75" />
@@ -551,16 +784,16 @@ export default function GoogleMeetVideoRoom({
                                     </div>
                                     <div className="flex flex-col min-w-0 flex-1">
                                       <div className="flex items-center gap-2 overflow-hidden">
-                                        <span className="text-sm font-semibold text-white truncate">
+                                        <span className="text-sm font-semibold text-foreground truncate dark:text-white">
                                           {participant.displayName || "Unknown User"}
                                         </span>
                                         {participant.connectionId === (call?.getSession()?.connection?.connectionId || controls?.getSession()?.connection?.connectionId) && (
-                                          <Badge variant="outline" className="text-[9px] uppercase tracking-tighter h-4 px-1 border-white/20 text-gray-400 shrink-0">
+                                          <Badge variant="outline" className="text-[9px] uppercase tracking-tighter h-4 px-1 border-border text-muted-foreground shrink-0 dark:border-white/20 dark:text-gray-400">
                                             You
                                           </Badge>
                                         )}
                                       </div>
-                                      <span className="text-[11px] text-gray-500 font-medium capitalize">
+                                      <span className="text-[11px] text-muted-foreground font-medium capitalize dark:text-gray-500">
                                         {participant.role?.toLowerCase() || "Participant"}
                                       </span>
                                     </div>
@@ -574,7 +807,7 @@ export default function GoogleMeetVideoRoom({
                                         onActionComplete={updateParticipants}
                                       />
                                     )}
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-gray-400 hover:text-white hover:bg-white/10">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10">
                                       <MoreVertical size={16} />
                                     </Button>
                                   </div>
@@ -588,46 +821,60 @@ export default function GoogleMeetVideoRoom({
 
                     {activePanel === "notes" && (
                       <div className="flex-1 flex flex-col min-h-0 bg-transparent overflow-hidden">
-                        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
-                          <div>
-                            <h4 className="text-sm font-medium text-blue-400 mb-3 flex items-center gap-2">
-                              <Info size={16} />
-                              Joining info
-                            </h4>
-                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 group hover:bg-white/10 transition-colors">
-                              <p className="text-sm text-gray-300 break-all select-all cursor-copy">
-                                https://healthcare.app/meet/{resolvedAppointmentId}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-6">
-                            <div>
-                              <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-3">Meeting Details</p>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-white/5 border border-white/10 rounded-xl p-3">
-                                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Date</p>
-                                  <p className="text-sm font-medium">{appointmentStartDate ? formatDateInIST(appointmentStartDate) : 'Today'}</p>
-                                </div>
-                                <div className="bg-white/5 border border-white/10 rounded-xl p-3">
-                                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Time</p>
-                                  <p className="text-sm font-medium">{appointmentTimeLabel || 'Now'}</p>
-                                </div>
+                        <div className="flex-1 overflow-y-auto p-2.5 sm:p-3 custom-scrollbar">
+                          <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-sm dark:border-white/10 dark:bg-[#202124]">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-meet-blue)]">
+                                  <Info size={12} />
+                                  Session Info
+                                </h4>
+                                <p className="mt-0.5 text-[10px] sm:text-[11px] leading-4 text-muted-foreground dark:text-gray-400">
+                                  Join link and schedule in one compact view.
+                                </p>
                               </div>
                             </div>
 
-                            <div className="pt-2">
-                              <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-3">Clinical Notes</p>
-                              <MedicalNotes 
+                            <div className="mt-3 space-y-2.5">
+                              <div className="rounded-lg bg-muted/40 px-2.5 py-2 dark:bg-white/5">
+                                <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-gray-400">
+                                  Joining info
+                                </p>
+                                <p className="mt-0.5 break-all text-[11px] leading-4 text-foreground dark:text-white">
+                                  {meetingLink}
+                                </p>
+                              </div>
+                              <div className="rounded-lg bg-muted/40 px-2.5 py-2 dark:bg-white/5">
+                                <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-gray-400">
+                                  Schedule
+                                </p>
+                                <p className="mt-0.5 text-[11px] leading-4 font-medium text-foreground dark:text-white">
+                                  {appointmentStartDate ? formatDateInIST(appointmentStartDate) : "Today"}{" "}
+                                  {appointmentTimeLabel ? `• ${appointmentTimeLabel}` : ""}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-2.5 border-t border-border/60 pt-2.5 dark:border-white/10">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-gray-400">
+                                  Clinical Notes
+                                </p>
+                                <span className="text-[9px] text-muted-foreground dark:text-gray-500">
+                                  Scroll inside
+                                </span>
+                              </div>
+                              <MedicalNotes
                                 appointmentId={resolvedAppointmentId}
-                                className="bg-white/5 border-white/10 shadow-none border rounded-2xl overflow-hidden" 
+                                className="mt-2 border-0 bg-transparent shadow-none [&_header]:px-0 [&_header]:pb-2 [&_h1]:text-sm [&_h2]:text-sm"
+                                compact
                               />
                             </div>
                           </div>
                         </div>
 
-                        <div className="p-6 border-t border-white/5 shrink-0 bg-[#202124]/50 backdrop-blur-md">
-                          <p className="text-[11px] text-gray-500 text-center flex items-center justify-center gap-2">
+                        <div className="p-2.5 sm:p-3 border-t border-border shrink-0 bg-background/80 backdrop-blur-md dark:border-white/5 dark:bg-[#202124]/50">
+                          <p className="text-[9px] sm:text-[10px] text-muted-foreground text-center flex items-center justify-center gap-2 dark:text-gray-500">
                             <span className="h-1.5 w-1.5 bg-green-500 rounded-full animate-pulse" />
                             Secure end-to-end encrypted consultation
                           </p>
@@ -643,13 +890,14 @@ export default function GoogleMeetVideoRoom({
 
         {/* Control Bar — always pinned at the bottom, NEVER hidden by sidebar */}
         {isInCall() && (
-          <div className="shrink-0 z-50 bg-[#202124] border-t border-white/10">
+          <div className="shrink-0 z-50 bg-background border-t border-border dark:bg-meet-black dark:border-white/10">
             <MeetControlBar 
               appointmentId={resolvedAppointmentId}
               isAudioMuted={isAudioMuted}
               isVideoMuted={isVideoMuted}
               isScreenSharing={isScreenSharing}
               isRecording={isRecording}
+              showRecordingControl={APP_CONFIG.FEATURES.VIDEO_RECORDING}
               isHandRaised={isHandRaised}
               isLocalSpeaking={isLocalSpeaking}
               onToggleAudio={toggleAudio}
@@ -678,8 +926,6 @@ export default function GoogleMeetVideoRoom({
               activePanel={activePanel}
               showSidePanel={showSidePanel}
               layout={layout}
-              isBlurred={isBlurred}
-              onToggleBlur={() => setIsBlurred(!isBlurred)}
             />
           </div>
         )}

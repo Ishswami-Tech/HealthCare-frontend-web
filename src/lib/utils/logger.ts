@@ -11,6 +11,48 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
+const REDACTED = '[REDACTED]';
+const SENSITIVE_KEY_PATTERN =
+  /token|authorization|cookie|password|secret|session|jwt|credential|api[-_]?key/i;
+const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
+
+function redactString(value: string): string {
+  return value.replace(JWT_PATTERN, REDACTED);
+}
+
+function redactValue(value: unknown, key?: string): unknown {
+  if (key && SENSITIVE_KEY_PATTERN.test(key)) {
+    return REDACTED;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        return JSON.stringify(redactValue(JSON.parse(trimmed)));
+      } catch {
+        return redactString(value);
+      }
+    }
+    return redactString(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => redactValue(item));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([entryKey, entryValue]) => [
+        entryKey,
+        redactValue(entryValue, entryKey),
+      ])
+    );
+  }
+
+  return value;
+}
+
 class Logger {
   private isDevelopment: boolean;
 
@@ -20,7 +62,7 @@ class Logger {
 
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
     const timestamp = nowIso();
-    const contextStr = context ? ` [${JSON.stringify(context)}]` : '';
+    const contextStr = context ? ` [${JSON.stringify(redactValue(context))}]` : '';
     return `[${timestamp}] ${level.toUpperCase()}: ${message}${contextStr}`;
   }
 

@@ -496,6 +496,12 @@ export async function clearSession() {
     value: '',
     ...expiredOptions,
   });
+
+  cookieStore.set({
+    name: 'profile_complete',
+    value: '',
+    ...expiredOptions,
+  });
 }
 
 export async function login(data: { email: string; password?: string; otp?: string; rememberMe?: boolean }) {

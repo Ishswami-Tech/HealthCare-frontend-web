@@ -37,3 +37,25 @@ export interface VideoRecording {
   duration?: number;
   createdAt: string;
 }
+
+// â”€â”€â”€ Virtual Background â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+export interface VirtualBackgroundSettings {
+  consultationId: string;
+  userId: string;
+  enabled: boolean;
+  type: 'blur' | 'image' | 'video' | 'none';
+  blurIntensity?: number;
+  imageUrl?: string;
+  videoUrl?: string;
+  customBackgroundId?: string;
+}
+
+export interface BackgroundPreset {
+  id: string;
+  name: string;
+  type: 'blur' | 'image';
+  imageUrl?: string;
+  blurIntensity?: number;
+  isDefault: boolean;
+}

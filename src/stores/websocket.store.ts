@@ -318,10 +318,10 @@ export const useQueueWebSocket = () => {
   
   const connectToQueue = (options: ConnectionOptions) => {
     // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
-    const url = APP_CONFIG.WEBSOCKET.URL;
-    if (!url) {
-      throw new Error('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL must be set in environment variables');
-    }
+    const url =
+      APP_CONFIG.WEBSOCKET.URL ||
+      APP_CONFIG.API.RAW_URL ||
+      (typeof window !== 'undefined' ? window.location.origin : '');
     store.connect(url, {
       ...options,
       namespace: '/queue-status',
@@ -339,10 +339,10 @@ export const useAppointmentWebSocket = () => {
   
   const connectToAppointments = (options: ConnectionOptions) => {
     // ⚠️ SECURITY: Use APP_CONFIG instead of hardcoded URLs
-    const url = APP_CONFIG.WEBSOCKET.URL;
-    if (!url) {
-      throw new Error('NEXT_PUBLIC_WEBSOCKET_URL or NEXT_PUBLIC_WS_URL must be set in environment variables');
-    }
+    const url =
+      APP_CONFIG.WEBSOCKET.URL ||
+      APP_CONFIG.API.RAW_URL ||
+      (typeof window !== 'undefined' ? window.location.origin : '');
     store.connect(url, {
       ...options,
       namespace: '/appointments',

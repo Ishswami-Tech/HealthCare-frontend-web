@@ -137,9 +137,7 @@ function getDefaultUrl() {
     if (fs.existsSync(envPath)) {
       const envContent = fs.readFileSync(envPath, 'utf8');
       const wsUrlMatch = envContent.match(/NEXT_PUBLIC_WEBSOCKET_URL=(.+)/);
-      const wsUrlAltMatch = envContent.match(/NEXT_PUBLIC_WS_URL=(.+)/);
       if (wsUrlMatch) return wsUrlMatch[1].trim();
-      if (wsUrlAltMatch) return wsUrlAltMatch[1].trim();
     }
   } catch (e) {
     // Ignore errors

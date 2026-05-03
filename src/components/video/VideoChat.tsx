@@ -22,6 +22,7 @@ import {
 } from "@/hooks/query";
 import { formatTimeInIST } from "@/lib/utils/appointmentUtils";
 import { showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
+import { getAvatarTone } from "@/lib/utils/avatar-colors";
 
 interface VideoChatProps {
   appointmentId: string;
@@ -29,6 +30,12 @@ interface VideoChatProps {
 }
 
 const EMPTY_CHAT_MESSAGES: ChatMessage[] = [];
+
+function messagesSignature(messages: ChatMessage[]) {
+  return messages
+    .map((message) => `${message.id}:${message.updatedAt || message.createdAt}:${message.message}:${message.fileUrl || ""}`)
+    .join("|");
+}
 
 export function VideoChat({ appointmentId, className }: VideoChatProps) {
   const { user } = useAuth();
@@ -50,17 +57,18 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
     useVideoAppointmentWebSocket();
 
   const resolvedChatMessages = chatMessages ?? EMPTY_CHAT_MESSAGES;
+  const resolvedChatMessagesKey = messagesSignature(resolvedChatMessages);
 
   useEffect(() => {
-    setMessages(resolvedChatMessages);
-  }, [resolvedChatMessages]);
+    setMessages((prev) => (messagesSignature(prev) === resolvedChatMessagesKey ? prev : resolvedChatMessages));
+  }, [resolvedChatMessages, resolvedChatMessagesKey]);
 
   // Subscribe to real-time chat messages
   useEffect(() => {
     if (!isConnected) return;
 
     const unsubscribe = subscribeToChatMessages((data) => {
-      if (data.appointmentId === appointmentId && data.message) {
+      if (data.message) {
         const newMsg = data as unknown as ChatMessage;
         setMessages((prev) => {
           // Avoid duplicates
@@ -79,7 +87,7 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
     });
 
     return unsubscribe;
-  }, [isConnected, appointmentId, subscribeToChatMessages, user?.id]);
+  }, [isConnected, subscribeToChatMessages]);
 
   // Handle typing indicator
   const handleTyping = () => {
@@ -143,28 +151,31 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
       .slice(0, 2);
   };
 
+  const getMessageAvatarSeed = (message: ChatMessage) =>
+    message.user?.name || message.userId || "guest";
+
   return (
-    <Card className={cn("h-full overflow-hidden border border-border bg-background shadow-sm", className)}>
-      <CardHeader className="border-b border-border px-4 py-3">
-        <CardTitle className="flex items-center justify-between text-base">
+    <Card className={cn("h-full overflow-hidden border border-border bg-card text-foreground shadow-sm dark:bg-[#202124] dark:text-white", className)}>
+      <CardHeader className="border-b border-border px-4 py-3 dark:border-white/10">
+        <CardTitle className="flex items-center justify-between text-base text-foreground dark:text-white">
           <span>Chat</span>
-          <Badge variant="outline" className="rounded-full text-[11px]">
+          <Badge variant="outline" className="rounded-full text-[11px] border-border text-muted-foreground dark:border-white/10 dark:text-gray-300">
             {messages.length} messages
           </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="flex h-full min-h-0 flex-col p-0">
         {/* Messages Area */}
-        <ScrollArea className="flex-1 bg-background px-4" ref={scrollAreaRef}>
+        <ScrollArea className="flex-1 bg-card px-3 sm:px-4 dark:bg-[#202124]" ref={scrollAreaRef}>
           {isLoading ? (
             <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-muted-foreground">Loading messages...</p>
+              <p className="text-sm text-muted-foreground dark:text-gray-400">Loading messages...</p>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex h-full items-center justify-center">
-              <div className="rounded-2xl border border-dashed border-border bg-muted px-4 py-5 text-center">
-                <p className="text-sm font-medium text-foreground">No messages yet</p>
-                <p className="mt-1 text-xs text-muted-foreground">Start the conversation in this secure session.</p>
+              <div className="rounded-2xl border border-dashed border-border bg-muted px-4 py-5 text-center dark:bg-white/5 dark:border-white/10">
+                <p className="text-sm font-medium text-foreground dark:text-white">No messages yet</p>
+                <p className="mt-1 text-xs text-muted-foreground dark:text-gray-400">Start the conversation in this secure session.</p>
               </div>
             </div>
           ) : (
@@ -177,7 +188,9 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                     className={`flex gap-3 ${isOwnMessage ? "flex-row-reverse" : ""}`}
                   >
                     <Avatar className="h-8 w-8 ring-2 ring-background shadow-sm">
-                      <AvatarFallback className="text-xs">
+                      <AvatarFallback
+                        className={`text-xs ${getAvatarTone(getMessageAvatarSeed(message)).backgroundClass}`}
+                      >
                         {getInitials(message.user?.name || message.userId || 'U')}
                       </AvatarFallback>
                     </Avatar>
@@ -210,7 +223,7 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                               href={message.fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={`flex items-center gap-2 rounded-xl px-2 py-1 text-xs font-medium transition-colors ${isOwnMessage ? "bg-muted hover:bg-white/15" : "bg-muted/60 hover:bg-muted"}`}
+                              className={`flex items-center gap-2 rounded-xl px-2 py-1 text-xs font-medium transition-colors ${isOwnMessage ? "bg-muted text-white hover:bg-white/15" : "bg-muted/60 text-foreground hover:bg-muted dark:text-white"}`}
                             >
                               <Paperclip className="h-3 w-3" />
                               <span>{message.fileName || 'Attachment'}</span>
@@ -225,10 +238,10 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
               {typingUsers.size > 0 && (
                 <div className="flex gap-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs">...</AvatarFallback>
+                    <AvatarFallback className={`text-xs ${getAvatarTone("typing").backgroundClass}`}>...</AvatarFallback>
                   </Avatar>
                   <div className="rounded-2xl border border-border/60 bg-muted px-3 py-2">
-                    <p className="text-sm text-muted-foreground italic">
+                    <p className="text-sm text-muted-foreground italic dark:text-gray-400">
                       {Array.from(typingUsers).join(", ")} typing...
                     </p>
                   </div>
@@ -239,7 +252,7 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
         </ScrollArea>
 
         {/* Input Area */}
-        <div className="border-t border-border bg-background p-3">
+        <div className="border-t border-border bg-card p-3 dark:border-white/10 dark:bg-[#202124]">
           <div className="flex gap-2">
             <Input
               ref={inputRef}
@@ -255,7 +268,7 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                 }
               }}
               placeholder="Type a message..."
-              className="flex-1 rounded-2xl bg-background"
+              className="flex-1 rounded-2xl bg-background dark:bg-[#202124] dark:text-white"
               disabled={!isConnected || sendChatMessageMutation.isPending}
             />
             <Button
@@ -268,11 +281,11 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
             </Button>
           </div>
           {!isConnected && (
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-2 text-xs text-muted-foreground dark:text-gray-400">
               Reconnecting to chat...
             </p>
           )}
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground dark:text-gray-400">
             File attachments are not available in this build.
           </p>
         </div>

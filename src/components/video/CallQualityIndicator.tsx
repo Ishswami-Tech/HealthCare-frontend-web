@@ -55,11 +55,10 @@ export function CallQualityIndicator({
     if (!isConnected) return;
 
     const unsubscribe = subscribeToCallQuality((data) => {
-      if (data.appointmentId === appointmentId && data.metrics) {
-        const metrics = data.metrics as unknown as CallQualityMetrics;
-        if (metrics) {
-          setQuality(metrics);
-        }
+      const metrics = (data as { metrics?: CallQualityMetrics }).metrics ??
+        (data as unknown as CallQualityMetrics);
+      if (metrics) {
+        setQuality(metrics);
       }
     });
 

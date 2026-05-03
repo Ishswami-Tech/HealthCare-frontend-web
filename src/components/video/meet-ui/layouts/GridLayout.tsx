@@ -8,7 +8,6 @@ interface GridLayoutProps {
   subscribers: any[]; // OpenVidu Subscribers
   isHandRaised?: boolean;
   raisedHands?: Set<string>;
-  isBlurred?: boolean;
 }
 
 export function GridLayout({ 
@@ -16,7 +15,6 @@ export function GridLayout({
   subscribers,
   isHandRaised = false,
   raisedHands = new Set(),
-  isBlurred = false,
 }: GridLayoutProps) {
   const allParticipants = [];
   
@@ -53,7 +51,6 @@ export function GridLayout({
               streamManager={participant.streamManager} 
               isLocal={participant.isLocal} 
               isHandRaised={handRaised}
-              isBlurred={participant.isLocal ? isBlurred : false}
             />
           </div>
         );

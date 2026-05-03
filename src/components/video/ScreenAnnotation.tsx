@@ -79,22 +79,20 @@ export function ScreenAnnotation({
     if (!isConnected) return;
 
     const unsubscribe = subscribeToAnnotations((data) => {
-      if (data.appointmentId === appointmentId) {
-        if (data.action === "annotation_created") {
-          const annotation = data.annotation as unknown as Annotation;
-          setAnnotations((prev) => [...prev, annotation]);
-          drawAnnotation(annotation);
-        } else if (data.action === "annotation_updated") {
-          const annotation = data.annotation as unknown as Annotation;
-          setAnnotations((prev) =>
-            prev.map((a) => (a.id === annotation.id ? annotation : a))
-          );
-          redrawAll();
-        } else if (data.action === "annotation_deleted") {
-          const annotationId = data.annotationId as string;
-          setAnnotations((prev) => prev.filter((a) => a.id !== annotationId));
-          redrawAll();
-        }
+      if (data.action === "annotation_created") {
+        const annotation = data.annotation as unknown as Annotation;
+        setAnnotations((prev) => [...prev, annotation]);
+        drawAnnotation(annotation);
+      } else if (data.action === "annotation_updated") {
+        const annotation = data.annotation as unknown as Annotation;
+        setAnnotations((prev) =>
+          prev.map((a) => (a.id === annotation.id ? annotation : a))
+        );
+        redrawAll();
+      } else if (data.action === "annotation_deleted") {
+        const annotationId = data.annotationId as string;
+        setAnnotations((prev) => prev.filter((a) => a.id !== annotationId));
+        redrawAll();
       }
     });
 

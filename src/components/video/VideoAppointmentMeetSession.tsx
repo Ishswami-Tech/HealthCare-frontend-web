@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { Loader2, Mic, MicOff, Video, VideoOff, Phone, Clock, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -103,9 +101,7 @@ export function VideoAppointmentMeetSession({
   );
   const [hasJoined, setHasJoined] = React.useState(false);
   const [isRequesting, setIsRequesting] = React.useState(true);
-  const [permissionError, setPermissionError] = React.useState<string | null>(
-    null
-  );
+  const [permissionError, setPermissionError] = React.useState<string | null>(null);
   const [mediaStream, setMediaStream] = React.useState<MediaStream | null>(null);
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [audioDevices, setAudioDevices] = React.useState<MediaDeviceInfo[]>([]);
@@ -116,6 +112,7 @@ export function VideoAppointmentMeetSession({
   const [isMirrored, setIsMirrored] = React.useState(true);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
+  const previewHandedOffRef = React.useRef(false);
   const appointmentDetailsSource =
     (appointmentQuery as any)?.appointment || (appointmentQuery as any)?.data || appointment;
   const appointmentDoctorName = getAppointmentDoctorName(appointmentDetailsSource);
@@ -173,22 +170,20 @@ export function VideoAppointmentMeetSession({
     async (
       nextVideoDeviceId: string,
       nextAudioDeviceId: string,
-      nextVideoEnabled = isVideoEnabled,
-      nextAudioEnabled = isAudioEnabled
+      nextVideoEnabled: boolean,
+      nextAudioEnabled: boolean
     ) => {
-      setIsRequesting(true);
+      const shouldShowLoader = !mediaStreamRef.current;
+      if (shouldShowLoader) {
+        setIsRequesting(true);
+      }
       setPermissionError(null);
 
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
 
-      // Add a small delay to allow hardware to reset before requesting again
-      // This helps prevent "AbortError: Timeout starting video source"
-      await new Promise(resolve => setTimeout(resolve, 150));
-
       try {
         if (!nextVideoEnabled && !nextAudioEnabled) {
-          mediaStreamRef.current = null;
           setMediaStream(null);
           setSelectedVideoDeviceId(nextVideoDeviceId);
           setSelectedAudioDeviceId(nextAudioDeviceId);
@@ -197,40 +192,69 @@ export function VideoAppointmentMeetSession({
           return;
         }
 
-        let stream: MediaStream;
-        
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: nextVideoEnabled
-              ? nextVideoDeviceId
-                ? { deviceId: { exact: nextVideoDeviceId } }
-                : true
-              : false,
-            audio: nextAudioEnabled
-              ? nextAudioDeviceId
-                ? { deviceId: { exact: nextAudioDeviceId } }
-                : true
-              : false,
-          });
-        } catch (initialErr) {
-          console.warn("Initial getUserMedia failed:", initialErr);
-          // If both were requested but failed (e.g. timeout on video), try fallback to audio only
-          if (nextVideoEnabled && nextAudioEnabled) {
-            console.log("Falling back to audio only...");
+        let stream: MediaStream | null = null;
+        let hasVideoTrack = false;
+        let hasAudioTrack = false;
+
+        if (nextVideoEnabled) {
+          try {
             stream = await navigator.mediaDevices.getUserMedia({
-              video: false,
-              audio: nextAudioDeviceId ? { deviceId: { exact: nextAudioDeviceId } } : true,
+              video: nextVideoDeviceId
+                ? { deviceId: { exact: nextVideoDeviceId } }
+                : true,
+              audio: nextAudioEnabled
+                ? nextAudioDeviceId
+                  ? { deviceId: { exact: nextAudioDeviceId } }
+                  : true
+                : false,
             });
-            nextVideoEnabled = false; // We successfully got audio, so we mark video as disabled
-          } else {
-            throw initialErr;
+          } catch (combinedErr) {
+            console.warn("[VIDEO] Combined preview capture failed, retrying with video only:", combinedErr);
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: nextVideoDeviceId
+                ? { deviceId: { exact: nextVideoDeviceId } }
+                : true,
+              audio: false,
+            });
           }
+
+          hasVideoTrack = !!stream.getVideoTracks()[0];
+          hasAudioTrack = !!stream.getAudioTracks()[0];
+
+          if (!hasAudioTrack && nextAudioEnabled) {
+            try {
+              const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
+                video: false,
+                audio: nextAudioDeviceId
+                  ? { deviceId: { exact: nextAudioDeviceId } }
+                  : true,
+              });
+              const audioTrack = audioOnlyStream.getAudioTracks()[0];
+              if (audioTrack) {
+                stream.addTrack(audioTrack);
+                hasAudioTrack = true;
+              }
+            } catch (audioErr) {
+              console.warn("[VIDEO] Microphone preview unavailable, keeping video preview only:", audioErr);
+            }
+          }
+        } else if (nextAudioEnabled) {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: false,
+            audio: nextAudioDeviceId
+              ? { deviceId: { exact: nextAudioDeviceId } }
+              : true,
+          });
+          hasAudioTrack = !!stream.getAudioTracks()[0];
         }
 
         const devices = await navigator.mediaDevices.enumerateDevices();
         const nextVideoDevices = devices.filter((device) => device.kind === "videoinput");
         const nextAudioDevices = devices.filter((device) => device.kind === "audioinput");
-        
+
+        if (!stream) {
+          throw new Error("Unable to open camera or microphone.");
+        }
         const resolvedVideoDeviceId =
           stream.getVideoTracks()[0]?.getSettings()?.deviceId ||
           nextVideoDeviceId ||
@@ -248,28 +272,33 @@ export function VideoAppointmentMeetSession({
         setAudioDevices(nextAudioDevices);
         setSelectedVideoDeviceId(resolvedVideoDeviceId);
         setSelectedAudioDeviceId(resolvedAudioDeviceId);
-        setIsAudioEnabled(nextAudioEnabled && stream.getAudioTracks().length > 0);
-        setIsVideoEnabled(nextVideoEnabled && stream.getVideoTracks().length > 0);
+        setIsAudioEnabled(nextAudioEnabled && hasAudioTrack);
+        setIsVideoEnabled(nextVideoEnabled && hasVideoTrack);
       } catch (err) {
-        console.error("Camera/Mic access error:", err);
         setPermissionError(
           err instanceof Error
-            ? (err.name === "AbortError" || err.message.includes("Timeout")) 
+            ? (err.name === "AbortError" || err.message.includes("Timeout"))
               ? "Your camera took too long to start. Try refreshing or selecting a different device."
               : err.message
             : "Camera and microphone access is required to join the meeting."
         );
       } finally {
-        setIsRequesting(false);
+        if (shouldShowLoader) {
+          setIsRequesting(false);
+        }
       }
     },
-    [isAudioEnabled, isVideoEnabled]
+    []
   );
 
   React.useEffect(() => {
-    void loadPreviewStream("", "");
+    void loadPreviewStream("", "", true, true);
 
     return () => {
+      if (previewHandedOffRef.current) {
+        return;
+      }
+
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
     };
@@ -285,18 +314,29 @@ export function VideoAppointmentMeetSession({
     }
 
     video.srcObject = mediaStream;
-    void video.play().catch(() => undefined);
-  }, [mediaStream]);
-
-  React.useEffect(() => {
-    return () => {
-      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    video.load();
+    video.muted = true;
+    video.playsInline = true;
+    const startPlayback = () => {
+      void video.play().catch(() => undefined);
     };
-  }, []);
+    if (video.readyState >= 2) {
+      startPlayback();
+      return;
+    }
+    video.addEventListener("loadedmetadata", startPlayback, { once: true });
+    return () => {
+      video.removeEventListener("loadedmetadata", startPlayback);
+    };
+  }, [mediaStream]);
 
   const toggleAudio = () => {
     const next = !isAudioEnabled;
-    void loadPreviewStream(selectedVideoDeviceId, selectedAudioDeviceId, isVideoEnabled, next);
+    const audioTrack = mediaStreamRef.current?.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = next;
+    }
+    setIsAudioEnabled(next);
   };
 
   const toggleVideo = () => {
@@ -317,8 +357,7 @@ export function VideoAppointmentMeetSession({
   };
 
   const handleJoin = () => {
-    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-    mediaStreamRef.current = null;
+    previewHandedOffRef.current = true;
     setHasJoined(true);
   };
 
@@ -332,14 +371,14 @@ export function VideoAppointmentMeetSession({
       window.close();
       return;
     }
-    router.replace("/video-appointments");
+    router.replace("/appointments");
   };
 
   if (isPending || !appointment || isRequesting) {
     return (
-      <div className="flex min-h-[100dvh] w-full items-center justify-center px-4 py-6 text-center bg-[var(--color-meet-black)] text-white">
-        <div className="rounded-3xl border border-[#3c4043] bg-[#202124] px-5 py-4 text-center shadow-sm sm:px-6 sm:py-5">
-          <Loader2 className="mx-auto h-9 w-9 animate-spin text-white" />
+      <div className="flex min-h-[100dvh] w-full items-center justify-center px-4 py-6 text-center bg-background text-foreground dark:bg-[var(--color-meet-black)] dark:text-white">
+        <div className="rounded-3xl border border-border bg-card px-5 py-4 text-center shadow-sm sm:px-6 sm:py-5 dark:border-[#3c4043] dark:bg-[#202124]">
+          <Loader2 className="mx-auto h-9 w-9 animate-spin text-foreground dark:text-white" />
           <p className="mt-3 text-sm font-medium">Getting ready...</p>
         </div>
       </div>
@@ -348,10 +387,10 @@ export function VideoAppointmentMeetSession({
 
   if (error || permissionError) {
     return (
-      <div className="flex min-h-[100dvh] w-full items-center justify-center px-4 py-6 text-center bg-[var(--color-meet-black)] text-white">
-        <div className="max-w-md rounded-3xl border border-[#3c4043] bg-[#202124] px-5 py-5 text-center shadow-sm sm:px-6 sm:py-6">
+      <div className="flex min-h-[100dvh] w-full items-center justify-center px-4 py-6 text-center bg-background text-foreground dark:bg-[var(--color-meet-black)] dark:text-white">
+        <div className="max-w-md rounded-3xl border border-border bg-card px-5 py-5 text-center shadow-sm sm:px-6 sm:py-6 dark:border-[#3c4043] dark:bg-[#202124]">
           <p className="text-lg font-semibold">Permissions required</p>
-          <p className="mt-2 text-sm text-gray-400">
+          <p className="mt-2 text-sm text-muted-foreground dark:text-gray-400">
             {permissionError || "Unable to load this meeting."}
           </p>
           <div className="mt-6 flex justify-center">
@@ -371,21 +410,19 @@ export function VideoAppointmentMeetSession({
     return (
       <VideoAppointmentMeetRoom
         appointment={appointment}
-        autoStart={true}
         startWithAudioEnabled={isAudioEnabled}
         startWithVideoEnabled={isVideoEnabled}
-        startWithAudioSource={selectedAudioDeviceId || undefined}
-        startWithVideoSource={selectedVideoDeviceId || undefined}
+        initialMediaStream={mediaStream}
         onLeaveRoom={handleLeavePreview}
       />
     );
   }
   return (
-    <div className="flex min-h-[100dvh] w-full flex-col lg:flex-row items-center justify-center gap-4 lg:gap-8 bg-[#202124] px-4 py-8 text-white sm:px-8">
+      <div className="flex min-h-[100dvh] w-full flex-col items-stretch justify-center gap-4 bg-background px-4 py-6 text-foreground dark:bg-[#202124] dark:text-white sm:px-6 sm:py-8 lg:flex-row lg:items-center lg:gap-8 lg:px-8">
       
       {/* Left side: Video Preview */}
-      <div className="w-full max-w-3xl lg:w-[65%] flex flex-col gap-4 z-10">
-        <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-[#202124] transition-all duration-300">
+      <div className="w-full max-w-3xl flex flex-col gap-4 z-10 lg:w-[65%]">
+        <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-card transition-all duration-300 dark:bg-[#202124]">
           <video
             ref={videoRef}
             autoPlay
@@ -396,15 +433,14 @@ export function VideoAppointmentMeetSession({
             } ${isVideoEnabled ? "opacity-100" : "opacity-0"}`}
           />
           {!isVideoEnabled && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#202124] px-4 text-center">
-              <div className="h-32 w-32 rounded-full bg-[#3c4043] flex items-center justify-center mb-6">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-card px-4 text-center dark:bg-[#202124]">
+              <div className="h-32 w-32 rounded-full bg-muted flex items-center justify-center mb-6 dark:bg-[#3c4043]">
                 <VideoOff className="h-12 w-12 text-[#9aa0a6]" />
               </div>
-              <p className="text-xl font-normal text-white">Camera is off</p>
+              <p className="text-xl font-normal text-foreground dark:text-white">Camera is off</p>
             </div>
           )}
-          
-          {/* Controls overlay */}
+
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-6 flex justify-center pb-8">
             <div className="flex justify-center gap-4">
               <Button
@@ -412,7 +448,7 @@ export function VideoAppointmentMeetSession({
                 onClick={toggleAudio}
                 className={`h-14 w-14 rounded-full transition-colors ${
                   isAudioEnabled
-                    ? "bg-[#3c4043] hover:bg-[#4a4d51] text-white border border-[#5f6368]"
+                    ? "bg-muted hover:bg-muted/80 text-foreground border border-border dark:bg-[#3c4043] dark:hover:bg-[#4a4d51] dark:text-white dark:border-[#5f6368]"
                     : "bg-[#ea4335] hover:bg-[#ea4335]/90 text-white border-0"
                 }`}
               >
@@ -423,7 +459,7 @@ export function VideoAppointmentMeetSession({
                 onClick={toggleVideo}
                 className={`h-14 w-14 rounded-full transition-colors ${
                   isVideoEnabled
-                    ? "bg-[#3c4043] hover:bg-[#4a4d51] text-white border border-[#5f6368]"
+                    ? "bg-muted hover:bg-muted/80 text-foreground border border-border dark:bg-[#3c4043] dark:hover:bg-[#4a4d51] dark:text-white dark:border-[#5f6368]"
                     : "bg-[#ea4335] hover:bg-[#ea4335]/90 text-white border-0"
                 }`}
               >
@@ -433,19 +469,19 @@ export function VideoAppointmentMeetSession({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 mt-4 px-2">
+        <div className="mt-4 grid gap-3 px-1 sm:grid-cols-2 sm:px-2">
           <div className="space-y-1">
             <Select value={selectedAudioDeviceId} onValueChange={handleAudioDeviceChange}>
-              <SelectTrigger className="h-10 w-full rounded-md border-0 bg-transparent hover:bg-[#3c4043] px-3 text-sm text-[#9aa0a6] focus:ring-1 focus:ring-blue-500 shadow-none">
+            <SelectTrigger className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none hover:bg-muted dark:border-[#3c4043] dark:bg-transparent dark:text-[#9aa0a6] dark:hover:bg-[#3c4043] focus:ring-1 focus:ring-blue-500">
                 <Mic className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Microphone" />
               </SelectTrigger>
-              <SelectContent className="border-[#3c4043] bg-[#2d2e30] text-white rounded-md">
+              <SelectContent className="rounded-md border-border bg-popover text-popover-foreground dark:border-[#3c4043] dark:bg-[#2d2e30] dark:text-white">
                 {audioDevices.length === 0 ? (
                   <SelectItem value="default-mic" className="py-2">Default microphone</SelectItem>
                 ) : (
                   audioDevices.map((device, index) => (
-                    <SelectItem key={device.deviceId} value={device.deviceId} className="py-2 focus:bg-[#4a4d51] focus:text-white">
+                    <SelectItem key={device.deviceId} value={device.deviceId} className="py-2 focus:bg-muted focus:text-foreground dark:focus:bg-[#4a4d51] dark:focus:text-white">
                       {device.label || `Microphone ${index + 1}`}
                     </SelectItem>
                   ))
@@ -455,16 +491,16 @@ export function VideoAppointmentMeetSession({
           </div>
           <div className="space-y-1">
             <Select value={selectedVideoDeviceId} onValueChange={handleVideoDeviceChange}>
-              <SelectTrigger className="h-10 w-full rounded-md border-0 bg-transparent hover:bg-[#3c4043] px-3 text-sm text-[#9aa0a6] focus:ring-1 focus:ring-blue-500 shadow-none">
+            <SelectTrigger className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none hover:bg-muted dark:border-[#3c4043] dark:bg-transparent dark:text-[#9aa0a6] dark:hover:bg-[#3c4043] focus:ring-1 focus:ring-blue-500">
                 <Video className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Camera" />
               </SelectTrigger>
-              <SelectContent className="border-[#3c4043] bg-[#2d2e30] text-white rounded-md">
+              <SelectContent className="rounded-md border-border bg-popover text-popover-foreground dark:border-[#3c4043] dark:bg-[#2d2e30] dark:text-white">
                 {videoDevices.length === 0 ? (
                   <SelectItem value="default-camera" className="py-2">Default camera</SelectItem>
                 ) : (
                   videoDevices.map((device, index) => (
-                    <SelectItem key={device.deviceId} value={device.deviceId} className="py-2 focus:bg-[#4a4d51] focus:text-white">
+                    <SelectItem key={device.deviceId} value={device.deviceId} className="py-2 focus:bg-muted focus:text-foreground dark:focus:bg-[#4a4d51] dark:focus:text-white">
                       {device.label || `Camera ${index + 1}`}
                     </SelectItem>
                   ))
@@ -476,29 +512,29 @@ export function VideoAppointmentMeetSession({
       </div>
 
       {/* Right side: Meeting details & Join button */}
-      <div className="flex w-full max-w-sm flex-col items-center text-center lg:w-[35%] lg:items-center z-10 p-4">
-        <h1 className="text-3xl sm:text-[36px] font-normal text-white mb-2 tracking-tight">Ready to join?</h1>
-        <p className="text-[#9aa0a6] text-base mb-8 font-normal">
-          Meeting with <span className="text-white font-medium">{meetingWithLabel}</span>
+      <div className="flex w-full max-w-sm flex-col items-center text-center z-10 p-2 sm:p-4 lg:w-[35%] lg:items-center">
+        <h1 className="text-3xl sm:text-[36px] font-normal text-foreground dark:text-white mb-2 tracking-tight">Ready to join?</h1>
+        <p className="text-muted-foreground dark:text-[#9aa0a6] text-base mb-8 font-normal">
+          Meeting with <span className="text-foreground font-medium dark:text-white">{meetingWithLabel}</span>
         </p>
         
-        <div className="flex flex-row gap-3 w-full justify-center">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
           <Button
             onClick={handleJoin}
-            className="h-12 rounded-full bg-[#8ab4f8] hover:bg-[#aecbfa] text-[#202124] px-6 text-[14px] font-medium transition-colors border-0"
+            className="h-12 w-full rounded-full bg-[var(--color-meet-blue)] hover:bg-[var(--color-hover-primary)] text-white dark:text-[#202124] px-6 text-[14px] font-medium transition-colors border-0 sm:w-auto"
           >
             Join now
           </Button>
           <Button
             onClick={handleLeavePreview}
             variant="outline"
-            className="h-12 rounded-full border-gray-600 bg-transparent hover:bg-gray-800 text-[#8ab4f8] hover:text-[#aecbfa] px-6 text-[14px] font-medium transition-colors"
+            className="h-12 w-full rounded-full border-border bg-transparent hover:bg-muted text-[var(--color-meet-blue)] hover:text-[var(--color-hover-primary)] px-6 text-[14px] font-medium transition-colors dark:border-gray-600 dark:hover:bg-gray-800 sm:w-auto"
           >
             Return
           </Button>
         </div>
         
-        <div className="mt-8 text-sm text-[#9aa0a6] w-full flex flex-col items-center gap-2">
+        <div className="mt-8 text-sm text-muted-foreground dark:text-[#9aa0a6] w-full flex flex-col items-center gap-2">
           {appointmentTimeSlotLabel !== "TBD" && (
              <p>Scheduled: {appointmentTimeSlotLabel}</p>
           )}

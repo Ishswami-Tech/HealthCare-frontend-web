@@ -333,7 +333,6 @@ export default async function proxy(request: NextRequest) {
   const apiHost = normalizeOrigin(process.env.NEXT_PUBLIC_API_URL);
   const wsHost =
     normalizeOrigin(process.env.NEXT_PUBLIC_WEBSOCKET_URL) ||
-    normalizeOrigin(process.env.NEXT_PUBLIC_WS_URL) ||
     apiHost;
   const appHost = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
   const openViduHost =
