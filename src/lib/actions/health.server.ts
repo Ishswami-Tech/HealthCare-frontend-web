@@ -10,6 +10,7 @@ const hasBackendProtectionKey = () => Boolean(process.env.BACKEND_PROTECTION_KEY
 type HealthDebugDetails = {
   status?: number;
   contentType?: string;
+  responseBody?: string;
 };
 
 const createUnavailableStatus = (
@@ -61,9 +62,18 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
     });
 
     if (response.status >= 400) {
+      const responseBody = (await response.text()).slice(0, 300);
+      logger.error('Health check returned error response', {
+        url: HEALTH_URL,
+        status: response.status,
+        contentType: response.headers.get('content-type') || '',
+        responseBody,
+      });
+
       return createUnavailableStatus(`Backend health returned HTTP ${response.status}`, HEALTH_URL, {
         status: response.status,
         contentType: response.headers.get('content-type') || '',
+        responseBody,
       });
     }
 

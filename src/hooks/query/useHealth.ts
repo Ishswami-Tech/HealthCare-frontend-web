@@ -12,6 +12,7 @@ export interface DetailedHealthStatus {
     ok?: boolean;
     status?: number;
     contentType?: string;
+    responseBody?: string;
     error?: string;
     backendProtectionHeaderAttached?: boolean;
     timestamp: string;
