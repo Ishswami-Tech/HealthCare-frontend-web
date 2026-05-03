@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PaymentButton } from "@/components/payments/PaymentButton";
+import { VideoAppointmentMeetRoom } from "@/components/video/VideoAppointmentMeetRoom";
 import { VideoAppointmentRoom } from "@/components/video/VideoAppointmentRoom";
 import { useVideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { useAppointmentServices } from "@/hooks/query/useAppointments";
@@ -25,6 +26,7 @@ type SessionInput = {
   appointmentId: string;
   appointment?: VideoAppointment | null;
   onBack?: () => void;
+  presentation?: "default" | "meet";
 };
 
 function isValidAppointmentId(value: string): boolean {
@@ -92,6 +94,7 @@ export function VideoAppointmentSession({
   appointmentId,
   appointment,
   onBack,
+  presentation = "default",
 }: SessionInput) {
   const router = useRouter();
   const resolvedAppointmentId = appointmentId.trim();
@@ -127,6 +130,7 @@ export function VideoAppointmentSession({
       appointmentId={resolvedAppointmentId}
       appointment={appointment ?? null}
       router={router}
+      presentation={presentation}
       {...(onBack ? { onBack } : {})}
     />
   );
@@ -136,11 +140,13 @@ function VideoAppointmentSessionContent({
   appointmentId,
   appointment,
   onBack,
+  presentation,
   router,
 }: {
   appointmentId: string;
   appointment?: VideoAppointment | null;
   onBack?: () => void;
+  presentation: "default" | "meet";
   router: ReturnType<typeof useRouter>;
 }) {
   const { data: appointmentQuery, isPending, isFetched, error, refetch } =
@@ -288,6 +294,42 @@ function VideoAppointmentSessionContent({
   const displayErrorMessage = blockedStatusMessage || errorMessage;
   const isBlocked = !!blockedStatusMessage || ((error || isFetched) && !normalizedAppointment);
 
+  if (presentation === "meet") {
+    if (isPending || !isPreflightComplete) {
+      return (
+        <div className="flex min-h-[100svh] w-full items-center justify-center px-4 py-6 text-center bg-[#202124] text-white">
+          <div className="rounded-3xl border border-white/10 bg-white/5 px-6 py-5 text-center shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            <p className="mt-3 text-sm font-medium">Joining meeting...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (!normalizedAppointment) {
+      return (
+        <div className="flex min-h-[100svh] w-full items-center justify-center px-4 py-6 text-center bg-[#202124] text-white">
+          <div className="rounded-3xl border border-white/10 bg-white/5 px-6 py-5 text-center shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+            <p className="text-sm font-medium">Meeting unavailable</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <VideoAppointmentMeetRoom
+        appointment={normalizedAppointment as VideoAppointment}
+        onLeaveRoom={() => {
+          if (onBack) {
+            onBack();
+            return;
+          }
+          router.replace("/video-appointments");
+        }}
+      />
+    );
+  }
+
   if (!isPending && normalizedAppointment && !paymentCompleted && !blockedStatusMessage) {
     return (
       <Card className="overflow-hidden border border-border bg-background shadow-sm">
@@ -355,9 +397,9 @@ function VideoAppointmentSessionContent({
             </Button>
           </div>
           <div className="rounded-2xl border bg-background p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-3">
+            <div className="mb-4 flex items-center justify-center gap-3 text-center">
               <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-primary" />
-              <div>
+              <div className="text-center">
                 <p className="font-medium">Preparing video session</p>
                 <p className="text-sm text-muted-foreground">Loading appointment details and meeting room.</p>
               </div>
@@ -398,9 +440,9 @@ function VideoAppointmentSessionContent({
             </Button>
           </div>
           <div className="rounded-2xl border bg-background p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-3">
+            <div className="mb-4 flex items-center justify-center gap-3 text-center">
               <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-primary" />
-              <div>
+              <div className="text-center">
                 <p className="font-medium">Checking latest appointment status</p>
                 <p className="text-sm text-muted-foreground">
                   Verifying whether this session is still joinable before loading the room.
@@ -457,12 +499,12 @@ function VideoAppointmentSessionContent({
               </div>
             </div>
             <div className="flex items-center gap-2">
-                <div className="rounded-2xl border border-border bg-muted px-3 py-2 text-right">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Session</p>
-                  <p className="text-sm font-semibold text-foreground">
-                    {appointmentId.slice(-8).toUpperCase()}
-                  </p>
-                </div>
+              <div className="rounded-2xl border border-border bg-muted px-3 py-2 text-right">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Session</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {appointmentId.slice(-8).toUpperCase()}
+                </p>
+              </div>
               <Button
                 variant="outline"
                 onClick={() => {

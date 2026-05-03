@@ -1,4 +1,4 @@
-// ✅ Video Appointment Hooks - OpenVidu Integration with WebSocket
+// âœ… Video Appointment Hooks - OpenVidu Integration with WebSocket
 // This file provides hooks for video appointment management with OpenVidu integration and real-time WebSocket updates
 
 import { useEffect, useCallback, useState } from 'react';
@@ -13,6 +13,7 @@ import { Role } from '@/types/auth.types';
 import {
   videoAppointmentService,
   normalizeOpenViduServerUrl,
+  resolveVideoDisplayName,
   type OpenViduAPI,
 } from '@/lib/video/openvidu';
 import { APP_CONFIG } from '@/lib/config/config';
@@ -113,7 +114,7 @@ function getOpenViduRole(role?: string | null): Role | 'admin' {
   }
 }
 
-// ✅ Video Appointment Types
+// âœ… Video Appointment Types
 export interface VideoAppointment {
   id: string;
   appointmentId: string;
@@ -161,7 +162,7 @@ export interface VideoAppointmentFilters {
   endDate?: string;
 }
 
-// ✅ Video Appointments Query Hook with WebSocket Integration
+// âœ… Video Appointments Query Hook with WebSocket Integration
 export function useVideoAppointments(filters?: VideoAppointmentFilters) {
   const { session } = useAuth();
   const { hasPermission } = useRBAC();
@@ -230,8 +231,8 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
     }
   );
 
-  // ✅ Subscribe to real-time updates
-  // ⚠️ OPTIMIZED: Only subscribe when connected (not dependent on query.data to avoid re-subscriptions)
+  // âœ… Subscribe to real-time updates
+  // âš ï¸ OPTIMIZED: Only subscribe when connected (not dependent on query.data to avoid re-subscriptions)
   useEffect(() => {
     if (!isConnected) return;
 
@@ -284,7 +285,7 @@ export function useVideoAppointments(filters?: VideoAppointmentFilters) {
   return query;
 }
 
-// ✅ Video Appointment by ID Query Hook with WebSocket Integration
+// âœ… Video Appointment by ID Query Hook with WebSocket Integration
 export function useVideoAppointment(id: string) {
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
@@ -326,7 +327,7 @@ export function useVideoAppointment(id: string) {
     }
   );
 
-  // ✅ Subscribe to real-time updates for this specific appointment
+  // âœ… Subscribe to real-time updates for this specific appointment
   useEffect(() => {
     if (!resolvedAppointmentId) return;
 
@@ -379,7 +380,7 @@ export function useVideoAppointment(id: string) {
   return query;
 }
 
-// ✅ Create Video Appointment Mutation Hook with WebSocket Integration
+// âœ… Create Video Appointment Mutation Hook with WebSocket Integration
 export function useCreateVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
@@ -434,7 +435,7 @@ export function useCreateVideoAppointment() {
   );
 }
 
-// ✅ Update Video Appointment Mutation Hook with WebSocket Integration
+// âœ… Update Video Appointment Mutation Hook with WebSocket Integration
 export function useUpdateVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
@@ -486,7 +487,7 @@ export function useUpdateVideoAppointment() {
   );
 }
 
-// ✅ End Video Appointment Mutation Hook with WebSocket Integration
+// âœ… End Video Appointment Mutation Hook with WebSocket Integration
 export function useEndVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
@@ -524,7 +525,7 @@ export function useEndVideoAppointment() {
   );
 }
 
-// ✅ Delete Video Appointment Mutation Hook
+// âœ… Delete Video Appointment Mutation Hook
 export function useDeleteVideoAppointment() {
   const queryClient = useQueryClient();
   const { hasPermission } = useRBAC();
@@ -561,7 +562,7 @@ export function useDeleteVideoAppointment() {
   );
 }
 
-// ✅ Reschedule Video Appointment Mutation Hook
+// âœ… Reschedule Video Appointment Mutation Hook
 export function useRescheduleVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
@@ -600,7 +601,7 @@ export function useRescheduleVideoAppointment() {
   );
 }
 
-// ✅ Reject Video Proposal Mutation Hook
+// âœ… Reject Video Proposal Mutation Hook
 export function useRejectVideoProposal() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
@@ -633,7 +634,7 @@ export function useRejectVideoProposal() {
   );
 }
 
-// ✅ Cancel Video Appointment Mutation Hook
+// âœ… Cancel Video Appointment Mutation Hook
 export function useCancelVideoAppointment() {
   const { hasPermission } = useRBAC();
   const { sendVideoAppointmentEvent } = useVideoAppointmentWebSocket();
@@ -671,7 +672,7 @@ export function useCancelVideoAppointment() {
   );
 }
 
-// ✅ Get Video Recording Query Hook
+// âœ… Get Video Recording Query Hook
 export function useVideoRecording(appointmentId: string) {
   const { hasPermission } = useRBAC();
 
@@ -691,7 +692,7 @@ export function useVideoRecording(appointmentId: string) {
   );
 }
 
-// ✅ Video Call Management Hook with WebSocket Integration
+// âœ… Video Call Management Hook with WebSocket Integration
 export function useVideoCall() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -701,7 +702,7 @@ export function useVideoCall() {
   const [publisher, setPublisher] = useState<any>(null); // Type: Publisher
   const [subscribers, setSubscribers] = useState<any[]>([]); // Type: Subscriber[]
 
-  // ✅ State Management Effects
+  // âœ… State Management Effects
   useEffect(() => {
     // Listen for OpenVidu stream events
     const handleStreamCreated = (_event: any) => {
@@ -724,17 +725,47 @@ export function useVideoCall() {
       }
     };
 
+    // Re-sync publisher so control-bar icons update after audio/video toggles
+    const handlePublisherPropertyChanged = (_event: any) => {
+      if (videoAppointmentService.isInCall()) {
+        const currentCall = videoAppointmentService.getCurrentCall();
+        if (currentCall) {
+          setPublisher((prev: any) => currentCall.getPublisher() ?? prev);
+        }
+      }
+    };
+
+    // Re-sync publisher when the object instance itself is replaced (e.g. screen share start/stop)
+    const handlePublisherChanged = (e: any) => {
+      if (e.detail?.publisher) {
+        setPublisher(e.detail.publisher);
+      }
+    };
+
     window.addEventListener('openvidu-stream-created', handleStreamCreated);
     window.addEventListener('openvidu-stream-destroyed', handleStreamDestroyed);
+    window.addEventListener('openvidu-publisher-property-changed', handlePublisherPropertyChanged);
+    window.addEventListener('openvidu-publisher-changed', handlePublisherChanged);
 
     return () => {
       window.removeEventListener('openvidu-stream-created', handleStreamCreated);
       window.removeEventListener('openvidu-stream-destroyed', handleStreamDestroyed);
+      window.removeEventListener('openvidu-publisher-property-changed', handlePublisherPropertyChanged);
+      window.removeEventListener('openvidu-publisher-changed', handlePublisherChanged);
     };
   }, []);
 
-  // ✅ Start Video Call
-  const startCall = useCallback(async (appointmentData: VideoAppointment, userInfo: { userId?: string; role?: string; displayName?: string; email?: string }) => {
+  // âœ… Start Video Call
+  const startCall = useCallback(async (
+    appointmentData: VideoAppointment,
+    userInfo: { userId?: string; role?: string; displayName?: string; email?: string },
+    mediaOptions?: {
+      videoSource?: string | MediaStreamTrack | boolean;
+      audioSource?: string | MediaStreamTrack | boolean;
+      publishAudio?: boolean;
+      publishVideo?: boolean;
+    }
+  ) => {
     try {
       const sessionDecision = getVideoSessionDecision(appointmentData);
       if (sessionDecision.blockedReason) {
@@ -759,7 +790,7 @@ export function useVideoCall() {
         userId: resolvedUserId,
         userRole: videoRole,
         userInfo: {
-          displayName: userInfo.displayName || user?.name || 'User',
+          displayName: userInfo.displayName || resolveVideoDisplayName(user),
           email: userInfo.email || user?.email || '',
         },
       }) as { token: string; roomName: string; roomId: string; meetingUrl: string };
@@ -788,7 +819,7 @@ export function useVideoCall() {
         appointmentData as any,
         {
           userId: resolvedUserId,
-          displayName: userInfo.displayName || user?.name || 'User',
+          displayName: userInfo.displayName || resolveVideoDisplayName(user),
           email: userInfo.email || user?.email || '',
           role: openViduRole,
         },
@@ -797,7 +828,7 @@ export function useVideoCall() {
       );
 
       // Initialize without container - React will handle rendering
-      await call.initialize();
+      await call.initialize(mediaOptions);
       
       // Update local state
       setPublisher(call.getPublisher());
@@ -810,7 +841,7 @@ export function useVideoCall() {
       
       sendParticipantJoined(appointmentData.appointmentId, {
         userId: resolvedUserId,
-        displayName: userInfo.displayName || user?.name || 'User',
+        displayName: userInfo.displayName || resolveVideoDisplayName(user),
         role: videoRole,
       });
       
@@ -830,7 +861,7 @@ export function useVideoCall() {
     }
   }, [sendVideoAppointmentEvent, sendParticipantJoined, toast, user]);
 
-  // ✅ End Video Call
+  // âœ… End Video Call
   const endCall = useCallback(async (appointmentId: string) => {
     try {
       const resolvedUserId = user?.id;
@@ -880,17 +911,17 @@ export function useVideoCall() {
     }
   }, [sendVideoAppointmentEvent, toast, user?.id, user?.role]);
 
-  // ✅ Get Current Call
+  // âœ… Get Current Call
   const getCurrentCall = useCallback(() => {
     return videoAppointmentService.getCurrentCall();
   }, []);
 
-  // ✅ Check if in call
+  // âœ… Check if in call
   const isInCall = useCallback(() => {
     return videoAppointmentService.isInCall();
   }, []);
 
-  // ✅ Leave call (participant left)
+  // âœ… Leave call (participant left)
   const leaveCall = useCallback((appointmentId: string, userInfo: { userId: string; displayName: string; role: string }) => {
     sendParticipantLeft(appointmentId, {
       userId: userInfo.userId,
@@ -903,12 +934,12 @@ export function useVideoCall() {
     setSubscribers([]);
   }, [sendParticipantLeft]);
 
-  // ✅ Start recording
+  // âœ… Start recording
   const startRecording = useCallback((appointmentId: string, recordingData?: { recordingId: string; status: string }) => {
     sendRecordingStarted(appointmentId, recordingData);
   }, [sendRecordingStarted]);
 
-  // ✅ Stop recording
+  // âœ… Stop recording
   const stopRecording = useCallback((appointmentId: string, recordingData?: { recordingId: string; status: string }) => {
     sendRecordingStopped(appointmentId, recordingData);
   }, [sendRecordingStopped]);
@@ -926,7 +957,7 @@ export function useVideoCall() {
   };
 }
 
-// ✅ Video Call Controls Hook
+// âœ… Video Call Controls Hook
 export function useVideoCallControls() {
   const { toast } = useToast();
 
@@ -934,114 +965,99 @@ export function useVideoCallControls() {
     if (!call) return null;
 
     return {
-      // ✅ Toggle Audio
+      // Toggle audio â€” publisher-property-changed window event drives icon state in UI
       toggleAudio: () => {
         try {
           call.toggleAudio();
-          toast({
-            title: 'Audio Toggled',
-            description: 'Audio has been toggled',
-          });
-        } catch (error) {
-          toast({
-            title: 'Error',
-            description: 'Failed to toggle audio',
-            variant: 'destructive',
-          });
+        } catch {
+          toast({ title: 'Microphone error', description: 'Could not toggle microphone', variant: 'destructive' });
         }
       },
 
-      // ✅ Toggle Video
-      toggleVideo: () => {
+      // Toggle video â€” returns true when camera is now OFF (muted)
+      toggleVideo: (): boolean => {
         try {
-          call.toggleVideo();
-          toast({
-            title: 'Video Toggled',
-            description: 'Video has been toggled',
-          });
-        } catch (error) {
-          toast({
-            title: 'Error',
-            description: 'Failed to toggle video',
-            variant: 'destructive',
-          });
+          return call.toggleVideo();
+        } catch {
+          toast({ title: 'Camera error', description: 'Could not toggle camera', variant: 'destructive' });
+          return false;
         }
       },
 
-      // ✅ Start/Stop Recording
-      toggleRecording: () => {
+      // Share screen — async, caller must await and handle isScreenSharing state
+      shareScreen: async (): Promise<void> => {
         try {
-          // Note: toggleRecording method may not be available in OpenViduAPI
-          // Use startRecording/stopRecording methods instead if available
-          if ('startRecording' in call && typeof call.startRecording === 'function') {
-            // Implementation depends on OpenVidu API
-          }
-          toast({
-            title: 'Recording Toggled',
-            description: 'Recording has been toggled',
-          });
+          await call.shareScreen();
         } catch (error) {
-          toast({
-            title: 'Error',
-            description: 'Failed to toggle recording',
-            variant: 'destructive',
-          });
+          const msg = error instanceof Error ? error.message : 'Failed to start screen share';
+          toast({ title: 'Screen share error', description: msg, variant: 'destructive' });
+          throw error;
         }
       },
 
-      // ✅ Share Screen
-      shareScreen: () => {
+      // Device management
+      getDevices: async () => {
         try {
-          call.shareScreen();
-          toast({
-            title: 'Screen Share',
-            description: 'Screen sharing activated',
-          });
+          return await call.getDevices();
         } catch (error) {
-          toast({
-            title: 'Error',
-            description: 'Failed to share screen',
-            variant: 'destructive',
-          });
-        }
-      },
-
-      // ✅ Raise Hand
-      raiseHand: () => {
-        try {
-          // Note: raiseHand method may not be available in OpenViduAPI
-          // This would need to be implemented via custom signaling
-          toast({
-            title: 'Hand Raised',
-            description: 'Hand has been raised',
-          });
-        } catch (error) {
-          toast({
-            title: 'Error',
-            description: 'Failed to raise hand',
-            variant: 'destructive',
-          });
-        }
-      },
-
-      // ✅ Get Participants
-      getParticipants: () => {
-        try {
-          return call.getParticipants();
-        } catch (error) {
-          console.error('Failed to get participants:', error);
+          console.error('[VIDEO] Failed to get devices:', error);
           return [];
         }
       },
 
-      // ✅ Get Current Participant
-      getCurrentParticipant: () => {
+      changeAudioSource: async (deviceId: string) => {
         try {
-          return call.getCurrentParticipant();
+          await call.changeAudioSource(deviceId);
+          toast({ title: 'Microphone Updated', description: 'Microphone source changed successfully' });
         } catch (error) {
-          console.error('Failed to get current participant:', error);
-          return null;
+          toast({ title: 'Microphone error', description: 'Could not change microphone', variant: 'destructive' });
         }
+      },
+
+      changeVideoSource: async (deviceId: string) => {
+        try {
+          await call.changeVideoSource(deviceId);
+          toast({ title: 'Camera Updated', description: 'Camera source changed successfully' });
+        } catch (error) {
+          toast({ title: 'Camera error', description: 'Could not change camera', variant: 'destructive' });
+        }
+      },
+
+      toggleRecording: () => {
+        // This is handled by the parent component usually but we can expose it here if needed
+        // For now, we'll assume the parent component's onToggleRecording handles the state
+        window.dispatchEvent(new CustomEvent('video-toggle-recording'));
+      },
+
+      // Stop screen share â€” async, restores camera publisher
+      stopScreenShare: async (): Promise<void> => {
+        try {
+          await call.stopScreenShare();
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : 'Failed to stop screen share';
+          toast({ title: 'Screen share error', description: msg, variant: 'destructive' });
+          throw error;
+        }
+      },
+
+      getParticipants: () => {
+        try { return call.getParticipants(); } catch { return []; }
+      },
+
+      getCurrentParticipant: () => {
+        try { return call.getCurrentParticipant(); } catch { return null; }
+      },
+
+      getSession: () => {
+        try { return call.getSession(); } catch { return null; }
+      },
+
+      getActiveAudioDeviceId: () => {
+        try { return call.getActiveAudioDeviceId(); } catch { return null; }
+      },
+
+      getActiveVideoDeviceId: () => {
+        try { return call.getActiveVideoDeviceId(); } catch { return null; }
       },
     };
   };

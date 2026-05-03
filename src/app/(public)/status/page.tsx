@@ -144,12 +144,6 @@ export default function StatusPage() {
   // Track Next.js app uptime (client-side)
   const [appUptime, setAppUptime] = useState(0);
 
-  // ✅ Client-side logger for status page
-  useEffect(() => {
-    if (healthStatus) {
-      console.log(`[StatusPage] ${new Date().toISOString()} - Health Update:`, healthStatus);
-    }
-  }, [healthStatus]);
 
   useEffect(() => {
     const startTime = Date.now();
@@ -341,3 +335,4 @@ export default function StatusPage() {
     </div>
   );
 }
+

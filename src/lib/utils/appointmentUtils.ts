@@ -111,6 +111,49 @@ function asRecordArray(value: unknown): Record<string, unknown>[] {
   return record ? [record] : [];
 }
 
+function normalizeNameCandidate(value: unknown): string {
+  return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+function getPersonNameCandidates(person: any): string[] {
+  const nestedUser = person?.user || {};
+  const nestedProfile = person?.profile || {};
+
+  return [
+    person?.name,
+    person?.displayName,
+    person?.display_name,
+    person?.fullName,
+    person?.full_name,
+    person?.firstName && person?.lastName ? `${person.firstName} ${person.lastName}` : "",
+    person?.first_name && person?.last_name ? `${person.first_name} ${person.last_name}` : "",
+    person?.firstName,
+    person?.lastName,
+    person?.first_name,
+    person?.last_name,
+    nestedUser?.name,
+    nestedUser?.displayName,
+    nestedUser?.display_name,
+    nestedUser?.fullName,
+    nestedUser?.full_name,
+    nestedUser?.firstName && nestedUser?.lastName ? `${nestedUser.firstName} ${nestedUser.lastName}` : "",
+    nestedUser?.first_name && nestedUser?.last_name ? `${nestedUser.first_name} ${nestedUser.last_name}` : "",
+    nestedUser?.firstName,
+    nestedUser?.lastName,
+    nestedUser?.first_name,
+    nestedUser?.last_name,
+    nestedProfile?.name,
+    nestedProfile?.displayName,
+    nestedProfile?.display_name,
+    nestedProfile?.fullName,
+    nestedProfile?.full_name,
+    nestedProfile?.firstName && nestedProfile?.lastName ? `${nestedProfile.firstName} ${nestedProfile.lastName}` : "",
+    nestedProfile?.first_name && nestedProfile?.last_name ? `${nestedProfile.first_name} ${nestedProfile.last_name}` : "",
+  ]
+    .map(normalizeNameCandidate)
+    .filter((value) => value && !/^unknown\s+(doctor|patient)$/i.test(value));
+}
+
 function getPaymentCandidates(appointment: any): Record<string, unknown>[] {
   return [
     ...asRecordArray(appointment?.payment),
@@ -292,35 +335,15 @@ export function getAppointmentPaymentDisplayState(appointment: any): Appointment
 }
 
 export function getAppointmentDoctorName(appointment: any): string {
-  return (
-    appointment?.doctorName ||
-    appointment?.doctor?.user?.displayName ||
-    appointment?.doctor?.displayName ||
-    appointment?.doctor?.fullName ||
-    appointment?.doctor?.user?.fullName ||
-    appointment?.doctor?.user?.name ||
-    appointment?.doctor?.name ||
-    `${appointment?.doctor?.user?.firstName || appointment?.doctor?.firstName || ''} ${
-      appointment?.doctor?.user?.lastName || appointment?.doctor?.lastName || ''
-    }`.trim() ||
-    'Unknown Doctor'
-  );
+  const candidates = getPersonNameCandidates(appointment?.doctor);
+  const doctorName = normalizeNameCandidate(appointment?.doctorName || candidates[0] || "");
+  return doctorName || "Unknown Doctor";
 }
 
 export function getAppointmentPatientName(appointment: any): string {
-  return (
-    appointment?.patientName ||
-    appointment?.patient?.user?.displayName ||
-    appointment?.patient?.displayName ||
-    appointment?.patient?.fullName ||
-    appointment?.patient?.user?.fullName ||
-    appointment?.patient?.user?.name ||
-    appointment?.patient?.name ||
-    `${appointment?.patient?.user?.firstName || appointment?.patient?.firstName || ""} ${
-      appointment?.patient?.user?.lastName || appointment?.patient?.lastName || ""
-    }`.trim() ||
-    "Unknown Patient"
-  );
+  const candidates = getPersonNameCandidates(appointment?.patient);
+  const patientName = normalizeNameCandidate(appointment?.patientName || candidates[0] || "");
+  return patientName || "Unknown Patient";
 }
 
 export function getAppointmentLocationName(appointment: any): string {

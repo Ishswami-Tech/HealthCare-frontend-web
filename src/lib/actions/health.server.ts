@@ -11,16 +11,12 @@ const createUnavailableStatus = (): DetailedHealthStatus => ({
   queue: { status: 'unavailable', healthy: false },
   communication: { status: 'unavailable', healthy: false },
   video: { status: 'unavailable', isHealthy: false },
-  logging: { status: 'unavailable', healthy: false }
+  logging: { status: 'unavailable', healthy: false },
 });
 
 export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
   const HEALTH_URL = `${APP_CONFIG.API.HEALTH_BASE_URL}${API_ENDPOINTS.HEALTH.DETAILED}`;
-  logger.info('Health check target URL', {
-    url: HEALTH_URL,
-    baseUrl: APP_CONFIG.API.HEALTH_BASE_URL,
-  });
-  
+
   try {
     const response = await fetchWithAbort(HEALTH_URL, {
       method: 'GET',

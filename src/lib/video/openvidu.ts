@@ -1,7 +1,7 @@
 // ✅ OpenVidu Integration for Healthcare Video Appointments
 // This module provides video appointment functionality using OpenVidu
 
-import { OpenVidu, Session, Publisher, Subscriber, Stream, ConnectionEvent, StreamEvent, PublisherProperties, StreamManagerEvent } from 'openvidu-browser';
+import { OpenVidu, Session, Publisher, Subscriber, Stream, ConnectionEvent, StreamEvent, PublisherProperties, StreamManagerEvent, Device } from 'openvidu-browser';
 import type { Role } from '@/types/auth.types';
 import type { AppointmentStatus } from '@/types/appointment.types';
 
@@ -43,6 +43,7 @@ export interface ParticipantInfo {
   role: string;
   userId?: string;
   displayName?: string;
+  isSpeaking?: boolean;
 }
 
 export function normalizeOpenViduServerUrl(value: string): string {
@@ -62,6 +63,61 @@ export function normalizeOpenViduServerUrl(value: string): string {
   }
 }
 
+type UserNameLike = {
+  displayName?: string | null | undefined;
+  name?: string | null | undefined;
+  firstName?: string | null | undefined;
+  lastName?: string | null | undefined;
+  email?: string | null | undefined;
+};
+
+export function resolveVideoDisplayName(user?: UserNameLike | null): string {
+  const displayName = String(user?.displayName || "").trim();
+  if (displayName) {
+    return displayName;
+  }
+
+  const name = String(user?.name || "").trim();
+  if (name) {
+    return name;
+  }
+
+  const firstName = String(user?.firstName || "").trim();
+  const lastName = String(user?.lastName || "").trim();
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+  if (fullName) {
+    return fullName;
+  }
+
+  const email = String(user?.email || "").trim();
+  if (email) {
+    const emailPrefix = email.split("@")[0] || "";
+    const emailName = emailPrefix.replace(/[._-]+/g, " ").trim();
+    if (emailName) {
+      return emailName;
+    }
+  }
+
+  return "User";
+}
+
+function getPublicOpenViduWsUri(value: string): string {
+  const raw = normalizeOpenViduServerUrl(value);
+  if (!raw) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(
+      /^https?:\/\//i.test(raw) || /^wss?:\/\//i.test(raw) ? raw : `https://${raw}`
+    );
+    const protocol = parsed.protocol === 'http:' ? 'ws:' : 'wss:';
+    return `${protocol}//${parsed.hostname}/openvidu`;
+  } catch {
+    return '';
+  }
+}
+
 // ✅ OpenVidu API Integration
 export class OpenViduAPI {
   private session: Session | null = null;
@@ -69,79 +125,130 @@ export class OpenViduAPI {
   private subscribers: Map<string, Subscriber> = new Map();
   private config: OpenViduConfig;
   private openvidu: OpenVidu;
+  private activeAudioDeviceId: string | null = null;
+  private activeVideoDeviceId: string | null = null;
 
   constructor(config: OpenViduConfig) {
     this.config = config;
     this.openvidu = new OpenVidu();
+    
+    // Initialize with default or provided sources
+    if (typeof config.options?.audioSource === 'string') {
+      this.activeAudioDeviceId = config.options.audioSource;
+    }
+    if (typeof config.options?.videoSource === 'string') {
+      this.activeVideoDeviceId = config.options.videoSource;
+    }
+  }
+
+  private parseConnectionData(dataStr: string): { displayName: string, userId: string, role: string } {
+    const result = { displayName: 'Unknown', userId: '', role: '' };
+    if (!dataStr) return result;
+
+    try {
+      const parts = dataStr.split('%/%');
+      
+      for (const part of parts) {
+        try {
+          const parsed = JSON.parse(part);
+          
+          // Check for nested clientData
+          if (parsed.clientData) {
+            try {
+              const clientData = typeof parsed.clientData === 'string' 
+                ? JSON.parse(parsed.clientData) 
+                : parsed.clientData;
+              result.displayName = clientData.displayName || clientData.userName || result.displayName;
+              result.userId = clientData.userId || result.userId;
+              result.role = clientData.role || clientData.userRole || result.role;
+            } catch (inner) {
+              // Not JSON
+            }
+          }
+          
+          result.displayName = parsed.displayName || parsed.userName || result.displayName;
+          result.userId = parsed.userId || result.userId;
+          result.role = parsed.role || parsed.userRole || result.role;
+        } catch (e) {
+          // If not JSON, use as fallback name
+          if (result.displayName === 'Unknown' && part.length > 2 && !part.startsWith('{')) {
+            result.displayName = part;
+          }
+        }
+      }
+    } catch (err) {
+      // Final fallback
+      result.displayName = dataStr.split('%')[0] || 'Unknown';
+    }
+
+    if (result.displayName === 'Unknown') result.displayName = 'User';
+    return result;
   }
 
   private normalizeTokenUrl(token: string): string {
-    const openviduServerUrl = normalizeOpenViduServerUrl(this.config.openviduServerUrl || '');
-    if (!openviduServerUrl) {
-      return token;
+    return token.trim();
+  }
+
+  private patchSessionTransport(): void {
+    if (!this.session) {
+      return;
     }
 
-    try {
-      const tokenUrl = new URL(token);
-      const serverBase = new URL(
-        /^https?:\/\//i.test(openviduServerUrl) || /^wss?:\/\//i.test(openviduServerUrl)
-          ? openviduServerUrl
-          : `https://${openviduServerUrl}`
-      );
-
-      const normalizedProtocol =
-        serverBase.protocol === 'http:'
-          ? 'ws:'
-          : serverBase.protocol === 'https:'
-            ? 'wss:'
-            : serverBase.protocol === 'ws:'
-              ? 'ws:'
-              : serverBase.protocol === 'wss:'
-              ? 'wss:'
-              : tokenUrl.protocol;
-
-      const serverHostname = serverBase.hostname;
-      const serverPort = serverBase.port;
-      const tokenHostnameMatchesServer = tokenUrl.hostname === serverHostname;
-      const tokenPortMatchesServer = tokenUrl.port === serverPort;
-      const isLoopbackHost = /^(localhost|127\.0\.0\.1|\[::1\]|::1)$/i.test(tokenUrl.hostname);
-
-      // Rewrite the browser-facing endpoint to the configured public OpenVidu origin.
-      // This avoids leaking an internal :4443 origin into the client when the app is
-      // deployed behind a reverse proxy / CDN that serves OpenVidu over the public host.
-      if (tokenHostnameMatchesServer && tokenPortMatchesServer && tokenUrl.protocol === normalizedProtocol) {
-        return token;
-      }
-
-      tokenUrl.protocol = normalizedProtocol;
-      tokenUrl.hostname = serverHostname;
-      if (serverPort) {
-        tokenUrl.port = serverPort;
-      } else {
-        tokenUrl.port = '';
-      }
-
-      if (!serverPort && isLoopbackHost) {
-        tokenUrl.port = '';
-      }
-
-      return tokenUrl.toString();
-    } catch {
-      return token;
+    const publicWsUri = getPublicOpenViduWsUri(this.config.openviduServerUrl || '');
+    if (!publicWsUri) {
+      return;
     }
+
+    const publicHttpUri = publicWsUri
+      .replace(/^wss:\/\//i, 'https://')
+      .replace(/^ws:\/\//i, 'http://')
+      .replace(/\/openvidu$/i, '');
+
+    const openviduAny = this.openvidu as unknown as {
+      startWs?: (onConnectSuccess: (error: Error) => void) => void;
+      wsUri?: string;
+      httpUri?: string;
+    };
+
+    const originalStartWs = openviduAny.startWs?.bind(this.openvidu);
+    if (!originalStartWs) {
+      return;
+    }
+
+    openviduAny.startWs = (onConnectSuccess: (error: Error) => void) => {
+      openviduAny.wsUri = publicWsUri;
+      openviduAny.httpUri = publicHttpUri;
+      return originalStartWs(onConnectSuccess);
+    };
   }
 
   // ✅ Initialize OpenVidu Session
-  async initialize(): Promise<void> {
+  async initialize(mediaOptions?: {
+    videoSource?: string | MediaStreamTrack | boolean;
+    audioSource?: string | MediaStreamTrack | boolean;
+    publishAudio?: boolean;
+    publishVideo?: boolean;
+  }): Promise<void> {
     try {
+      // Merge caller media preferences into config
+      if (mediaOptions) {
+        this.config.options = { ...this.config.options, ...mediaOptions };
+      }
+
       // Create session with OpenVidu instance
       this.session = this.openvidu.initSession();
       
       // Set up event listeners
       this.setupEventListeners();
+      this.patchSessionTransport();
 
       // Connect to session
       const connectionToken = this.normalizeTokenUrl(this.config.token);
+      console.warn('[VIDEO][OpenVidu] Connecting with transport:', {
+        sessionId: this.config.sessionId,
+        token: connectionToken,
+        wsUri: (this.openvidu as unknown as { getWsUri?: () => string }).getWsUri?.() || 'unknown',
+      });
       await this.session.connect(connectionToken, {
         clientData: JSON.stringify({
           displayName: this.config.userInfo.displayName,
@@ -156,11 +263,16 @@ export class OpenViduAPI {
       // Publish stream
       if (this.publisher) {
         await this.session.publish(this.publisher);
+        // Notify application that the publisher object itself has changed
+        window.dispatchEvent(new CustomEvent('openvidu-publisher-changed', {
+          detail: { publisher: this.publisher }
+        }));
       }
 
       // Session initialized successfully
     } catch (error) {
       console.error('Failed to initialize OpenVidu session:', error);
+      await this.dispose().catch(() => undefined);
       throw new Error('Failed to initialize video call');
     }
   }
@@ -257,14 +369,33 @@ export class OpenViduAPI {
   // ✅ Control Methods
   toggleAudio(): void {
     if (this.publisher) {
-      this.publisher.publishAudio(!this.publisher.stream.audioActive);
+      const next = !this.publisher.stream.audioActive;
+      this.publisher.publishAudio(next);
+      window.dispatchEvent(new CustomEvent('openvidu-publisher-property-changed', {
+        detail: { property: 'audioActive', value: next }
+      }));
     }
   }
 
-  toggleVideo(): void {
-    if (this.publisher) {
-      this.publisher.publishVideo(!this.publisher.stream.videoActive);
+  toggleVideo(): boolean {
+    if (!this.publisher) {
+      return false;
     }
+
+    const nextVideoActive = !this.publisher.stream.videoActive;
+
+    if (nextVideoActive) {
+      this.publisher.publishVideo(true);
+    } else {
+      // Free the camera hardware so the browser light turns off immediately.
+      this.publisher.publishVideo(false, true);
+    }
+
+    window.dispatchEvent(new CustomEvent('openvidu-publisher-property-changed', {
+      detail: { property: 'videoActive', value: nextVideoActive }
+    }));
+
+    return !nextVideoActive;
   }
 
   // ✅ Share Screen
@@ -272,20 +403,41 @@ export class OpenViduAPI {
     if (!this.session || !this.publisher) return;
 
     try {
-      // Stop current publisher
-      await this.session.unpublish(this.publisher);
-      this.publisher = null;
-
       // Create screen share publisher
-      this.publisher = await this.openvidu.initPublisher(undefined, {
+      const screenPublisher = await this.openvidu.initPublisher(undefined, {
         videoSource: 'screen',
         publishAudio: false,
         publishVideo: true,
       });
 
-      if (this.publisher) {
+      // Listen for when the user stops sharing via the browser's native button
+      screenPublisher.once('streamDestroyed', async (event) => {
+        if (event.reason === 'unpublish') {
+          await this.stopScreenShare();
+        }
+      });
+
+      screenPublisher.once('accessAllowed', async () => {
+        if (!this.session || !this.publisher) return;
+        
+        // Stop current publisher only after access is allowed to screen
+        await this.session.unpublish(this.publisher);
+        this.publisher = screenPublisher;
+        
         await this.session.publish(this.publisher);
-      }
+        
+        // Notify application that the publisher object itself has changed
+        window.dispatchEvent(new CustomEvent('openvidu-publisher-changed', {
+          detail: { publisher: this.publisher }
+        }));
+
+        window.dispatchEvent(new CustomEvent('openvidu-screen-share-started'));
+      });
+
+      screenPublisher.once('accessDenied', () => {
+        window.dispatchEvent(new CustomEvent('openvidu-screen-share-stopped'));
+      });
+
     } catch (error) {
       console.error('Failed to share screen:', error);
       throw error;
@@ -304,6 +456,11 @@ export class OpenViduAPI {
       await this.initializePublisher();
       if (this.publisher) {
         await this.session.publish(this.publisher);
+        // Notify application that we've switched back to the camera publisher
+        window.dispatchEvent(new CustomEvent('openvidu-publisher-changed', {
+          detail: { publisher: this.publisher }
+        }));
+        window.dispatchEvent(new CustomEvent('openvidu-screen-share-stopped'));
       }
     } catch (error) {
       console.error('Failed to stop screen share:', error);
@@ -316,25 +473,43 @@ export class OpenViduAPI {
     if (!this.session) return [];
 
     const participants: ParticipantInfo[] = [];
+    
+    // Add local participant (You)
+    const local = this.getCurrentParticipant();
+    if (local) {
+      participants.push({
+        ...local,
+        displayName: `${local.displayName || 'You'} (You)`
+      });
+    }
+
     this.session.remoteConnections.forEach((connection) => {
+      const parsed = this.parseConnectionData(connection.data || '');
+      
       participants.push({
         connectionId: connection.connectionId,
         data: connection.data || '',
         role: connection.role || 'SUBSCRIBER',
+        displayName: parsed.displayName,
+        userId: parsed.userId,
+        isSpeaking: false
       });
     });
 
     return participants;
   }
 
-  // ✅ Get Current Participant
   getCurrentParticipant(): ParticipantInfo | null {
-    if (!this.session) return null;
+    if (!this.session || !this.session.connection) return null;
+
+    const parsed = this.parseConnectionData(this.session.connection.data || '');
 
     return {
       connectionId: this.session.connection.connectionId,
       data: this.session.connection.data || '',
       role: this.session.connection.role || 'PUBLISHER',
+      displayName: parsed.displayName,
+      userId: parsed.userId,
     };
   }
 
@@ -356,6 +531,52 @@ export class OpenViduAPI {
   // ✅ Get Subscribers
   getSubscribers(): Subscriber[] {
     return Array.from(this.subscribers.values());
+  }
+
+  // ✅ Get Session
+  getSession(): Session | null {
+    return this.session;
+  }
+
+  // ✅ Get Devices
+  async getDevices(): Promise<Device[]> {
+    return await this.openvidu.getDevices();
+  }
+
+  // ✅ Change Audio Source
+  async changeAudioSource(deviceId: string): Promise<void> {
+    if (!this.publisher) return;
+    try {
+      const mediaStream = await this.openvidu.getUserMedia({ audioSource: deviceId, videoSource: false });
+      const audioTrack = mediaStream.getAudioTracks()[0];
+      if (audioTrack) {
+        await this.publisher.replaceTrack(audioTrack);
+        this.activeAudioDeviceId = deviceId;
+      } else {
+        throw new Error('No audio track found for selected device');
+      }
+    } catch (error) {
+      console.error('[VIDEO] Failed to change audio source:', error);
+      throw error;
+    }
+  }
+
+  // ✅ Change Video Source
+  async changeVideoSource(deviceId: string): Promise<void> {
+    if (!this.publisher) return;
+    try {
+      const mediaStream = await this.openvidu.getUserMedia({ audioSource: false, videoSource: deviceId });
+      const videoTrack = mediaStream.getVideoTracks()[0];
+      if (videoTrack) {
+        await this.publisher.replaceTrack(videoTrack);
+        this.activeVideoDeviceId = deviceId;
+      } else {
+        throw new Error('No video track found for selected device');
+      }
+    } catch (error) {
+      console.error('[VIDEO] Failed to change video source:', error);
+      throw error;
+    }
   }
 
   // ✅ End Call
@@ -386,6 +607,15 @@ export class OpenViduAPI {
       console.error('Error disposing OpenVidu session:', error);
     }
   }
+
+  // ✅ Get Active Devices
+  getActiveAudioDeviceId(): string | null {
+    return this.activeAudioDeviceId;
+  }
+
+  getActiveVideoDeviceId(): string | null {
+    return this.activeVideoDeviceId;
+  }
 }
 
 
@@ -413,7 +643,15 @@ export class VideoAppointmentService {
       role: Role | 'admin';
     },
     token: string,
-    openviduServerUrl: string
+    openviduServerUrl: string,
+    options?: {
+      videoSource?: string | MediaStreamTrack | boolean;
+      audioSource?: string | MediaStreamTrack | boolean;
+      publishAudio?: boolean;
+      publishVideo?: boolean;
+      resolution?: string;
+      frameRate?: number;
+    }
   ): Promise<OpenViduAPI> {
     try {
       // Create OpenVidu configuration
@@ -426,13 +664,24 @@ export class VideoAppointmentService {
           email: userInfo.email,
           role: userInfo.role,
         },
-        options: {
-          publishAudio: true,
-          publishVideo: true,
-          resolution: '1280x720',
-          frameRate: 30,
-        },
       };
+
+      const callOptions: NonNullable<OpenViduConfig["options"]> = {
+        publishAudio: options?.publishAudio ?? true,
+        publishVideo: options?.publishVideo ?? true,
+        resolution: '1280x720',
+        frameRate: 30,
+      };
+
+      if (options?.audioSource !== undefined) {
+        callOptions.audioSource = options.audioSource;
+      }
+
+      if (options?.videoSource !== undefined) {
+        callOptions.videoSource = options.videoSource;
+      }
+
+      config.options = callOptions;
 
       // Initialize OpenVidu
       this.currentCall = new OpenViduAPI(config);
