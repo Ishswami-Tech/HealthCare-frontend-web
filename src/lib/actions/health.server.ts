@@ -18,6 +18,11 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
   const HEALTH_URL = `${APP_CONFIG.API.HEALTH_BASE_URL}${API_ENDPOINTS.HEALTH.DETAILED}`;
 
   try {
+    logger.info('Health check request starting', {
+      url: HEALTH_URL,
+      method: 'GET',
+    });
+
     const response = await fetchWithAbort(HEALTH_URL, {
       method: 'GET',
       headers: {
@@ -27,6 +32,13 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
       timeout: 5000,
       cache: 'no-store'
     });
+
+    logger.info('Health check response received', {
+      url: HEALTH_URL,
+      status: response.status,
+      contentType: response.headers.get('content-type') || '',
+    });
+
     if (response.status >= 400) {
       return createUnavailableStatus();
     }

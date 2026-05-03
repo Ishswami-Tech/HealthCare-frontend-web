@@ -139,8 +139,24 @@ const mapStatus = (status?: string, healthy?: boolean): string => {
     return "loading";
 };
 
+const buildUrl = (baseUrl: string, path: string): string => {
+    const normalizedBase = baseUrl && baseUrl !== "Unknown" ? baseUrl.replace(/\/+$/, "") : "";
+    return normalizedBase ? `${normalizedBase}${path}` : "Unknown";
+};
+
+const normalizeSocketHealthUrl = (rawUrl: string): string => {
+    if (!rawUrl || rawUrl === "Unknown") return "Unknown";
+
+    try {
+        const parsed = new URL(rawUrl);
+        return `${parsed.protocol}//${parsed.host}/health`;
+    } catch {
+        return `${rawUrl.replace(/\/+$/, "")}/health`;
+    }
+};
+
 export default function StatusPage() {
-  const { data: healthStatus, refetch, isFetching, lastUpdate } = useDetailedHealthStatus();
+  const { data: healthStatus, refetch, isFetching, lastUpdate, connectionStatus } = useDetailedHealthStatus();
 
   // Track Next.js app uptime (client-side)
   const [appUptime, setAppUptime] = useState(0);
@@ -154,6 +170,43 @@ export default function StatusPage() {
 
     return () => clearInterval(interval);
   }, []);
+
+  const resolvedWebSocketUrl = APP_CONFIG.WEBSOCKET.URL || APP_CONFIG.API.RAW_URL || APP_CONFIG.APP.URL || "Unknown";
+  const resolvedAppUrl = APP_CONFIG.APP.URL || "Unknown";
+  const resolvedApiUrl = APP_CONFIG.API.RAW_URL || "Unknown";
+  const resolvedApiBaseUrl = APP_CONFIG.API.BASE_URL || "Unknown";
+  const resolvedHealthUrl = buildUrl(APP_CONFIG.API.HEALTH_BASE_URL || resolvedApiUrl, "/health?detailed=true");
+  const resolvedHealthSocketUrl = normalizeSocketHealthUrl(resolvedWebSocketUrl);
+
+  useEffect(() => {
+    console.info("[StatusPage] making REST health request to", resolvedHealthUrl);
+    console.info("[StatusPage] opening Socket.IO health connection to", resolvedHealthSocketUrl);
+    console.info("[StatusPage] resolved API base URL", resolvedApiBaseUrl);
+  // Run once for the resolved deployment config displayed on this page.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    console.info("[StatusPage] Socket.IO health status", {
+      url: resolvedHealthSocketUrl,
+      status: connectionStatus,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionStatus]);
+
+  useEffect(() => {
+    if (!lastUpdate) return;
+
+    console.info("[StatusPage] health data update", {
+      sourceCandidates: {
+        rest: resolvedHealthUrl,
+        socket: resolvedHealthSocketUrl,
+      },
+      received: Boolean(healthStatus),
+      lastUpdate,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastUpdate, healthStatus]);
 
   // We don't use useTheme here anymore to avoid hydration mismatch with duplicate headers/toggles
   // const [mounted, setMounted] = useState(false); // Removed unused
@@ -239,10 +292,6 @@ export default function StatusPage() {
   // const isError = healthPercentage <= 60; // Unused
 
   const glowColor = isHealthy ? "rgba(16, 185, 129, 0.15)" : isDegraded ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)";
-  const resolvedWebSocketUrl = APP_CONFIG.WEBSOCKET.URL || APP_CONFIG.API.RAW_URL || APP_CONFIG.APP.URL || "Unknown";
-  const resolvedAppUrl = APP_CONFIG.APP.URL || "Unknown";
-  const resolvedApiUrl = APP_CONFIG.API.RAW_URL || "Unknown";
-
   // Backend server uptime from health status
   const systemUptime = healthStatus?.uptime || 0;
   // Next.js app uptime (client-side tracking)
@@ -282,7 +331,11 @@ export default function StatusPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => refetch()}
+                onClick={() => {
+                  console.info("[StatusPage] manual refresh: making REST health request to", resolvedHealthUrl);
+                  console.info("[StatusPage] manual refresh: reconnecting Socket.IO health to", resolvedHealthSocketUrl);
+                  void refetch();
+                }}
                 disabled={isFetching}
                 className="gap-2"
               >
