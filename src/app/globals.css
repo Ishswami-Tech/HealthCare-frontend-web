@@ -134,6 +134,15 @@
   --shadow-2xl: 0px 20px 40px -8px hsl(0 0% 0% / 0.16);
   --tracking-normal: 0px;
   --spacing: 0.25rem;
+
+  /* Google Meet Specific Tokens */
+  --color-meet-black: #202124;
+  --color-meet-dark-gray: #3c4043;
+  --color-meet-gray: #5f6368;
+  --color-meet-blue: #8ab4f8;
+  --color-meet-red: #ea4335;
+  --color-hover-primary: #aecbfa;
+  --color-meet-hover-gray: #4a4d51;
 }
 
 .dark {
@@ -278,6 +287,39 @@
 
   .dark .shadow-minimal-lg {
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  }
+
+  /* Google Meet UI Utilities */
+  .meet-control-button {
+    @apply h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-all duration-200 border-0;
+  }
+  
+  .meet-control-button-active {
+    @apply bg-[#3c4043] text-white hover:bg-[#4a4d51];
+  }
+  
+  .meet-control-button-danger {
+    @apply bg-[#ea4335] text-white hover:bg-[#d93025];
+  }
+  
+  .meet-control-button-blue {
+    @apply bg-[#8ab4f8] text-[#202124] hover:bg-[#aecbfa];
+  }
+
+  .meet-info-button {
+    @apply h-10 w-10 flex items-center justify-center rounded-full transition-colors text-white hover:bg-white/10;
+  }
+
+  .meet-info-button-active {
+    @apply text-[#8ab4f8] bg-blue-500/10;
+  }
+
+  .leave-call-button {
+    @apply h-10 w-14 sm:h-12 sm:w-16 bg-[#ea4335] text-white rounded-[24px] flex items-center justify-center hover:bg-[#d93025] transition-all;
+  }
+
+  .meet-panel-active {
+    @apply !text-[#8ab4f8];
   }
 }
 
@@ -1190,6 +1232,62 @@ html {
   animation: shimmer 1.2s ease-in-out infinite;
 }
 
+/* Google Meet UI Styles */
+@theme {
+  --color-meet-black: #202124;
+  --color-icon-blue: #8ab4f7;
+  --color-hover-primary: #1a6dde;
+  --color-meet-gray: #5f6368;
+  --color-dark-gray: #3c4043;
+  --color-meet-dark-gray: #2e3235;
+  --color-border-gray: #747775;
+  --color-light-gray: #f1f3f4;
+  --color-hairline-gray: #dadce0;
+  --color-container-gray: #2c2c2c;
+  --color-meet-blue: #0b57d0;
+  --color-light-blue: #659df6;
+  --color-deep-blue: #1b44c8;
+  --color-icon-hover-blue: #afcbfa;
+  --color-meet-red: #ea4335;
+  --color-hover-red: #eb5346;
+  --color-meet-orange: #fa7b17;
+}
+
+@layer components {
+  .call-control-button {
+    @apply rounded-full w-10 h-10 flex items-center justify-center bg-[#3c4043] border-[#3c4043] text-white transition-colors duration-200 cursor-pointer;
+  }
+  .call-control-button:hover {
+    @apply bg-[#444649];
+  }
+  .call-control-button[data-state="on"] {
+    @apply bg-transparent border-gray-500 border;
+  }
+  .call-control-button[data-alert="true"] {
+    @apply bg-[#ea4335] border-[#ea4335];
+  }
+  .call-control-button[data-alert="true"]:hover {
+    @apply bg-[#eb5346];
+  }
+
+  .leave-call-button {
+    @apply rounded-full w-14 h-10 flex items-center justify-center bg-[#ea4335] text-white transition-colors duration-200 cursor-pointer;
+  }
+  .leave-call-button:hover {
+    @apply bg-[#eb5346];
+  }
+
+  .call-info-button {
+    @apply rounded-full w-12 h-12 flex items-center justify-center bg-transparent border-transparent text-white transition-colors duration-200 cursor-pointer;
+  }
+  .call-info-button:hover {
+    @apply bg-[#28292c];
+  }
+  .call-info-button[data-active="true"] {
+    @apply text-[#8ab4f7];
+  }
+}
+
 /* Medical-themed colors */
 .medical-blue {
   @apply text-blue-600 bg-blue-50 border-blue-200;
@@ -1490,4 +1588,5 @@ html5-qrcode {
   position: absolute !important;
   inset: 0 !important;
 }
+
 

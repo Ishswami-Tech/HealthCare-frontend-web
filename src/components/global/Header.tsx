@@ -25,6 +25,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 interface HeaderProps {
   className?: string;
   children?: React.ReactNode;
+  showSidebarTrigger?: boolean;
 }
 
 const AVATAR_GRADIENTS = [
@@ -41,7 +42,7 @@ function getAvatarGradient(initials?: string) {
   return AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length];
 }
 
-export function Header({ className, children }: HeaderProps) {
+export function Header({ className, children, showSidebarTrigger = true }: HeaderProps) {
   const [mounted, setMounted] = React.useState(false);
   const { logout } = useAuth();
   const router = useRouter();
@@ -85,7 +86,9 @@ export function Header({ className, children }: HeaderProps) {
       <div className="flex h-12 md:h-14 items-center px-3 md:px-5 gap-3 max-w-6xl mx-auto">
         {/* Left side content (title, breadcrumbs, etc) */}
         <div className="flex-1 flex items-center min-w-0">
-          <SidebarTrigger className="-ml-1 mr-1.5 md:hidden shrink-0 h-7 w-7" />
+          {showSidebarTrigger && (
+            <SidebarTrigger className="-ml-1 mr-1.5 md:hidden shrink-0 h-7 w-7" />
+          )}
           
           {pageTitle && (
             <motion.h1 

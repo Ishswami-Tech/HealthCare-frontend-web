@@ -70,6 +70,7 @@ import {
   CheckCircle,
   FileText,
   ArrowRight,
+  ArrowUpRight,
 } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -116,7 +117,7 @@ import { useClinicContext } from "@/hooks/query/useClinics";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { CalendarPlus, Filter } from "lucide-react";
-import { buildVideoSessionRoute } from "@/lib/utils/video-session-route";
+import { buildVideoSessionMeetRoute, buildVideoSessionRoute } from "@/lib/utils/video-session-route";
 
 // ─── Module-scope pure helpers ───────────────────────────────────────────────
 
@@ -643,6 +644,21 @@ export function VideoAppointmentsList({
     }
   };
 
+  const handleOpenMeetInNewTab = (appointment: VideoAppointment) => {
+    if (!canJoin) {
+      showErrorToast("No permission to join sessions.", { id: TOAST_IDS.VIDEO.PERMISSION });
+      return;
+    }
+
+    const appointmentId = getEffectiveAppointmentId(appointment);
+    if (!appointmentId) {
+      showErrorToast("Missing appointment ID for this video appointment.", { id: TOAST_IDS.VIDEO.ERROR });
+      return;
+    }
+
+    window.open(buildVideoSessionMeetRoute(appointmentId), "_blank", "noopener,noreferrer");
+  };
+
   const handleEndAppointment = async (appointmentId: string) => {
     if (!canEnd) return;
     try {
@@ -1055,9 +1071,20 @@ export function VideoAppointmentsList({
                       ["scheduled", "confirmed", "queued", "in-progress"].includes(effectiveStatus) &&
                       isJoinableVideoAppointment(appointment) &&
                       (!enforceTimeSlotWindow || isWithinJoinWindow(appointment)) && (
-                      <Button size="sm" onClick={() => handleJoinAppointment(appointment)} className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">
-                        Join Session
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" onClick={() => handleJoinAppointment(appointment)} className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">
+                          Join Session
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenMeetInNewTab(appointment)}
+                          className="h-8 px-3 rounded-xl text-xs"
+                        >
+                          <ArrowUpRight className="mr-1.5 h-3.5 w-3.5" />
+                          Open Full Screen
+                        </Button>
+                      </div>
                     )}
                     {showEndButton && appointment.status === "in-progress" && (
                       <Button size="sm" variant="destructive" onClick={() => handleEndAppointment(getEffectiveAppointmentId(appointment))} className="h-8 px-3 rounded-xl text-xs" disabled={endVideoAppointment.isPending}>

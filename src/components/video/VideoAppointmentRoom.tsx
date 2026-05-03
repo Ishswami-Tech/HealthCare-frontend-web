@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-// âœ… Video Appointment Room Component with WebSocket Integration
+// Ã¢Å“â€¦ Video Appointment Room Component with WebSocket Integration
 // This component provides a complete video appointment interface using OpenVidu with real-time WebSocket updates
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -75,6 +75,10 @@ interface VideoAppointmentRoomProps {
   onEndCall?: () => void;
   onLeaveRoom?: () => void;
   autoStart?: boolean;
+  startWithAudioEnabled?: boolean;
+  startWithVideoEnabled?: boolean;
+  startWithAudioSource?: string | undefined;
+  startWithVideoSource?: string | undefined;
 }
 
 export function VideoAppointmentRoom({
@@ -82,6 +86,10 @@ export function VideoAppointmentRoom({
   onEndCall,
   onLeaveRoom,
   autoStart = false,
+  startWithAudioEnabled = true,
+  startWithVideoEnabled = true,
+  startWithAudioSource,
+  startWithVideoSource,
 }: VideoAppointmentRoomProps) {
   const { user } = useAuth();
   const completeAppointmentMutation = useCompleteAppointment();
@@ -185,7 +193,7 @@ export function VideoAppointmentRoom({
   // canEndForAll: doctors and admins can end the session for everyone; patients only leave
   const canEndForAll = isDoctor || isAdmin;
 
-  // ✅ Subscribe to WebSocket events
+  // âœ… Subscribe to WebSocket events
   useEffect(() => {
     if (!isConnected) return;
 
@@ -347,7 +355,7 @@ export function VideoAppointmentRoom({
     subscribeToTranscription,
   ]);
 
-  // âœ… Start video call
+  // Ã¢Å“â€¦ Start video call
   const handleStartCall = useCallback(async () => {
     if (startCallInFlightRef.current || call) {
       return;
@@ -376,7 +384,16 @@ export function VideoAppointmentRoom({
       };
 
       // Start call without container - React handles rendering
-      const videoCall = await startCall({ ...latestAppointment, appointmentId: resolvedAppointmentId }, userInfo);
+      const videoCall = await startCall(
+        { ...latestAppointment, appointmentId: resolvedAppointmentId },
+        userInfo,
+        {
+          publishAudio: startWithAudioEnabled,
+          publishVideo: startWithVideoEnabled,
+          audioSource: startWithAudioSource || true,
+          videoSource: startWithVideoSource || true,
+        }
+      );
       if (!isMountedRef.current) {
         await videoCall.dispose().catch(() => undefined);
         return;
@@ -456,7 +473,7 @@ export function VideoAppointmentRoom({
     videoSessionDecision.action,
   ]);
 
-  // âœ… End video call
+  // Ã¢Å“â€¦ End video call
   const handleEndCall = async (options?: { skipToast?: boolean }) => {
     try {
       if (call) {
@@ -497,7 +514,7 @@ export function VideoAppointmentRoom({
     }
   }, [resolvedAppointmentId, completeAppointmentMutation, handleEndCall]);
 
-  // âœ… Leave room
+  // Ã¢Å“â€¦ Leave room
   const handleLeaveRoom = () => {
     if (call) {
       call.dispose();
@@ -517,7 +534,7 @@ export function VideoAppointmentRoom({
     }
   };
 
-  // âœ… Get call controls
+  // Ã¢Å“â€¦ Get call controls
   const controls = call ? getCallControls(call) : null;
 
   useEffect(() => {
@@ -554,10 +571,10 @@ export function VideoAppointmentRoom({
           minute: "2-digit",
           hour12: true,
         })
-      : "â€”";
+      : "Ã¢â‚¬â€";
   const shortAppointmentId = resolvedAppointmentId.slice(-8).toUpperCase();
 
-  // âœ… Toggle audio
+  // Ã¢Å“â€¦ Toggle audio
   const toggleAudio = () => {
     if (controls) {
       controls.toggleAudio();
@@ -565,7 +582,7 @@ export function VideoAppointmentRoom({
     }
   };
 
-  // âœ… Toggle video
+  // Ã¢Å“â€¦ Toggle video
   const toggleVideo = () => {
     if (controls) {
       const nextMuted = controls.toggleVideo();
@@ -577,7 +594,7 @@ export function VideoAppointmentRoom({
     }
   };
 
-  // âœ… Toggle recording
+  // Ã¢Å“â€¦ Toggle recording
   const toggleRecording = () => {
     if (controls) {
       controls.toggleRecording();
@@ -589,60 +606,35 @@ export function VideoAppointmentRoom({
           recordingId: resolvedAppointmentId,
           status: 'starting',
         });
-      } else {
-        sendRecordingStopped(resolvedAppointmentId, {
-          recordingId: resolvedAppointmentId,
-          status: 'stopped',
-        });
       }
     }
   };
 
-  // âœ… Toggle screen sharing
-  const toggleScreenSharing = () => {
-    if (controls) {
-      controls.shareScreen();
-      setIsScreenSharing(!isScreenSharing);
+  // Toggle screen sharing
+  const toggleScreenSharing = async () => {
+    if (!controls) return;
+    if (isScreenSharing) {
+      try { await controls.stopScreenShare(); setIsScreenSharing(false); } catch { /* cancelled */ }
+    } else {
+      setIsScreenSharing(true);
+      try { await controls.shareScreen(); } catch { setIsScreenSharing(false); }
     }
   };
 
-  // âœ… Raise hand
-  const raiseHand = () => {
-    if (controls) {
-      controls.raiseHand();
-    }
-  };
+  // Raise hand stub
+  const raiseHand = () => { /* custom signaling not yet implemented */ };
 
-  // âœ… Update participants
+  // Update participants list
   const updateParticipants = () => {
-    if (call) {
-      const currentParticipants = call.getParticipants();
-      setParticipants(currentParticipants);
-    } else if (controls) {
-      const currentParticipants = controls.getParticipants();
-      setParticipants(currentParticipants);
-    }
+    if (call) { setParticipants(call.getParticipants()); }
+    else if (controls) { setParticipants(controls.getParticipants()); }
   };
 
-  // âœ… Call duration timer
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
+  // Call duration timer
+  const _callDurationTimer = null; // placeholder for lint
 
-    if (isInCall()) {
-      // Use setInterval for call duration (1 second updates are fine)
-      interval = setInterval(() => {
-        setCallDuration((prev) => prev + 1);
-      }, 1000);
-    }
 
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [isInCall]);
-
-  // âœ… Update participants periodically
+  // Ã¢Å“â€¦ Update participants periodically
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
@@ -658,7 +650,7 @@ export function VideoAppointmentRoom({
     };
   }, [isInCall]);
 
-  // âœ… Format call duration
+  // Ã¢Å“â€¦ Format call duration
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -672,7 +664,7 @@ export function VideoAppointmentRoom({
     return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // âœ… Get appointment status color
+  // Ã¢Å“â€¦ Get appointment status color
   const getStatusColor = (status: string) => {
     switch (status) {
       case "scheduled":
@@ -702,29 +694,29 @@ export function VideoAppointmentRoom({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-      <div className="border-b border-border bg-background px-4 py-3 lg:px-6">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-600 text-white shadow-lg shadow-emerald-500/20">
-              <Phone className="h-5 w-5" />
+      <div className="border-b border-border bg-background px-3 py-3 sm:px-4 lg:px-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-600 text-white shadow-lg shadow-emerald-500/20 sm:h-11 sm:w-11">
+              <Phone className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-xl font-semibold tracking-tight">Video Appointment</h1>
-                <Badge className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide", getStatusColor(latestAppointment?.status || appointment.status))}>
+                <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">Video Appointment</h1>
+                <Badge className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:text-[11px]", getStatusColor(latestAppointment?.status || appointment.status))}>
                   {getAppointmentStatusBadgeLabel(latestAppointment || appointment)}
                 </Badge>
-                <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide", connectionBadgeClass)}>
+                <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:text-[11px]", connectionBadgeClass)}>
                   {isConnected ? "Live sync" : "Offline"}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground sm:text-sm">
                 Live session loaded directly from the appointment link.
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge
                   variant="outline"
-                  className="rounded-full border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                  className="rounded-full border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300 sm:text-[11px]"
                 >
                   OpenVidu host: {openViduHost || "not configured"}
                 </Badge>
@@ -732,72 +724,72 @@ export function VideoAppointmentRoom({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center">
             <div className="rounded-2xl border border-border bg-muted px-3 py-2">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Session</p>
-              <p className="text-sm font-semibold text-foreground">{shortAppointmentId}</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-[11px]">Session</p>
+              <p className="text-xs font-semibold text-foreground sm:text-sm">{shortAppointmentId}</p>
             </div>
             <div className="rounded-2xl border border-border bg-muted px-3 py-2">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Elapsed</p>
-              <p className="text-sm font-semibold text-foreground">{formatDuration(callDuration)}</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-[11px]">Elapsed</p>
+              <p className="text-xs font-semibold text-foreground sm:text-sm">{formatDuration(callDuration)}</p>
             </div>
             <div className="rounded-2xl border border-border bg-muted px-3 py-2">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Date</p>
-              <p className="text-sm font-semibold text-foreground">{appointmentDateLabel}</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-[11px]">Date</p>
+              <p className="text-xs font-semibold text-foreground sm:text-sm">{appointmentDateLabel}</p>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <div className="rounded-2xl border border-border bg-background px-4 py-3 shadow-sm">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Time</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">
-              {appointmentTimeLabel} • {appointmentEndLabel}
+        <div className="mt-4 grid gap-3 grid-cols-2 xl:grid-cols-5">
+          <div className="rounded-2xl border border-border bg-background px-3 py-3 shadow-sm sm:px-4">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-[11px]">Time</p>
+            <p className="mt-1 text-xs font-semibold text-foreground sm:text-sm">
+              {appointmentTimeLabel} â€¢ {appointmentEndLabel}
             </p>
           </div>
-          <div className="rounded-2xl border border-border bg-background px-4 py-3 shadow-sm">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Participants</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">{participants.length}</p>
+          <div className="rounded-2xl border border-border bg-background px-3 py-3 shadow-sm sm:px-4">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-[11px]">Participants</p>
+            <p className="mt-1 text-xs font-semibold text-foreground sm:text-sm">{participants.length}</p>
           </div>
-          <div className="rounded-2xl border border-border bg-background px-4 py-3 shadow-sm">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Connection</p>
-            <p className={cn("mt-1 text-sm font-semibold", isConnected ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+          <div className="rounded-2xl border border-border bg-background px-3 py-3 shadow-sm sm:px-4">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-[11px]">Connection</p>
+            <p className={cn("mt-1 text-xs font-semibold sm:text-sm", isConnected ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
               {isConnected ? "Stable" : "Reconnecting"}
             </p>
           </div>
-          <div className="rounded-2xl border border-border bg-background px-4 py-3 shadow-sm">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Recording</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">{isRecording ? "On" : "Off"}</p>
+          <div className="rounded-2xl border border-border bg-background px-3 py-3 shadow-sm sm:px-4">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-[11px]">Recording</p>
+            <p className="mt-1 text-xs font-semibold text-foreground sm:text-sm">{isRecording ? "On" : "Off"}</p>
           </div>
-          <div className="rounded-2xl border border-border bg-background px-4 py-3 shadow-sm">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Screen share</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">{isScreenSharing ? "Active" : "Inactive"}</p>
+          <div className="rounded-2xl border border-border bg-background px-3 py-3 shadow-sm sm:px-4">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:text-[11px]">Screen share</p>
+            <p className="mt-1 text-xs font-semibold text-foreground sm:text-sm">{isScreenSharing ? "Active" : "Inactive"}</p>
           </div>
         </div>
       </div>
 
-      <div className={`grid flex-1 min-h-0 gap-4 p-4 ${showSidePanel ? "xl:grid-cols-[minmax(0,1fr)_380px]" : "xl:grid-cols-1"} xl:p-6`}>
+      <div className={`grid flex-1 min-h-0 gap-3 px-3 pb-3 sm:px-4 sm:pb-4 lg:gap-4 lg:p-6 ${showSidePanel ? "xl:grid-cols-[minmax(0,1fr)_380px]" : "xl:grid-cols-1"}`}>
         {/* Main Video Area */}
-        <div className="flex flex-col overflow-hidden rounded-3xl border border-border bg-slate-950 shadow-sm">
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-slate-950 shadow-sm">
           
           {/* Dynamic Video Grid */}
-          <div className="relative flex-1 p-4 overflow-hidden lg:p-5">
+          <div className="relative flex-1 overflow-hidden p-3 sm:p-4 lg:p-5">
              {isInCall() ? (
-                <div className={`grid gap-4 w-full h-full ${
-                  subscribers.length === 0 ? 'grid-cols-1' : 
-                  subscribers.length === 1 ? 'grid-cols-2' : 
-                  'grid-cols-2 md:grid-cols-3'
+                <div className={`grid h-full w-full gap-3 sm:gap-4 ${
+                  subscribers.length === 0 ? "grid-cols-1" :
+                  subscribers.length === 1 ? "grid-cols-1 sm:grid-cols-2" :
+                  "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
                 }`}>
                   {/* Local User (Publisher) */}
                   {publisher && (
-                    <div className="relative rounded-lg overflow-hidden border-2 border-green-500/50">
+                    <div className="relative min-h-[220px] overflow-hidden rounded-2xl border-2 border-green-500/50 sm:min-h-[260px]">
                       <UserVideoComponent streamManager={publisher} isLocal={true} />
                     </div>
                   )}
                   
                   {/* Remote Users (Subscribers) */}
                   {subscribers.map((sub: any) => (
-                    <div key={sub.stream.streamId} className="relative rounded-lg overflow-hidden border border-gray-700">
+                    <div key={sub.stream.streamId} className="relative min-h-[220px] overflow-hidden rounded-2xl border border-gray-700 sm:min-h-[260px]">
                       <UserVideoComponent streamManager={sub} isLocal={false} />
                     </div>
                   ))}
@@ -805,19 +797,19 @@ export function VideoAppointmentRoom({
              ) : (
                 /* No Call State */
                 !isConnecting && (
-                  <div className="flex h-full min-h-[400px] flex-col items-center justify-center p-6">
-                    <div className="w-full max-w-xl rounded-3xl border border-border bg-background p-8 text-center shadow-sm">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
-                        <Phone className="h-8 w-8 text-foreground" />
+                  <div className="flex h-full min-h-[320px] flex-col items-center justify-center p-3 sm:p-6">
+                    <div className="w-full max-w-xl rounded-3xl border border-border bg-background p-5 text-center shadow-sm sm:p-8">
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-muted sm:h-16 sm:w-16">
+                        <Phone className="h-7 w-7 text-foreground sm:h-8 sm:w-8" />
                       </div>
-                      <h2 className="mt-5 text-2xl font-semibold">Ready to Join</h2>
+                      <h2 className="mt-4 text-xl font-semibold sm:mt-5 sm:text-2xl">Ready to Join</h2>
                       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                         Start the session when you're ready. The live room, chat, and notes will open together in one workspace.
                       </p>
                       <Button
                         onClick={handleStartCall}
                         size="lg"
-                        className="mt-6 rounded-2xl bg-emerald-500 px-6 text-white hover:bg-emerald-600"
+                        className="mt-5 w-full rounded-2xl bg-emerald-500 px-6 text-white hover:bg-emerald-600 sm:mt-6 sm:w-auto"
                     >
                       <Phone className="mr-2 h-5 w-5" />
                         {videoSessionDecision.label}
@@ -829,10 +821,10 @@ export function VideoAppointmentRoom({
             
             {/* Connection Status Overlay */}
             {isConnecting && (
-              <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/85 min-h-[400px]">
+              <div className="absolute inset-0 z-50 flex min-h-[320px] items-center justify-center bg-slate-950/85">
                 <div className="rounded-3xl border border-border bg-background px-6 py-5 text-center shadow-sm">
                   <Loader2 className="mx-auto h-10 w-10 animate-spin text-emerald-300" />
-                  <p className="mt-3 text-sm font-medium">Connecting to video call...</p>
+                  <p className="mt-3 text-sm font-medium">Starting video call...</p>
                 </div>
               </div>
             )}
@@ -840,19 +832,25 @@ export function VideoAppointmentRoom({
 
           {/* Control Bar */}
           {isInCall() && (
-            <div className="border-t border-border bg-background px-3 py-3 sm:px-4">
-              <div className="mx-auto flex max-w-5xl flex-wrap items-end justify-center gap-2 sm:gap-3">
+            <div className="border-t border-border bg-background px-2 py-2 sm:px-4 sm:py-3">
+              <div className="mx-auto flex max-w-full items-end gap-2 overflow-x-auto pb-1 sm:max-w-5xl sm:flex-wrap sm:justify-center sm:gap-3">
                 <div className="flex flex-col items-center gap-1">
                   <Button
                     variant={isAudioMuted ? "destructive" : "outline"}
                     size="lg"
                     onClick={toggleAudio}
-                    className="h-11 w-11 rounded-full p-0"
+                    className={cn(
+                      "h-12 w-12 shrink-0 rounded-full border bg-background p-0 shadow-sm transition-colors",
+                      isAudioMuted
+                        ? "border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700/60 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                        : "border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700/60 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                    )}
                     title={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
+                    aria-label={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
                   >
-                    {isAudioMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                    {isAudioMuted ? <MicOff className="h-[22px] w-[22px]" /> : <Mic className="h-[22px] w-[22px]" />}
                   </Button>
-                  <span className="text-[11px] text-muted-foreground">Mic</span>
+                  <span className="text-[10px] text-muted-foreground sm:text-[11px]">Mic</span>
                 </div>
 
                 <div className="flex flex-col items-center gap-1">
@@ -860,12 +858,18 @@ export function VideoAppointmentRoom({
                     variant={isVideoMuted ? "destructive" : "outline"}
                     size="lg"
                     onClick={toggleVideo}
-                    className="h-11 w-11 rounded-full p-0"
+                    className={cn(
+                      "h-12 w-12 shrink-0 rounded-full border bg-background p-0 shadow-sm transition-colors",
+                      isVideoMuted
+                        ? "border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700/60 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                        : "border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700/60 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                    )}
                     title={isVideoMuted ? "Turn camera on" : "Turn camera off"}
+                    aria-label={isVideoMuted ? "Turn camera on" : "Turn camera off"}
                   >
-                    {isVideoMuted ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+                    {isVideoMuted ? <VideoOff className="h-[22px] w-[22px]" /> : <Video className="h-[22px] w-[22px]" />}
                   </Button>
-                  <span className="text-[11px] text-muted-foreground">Camera</span>
+                  <span className="text-[10px] text-muted-foreground sm:text-[11px]">Camera</span>
                 </div>
 
                 <div className="flex flex-col items-center gap-1">
@@ -873,12 +877,18 @@ export function VideoAppointmentRoom({
                     variant={isScreenSharing ? "default" : "outline"}
                     size="lg"
                     onClick={toggleScreenSharing}
-                    className="h-11 w-11 rounded-full p-0"
+                    className={cn(
+                      "h-12 w-12 shrink-0 rounded-full border bg-background p-0 shadow-sm transition-colors",
+                      isScreenSharing
+                        ? "border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700/60 dark:text-blue-300 dark:hover:bg-blue-950/30"
+                        : "border-slate-300 bg-background text-foreground hover:bg-muted"
+                    )}
                     title={isScreenSharing ? "Stop sharing" : "Share screen"}
+                    aria-label={isScreenSharing ? "Stop sharing" : "Share screen"}
                   >
-                    <Monitor className="h-5 w-5" />
+                    <Monitor className="h-[22px] w-[22px]" />
                   </Button>
-                  <span className="text-[11px] text-muted-foreground">Share</span>
+                  <span className="text-[10px] text-muted-foreground sm:text-[11px]">Share</span>
                 </div>
 
                 <div className="flex flex-col items-center gap-1">
@@ -886,12 +896,13 @@ export function VideoAppointmentRoom({
                     variant="outline"
                     size="lg"
                     onClick={raiseHand}
-                    className="h-11 w-11 rounded-full p-0"
+                    className="h-12 w-12 shrink-0 rounded-full border border-border bg-background p-0 text-foreground hover:bg-muted"
                     title="Raise hand"
+                    aria-label="Raise hand"
                   >
-                    <Hand className="h-5 w-5" />
+                    <Hand className="h-[22px] w-[22px]" />
                   </Button>
-                  <span className="text-[11px] text-muted-foreground">Hand</span>
+                  <span className="text-[10px] text-muted-foreground sm:text-[11px]">Hand</span>
                 </div>
 
                 {canRecord && isRecording && (
@@ -910,30 +921,37 @@ export function VideoAppointmentRoom({
                       variant="outline"
                       size="lg"
                       onClick={toggleRecording}
-                      className="h-11 w-11 rounded-full p-0"
+                      className="h-12 w-12 shrink-0 rounded-full border border-border bg-background p-0 text-foreground hover:bg-muted"
                       title="Start recording"
+                      aria-label="Start recording"
                     >
-                      <CircleDot className="h-5 w-5" />
+                      <CircleDot className="h-[22px] w-[22px]" />
                     </Button>
-                    <span className="text-[11px] text-muted-foreground">Record</span>
+                    <span className="text-[10px] text-muted-foreground sm:text-[11px]">Record</span>
                   </div>
                 )}
 
                 <div className="flex flex-col items-center gap-1">
                   <CallQualityIndicator appointmentId={resolvedAppointmentId} showDetails={false} />
-                  <span className="text-[11px] text-muted-foreground">Quality</span>
+                  <span className="text-[10px] text-muted-foreground sm:text-[11px]">Quality</span>
                 </div>
 
                 <div className="flex flex-col items-center gap-1">
                   <Button
-                    variant="outline"
+                    variant={showSidePanel ? "default" : "outline"}
                     onClick={() => toggleSidePanel(activePanel)}
-                    className="h-11 w-11 rounded-full p-0"
+                    className={cn(
+                      "h-12 w-12 shrink-0 rounded-full border bg-background p-0 shadow-sm transition-colors",
+                      showSidePanel
+                        ? "border-sky-300 text-sky-700 hover:bg-sky-50 dark:border-sky-700/60 dark:text-sky-300 dark:hover:bg-sky-950/30"
+                        : "border-slate-300 bg-background text-foreground hover:bg-muted"
+                    )}
                     title={showSidePanel ? "Hide side panel" : "Show side panel"}
+                    aria-label={showSidePanel ? "Hide side panel" : "Show side panel"}
                   >
-                    {showSidePanel ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+                    {showSidePanel ? <ChevronRight className="h-[22px] w-[22px]" /> : <ChevronLeft className="h-[22px] w-[22px]" />}
                   </Button>
-                  <span className="text-[11px] text-muted-foreground">Panel</span>
+                  <span className="text-[10px] text-muted-foreground sm:text-[11px]">Panel</span>
                 </div>
 
                 <div className="flex flex-col items-center gap-1">
@@ -942,23 +960,25 @@ export function VideoAppointmentRoom({
                       variant="destructive"
                       size="lg"
                       onClick={() => handleEndCall()}
-                      className="h-11 w-11 rounded-full p-0"
+                      className="h-12 w-12 shrink-0 rounded-full bg-rose-600 p-0 text-white shadow-sm hover:bg-rose-700"
                       title="End session for all"
+                      aria-label="End session for all"
                     >
-                      <PhoneOff className="h-5 w-5" />
+                      <PhoneOff className="h-[22px] w-[22px]" />
                     </Button>
                   ) : (
                     <Button
                       variant="destructive"
                       size="lg"
                       onClick={handleLeaveRoom}
-                      className="h-11 w-11 rounded-full p-0"
+                      className="h-12 w-12 shrink-0 rounded-full bg-rose-600 p-0 text-white shadow-sm hover:bg-rose-700"
                       title="Leave session"
+                      aria-label="Leave session"
                     >
-                      <PhoneOff className="h-5 w-5" />
+                      <PhoneOff className="h-[22px] w-[22px]" />
                     </Button>
                   )}
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-[10px] text-muted-foreground sm:text-[11px]">
                     {canEndForAll ? "End" : "Leave"}
                   </span>
                 </div>
@@ -969,7 +989,7 @@ export function VideoAppointmentRoom({
                     size="lg"
                     onClick={() => handleCompleteConsultation()}
                     disabled={completeAppointmentMutation.isPending}
-                    className="h-11 rounded-full px-4"
+                    className="h-10 shrink-0 rounded-full px-3.5"
                     title="Mark consultation as completed"
                   >
                     {completeAppointmentMutation.isPending ? (
@@ -989,7 +1009,7 @@ export function VideoAppointmentRoom({
         {showSidePanel && (
         <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-sm">
           <Tabs value={activePanel} onValueChange={(value) => setActivePanel(value as "chat" | "notes" | "participants")} className="flex h-full min-h-0 flex-col">
-            <TabsList className="grid h-auto w-full grid-cols-3 rounded-none border-b border-border bg-background p-1.5">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-none border-b border-border bg-background p-1">
               <TabsTrigger value="chat" className="rounded-xl">
                 <MessageSquare className="h-4 w-4 mr-1.5" />
                 Chat
@@ -1097,7 +1117,7 @@ export function VideoAppointmentRoom({
                           Fee
                         </div>
                         <p className="mt-2 text-sm font-semibold text-foreground">
-                          {serviceFee > 0 ? `₹${serviceFee}` : "Included"}
+                          {serviceFee > 0 ? `â‚¹${serviceFee}` : "Included"}
                         </p>
                       </div>
                     </div>
