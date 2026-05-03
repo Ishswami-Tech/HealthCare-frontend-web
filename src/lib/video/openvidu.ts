@@ -111,8 +111,9 @@ function getPublicOpenViduWsUri(value: string): string {
     const parsed = new URL(
       /^https?:\/\//i.test(raw) || /^wss?:\/\//i.test(raw) ? raw : `https://${raw}`
     );
+    const keepPort = parsed.port.length > 0 ? `:${parsed.port}` : '';
     const protocol = parsed.protocol === 'http:' ? 'ws:' : 'wss:';
-    return `${protocol}//${parsed.hostname}/openvidu`;
+    return `${protocol}//${parsed.hostname}${keepPort}/openvidu`;
   } catch {
     return '';
   }
