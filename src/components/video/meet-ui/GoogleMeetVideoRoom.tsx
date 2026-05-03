@@ -51,6 +51,10 @@ interface GoogleMeetVideoRoomProps {
 export default function GoogleMeetVideoRoom({
   appointment,
   onLeaveRoom,
+  startWithAudioEnabled = true,
+  startWithVideoEnabled = true,
+  startWithAudioSource,
+  startWithVideoSource,
 }: GoogleMeetVideoRoomProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -88,6 +92,8 @@ export default function GoogleMeetVideoRoom({
   const [isHandRaised, setIsHandRaised] = useState(false);
   const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
   const [isLocalSpeaking, setIsLocalSpeaking] = useState(false);
+  const [call, setCall] = useState<OpenViduAPI | null>(null);
+  const callRef = useRef<OpenViduAPI | null>(null);
 
   // Handle incoming signals and audio volume
   useEffect(() => {
@@ -126,7 +132,7 @@ export default function GoogleMeetVideoRoom({
       window.removeEventListener('openvidu-audio-volume-change', handleAudioVolumeChange);
       session.off('signal:hand-raise', handleHandRaiseSignal);
     };
-  }, [getCurrentCall]);
+  }, [getCurrentCall, call]);
 
   // Toggle hand raise signal
   const toggleHandRaise = () => {
@@ -164,6 +170,7 @@ export default function GoogleMeetVideoRoom({
     p.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.userId?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const [isBlurred, setIsBlurred] = useState(false);
   const [call, setCall] = useState<OpenViduAPI | null>(null);
   const [isBlurred, setIsBlurred] = useState(false);
   const callRef = useRef<OpenViduAPI | null>(null);
@@ -197,6 +204,12 @@ export default function GoogleMeetVideoRoom({
           userId: currentUserId ?? "",
           role: user?.role || "patient",
           displayName: resolveVideoDisplayName(user),
+        },
+        {
+          publishAudio: startWithAudioEnabled,
+          publishVideo: startWithVideoEnabled,
+          ...(startWithAudioSource !== undefined && { audioSource: startWithAudioSource }),
+          ...(startWithVideoSource !== undefined && { videoSource: startWithVideoSource }),
         }
       );
       setCall(videoCall);
