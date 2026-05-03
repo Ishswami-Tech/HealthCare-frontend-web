@@ -5,7 +5,27 @@ import { fetchWithAbort, FetchTimeoutError } from '@/lib/utils/fetch-with-abort'
 import { APP_CONFIG, API_ENDPOINTS } from '@/lib/config/config';
 import type { DetailedHealthStatus } from '@/hooks/query/useHealth';
 
-const createUnavailableStatus = (): DetailedHealthStatus => ({
+const hasBackendProtectionKey = () => Boolean(process.env.BACKEND_PROTECTION_KEY?.trim());
+
+type HealthDebugDetails = {
+  status?: number;
+  contentType?: string;
+};
+
+const createUnavailableStatus = (
+  error: string,
+  url: string,
+  details?: HealthDebugDetails
+): DetailedHealthStatus => ({
+  debug: {
+    source: 'fallback',
+    url,
+    ok: false,
+    error,
+    backendProtectionHeaderAttached: hasBackendProtectionKey(),
+    timestamp: new Date().toISOString(),
+    ...(details || {}),
+  },
   database: { status: 'unavailable', isHealthy: false },
   cache: { status: 'unavailable', healthy: false },
   queue: { status: 'unavailable', healthy: false },
@@ -21,6 +41,7 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
     logger.info('Health check request starting', {
       url: HEALTH_URL,
       method: 'GET',
+      backendProtectionHeaderAttached: hasBackendProtectionKey(),
     });
 
     const response = await fetchWithAbort(HEALTH_URL, {
@@ -40,7 +61,10 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
     });
 
     if (response.status >= 400) {
-      return createUnavailableStatus();
+      return createUnavailableStatus(`Backend health returned HTTP ${response.status}`, HEALTH_URL, {
+        status: response.status,
+        contentType: response.headers.get('content-type') || '',
+      });
     }
 
     const contentType = response.headers.get('content-type') || '';
@@ -50,7 +74,10 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
         status: response.status,
         contentType,
       });
-      return createUnavailableStatus();
+      return createUnavailableStatus('Backend health returned non-JSON response', HEALTH_URL, {
+        status: response.status,
+        contentType,
+      });
     }
 
     const data = await response.json();
@@ -61,6 +88,15 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
     logger.info('Health check raw backend data', { data: backendData });
 
     const result: DetailedHealthStatus = {
+      debug: {
+        source: 'server-action-rest',
+        url: HEALTH_URL,
+        ok: true,
+        status: response.status,
+        contentType,
+        backendProtectionHeaderAttached: hasBackendProtectionKey(),
+        timestamp: new Date().toISOString(),
+      },
       uptime: backendData.systemMetrics?.uptime || backendData.realtime?.uptime || 0,
       system: {
         cpu: backendData.realtime?.system?.cpu || 0,
@@ -114,11 +150,14 @@ export async function getDetailedHealthStatus(): Promise<DetailedHealthStatus> {
   } catch (error: unknown) {
     if (error instanceof FetchTimeoutError) {
       logger.error('Health check timed out', { url: HEALTH_URL });
-      return createUnavailableStatus();
+      return createUnavailableStatus('Backend health request timed out', HEALTH_URL);
     }
 
     logger.error('Health check failed', error instanceof Error ? error : new Error(String(error)));
-    return createUnavailableStatus();
+    return createUnavailableStatus(
+      error instanceof Error ? error.message : 'Backend health request failed',
+      HEALTH_URL
+    );
   }
 }
 

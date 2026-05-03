@@ -6,6 +6,16 @@ import { useEffect } from 'react';
 
 // Detailed health check response type matching backend structure
 export interface DetailedHealthStatus {
+  debug?: {
+    source: 'server-action-rest' | 'socket' | 'fallback';
+    url?: string;
+    ok?: boolean;
+    status?: number;
+    contentType?: string;
+    error?: string;
+    backendProtectionHeaderAttached?: boolean;
+    timestamp: string;
+  };
   database?: {
     status: string;
     isHealthy: boolean;
@@ -148,6 +158,23 @@ export const useDetailedHealthStatus = () => {
       enabled: shouldUseRestFallback, // Only fetch via REST if Socket.IO failed
     }
   );
+
+  useEffect(() => {
+    console.info('[StatusPage] REST fallback state', {
+      enabled: shouldUseRestFallback,
+      connectionStatus,
+      isFetching: queryResult.isFetching,
+      hasData: Boolean(queryResult.data),
+      debug: queryResult.data?.debug,
+      error: queryResult.error,
+    });
+  }, [
+    shouldUseRestFallback,
+    connectionStatus,
+    queryResult.isFetching,
+    queryResult.data,
+    queryResult.error,
+  ]);
 
   // Subscribe to Socket.IO on mount
   useEffect(() => {
