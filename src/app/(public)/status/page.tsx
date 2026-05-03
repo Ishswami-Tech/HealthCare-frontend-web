@@ -141,15 +141,23 @@ const mapStatus = (status?: string, healthy?: boolean): string => {
 export default function StatusPage() {
   const { data: healthStatus, refetch, isFetching, lastUpdate } = useDetailedHealthStatus();
 
-  // Track Next.js app uptime (client-side)
+  // Track app uptime in the browser so refreshes do not reset the timer.
   const [appUptime, setAppUptime] = useState(0);
 
-
   useEffect(() => {
-    const startTime = Date.now();
+    const storageKey = "status-page-app-started-at";
+    const storedStartedAt = window.localStorage.getItem(storageKey);
+    const startedAt = storedStartedAt ? Number(storedStartedAt) : Date.now();
+
+    if (!storedStartedAt) {
+      window.localStorage.setItem(storageKey, String(startedAt));
+    }
+
     const interval = setInterval(() => {
-      setAppUptime(Math.floor((Date.now() - startTime) / 1000));
+      setAppUptime(Math.floor((Date.now() - startedAt) / 1000));
     }, 1000);
+
+    setAppUptime(Math.floor((Date.now() - startedAt) / 1000));
 
     return () => clearInterval(interval);
   }, []);
