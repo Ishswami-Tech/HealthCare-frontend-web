@@ -171,6 +171,9 @@ export default function GoogleMeetVideoRoom({
     p.userId?.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const [isBlurred, setIsBlurred] = useState(false);
+  const [call, setCall] = useState<OpenViduAPI | null>(null);
+  const [isBlurred, setIsBlurred] = useState(false);
+  const callRef = useRef<OpenViduAPI | null>(null);
 
   const videoSessionDecision = getVideoSessionDecision(appointment);
 
