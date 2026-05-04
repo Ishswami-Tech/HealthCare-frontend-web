@@ -449,7 +449,7 @@ export function ServicesCatalog({
   return (
     <div className={cn("space-y-6", className)}>
       <div className="text-center mb-16">
-        <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold text-foreground dark:text-foreground/95 mb-6 gradient-text">
+        <h2 className="text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-playfair font-bold text-foreground dark:text-foreground/95 mb-6 gradient-text">
           {t("services.title")}
         </h2>
         <p className="text-lg text-muted-foreground dark:text-muted-foreground/90 max-w-3xl mx-auto leading-relaxed">

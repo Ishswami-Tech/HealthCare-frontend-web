@@ -10,6 +10,8 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: '*',
         allow: [
           '/',
+          '/_next/static/',
+          '/_next/image/',
           '/treatments',
           '/treatments/panchakarma',
           '/treatments/agnikarma',
@@ -24,7 +26,6 @@ export default function robots(): MetadataRoute.Robots {
           '/dashboard/',
           '/api/',
           '/admin/',
-          '/_next/',
           '/private/',
           '*.json',
           '/temp/',

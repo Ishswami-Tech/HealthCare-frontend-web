@@ -10,10 +10,10 @@ import { Metadata } from 'next';
 // ============================================================================
 
 export const baseSEO = {
-  siteName: 'Shri Vishwamurti Ayurvedalay',
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://Vishwamurtiayurveda.com',
-  defaultTitle: 'Shri Vishwamurti Ayurvedalay - Authentic Ayurvedic Healing & Wellness Center',
-  defaultDescription: 'Experience authentic Ayurvedic healing with 20+ years of expertise. Panchakarma, Agnikarma, Viddha Karma treatments. 5000+ lives transformed. Government certified. Book consultation today.',
+  siteName: 'Shree Vishwamruti Ayurvedic Chikitsalya',
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.viddhakarma.com',
+  defaultTitle: 'Shree Vishwamruti Ayurvedic Chikitsalya - Ayurvedic Clinic in Chinchwad, Pune',
+  defaultDescription: 'Experience authentic Ayurvedic healing in Chinchwad, Pune with Panchakarma, Agnikarma, and Viddha Karma treatments. Book consultation, manage appointments, and access trusted care.',
   keywords: [
     'Ayurveda',
     'Ayurvedic treatment',
@@ -28,10 +28,11 @@ export const baseSEO = {
     'chronic pain relief',
     'detoxification',
     'wellness center',
-    'Mumbai Ayurveda',
+    'Chinchwad Ayurveda',
+    'Pune Ayurveda',
     'best Ayurvedic treatment',
   ],
-  author: 'Dr. Vishwamurti',
+  author: 'Dr. Chandrakumar Deshmukh',
   language: 'en',
   region: 'IN',
   robots: 'index, follow',
@@ -61,7 +62,7 @@ export function generateMetadata({
   title,
   description = baseSEO.defaultDescription,
   keywords = [],
-  image = '/images/og-default.jpg',
+  image = '/assets/og/og-image.png',
   url,
   type = 'website',
   publishedTime,
@@ -154,9 +155,9 @@ export function generateMetadata({
     // Geo-targeting
     other: {
       'geo.region': 'IN-MH',
-      'geo.placename': 'Mumbai',
-      'geo.position': '19.0760;72.8777',
-      'ICBM': '19.0760, 72.8777',
+      'geo.placename': 'Chinchwad',
+      'geo.position': '18.6298;73.7997',
+      'ICBM': '18.6298, 73.7997',
     },
   };
 }
@@ -167,15 +168,15 @@ export function generateMetadata({
 
 export const pageSEO = {
   home: {
-    title: 'Authentic Ayurvedic Healing & Wellness Center',
-    description: 'Experience authentic Ayurvedic healing with 20+ years of expertise. Panchakarma, Agnikarma, Viddha Karma treatments. 5000+ lives transformed. Government certified.',
-    keywords: ['best Ayurvedic treatment Mumbai', 'authentic Panchakarma', 'Ayurvedic doctor near me'],
+    title: 'Ayurvedic Clinic in Chinchwad, Pune',
+    description: 'Experience authentic Ayurvedic healing with 20+ years of expertise in Chinchwad, Pune. Panchakarma, Agnikarma, and Viddha Karma treatments. Government certified.',
+    keywords: ['Ayurvedic clinic Chinchwad', 'Ayurvedic doctor Pune', 'Panchakarma Chinchwad'],
   },
   
   treatments: {
-    title: 'Ayurvedic Treatments - Panchakarma, Agnikarma, Viddha Karma',
-    description: 'Comprehensive Ayurvedic treatments including Panchakarma detoxification, Agnikarma pain relief, and Viddha Karma therapy. 95% success rate with proven results.',
-    keywords: ['Ayurvedic treatments', 'Panchakarma therapy', 'Agnikarma treatment', 'Viddha Karma'],
+    title: 'Ayurvedic Treatments in Chinchwad, Pune - Panchakarma, Agnikarma, Viddha Karma',
+    description: 'Comprehensive Ayurvedic treatments in Chinchwad, Pune including Panchakarma detoxification, Agnikarma pain relief, and Viddha Karma therapy.',
+    keywords: ['Ayurvedic treatments Pune', 'Panchakarma therapy', 'Agnikarma treatment', 'Viddha Karma'],
   },
   
   panchakarma: {
@@ -203,15 +204,15 @@ export const pageSEO = {
   },
   
   about: {
-    title: 'About Us - 20+ Years of Authentic Ayurvedic Excellence',
-    description: '20+ years of authentic Ayurvedic healing excellence. 5000+ lives transformed, government certified, ISO accredited. Our journey of healing and transformation.',
-    keywords: ['Ayurvedic hospital Mumbai', 'authentic Ayurveda', 'government certified Ayurveda'],
+    title: 'About Us - Shree Vishwamruti Ayurvedic Chikitsalya',
+    description: '20+ years of authentic Ayurvedic healing excellence in Chinchwad, Pune. Government certified, ISO accredited, and trusted by thousands of families.',
+    keywords: ['Ayurvedic hospital Pune', 'authentic Ayurveda', 'government certified Ayurveda'],
   },
   
   contact: {
-    title: 'Contact Us - Book Ayurvedic Consultation & Treatment',
-    description: 'Book your Ayurvedic consultation today. 24/7 support, multiple contact options, emergency consultation available. Start your healing journey now.',
-    keywords: ['book Ayurvedic consultation', 'Ayurvedic appointment', 'contact Ayurvedic doctor'],
+    title: 'Contact Us - Book Ayurvedic Consultation in Chinchwad, Pune',
+    description: 'Book your Ayurvedic consultation today in Chinchwad, Pune. Multiple contact options and emergency consultation available.',
+    keywords: ['book Ayurvedic consultation', 'Ayurvedic appointment', 'contact Ayurvedic doctor Pune'],
   },
 } as const;
 
@@ -224,19 +225,19 @@ export const generateOrganizationSchema = () => ({
   '@type': 'MedicalOrganization',
   name: baseSEO.siteName,
   url: baseSEO.siteUrl,
-  logo: `${baseSEO.siteUrl}/images/logo.png`,
+  logo: `${baseSEO.siteUrl}/assets/logo/logowithoutbackground.png`,
   description: baseSEO.defaultDescription,
   address: {
     '@type': 'PostalAddress',
     streetAddress: '123 Ayurveda Street',
-    addressLocality: 'Mumbai',
+    addressLocality: 'Chinchwad',
     addressRegion: 'Maharashtra',
-    postalCode: '400001',
+    postalCode: '411033',
     addressCountry: 'IN',
   },
   contactPoint: {
     '@type': 'ContactPoint',
-    telephone: '+91-XXXX-XXXX',
+    telephone: '+91-9860370961',
     contactType: 'customer service',
     availableLanguage: ['English', 'Hindi', 'Marathi'],
   },
@@ -271,22 +272,22 @@ export const generateLocalBusinessSchema = () => ({
   '@type': 'LocalBusiness',
   '@id': `${baseSEO.siteUrl}/#organization`,
   name: baseSEO.siteName,
-  image: `${baseSEO.siteUrl}/images/clinic-exterior.jpg`,
-  telephone: '+91-XXXX-XXXX',
-  email: 'info@Vishwamurtiayurveda.com',
+  image: `${baseSEO.siteUrl}/assets/og/og-image.png`,
+  telephone: '+91-9860370961',
+  email: 'Vishwamurtiayurveda@gmail.com',
   url: baseSEO.siteUrl,
   address: {
     '@type': 'PostalAddress',
     streetAddress: '123 Ayurveda Street',
-    addressLocality: 'Mumbai',
+    addressLocality: 'Chinchwad',
     addressRegion: 'Maharashtra',
-    postalCode: '400001',
+    postalCode: '411033',
     addressCountry: 'IN',
   },
   geo: {
     '@type': 'GeoCoordinates',
-    latitude: 19.0760,
-    longitude: 72.8777,
+    latitude: 18.6298,
+    longitude: 73.7997,
   },
   openingHoursSpecification: [
     {
@@ -302,7 +303,7 @@ export const generateLocalBusinessSchema = () => ({
       closes: '17:00',
     },
   ],
-  priceRange: '₹₹₹',
+  priceRange: '\u20B9\u20B9\u20B9',
   aggregateRating: {
     '@type': 'AggregateRating',
     ratingValue: '4.9',
@@ -351,3 +352,6 @@ export const generateFAQSchema = (faqs: Array<{ question: string; answer: string
     },
   })),
 });
+
+
+

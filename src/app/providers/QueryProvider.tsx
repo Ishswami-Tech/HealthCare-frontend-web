@@ -6,6 +6,7 @@ import { useState } from "react";
 import { queryClientConfig } from "@/hooks/query/config";
 import { ERROR_MESSAGES } from "@/lib/config/config";
 import { ROUTES } from "@/lib/config/routes";
+import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import {
   showErrorToast,
   shouldHandleErrorGlobally,
@@ -92,9 +93,12 @@ export default function QueryProvider({
 
               // Handle other common errors with centralized messages
               if (apiError?.response?.status === 403) {
-                showErrorToast(ERROR_MESSAGES.FORBIDDEN, {
-                  id: TOAST_IDS.GLOBAL.ERROR,
-                });
+                showErrorToast(
+                  sanitizeErrorMessage(apiError?.response?.data || apiError),
+                  {
+                    id: TOAST_IDS.GLOBAL.ERROR,
+                  }
+                );
                 return;
               }
 

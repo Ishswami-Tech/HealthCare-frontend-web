@@ -1,0 +1,26 @@
+{
+  "name": "Shree Vishwamruti Ayurvedic Chikitsalya",
+  "short_name": "Vishwamruti",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#061812",
+  "icons": [
+    {
+      "src": "/assets/logo/logowithoutbackground.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/logo/logowithoutbackground.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/logo/logowithoutbackground.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

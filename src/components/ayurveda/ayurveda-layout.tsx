@@ -76,7 +76,7 @@ function AyurvedaLayoutContent({
       )}
 
       {/* Main Content */}
-      <main id="main-content" className="relative">
+      <main id="main-content" className="relative overflow-x-clip">
         {children}
       </main>
 
@@ -204,11 +204,16 @@ export function AyurvedaHeader({
           {/* Logo */}
           <div className="flex items-center">
             <a href="/" className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center overflow-hidden">
+              <div className="w-14 h-14 flex items-center justify-center overflow-hidden shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                 <img
-                  src="/logo.svg"
+                  src="/assets/logo/logowithoutbackground.png"
                   alt={t("navigation.clinicName")}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover dark:hidden"
+                />
+                <img
+                  src="/assets/logo/dark-logo-withoutborder.png"
+                  alt={t("navigation.clinicName")}
+                  className="hidden dark:block w-full h-full object-cover"
                 />
               </div>
               <div>

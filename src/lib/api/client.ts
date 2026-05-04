@@ -26,6 +26,7 @@ import type { Session } from '@/types/auth.types';
 export class ApiError extends Error {
   public statusCode: number;
   public code: string;
+  public backendCode?: string;
   public requestId?: string;
   public details?: Record<string, any>;
 
@@ -33,6 +34,7 @@ export class ApiError extends Error {
     message: string,
     statusCode: number = 500,
     code: string = ERROR_CODES.SYSTEM_ERROR,
+    backendCode?: string,
     requestId?: string,
     details?: Record<string, any>
   ) {
@@ -40,6 +42,7 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.statusCode = statusCode;
     this.code = code;
+    if (backendCode !== undefined) this.backendCode = backendCode;
     if (requestId !== undefined) this.requestId = requestId;
     if (details !== undefined) this.details = details;
   }
@@ -48,7 +51,8 @@ export class ApiError extends Error {
     return new ApiError(
       response.message,
       response.statusCode,
-      response.error,
+      response.code || response.error,
+      response.code,
       response.requestId,
       response.details
     );
@@ -261,8 +265,8 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
     
     const errorResponse: ErrorResponse = {
       success: false,
-      error: data?.error || ERROR_CODES.SYSTEM_ERROR,
-      code: data?.code || ERROR_CODES.SYSTEM_ERROR,
+      error: data?.code || data?.error || ERROR_CODES.SYSTEM_ERROR,
+      code: data?.code || data?.error || ERROR_CODES.SYSTEM_ERROR,
       message: userFriendlyMessage, // Use sanitized user-friendly message
       statusCode: response.status,
       timestamp: nowIso(),

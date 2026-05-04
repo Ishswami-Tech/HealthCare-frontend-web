@@ -34,7 +34,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       )}
     >
       <Navigation />
-      <main className="relative z-10">{children}</main>
+      <main className="relative z-10 overflow-x-clip">{children}</main>
       <Footer />
 
       {/* WhatsApp Button - Available on all pages */}

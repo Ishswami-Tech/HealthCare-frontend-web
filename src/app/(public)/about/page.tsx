@@ -169,7 +169,7 @@ export default function AboutPage() {
               <div className="animate-fade-in-up delay-200 mb-8">
                 <div className="relative inline-block">
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 rounded-2xl blur-2xl animate-pulse"></div>
-                  <h1 className="relative text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground gradient-text leading-tight">
+                  <h1 className="relative text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground gradient-text leading-tight">
                     {t("about.hero.title")}
                   </h1>
                 </div>
@@ -227,7 +227,7 @@ export default function AboutPage() {
                     <div className="animate-fade-in-left">
                       <div className="relative inline-block">
                         <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-2xl blur-xl"></div>
-                        <h2 className="relative text-3xl sm:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
+                        <h2 className="relative text-3xl sm:text-4xl md:text-4xl lg:text-4xl font-playfair font-bold text-foreground mb-4 gradient-text">
                           {t("about.story.title")}
                         </h2>
                       </div>

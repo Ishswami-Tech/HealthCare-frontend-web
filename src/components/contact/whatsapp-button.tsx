@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MessageCircle, X, Send } from "lucide-react";
+import { APP_CONFIG } from "@/lib/config/config";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/context";
 
@@ -23,8 +24,10 @@ interface WhatsAppChatProps {
 }
 
 // Default messages in multiple languages
+const BRAND_NAME = APP_CONFIG.CLINIC.APP_NAME;
+
 const DEFAULT_MESSAGES = {
-  en: "Hello! I would like to book an appointment at Shri Vishwamurti Ayurvedalay. Please let me know the available slots.",
+  en: `Hello! I would like to book an appointment at ${BRAND_NAME}. Please let me know the available slots.`,
   hi: "नमस्ते! मैं श्री विश्वमूर्ति आयुर्वेदालय में अपॉइंटमेंट बुक करना चाहता हूं। कृपया उपलब्ध समय बताएं।",
   mr: "नमस्कार! मला श्री विश्वमूर्ती आयुर्वेदालयात भेटीची वेळ बुक करायची आहे. कृपया उपलब्ध वेळा सांगा.",
 };
@@ -96,7 +99,7 @@ export function WhatsAppButton({
         {showChat && (
           <WhatsAppChat
             phoneNumber={cleanPhoneNumber}
-            clinicName="Shri Vishwamurti Ayurvedalay"
+            clinicName={BRAND_NAME}
             isOpen={showChat}
             onClose={() => setShowChat(false)}
           />
@@ -216,7 +219,7 @@ function WhatsAppChat({
                 ? "नमस्ते! श्री विश्वमूर्ति आयुर्वेदालय में आपका स्वागत है। हम आपकी कैसे सहायता कर सकते हैं?"
                 : language === "mr"
                 ? "नमस्कार! श्री विश्वमूर्ती आयुर्वेदालयात तुमचे स्वागत आहे. आम्ही तुम्हाला कशी मदत करू शकतो?"
-                : "Hello! Welcome to Shri Vishwamurti Ayurvedalay. How can we help you today?"}
+                : `Hello! Welcome to ${BRAND_NAME}. How can we help you today?`}
             </p>
           </div>
 

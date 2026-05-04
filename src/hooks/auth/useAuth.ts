@@ -1007,7 +1007,7 @@ export function useAuthForm(options: AuthFormOptions) {
         const finalErrorMessage = errorMessage || sanitizedError || ERROR_MESSAGES.UNKNOWN_ERROR;
 
         if (showToast) {
-          showErrorToast(error, { id: toastId });
+          showErrorToast(finalErrorMessage, { id: toastId });
         }
 
         if (onError) {

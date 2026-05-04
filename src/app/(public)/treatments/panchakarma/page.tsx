@@ -116,7 +116,7 @@ export default function PanchakarmaPage() {
                 {t("panchakarma.badge")}
               </Badge>
 
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-4 gradient-text leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-4 gradient-text leading-tight">
                 {t("panchakarma.title")}
               </h1>
 

@@ -211,7 +211,7 @@ const Navigation = () => {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="flex items-center space-x-1 sm:space-x-2 h-7 sm:h-8 px-2 sm:px-3 hover:bg-white/20 dark:hover:bg-gray-700/50 transition-all duration-200 hover:scale-110 z-50 relative"
+                  className="flex items-center space-x-1 sm:space-x-2 h-7 sm:h-8 px-2 sm:px-3 hover:bg-white/20 dark:hover:bg-gray-700/50 transition-colors duration-200 z-50 relative"
                 >
                   <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="text-xs font-semibold">
@@ -305,22 +305,23 @@ const Navigation = () => {
                 href="/"
                 className="flex items-center space-x-2 sm:space-x-3 touch-manipulation"
               >
-                  <motion.div
-                    className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
-                    whileHover={{ rotate: 360 }}
-                    transition={{ duration: 0.5, ease: "easeInOut" }}
-                  >
+                  <motion.div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden flex-shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                     <img
-                      src="/logo.svg"
+                      src="/assets/logo/logowithoutbackground.png"
                       alt={t("navigation.clinicName")}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover dark:hidden"
+                    />
+                    <img
+                      src="/assets/logo/dark-logo-withoutborder.png"
+                      alt={t("navigation.clinicName")}
+                      className="hidden dark:block w-full h-full object-cover"
                     />
                   </motion.div>
                   <div className="hidden sm:block min-w-0">
-                    <h1 className="font-playfair text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-tight truncate">
+                    <h1 className="font-playfair text-base sm:text-lg lg:text-lg font-bold text-gray-900 dark:text-white leading-tight truncate">
                       {t("navigation.clinicName")}
                     </h1>
-                    <p className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 -mt-1 truncate">
+                    <p className="text-[10px] sm:text-xs lg:text-xs text-orange-600 dark:text-orange-400 -mt-1 truncate">
                       {t("navigation.clinicSubtitle")}
                     </p>
                   </div>
@@ -358,7 +359,7 @@ const Navigation = () => {
                       <Link
                         href={item.href}
                         className={cn(
-                          "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-all duration-200 relative group text-sm xl:text-base whitespace-nowrap flex items-center space-x-1 hover:scale-105",
+                          "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center space-x-1",
                           (pathname === item.href ||
                             item.subItems?.some(
                               (subItem) => pathname === subItem.href
@@ -448,7 +449,7 @@ const Navigation = () => {
                     <Link
                       href={item.href}
                       className={cn(
-                        "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm xl:text-base whitespace-nowrap",
+                        "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap",
                         pathname === item.href &&
                           "text-orange-600 dark:text-orange-400"
                       )}
@@ -577,11 +578,16 @@ const Navigation = () => {
                 >
                   <SheetHeader className="p-8 pb-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
                     <SheetTitle className="text-left text-xl font-bold text-orange-600 dark:text-orange-400 leading-tight tracking-wide flex items-center space-x-3">
-                      <div className="w-7 h-7 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className="w-9 h-9 flex items-center justify-center overflow-hidden flex-shrink-0 rounded-xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                         <img
-                          src="/logo.svg"
+                          src="/assets/logo/logowithoutbackground.png"
                           alt={t("navigation.clinicName")}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover dark:hidden"
+                        />
+                        <img
+                          src="/assets/logo/dark-logo-withoutborder.png"
+                          alt={t("navigation.clinicName")}
+                          className="hidden dark:block w-full h-full object-cover"
                         />
                       </div>
                       <span>{t("navigation.clinicName")}</span>

@@ -79,7 +79,7 @@ const DoctorExpertise = () => {
               <Award className="w-4 h-4 mr-2" />
               {t("doctor.title")}
             </Badge>
-            <h2 className="text-4xl md:text-5xl font-playfair font-bold text-foreground mb-4">
+            <h2 className="text-3xl md:text-4xl lg:text-4xl font-playfair font-bold text-foreground mb-4">
               {t("doctor.name")}
             </h2>
             <p className="text-xl text-muted-foreground mb-6">

@@ -8,11 +8,69 @@ import { ERROR_MESSAGES } from '@/lib/config/config';
 
 export interface ApiErrorResponse {
   message?: string;
-  error?: string;
-  details?: string;
+  error?: string | { message?: string; error?: string; details?: unknown; code?: string; [key: string]: unknown };
+  details?: string | { message?: string; error?: string; code?: string; [key: string]: unknown };
   statusCode?: number;
+  errorCode?: string;
   code?: string;
   [key: string]: unknown;
+}
+
+function extractNestedMessage(value: unknown): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.filter(Boolean).join(', ');
+  if (typeof value === 'object') {
+    const payload = value as Record<string, unknown>;
+    const nested = payload.message || payload.error || payload.details;
+    if (typeof nested === 'string') return nested;
+    if (Array.isArray(nested)) return nested.filter(Boolean).join(', ');
+  }
+  return '';
+}
+
+function extractBackendErrorCode(error: ApiErrorResponse): string | undefined {
+  if (typeof error.errorCode === 'string' && error.errorCode.trim()) {
+    return error.errorCode.trim();
+  }
+
+  if (typeof error.code === 'string' && error.code.trim()) {
+    return error.code.trim();
+  }
+
+  const nestedError = error.error;
+  if (nestedError && typeof nestedError === 'object') {
+    const payload = nestedError as Record<string, unknown>;
+    if (typeof payload.code === 'string' && payload.code.trim()) {
+      return payload.code.trim();
+    }
+  }
+
+  return undefined;
+}
+
+function extractBackendErrorMessage(error: ApiErrorResponse): string {
+  const candidates = [error.message, error.error, error.details];
+  for (const candidate of candidates) {
+    const extracted = extractNestedMessage(candidate);
+    if (extracted) return extracted;
+  }
+  return '';
+}
+
+function getMessageForErrorCode(errorCode?: string): string {
+  switch (errorCode) {
+    case 'AUTH_ACCOUNT_LOCKED':
+      return 'Your account is temporarily locked. Please try again later.';
+    case 'AUTH_ACCOUNT_DISABLED':
+      return 'Your account is disabled. Please contact support.';
+    case 'AUTH_INSUFFICIENT_PERMISSIONS':
+      return ERROR_MESSAGES.FORBIDDEN;
+    case 'CLINIC_ACCESS_DENIED':
+      return 'You do not have access to this clinic.';
+    default:
+      return '';
+  }
 }
 
 /**
@@ -45,7 +103,16 @@ export function isTechnicalError(message: string): boolean {
 /**
  * Map HTTP status codes to user-friendly error messages
  */
-export function getErrorMessageForStatus(status: number, backendMessage?: string): string {
+export function getErrorMessageForStatus(
+  status: number,
+  backendMessage?: string,
+  backendErrorCode?: string
+): string {
+  const codeMessage = getMessageForErrorCode(backendErrorCode);
+  if (codeMessage) {
+    return codeMessage;
+  }
+
   // If backend provides a user-friendly message and it's not technical, use it
   if (backendMessage && !isTechnicalError(backendMessage)) {
     return backendMessage;
@@ -58,7 +125,9 @@ export function getErrorMessageForStatus(status: number, backendMessage?: string
     case 401:
       return ERROR_MESSAGES.UNAUTHORIZED;
     case 403:
-      return ERROR_MESSAGES.FORBIDDEN;
+      return backendMessage && backendMessage.trim().length > 0
+        ? backendMessage
+        : ERROR_MESSAGES.FORBIDDEN;
     case 423:
       return backendMessage && backendMessage.trim().length > 0
         ? backendMessage
@@ -113,18 +182,15 @@ export function sanitizeErrorMessage(
     errorMessage = error;
   } else if (error && typeof error === 'object') {
     const apiError = error as ApiErrorResponse;
-    // Handle array of messages (common in NestJS/class-validator)
-    if (Array.isArray(apiError.message)) {
-      errorMessage = apiError.message.join(', ');
-    } else {
-      errorMessage = apiError.message || apiError.error || apiError.details || '';
-    }
+    errorMessage = extractBackendErrorMessage(apiError);
     httpStatus = apiError.statusCode || httpStatus;
   }
+
+  const errorCode = error && typeof error === 'object' ? extractBackendErrorCode(error as ApiErrorResponse) : undefined;
   
   // If we have a status code, use status-based mapping
   if (httpStatus) {
-    return getErrorMessageForStatus(httpStatus, errorMessage);
+    return getErrorMessageForStatus(httpStatus, errorMessage, errorCode);
   }
   
   // If error message is technical, replace with generic message
@@ -185,16 +251,10 @@ export async function handleApiError(
     }
   }
   
-  let backendMessage = responseData?.message || responseData?.error || responseData?.details || '';
-  
-  // Handle array of messages
-  if (Array.isArray(backendMessage)) {
-    backendMessage = backendMessage.join(', ');
-  } else if (typeof backendMessage !== 'string') {
-    backendMessage = String(backendMessage);
-  }
+  const backendMessage = responseData ? extractBackendErrorMessage(responseData) : '';
+  const backendErrorCode = responseData ? extractBackendErrorCode(responseData) : undefined;
 
-  return getErrorMessageForStatus(response.status, backendMessage);
+  return getErrorMessageForStatus(response.status, backendMessage, backendErrorCode);
 }
 
 /**

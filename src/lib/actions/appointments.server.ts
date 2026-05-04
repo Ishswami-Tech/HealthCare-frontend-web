@@ -406,9 +406,18 @@ export async function getAppointments(filters?: AppointmentFilters & { omitClini
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to get appointments', error instanceof Error ? error : new Error(errorMessage));
+    const normalizedCode =
+      isApiError(error) && typeof error.code === 'string'
+        ? error.code.replace(/[\s_-]+/g, '_').toUpperCase()
+        : '';
 
     // Preserve specific error types for proper UI feedback
-    if (errorMessage.includes('Profile Incomplete') || errorMessage.includes('requiresProfileCompletion')) {
+    if (
+      normalizedCode === 'PROFILE_INCOMPLETE' ||
+      normalizedCode === 'USER_PROFILE_INCOMPLETE' ||
+      errorMessage.includes('Profile Incomplete') ||
+      errorMessage.includes('requiresProfileCompletion')
+    ) {
       return { success: false, error: 'Profile incomplete. Please complete your profile to access appointments.', code: 'PROFILE_INCOMPLETE' as const };
     }
     if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
@@ -480,7 +489,16 @@ export async function getMyAppointments(filters?: any) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to get my appointments', error instanceof Error ? error : new Error(errorMessage));
-    if (errorMessage.includes('Profile Incomplete') || errorMessage.includes('requiresProfileCompletion')) {
+    const normalizedCode =
+      isApiError(error) && typeof error.code === 'string'
+        ? error.code.replace(/[\s_-]+/g, '_').toUpperCase()
+        : '';
+    if (
+      normalizedCode === 'PROFILE_INCOMPLETE' ||
+      normalizedCode === 'USER_PROFILE_INCOMPLETE' ||
+      errorMessage.includes('Profile Incomplete') ||
+      errorMessage.includes('requiresProfileCompletion')
+    ) {
       return {
         success: false,
         error: 'Profile incomplete. Please complete your profile to access appointments.',

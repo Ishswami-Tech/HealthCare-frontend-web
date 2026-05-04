@@ -90,7 +90,7 @@ const HeroSection = () => {
             {/* Enhanced Main Headline with Responsive Typography */}
             <ScrollReveal direction="up">
               <div className="space-y-4 mt-8 sm:space-y-5 lg:space-y-6 mb-8 sm:mb-10 lg:mb-12 text-center lg:text-left">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.1]">
+                <h1 className="text-4xl md:text-5xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-bold leading-[1.1]">
                   <div className="block text-slate-900 dark:text-slate-100 mb-2 sm:mb-3">
                     {t("hero.title1")}
                   </div>
@@ -104,7 +104,7 @@ const HeroSection = () => {
 
                 {/* Enhanced Subtitle */}
                 <div className="mt-6 sm:mt-8 lg:mt-10">
-                  <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-foreground font-semibold leading-relaxed">
+                  <p className="text-xl sm:text-2xl md:text-2xl lg:text-3xl xl:text-4xl text-foreground font-semibold leading-relaxed">
                     {t("hero.transformHealth")}{" "}
                     <span className="gradient-text-success font-bold">
                       {t("hero.ancientWisdom")}

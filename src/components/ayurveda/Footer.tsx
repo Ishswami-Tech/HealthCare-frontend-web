@@ -55,11 +55,16 @@ const Footer = () => {
           {/* Company Info */}
           <div className="lg:col-span-1">
             <div className="flex items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center overflow-hidden">
+              <div className="w-16 h-16 flex items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                 <img
-                  src="/logo.svg"
+                  src="/assets/logo/logowithoutbackground.png"
                   alt={t("clinic.name")}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover dark:hidden"
+                />
+                <img
+                  src="/assets/logo/dark-logo-withoutborder.png"
+                  alt={t("clinic.name")}
+                  className="hidden dark:block w-full h-full object-cover"
                 />
               </div>
               <div>

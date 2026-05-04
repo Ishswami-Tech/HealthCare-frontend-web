@@ -17,6 +17,7 @@ import {
   showErrorToast,
   dismissToast,
 } from "@/hooks/utils/use-toast";
+import { ERROR_MESSAGES } from "@/lib/config/config";
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { isSessionInvalidError, triggerClientAuthRecovery } from "@/lib/utils/auth-recovery";
 import { dedupeRequest, hasInflightRequest } from "./requestDeduper";
@@ -127,16 +128,19 @@ export function useMutationOperation<TData, TVariables, TError = Error>(
         dismissToast(toastId);
       }
 
-      sanitizeErrorMessage(error);
+      const sanitizedError = sanitizeErrorMessage(error);
+      const finalErrorMessage =
+        sanitizedError && sanitizedError.trim().length > 0
+          ? sanitizedError
+          : errorMessage || ERROR_MESSAGES.UNKNOWN_ERROR;
+
       if (isSessionInvalidError(error)) {
         triggerClientAuthRecovery();
         return;
       }
-      // const finalErrorMessage =
-      //   errorMessage || sanitizedError || ERROR_MESSAGES.UNKNOWN_ERROR;
 
       if (showToast) {
-        showErrorToast(error, {
+        showErrorToast(finalErrorMessage, {
           id: toastId,
         });
       }

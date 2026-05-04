@@ -15,6 +15,11 @@ import { DEFAULT_LANGUAGE } from "@/lib/i18n/config";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { cn } from "@/lib/utils";
 
+const BRAND_NAME = APP_CONFIG.CLINIC.APP_NAME;
+const OG_IMAGE = "/assets/og/og-image.png";
+const SITE_DESCRIPTION =
+  "Experience authentic Ayurvedic care in Chinchwad, Pune with Panchakarma, Agnikarma, Viddha Karma, appointments, and secure patient workflows.";
+
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
@@ -22,20 +27,23 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Viddhakarma - Your Health, Our Priority",
-  description:
-    "Experience healthcare like never before. Connect with top doctors, manage appointments, and access your medical records - all in one secure platform.",
+  title: `${BRAND_NAME} | Authentic Ayurvedic Healing & Wellness`,
+  description: SITE_DESCRIPTION,
   keywords: [
-    "healthcare",
-    "medical",
-    "appointments",
-    "doctors",
-    "telemedicine",
-    "health records",
+    "Ayurveda",
+    "Ayurvedic clinic",
+    "Panchakarma",
+    "Agnikarma",
+    "Viddha Karma",
+    "Chinchwad",
+    "Pimpri-Chinchwad",
+    "Pune",
+    "Ayurvedic treatment",
+    "natural healing",
   ],
-  authors: [{ name: "Viddhakarma" }],
-  creator: "Viddhakarma",
-  publisher: "Viddhakarma",
+  authors: [{ name: BRAND_NAME }],
+  creator: BRAND_NAME,
+  publisher: BRAND_NAME,
   formatDetection: {
     email: false,
     address: false,
@@ -44,18 +52,22 @@ export const metadata = {
   metadataBase: APP_CONFIG.APP.URL && APP_CONFIG.APP.URL.trim() !== '' 
     ? new URL(APP_CONFIG.APP.URL) 
     : new URL('http://localhost:3000'),
+  icons: {
+    icon: "/assets/logo/logowithoutbackground.png",
+    apple: "/assets/logo/logowithoutbackground.png",
+    shortcut: "/assets/logo/logowithoutbackground.png",
+  },
   openGraph: {
-    title: "Viddhakarma - Your Health, Our Priority",
-    description:
-      "Experience healthcare like never before. Connect with top doctors, manage appointments, and access your medical records - all in one secure platform.",
+    title: `${BRAND_NAME} | Authentic Ayurvedic Healing & Wellness`,
+    description: SITE_DESCRIPTION,
     url: "/",
-    siteName: "Viddhakarma",
+    siteName: BRAND_NAME,
     images: [
       {
-        url: "/og-image.jpg",
+        url: OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: "Viddhakarma Platform",
+        alt: BRAND_NAME,
       },
     ],
     locale: "en_US",
@@ -63,10 +75,9 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Viddhakarma - Your Health, Our Priority",
-    description:
-      "Experience healthcare like never before. Connect with top doctors, manage appointments, and access your medical records - all in one secure platform.",
-    images: ["/og-image.jpg"],
+    title: `${BRAND_NAME} | Authentic Ayurvedic Healing & Wellness`,
+    description: SITE_DESCRIPTION,
+    images: [OG_IMAGE],
   },
   robots: {
     index: true,
@@ -110,7 +121,7 @@ export default async function RootLayout({
           <Suspense
             fallback={
               <div className="min-h-screen bg-background flex items-center justify-center">
-                <LoadingSpinner size="lg" color="primary" text="Preparing Viddhakarma..." />
+                <LoadingSpinner size="lg" color="primary" text={`Preparing ${BRAND_NAME}...`} />
               </div>
             }
           >

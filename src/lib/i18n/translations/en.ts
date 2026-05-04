@@ -89,8 +89,8 @@ export const en: TranslationKeys = {
     bookNew: 'Book New',
   },
   navigation: {
-    logo: 'Shri',
-    clinicName: 'Shri Vishwamurti Ayurvedalay',
+    logo: 'Shree',
+    clinicName: 'Shree Vishwamruti Ayurvedic Chikitsalya',
     clinicSubtitle: 'Traditional Healing, Modern Care',
     livePatients: 'Live Patients',
     livesTransformed: 'Lives Transformed',
@@ -759,7 +759,7 @@ export const en: TranslationKeys = {
     about: 'Expert in treating neurological conditions through traditional Ayurvedic methods',
   },
   clinic: {
-    name: 'Shri Vishwamurti Ayurvedalay',
+    name: 'Shree Vishwamruti Ayurvedic Chikitsalya',
     address: 'Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India',
     phone: '+91 9860370961, +91 79 7254 8944',
     whatsapp: '9860370961',
@@ -921,7 +921,7 @@ export const en: TranslationKeys = {
   // Landing Page Content
   landing: {
     // Header/Navigation
-    brandName: 'Viddhakarma',
+    brandName: 'Shree Vishwamruti Ayurvedic Chikitsalya',
     welcome: 'Welcome',
     loginButton: 'Login',
     getStartedButton: 'Get Started',
@@ -982,7 +982,7 @@ export const en: TranslationKeys = {
     twitter: 'Twitter',
     facebook: 'Facebook',
     linkedin: 'LinkedIn',
-    copyright: '© 2024 Viddhakarma. All rights reserved.',
+    copyright: '© 2024 Shree Vishwamruti Ayurvedic Chikitsalya. All rights reserved.',
 
     // Toast Messages
     loginRequired: 'Please login to access the dashboard',
@@ -1275,8 +1275,8 @@ export const en: TranslationKeys = {
     errorMessage: 'Sorry, there was an error sending your message. Please try again.',
   },
   footer: {
-    logo: 'Shri',
-    clinicName: 'Shri Vishwamurti Ayurvedalay',
+    logo: 'Shree',
+    clinicName: 'Shree Vishwamruti Ayurvedic Chikitsalya',
     tagline: 'Authentic Ayurvedic Care',
     description: 'Experience the power of traditional Ayurvedic healing with our expert practitioners. We are committed to providing authentic, personalized care for your complete wellness journey.',
     address: 'Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India',
@@ -2348,7 +2348,7 @@ export const en: TranslationKeys = {
   },
   about: {
     hero: {
-      badge: "About Shri Vishwamurti Ayurvedalay",
+      badge: "About Shree Vishwamruti Ayurvedic Chikitsalya",
       title: "20+ Years of Authentic Healing",
       subtitle: "Where ancient Ayurvedic wisdom meets modern healthcare excellence. Our journey of transformation, one life at a time.",
       certifications: {
@@ -2360,7 +2360,7 @@ export const en: TranslationKeys = {
     story: {
       title: "Our Story",
       paragraphs: {
-        p1: "Founded in 2003 with a sacred mission to preserve and practice authentic Ayurveda, Shri Vishwamurti Ayurvedalay has been a beacon of hope for thousands seeking natural healing and complete wellness.",
+        p1: "Founded in 2003 with a sacred mission to preserve and practice authentic Ayurveda, Shree Vishwamruti Ayurvedic Chikitsalya has been a beacon of hope for thousands seeking natural healing and complete wellness.",
         p2: "Our founder, Dr. Vishwamurti, envisioned a place where the timeless wisdom of Ayurveda could be practiced in its purest form while embracing the benefits of modern healthcare infrastructure and scientific validation.",
         p3: "Over two decades, we have grown from a small clinic to a renowned Ayurvedic hospital, treating complex chronic conditions that conventional medicine often struggles to address. Our success lies in treating the root cause, not just symptoms.",
         p4: "Today, we stand proud as a government-certified, ISO-accredited institution that has transformed over 5000 lives through authentic Panchakarma, Agnikarma, Viddha Karma, and comprehensive Ayurvedic treatments."
@@ -2401,7 +2401,7 @@ export const en: TranslationKeys = {
       subtitle: "Key milestones that shaped our legacy of healing excellence",
       "2003": {
         event: "Foundation Established",
-        description: "Shri Vishwamurti Ayurvedalay was founded with a vision to provide authentic Ayurvedic healing to the community."
+        description: "Shree Vishwamruti Ayurvedic Chikitsalya was founded with a vision to provide authentic Ayurvedic healing to the community."
       },
       "2008": {
         event: "Government Recognition",

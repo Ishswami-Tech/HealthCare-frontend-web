@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | Viddhakarma",
+  title: "Terms of Service | Shree Vishwamruti Ayurvedic Chikitsalya",
   description:
-    "Read the terms and conditions governing your use of the Viddhakarma platform, including patient, doctor, and clinic obligations.",
+    "Read the terms and conditions governing your use of Shree Vishwamruti Ayurvedic Chikitsalya, including patient, doctor, and clinic obligations.",
   openGraph: {
-    title: "Terms of Service | Viddhakarma",
+    title: "Terms of Service | Shree Vishwamruti Ayurvedic Chikitsalya",
     description:
-      "Terms and conditions for using the Viddhakarma platform.",
-    siteName: "Viddhakarma",
+      "Terms and conditions for using Shree Vishwamruti Ayurvedic Chikitsalya.",
+    siteName: "Shree Vishwamruti Ayurvedic Chikitsalya",
   },
   robots: { index: true, follow: true },
 };

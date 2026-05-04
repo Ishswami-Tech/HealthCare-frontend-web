@@ -218,7 +218,7 @@ export default function TreatmentsPage() {
                 {t("treatments.title")}
               </Badge>
 
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-8 gradient-text leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-8 gradient-text leading-tight">
                 {t("treatments.subtitle")}
               </h1>
 
@@ -270,7 +270,7 @@ export default function TreatmentsPage() {
                     <Award className="w-4 h-4 mr-2" />
                     {t("treatments.labels.mainTreatments")}
                   </Badge>
-                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold text-foreground dark:text-foreground/95 mb-6 gradient-text">
+                  <h2 className="text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-playfair font-bold text-foreground dark:text-foreground/95 mb-6 gradient-text">
                     {t("treatments.labels.mainTreatmentsTitle")}
                   </h2>
                   <p className="text-lg text-muted-foreground dark:text-muted-foreground/90 max-w-3xl mx-auto leading-relaxed">
@@ -414,7 +414,7 @@ export default function TreatmentsPage() {
                     <Users className="w-4 h-4 mr-2" />
                     {t("treatments.labels.specializedCare")}
                   </Badge>
-                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-bold text-foreground mb-6 gradient-text">
+                  <h2 className="text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-playfair font-bold text-foreground mb-6 gradient-text">
                     {t("treatments.labels.specializedProgramsTitle")}
                   </h2>
                   <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">

@@ -193,7 +193,7 @@ export default function ViddhaKarmaPage() {
                 <Zap className="w-4 h-4 mr-2" />
                 {t("viddhakarma.badge")}
               </Badge>
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-playfair font-bold text-foreground mb-8 gradient-text leading-tight">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-8 gradient-text leading-tight">
                 {t("viddhakarma.title")}
               </h1>
               <p className="text-xl sm:text-2xl text-muted-foreground mb-10 leading-relaxed max-w-4xl mx-auto">

@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Disclaimer | Viddhakarma",
+  title: "Disclaimer | Shree Vishwamruti Ayurvedic Chikitsalya",
   description:
-    "Read the medical and legal disclaimer for Viddhakarma. Understand the limitations of the information provided on our platform.",
+    "Read the medical and legal disclaimer for Shree Vishwamruti Ayurvedic Chikitsalya. Understand the limitations of the information provided on our platform.",
   openGraph: {
-    title: "Disclaimer | Viddhakarma",
+    title: "Disclaimer | Shree Vishwamruti Ayurvedic Chikitsalya",
     description:
-      "Medical and legal disclaimer for the Viddhakarma platform.",
-    siteName: "Viddhakarma",
+      "Medical and legal disclaimer for Shree Vishwamruti Ayurvedic Chikitsalya.",
+    siteName: "Shree Vishwamruti Ayurvedic Chikitsalya",
   },
   robots: { index: true, follow: true },
 };

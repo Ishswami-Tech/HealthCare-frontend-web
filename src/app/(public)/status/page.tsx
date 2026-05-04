@@ -288,7 +288,7 @@ export default function StatusPage() {
 
                 <h2 className="text-sm font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest mb-1">Overall Health</h2>
                 <div className="flex flex-col sm:flex-row sm:items-baseline gap-4 mt-2">
-                    <span className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground dark:from-white dark:to-slate-400">
+                    <span className="text-4xl sm:text-5xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground dark:from-white dark:to-slate-400">
                         {healthPercentage}%
                     </span>
                     <span className={cn(

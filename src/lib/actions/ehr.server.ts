@@ -16,7 +16,16 @@ export async function getComprehensiveHealthRecord(userId: string) {
     return data;
   } catch (error: unknown) {
     // If it's the profile incomplete error, return null or an empty default state
-    if (isApiError(error) && error.statusCode === 403 && error.code === 'Profile Incomplete') {
+    const normalizedCode =
+      isApiError(error) && typeof error.code === 'string'
+        ? error.code.replace(/[\s_-]+/g, '_').toUpperCase()
+        : '';
+
+    if (
+      isApiError(error) &&
+      error.statusCode === 403 &&
+      (normalizedCode === 'PROFILE_INCOMPLETE' || normalizedCode === 'USER_PROFILE_INCOMPLETE')
+    ) {
       return null;
     }
     // Re-throw other unexpected errors

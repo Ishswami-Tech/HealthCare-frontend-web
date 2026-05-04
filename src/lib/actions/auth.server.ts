@@ -1076,7 +1076,16 @@ export async function authenticatedApi<T = unknown>(
     };
   } catch (error: unknown) {
     // Gracefully handle "Profile Incomplete" to prevent Next.js from crashing
-    if (isApiError(error) && error.statusCode === 403 && error.code === 'Profile Incomplete') {
+    const normalizedCode =
+      isApiError(error) && typeof error.code === 'string'
+        ? error.code.replace(/[\s_-]+/g, '_').toUpperCase()
+        : '';
+
+    if (
+      isApiError(error) &&
+      error.statusCode === 403 &&
+      (normalizedCode === 'PROFILE_INCOMPLETE' || normalizedCode === 'USER_PROFILE_INCOMPLETE')
+    ) {
       try {
         const cookieStore = await cookies();
         cookieStore.set({

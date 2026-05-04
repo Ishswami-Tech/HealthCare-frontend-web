@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { MapPin, Navigation, Phone, Clock, Loader2 } from "lucide-react";
+import { APP_CONFIG } from "@/lib/config/config";
 import { cn } from "@/lib/utils";
 
 interface GoogleMapsProps {
@@ -29,9 +30,11 @@ interface ClinicLocation {
   };
 }
 
-// Default clinic location for Shri Vishwamurti Ayurvedalay
+const BRAND_NAME = APP_CONFIG.CLINIC.APP_NAME;
+
+// Default clinic location for the configured clinic brand
 const DEFAULT_CLINIC: ClinicLocation = {
-  name: "Shri Vishwamurti Ayurvedalay",
+  name: BRAND_NAME,
   address:
     "Moraya Ganapati Mandir Road, Gandhi Peth, Chinchwad Gaon, Chinchwad, Pimpri-Chinchwad, Maharashtra, India",
   phone: "9860370961, 7709399925",

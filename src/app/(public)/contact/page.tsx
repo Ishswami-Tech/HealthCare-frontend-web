@@ -38,6 +38,7 @@ import { PageTransition } from "@/components/ui/animated-wrapper";
 import { LazySection } from "@/components/ui/lazy-section";
 import { SectionSkeleton } from "@/lib/dynamic-imports";
 import { getIconColorScheme } from "@/lib/config/color-palette";
+import { APP_CONFIG } from "@/lib/config/config";
 import {
   useSubmitContactForm,
   useSubmitConsultationBooking,
@@ -47,6 +48,7 @@ import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 
 export default function ContactPage() {
   const { t } = useTranslation();
+  const clinicName = APP_CONFIG.CLINIC.APP_NAME;
   const submitContactFormMutation = useSubmitContactForm();
   const submitConsultationBookingMutation = useSubmitConsultationBooking();
   const [formData, setFormData] = useState({
@@ -381,7 +383,7 @@ export default function ContactPage() {
               <div className="animate-fade-in-up delay-200">
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 rounded-2xl blur-2xl animate-pulse"></div>
-                  <h1 className="relative text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-4 gradient-text leading-tight drop-shadow-lg">
+                  <h1 className="relative text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-4 gradient-text leading-tight drop-shadow-lg">
                     {t("contact.title")}
                   </h1>
                 </div>
@@ -712,7 +714,7 @@ export default function ContactPage() {
                             zoom={15}
                             height="350px"
                             showInfoWindow={true}
-                            clinicName="Shri Vishwamurti Ayurvedalay"
+                            clinicName={clinicName}
                             clinicPhone="9860370961, 7709399925"
                             clinicHours="Mon-Fri: 11:45 AM – 11:30 PM"
                           />

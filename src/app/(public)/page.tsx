@@ -23,7 +23,7 @@ export const metadata = generateSEOMetadata({
   description: pageSEO.home.description,
   keywords: [...pageSEO.home.keywords],
   url: "/",
-  image: "/images/ayurveda-hero.jpg",
+  image: "/assets/og/og-image.png",
 });
 
 // Preload components for better UX

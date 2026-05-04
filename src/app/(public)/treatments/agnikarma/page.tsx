@@ -175,7 +175,7 @@ export default function AgnikarmaPage() {
                 {t("agnikarma.badge")}
               </Badge>
 
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-playfair font-bold text-foreground mb-8 gradient-text leading-tight">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-8 gradient-text leading-tight">
                 {t("agnikarma.title")}
               </h1>
 

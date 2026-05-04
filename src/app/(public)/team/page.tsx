@@ -240,7 +240,7 @@ export default function TeamPage() {
                   </Badge>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-playfair font-bold text-foreground mb-6 leading-tight animate-fade-in-up">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-playfair font-bold text-foreground mb-6 leading-tight animate-fade-in-up">
                   <span className="bg-gradient-to-r from-orange-600 via-red-600 to-pink-600 bg-clip-text text-transparent drop-shadow-2xl relative">
                     {t("team.title")}
                     <div className="absolute -inset-1 bg-gradient-to-r from-orange-600/20 via-red-600/20 to-pink-600/20 blur-xl -z-10"></div>

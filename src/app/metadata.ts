@@ -1,4 +1,4 @@
 export const metadata = {
-  title: 'Healthcare App',
-  description: 'A modern healthcare platform',
+  title: 'Shree Vishwamruti Ayurvedic Chikitsalya',
+  description: 'Authentic Ayurvedic healing with secure appointments, patient workflows, and holistic care.',
 }; 
