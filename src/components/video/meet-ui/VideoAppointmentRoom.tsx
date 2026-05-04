@@ -626,7 +626,7 @@ export default function VideoAppointmentRoom({
 
   if (sessionMovedMessage) {
     return (
-      <div className="flex h-full min-h-0 w-full items-center justify-center bg-background px-4 py-8 text-foreground dark:bg-[#202124] dark:text-white">
+      <div className="flex h-full min-h-0 w-full items-center justify-center bg-background px-4 py-8 text-foreground dark:bg-meet-black dark:text-white">
         <div className="max-w-lg rounded-3xl border border-border bg-card p-6 text-center shadow-2xl dark:border-white/10 dark:bg-white/5">
           <p className="text-lg font-semibold">Session moved</p>
           <p className="mt-2 text-sm text-muted-foreground dark:text-gray-300">{sessionMovedMessage}</p>
@@ -641,18 +641,18 @@ export default function VideoAppointmentRoom({
   return (
     <TooltipProvider>
       {/* Root: flex-column → video+sidebar row on top, control bar pinned at bottom */}
-      <div className="flex flex-col h-full w-full min-h-0 bg-background text-foreground dark:bg-[#202124] dark:text-white overflow-hidden">
+      <div className="flex flex-col h-full w-full min-h-0 bg-background text-foreground dark:bg-meet-black dark:text-white overflow-hidden">
 
         {/* Top row: video area + optional sidebar, side-by-side */}
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden lg:flex-row">
 
           {/* Video Area — shrinks horizontally with smooth transition when sidebar opens */}
-          <div className="flex-1 relative bg-background min-w-0 overflow-hidden transition-all duration-300 ease-in-out dark:bg-[#202124]">
+          <div className="flex-1 relative bg-background min-w-0 overflow-hidden transition-all duration-300 ease-in-out dark:bg-meet-black">
             {!isInCall() ? (
               !isConnecting && (
                 <div className="flex h-full flex-col items-center justify-center p-6 text-foreground dark:text-white">
-                  <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-8 text-center shadow-lg dark:border-gray-700 dark:bg-[#3c4043]">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4 dark:bg-[#202124]">
+                  <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-8 text-center shadow-lg dark:border-gray-700 dark:bg-dark-gray">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4 dark:bg-meet-black">
                       <Phone className="h-8 w-8 text-foreground dark:text-white" />
                     </div>
                     <h2 className="mt-4 text-2xl font-semibold">Ready to Join</h2>
@@ -691,9 +691,9 @@ export default function VideoAppointmentRoom({
             )}
 
             {isConnecting && (
-              <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/90 text-foreground dark:bg-[#202124] dark:text-white">
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/90 text-foreground dark:bg-meet-black dark:text-white">
                 <div className="text-center">
-                  <Loader2 className="mx-auto h-12 w-12 animate-spin text-[var(--color-meet-blue)]" />
+                  <Loader2 className="mx-auto h-12 w-12 animate-spin text-meet-blue" />
                   <p className="mt-4 text-lg font-medium">Joining the call...</p>
                 </div>
               </div>
@@ -710,7 +710,7 @@ export default function VideoAppointmentRoom({
                 transition={{ duration: 0.3, ease: "easeOut" }}
                 className="fixed inset-0 z-40 flex min-h-0 w-full bg-background/95 p-3 backdrop-blur-sm lg:static lg:inset-auto lg:w-[380px] lg:bg-transparent lg:p-0 lg:py-4 lg:pr-4 lg:backdrop-blur-0"
               >
-                <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl relative dark:bg-[#202124] dark:border-white/10 lg:flex-1 lg:rounded-2xl">
+                <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl relative dark:bg-meet-black dark:border-white/10 lg:flex-1 lg:rounded-2xl">
                   <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0 sm:px-6 sm:py-5 bg-gradient-to-r from-white to-slate-50 dark:border-white/10 dark:from-[#202124] dark:to-[#2b2c30]">
                     <h3 className="font-semibold text-lg text-foreground dark:text-white">
                       {activePanel === "chat"
@@ -723,7 +723,7 @@ export default function VideoAppointmentRoom({
                       variant="ghost"
                       size="icon"
                       onClick={() => setShowSidePanel(false)}
-                      className="rounded-full h-8 w-8 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-800 dark:bg-[#3c4043] dark:text-white dark:hover:bg-[#4a4d51]"
+                      className="rounded-full h-8 w-8 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-800 dark:bg-dark-gray dark:text-white dark:hover:bg-[#4a4d51]"
                     >
                       <span className="sr-only">Close</span>
                       <XCircle size={20} />
@@ -749,7 +749,7 @@ export default function VideoAppointmentRoom({
                                 description: "Invitation link has been copied to your clipboard.",
                               });
                             }}
-                            className="w-full justify-start gap-3 bg-[var(--color-meet-blue)] hover:bg-[var(--color-hover-primary)] text-white rounded-full h-11 px-6 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                            className="w-full justify-start gap-3 bg-meet-blue hover:bg-hover-primary text-white rounded-full h-11 px-6 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
                           >
                             <UserPlus size={18} />
                             <span className="font-medium">Add people</span>
@@ -759,7 +759,7 @@ export default function VideoAppointmentRoom({
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                             <Input
                               placeholder="Search for people"
-                              className="bg-white border-border text-foreground pl-9 h-11 rounded-xl focus:ring-blue-500 focus:border-blue-500 dark:bg-[#202124] dark:border-white/10 dark:text-white"
+                              className="bg-white border-border text-foreground pl-9 h-11 rounded-xl focus:ring-blue-500 focus:border-blue-500 dark:bg-meet-black dark:border-white/10 dark:text-white"
                               value={searchTerm}
                               onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -785,8 +785,8 @@ export default function VideoAppointmentRoom({
                                         {(participant.displayName || "U").charAt(0).toUpperCase()}
                                       </div>
                                       {participant.isSpeaking && (
-                                        <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-[var(--color-meet-blue)] rounded-full border-2 border-background flex items-center justify-center dark:border-[#202124]">
-                                          <div className="flex gap-[1px] items-end h-2">
+                                        <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-meet-blue rounded-full border-2 border-background flex items-center justify-center dark:border-meet-black">
+                                          <div className="flex gap-px items-end h-2">
                                             <div className="w-[1.5px] h-1 bg-white animate-pulse" />
                                             <div className="w-[1.5px] h-2 bg-white animate-pulse delay-75" />
                                             <div className="w-[1.5px] h-1.5 bg-white animate-pulse delay-150" />
@@ -819,7 +819,7 @@ export default function VideoAppointmentRoom({
                                         onActionComplete={updateParticipants}
                                       />
                                     )}
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-slate-100 text-slate-700 hover:text-slate-800 hover:bg-slate-200 dark:bg-[#3c4043] dark:text-white dark:hover:bg-[#4a4d51]">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-slate-100 text-slate-700 hover:text-slate-800 hover:bg-slate-200 dark:bg-dark-gray dark:text-white dark:hover:bg-[#4a4d51]">
                                       <MoreVertical size={16} />
                                     </Button>
                                   </div>
@@ -834,10 +834,10 @@ export default function VideoAppointmentRoom({
                     {activePanel === "notes" && (
                       <div className="flex-1 flex flex-col min-h-0 bg-transparent overflow-hidden">
                         <div className="flex-1 overflow-y-auto p-2.5 sm:p-3 custom-scrollbar">
-                          <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-sm dark:border-white/10 dark:bg-[#202124]">
+                          <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-sm dark:border-white/10 dark:bg-meet-black">
                             <div className="flex items-center justify-between gap-2">
                               <div className="min-w-0">
-                                <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-meet-blue)]">
+                                <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-meet-blue">
                                   <Info size={12} />
                                   Session Info
                                 </h4>
@@ -885,7 +885,7 @@ export default function VideoAppointmentRoom({
                           </div>
                         </div>
 
-                        <div className="p-2.5 sm:p-3 border-t border-border shrink-0 bg-background/80 backdrop-blur-md dark:border-white/5 dark:bg-[#202124]/50">
+                        <div className="p-2.5 sm:p-3 border-t border-border shrink-0 bg-background/80 backdrop-blur-md dark:border-white/5 dark:bg-meet-black/50">
                           <p className="text-[9px] sm:text-[10px] text-muted-foreground text-center flex items-center justify-center gap-2 dark:text-gray-500">
                             <span className="h-1.5 w-1.5 bg-green-500 rounded-full animate-pulse" />
                             Secure end-to-end encrypted consultation

@@ -545,7 +545,7 @@ export const useCreateAppointment = (clinicId?: string) => {
 };
 
 /**
- * Hook for proposing video appointment with 3-4 time slots (patient flow)
+ * Hook for proposing video appointment with exactly 3 time slots (patient flow)
  */
 export const useProposeVideoAppointment = () => {
   const { hasPermission } = useRBAC();

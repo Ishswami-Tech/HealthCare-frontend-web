@@ -181,7 +181,7 @@ const Navigation = () => {
   return (
     <>
       {/* Top Trust Bar */}
-      <div className="bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4 relative z-40">
+      <div className="bg-linear-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4 relative z-40">
         <div className="container mx-auto max-w-7xl flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs md:text-sm gap-2 sm:gap-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <Badge
@@ -220,7 +220,7 @@ const Navigation = () => {
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 z-[9999]">
+              <DropdownMenuContent align="end" className="w-48 z-9999">
                 <DropdownMenuItem
                   onClick={() => setLanguage("en")}
                   className="cursor-pointer"
@@ -285,10 +285,10 @@ const Navigation = () => {
           <div className="absolute inset-0 bg-background" />
 
           {/* Elegant Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-background via-background/95 to-muted/20 dark:from-background dark:via-background/95 dark:to-muted/30" />
+          <div className="absolute inset-0 bg-linear-to-br from-background via-background/95 to-muted/20 dark:from-background dark:via-background/95 dark:to-muted/30" />
 
           {/* Secondary Gradient for Depth */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-primary/3 to-secondary/8 dark:via-primary/5 dark:to-secondary/12" />
+          <div className="absolute inset-0 bg-linear-to-tr from-transparent via-primary/3 to-secondary/8 dark:via-primary/5 dark:to-secondary/12" />
 
           {/* Subtle Geometric Pattern */}
           <div className="absolute inset-0 opacity-[0.01] dark:opacity-[0.04]">
@@ -306,7 +306,7 @@ const Navigation = () => {
                 prefetch={false}
                 className="flex items-center space-x-2 sm:space-x-3 touch-manipulation"
               >
-                  <motion.div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden flex-shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+                  <motion.div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                     <img
                       src="/assets/logo/logowithoutbackground.png"
                       alt={t("navigation.clinicName")}
@@ -473,7 +473,7 @@ const Navigation = () => {
             </div>
 
             {/* Right Section - Clean and Simple */}
-            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-shrink-0">
+            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 shrink-0">
               {mounted ? (
                 <>
                   {/* Authentication Buttons */}
@@ -487,11 +487,11 @@ const Navigation = () => {
                             size="sm"
                             className="flex items-center space-x-1 sm:space-x-2 h-8 px-2 sm:px-3 touch-manipulation"
                           >
-                            <User className="w-4 h-4 flex-shrink-0" />
+                            <User className="w-4 h-4 shrink-0" />
                             <span className="hidden sm:inline text-sm truncate max-w-20">
                               {session.user.firstName || "User"}
                             </span>
-                            <ChevronDown className="w-3 h-3 flex-shrink-0" />
+                            <ChevronDown className="w-3 h-3 shrink-0" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
@@ -522,7 +522,7 @@ const Navigation = () => {
                         type="button"
                         size="sm"
                         onClick={handleRegister}
-                        className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
+                        className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
                       >
                         <span className="hidden sm:inline">Register</span>
                         <span className="sm:hidden">Sign Up</span>
@@ -541,7 +541,7 @@ const Navigation = () => {
               <Button
                 type="button"
                 size="sm"
-                className="hidden lg:flex bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
+                className="hidden lg:flex bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
                 onClick={() => (window.location.href = "tel:9860370961")}
               >
                 <Phone className="w-3 h-3 mr-1" />
@@ -552,7 +552,7 @@ const Navigation = () => {
               <Button
                 type="button"
                 size="sm"
-                className="lg:hidden bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
+                className="lg:hidden bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
                 onClick={() => (window.location.href = "tel:9860370961")}
               >
                 <Phone className="w-3 h-3 mr-1" />
@@ -580,9 +580,9 @@ const Navigation = () => {
                   side="left"
                   className="w-80 p-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
                 >
-                  <SheetHeader className="p-8 pb-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
+                  <SheetHeader className="p-8 pb-6 border-b border-gray-200 dark:border-gray-700 bg-linear-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
                     <SheetTitle className="text-left text-xl font-bold text-orange-600 dark:text-orange-400 leading-tight tracking-wide flex items-center space-x-3">
-                      <div className="w-9 h-9 flex items-center justify-center overflow-hidden flex-shrink-0 rounded-xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+                      <div className="w-9 h-9 flex items-center justify-center overflow-hidden shrink-0 rounded-xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
                         <img
                           src="/assets/logo/logowithoutbackground.png"
                           alt={t("navigation.clinicName")}
@@ -695,7 +695,7 @@ const Navigation = () => {
                           <Button
                             type="button"
                             onClick={handleDashboardNavigation}
-                            className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
+                            className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
                           >
                             <User className="w-4 h-4 mr-2" />
                             Dashboard
@@ -723,7 +723,7 @@ const Navigation = () => {
                           <Button
                             type="button"
                             onClick={handleRegister}
-                            className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
+                            className="bg-linear-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
                           >
                             Register
                           </Button>

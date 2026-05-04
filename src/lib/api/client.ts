@@ -574,13 +574,14 @@ export class ApiClient {
               return refreshedSession;
             })()
           : await (async () => {
-              const response = await fetch(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
+              const response = await fetchWithAbort(`${this.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                   ...(sessionId ? { 'X-Session-ID': sessionId } : {})
                 },
                 credentials: this.withCredentials ? 'include' : 'omit',
+                timeout: this.timeout,
                 body: JSON.stringify(refreshToken ? { refreshToken } : {})
               });
 

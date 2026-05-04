@@ -20,7 +20,7 @@ export function VideoAppointmentMeetRoom({
   initialMediaStream = null,
 }: VideoAppointmentMeetRoomProps) {
   return (
-    <div className="meet-room fixed inset-0 z-50 min-h-[100svh] w-full overflow-hidden bg-background text-foreground dark:bg-[var(--color-meet-black)] dark:text-white">
+    <div className="meet-room fixed inset-0 z-50 min-h-svh w-full overflow-hidden bg-background text-foreground dark:bg-meet-black dark:text-white">
       <VideoAppointmentRoom
         appointment={appointment}
         startWithAudioEnabled={startWithAudioEnabled}

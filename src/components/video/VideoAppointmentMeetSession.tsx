@@ -25,17 +25,17 @@ import { getVideoSessionExitRoute } from "@/lib/utils/video-session-route";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 
 const MEET_MEDIA_BUTTON_ON =
-  "bg-[#3c4043] text-white border border-[#3c4043] shadow-sm hover:bg-[#4a4d51] hover:border-[#4a4d51] dark:bg-[#3c4043] dark:text-white dark:border-[#5f6368] dark:hover:bg-[#4a4d51]";
+  "bg-dark-gray text-white border border-dark-gray shadow-sm hover:bg-[#4a4d51] hover:border-[#4a4d51] dark:bg-dark-gray dark:text-white dark:border-[#5f6368] dark:hover:bg-[#4a4d51]";
 const MEET_MEDIA_BUTTON_OFF =
   "bg-[#ea4335] text-white border border-[#ea4335] shadow-sm hover:bg-[#d93025] hover:border-[#d93025]";
 const MEET_JOIN_BUTTON =
   "bg-[#1a73e8] text-white shadow-sm hover:bg-[#1558b0] dark:bg-[#8ab4f8] dark:text-[#202124] dark:hover:bg-[#aecbfa]";
 const MEET_SECONDARY_BUTTON =
-  "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-[#5f6368] dark:bg-transparent dark:text-white dark:hover:bg-[#3c4043]";
+  "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-[#5f6368] dark:bg-transparent dark:text-white dark:hover:bg-dark-gray";
 const MEET_STATUS_BADGE =
   "rounded-full border border-blue-200/70 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200";
 const MEET_INFO_CARD =
-  "rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-[#3c4043] dark:bg-[#202124]/90";
+  "rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-dark-gray dark:bg-meet-black/90";
 
 type VideoAppointmentMeetSessionProps = {
   appointmentId: string;
@@ -413,8 +413,8 @@ export function VideoAppointmentMeetSession({
 
   if (isPending || !appointment || isRequesting) {
     return (
-      <div className="flex min-h-[100dvh] w-full items-center justify-center px-4 py-6 text-center bg-background text-foreground dark:bg-[var(--color-meet-black)] dark:text-white">
-        <div className="rounded-3xl border border-border bg-card px-5 py-4 text-center shadow-sm sm:px-6 sm:py-5 dark:border-[#3c4043] dark:bg-[#202124]">
+      <div className="flex min-h-dvh w-full items-center justify-center px-4 py-6 text-center bg-background text-foreground dark:bg-meet-black dark:text-white">
+        <div className="rounded-3xl border border-border bg-card px-5 py-4 text-center shadow-sm sm:px-6 sm:py-5 dark:border-dark-gray dark:bg-meet-black">
           <Loader2 className="mx-auto h-9 w-9 animate-spin text-foreground dark:text-white" />
           <p className="mt-3 text-sm font-medium">Getting ready...</p>
         </div>
@@ -424,8 +424,8 @@ export function VideoAppointmentMeetSession({
 
   if (error || permissionError) {
     return (
-      <div className="flex min-h-[100dvh] w-full items-center justify-center px-4 py-6 text-center bg-background text-foreground dark:bg-[var(--color-meet-black)] dark:text-white">
-        <div className="max-w-md rounded-3xl border border-border bg-card px-5 py-5 text-center shadow-sm sm:px-6 sm:py-6 dark:border-[#3c4043] dark:bg-[#202124]">
+      <div className="flex min-h-dvh w-full items-center justify-center px-4 py-6 text-center bg-background text-foreground dark:bg-meet-black dark:text-white">
+        <div className="max-w-md rounded-3xl border border-border bg-card px-5 py-5 text-center shadow-sm sm:px-6 sm:py-6 dark:border-dark-gray dark:bg-meet-black">
           <p className="text-lg font-semibold">Permissions required</p>
           <p className="mt-2 text-sm text-muted-foreground dark:text-gray-400">
             {permissionError || "Unable to load this meeting."}
@@ -433,7 +433,7 @@ export function VideoAppointmentMeetSession({
           <div className="mt-6 flex justify-center">
             <Button
               onClick={() => window.location.reload()}
-              className="rounded-full bg-[var(--color-meet-blue)] text-white hover:bg-blue-600"
+              className="rounded-full bg-meet-blue text-white hover:bg-blue-600"
             >
               Retry
             </Button>
@@ -455,7 +455,7 @@ export function VideoAppointmentMeetSession({
     );
   }
   return (
-      <div className="relative flex min-h-[100dvh] w-full flex-col items-stretch justify-center gap-4 overflow-hidden bg-background px-4 py-6 text-foreground dark:bg-[#202124] dark:text-white sm:px-6 sm:py-8 lg:flex-row lg:items-center lg:gap-8 lg:px-8">
+      <div className="relative flex min-h-dvh w-full flex-col items-stretch justify-center gap-4 overflow-hidden bg-background px-4 py-6 text-foreground dark:bg-meet-black dark:text-white sm:px-6 sm:py-8 lg:flex-row lg:items-center lg:gap-8 lg:px-8">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(26,115,232,0.14),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(52,168,83,0.10),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.94))] dark:bg-[radial-gradient(circle_at_top_right,rgba(138,180,248,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(52,168,83,0.12),transparent_28%),linear-gradient(180deg,rgba(32,33,36,0.94),rgba(32,33,36,0.98))]" />
       
       {/* Left side: Video Preview */}
@@ -472,8 +472,8 @@ export function VideoAppointmentMeetSession({
             } ${isVideoEnabled ? "opacity-100" : "opacity-0"}`}
           />
           {!isVideoEnabled && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-card px-4 text-center dark:bg-[#202124]">
-              <div className="mb-6 flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-br from-[#ea4335] via-[#fbbc05] to-[#34a853] shadow-lg shadow-blue-500/10">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-card px-4 text-center dark:bg-meet-black">
+            <div className="mb-6 flex h-32 w-32 items-center justify-center rounded-full bg-linear-to-br from-[#ea4335] via-[#fbbc05] to-[#34a853] shadow-lg shadow-blue-500/10">
                 <VideoOff className="h-12 w-12 text-white" />
               </div>
               <p className="text-xl font-normal text-foreground dark:text-white">Camera is off</p>
@@ -505,11 +505,11 @@ export function VideoAppointmentMeetSession({
         <div className="mt-4 grid gap-3 px-1 sm:grid-cols-2 sm:px-2">
           <div className="space-y-1">
             <Select value={selectedAudioDeviceId} onValueChange={handleAudioDeviceChange}>
-            <SelectTrigger className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none hover:bg-muted dark:border-[#3c4043] dark:bg-transparent dark:text-[#9aa0a6] dark:hover:bg-[#3c4043] focus:ring-1 focus:ring-blue-500">
+            <SelectTrigger className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none hover:bg-muted dark:border-dark-gray dark:bg-transparent dark:text-[#9aa0a6] dark:hover:bg-dark-gray focus:ring-1 focus:ring-blue-500">
                 <Mic className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Microphone" />
               </SelectTrigger>
-              <SelectContent className="rounded-md border-border bg-popover text-popover-foreground dark:border-[#3c4043] dark:bg-[#2d2e30] dark:text-white">
+              <SelectContent className="rounded-md border-border bg-popover text-popover-foreground dark:border-dark-gray dark:bg-[#2d2e30] dark:text-white">
                 {audioDevices.length === 0 ? (
                   <SelectItem value="default-mic" className="py-2">Default microphone</SelectItem>
                 ) : (
@@ -524,11 +524,11 @@ export function VideoAppointmentMeetSession({
           </div>
           <div className="space-y-1">
             <Select value={selectedVideoDeviceId} onValueChange={handleVideoDeviceChange}>
-            <SelectTrigger className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none hover:bg-muted dark:border-[#3c4043] dark:bg-transparent dark:text-[#9aa0a6] dark:hover:bg-[#3c4043] focus:ring-1 focus:ring-blue-500">
+            <SelectTrigger className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none hover:bg-muted dark:border-dark-gray dark:bg-transparent dark:text-[#9aa0a6] dark:hover:bg-dark-gray focus:ring-1 focus:ring-blue-500">
                 <Video className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Camera" />
               </SelectTrigger>
-              <SelectContent className="rounded-md border-border bg-popover text-popover-foreground dark:border-[#3c4043] dark:bg-[#2d2e30] dark:text-white">
+              <SelectContent className="rounded-md border-border bg-popover text-popover-foreground dark:border-dark-gray dark:bg-[#2d2e30] dark:text-white">
                 {videoDevices.length === 0 ? (
                   <SelectItem value="default-camera" className="py-2">Default camera</SelectItem>
                 ) : (

@@ -149,7 +149,7 @@ export const UserVideoComponent = ({
   const userGradient = getGradientForUser(nickname);
 
   return (
-    <div className={`relative w-full h-full bg-card text-foreground rounded-xl overflow-hidden group transition-all duration-300 border-2 dark:bg-[#202124] dark:text-white ${isSpeaking ? 'border-[var(--color-meet-blue)] shadow-[0_0_15px_rgba(138,180,248,0.25)] scale-[0.99]' : 'border-border shadow-md dark:border-transparent'}`}>
+    <div className={`relative w-full h-full bg-card text-foreground rounded-xl overflow-hidden group transition-all duration-300 border-2 dark:bg-meet-black dark:text-white ${isSpeaking ? 'border-meet-blue shadow-[0_0_15px_rgba(138,180,248,0.25)] scale-[0.99]' : 'border-border shadow-md dark:border-transparent'}`}>
       {/* Video element always rendered; keep the frame crisp so the face stays visible. */}
       <div className="relative w-full h-full transition-all duration-300">
         <video
@@ -162,7 +162,7 @@ export const UserVideoComponent = ({
       </div>
       {/* Camera-off placeholder shown when video is inactive */}
       {!isVideoActive && (
-        <div className={`absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br ${userGradient} text-white`}>
+        <div className={`absolute inset-0 flex h-full w-full items-center justify-center bg-linear-to-br ${userGradient} text-white`}>
           <div className="flex flex-col items-center gap-4">
             <div className={`relative h-28 w-28 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center mb-2 shadow-2xl border-4 transition-all duration-500 ${isSpeaking ? 'border-white/40 scale-110 shadow-[0_0_30px_rgba(255,255,255,0.2)]' : 'border-white/10'}`}>
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/15 shadow-inner ring-1 ring-white/10">
@@ -180,7 +180,7 @@ export const UserVideoComponent = ({
       )}
       
       {/* Name Tag */}
-      <div className="absolute bottom-4 left-4 bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-foreground text-xs font-semibold flex items-center gap-2 shadow-xl border border-border group-hover:bg-background/90 transition-colors dark:bg-[#202124]/80 dark:text-white dark:border-white/10 dark:group-hover:bg-[#202124]">
+      <div className="absolute bottom-4 left-4 bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-foreground text-xs font-semibold flex items-center gap-2 shadow-xl border border-border group-hover:bg-background/90 transition-colors dark:bg-meet-black/80 dark:text-white dark:border-white/10 dark:group-hover:bg-meet-black">
         <div className={`w-1.5 h-1.5 rounded-full ${isAudioActive ? (isSpeaking ? 'bg-[#8ab4f8] animate-pulse' : 'bg-emerald-500') : 'bg-red-500'}`} />
         <span className="truncate max-w-[120px]">{nickname}</span>
         {isLocal && <span className="text-[10px] opacity-50 font-normal">(You)</span>}
@@ -188,15 +188,15 @@ export const UserVideoComponent = ({
 
       {/* Audio Status Overlay (if muted) - Top Right */}
       {!isAudioActive && (
-        <div className="absolute top-4 right-4 bg-background/90 p-2 rounded-full shadow-2xl backdrop-blur-md border border-border dark:bg-[#202124]/90 dark:border-white/10">
-          <MicOff className="w-3.5 h-3.5 text-[#ea4335]" />
+        <div className="absolute top-4 right-4 bg-background/90 p-2 rounded-full shadow-2xl backdrop-blur-md border border-border dark:bg-meet-black/90 dark:border-white/10">
+          <MicOff className="w-3.5 h-3.5 text-meet-red" />
         </div>
       )}
 
       {/* Hand Raised Indicator */}
       {isHandRaised && (
         <div className="absolute top-4 left-4 bg-[#fbbc04] p-2 rounded-full shadow-2xl animate-in zoom-in-50 duration-300">
-          <Hand className="w-4 h-4 text-[#202124] fill-current" />
+          <Hand className="w-4 h-4 text-meet-black fill-current" />
         </div>
       )}
 

@@ -57,7 +57,7 @@ export const proposeVideoSlotsSchema = z.object({
   proposedSlots: z.array(z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     time: z.string().regex(/^\d{1,2}:\d{2}$/),
-  })).min(3).max(4),
+  })).min(3).max(3),
   notes: z.string().max(1000).optional(),
 });
 

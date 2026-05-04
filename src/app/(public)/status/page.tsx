@@ -256,7 +256,7 @@ export default function StatusPage() {
 
       {/* Ambient Background Glow */}
       <div
-        className="fixed top-[-20%] left-[20%] w-[60%] h-[60%] rounded-full blur-[150px] opacity-40 pointer-events-none transition-colors duration-1000 dark:opacity-40 opacity-0"
+        className="fixed top-[-20%] left-[20%] w-[60%] h-[60%] rounded-full blur-[150px] opacity-0 pointer-events-none transition-colors duration-1000 dark:opacity-40"
         style={{ background: glowColor }}
       />
 
@@ -283,12 +283,12 @@ export default function StatusPage() {
 
         {/* Metrics Banner */}
         <div className="mb-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="col-span-1 md:col-span-2 relative overflow-hidden rounded-3xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/[0.02] p-8 backdrop-blur-md shadow-sm">
-                <div className="absolute top-0 right-0 p-32 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 blur-3xl rounded-full pointer-events-none" />
+            <div className="col-span-1 md:col-span-2 relative overflow-hidden rounded-3xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/2 p-8 backdrop-blur-md shadow-sm">
+                <div className="absolute top-0 right-0 p-32 bg-linear-to-br from-indigo-500/10 to-purple-500/10 blur-3xl rounded-full pointer-events-none" />
 
                 <h2 className="text-sm font-semibold text-muted-foreground dark:text-slate-500 uppercase tracking-widest mb-1">Overall Health</h2>
                 <div className="flex flex-col sm:flex-row sm:items-baseline gap-4 mt-2">
-                    <span className="text-4xl sm:text-5xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground dark:from-white dark:to-slate-400">
+                    <span className="text-4xl sm:text-5xl lg:text-5xl font-black text-transparent bg-clip-text bg-linear-to-r from-foreground to-muted-foreground dark:from-white dark:to-slate-400">
                         {healthPercentage}%
                     </span>
                     <span className={cn(
@@ -306,7 +306,7 @@ export default function StatusPage() {
                 </div>
             </div>
 
-            <div className="col-span-1 rounded-3xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/[0.02] p-6 backdrop-blur-md flex flex-col justify-center gap-6 shadow-sm">
+            <div className="col-span-1 rounded-3xl border border-border dark:border-white/10 bg-card/50 dark:bg-white/2 p-6 backdrop-blur-md flex flex-col justify-center gap-6 shadow-sm">
                  {/* Backend Server Uptime */}
                  <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-1">

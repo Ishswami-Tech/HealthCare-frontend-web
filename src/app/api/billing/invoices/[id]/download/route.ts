@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { APP_CONFIG } from "@/lib/config/config";
+import { fetchWithAbort } from "@/lib/utils/fetch-with-abort";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -22,13 +23,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 
   try {
-    const backendResponse = await fetch(
+    const backendResponse = await fetchWithAbort(
       `${APP_CONFIG.API.BASE_URL}/billing/invoices/${invoiceId}/pdf-download`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           ...(clinicId ? { "X-Clinic-ID": clinicId } : {}),
         },
+        timeout: 60000,
         cache: "no-store",
       }
     );
