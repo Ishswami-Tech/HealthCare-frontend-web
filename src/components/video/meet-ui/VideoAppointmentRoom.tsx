@@ -742,54 +742,56 @@ export default function VideoAppointmentRoom({
           {/* Video Area — shrinks horizontally with smooth transition when sidebar opens */}
           <div className="flex-1 relative bg-background min-w-0 overflow-hidden transition-all duration-300 ease-in-out dark:bg-meet-black">
             {!isInCall() ? (
-              <div className="flex h-full flex-col items-center justify-center p-6 text-foreground dark:text-white">
-                <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-8 text-center shadow-lg dark:border-gray-700 dark:bg-dark-gray">
-                  <Loader2 className="mx-auto h-10 w-10 animate-spin text-meet-blue" />
-                  {connectionIssue ? (
-                    <>
-                      <h2 className="mt-4 text-2xl font-semibold">{connectionIssue.title}</h2>
-                      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground dark:text-gray-300">
-                        {connectionIssue.description}
-                      </p>
-                      <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <Button
-                          type="button"
-                          onClick={handleStartCall}
-                          size="lg"
-                          className="w-full sm:w-auto rounded-full bg-[#8ab4f8] px-8 text-meet-black font-semibold"
-                        >
-                          Retry connection
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={handleLeaveRoom}
-                          variant="outline"
-                          size="lg"
-                          className="w-full sm:w-auto rounded-full px-8 font-semibold"
-                        >
-                          Leave room
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <h2 className="mt-4 text-2xl font-semibold">Connecting to consultation</h2>
-                      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground dark:text-gray-300">
-                        The preview is complete. Connecting you directly to the live consultation now.
-                      </p>
-                      <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <Button
-                          type="button"
-                          disabled
-                          size="lg"
-                          className="w-full sm:w-auto rounded-full bg-[#8ab4f8] px-8 text-meet-black font-semibold opacity-80"
-                        >
-                          <Phone className="mr-2 h-5 w-5" />
-                          Connecting...
-                        </Button>
-                      </div>
-                    </>
-                  )}
+              connectionIssue ? (
+                <div className="flex h-full flex-col items-center justify-center p-6 text-foreground dark:text-white">
+                  <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-8 text-center shadow-lg dark:border-gray-700 dark:bg-dark-gray">
+                    <Loader2 className="mx-auto h-10 w-10 animate-spin text-meet-blue" />
+                    <h2 className="mt-4 text-2xl font-semibold">{connectionIssue.title}</h2>
+                    <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground dark:text-gray-300">
+                      {connectionIssue.description}
+                    </p>
+                    <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+                      <Button
+                        type="button"
+                        onClick={handleStartCall}
+                        size="lg"
+                        className="w-full sm:w-auto rounded-full bg-[#8ab4f8] px-8 text-meet-black font-semibold"
+                      >
+                        Retry connection
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleLeaveRoom}
+                        variant="outline"
+                        size="lg"
+                        className="w-full sm:w-auto rounded-full px-8 font-semibold"
+                      >
+                        Leave room
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : !isConnecting && (
+                <div className="flex h-full flex-col items-center justify-center p-6 text-foreground dark:text-white">
+                  <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-8 text-center shadow-lg dark:border-gray-700 dark:bg-dark-gray">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4 dark:bg-meet-black">
+                      <Phone className="h-8 w-8 text-foreground dark:text-white" />
+                    </div>
+                    <h2 className="mt-4 text-2xl font-semibold">Ready to Join</h2>
+                    <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground dark:text-gray-300">
+                      Check your camera and microphone before joining.
+                    </p>
+                    <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+                      <Button
+                        onClick={handleStartCall}
+                        size="lg"
+                        className="w-full sm:w-auto rounded-full bg-[#8ab4f8] hover:bg-[#aecbfa] px-8 text-meet-black font-semibold"
+                      >
+                        <Phone className="mr-2 h-5 w-5" />
+                        Join consultation
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -835,7 +837,7 @@ export default function VideoAppointmentRoom({
               <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/90 text-foreground dark:bg-meet-black dark:text-white">
                 <div className="text-center">
                   <Loader2 className="mx-auto h-12 w-12 animate-spin text-meet-blue" />
-                          <p className="mt-4 text-lg font-medium">Connecting to consultation...</p>
+                  <p className="mt-4 text-lg font-medium">Joining the call...</p>
                 </div>
               </div>
             )}

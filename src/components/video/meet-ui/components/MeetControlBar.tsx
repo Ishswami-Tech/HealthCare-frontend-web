@@ -158,13 +158,12 @@ export function MeetControlBar({
                 </TooltipContent>
               </Tooltip>
               <div className="w-px h-5 bg-white/20 mx-1" />
-                <button 
-                  className="h-full pr-3 pl-1 flex items-center justify-center rounded-r-full hover:bg-white/10 transition-colors text-inherit"
-                  disabled={isAudioBusy}
-                  onClick={() => setShowAudioMenu(!showAudioMenu)}
-                >
-                  <ChevronDown size={14} className="text-inherit" />
-                </button>
+              <button
+                className="h-full pr-3 pl-1 flex items-center justify-center rounded-r-full hover:bg-white/10 transition-colors text-inherit"
+                onClick={() => setShowAudioMenu(!showAudioMenu)}
+              >
+                <ChevronDown size={14} className="text-inherit" />
+              </button>
             </div>
 
             <AnimatePresence>
@@ -219,13 +218,12 @@ export function MeetControlBar({
                 </TooltipContent>
               </Tooltip>
               <div className="w-px h-5 bg-white/20 mx-1" />
-                <button 
-                  className="h-full pr-3 pl-1 flex items-center justify-center rounded-r-full hover:bg-white/10 transition-colors text-inherit"
-                  disabled={isVideoBusy}
-                  onClick={() => setShowVideoMenu(!showVideoMenu)}
-                >
-                  <ChevronDown size={14} className="text-inherit" />
-                </button>
+              <button
+                className="h-full pr-3 pl-1 flex items-center justify-center rounded-r-full hover:bg-white/10 transition-colors text-inherit"
+                onClick={() => setShowVideoMenu(!showVideoMenu)}
+              >
+                <ChevronDown size={14} className="text-inherit" />
+              </button>
             </div>
 
             <AnimatePresence>
@@ -258,16 +256,16 @@ export function MeetControlBar({
           </div>
 
           <Tooltip>
-              <TooltipTrigger asChild>
-                <button 
-                  onClick={onToggleScreenShare} 
-                  disabled={isScreenShareBusy}
-                  className={`meet-control-button hidden sm:flex ${isScreenSharing ? 'meet-control-button-blue' : 'meet-control-button-active'}`}
-                  aria-pressed={isScreenSharing}
-                >
-                  {isScreenShareBusy ? <Loader2 size={20} className="animate-spin" /> : <MonitorUp size={20} />}
-                </button>
-              </TooltipTrigger>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onToggleScreenShare}
+                disabled={isScreenShareBusy}
+                className={`meet-control-button hidden sm:flex ${isScreenSharing ? 'meet-control-button-blue' : 'meet-control-button-active'}`}
+                aria-pressed={isScreenSharing}
+              >
+                {isScreenShareBusy ? <Loader2 size={20} className="animate-spin" /> : <MonitorUp size={20} />}
+              </button>
+            </TooltipTrigger>
             <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-dark-gray dark:text-white dark:border-none">
               {isScreenSharing ? "You are presenting" : "Share screen"}
             </TooltipContent>
