@@ -56,8 +56,6 @@ export function checkProfileCompletion(profileData: UserProfileData): ProfileCom
     'firstName',
     'lastName', 
     'phone',
-    'dateOfBirth',
-    'gender',
     'address'
     // emergencyContact removed - not collected in profile completion form
   ];
@@ -131,8 +129,6 @@ export function calculateProfileCompletion(userData: UserProfileData): boolean {
     'firstName',
     'lastName', 
     'phone',
-    'dateOfBirth',
-    'gender',
     'address'
   ];
 

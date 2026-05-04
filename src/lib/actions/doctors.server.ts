@@ -191,13 +191,23 @@ export async function getDoctorAppointments(doctorId: string, filters?: {
 export async function getDoctorPatients(clinicId: string, filters?: {
   search?: string;
   gender?: string;
+  ageRange?: string;
   limit?: number;
+  offset?: number;
 }) {
   const params = new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, String(value));
+      if (value && key !== 'limit' && key !== 'offset') params.append(key, String(value));
     });
+  }
+
+  if (typeof filters?.limit === 'number') {
+    params.append('limit', filters.limit.toString());
+  }
+  if (typeof filters?.limit === 'number' && typeof filters?.offset === 'number') {
+    const page = Math.floor(filters.offset / filters.limit) + 1;
+    params.append('page', String(Math.max(page, 1)));
   }
 
   // Backend: GET /patients/clinic/:clinicId

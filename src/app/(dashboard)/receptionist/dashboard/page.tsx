@@ -537,7 +537,7 @@ export default function ReceptionistDashboard() {
         actionsSlot={
           <>
             <Button asChild variant="outline">
-              <Link href="/receptionist/check-in">
+              <Link href="/receptionist/check-in" prefetch={false}>
                 <QrCode className="w-4 h-4 mr-2" />
                 Confirm Arrival
               </Link>
@@ -556,7 +556,7 @@ export default function ReceptionistDashboard() {
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-        <Link href="/receptionist/appointments" className="block transition-transform hover:scale-[1.02] active:scale-95">
+        <Link href="/receptionist/appointments" prefetch={false} className="block transition-transform hover:scale-[1.02] active:scale-95">
           <Card className="border-blue-200 bg-blue-50 shadow-sm transition-colors dark:border-blue-500/20 dark:bg-blue-500/10">
             <CardContent className="p-3">
               <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">Today</div>
@@ -564,7 +564,7 @@ export default function ReceptionistDashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link href="/receptionist/appointments?status=SCHEDULED" className="block transition-transform hover:scale-[1.02] active:scale-95">
+        <Link href="/receptionist/appointments?status=SCHEDULED" prefetch={false} className="block transition-transform hover:scale-[1.02] active:scale-95">
           <Card className="border-slate-200 bg-slate-50 shadow-sm transition-colors dark:border-slate-500/20 dark:bg-slate-500/10">
             <CardContent className="p-3">
               <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">Scheduled</div>
@@ -572,7 +572,7 @@ export default function ReceptionistDashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link href="/receptionist/appointments?status=CONFIRMED" className="block transition-transform hover:scale-[1.02] active:scale-95">
+        <Link href="/receptionist/appointments?status=CONFIRMED" prefetch={false} className="block transition-transform hover:scale-[1.02] active:scale-95">
           <Card className="border-emerald-200 bg-emerald-50 shadow-sm transition-colors dark:border-emerald-500/20 dark:bg-emerald-500/10">
             <CardContent className="p-3">
               <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Confirmed</div>
@@ -580,7 +580,7 @@ export default function ReceptionistDashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link href="/receptionist/appointments?status=IN_PROGRESS" className="block transition-transform hover:scale-[1.02] active:scale-95">
+        <Link href="/receptionist/appointments?status=IN_PROGRESS" prefetch={false} className="block transition-transform hover:scale-[1.02] active:scale-95">
           <Card className="border-indigo-200 bg-indigo-50 shadow-sm transition-colors dark:border-indigo-500/20 dark:bg-indigo-500/10">
             <CardContent className="p-3">
               <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-700 dark:text-indigo-300">In Progress</div>
@@ -639,7 +639,7 @@ export default function ReceptionistDashboard() {
                 className="h-8 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                 asChild
               >
-                <Link href="/queue">View Queue Workspace</Link>
+                <Link href="/queue" prefetch={false}>View Queue Workspace</Link>
               </Button>
             </div>
           </CardHeader>
@@ -795,7 +795,7 @@ export default function ReceptionistDashboard() {
                       <div className="flex items-center gap-2 sm:ml-2">
                         {entry.paymentStatus !== "PAID" && entry.pendingAmount > 0 && (
                           <Button size="sm" variant="ghost" asChild className="h-8 gap-1 text-slate-600 dark:text-slate-300">
-                            <Link href="/billing?tab=invoices">
+                            <Link href="/billing?tab=invoices" prefetch={false}>
                               <Receipt className="w-3.5 h-3.5" />
                               Billing
                             </Link>
@@ -838,7 +838,7 @@ export default function ReceptionistDashboard() {
                 Confirm arrivals for the doctor queue.
               </p>
               <Button asChild size="sm" className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
-                <Link href="/receptionist/check-in">Open Check-In Desk</Link>
+                <Link href="/receptionist/check-in" prefetch={false}>Open Check-In Desk</Link>
               </Button>
             </CardContent>
           </Card>
@@ -878,7 +878,7 @@ export default function ReceptionistDashboard() {
                 Review backlog, queue, and live consultation state.
               </p>
               <Button asChild size="sm" className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
-                <Link href="/receptionist/appointments">Open Queue Workspace</Link>
+                <Link href="/receptionist/appointments" prefetch={false}>Open Queue Workspace</Link>
               </Button>
             </CardContent>
           </Card>

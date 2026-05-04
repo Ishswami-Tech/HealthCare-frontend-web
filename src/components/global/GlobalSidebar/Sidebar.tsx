@@ -64,6 +64,7 @@ const Logo = memo(function Logo() {
   return (
     <Link
       href="/"
+      prefetch={false}
       className="flex items-center gap-2 py-2"
     >
       <div className="size-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
@@ -86,6 +87,7 @@ const LogoIcon = memo(function LogoIcon() {
   return (
     <Link
       href="/"
+      prefetch={false}
       className="flex items-center justify-center py-2"
     >
       <div className="size-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
@@ -201,7 +203,11 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
                       )}
                     </button>
                   ) : (
-                    <Link href={link.href} className={cn("flex items-center gap-2 w-full", !open && "justify-center")}>
+                    <Link
+                      href={link.href}
+                      prefetch={false}
+                      className={cn("flex items-center gap-2 w-full", !open && "justify-center")}
+                    >
                       <span className="size-4 flex items-center justify-center shrink-0">
                         <Icon className="size-4" />
                       </span>
@@ -234,7 +240,11 @@ function SidebarInner({ links, user, onLogoutClick }: SidebarInnerProps) {
               className={cn("h-auto p-2 hover:bg-sidebar-accent transition-colors overflow-hidden", !open && "mx-auto justify-center")}
               onClick={handleLinkClick}
             >
-              <Link href={profileRoute} className={cn("flex items-center gap-3 w-full", !open && "justify-center")}>
+              <Link
+                href={profileRoute}
+                prefetch={false}
+                className={cn("flex items-center gap-3 w-full", !open && "justify-center")}
+              >
                 {!avatarError && user.avatarUrl ? (
                   <NextImage
                     src={user.avatarUrl}

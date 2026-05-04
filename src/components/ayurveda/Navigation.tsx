@@ -303,6 +303,7 @@ const Navigation = () => {
             <div className="flex items-center shrink-0 min-w-0">
               <Link
                 href="/"
+                prefetch={false}
                 className="flex items-center space-x-2 sm:space-x-3 touch-manipulation"
               >
                   <motion.div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden flex-shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
@@ -358,6 +359,7 @@ const Navigation = () => {
                     >
                       <Link
                         href={item.href}
+                        prefetch={false}
                         className={cn(
                           "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center space-x-1",
                           (pathname === item.href ||
@@ -428,6 +430,7 @@ const Navigation = () => {
                               >
                                 <Link
                                   href={subItem.href}
+                                  prefetch={false}
                                   className={cn(
                                     "block px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0",
                                     pathname === subItem.href &&
@@ -448,6 +451,7 @@ const Navigation = () => {
                   ) : (
                     <Link
                       href={item.href}
+                      prefetch={false}
                       className={cn(
                         "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap",
                         pathname === item.href &&
@@ -640,6 +644,7 @@ const Navigation = () => {
                                       <Link
                                         key={subItem.name}
                                         href={subItem.href}
+                                        prefetch={false}
                                         className={cn(
                                           "block text-sm text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 py-2 px-3 rounded-lg transition-all duration-200 border border-transparent hover:border-orange-200 dark:hover:border-orange-800",
                                           pathname === subItem.href &&
@@ -661,6 +666,7 @@ const Navigation = () => {
                             ) : (
                               <Link
                                 href={item.href}
+                                prefetch={false}
                                 className={cn(
                                   "text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
                                   pathname === item.href &&

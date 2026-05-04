@@ -298,7 +298,7 @@ export function QueueTreatmentTabs({
         </div>
         {actionHref ? (
           <Button asChild variant="outline" className="gap-2">
-            <Link href={actionHref}>
+          <Link href={actionHref} prefetch={false}>
               <ArrowRightLeft className="h-4 w-4" />
               {actionLabel}
             </Link>

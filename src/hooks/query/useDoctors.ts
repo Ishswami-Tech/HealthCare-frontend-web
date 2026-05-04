@@ -111,7 +111,9 @@ export const useDoctorAppointments = (doctorId: string, filters?: {
 export const useDoctorPatients = (clinicId: string, filters?: {
   search?: string;
   gender?: string;
+  ageRange?: string;
   limit?: number;
+  offset?: number;
 }, options?: {
   enabled?: boolean;
 }) => {

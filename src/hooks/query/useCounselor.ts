@@ -72,11 +72,14 @@ export const useCounselorClients = (counselorId?: string, filters?: {
   );
 
   useEffect(() => {
-    const normalizedClients = Array.isArray((query.data as any)?.clients)
-      ? (query.data as any).clients
-      : Array.isArray(query.data)
-        ? query.data
-        : [];
+    const rawClients = (query.data as any)?.clients ?? query.data;
+    const normalizedClients = Array.isArray(rawClients)
+      ? rawClients
+      : Array.isArray((rawClients as any)?.patients)
+        ? (rawClients as any).patients
+        : Array.isArray((rawClients as any)?.data)
+          ? (rawClients as any).data
+          : [];
 
     setCollection('counselor', normalizedClients);
   }, [query.data, setCollection]);

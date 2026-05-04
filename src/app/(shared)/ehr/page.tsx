@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
+import { ServerPagination } from "@/components/ui/pagination";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
@@ -65,11 +66,11 @@ export default function EHRSystem() {
 
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [patientPage, setPatientPage] = useState(1);
+  const patientPageSize = 10;
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(
     null
   );
-
-
 
   // RBAC permissions
   const patientPermissions = usePatientPermissions();
@@ -83,7 +84,18 @@ export default function EHRSystem() {
     isPending: patientsLoading,
     error: patientsError,
     refetch: refetchPatients,
-  } = useClinicPatients(clinicId || "");
+  } = useClinicPatients(clinicId || "", {
+    page: patientPage,
+    limit: patientPageSize,
+  });
+
+  const clinicPatientData = !Array.isArray(patients) ? patients : null;
+  const clinicPatientList = Array.isArray(patients)
+    ? patients
+    : clinicPatientData?.patients || [];
+  const clinicPatientTotal = Array.isArray(patients)
+    ? patients.length
+    : clinicPatientData?.total || 0;
 
   // Fetch medical records for selected patient
   const { data: medicalRecords } =
@@ -122,7 +134,7 @@ export default function EHRSystem() {
 
   // Calculate EHR stats from real data
   const ehrStats = {
-    totalPatients: Array.isArray(patients) ? patients.length : 0,
+    totalPatients: clinicPatientTotal,
     activeRecords: Array.isArray(medicalRecords) ? medicalRecords.length : 0,
     recordsToday:
       Array.isArray(medicalRecords) ? medicalRecords.filter((record: any) => {
@@ -170,7 +182,7 @@ export default function EHRSystem() {
 
   // Transform patients data for display
   const recentPatients =
-    Array.isArray(patients) ? patients.slice(0, 10).map((patient: any) => ({
+    clinicPatientList.map((patient: any) => ({
       id: patient.id,
       name:
         `${patient.user?.firstName || ""} ${
@@ -185,7 +197,7 @@ export default function EHRSystem() {
       condition: patient.primaryCondition || "General",
       status: patient.status || "Active",
       nextAppointment: patient.nextAppointment || "Not scheduled",
-    })) : [];
+    }));
 
   // Use critical alerts from API, fallback to empty array if not available
   const criticalAlerts = Array.isArray(criticalAlertsData) 
@@ -209,6 +221,20 @@ export default function EHRSystem() {
       })),
     [recentPatients]
   );
+
+  const patientCollectionMeta = useMemo(() => {
+    if (Array.isArray(patients)) {
+      return {
+        total: patients.length,
+        totalPages: 1,
+      };
+    }
+
+    const record = (patients as Record<string, any>) || {};
+    const total = Number(record.total ?? record.count ?? record.totalCount ?? 0) || clinicPatientList.length;
+    const totalPages = Number(record.totalPages ?? record.pageCount ?? Math.max(1, Math.ceil(total / Math.max(record.pageSize ?? record.limit ?? patientPageSize, 1)))) || 1;
+    return { total, totalPages };
+  }, [patients, clinicPatientList.length, patientPageSize]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -649,7 +675,17 @@ export default function EHRSystem() {
                         data={patientRecordRows}
                         emptyMessage="No patient records found"
                         pageSize={10}
+                        showPagination={false}
                       />
+                      <div className="pt-2">
+                        <ServerPagination
+                          page={patientPage}
+                          totalPages={patientCollectionMeta.totalPages}
+                          totalItems={patientCollectionMeta.total}
+                          pageSize={patientPageSize}
+                          onPageChange={setPatientPage}
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

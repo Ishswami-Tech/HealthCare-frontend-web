@@ -21,6 +21,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -51,6 +52,7 @@ import { useCreateUser } from "@/hooks/query";
 import { showSuccessToast, showErrorToast } from "@/hooks/utils/use-toast";
 import { cn, clean } from "@/lib/utils";
 import { format } from "date-fns";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 const staffSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -79,6 +81,7 @@ interface AddStaffModalProps {
 
 const STAFF_ROLES = [
   { value: Role.DOCTOR, label: "Doctor" },
+  { value: Role.ASSISTANT_DOCTOR, label: "Assistant Doctor" },
   { value: Role.RECEPTIONIST, label: "Receptionist" },
   { value: Role.PHARMACIST, label: "Pharmacist" },
   { value: Role.NURSE, label: "Nurse" },
@@ -86,11 +89,14 @@ const STAFF_ROLES = [
   { value: Role.LAB_TECHNICIAN, label: "Lab Technician" },
   { value: Role.COUNSELOR, label: "Counselor" },
   { value: Role.FINANCE_BILLING, label: "Finance & Billing" },
+  { value: Role.SUPPORT_STAFF, label: "Support Staff" },
+  { value: Role.CLINIC_LOCATION_HEAD, label: "Location Head" },
 ];
 
 export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalProps) {
   const { data: currentClinic } = useCurrentClinic();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAdditionalDetails, setShowAdditionalDetails] = useState(false);
   const createUserMutation = useCreateUser();
 
   const form = useForm<StaffFormValues>({
@@ -127,6 +133,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
       await createUserMutation.mutateAsync(payload as any);
       showSuccessToast("Staff member added successfully");
       form.reset();
+      setShowAdditionalDetails(false);
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
@@ -144,7 +151,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
             <div className="p-2 bg-primary/10 rounded-lg text-primary">
               <UserPlus className="w-5 h-5" />
             </div>
-            <DialogTitle className="text-2xl font-bold">Add New Staff Member</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">Create Staff Member</DialogTitle>
           </div>
           <DialogDescription>
             Register a new healthcare professional or administrative staff member to your clinic.
@@ -264,129 +271,202 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="gender"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gender</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="MALE">Male</SelectItem>
-                        <SelectItem value="FEMALE">Female</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+            <div className="flex items-center justify-between rounded-xl border border-dashed border-blue-200 bg-blue-50/60 px-3 py-2 dark:border-blue-900/50 dark:bg-blue-950/20">
+              <div>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">Additional Details</p>
+                <p className="text-[11px] text-blue-700/80 dark:text-blue-300/80">
+                  Optional profile, address, and specialization fields.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAdditionalDetails((current) => !current)}
+                className="h-8 gap-2 rounded-lg px-3 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:text-blue-200 dark:hover:bg-blue-900/30 dark:hover:text-blue-100"
+              >
+                {showAdditionalDetails ? (
+                  <>
+                    Hide
+                    <ChevronUp className="h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    Show
+                    <ChevronDown className="h-4 w-4" />
+                  </>
                 )}
-              />
-
-              <FormField
-                control={form.control}
-                name="dateOfBirth"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Date of Birth</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              </Button>
             </div>
 
-            {(form.watch("role") === Role.DOCTOR || form.watch("role") === Role.NURSE) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-xl border border-dashed border-neutral-300 dark:border-neutral-700">
-                <FormField
-                  control={form.control}
-                  name="specialization"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Specialization</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Briefcase className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input placeholder="e.g. Cardiology" className="pl-9" {...field} />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="experience"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Years of Experience</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          min="0" 
-                          placeholder="5" 
-                          {...field} 
-                          onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
+            {showAdditionalDetails && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="gender"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gender</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select gender" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="MALE">Male</SelectItem>
+                            <SelectItem value="FEMALE">Female</SelectItem>
+                            <SelectItem value="OTHER">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Enter residential address" className="pl-9" {...field} />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <FormField
+                    control={form.control}
+                    name="dateOfBirth"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Date of Birth</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              disabled={(date) =>
+                                date > new Date() || date < new Date("1900-01-01")
+                              }
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {(form.watch("role") === Role.DOCTOR || form.watch("role") === Role.NURSE) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-xl border border-dashed border-neutral-300 dark:border-neutral-700">
+                    <FormField
+                      control={form.control}
+                      name="specialization"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Specialization</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Briefcase className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input placeholder="e.g. Cardiology" className="pl-9" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="experience"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Years of Experience</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="5"
+                              {...field}
+                              onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Address</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Enter residential address" className="pl-9" {...field} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City</FormLabel>
+                        <FormControl>
+                          <Input placeholder="City" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State</FormLabel>
+                        <FormControl>
+                          <Input placeholder="State" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="zipCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Zip Code</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Zip Code" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="flex gap-3 pt-6 border-t border-neutral-100 dark:border-neutral-800">
               <Button
@@ -408,7 +488,7 @@ export function AddStaffModal({ open, onOpenChange, onSuccess }: AddStaffModalPr
                     Adding Staff...
                   </>
                 ) : (
-                  "Add Staff Member"
+                  "Create Staff Member"
                 )}
               </Button>
             </div>

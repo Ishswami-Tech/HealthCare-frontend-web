@@ -68,6 +68,7 @@ import {
   ChevronLeft, User, Loader2, UserPlus, AlertTriangle, Stethoscope,
   CalendarIcon, Sun, CloudSun, Moon, QrCode, Download,
   Check, ArrowRight, Video, MapPin, Building, Wifi, WifiOff,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -254,6 +255,7 @@ export function BookAppointmentDialog({
   const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId || "");
   const [patientSearch, setPatientSearch] = useState("");
   const [showQuickCreatePatient, setShowQuickCreatePatient] = useState(false);
+  const [showQuickCreateAdditionalDetails, setShowQuickCreateAdditionalDetails] = useState(false);
   const [recentlyCreatedPatient, setRecentlyCreatedPatient] = useState<{
     id: string;
     displayName: string;
@@ -268,6 +270,11 @@ export function BookAppointmentDialog({
     dateOfBirth: "",
     gender: "",
     address: "",
+    emergencyContact: "",
+    emergencyPhone: "",
+    medicalHistory: "",
+    allergies: "",
+    currentMedications: "",
   });
   const isPrivilegedScheduler = ["RECEPTIONIST", "DOCTOR", "CLINIC_ADMIN", "SUPER_ADMIN"].includes(userRole);
   const targetPatientId = isPrivilegedScheduler ? selectedPatientId : session?.user?.id || "";
@@ -733,6 +740,11 @@ export function BookAppointmentDialog({
           dateOfBirth: "",
           gender: "",
           address: "",
+          emergencyContact: "",
+          emergencyPhone: "",
+          medicalHistory: "",
+          allergies: "",
+          currentMedications: "",
         });
       }
       // Otherwise, keep all existing state (user resumes from where they left off)
@@ -1216,6 +1228,32 @@ export function BookAppointmentDialog({
           ...(normalizedGender ? { gender: normalizedGender } : {}),
           ...(newPatient.dateOfBirth ? { dateOfBirth: newPatient.dateOfBirth } : {}),
           ...(newPatient.address.trim() ? { address: newPatient.address.trim() } : {}),
+          ...(newPatient.emergencyContact?.trim() && newPatient.emergencyPhone?.trim()
+            ? {
+                emergencyContact: {
+                  name: newPatient.emergencyContact.trim(),
+                  relationship: "Emergency Contact",
+                  phone: newPatient.emergencyPhone.trim(),
+                },
+              }
+            : {}),
+          ...(newPatient.allergies?.trim()
+            ? {
+                allergies: newPatient.allergies
+                  .split(",")
+                  .map((value) => value.trim())
+                  .filter(Boolean),
+              }
+            : {}),
+          ...(newPatient.medicalHistory?.trim() ? { medicalHistory: [newPatient.medicalHistory.trim()] } : {}),
+          ...(newPatient.currentMedications?.trim()
+            ? {
+                medicalHistory: [
+                  ...(newPatient.medicalHistory?.trim() ? [newPatient.medicalHistory.trim()] : []),
+                  `Current medications: ${newPatient.currentMedications.trim()}`,
+                ],
+              }
+            : {}),
         });
         const userId =
           (quickRegisterResult as any)?.user?.id ||
@@ -1232,6 +1270,7 @@ export function BookAppointmentDialog({
         setPatientSearch(displayName);
         setRecentlyCreatedPatient({ id: userId, displayName, phone, email: resolvedEmail });
         setShowQuickCreatePatient(false);
+        setShowQuickCreateAdditionalDetails(false);
         setNewPatient({
           firstName: "",
           lastName: "",
@@ -1240,6 +1279,11 @@ export function BookAppointmentDialog({
           dateOfBirth: "",
           gender: "",
           address: "",
+          emergencyContact: "",
+          emergencyPhone: "",
+          medicalHistory: "",
+          allergies: "",
+          currentMedications: "",
         });
 
         await queryClient.invalidateQueries({ queryKey: ["patients"], exact: false });
@@ -1266,7 +1310,7 @@ export function BookAppointmentDialog({
                 className="gap-2 self-start"
               >
                 <UserPlus className="h-4 w-4" />
-                {showQuickCreatePatient ? "Close quick add" : "Register New Patient"}
+                {showQuickCreatePatient ? "Close quick add" : "Register Patient"}
               </Button>
             </div>
 
@@ -1337,7 +1381,7 @@ export function BookAppointmentDialog({
                       <User className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="font-semibold">Quick register patient</p>
+                      <p className="font-semibold">Register Patient</p>
                       <p className="text-xs text-muted-foreground">
                         This creates the patient identity and profile, then returns you to booking.
                       </p>
@@ -1378,37 +1422,112 @@ export function BookAppointmentDialog({
                         placeholder="patient@example.com"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date of birth</Label>
-                      <Input
-                        type="date"
-                        value={newPatient.dateOfBirth}
-                        onChange={(event) => setNewPatient((current) => ({ ...current, dateOfBirth: event.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gender</Label>
-                      <Select value={newPatient.gender} onValueChange={(value) => setNewPatient((current) => ({ ...current, gender: value }))}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="MALE">Male</SelectItem>
-                          <SelectItem value="FEMALE">Female</SelectItem>
-                          <SelectItem value="OTHER">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
-                      <Textarea
-                        value={newPatient.address}
-                        onChange={(event) => setNewPatient((current) => ({ ...current, address: event.target.value }))}
-                        placeholder="Street, city, state"
-                        className="min-h-20"
-                      />
-                    </div>
                   </div>
+
+                  <div className="flex items-center justify-between rounded-xl border border-dashed border-emerald-200 bg-emerald-50/60 px-3 py-2 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Additional Details</p>
+                      <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
+                        Optional DOB, gender, address, emergency contact, and medical notes.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowQuickCreateAdditionalDetails((current) => !current)}
+                      className="h-8 gap-2 rounded-lg px-3 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-100"
+                    >
+                      {showQuickCreateAdditionalDetails ? (
+                        <>
+                          Hide
+                          <ChevronUp className="h-4 w-4" />
+                        </>
+                      ) : (
+                        <>
+                          Show
+                          <ChevronDown className="h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {showQuickCreateAdditionalDetails && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date of birth</Label>
+                        <Input
+                          type="date"
+                          value={newPatient.dateOfBirth}
+                          onChange={(event) => setNewPatient((current) => ({ ...current, dateOfBirth: event.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gender</Label>
+                      <Select value={newPatient.gender} onValueChange={(value: string) => setNewPatient((current) => ({ ...current, gender: value }))}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="MALE">Male</SelectItem>
+                            <SelectItem value="FEMALE">Female</SelectItem>
+                            <SelectItem value="OTHER">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address</Label>
+                        <Textarea
+                          value={newPatient.address}
+                          onChange={(event) => setNewPatient((current) => ({ ...current, address: event.target.value }))}
+                          placeholder="Street, city, state"
+                          className="min-h-20"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Emergency contact</Label>
+                        <Input
+                          value={newPatient.emergencyContact}
+                          onChange={(event) => setNewPatient((current) => ({ ...current, emergencyContact: event.target.value }))}
+                          placeholder="Contact name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Emergency phone</Label>
+                        <Input
+                          value={newPatient.emergencyPhone}
+                          onChange={(event) => setNewPatient((current) => ({ ...current, emergencyPhone: event.target.value }))}
+                          placeholder="+91 98765 43210"
+                        />
+                      </div>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Medical history</Label>
+                        <Textarea
+                          value={newPatient.medicalHistory}
+                          onChange={(event) => setNewPatient((current) => ({ ...current, medicalHistory: event.target.value }))}
+                          placeholder="Known conditions, surgeries, or observations"
+                          className="min-h-20"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Allergies</Label>
+                        <Input
+                          value={newPatient.allergies}
+                          onChange={(event) => setNewPatient((current) => ({ ...current, allergies: event.target.value }))}
+                          placeholder="Comma separated"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current medications</Label>
+                        <Textarea
+                          value={newPatient.currentMedications}
+                          onChange={(event) => setNewPatient((current) => ({ ...current, currentMedications: event.target.value }))}
+                          placeholder="Current medications"
+                          className="min-h-20"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <Button
@@ -1432,7 +1551,7 @@ export function BookAppointmentDialog({
                       ) : (
                         <>
                           <Plus className="h-4 w-4" />
-                          Create Patient
+                          Register Patient
                         </>
                       )}
                     </Button>

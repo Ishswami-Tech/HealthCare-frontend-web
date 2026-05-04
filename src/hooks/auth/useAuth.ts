@@ -22,7 +22,6 @@ import {
   socialLogin as socialLoginAction,
   requestMagicLink as requestMagicLinkAction,
   verifyMagicLink as verifyMagicLinkAction,
-  registerWithClinic as registerWithClinicAction,
   changePassword as changePasswordAction,
   terminateAllSessions,
   checkOTPStatus as checkOTPStatusAction,
@@ -514,30 +513,6 @@ export function useAuth() {
     }
   );
 
-  // Register with clinic mutation - ✅ Use core hook
-  const registerWithClinicMutation = useMutationOperation<AuthResponse, RegisterData & { clinicId: string; appName: string }>(
-    (data) => registerWithClinicAction(data),
-    {
-      toastId: TOAST_IDS.AUTH.REGISTER,
-      loadingMessage: 'Registering with clinic...',
-      successMessage: 'Registration successful',
-      showToast: false, // Component handles it
-      invalidateQueries: [['session']],
-      onSuccess: (data) => {
-        if (data.user?.role) {
-          router.push(getDashboardByRole(data.user.role as Role));
-        } else if (data.redirectUrl) {
-          router.push(data.redirectUrl);
-        } else {
-          router.push(`${ROUTES.LOGIN}?registered=true`);
-        }
-      },
-    }
-  );
-  
-  const registerWithClinic = registerWithClinicMutation.mutate;
-  const isRegisteringWithClinic = registerWithClinicMutation.isPending;
-
   // OTP verification mutation - ✅ Use core hook
   const verifyOTPMutation = useMutationOperation<AuthResponse, OTPFormData>(
     (data) => verifyOTPAction(data) as Promise<AuthResponse>,
@@ -865,7 +840,6 @@ export function useAuth() {
     changePasswordAsync,
     requestMagicLink,
     verifyMagicLink,
-    registerWithClinic,
     terminateAllSessions: terminateAllSessionsMutation.mutate,
     checkOTPStatus,
     invalidateOTP,
@@ -889,7 +863,6 @@ export function useAuth() {
     isRequestingMagicLink,
     isVerifyingMagicLink,
     isTerminatingAllSessions: terminateAllSessionsMutation.isPending,
-    isRegisteringWithClinic,
     isVerifyingOTP: verifyOTPMutation.isPending,
     isRequestingOTP: requestOTPMutation.isPending,
     isSocialLoggingIn,

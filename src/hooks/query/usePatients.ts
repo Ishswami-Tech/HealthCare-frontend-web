@@ -5,7 +5,6 @@ import {
   getPatients,
   getPatientById,
   createPatient,
-  quickRegisterPatient,
   updatePatient,
   deletePatient,
   getPatientAppointments,
@@ -22,6 +21,7 @@ import {
   getPatientCarePlan,
   updatePatientCarePlan
 } from '@/lib/actions/patients.server';
+import { createUser } from '@/lib/actions/users.server';
 import { usePatientStore } from '@/stores';
 
 // ===== PATIENTS QUERY HOOKS =====
@@ -230,7 +230,7 @@ export const useCreatePatient = () => {
 };
 
 /**
- * Hook to quick register patient and create profile atomically
+ * Hook to quick register patient through the role-protected user endpoint.
  */
 export const useQuickRegisterPatient = () => {
   return useMutationOperation(
@@ -264,7 +264,57 @@ export const useQuickRegisterPatient = () => {
         coverageType?: string;
       };
     }) => {
-      return await quickRegisterPatient(patientData);
+      const generatedEmail =
+        patientData.email?.trim() ||
+        `patient.${patientData.phone.replace(/\D/g, '')}.${Date.now()}@clinic.local`;
+
+      const createdUser = await createUser({
+        email: generatedEmail,
+        password: patientData.password,
+        firstName: patientData.firstName,
+        lastName: patientData.lastName,
+        phone: patientData.phone,
+        role: 'PATIENT',
+        ...(patientData.gender ? { gender: patientData.gender } : {}),
+        ...(patientData.dateOfBirth ? { dateOfBirth: patientData.dateOfBirth } : {}),
+        ...(patientData.address ? { address: patientData.address } : {}),
+        ...(patientData.city ? { city: patientData.city } : {}),
+        ...(patientData.state ? { state: patientData.state } : {}),
+        ...(patientData.country ? { country: patientData.country } : {}),
+        ...(patientData.zipCode ? { zipCode: patientData.zipCode } : {}),
+        ...(patientData.allergies ? { allergies: patientData.allergies } : {}),
+        ...(patientData.medicalHistory ? { medicalHistory: patientData.medicalHistory } : {}),
+        ...(patientData.emergencyContact ? { emergencyContact: patientData.emergencyContact } : {}),
+        ...(patientData.insurance
+          ? {
+              insurance: [
+                {
+                  provider: patientData.insurance.provider,
+                  policyNumber: patientData.insurance.policyNumber,
+                  policyHolder:
+                    patientData.insurance.primaryHolder ||
+                    `${patientData.firstName} ${patientData.lastName}`.trim(),
+                  relationship: 'Self',
+                  status: patientData.insurance.coverageType || 'ACTIVE',
+                  ...(patientData.insurance.groupNumber
+                    ? { groupNumber: patientData.insurance.groupNumber }
+                    : {}),
+                  ...(patientData.insurance.coverageType
+                    ? { coverageDetails: patientData.insurance.coverageType }
+                    : {}),
+                  ...(patientData.insurance.coverageEndDate
+                    ? { expiryDate: patientData.insurance.coverageEndDate }
+                    : {}),
+                },
+              ],
+            }
+          : {}),
+      });
+
+      return {
+        user: createdUser,
+        generatedEmail,
+      };
     },
     {
       toastId: TOAST_IDS.PATIENT.CREATE,

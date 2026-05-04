@@ -736,11 +736,6 @@ export async function register(data: RegisterFormData): Promise<AuthResponse | {
   }
 }
 
-export async function registerWithClinic(data: any): Promise<AuthResponse> {
-    const response = await clinicApiClient.post(API_ENDPOINTS.AUTH.REGISTER_WITH_CLINIC, data);
-    return response.data as AuthResponse;
-}
-
 export async function requestOTP(data: OtpRequestFormData): Promise<{ success: boolean; message: string }> {
   try {
     const requestBody = {

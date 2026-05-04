@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -28,7 +29,7 @@ import { useClinics } from "@/hooks/query/useClinics";
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { ConnectionStatusIndicator as WebSocketStatusIndicator } from "@/components/common/StatusIndicator";
 import { AssignRoleModal } from "@/components/clinic/AssignRoleModal";
-import { Loader2, Users, Plus, Search, Edit, Trash2, UserCheck, UserX, Mail, Phone } from "lucide-react";
+import { Loader2, Users, Plus, Search, Edit, Trash2, UserCheck, UserX, Mail, Phone, MapPin, AlertCircle, ClipboardList, ChevronDown, ChevronUp } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { Role } from "@/types/auth.types";
 import { formatDateInIST } from "@/lib/utils/date-time";
@@ -53,6 +54,17 @@ type CreateUserForm = {
   phone: string;
   role: Role;
   clinicId: string;
+  gender: string;
+  dateOfBirth: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  emergencyContact: string;
+  emergencyPhone: string;
+  medicalHistory: string;
+  allergies: string;
+  currentMedications: string;
 };
 
 const defaultCreateUserForm = (): CreateUserForm => ({
@@ -63,6 +75,17 @@ const defaultCreateUserForm = (): CreateUserForm => ({
   phone: "",
   role: Role.RECEPTIONIST,
   clinicId: "",
+  gender: "",
+  dateOfBirth: "",
+  address: "",
+  city: "",
+  state: "",
+  zipCode: "",
+  emergencyContact: "",
+  emergencyPhone: "",
+  medicalHistory: "",
+  allergies: "",
+  currentMedications: "",
 });
 
 const ALL_ROLES: Role[] = [
@@ -101,6 +124,7 @@ export default function SuperAdminUsers() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
+  const [showCreateAdditionalDetails, setShowCreateAdditionalDetails] = useState(false);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [createForm, setCreateForm] = useState<CreateUserForm>(defaultCreateUserForm());
 
@@ -158,9 +182,44 @@ export default function SuperAdminUsers() {
         ...createForm,
         phone: createForm.phone || undefined,
         clinicId: createForm.clinicId || undefined,
+        gender: createForm.gender || undefined,
+        dateOfBirth: createForm.dateOfBirth || undefined,
+        address: createForm.address || undefined,
+        city: createForm.city || undefined,
+        state: createForm.state || undefined,
+        zipCode: createForm.zipCode || undefined,
+        ...(createForm.emergencyContact.trim() && createForm.emergencyPhone.trim()
+          ? {
+              emergencyContact: {
+                name: createForm.emergencyContact.trim(),
+                relationship: "Emergency Contact",
+                phone: createForm.emergencyPhone.trim(),
+              },
+            }
+          : {}),
+        ...(createForm.medicalHistory.trim()
+          ? { medicalHistory: [createForm.medicalHistory.trim()] }
+          : {}),
+        ...(createForm.allergies.trim()
+          ? {
+              allergies: createForm.allergies
+                .split(",")
+                .map((value) => value.trim())
+                .filter(Boolean),
+            }
+          : {}),
+        ...(createForm.currentMedications.trim()
+          ? {
+              medicalHistory: [
+                ...(createForm.medicalHistory.trim() ? [createForm.medicalHistory.trim()] : []),
+                `Current medications: ${createForm.currentMedications.trim()}`,
+              ],
+            }
+          : {}),
       } as any);
       showSuccessToast("User created successfully", { id: TOAST_IDS.USER.CREATE });
       setCreateOpen(false);
+      setShowCreateAdditionalDetails(false);
       setCreateForm(defaultCreateUserForm());
     } catch (error) {
       showErrorToast(error instanceof Error ? error.message : "Failed to create user", {
@@ -256,8 +315,8 @@ export default function SuperAdminUsers() {
     <div className="p-4 space-y-4 sm:p-6 sm:space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-sm text-muted-foreground">Paginated, searchable, role-aware user administration.</p>
+          <h1 className="text-3xl font-bold">User Administration</h1>
+          <p className="text-sm text-muted-foreground">Create, search, and manage role-aware users from one place.</p>
         </div>
         <div className="flex items-center gap-2">
           <WebSocketStatusIndicator />
@@ -363,50 +422,172 @@ export default function SuperAdminUsers() {
       <DataTable columns={columns} data={filteredUsers} pageSize={10} emptyMessage="No users found." />
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Create User</DialogTitle>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create User</DialogTitle>
           <DialogDescription>
               Create a new user and assign clinic/role access in one step.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {USER_CREATE_FIELDS.map(({ key, label }) => (
-              <div key={key} className="space-y-2">
-                <Label>{label}</Label>
-                <Input
-                  type={key === "password" ? "password" : "text"}
-                  value={createForm[key]}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, [key]: e.target.value }))}
-                />
+          </DialogDescription>
+        </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {USER_CREATE_FIELDS.map(({ key, label }) => (
+                <div key={key} className="space-y-2">
+                  <Label>{label}</Label>
+                  <Input
+                    type={key === "password" ? "password" : "text"}
+                    value={createForm[key]}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select value={createForm.role} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, role: value as Role }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ALL_ROLES.map((role) => (
+                      <SelectItem key={role} value={role}>{role.replace(/_/g, " ")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            ))}
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Select value={createForm.role} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, role: value as Role }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ALL_ROLES.map((role) => (
-                    <SelectItem key={role} value={role}>{role.replace(/_/g, " ")}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label>Clinic</Label>
+                <Select value={createForm.clinicId} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, clinicId: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select clinic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clinics.map((clinic) => (
+                      <SelectItem key={clinic.id} value={clinic.id}>{clinic.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Clinic</Label>
-              <Select value={createForm.clinicId} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, clinicId: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select clinic" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clinics.map((clinic) => (
-                    <SelectItem key={clinic.id} value={clinic.id}>{clinic.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+            <div className="flex items-center justify-between rounded-xl border border-dashed border-blue-200 bg-blue-50/60 px-3 py-2 dark:border-blue-900/50 dark:bg-blue-950/20">
+              <div>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">Additional Details</p>
+                <p className="text-[11px] text-blue-700/80 dark:text-blue-300/80">
+                  Optional profile, emergency, and medical fields.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCreateAdditionalDetails((current) => !current)}
+                className="h-8 gap-2 rounded-lg px-3 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:text-blue-200 dark:hover:bg-blue-900/30 dark:hover:text-blue-100"
+              >
+                {showCreateAdditionalDetails ? (
+                  <>
+                    Hide
+                    <ChevronUp className="h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    Show
+                    <ChevronDown className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
             </div>
+
+            {showCreateAdditionalDetails && (
+              <div className="space-y-4 rounded-2xl border border-border bg-muted/20 p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Gender</Label>
+                    <Select value={createForm.gender} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, gender: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MALE">Male</SelectItem>
+                        <SelectItem value="FEMALE">Female</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Date of Birth</Label>
+                    <Input
+                      type="date"
+                      value={createForm.dateOfBirth}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Address</Label>
+                    <Textarea
+                      value={createForm.address}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, address: e.target.value }))}
+                      placeholder="Street, city, state"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>City</Label>
+                    <Input
+                      value={createForm.city}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, city: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>State</Label>
+                    <Input
+                      value={createForm.state}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, state: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Zip Code</Label>
+                    <Input
+                      value={createForm.zipCode}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, zipCode: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Emergency Contact</Label>
+                    <Input
+                      value={createForm.emergencyContact}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, emergencyContact: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Emergency Phone</Label>
+                    <Input
+                      value={createForm.emergencyPhone}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, emergencyPhone: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Medical History</Label>
+                    <Textarea
+                      value={createForm.medicalHistory}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, medicalHistory: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Allergies</Label>
+                    <Input
+                      value={createForm.allergies}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, allergies: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Current Medications</Label>
+                    <Textarea
+                      value={createForm.currentMedications}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, currentMedications: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>

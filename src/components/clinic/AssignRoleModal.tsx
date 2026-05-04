@@ -50,6 +50,7 @@ const CLINIC_ADMIN_ASSIGNABLE_ROLES: Role[] = [
   Role.COUNSELOR,
   Role.SUPPORT_STAFF,
   Role.FINANCE_BILLING,
+  Role.CLINIC_LOCATION_HEAD,
 ];
 
 // All staff roles for super admin

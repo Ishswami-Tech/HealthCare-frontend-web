@@ -14,3 +14,13 @@ export function normalizeVideoSessionAppointmentId(value: string): string {
 
   return raw.startsWith("video-session-") ? raw.replace(/^video-session-/, "") : raw;
 }
+
+export function getVideoSessionExitRoute(role?: string): string {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+
+  if (normalizedRole === "PATIENT") {
+    return "/patient/appointments";
+  }
+
+  return "/video-appointments";
+}

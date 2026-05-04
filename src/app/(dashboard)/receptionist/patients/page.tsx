@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Role } from "@/types/auth.types";
@@ -32,6 +32,8 @@ import { usePatients, useQuickRegisterPatient } from "@/hooks/query/usePatients"
 import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { formatDateInIST } from "@/lib/utils/date-time";
+import { useDebouncedCallback } from "@/lib/utils/performance";
+import { ServerPagination } from "@/components/ui/pagination";
 import {
   Calendar,
   Users,
@@ -51,6 +53,8 @@ import {
   Activity,
   ArrowRight,
   User,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { showSuccessToast, showErrorToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 
@@ -92,10 +96,17 @@ export default function ReceptionistPatients() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [genderFilter, setGenderFilter] = useState("all");
   const [sortFilter, setSortFilter] = useState("registered-desc");
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [showNewPatientDialog, setShowNewPatientDialog] = useState(false);
+  const [showAdditionalPatientDetails, setShowAdditionalPatientDetails] = useState(false);
   const patients = usePatientStore((state) => state.collections.clinic);
   const selectedPatient = usePatientStore((state) => state.selectedPatient);
   const setSelectedPatient = usePatientStore((state) => state.setSelectedPatient);
+  const debouncedSetSearch = useDebouncedCallback((value: string) => {
+    setDebouncedSearchTerm(value);
+  }, 300);
 
   // New patient form state
   const [newPatient, setNewPatient] = useState({
@@ -113,13 +124,45 @@ export default function ReceptionistPatients() {
     currentMedications: "",
   });
 
+  useEffect(() => {
+    debouncedSetSearch(searchTerm);
+    setPage(1);
+  }, [searchTerm, debouncedSetSearch]);
+
   // Fetch real patient data
-  usePatients(
+  const patientsQuery = usePatients(
     clinicId || "",
     {
+      ...(debouncedSearchTerm ? { search: debouncedSearchTerm } : {}),
       ...(statusFilter !== "all" && { isActive: statusFilter === "active" }),
+      ...(genderFilter !== "all" ? { gender: genderFilter } : {}),
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
     }
   );
+  const patientsPage = useMemo(() => {
+    if (Array.isArray(patientsQuery.data)) {
+      return {
+        total: patientsQuery.data.length,
+        page: 1,
+        totalPages: 1,
+        pageSize,
+      };
+    }
+
+    const record = (patientsQuery.data as Record<string, any>) || {};
+    const total = Number(record.total ?? record.count ?? record.totalCount ?? 0) || patients.length;
+    const currentPage = Number(record.page ?? record.currentPage ?? page) || page;
+    const resolvedPageSize = Number(record.pageSize ?? record.limit ?? pageSize) || pageSize;
+    const totalPages = Number(record.totalPages ?? record.pageCount ?? Math.max(1, Math.ceil(total / Math.max(resolvedPageSize, 1)))) || 1;
+
+    return {
+      total,
+      page: currentPage,
+      totalPages,
+      pageSize: resolvedPageSize,
+    };
+  }, [patientsQuery.data, patients.length, page, pageSize]);
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
@@ -280,7 +323,7 @@ export default function ReceptionistPatients() {
               View
             </Button>
             <Button asChild size="sm">
-              <Link href="/receptionist/appointments#appointment-manager">
+              <Link href="/receptionist/appointments#appointment-manager" prefetch={false}>
                 <Calendar className="mr-1 h-4 w-4" />
                 Book
               </Link>
@@ -363,8 +406,10 @@ export default function ReceptionistPatients() {
         }
       );
       setShowNewPatientDialog(false);
+      setShowAdditionalPatientDetails(false);
       setSelectedPatient(null);
       setSearchTerm("");
+      setPage(1);
       setStatusFilter("all");
       setNewPatient({
         firstName: "",
@@ -418,7 +463,7 @@ export default function ReceptionistPatients() {
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-2">
                   <Plus className="w-4 h-4" />
-                  Add New Patient
+                  Register Patient
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] w-[95vw] max-w-3xl overflow-hidden border border-slate-200/50 bg-background/95 p-0 shadow-2xl backdrop-blur-2xl dark:border-slate-800/60 sm:w-full sm:rounded-[24px]">
@@ -428,7 +473,7 @@ export default function ReceptionistPatients() {
                       <User className="w-5 h-5" />
                     </div>
                     <div>
-                      <DialogTitle className="text-xl font-bold leading-tight text-foreground">Register New Patient</DialogTitle>
+                      <DialogTitle className="text-xl font-bold leading-tight text-foreground">Register Patient</DialogTitle>
                       <p className="text-sm font-medium text-muted-foreground">Complete the form below to create a new medical record</p>
                     </div>
                   </div>
@@ -531,99 +576,133 @@ export default function ReceptionistPatients() {
                       </div>
                     </section>
 
-                    {/* Address Section */}
-                    <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
-                      <div className="flex items-center gap-2 mb-2.5">
-                        <div className="p-1.5 bg-sky-50 text-sky-600 rounded-lg group-hover/section:bg-sky-100 transition-colors">
-                          <MapPin className="w-3.5 h-3.5" />
-                        </div>
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Location</h3>
+                    <div className="flex items-center justify-between rounded-xl border border-dashed border-emerald-200 bg-emerald-50/60 px-3 py-2 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                      <div>
+                        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                          Additional Details
+                        </p>
+                        <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
+                          Optional address, emergency contact, and medical notes.
+                        </p>
                       </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="address" className="text-[11px] font-semibold text-slate-700">Full Home Address</Label>
-                        <Textarea
-                          id="address"
-                          placeholder="Street, City, State, ZIP..."
-                          className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
-                          value={newPatient.address}
-                          onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}
-                        />
-                      </div>
-                    </section>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAdditionalPatientDetails((current) => !current)}
+                        className="h-8 gap-2 rounded-lg px-3 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-100"
+                      >
+                        {showAdditionalPatientDetails ? (
+                          <>
+                            Hide
+                            <ChevronUp className="h-4 w-4" />
+                          </>
+                        ) : (
+                          <>
+                            Show
+                            <ChevronDown className="h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
 
-                    {/* Emergency Contact Section */}
-                    <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
-                      <div className="flex items-center gap-2 mb-2.5">
-                        <div className="p-1.5 bg-rose-50 text-rose-600 rounded-lg group-hover/section:bg-rose-100 transition-colors">
-                          <AlertCircle className="w-3.5 h-3.5" />
-                        </div>
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Emergency Details</h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
-                        <div className="space-y-1">
-                          <Label htmlFor="emergencyContact" className="text-[11px] font-semibold text-slate-700">Contact Name</Label>
-                          <Input
-                            id="emergencyContact"
-                            placeholder="Name (Relationship)"
-                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-lg h-8 text-[13px]"
-                            value={newPatient.emergencyContact}
-                            onChange={(e) => setNewPatient({ ...newPatient, emergencyContact: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="emergencyPhone" className="text-[11px] font-semibold text-slate-700">Contact Phone</Label>
-                          <Input
-                            id="emergencyPhone"
-                            placeholder="+1 (555) 000-0000"
-                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-lg h-8 text-[13px]"
-                            value={newPatient.emergencyPhone}
-                            onChange={(e) => setNewPatient({ ...newPatient, emergencyPhone: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                    </section>
+                    {showAdditionalPatientDetails && (
+                      <>
+                        {/* Address Section */}
+                        <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
+                          <div className="flex items-center gap-2 mb-2.5">
+                            <div className="p-1.5 bg-sky-50 text-sky-600 rounded-lg group-hover/section:bg-sky-100 transition-colors">
+                              <MapPin className="w-3.5 h-3.5" />
+                            </div>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Location</h3>
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="address" className="text-[11px] font-semibold text-slate-700">Full Home Address</Label>
+                            <Textarea
+                              id="address"
+                              placeholder="Street, City, State, ZIP..."
+                              className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
+                              value={newPatient.address}
+                              onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}
+                            />
+                          </div>
+                        </section>
 
-                    {/* Medical Profile Section */}
-                    <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
-                      <div className="flex items-center gap-2 mb-2.5">
-                        <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg group-hover/section:bg-amber-100 transition-colors">
-                          <ClipboardList className="w-3.5 h-3.5" />
-                        </div>
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Medical profile</h3>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="space-y-1">
-                          <Label htmlFor="medicalHistory" className="text-[11px] font-semibold text-slate-700">Past Observations / History</Label>
-                          <Textarea
-                            id="medicalHistory"
-                            placeholder="Document any known conditions, allergies, or past surgeries..."
-                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
-                            value={newPatient.medicalHistory}
-                            onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="allergies" className="text-[11px] font-semibold text-slate-700">Known Allergies</Label>
-                          <Input
-                            id="allergies"
-                            placeholder="Food, drug, or other allergies..."
-                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
-                            value={newPatient.allergies}
-                            onChange={(e) => setNewPatient({ ...newPatient, allergies: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="currentMedications" className="text-[11px] font-semibold text-slate-700">Current Medications</Label>
-                          <Textarea
-                            id="currentMedications"
-                            placeholder="List current medications with dosage..."
-                            className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
-                            value={newPatient.currentMedications}
-                            onChange={(e) => setNewPatient({ ...newPatient, currentMedications: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                    </section>
+                        {/* Emergency Contact Section */}
+                        <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
+                          <div className="flex items-center gap-2 mb-2.5">
+                            <div className="p-1.5 bg-rose-50 text-rose-600 rounded-lg group-hover/section:bg-rose-100 transition-colors">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                            </div>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Emergency Details</h3>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
+                            <div className="space-y-1">
+                              <Label htmlFor="emergencyContact" className="text-[11px] font-semibold text-slate-700">Contact Name</Label>
+                              <Input
+                                id="emergencyContact"
+                                placeholder="Name (Relationship)"
+                                className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-lg h-8 text-[13px]"
+                                value={newPatient.emergencyContact}
+                                onChange={(e) => setNewPatient({ ...newPatient, emergencyContact: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="emergencyPhone" className="text-[11px] font-semibold text-slate-700">Contact Phone</Label>
+                              <Input
+                                id="emergencyPhone"
+                                placeholder="+1 (555) 000-0000"
+                                className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all rounded-lg h-8 text-[13px]"
+                                value={newPatient.emergencyPhone}
+                                onChange={(e) => setNewPatient({ ...newPatient, emergencyPhone: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                        </section>
+
+                        {/* Medical Profile Section */}
+                        <section className="group/section rounded-xl border border-slate-100 bg-card/60 p-3.5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/30">
+                          <div className="flex items-center gap-2 mb-2.5">
+                            <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg group-hover/section:bg-amber-100 transition-colors">
+                              <ClipboardList className="w-3.5 h-3.5" />
+                            </div>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Medical profile</h3>
+                          </div>
+                          <div className="space-y-3">
+                            <div className="space-y-1">
+                              <Label htmlFor="medicalHistory" className="text-[11px] font-semibold text-slate-700">Past Observations / History</Label>
+                              <Textarea
+                                id="medicalHistory"
+                                placeholder="Document any known conditions, allergies, or past surgeries..."
+                                className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
+                                value={newPatient.medicalHistory}
+                                onChange={(e) => setNewPatient({ ...newPatient, medicalHistory: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="allergies" className="text-[11px] font-semibold text-slate-700">Known Allergies</Label>
+                              <Input
+                                id="allergies"
+                                placeholder="Food, drug, or other allergies..."
+                                className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg h-8 text-[13px]"
+                                value={newPatient.allergies}
+                                onChange={(e) => setNewPatient({ ...newPatient, allergies: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="currentMedications" className="text-[11px] font-semibold text-slate-700">Current Medications</Label>
+                              <Textarea
+                                id="currentMedications"
+                                placeholder="List current medications with dosage..."
+                                className="bg-white/80 border-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all rounded-lg min-h-[50px] p-2.5 resize-none text-[13px]"
+                                value={newPatient.currentMedications}
+                                onChange={(e) => setNewPatient({ ...newPatient, currentMedications: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                        </section>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -653,7 +732,7 @@ export default function ReceptionistPatients() {
                         </>
                       ) : (
                         <>
-                          Create Profile
+                          Register Patient
                           <ArrowRight className="w-3.5 h-3.5 ml-1 opacity-60" />
                         </>
                       )}
@@ -674,7 +753,7 @@ export default function ReceptionistPatients() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{patients.length}</div>
+                <div className="text-2xl font-bold">{patientsPage.total || patients.length}</div>
                 <p className="text-xs text-muted-foreground">Registered</p>
               </CardContent>
             </Card>
@@ -691,7 +770,7 @@ export default function ReceptionistPatients() {
                   {patients.filter((p: any) => p.isActive !== false).length}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Currently active
+                  Loaded page active
                 </p>
               </CardContent>
             </Card>
@@ -717,7 +796,7 @@ export default function ReceptionistPatients() {
                     }).length
                   }
                 </div>
-                <p className="text-xs text-muted-foreground">Registrations</p>
+                <p className="text-xs text-muted-foreground">Loaded page registrations</p>
               </CardContent>
             </Card>
 
@@ -732,7 +811,7 @@ export default function ReceptionistPatients() {
                 <div className="text-2xl font-bold text-orange-600">
                   {patients.filter((p: any) => p.isActive === false).length}
                 </div>
-                <p className="text-xs text-muted-foreground">Inactive</p>
+                <p className="text-xs text-muted-foreground">Loaded page inactive</p>
               </CardContent>
             </Card>
           </div>
@@ -753,7 +832,10 @@ export default function ReceptionistPatients() {
                     className="pl-10"
                   />
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select value={statusFilter} onValueChange={(value) => {
+                  setStatusFilter(value);
+                  setPage(1);
+                }}>
                   <SelectTrigger className="w-full md:w-48">
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
@@ -763,7 +845,10 @@ export default function ReceptionistPatients() {
                     <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={genderFilter} onValueChange={setGenderFilter}>
+                <Select value={genderFilter} onValueChange={(value) => {
+                  setGenderFilter(value);
+                  setPage(1);
+                }}>
                   <SelectTrigger className="w-full md:w-48">
                     <SelectValue placeholder="Filter by gender" />
                   </SelectTrigger>
@@ -774,7 +859,10 @@ export default function ReceptionistPatients() {
                     <SelectItem value="OTHER">Other</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={sortFilter} onValueChange={setSortFilter}>
+                <Select value={sortFilter} onValueChange={(value) => {
+                  setSortFilter(value);
+                  setPage(1);
+                }}>
                   <SelectTrigger className="w-full md:w-52">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
@@ -788,7 +876,7 @@ export default function ReceptionistPatients() {
                 </Select>
               </div>
               <div className="mt-3 text-sm text-muted-foreground">
-                Showing {filteredPatients.length} of {patientsWithAge.length} patients
+                Showing {filteredPatients.length} of {patientsPage.total || patientsWithAge.length} patients
               </div>
             </CardContent>
           </Card>
@@ -801,9 +889,18 @@ export default function ReceptionistPatients() {
                 data={patientTableRows}
                 emptyMessage="No patients found"
                 pageSize={12}
+                showPagination={false}
               />
             </CardContent>
           </Card>
+
+          <ServerPagination
+            page={page}
+            totalPages={patientsPage.totalPages || 1}
+            totalItems={patientsPage.total || patientsWithAge.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+          />
 
           <div className="hidden grid gap-4">
             {filteredPatients.map((patient: any) => (
@@ -1049,7 +1146,7 @@ export default function ReceptionistPatients() {
                         </Dialog>
 
                         <Button asChild size="sm">
-                          <Link href="/receptionist/appointments#appointment-manager">
+                          <Link href="/receptionist/appointments#appointment-manager" prefetch={false}>
                             <Calendar className="w-4 h-4 mr-1" />
                             Book
                           </Link>

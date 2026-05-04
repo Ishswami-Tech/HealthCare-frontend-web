@@ -16,7 +16,7 @@ export interface VideoSessionParticipant {
 export interface VideoSession {
   id: string;
   appointmentId: string;
-  status: 'SCHEDULED' | 'ACTIVE' | 'ENDED' | 'CANCELLED';
+  status: 'SCHEDULED' | 'ACTIVE' | 'ENDED' | 'COMPLETED' | 'CANCELLED';
   participants: VideoSessionParticipant[];
   startTime?: string;
   provider: string;

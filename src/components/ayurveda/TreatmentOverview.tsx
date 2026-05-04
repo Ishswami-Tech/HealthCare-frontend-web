@@ -223,7 +223,7 @@ const TreatmentOverview = () => {
 
                   {/* Action Buttons */}
                   <div className="space-y-3">
-                    <Link href={treatment.href}>
+                    <Link href={treatment.href} prefetch={false}>
                       <Button
                         className={`w-full bg-gradient-to-r ${treatment.color} hover:opacity-90 text-white group-hover:shadow-lg transition-all duration-300`}
                       >

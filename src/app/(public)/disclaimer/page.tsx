@@ -10,7 +10,7 @@ export default function DisclaimerPage() {
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
-            <Link href="/">
+            <Link href="/" prefetch={false}>
             <Button variant="ghost" className="gap-2">
                 <ArrowLeft className="h-4 w-4" />
                 Back to Home
@@ -81,7 +81,7 @@ export default function DisclaimerPage() {
             <section className="bg-blue-50 rounded-xl p-6 mt-8">
                 <h3 className="font-semibold text-blue-900 mb-2">Questions?</h3>
                 <p className="text-blue-800 text-sm">
-                    If you have any questions regarding this disclaimer, please contact us at <a href="mailto:support@healthcareapp.com" className="underline hover:text-blue-600">support@healthcareapp.com</a> or visit our <Link href="/contact" className="underline hover:text-blue-600">contact page</Link>.
+                    If you have any questions regarding this disclaimer, please contact us at <a href="mailto:support@healthcareapp.com" className="underline hover:text-blue-600">support@healthcareapp.com</a> or visit our <Link href="/contact" prefetch={false} className="underline hover:text-blue-600">contact page</Link>.
                 </p>
             </section>
           </CardContent>

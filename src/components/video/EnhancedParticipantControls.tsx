@@ -89,7 +89,7 @@ export function EnhancedParticipantControls({
           size="sm"
           variant="ghost"
           disabled={isLoading}
-          className="h-8 w-8 p-0"
+          className="h-8 w-8 p-0 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-800 dark:bg-[#3c4043] dark:text-white dark:hover:bg-[#4a4d51]"
         >
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -98,8 +98,8 @@ export function EnhancedParticipantControls({
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Participant Controls</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-56 rounded-2xl border-border bg-popover shadow-2xl dark:border-white/10 dark:bg-[#303134]">
+        <DropdownMenuLabel className="text-xs uppercase tracking-[0.18em] text-muted-foreground dark:text-gray-400">Participant Controls</DropdownMenuLabel>
         <DropdownMenuSeparator />
 
         <DropdownMenuItem onClick={() => handleAction("mute")}>
@@ -148,7 +148,7 @@ export function EnhancedParticipantControls({
 
         <DropdownMenuItem
           onClick={() => handleAction("remove")}
-          className="text-destructive"
+          className="text-[#ea4335] focus:bg-red-500/10 focus:text-[#ea4335] dark:focus:bg-red-500/10 dark:focus:text-[#ff8a80]"
         >
           <UserX className="h-4 w-4 mr-2" />
           Remove Participant

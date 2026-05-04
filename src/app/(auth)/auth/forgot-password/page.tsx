@@ -100,6 +100,7 @@ export default function ForgotPasswordPage() {
           Remember your password?{" "}
           <Link
             href={ROUTES.LOGIN}
+            prefetch={false}
             className="text-blue-600 hover:underline transition-colors"
           >
             Sign in

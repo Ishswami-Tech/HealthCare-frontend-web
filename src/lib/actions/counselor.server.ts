@@ -62,25 +62,28 @@ export async function getCounselorClients(
     offset?: number;
     clientId?: string;
   }
-): Promise<{ clients: CounselorClient[] }> {
+): Promise<unknown> {
   const clinicId = await getClinicId();
   if (!clinicId) return { clients: [] };
 
   const params = new URLSearchParams();
   if (filters?.search) params.append('search', filters.search);
   if (filters?.status) params.append('status', filters.status);
-  if (typeof filters?.limit === 'number') params.append('limit', filters.limit.toString());
-  if (typeof filters?.offset === 'number') params.append('offset', filters.offset.toString());
   if (filters?.clientId) params.append('patientId', filters.clientId);
 
-  const { data } = await authenticatedApi<{ patients: CounselorClient[] } | CounselorClient[]>(
+  if (typeof filters?.limit === 'number') {
+    params.append('limit', filters.limit.toString());
+    const page =
+      typeof filters.offset === 'number' ? Math.floor(filters.offset / filters.limit) + 1 : 1;
+    params.append('page', String(Math.max(page, 1)));
+  }
+
+  const { data } = await authenticatedApi<
+    { patients: CounselorClient[]; total?: number; page?: number; totalPages?: number } | CounselorClient[]
+  >(
     `/patients/clinic/${clinicId}?${params.toString()}`
   );
-
-  const clients = Array.isArray(data)
-    ? data
-    : (data as any)?.patients || (data as any)?.data || [];
-  return { clients };
+  return data;
 }
 
 /**

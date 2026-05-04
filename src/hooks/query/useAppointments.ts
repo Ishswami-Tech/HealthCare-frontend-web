@@ -502,7 +502,6 @@ export const useCreateAppointment = (clinicId?: string) => {
         // Invalidate both appointments and myAppointments so all views refresh
         void queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
         void queryClient.invalidateQueries({ queryKey: getAppointmentQueryKey(clinicId), exact: false });
-        void queryClient.refetchQueries({ queryKey: getAppointmentQueryKey(clinicId), exact: false, type: 'active' });
         void queryClient.invalidateQueries({ queryKey: ['myAppointments'], exact: false });
         void queryClient.invalidateQueries({ queryKey: ['userUpcomingAppointments'], exact: false });
         void queryClient.invalidateQueries({ queryKey: getAppointmentStatsQueryKey(), exact: false });
@@ -848,7 +847,7 @@ export const useUserUpcomingAppointments = () => {
     {
       enabled: hasPermission(Permission.VIEW_APPOINTMENTS),
       staleTime: 5 * 60 * 1000, // 5 minutes
-      refetchOnWindowFocus: true,
+      refetchOnWindowFocus: false,
     }
   );
 };
@@ -1221,7 +1220,7 @@ export const useQueue = (queueType: string) => {
       return 45 * 1000; // 45 seconds default
     },
     refetchIntervalInBackground: false, // Don't poll in background
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     retry: (failureCount, error) => {
       if (error.message.includes('Access denied')) {
         return false;

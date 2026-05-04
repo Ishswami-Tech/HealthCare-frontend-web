@@ -300,31 +300,52 @@
 
   /* Google Meet UI Utilities */
   .meet-control-button {
-    @apply h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-all duration-200 border-0;
+    @apply h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-all duration-200 border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300;
+  }
+  .dark .meet-control-button {
+    @apply border-[#5f6368] bg-[#3c4043] text-white shadow-none hover:bg-[#4a4d51] hover:border-[#6c7075];
   }
   
   .meet-control-button-active {
-    @apply bg-[#3c4043] text-white hover:bg-[#4a4d51];
+    @apply bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-800;
+  }
+  .dark .meet-control-button-active {
+    @apply bg-[#3c4043] text-white hover:bg-[#4a4d51] hover:text-white;
   }
   
   .meet-control-button-danger {
-    @apply bg-[#ea4335] text-white hover:bg-[#d93025];
+    @apply bg-[#ea4335] text-white border-[#ea4335] hover:bg-[#d93025] hover:border-[#d93025];
+  }
+  .dark .meet-control-button-danger {
+    @apply bg-[#ea4335] text-white border-[#ea4335] hover:bg-[#d93025] hover:border-[#d93025];
   }
   
   .meet-control-button-blue {
-    @apply bg-[#8ab4f8] text-[#202124] hover:bg-[#aecbfa];
+    @apply bg-[#1a73e8] text-white border-[#1a73e8] hover:bg-[#1558b0] hover:border-[#1558b0];
+  }
+  .dark .meet-control-button-blue {
+    @apply bg-[#8ab4f8] text-[#202124] border-[#8ab4f8] hover:bg-[#aecbfa] hover:border-[#aecbfa];
   }
 
   .meet-info-button {
-    @apply h-10 w-10 flex items-center justify-center rounded-full transition-colors text-white hover:bg-white/10;
+    @apply h-10 w-10 flex items-center justify-center rounded-full transition-all bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-800;
+  }
+  .dark .meet-info-button {
+    @apply bg-transparent text-white hover:bg-white/10 hover:text-white;
   }
 
   .meet-info-button-active {
-    @apply text-[#8ab4f8] bg-blue-500/10;
+    @apply bg-blue-500/10 text-[#1a73e8] ring-1 ring-blue-500/20;
+  }
+  .dark .meet-info-button-active {
+    @apply bg-[#8ab4f8]/15 text-[#8ab4f8] ring-1 ring-[#8ab4f8]/20;
   }
 
   .leave-call-button {
-    @apply h-10 w-14 sm:h-12 sm:w-16 bg-[#ea4335] text-white rounded-[24px] flex items-center justify-center hover:bg-[#d93025] transition-all;
+    @apply h-10 w-14 sm:h-12 sm:w-16 bg-[#ea4335] text-white rounded-[24px] flex items-center justify-center shadow-md shadow-red-500/20 hover:bg-[#d93025] hover:shadow-lg hover:shadow-red-500/25 transition-all;
+  }
+  .dark .leave-call-button {
+    @apply bg-[#ea4335] text-white hover:bg-[#d93025];
   }
 
   .meet-panel-active {
@@ -1287,13 +1308,13 @@ html {
   }
 
   .call-info-button {
-    @apply rounded-full w-12 h-12 flex items-center justify-center bg-transparent border-transparent text-white transition-colors duration-200 cursor-pointer;
+    @apply rounded-full w-12 h-12 flex items-center justify-center bg-slate-100 border border-slate-200 text-slate-700 transition-colors duration-200 cursor-pointer;
   }
   .call-info-button:hover {
-    @apply bg-[#28292c];
+    @apply bg-slate-200 border-slate-300;
   }
   .call-info-button[data-active="true"] {
-    @apply text-[#8ab4f7];
+    @apply bg-blue-500/10 text-[#1a73e8] border-blue-500/20;
   }
 }
 

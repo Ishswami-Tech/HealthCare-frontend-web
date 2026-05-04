@@ -197,7 +197,7 @@ export function MedicalNotes({ appointmentId, className, compact = false }: Medi
 
   return (
     <Card className={className}>
-      <CardHeader className={compact ? "pb-2 px-3 pt-3" : "pb-3"}>
+      <CardHeader className={compact ? "pb-2 px-3 pt-3 bg-gradient-to-r from-white to-slate-50 dark:from-[#202124] dark:to-[#2b2c30]" : "pb-3 bg-gradient-to-r from-white to-slate-50 dark:from-[#202124] dark:to-[#2b2c30]"}>
         <div className="flex items-center justify-between">
           <CardTitle className={compact ? "text-sm" : "text-lg"}>Medical Notes</CardTitle>
           {!isCreating && (
@@ -205,7 +205,7 @@ export function MedicalNotes({ appointmentId, className, compact = false }: Medi
               size="sm"
               onClick={() => setIsCreating(true)}
               variant="outline"
-              className={compact ? "h-8 px-2.5 text-xs" : undefined}
+              className={compact ? "h-8 px-2.5 text-xs rounded-full border-blue-200 text-[#1a73e8] hover:bg-blue-500/10 dark:border-white/10 dark:text-[#8ab4f8]" : "rounded-full border-blue-200 text-[#1a73e8] hover:bg-blue-500/10 dark:border-white/10 dark:text-[#8ab4f8]"}
             >
               <Plus className="h-4 w-4 mr-2" />
               New Note
@@ -223,7 +223,7 @@ export function MedicalNotes({ appointmentId, className, compact = false }: Medi
             <div className={compact ? "space-y-3 py-3" : "space-y-4 py-4"}>
               {/* Create Note Form */}
               {isCreating && (
-                <Card className="border-primary">
+                <Card className="border-blue-200 shadow-sm dark:border-white/10">
                   <CardContent className={compact ? "pt-3 space-y-2.5" : "pt-4 space-y-3"}>
                     <Input
                       placeholder="Note title (optional)..."
@@ -272,7 +272,7 @@ export function MedicalNotes({ appointmentId, className, compact = false }: Medi
                     />
 
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={handleCreateNote} disabled={isSaving} className={compact ? "h-8 px-2.5 text-xs" : undefined}>
+                      <Button size="sm" onClick={handleCreateNote} disabled={isSaving} className={compact ? "h-8 px-2.5 text-xs rounded-full bg-[#1a73e8] text-white hover:bg-[#1558b0]" : "rounded-full bg-[#1a73e8] text-white hover:bg-[#1558b0]"}>
                         <Save className="h-4 w-4 mr-2" />
                         {isSaving ? "Saving..." : "Save"}
                       </Button>
@@ -280,7 +280,7 @@ export function MedicalNotes({ appointmentId, className, compact = false }: Medi
                         size="sm"
                         variant="outline"
                         disabled={isSaving}
-                        className={compact ? "h-8 px-2.5 text-xs" : undefined}
+                        className={compact ? "h-8 px-2.5 text-xs rounded-full border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:text-white dark:hover:bg-white/10" : "rounded-full border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:text-white dark:hover:bg-white/10"}
                         onClick={() => {
                           setIsCreating(false);
                           setNewNote({
@@ -306,7 +306,7 @@ export function MedicalNotes({ appointmentId, className, compact = false }: Medi
                 </div>
               ) : (
                 notes.map((note) => (
-                  <Card key={note.id} className="border-l-4 border-l-primary">
+                  <Card key={note.id} className="border-l-4 border-l-[#1a73e8] shadow-sm dark:border-l-[#8ab4f8]">
                     <CardContent className={compact ? "pt-3" : "pt-4"}>
                       <div className={compact ? "flex items-start justify-between mb-1.5 gap-2" : "flex items-start justify-between mb-2"}>
                         <div className="flex items-center gap-2 min-w-0">
@@ -338,6 +338,7 @@ export function MedicalNotes({ appointmentId, className, compact = false }: Medi
                             <Button
                               size="sm"
                               variant="ghost"
+                              className="rounded-full hover:bg-blue-500/10 hover:text-[#1a73e8] dark:hover:bg-white/10 dark:hover:text-[#8ab4f8]"
                               onClick={() => {
                                 setEditingId(note.id);
                                 setEditingDraft({
@@ -352,6 +353,7 @@ export function MedicalNotes({ appointmentId, className, compact = false }: Medi
                             <Button
                               size="sm"
                               variant="ghost"
+                              className="rounded-full hover:bg-red-500/10 hover:text-[#ea4335] dark:hover:bg-red-500/10 dark:hover:text-[#ff8a80]"
                               onClick={() => handleDeleteNote(note.id)}
                               disabled={deletingNoteId === note.id}
                             >
@@ -388,12 +390,14 @@ export function MedicalNotes({ appointmentId, className, compact = false }: Medi
                               size="sm"
                               onClick={() => void handleUpdateNote(note.id)}
                               disabled={isUpdating}
+                              className="rounded-full bg-[#1a73e8] text-white hover:bg-[#1558b0]"
                             >
                               {isUpdating ? "Saving..." : "Save"}
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
+                              className="rounded-full border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:text-white dark:hover:bg-white/10"
                               onClick={() => {
                                 setEditingId(null);
                                 setEditingDraft({ title: "", content: "" });

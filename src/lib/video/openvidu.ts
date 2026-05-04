@@ -101,6 +101,36 @@ export function resolveVideoDisplayName(user?: UserNameLike | null): string {
   return "User";
 }
 
+export class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TimeoutError";
+  }
+}
+
+export async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage = "Operation timed out"
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new TimeoutError(timeoutMessage));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 function getPublicOpenViduWsUri(value: string): string {
   const raw = normalizeOpenViduServerUrl(value);
   if (!raw) {
@@ -390,6 +420,19 @@ export class OpenViduAPI {
     }
   }
 
+  private async acquireVideoTrack(deviceId?: string | null): Promise<MediaStreamTrack> {
+    const mediaStream = await this.openvidu.getUserMedia({
+      audioSource: false,
+      videoSource: deviceId && deviceId.trim().length > 0 ? deviceId : true,
+    });
+    const videoTrack = mediaStream.getVideoTracks()[0];
+    if (!videoTrack) {
+      mediaStream.getTracks().forEach((track) => track.stop());
+      throw new Error('No video track available');
+    }
+    return videoTrack;
+  }
+
   toggleVideo(): boolean {
     if (!this.publisher) {
       return false;
@@ -397,11 +440,30 @@ export class OpenViduAPI {
 
     const nextVideoActive = !this.publisher.stream.videoActive;
 
-    if (nextVideoActive) {
-      this.publisher.publishVideo(true);
+    if (!nextVideoActive) {
+      const mediaStream = this.publisher.stream.getMediaStream?.();
+      const videoTracks = mediaStream?.getVideoTracks() || [];
+      videoTracks.forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          // Ignore stop errors during video teardown
+        }
+      });
+      this.publisher.publishVideo(false);
     } else {
-      // Free the camera hardware immediately so the browser camera light turns off.
-      this.publisher.publishVideo(false, true);
+      void this.acquireVideoTrack(this.activeVideoDeviceId)
+        .then(async (videoTrack) => {
+          if (!this.publisher) return;
+          await this.publisher.replaceTrack(videoTrack);
+          this.publisher.publishVideo(true);
+          window.dispatchEvent(new CustomEvent('openvidu-publisher-property-changed', {
+            detail: { property: 'videoActive', value: true }
+          }));
+        })
+        .catch((error) => {
+          console.error('[VIDEO] Failed to restore camera track:', error);
+        });
     }
 
     window.dispatchEvent(new CustomEvent('openvidu-publisher-property-changed', {
@@ -717,6 +779,20 @@ export class OpenViduAPI {
   async dispose(): Promise<void> {
     try {
       await this.clearVirtualBackground().catch(() => undefined);
+
+      const mediaStream = (this.publisher as unknown as {
+        stream?: { getMediaStream?: () => MediaStream };
+      } | null)?.stream?.getMediaStream?.();
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch {
+            // Ignore stop errors during teardown
+          }
+        });
+      }
+
       if (this.publisher && this.session) {
         await this.session.unpublish(this.publisher);
         this.publisher = null;

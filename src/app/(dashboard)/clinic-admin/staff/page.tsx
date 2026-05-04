@@ -36,6 +36,24 @@ type StaffMember = {
   permissions?: string[] | null;
 };
 
+const CLINIC_STAFF_ROLES = [
+  Role.DOCTOR,
+  Role.ASSISTANT_DOCTOR,
+  Role.RECEPTIONIST,
+  Role.PHARMACIST,
+  Role.NURSE,
+  Role.THERAPIST,
+  Role.LAB_TECHNICIAN,
+  Role.COUNSELOR,
+  Role.SUPPORT_STAFF,
+  Role.FINANCE_BILLING,
+  Role.CLINIC_LOCATION_HEAD,
+] as const;
+
+const CLINIC_SUPPORT_ROLES: readonly Role[] = CLINIC_STAFF_ROLES.filter(
+  (role) => role !== Role.DOCTOR && role !== Role.ASSISTANT_DOCTOR
+);
+
 export default function ClinicAdminStaff() {
   useAuth();
   const { data: currentClinic } = useCurrentClinic();
@@ -112,6 +130,12 @@ export default function ClinicAdminStaff() {
             Doctor
           </Badge>
         );
+      case Role.ASSISTANT_DOCTOR:
+        return (
+          <Badge className="border-sky-200/50 bg-sky-500/10 text-sky-700 hover:bg-sky-500/20 dark:text-sky-400">
+            Assistant Doctor
+          </Badge>
+        );
       case Role.CLINIC_ADMIN:
         return (
           <Badge className="border-purple-200/50 bg-purple-500/10 text-purple-700 hover:bg-purple-500/20 dark:text-purple-400">
@@ -154,10 +178,22 @@ export default function ClinicAdminStaff() {
             Counselor
           </Badge>
         );
+      case Role.SUPPORT_STAFF:
+        return (
+          <Badge className="border-cyan-200/50 bg-cyan-500/10 text-cyan-700 hover:bg-cyan-500/20 dark:text-cyan-400">
+            Support Staff
+          </Badge>
+        );
       case Role.FINANCE_BILLING:
         return (
           <Badge className="border-amber-200/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-400">
             Finance
+          </Badge>
+        );
+      case Role.CLINIC_LOCATION_HEAD:
+        return (
+          <Badge className="border-violet-200/50 bg-violet-500/10 text-violet-700 hover:bg-violet-500/20 dark:text-violet-400">
+            Location Head
           </Badge>
         );
       default:
@@ -259,7 +295,7 @@ export default function ClinicAdminStaff() {
               className="bg-neutral-50 font-medium dark:bg-neutral-800 dark:hover:bg-neutral-700"
             >
               <ShieldCheck className="mr-2 h-4 w-4 text-primary" />
-              Manage Access
+              Manage Role
             </Button>
           </div>
         ),
@@ -304,7 +340,7 @@ export default function ClinicAdminStaff() {
             className="flex w-full items-center justify-center gap-2 bg-primary px-6 shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 active:scale-95 sm:w-auto"
           >
             <Plus className="h-4 w-4" />
-            Add New Staff
+            Create Staff Member
           </Button>
         </div>
       </div>
@@ -326,6 +362,13 @@ export default function ClinicAdminStaff() {
             bg: "bg-purple-50 dark:bg-purple-500/10",
           },
           {
+            label: "Assistant Doctors",
+            value: staff.filter((s) => s.role === Role.ASSISTANT_DOCTOR).length,
+            icon: UserCheck,
+            color: "text-sky-600 dark:text-sky-400",
+            bg: "bg-sky-50 dark:bg-sky-500/10",
+          },
+          {
             label: "Active Now",
             value: staff.filter((s) => s.status === "Active").length,
             icon: UserCheck,
@@ -333,8 +376,8 @@ export default function ClinicAdminStaff() {
             bg: "bg-emerald-50 dark:bg-emerald-500/10",
           },
           {
-            label: "Support Staff",
-            value: staff.filter((s) => [Role.RECEPTIONIST, Role.PHARMACIST, Role.NURSE].includes(s.role as Role)).length,
+            label: "Clinic Support",
+            value: staff.filter((s) => CLINIC_SUPPORT_ROLES.includes(s.role as Role)).length,
             icon: UserCog,
             color: "text-orange-600 dark:text-orange-400",
             bg: "bg-orange-50 dark:bg-orange-500/10",
@@ -385,14 +428,17 @@ export default function ClinicAdminStaff() {
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
                   <SelectItem value={Role.DOCTOR}>Doctors</SelectItem>
-                  <SelectItem value={Role.CLINIC_ADMIN}>Admins</SelectItem>
+                  <SelectItem value={Role.ASSISTANT_DOCTOR}>Assistant Doctors</SelectItem>
+                  <SelectItem value={Role.CLINIC_ADMIN}>Clinic Admins</SelectItem>
                   <SelectItem value={Role.RECEPTIONIST}>Reception</SelectItem>
                   <SelectItem value={Role.PHARMACIST}>Pharmacy</SelectItem>
                   <SelectItem value={Role.NURSE}>Nurse</SelectItem>
                   <SelectItem value={Role.THERAPIST}>Therapist</SelectItem>
                   <SelectItem value={Role.LAB_TECHNICIAN}>Lab Tech</SelectItem>
                   <SelectItem value={Role.COUNSELOR}>Counselor</SelectItem>
+                  <SelectItem value={Role.SUPPORT_STAFF}>Support Staff</SelectItem>
                   <SelectItem value={Role.FINANCE_BILLING}>Finance</SelectItem>
+                  <SelectItem value={Role.CLINIC_LOCATION_HEAD}>Location Head</SelectItem>
                 </SelectContent>
               </Select>
 

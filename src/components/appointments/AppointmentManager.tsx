@@ -28,7 +28,6 @@ import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/ho
 import { sanitizeErrorMessage } from "@/lib/utils/error-handler";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useWebSocketStatus } from "@/app/providers/WebSocketProvider";
-import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import {
   useCancelAppointment,
   useMyAppointments,
@@ -116,7 +115,6 @@ export default function AppointmentManager({
 
   // Real-time WebSocket integration
   const { isConnected, isRealTimeEnabled } = useWebSocketStatus();
-  useWebSocketQuerySync();
 
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -352,18 +350,21 @@ export default function AppointmentManager({
         return;
       }
 
-      const refreshedQuery = await refetch();
-      const refreshedAppointments = (() => {
-        const data = (refreshedQuery as any)?.data;
-        if (Array.isArray(data)) return data;
-        if (Array.isArray(data?.appointments)) return data.appointments;
-        if (Array.isArray(data?.data?.appointments)) return data.data.appointments;
-        if (Array.isArray(data?.data)) return data.data;
-        return [];
-      })();
+      let latestAppointment = appointment;
+      if (!isVideoAppointmentJoinable(latestAppointment)) {
+        const refreshedQuery = await refetch();
+        const refreshedAppointments = (() => {
+          const data = (refreshedQuery as any)?.data;
+          if (Array.isArray(data)) return data;
+          if (Array.isArray(data?.appointments)) return data.appointments;
+          if (Array.isArray(data?.data?.appointments)) return data.data.appointments;
+          if (Array.isArray(data?.data)) return data.data;
+          return [];
+        })();
 
-      const latestAppointment =
-        refreshedAppointments.find((item: any) => getEffectiveAppointmentId(item) === appointmentId) || appointment;
+        latestAppointment =
+          refreshedAppointments.find((item: any) => getEffectiveAppointmentId(item) === appointmentId) || appointment;
+      }
 
       if (!isVideoAppointmentJoinable(latestAppointment)) {
         showErrorToast(getVideoAppointmentJoinBlockedReason(latestAppointment), {

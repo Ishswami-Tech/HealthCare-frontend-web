@@ -43,9 +43,14 @@ export const useNursePatients = (filters?: {
   );
 
   useEffect(() => {
-    const normalizedPatients = Array.isArray(query.data?.patients)
-      ? query.data.patients
-      : [];
+    const rawPatients = (query.data as any)?.patients ?? query.data;
+    const normalizedPatients = Array.isArray(rawPatients)
+      ? rawPatients
+      : Array.isArray((rawPatients as any)?.patients)
+        ? (rawPatients as any).patients
+        : Array.isArray((rawPatients as any)?.data)
+          ? (rawPatients as any).data
+          : [];
 
     setCollection('nurse', normalizedPatients);
   }, [query.data, setCollection]);
@@ -104,7 +109,8 @@ export const useNursePatientVitals = (
       vitalsOnly: true,
       omitClinicId: filters?.omitClinicId,
     } as any); // Type cast to allow omitClinicId through to server action
-    const patients = Array.isArray(result?.patients) ? result.patients : [];
+    const rawResult = result as any;
+    const patients = Array.isArray(rawResult?.patients) ? rawResult.patients : [];
     const vitals = patients.flatMap((p: any) => (Array.isArray(p?.vitals) ? p.vitals : []));
     return { vitals };
   }, [filters, patientId]);

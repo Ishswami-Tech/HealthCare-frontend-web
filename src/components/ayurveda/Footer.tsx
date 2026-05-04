@@ -138,6 +138,7 @@ const Footer = () => {
                 <li key={link.name}>
                   <Link
                     href={link.href}
+                    prefetch={false}
                     className="text-muted-foreground hover:text-primary transition-colors duration-200"
                   >
                     {link.name}
@@ -154,6 +155,7 @@ const Footer = () => {
                 <li key={treatment.name}>
                   <Link
                     href={treatment.href}
+                    prefetch={false}
                     className="text-muted-foreground hover:text-primary transition-colors duration-200"
                   >
                     {treatment.name}
@@ -248,24 +250,28 @@ const Footer = () => {
             <div className="flex flex-wrap justify-center gap-6 text-sm">
               <Link
                 href="/privacy"
+                prefetch={false}
                 className="text-muted-foreground hover:text-primary"
               >
                 {t("footer.privacyPolicy")}
               </Link>
               <Link
                 href="/terms"
+                prefetch={false}
                 className="text-muted-foreground hover:text-primary"
               >
                 {t("footer.termsOfService")}
               </Link>
               <Link
                 href="/disclaimer"
+                prefetch={false}
                 className="text-muted-foreground hover:text-primary"
               >
                 {t("footer.disclaimer")}
               </Link>
               <Link
                 href="/sitemap.xml"
+                prefetch={false}
                 className="text-muted-foreground hover:text-primary"
               >
                 {t("footer.sitemap")}

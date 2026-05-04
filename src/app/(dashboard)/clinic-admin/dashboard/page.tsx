@@ -162,13 +162,13 @@ export default function ClinicAdminDashboard() {
               Sync Data
             </Button>
             <Button asChild className="h-10 px-6 font-bold shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">
-              <Link href="/clinic-admin/schedule">
+              <Link href="/clinic-admin/schedule" prefetch={false}>
                 <Plus className="w-4 h-4" />
                 Manage Schedule
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-10 px-6 font-bold flex items-center gap-2 rounded-xl border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50">
-              <Link href="/queue">
+              <Link href="/queue" prefetch={false}>
                 <Activity className="w-4 h-4" />
                 Open Queue Workspace
               </Link>
@@ -345,7 +345,7 @@ export default function ClinicAdminDashboard() {
             )}
             <div className="p-4 bg-neutral-50/80 dark:bg-neutral-900/80 border-t flex justify-center">
               <Button asChild variant="link" className="text-xs font-black uppercase text-primary hover:no-underline">
-                <Link href="/clinic-admin/schedule">View Staff Schedule</Link>
+                <Link href="/clinic-admin/schedule" prefetch={false}>View Staff Schedule</Link>
               </Button>
             </div>
           </CardContent>

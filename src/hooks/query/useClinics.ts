@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { Permission } from '@/types/rbac.types';
 import { APP_CONFIG } from '@/lib/config/config';
 import { clinicApiClient } from '@/lib/api/client';
-import { 
+import {
   CreateClinicData,
   UpdateClinicData,
   CreateClinicLocationData,
@@ -18,7 +18,8 @@ import {
   ClinicLocation,
   ClinicUser,
   ClinicStats,
-  ClinicSettings
+  ClinicSettings,
+  ClinicPatientResult,
 } from '@/types/clinic.types';
 import {
   createClinic,
@@ -473,19 +474,27 @@ export const useClinicDoctors = (clinicId: string) => {
 /**
  * Hook to get clinic patients
  */
-export const useClinicPatients = (clinicId: string) => {
+export const useClinicPatients = (clinicId: string, params?: {
+  page?: number;
+  limit?: number;
+}) => {
   const { session } = useAuth();
   const token = session?.access_token;
   const sessionId = session?.session_id;
+  const queryPage = Math.max(params?.page ?? 1, 1);
+  const queryLimit = Math.max(params?.limit ?? 100, 1);
   
-  return useQueryData<ClinicUser[]>(
-    ['clinicPatients', clinicId],
+  return useQueryData<ClinicPatientResult | ClinicUser[]>(
+    ['clinicPatients', clinicId, queryPage, queryLimit],
     async () => {
-      const response = await apiCall<ClinicUser[]>(`/clinics/${clinicId}/patients`, {
+      const response = await apiCall<ClinicPatientResult | ClinicUser[]>(
+        `/clinics/${clinicId}/patients?page=${queryPage}&limit=${queryLimit}`,
+        {
         headers: {
           ...getAuthHeaders(token, sessionId, CLINIC_ID),
         },
-      });
+      }
+      );
       return response.data;
     },
     {

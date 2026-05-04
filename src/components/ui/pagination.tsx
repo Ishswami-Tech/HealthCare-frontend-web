@@ -116,6 +116,77 @@ function PaginationEllipsis({
   )
 }
 
+type ServerPaginationProps = {
+  page: number
+  totalPages: number
+  totalItems: number
+  pageSize: number
+  onPageChange: (page: number) => void
+  className?: string
+  compact?: boolean
+}
+
+function ServerPagination({
+  page,
+  totalPages,
+  totalItems,
+  pageSize,
+  onPageChange,
+  className,
+  compact = false,
+}: ServerPaginationProps) {
+  const safeTotalPages = Math.max(totalPages, 1)
+  const safePage = Math.min(Math.max(page, 1), safeTotalPages)
+  const start = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1
+  const end = Math.min(safePage * pageSize, totalItems)
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between",
+        className
+      )}
+    >
+      <div className={cn("font-medium", compact && "text-xs sm:text-sm")}>
+        {totalItems === 0 ? "No results" : `Showing ${start}-${end} of ${totalItems}`}
+      </div>
+      <Pagination className="mx-0 w-auto justify-end">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              href="#"
+              onClick={(event) => {
+                event.preventDefault()
+                if (safePage > 1) {
+                  onPageChange(safePage - 1)
+                }
+              }}
+              className={cn(safePage <= 1 && "pointer-events-none opacity-50")}
+            />
+          </PaginationItem>
+          <PaginationItem>
+            <span className={cn("px-2 whitespace-nowrap text-xs sm:text-sm", compact && "sm:text-sm")}>
+              Page {safePage} of {safeTotalPages}
+            </span>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationNext
+              href="#"
+              onClick={(event) => {
+                event.preventDefault()
+                if (safePage < safeTotalPages) {
+                  onPageChange(safePage + 1)
+                }
+              }}
+              className={cn(safePage >= safeTotalPages && "pointer-events-none opacity-50")}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    </div>
+  )
+}
+
 export {
   Pagination,
   PaginationContent,
@@ -124,4 +195,5 @@ export {
   PaginationPrevious,
   PaginationNext,
   PaginationEllipsis,
+  ServerPagination,
 }

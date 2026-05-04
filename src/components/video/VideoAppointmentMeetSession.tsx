@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { VideoAppointmentMeetRoom } from "@/components/video/VideoAppointmentMeetRoom";
+import { useAppointment } from "@/hooks/query/useAppointments";
 import { useVideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { formatDateTimeInIST, formatTimeInIST, nowIso } from "@/lib/utils/date-time";
 import {
@@ -20,7 +21,21 @@ import {
   getAppointmentPatientName,
   getAppointmentViewState,
 } from "@/lib/utils/appointmentUtils";
+import { getVideoSessionExitRoute } from "@/lib/utils/video-session-route";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
+
+const MEET_MEDIA_BUTTON_ON =
+  "bg-[#3c4043] text-white border border-[#3c4043] shadow-sm hover:bg-[#4a4d51] hover:border-[#4a4d51] dark:bg-[#3c4043] dark:text-white dark:border-[#5f6368] dark:hover:bg-[#4a4d51]";
+const MEET_MEDIA_BUTTON_OFF =
+  "bg-[#ea4335] text-white border border-[#ea4335] shadow-sm hover:bg-[#d93025] hover:border-[#d93025]";
+const MEET_JOIN_BUTTON =
+  "bg-[#1a73e8] text-white shadow-sm hover:bg-[#1558b0] dark:bg-[#8ab4f8] dark:text-[#202124] dark:hover:bg-[#aecbfa]";
+const MEET_SECONDARY_BUTTON =
+  "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-[#5f6368] dark:bg-transparent dark:text-white dark:hover:bg-[#3c4043]";
+const MEET_STATUS_BADGE =
+  "rounded-full border border-blue-200/70 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200";
+const MEET_INFO_CARD =
+  "rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-[#3c4043] dark:bg-[#202124]/90";
 
 type VideoAppointmentMeetSessionProps = {
   appointmentId: string;
@@ -96,6 +111,7 @@ export function VideoAppointmentMeetSession({
   const resolvedAppointmentId = appointmentId.trim();
   const { data: appointmentQuery, isPending, error } =
     useVideoAppointment(resolvedAppointmentId);
+  const { data: appointmentRecordQuery } = useAppointment(resolvedAppointmentId);
   const [appointment, setAppointment] = React.useState<VideoAppointment | null>(
     null
   );
@@ -113,8 +129,28 @@ export function VideoAppointmentMeetSession({
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = React.useRef<MediaStream | null>(null);
   const previewHandedOffRef = React.useRef(false);
-  const appointmentDetailsSource =
-    (appointmentQuery as any)?.appointment || (appointmentQuery as any)?.data || appointment;
+  const appointmentRecordSource = React.useMemo(
+    () =>
+      (appointmentRecordQuery as any)?.appointment ||
+      (appointmentRecordQuery as any)?.data ||
+      appointmentRecordQuery ||
+      null,
+    [appointmentRecordQuery]
+  );
+  const appointmentConsultationSource = React.useMemo(
+    () => (appointmentQuery as any)?.appointment || (appointmentQuery as any)?.data || appointment,
+    [appointmentQuery, appointment]
+  );
+  const appointmentDetailsSource = React.useMemo(() => {
+    if (appointmentRecordSource && appointmentConsultationSource) {
+      return {
+        ...appointmentConsultationSource,
+        ...appointmentRecordSource,
+      };
+    }
+
+    return appointmentRecordSource || appointmentConsultationSource;
+  }, [appointmentConsultationSource, appointmentRecordSource]);
   const appointmentDoctorName = getAppointmentDoctorName(appointmentDetailsSource);
   const appointmentPatientName = getAppointmentPatientName(appointmentDetailsSource);
   const appointmentDateValue =
@@ -137,9 +173,10 @@ export function VideoAppointmentMeetSession({
   const appointmentSessionLabel = resolvedAppointmentId
     ? resolvedAppointmentId.slice(-8).toUpperCase()
     : "TBD";
-  const appointmentDoctorLabel = appointmentDoctorName || "Doctor TBD";
+  const appointmentDoctorLabel = appointmentDoctorName || "Doctor assigned";
   const appointmentPatientLabel = appointmentPatientName || "Patient TBD";
   const viewerRoleNormalized = String(viewerRole || "").trim().toUpperCase();
+  const exitRoute = getVideoSessionExitRoute(viewerRoleNormalized);
   const meetingWithLabel =
     viewerRoleNormalized === "PATIENT"
       ? appointmentDoctorLabel
@@ -371,7 +408,7 @@ export function VideoAppointmentMeetSession({
       window.close();
       return;
     }
-    router.replace("/appointments");
+    router.replace(exitRoute);
   };
 
   if (isPending || !appointment || isRequesting) {
@@ -418,11 +455,13 @@ export function VideoAppointmentMeetSession({
     );
   }
   return (
-      <div className="flex min-h-[100dvh] w-full flex-col items-stretch justify-center gap-4 bg-background px-4 py-6 text-foreground dark:bg-[#202124] dark:text-white sm:px-6 sm:py-8 lg:flex-row lg:items-center lg:gap-8 lg:px-8">
+      <div className="relative flex min-h-[100dvh] w-full flex-col items-stretch justify-center gap-4 overflow-hidden bg-background px-4 py-6 text-foreground dark:bg-[#202124] dark:text-white sm:px-6 sm:py-8 lg:flex-row lg:items-center lg:gap-8 lg:px-8">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(26,115,232,0.14),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(52,168,83,0.10),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.94))] dark:bg-[radial-gradient(circle_at_top_right,rgba(138,180,248,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(52,168,83,0.12),transparent_28%),linear-gradient(180deg,rgba(32,33,36,0.94),rgba(32,33,36,0.98))]" />
       
       {/* Left side: Video Preview */}
       <div className="w-full max-w-3xl flex flex-col gap-4 z-10 lg:w-[65%]">
-        <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-card transition-all duration-300 dark:bg-[#202124]">
+        <div className={`${MEET_INFO_CARD} relative aspect-video w-full overflow-hidden`}>
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#ea4335] via-[#fbbc05] to-[#34a853]" />
           <video
             ref={videoRef}
             autoPlay
@@ -434,8 +473,8 @@ export function VideoAppointmentMeetSession({
           />
           {!isVideoEnabled && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-card px-4 text-center dark:bg-[#202124]">
-              <div className="h-32 w-32 rounded-full bg-muted flex items-center justify-center mb-6 dark:bg-[#3c4043]">
-                <VideoOff className="h-12 w-12 text-[#9aa0a6]" />
+              <div className="mb-6 flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-br from-[#ea4335] via-[#fbbc05] to-[#34a853] shadow-lg shadow-blue-500/10">
+                <VideoOff className="h-12 w-12 text-white" />
               </div>
               <p className="text-xl font-normal text-foreground dark:text-white">Camera is off</p>
             </div>
@@ -446,22 +485,16 @@ export function VideoAppointmentMeetSession({
               <Button
                 type="button"
                 onClick={toggleAudio}
-                className={`h-14 w-14 rounded-full transition-colors ${
-                  isAudioEnabled
-                    ? "bg-muted hover:bg-muted/80 text-foreground border border-border dark:bg-[#3c4043] dark:hover:bg-[#4a4d51] dark:text-white dark:border-[#5f6368]"
-                    : "bg-[#ea4335] hover:bg-[#ea4335]/90 text-white border-0"
-                }`}
+                aria-pressed={isAudioEnabled}
+                className={`h-14 w-14 rounded-full transition-all ${isAudioEnabled ? MEET_MEDIA_BUTTON_ON : MEET_MEDIA_BUTTON_OFF}`}
               >
                 {isAudioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
               </Button>
               <Button
                 type="button"
                 onClick={toggleVideo}
-                className={`h-14 w-14 rounded-full transition-colors ${
-                  isVideoEnabled
-                    ? "bg-muted hover:bg-muted/80 text-foreground border border-border dark:bg-[#3c4043] dark:hover:bg-[#4a4d51] dark:text-white dark:border-[#5f6368]"
-                    : "bg-[#ea4335] hover:bg-[#ea4335]/90 text-white border-0"
-                }`}
+                aria-pressed={isVideoEnabled}
+                className={`h-14 w-14 rounded-full transition-all ${isVideoEnabled ? MEET_MEDIA_BUTTON_ON : MEET_MEDIA_BUTTON_OFF}`}
               >
                 {isVideoEnabled ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
               </Button>
@@ -513,7 +546,8 @@ export function VideoAppointmentMeetSession({
 
       {/* Right side: Meeting details & Join button */}
       <div className="flex w-full max-w-sm flex-col items-center text-center z-10 p-2 sm:p-4 lg:w-[35%] lg:items-center">
-        <h1 className="text-3xl sm:text-[36px] font-normal text-foreground dark:text-white mb-2 tracking-tight">Ready to join?</h1>
+        <div className={MEET_STATUS_BADGE}>Ready to join</div>
+        <h1 className="mt-3 text-3xl sm:text-[36px] font-normal text-foreground dark:text-white mb-2 tracking-tight">Ready to join?</h1>
         <p className="text-muted-foreground dark:text-[#9aa0a6] text-base mb-8 font-normal">
           Meeting with <span className="text-foreground font-medium dark:text-white">{meetingWithLabel}</span>
         </p>
@@ -521,14 +555,14 @@ export function VideoAppointmentMeetSession({
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
           <Button
             onClick={handleJoin}
-            className="h-12 w-full rounded-full bg-[var(--color-meet-blue)] hover:bg-[var(--color-hover-primary)] text-white dark:text-[#202124] px-6 text-[14px] font-medium transition-colors border-0 sm:w-auto"
+            className={`h-12 w-full rounded-full px-6 text-[14px] font-medium shadow-md shadow-blue-500/20 transition-all border-0 hover:shadow-lg hover:shadow-blue-500/30 sm:w-auto ${MEET_JOIN_BUTTON}`}
           >
             Join now
           </Button>
           <Button
             onClick={handleLeavePreview}
             variant="outline"
-            className="h-12 w-full rounded-full border-border bg-transparent hover:bg-muted text-[var(--color-meet-blue)] hover:text-[var(--color-hover-primary)] px-6 text-[14px] font-medium transition-colors dark:border-gray-600 dark:hover:bg-gray-800 sm:w-auto"
+            className={`h-12 w-full rounded-full px-6 text-[14px] font-medium transition-colors sm:w-auto ${MEET_SECONDARY_BUTTON}`}
           >
             Return
           </Button>

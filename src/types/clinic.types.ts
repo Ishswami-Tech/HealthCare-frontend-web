@@ -86,6 +86,13 @@ export interface ClinicStats {
   monthlyGrowth?: number;
 }
 
+export interface ClinicPatientResult {
+  patients: ClinicUser[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
 export interface ClinicSettings {
   theme: 'light' | 'dark';
   notifications: {

@@ -882,9 +882,15 @@ export function useVideoCall() {
       });
 
       if (consultationEndError) {
-        throw consultationEndError instanceof Error
-          ? consultationEndError
-          : new Error('Failed to end video consultation on the server');
+        const consultationMessage =
+          consultationEndError instanceof Error
+            ? consultationEndError.message
+            : 'Failed to end video consultation on the server';
+        toast({
+          title: 'Call ended locally',
+          description: consultationMessage,
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       toast({

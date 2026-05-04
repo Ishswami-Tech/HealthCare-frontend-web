@@ -681,7 +681,6 @@ export function VideoAppointmentsList({
       ) {
         setResolvedSlotConfirmations((current) => ({ ...current, [appointmentId]: true }));
         showSuccessToast("Slot is already confirmed. Refreshing the list.", { id: TOAST_IDS.APPOINTMENT.UPDATE });
-        await refetch();
         setPendingSlotSelections((current) => {
           const next = { ...current };
           delete next[appointmentId];
@@ -818,7 +817,9 @@ export function VideoAppointmentsList({
     const isExpanded = expandedCard === (appointment.appointmentId || appointment.id);
     const patientName = getAppointmentPatientName(appointment);
     const rawDoctorName = (appointment as any).doctorName || getAppointmentDoctorName(appointment);
-    const doctorName = rawDoctorName.startsWith("Consultation ") || rawDoctorName === "Unknown Doctor"
+    const doctorName = rawDoctorName.startsWith("Consultation ") ||
+      rawDoctorName === "Unknown Doctor" ||
+      rawDoctorName === "Doctor details pending"
       ? ""
       : rawDoctorName;
     const displayDuration = getDisplayAppointmentDuration(appointment);
@@ -1000,7 +1001,7 @@ export function VideoAppointmentsList({
                     {['scheduled', 'confirmed', 'queued', 'in-progress'].includes(effectiveStatus) && (
                       <>
                         {!paymentCompleted && paymentAmount > 0 && (
-                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold" onSuccess={() => void refetch()}>
+                          <PaymentButton appointmentId={getEffectiveAppointmentId(appointment)} amount={getVideoPaymentAmount(appointment, appointmentServices)} appointmentType="VIDEO_CALL" description={serviceLabel} className="h-8 px-3 rounded-xl text-xs font-semibold">
                             Pay ₹{paymentAmount}
                           </PaymentButton>
                         )}
@@ -1021,6 +1022,7 @@ export function VideoAppointmentsList({
                       (!enforceTimeSlotWindow || isWithinJoinWindow(appointment)) && (
                       <Link
                         href={buildVideoSessionRoute(getEffectiveAppointmentId(appointment))}
+                        prefetch={false}
                         className="inline-flex h-8 items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
                       >
                         Join Session

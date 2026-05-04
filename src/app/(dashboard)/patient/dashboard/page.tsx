@@ -127,26 +127,45 @@ export default function PatientDashboard() {
         })
       ).values()
     );
-    const visibleAppointments = uniqueAppointments.filter(shouldShowAppointmentOnPatientDashboard);
-    const pendingReviewSource = visibleAppointments.filter((apt: any) =>
+    const pendingReviewSource = uniqueAppointments.filter((apt: any) =>
       isPaidVideoAppointmentAwaitingDoctorConfirmation(apt)
     );
-    const pendingReviewIds = new Set(pendingReviewSource.map((apt: any) => String(apt.id || "")));
+    const patientWorkspaceAppointments = uniqueAppointments.filter((apt: any) => {
+      const viewState = getAppointmentViewState(apt);
+      const normalizedStatus = viewState.normalizedStatus.toUpperCase();
+      return (
+        !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(normalizedStatus) &&
+        !viewState.awaitingDoctorSlotConfirmation &&
+        shouldShowAppointmentOnPatientDashboard(apt)
+      );
+    });
     const activeUpcomingStatuses = new Set([
       "SCHEDULED",
       "CONFIRMED",
       "PENDING",
-      "IN_PROGRESS",
+      "QUEUED",
     ]);
-    
-    // Safety check for appointments array
-    const futureAppointments = Array.isArray(visibleAppointments)
-      ? visibleAppointments
+
+    const currentInProgressAppointments = Array.isArray(patientWorkspaceAppointments)
+      ? patientWorkspaceAppointments
+          .filter((apt: any) => getAppointmentViewState(apt).normalizedStatus.toUpperCase() === "IN_PROGRESS")
+          .sort((a: any, b: any) => {
+            const first = normalizePatientAppointment(a).dateTime;
+            const second = normalizePatientAppointment(b).dateTime;
+            if (!first && !second) return 0;
+            if (!first) return 1;
+            if (!second) return -1;
+            return first.getTime() - second.getTime();
+          })
+      : [];
+
+    const futureAppointments = Array.isArray(patientWorkspaceAppointments)
+      ? patientWorkspaceAppointments
           .filter((apt: any) => {
             const normalized = normalizePatientAppointment(apt);
             const viewState = getAppointmentViewState(apt);
             const appointmentStart = normalized.dateTime;
-            const status = viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : normalized.status;
+            const status = viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : viewState.normalizedStatus;
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             return (
@@ -165,45 +184,59 @@ export default function PatientDashboard() {
           })
       : [];
 
-    const upcomingAppointments = Array.isArray(visibleAppointments)
-      ? [...visibleAppointments]
-          .sort((a: any, b: any) => {
-            const first = normalizePatientAppointment(a).dateTime;
-            const second = normalizePatientAppointment(b).dateTime;
-            if (!first && !second) return 0;
-            if (!first) return 1;
-            if (!second) return -1;
-            return second.getTime() - first.getTime();
-          })
-          .map((apt: any) => {
-            const normalized = normalizePatientAppointment(apt);
-            const viewState = getAppointmentViewState(apt);
-            const appointmentDateTime = getAppointmentDateTimeValue(apt);
-            const dateLabel = appointmentDateTime
-              ? formatDateInIST(appointmentDateTime, { weekday: "short", day: "2-digit", month: "short" })
-              : getReceptionistAppointmentDateLabel(apt as Record<string, unknown>);
-            const timeLabel = appointmentDateTime
-              ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
-              : getReceptionistAppointmentTimeLabel(apt as Record<string, unknown>);
-            return {
-              id: apt.id,
-              doctor: normalized.doctorName,
-              type: normalized.type,
-              date: dateLabel,
-              time: timeLabel,
-              location: normalized.locationName,
-              status: viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : normalized.status || "SCHEDULED",
-              statusLabel: getAppointmentStatusBadgeLabel({
-                ...apt,
-                status: normalized.status,
-                type: normalized.type,
-                proposedSlots: (apt as any).proposedSlots,
-                confirmedSlotIndex: (apt as any).confirmedSlotIndex,
-              }),
-              isOnline: normalized.isOnline,
-            };
-          })
-      : [];
+    const upcomingAppointments = [...currentInProgressAppointments, ...futureAppointments]
+      .sort((a: any, b: any) => {
+        const aStatus = getAppointmentViewState(a).normalizedStatus.toUpperCase();
+        const bStatus = getAppointmentViewState(b).normalizedStatus.toUpperCase();
+        const statusPriority = (status: string) => {
+          if (status === "IN_PROGRESS") return 0;
+          if (status === "QUEUED") return 1;
+          if (status === "CONFIRMED") return 2;
+          if (status === "SCHEDULED") return 3;
+          if (status === "PENDING") return 4;
+          return 5;
+        };
+
+        if (statusPriority(aStatus) !== statusPriority(bStatus)) {
+          return statusPriority(aStatus) - statusPriority(bStatus);
+        }
+
+        const first = normalizePatientAppointment(a).dateTime;
+        const second = normalizePatientAppointment(b).dateTime;
+        if (!first && !second) return 0;
+        if (!first) return 1;
+        if (!second) return -1;
+        return first.getTime() - second.getTime();
+      })
+      .map((apt: any) => {
+        const normalized = normalizePatientAppointment(apt);
+        const viewState = getAppointmentViewState(apt);
+        const appointmentDateTime = getAppointmentDateTimeValue(apt);
+        const dateLabel = appointmentDateTime
+          ? formatDateInIST(appointmentDateTime, { weekday: "short", day: "2-digit", month: "short" })
+          : getReceptionistAppointmentDateLabel(apt as Record<string, unknown>);
+        const timeLabel = appointmentDateTime
+          ? formatTimeInIST(appointmentDateTime, { hour: "2-digit", minute: "2-digit", hour12: true })
+          : getReceptionistAppointmentTimeLabel(apt as Record<string, unknown>);
+        return {
+          id: apt.id,
+          doctor: normalized.doctorName,
+          type: normalized.type,
+          date: dateLabel,
+          time: timeLabel,
+          location: normalized.locationName,
+          status: viewState.isVideo && !viewState.paymentCompleted ? "SCHEDULED" : normalized.status || "SCHEDULED",
+          statusLabel: getAppointmentStatusBadgeLabel({
+            ...apt,
+            status: normalized.status,
+            type: normalized.type,
+            proposedSlots: (apt as any).proposedSlots,
+            confirmedSlotIndex: (apt as any).confirmedSlotIndex,
+          }),
+          isOnline: normalized.isOnline,
+        };
+      });
+    const nextTimelineAppointment = currentInProgressAppointments[0] || futureAppointments[0] || null;
 
     const awaitingDoctorReviewAppointments = pendingReviewSource
       .map((apt: any) => {
@@ -273,8 +306,8 @@ export default function PatientDashboard() {
         primaryDosha: (comprehensiveData as any)?.doshaBalance?.dominant || "Unknown",
         currentTreatment: (medicalRecordsData as any)?.[0]?.treatment || "None",
         treatmentProgress: 0, 
-        nextAppointment: futureAppointments[0]
-          ? getReceptionistAppointmentDateLabel(futureAppointments[0] as Record<string, unknown>)
+        nextAppointment: nextTimelineAppointment
+          ? getReceptionistAppointmentDateLabel(nextTimelineAppointment as Record<string, unknown>)
           : null,
         lastVisit:
         uniqueAppointments
@@ -419,7 +452,7 @@ export default function PatientDashboard() {
                           </h3>
                         </div>
                         <Badge className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
-                          All visits
+                          Upcoming & in progress
                         </Badge>
                       </div>
 
@@ -486,7 +519,7 @@ export default function PatientDashboard() {
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-emerald-200/70 bg-white/60 p-4 text-sm text-muted-foreground shadow-sm dark:border-emerald-900/30 dark:bg-card/60">
-                      No appointments right now
+                      No upcoming or in-progress appointments right now
                     </div>
                   )}
                 </div>

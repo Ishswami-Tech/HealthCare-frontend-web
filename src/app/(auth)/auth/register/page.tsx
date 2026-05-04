@@ -280,11 +280,11 @@ export default function RegisterPage() {
       <div className="text-center px-4">
           <p className="text-[10px] text-gray-500 dark:text-gray-400">
              By signing up, you agree to our{" "}
-             <Link href="/terms" className="text-blue-600 hover:underline">
+             <Link href="/terms" prefetch={false} className="text-blue-600 hover:underline">
                  Terms of Service
              </Link>{" "}
              and{" "}
-             <Link href="/privacy" className="text-blue-600 hover:underline">
+             <Link href="/privacy" prefetch={false} className="text-blue-600 hover:underline">
                  Privacy Policy
              </Link>
           </p>
@@ -486,11 +486,11 @@ export default function RegisterPage() {
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
                     I agree to the{" "}
-                    <Link href="/terms" className="text-blue-600 hover:text-blue-800">
+                    <Link href="/terms" prefetch={false} className="text-blue-600 hover:text-blue-800">
                       Terms of Service
                     </Link>{" "}
                     and{" "}
-                    <Link href="/privacy" className="text-blue-600 hover:text-blue-800">
+                    <Link href="/privacy" prefetch={false} className="text-blue-600 hover:text-blue-800">
                       Privacy Policy
                     </Link>
                   </label>
@@ -572,6 +572,7 @@ export default function RegisterPage() {
             Already have an account?{" "}
             <Link
               href={ROUTES.LOGIN}
+              prefetch={false}
               className="text-blue-600 hover:text-blue-800 transition-colors"
             >
               Sign in

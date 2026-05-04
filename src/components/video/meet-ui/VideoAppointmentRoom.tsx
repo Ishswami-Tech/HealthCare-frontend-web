@@ -38,6 +38,7 @@ import { VideoAppointment } from "@/hooks/query/useVideoAppointments";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useVideoAppointmentTabOwnership } from "@/hooks/utils/useVideoAppointmentTabOwnership";
 import { getAvatarTone } from "@/lib/utils/avatar-colors";
+import { withTimeout } from "@/lib/video/openvidu";
 import {
   useUpdateVirtualBackground,
   useVirtualBackgroundPresets,
@@ -65,6 +66,8 @@ const VIRTUAL_BACKGROUND_FALLBACKS: Array<{
   { id: "blur-medium", label: "Medium blur", blurIntensity: 60 },
   { id: "blur-strong", label: "Strong blur", blurIntensity: 85 },
 ];
+
+const END_CALL_TIMEOUT_MS = 10000;
 
 export default function VideoAppointmentRoom({
   appointment,
@@ -416,32 +419,43 @@ export default function VideoAppointmentRoom({
   };
 
   const handleEndCall = async (options?: { skipToast?: boolean }) => {
+    const activeCall = call;
     try {
-      if (call) {
+      if (activeCall) {
         releaseOwnership();
-        await endCall(resolvedAppointmentId);
-        call.dispose();
-        setCall(null);
-        callRef.current = null;
-        initialMediaStream?.getTracks().forEach((track) => track.stop());
-      }
-
-      if (!options?.skipToast) {
-        showSuccessToast("Call ended", { id: TOAST_IDS.VIDEO.END });
+        await withTimeout(
+          endCall(resolvedAppointmentId),
+          END_CALL_TIMEOUT_MS,
+          "Ending the session is taking too long"
+        );
       }
     } catch (error) {
       showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
+    } finally {
+      if (activeCall) {
+        activeCall.dispose().catch(() => undefined);
+      }
+      setCall(null);
+      callRef.current = null;
+      initialMediaStream?.getTracks().forEach((track) => track.stop());
+
+      if (!options?.skipToast && activeCall) {
+        showSuccessToast("Call ended", { id: TOAST_IDS.VIDEO.END });
+      }
+
+      onLeaveRoom?.();
     }
   };
 
   const handleLeaveRoom = () => {
-    if (call) {
+    const activeCall = call;
+    if (activeCall) {
       releaseOwnership();
-      call.dispose();
-      setCall(null);
-      callRef.current = null;
+      activeCall.dispose().catch(() => undefined);
     }
 
+    setCall(null);
+    callRef.current = null;
     initialMediaStream?.getTracks().forEach((track) => track.stop());
 
     sendParticipantLeft(resolvedAppointmentId, {
@@ -450,9 +464,7 @@ export default function VideoAppointmentRoom({
       role: user?.role || "patient",
     });
 
-    if (onLeaveRoom) {
-      onLeaveRoom();
-    }
+    onLeaveRoom?.();
   };
 
   useEffect(() => {
@@ -699,19 +711,19 @@ export default function VideoAppointmentRoom({
                 className="fixed inset-0 z-40 flex min-h-0 w-full bg-background/95 p-3 backdrop-blur-sm lg:static lg:inset-auto lg:w-[380px] lg:bg-transparent lg:p-0 lg:py-4 lg:pr-4 lg:backdrop-blur-0"
               >
                 <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl relative dark:bg-[#202124] dark:border-white/10 lg:flex-1 lg:rounded-2xl">
-                  <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0 sm:px-6 sm:py-5 dark:border-white/10">
+                  <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0 sm:px-6 sm:py-5 bg-gradient-to-r from-white to-slate-50 dark:border-white/10 dark:from-[#202124] dark:to-[#2b2c30]">
                     <h3 className="font-semibold text-lg text-foreground dark:text-white">
                       {activePanel === "chat"
                         ? "In-call messages"
                         : activePanel === "participants"
-                        ? "People"
-                        : "Meeting Details"}
+                        ? "Participants"
+                        : "Notes"}
                     </h3>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => setShowSidePanel(false)}
-                      className="rounded-full h-8 w-8 hover:bg-muted text-muted-foreground hover:text-foreground dark:hover:bg-white/10 dark:text-gray-400 dark:hover:text-white"
+                      className="rounded-full h-8 w-8 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-800 dark:bg-[#3c4043] dark:text-white dark:hover:bg-[#4a4d51]"
                     >
                       <span className="sr-only">Close</span>
                       <XCircle size={20} />
@@ -747,7 +759,7 @@ export default function VideoAppointmentRoom({
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                             <Input
                               placeholder="Search for people"
-                              className="bg-background border-border text-foreground pl-9 h-11 rounded-xl focus:ring-blue-500 focus:border-blue-500 dark:bg-[#202124] dark:border-white/10 dark:text-white"
+                              className="bg-white border-border text-foreground pl-9 h-11 rounded-xl focus:ring-blue-500 focus:border-blue-500 dark:bg-[#202124] dark:border-white/10 dark:text-white"
                               value={searchTerm}
                               onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -765,7 +777,7 @@ export default function VideoAppointmentRoom({
                               {filteredParticipants.map((participant) => (
                                 <div 
                                   key={participant.connectionId} 
-                                  className="group flex items-center justify-between p-2 rounded-xl hover:bg-muted transition-colors cursor-pointer dark:hover:bg-white/5"
+                                  className="group flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer dark:hover:bg-white/5"
                                 >
                                   <div className="flex items-center gap-3 min-w-0">
                                     <div className="relative shrink-0">
@@ -807,7 +819,7 @@ export default function VideoAppointmentRoom({
                                         onActionComplete={updateParticipants}
                                       />
                                     )}
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-slate-100 text-slate-700 hover:text-slate-800 hover:bg-slate-200 dark:bg-[#3c4043] dark:text-white dark:hover:bg-[#4a4d51]">
                                       <MoreVertical size={16} />
                                     </Button>
                                   </div>
@@ -836,7 +848,7 @@ export default function VideoAppointmentRoom({
                             </div>
 
                             <div className="mt-3 space-y-2.5">
-                              <div className="rounded-lg bg-muted/40 px-2.5 py-2 dark:bg-white/5">
+                              <div className="rounded-lg bg-blue-500/5 px-2.5 py-2 border border-blue-500/10 dark:bg-white/5 dark:border-white/10">
                                 <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-gray-400">
                                   Joining info
                                 </p>
@@ -844,7 +856,7 @@ export default function VideoAppointmentRoom({
                                   {meetingLink}
                                 </p>
                               </div>
-                              <div className="rounded-lg bg-muted/40 px-2.5 py-2 dark:bg-white/5">
+                              <div className="rounded-lg bg-blue-500/5 px-2.5 py-2 border border-blue-500/10 dark:bg-white/5 dark:border-white/10">
                                 <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-gray-400">
                                   Schedule
                                 </p>

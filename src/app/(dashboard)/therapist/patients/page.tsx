@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { formatDateInIST, nowIso } from '@/lib/utils/date-time';
+import { ServerPagination } from "@/components/ui/pagination";
+import { useDebouncedCallback } from "@/lib/utils/performance";
 
 export default function TherapistPatients() {
   useAuth();
@@ -23,14 +25,51 @@ export default function TherapistPatients() {
 
   // State for filters and search
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   const clients = usePatientStore((state) => state.collections.therapist);
+  const debouncedSetSearch = useDebouncedCallback((value: string) => {
+    setDebouncedSearchQuery(value);
+  }, 300);
+
+  useEffect(() => {
+    debouncedSetSearch(searchQuery);
+    setPage(1);
+  }, [searchQuery, debouncedSetSearch]);
 
   // Fetch real data using hook
-  const { isPending: isPending } = useTherapistClients(therapistId, {
-    search: searchQuery || undefined,
+  const clientsQuery = useTherapistClients(therapistId, {
+    search: debouncedSearchQuery || undefined,
     status: filterStatus !== "all" ? filterStatus : undefined,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
   });
+  const clientsPage = useMemo(() => {
+    if (Array.isArray(clientsQuery.data)) {
+      return {
+        total: clientsQuery.data.length,
+        page: 1,
+        totalPages: 1,
+        pageSize,
+      };
+    }
+
+    const record = (clientsQuery.data as Record<string, any>) || {};
+    const total = Number(record.total ?? record.count ?? record.totalCount ?? 0) || clients.length;
+    const currentPage = Number(record.page ?? record.currentPage ?? page) || page;
+    const resolvedPageSize = Number(record.pageSize ?? record.limit ?? pageSize) || pageSize;
+    const totalPages = Number(record.totalPages ?? record.pageCount ?? Math.max(1, Math.ceil(total / Math.max(resolvedPageSize, 1)))) || 1;
+
+    return {
+      total,
+      page: currentPage,
+      totalPages,
+      pageSize: resolvedPageSize,
+    };
+  }, [clientsQuery.data, clients.length, page, pageSize]);
+  const isPending = clientsQuery.isPending;
 
   // Enable real-time WebSocket sync
   useWebSocketQuerySync();
@@ -71,11 +110,7 @@ export default function TherapistPatients() {
         eyebrow="Therapist Clients"
         title="Clients"
         description="Manage therapy client records, session history, and progress from a shared clinical view."
-        meta={
-          <span className="text-sm font-medium text-muted-foreground">
-            Total: {clients.length} clients
-          </span>
-        }
+        meta={<span className="text-sm font-medium text-muted-foreground">Loaded: {clientsPage.total} clients</span>}
       />
 
       {/* Search and Filter */}
@@ -96,6 +131,7 @@ export default function TherapistPatients() {
                 variant={filterStatus === "all" ? "default" : "outline"}
                 onClick={() => {
                   setFilterStatus("all");
+                  setPage(1);
                 }}
               >
                 All
@@ -104,6 +140,7 @@ export default function TherapistPatients() {
                 variant={filterStatus === "active" ? "default" : "outline"}
                 onClick={() => {
                   setFilterStatus("active");
+                  setPage(1);
                 }}
               >
                 Active
@@ -112,6 +149,7 @@ export default function TherapistPatients() {
                 variant={filterStatus === "inactive" ? "default" : "outline"}
                 onClick={() => {
                   setFilterStatus("inactive");
+                  setPage(1);
                 }}
               >
                 Inactive
@@ -208,6 +246,15 @@ export default function TherapistPatients() {
               )})}
             </div>
           )}
+          <div className="mt-6">
+            <ServerPagination
+              page={page}
+              totalPages={clientsPage.totalPages}
+              totalItems={clientsPage.total}
+              pageSize={pageSize}
+              onPageChange={setPage}
+            />
+          </div>
         </CardContent>
       </Card>
     </DashboardPageShell>

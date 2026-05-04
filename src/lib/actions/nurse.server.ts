@@ -17,18 +17,24 @@ export async function getNursePatients(
     patientId?: string;
     vitalsOnly?: boolean;
   }
-): Promise<{ patients: NursePatientRecord[] }> {
+): Promise<unknown> {
   try {
     const params = new URLSearchParams();
     if (filters?.search) params.append('search', filters.search);
     if (filters?.status) params.append('status', filters.status);
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-    if (filters?.offset) params.append('offset', filters.offset.toString());
+    if (typeof filters?.limit === 'number') {
+      params.append('limit', filters.limit.toString());
+      const page =
+        typeof filters?.offset === 'number' ? Math.floor(filters.offset / filters.limit) + 1 : 1;
+      params.append('page', String(Math.max(page, 1)));
+    }
     if (filters?.patientId) params.append('patientId', filters.patientId);
     if (filters?.vitalsOnly) params.append('vitalsOnly', filters.vitalsOnly.toString());
 
     // Using the standardized /api/v1/patients endpoint
-    const response = await api.get<{ patients: NursePatientRecord[] }>(
+    const response = await api.get<
+      { patients: NursePatientRecord[]; total?: number; page?: number; totalPages?: number } | NursePatientRecord[]
+    >(
       `/patients?${params.toString()}`
     );
 

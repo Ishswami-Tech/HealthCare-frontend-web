@@ -308,6 +308,7 @@ export default function LoginPage() {
 
                 <Link
                     href={ROUTES.FORGOT_PASSWORD}
+                    prefetch={false}
                     className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
                 >
                 Forgot?
@@ -568,6 +569,7 @@ export default function LoginPage() {
             Don&apos;t have an account?{" "}
             <Link
               href={ROUTES.REGISTER}
+              prefetch={false}
               className="text-blue-600 hover:text-blue-800 transition-colors"
             >
               Sign up

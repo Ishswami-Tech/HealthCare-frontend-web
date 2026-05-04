@@ -423,8 +423,6 @@ export const API_ENDPOINTS = {
     VERIFY_OTP: '/auth/verify-otp',           // POST /auth/verify-otp
     SESSIONS: '/auth/sessions',              // GET /auth/sessions ✅ Added
     GOOGLE_LOGIN: '/auth/google',            // POST /auth/google
-    // Additional endpoints (frontend-specific or future)
-    REGISTER_WITH_CLINIC: '/auth/register-with-clinic',
     CHECK_OTP_STATUS: '/auth/check-otp-status',
     INVALIDATE_OTP: '/auth/invalidate-otp',
     MAGIC_LINK: '/auth/magic-link',

@@ -186,6 +186,26 @@ export async function createUser(userData: {
   state?: string;
   country?: string;
   zipCode?: string;
+  medicalConditions?: string[];
+  allergies?: string[];
+  medicalHistory?: string[];
+  emergencyContact?: {
+    name: string;
+    relationship: string;
+    phone: string;
+    alternatePhone?: string;
+    address?: string;
+  };
+  insurance?: {
+    provider: string;
+    policyNumber: string;
+    groupNumber?: string;
+    policyHolder?: string;
+    relationship?: string;
+    coverageDetails?: string;
+    expiryDate?: string;
+    status?: string;
+  }[];
 }) {
   return executeAction('createUser', async () => {
     return await requestUserApi(API_ENDPOINTS.USERS.BASE, {

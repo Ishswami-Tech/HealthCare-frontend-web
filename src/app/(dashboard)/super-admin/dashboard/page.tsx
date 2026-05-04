@@ -257,22 +257,22 @@ export default function SuperAdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Link href="/super-admin/clinics" className="p-4 border rounded-xl border-blue-100 bg-blue-50/70 hover:bg-blue-100 transition-colors dark:border-blue-900 dark:bg-blue-950/20 dark:hover:bg-blue-950/35">
+                <Link href="/super-admin/clinics" prefetch={false} className="p-4 border rounded-xl border-blue-100 bg-blue-50/70 hover:bg-blue-100 transition-colors dark:border-blue-900 dark:bg-blue-950/20 dark:hover:bg-blue-950/35">
                   <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-300 mb-2" />
                   <h3 className="font-medium">Add / Manage Clinics</h3>
                   <p className="text-xs text-muted-foreground">Register or update clinic records</p>
                 </Link>
-                <Link href="/super-admin/users" className="p-4 border rounded-xl border-emerald-100 bg-emerald-50/70 hover:bg-emerald-100 transition-colors dark:border-emerald-900 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/35">
+                <Link href="/super-admin/users" prefetch={false} className="p-4 border rounded-xl border-emerald-100 bg-emerald-50/70 hover:bg-emerald-100 transition-colors dark:border-emerald-900 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/35">
                   <Users className="w-6 h-6 text-emerald-600 dark:text-emerald-300 mb-2" />
                   <h3 className="font-medium">Manage Users</h3>
                   <p className="text-xs text-muted-foreground">View and manage all users</p>
                 </Link>
-                <Link href="/super-admin/health" className="p-4 border rounded-xl border-purple-100 bg-purple-50/70 hover:bg-purple-100 transition-colors dark:border-purple-900 dark:bg-purple-950/20 dark:hover:bg-purple-950/35">
+                <Link href="/super-admin/health" prefetch={false} className="p-4 border rounded-xl border-purple-100 bg-purple-50/70 hover:bg-purple-100 transition-colors dark:border-purple-900 dark:bg-purple-950/20 dark:hover:bg-purple-950/35">
                   <Activity className="w-6 h-6 text-purple-600 dark:text-purple-300 mb-2" />
                   <h3 className="font-medium">Operational Health</h3>
                   <p className="text-xs text-muted-foreground">Monitor system status</p>
                 </Link>
-                <Link href="/super-admin/settings" className="p-4 border rounded-xl border-amber-100 bg-amber-50/70 hover:bg-amber-100 transition-colors dark:border-amber-900 dark:bg-amber-950/20 dark:hover:bg-amber-950/35">
+                <Link href="/super-admin/settings" prefetch={false} className="p-4 border rounded-xl border-amber-100 bg-amber-50/70 hover:bg-amber-100 transition-colors dark:border-amber-900 dark:bg-amber-950/20 dark:hover:bg-amber-950/35">
                   <Settings className="w-6 h-6 text-amber-600 dark:text-amber-300 mb-2" />
                   <h3 className="font-medium">System Settings</h3>
                   <p className="text-xs text-muted-foreground">Configure clinic defaults</p>

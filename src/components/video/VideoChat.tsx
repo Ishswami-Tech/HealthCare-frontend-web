@@ -155,11 +155,11 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
     message.user?.name || message.userId || "guest";
 
   return (
-    <Card className={cn("h-full overflow-hidden border border-border bg-card text-foreground shadow-sm dark:bg-[#202124] dark:text-white", className)}>
-      <CardHeader className="border-b border-border px-4 py-3 dark:border-white/10">
+    <Card className={cn("h-full overflow-hidden border border-border bg-card text-foreground shadow-sm dark:border-white/10 dark:bg-[#202124] dark:text-white", className)}>
+      <CardHeader className="border-b border-border px-4 py-3 bg-gradient-to-r from-white to-slate-50 dark:border-white/10 dark:from-[#202124] dark:to-[#2b2c30]">
         <CardTitle className="flex items-center justify-between text-base text-foreground dark:text-white">
           <span>Chat</span>
-          <Badge variant="outline" className="rounded-full text-[11px] border-border text-muted-foreground dark:border-white/10 dark:text-gray-300">
+          <Badge variant="outline" className="rounded-full text-[11px] border-border bg-blue-500/10 text-[#1a73e8] dark:border-white/10 dark:bg-[#8ab4f8]/10 dark:text-[#8ab4f8]">
             {messages.length} messages
           </Badge>
         </CardTitle>
@@ -212,8 +212,8 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                       <div
                         className={`rounded-2xl px-3 py-2 shadow-sm ${
                           isOwnMessage
-                            ? "bg-emerald-600 text-white"
-                            : "border border-border/60 bg-background text-foreground"
+                            ? "bg-[#1a73e8] text-white shadow-blue-500/20"
+                            : "border border-border/60 bg-white text-foreground dark:bg-[#303134] dark:text-white"
                         }`}
                       >
                         <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.message}</p>
@@ -221,10 +221,10 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                           <div className="mt-2">
                             <a
                               href={message.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={`flex items-center gap-2 rounded-xl px-2 py-1 text-xs font-medium transition-colors ${isOwnMessage ? "bg-muted text-white hover:bg-white/15" : "bg-muted/60 text-foreground hover:bg-muted dark:text-white"}`}
-                            >
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex items-center gap-2 rounded-xl px-2 py-1 text-xs font-medium transition-colors ${isOwnMessage ? "bg-white/15 text-white hover:bg-white/20" : "bg-blue-500/10 text-[#1a73e8] hover:bg-blue-500/15 dark:bg-[#8ab4f8]/10 dark:text-[#8ab4f8]"}`}
+                          >
                               <Paperclip className="h-3 w-3" />
                               <span>{message.fileName || 'Attachment'}</span>
                             </a>
@@ -268,13 +268,13 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                 }
               }}
               placeholder="Type a message..."
-              className="flex-1 rounded-2xl bg-background dark:bg-[#202124] dark:text-white"
+              className="flex-1 rounded-2xl bg-white border-border focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-[#202124] dark:text-white dark:border-white/10"
               disabled={!isConnected || sendChatMessageMutation.isPending}
             />
             <Button
               onClick={() => void handleSendMessage()}
               size="icon"
-              className="h-10 w-10 rounded-2xl"
+              className="h-10 w-10 rounded-2xl bg-[#1a73e8] text-white shadow-md shadow-blue-500/20 hover:bg-[#1558b0]"
               disabled={!newMessage.trim() || !isConnected || sendChatMessageMutation.isPending}
             >
               <Send className="h-4 w-4" />

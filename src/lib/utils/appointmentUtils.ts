@@ -154,6 +154,36 @@ function getPersonNameCandidates(person: any): string[] {
     .filter((value) => value && !/^unknown\s+(doctor|patient)$/i.test(value));
 }
 
+function getDoctorNameCandidates(appointment: any): string[] {
+  return [
+    ...getPersonNameCandidates(appointment?.doctor),
+    ...getPersonNameCandidates(appointment?.assignedDoctor),
+    ...getPersonNameCandidates(appointment?.primaryDoctor),
+    ...getPersonNameCandidates(appointment?.doctorUser),
+    ...getPersonNameCandidates(appointment?.doctorProfile),
+    ...getPersonNameCandidates(appointment?.provider),
+    ...getPersonNameCandidates(appointment?.practitioner),
+    ...getPersonNameCandidates(appointment?.physician),
+    normalizeNameCandidate(appointment?.doctorName),
+    normalizeNameCandidate(appointment?.doctorDisplayName),
+    normalizeNameCandidate(appointment?.doctorFullName),
+    normalizeNameCandidate(appointment?.doctor_user_name),
+    normalizeNameCandidate(appointment?.doctor_user_full_name),
+    normalizeNameCandidate(appointment?.assignedDoctorName),
+    normalizeNameCandidate(appointment?.assignedDoctorDisplayName),
+    normalizeNameCandidate(appointment?.primaryDoctorName),
+    normalizeNameCandidate(appointment?.primaryDoctorDisplayName),
+    normalizeNameCandidate(appointment?.attendingDoctorName),
+    normalizeNameCandidate(appointment?.consultingDoctorName),
+    normalizeNameCandidate(appointment?.consultingDoctorDisplayName),
+    normalizeNameCandidate(appointment?.practitionerName),
+    normalizeNameCandidate(appointment?.physicianName),
+    normalizeNameCandidate(appointment?.providerName),
+  ]
+    .map(normalizeNameCandidate)
+    .filter((value) => value && !/^unknown\s+doctor$/i.test(value));
+}
+
 function getPaymentCandidates(appointment: any): Record<string, unknown>[] {
   return [
     ...asRecordArray(appointment?.payment),
@@ -335,9 +365,9 @@ export function getAppointmentPaymentDisplayState(appointment: any): Appointment
 }
 
 export function getAppointmentDoctorName(appointment: any): string {
-  const candidates = getPersonNameCandidates(appointment?.doctor);
-  const doctorName = normalizeNameCandidate(appointment?.doctorName || candidates[0] || "");
-  return doctorName || "Unknown Doctor";
+  const candidates = getDoctorNameCandidates(appointment);
+  const doctorName = candidates.find((value) => value && !/^doctor(?:\s+tbd)?$/i.test(value));
+  return doctorName || candidates[0] || "Doctor assigned";
 }
 
 export function getAppointmentPatientName(appointment: any): string {

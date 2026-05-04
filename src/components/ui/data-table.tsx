@@ -34,6 +34,7 @@ type DataTableProps<TData, TValue> = {
   data: TData[];
   emptyMessage?: string;
   pageSize?: number;
+  showPagination?: boolean;
   className?: string;
   tableClassName?: string;
   toolbar?: React.ReactNode;
@@ -47,6 +48,7 @@ export function DataTable<TData, TValue>({
   data,
   emptyMessage = "No results.",
   pageSize = 10,
+  showPagination = true,
   className,
   tableClassName,
   toolbar,
@@ -125,64 +127,66 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      <div
-        className={cn(
-          "flex flex-col gap-3 text-sm text-muted-foreground sm:gap-4",
-          compact
-            ? "sm:flex-row sm:items-center sm:justify-between"
-            : "sm:flex-row sm:items-center sm:justify-between"
-        )}
-      >
-        <div className={cn("font-medium", compact && "text-xs sm:text-sm")}>
-          {compact ? `${rangeStart}-${rangeEnd} of ${data.length}` : `Showing ${rangeStart}-${rangeEnd} of ${data.length} row(s)`}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {!compact && (
-            <div className="flex items-center gap-2">
-              <span>Show</span>
-              <Select
-                value={String(activePageSize)}
-                onValueChange={(value) => {
-                  table.setPageSize(Number(value));
-                  table.setPageIndex(0);
-                }}
-              >
-                <SelectTrigger className="h-8 w-[88px]">
-                  <SelectValue placeholder="Rows" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pageSizeOptions.map((option) => (
-                    <SelectItem key={option} value={String(option)}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      {showPagination ? (
+        <div
+          className={cn(
+            "flex flex-col gap-3 text-sm text-muted-foreground sm:gap-4",
+            compact
+              ? "sm:flex-row sm:items-center sm:justify-between"
+              : "sm:flex-row sm:items-center sm:justify-between"
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <span className={cn("whitespace-nowrap", compact && "text-xs sm:text-sm")}>
-            Page {pageIndex + 1} of {table.getPageCount() || 1}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
+        >
+          <div className={cn("font-medium", compact && "text-xs sm:text-sm")}>
+            {compact ? `${rangeStart}-${rangeEnd} of ${data.length}` : `Showing ${rangeStart}-${rangeEnd} of ${data.length} row(s)`}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {!compact && (
+              <div className="flex items-center gap-2">
+                <span>Show</span>
+                <Select
+                  value={String(activePageSize)}
+                  onValueChange={(value) => {
+                    table.setPageSize(Number(value));
+                    table.setPageIndex(0);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-[88px]">
+                    <SelectValue placeholder="Rows" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pageSizeOptions.map((option) => (
+                      <SelectItem key={option} value={String(option)}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <span className={cn("whitespace-nowrap", compact && "text-xs sm:text-sm")}>
+              Page {pageIndex + 1} of {table.getPageCount() || 1}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

@@ -90,24 +90,26 @@ export async function getClients(
     limit?: number;
     offset?: number;
   }
-): Promise<{ clients: TherapistPatient[] }> {
+): Promise<unknown> {
   const clinicId = await getClinicId();
   if (!clinicId) return { clients: [] };
 
   const params = new URLSearchParams();
   if (filters?.search) params.append('search', filters.search);
   if (filters?.status) params.append('status', filters.status);
-  if (typeof filters?.limit === 'number') params.append('limit', filters.limit.toString());
-  if (typeof filters?.offset === 'number') params.append('offset', filters.offset.toString());
+  if (typeof filters?.limit === 'number') {
+    params.append('limit', filters.limit.toString());
+    const page =
+      typeof filters.offset === 'number' ? Math.floor(filters.offset / filters.limit) + 1 : 1;
+    params.append('page', String(Math.max(page, 1)));
+  }
 
-  const { data } = await authenticatedApi<{ patients: TherapistPatient[] } | TherapistPatient[]>(
+  const { data } = await authenticatedApi<
+    { patients: TherapistPatient[]; total?: number; page?: number; totalPages?: number } | TherapistPatient[]
+  >(
     `/patients/clinic/${clinicId}?${params.toString()}`
   );
-
-  const clients = Array.isArray(data)
-    ? data
-    : (data as any)?.patients || (data as any)?.data || [];
-  return { clients };
+  return data;
 }
 
 /**

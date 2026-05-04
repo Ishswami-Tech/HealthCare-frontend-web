@@ -66,7 +66,12 @@ import { useVideoAppointmentWebSocket } from "@/hooks/realtime/useVideoAppointme
 import { useAuth } from "@/hooks/auth/useAuth";
 import { showErrorToast, showInfoToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
-import { normalizeOpenViduServerUrl, resolveVideoDisplayName, type OpenViduAPI } from "@/lib/video/openvidu";
+import {
+  normalizeOpenViduServerUrl,
+  resolveVideoDisplayName,
+  type OpenViduAPI,
+  withTimeout,
+} from "@/lib/video/openvidu";
 import type { ParticipantInfo } from "@/lib/video/openvidu";
 
 interface VideoAppointmentRoomProps {
@@ -79,6 +84,8 @@ interface VideoAppointmentRoomProps {
   startWithAudioSource?: string | undefined;
   startWithVideoSource?: string | undefined;
 }
+
+const END_CALL_TIMEOUT_MS = 10000;
 
 export function VideoAppointmentRoom({
   appointment,
@@ -125,6 +132,8 @@ export function VideoAppointmentRoom({
   const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isHandRaised, setIsHandRaised] = useState(false);
+  const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
   const [participants, setParticipants] = useState<ParticipantInfo[]>([]);
   const [callDuration, setCallDuration] = useState(0);
   const [showSidePanel, setShowSidePanel] = useState(false);
@@ -191,6 +200,33 @@ export function VideoAppointmentRoom({
   const canRecord = (isDoctor || isAdmin) && APP_CONFIG.FEATURES.VIDEO_RECORDING;
   // canEndForAll: doctors and admins can end the session for everyone; patients only leave
   const canEndForAll = isDoctor || isAdmin;
+
+  useEffect(() => {
+    const session = call?.getSession();
+    if (!session) {
+      return;
+    }
+
+    const handleHandRaiseSignal = (event: any) => {
+      const { raised } = JSON.parse(event.data);
+      const connectionId = event.from.connectionId;
+
+      setRaisedHands((prev) => {
+        const next = new Set(prev);
+        if (raised) {
+          next.add(connectionId);
+        } else {
+          next.delete(connectionId);
+        }
+        return next;
+      });
+    };
+
+    session.on("signal:hand-raise", handleHandRaiseSignal);
+    return () => {
+      session.off("signal:hand-raise", handleHandRaiseSignal);
+    };
+  }, [call]);
 
   // âœ… Subscribe to WebSocket events
   useEffect(() => {
@@ -458,12 +494,23 @@ export function VideoAppointmentRoom({
 
   // Ã¢Å“â€¦ End video call
   const handleEndCall = async (options?: { skipToast?: boolean }) => {
+    const activeCall = call;
     try {
-      if (call) {
-        await endCall(resolvedAppointmentId);
-        setCall(null);
-        callRef.current = null;
+      if (activeCall) {
+        await withTimeout(
+          endCall(resolvedAppointmentId),
+          END_CALL_TIMEOUT_MS,
+          "Ending the session is taking too long"
+        );
       }
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
+    } finally {
+      if (activeCall) {
+        activeCall.dispose().catch(() => undefined);
+      }
+      setCall(null);
+      callRef.current = null;
 
       // Send WebSocket event for participant left
       sendParticipantLeft(resolvedAppointmentId, {
@@ -472,15 +519,12 @@ export function VideoAppointmentRoom({
         role: user?.role || "patient",
       });
 
-      if (onEndCall) {
-        onEndCall();
-      }
+      onEndCall?.();
+      onLeaveRoom?.();
 
-      if (!options?.skipToast) {
+      if (!options?.skipToast && activeCall) {
         showSuccessToast("Call ended", { id: TOAST_IDS.VIDEO.END });
       }
-    } catch (error) {
-      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
     }
   };
 
@@ -499,22 +543,22 @@ export function VideoAppointmentRoom({
 
   // Ã¢Å“â€¦ Leave room
   const handleLeaveRoom = () => {
-    if (call) {
-      call.dispose();
-      setCall(null);
-      callRef.current = null;
+    const activeCall = call;
+    if (activeCall) {
+      activeCall.dispose().catch(() => undefined);
     }
+
+    setCall(null);
+    callRef.current = null;
 
     // Send WebSocket event for participant left
-      sendParticipantLeft(resolvedAppointmentId, {
-        userId: currentUserId ?? "",
-        displayName: resolveVideoDisplayName(user),
-        role: user?.role || "patient",
-      });
+    sendParticipantLeft(resolvedAppointmentId, {
+      userId: currentUserId ?? "",
+      displayName: resolveVideoDisplayName(user),
+      role: user?.role || "patient",
+    });
 
-    if (onLeaveRoom) {
-      onLeaveRoom();
-    }
+    onLeaveRoom?.();
   };
 
   // Ã¢Å“â€¦ Get call controls
@@ -604,8 +648,28 @@ export function VideoAppointmentRoom({
     }
   };
 
-  // Raise hand stub
-  const raiseHand = () => { /* custom signaling not yet implemented */ };
+  const raiseHand = () => {
+    const nextState = !isHandRaised;
+    setIsHandRaised(nextState);
+
+    if (nextState) {
+      setRaisedHands((prev) => new Set(prev).add("local"));
+    } else {
+      setRaisedHands((prev) => {
+        const next = new Set(prev);
+        next.delete("local");
+        return next;
+      });
+    }
+
+    const session = call?.getSession();
+    if (session) {
+      session.signal({
+        data: JSON.stringify({ raised: nextState }),
+        type: "hand-raise",
+      }).catch((err: any) => console.error("Error sending hand-raise signal:", err));
+    }
+  };
 
   // Update participants list
   const updateParticipants = () => {
@@ -880,12 +944,14 @@ export function VideoAppointmentRoom({
                     size="lg"
                     onClick={raiseHand}
                     className="h-12 w-12 shrink-0 rounded-full border border-border bg-background p-0 text-foreground hover:bg-muted"
-                    title="Raise hand"
-                    aria-label="Raise hand"
+                    title={isHandRaised ? "Lower hand" : "Raise hand"}
+                    aria-label={isHandRaised ? "Lower hand" : "Raise hand"}
                   >
                     <Hand className="h-[22px] w-[22px]" />
                   </Button>
-                  <span className="text-[10px] text-muted-foreground sm:text-[11px]">Hand</span>
+                  <span className="text-[10px] text-muted-foreground sm:text-[11px]">
+                    {isHandRaised ? "Lower hand" : raisedHands.size > 0 ? `Hand (${raisedHands.size})` : "Raise hand"}
+                  </span>
                 </div>
 
                 {canRecord && !isRecording && (
@@ -996,7 +1062,7 @@ export function VideoAppointmentRoom({
               )}
               <TabsTrigger value="participants" className="rounded-xl">
                 <Users className="h-4 w-4 mr-1.5" />
-                People
+                Participants
               </TabsTrigger>
             </TabsList>
 

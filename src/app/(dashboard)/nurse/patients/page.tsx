@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,17 +20,59 @@ import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { formatDateInIST } from "@/lib/utils/date-time";
+import { ServerPagination } from "@/components/ui/pagination";
+import { useDebouncedCallback } from "@/lib/utils/performance";
 
 export default function NursePatients() {
   const { user } = useAuth();
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   const patients = usePatientStore((state) => state.collections.nurse);
+  const debouncedSetSearch = useDebouncedCallback((value: string) => {
+    setDebouncedSearchQuery(value);
+  }, 300);
 
   const nurseId = user?.id;
 
-  const { isPending } = useNursePatients({ nurseId } as any);
+  useEffect(() => {
+    debouncedSetSearch(searchQuery);
+    setPage(1);
+  }, [searchQuery, debouncedSetSearch]);
+
+  const patientsQuery = useNursePatients({
+    nurseId,
+    search: debouncedSearchQuery || undefined,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
+  } as any);
+  const patientsPage = useMemo(() => {
+    if (Array.isArray(patientsQuery.data)) {
+      return {
+        total: patientsQuery.data.length,
+        page: 1,
+        totalPages: 1,
+        pageSize,
+      };
+    }
+
+    const record = (patientsQuery.data as Record<string, any>) || {};
+    const total = Number(record.total ?? record.count ?? record.totalCount ?? 0) || patients.length;
+    const currentPage = Number(record.page ?? record.currentPage ?? page) || page;
+    const resolvedPageSize = Number(record.pageSize ?? record.limit ?? pageSize) || pageSize;
+    const totalPages = Number(record.totalPages ?? record.pageCount ?? Math.max(1, Math.ceil(total / Math.max(resolvedPageSize, 1)))) || 1;
+
+    return {
+      total,
+      page: currentPage,
+      totalPages,
+      pageSize: resolvedPageSize,
+    };
+  }, [patientsQuery.data, patients.length, page, pageSize]);
+  const isPending = patientsQuery.isPending;
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
@@ -69,11 +111,7 @@ export default function NursePatients() {
         eyebrow="Nurse Patients"
         title="Patient Care"
         description="Manage assigned patients, review care status, and jump into vitals or bedside workflows."
-        meta={
-          <span className="text-sm font-medium text-muted-foreground">
-            Total: {patients.length} patients
-          </span>
-        }
+        meta={<span className="text-sm font-medium text-muted-foreground">Loaded: {patientsPage.total} patients</span>}
       />
 
       <Card>
@@ -162,6 +200,15 @@ export default function NursePatients() {
               ))}
             </div>
           )}
+          <div className="mt-6">
+            <ServerPagination
+              page={page}
+              totalPages={patientsPage.totalPages}
+              totalItems={patientsPage.total}
+              pageSize={pageSize}
+              onPageChange={setPage}
+            />
+          </div>
         </CardContent>
       </Card>
     </DashboardPageShell>

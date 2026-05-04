@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useComprehensiveHealthRecord } from "@/hooks/query/useMedicalRecords";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { DataTable } from "@/components/ui/data-table";
+import { ServerPagination } from "@/components/ui/pagination";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useClinicContext } from "@/hooks/query/useClinics";
@@ -21,6 +22,7 @@ import { PatientClinicalRecordView } from "@/components/patient/PatientClinicalR
 import { usePatientStore } from "@/stores";
 import { getAppointmentDateTimeValue } from "@/lib/utils/appointmentUtils";
 import { formatDateInIST } from "@/lib/utils/date-time";
+import { useDebouncedCallback } from "@/lib/utils/performance";
 import {
   Calendar,
   Users,
@@ -55,6 +57,34 @@ function extractPatients(value: unknown): RecordLike[] {
     }
   }
   return [];
+}
+
+function extractPaginationMeta(value: unknown, fallbackPageSize: number) {
+  if (Array.isArray(value)) {
+    return {
+      total: value.length,
+      page: 1,
+      totalPages: 1,
+      pageSize: Math.max(fallbackPageSize, value.length || 1),
+    };
+  }
+
+  if (!value || typeof value !== "object") {
+    return { total: 0, page: 1, totalPages: 1, pageSize: fallbackPageSize };
+  }
+
+  const record = value as Record<string, any>;
+  const total = Number(record.total ?? record.count ?? record.totalCount ?? 0) || extractPatients(value).length;
+  const page = Number(record.page ?? record.currentPage ?? 1) || 1;
+  const pageSize = Number(record.pageSize ?? record.limit ?? fallbackPageSize) || fallbackPageSize;
+  const totalPages = Number(record.totalPages ?? record.pageCount ?? Math.max(1, Math.ceil(total / Math.max(pageSize, 1)))) || 1;
+
+  return {
+    total,
+    page,
+    totalPages,
+    pageSize,
+  };
 }
 
 function getPatientName(patient: RecordLike): string {
@@ -107,20 +137,39 @@ export default function DoctorPatients() {
   const doctorId = session?.user?.id || "";
   const { clinicId } = useClinicContext();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [genderFilter, setGenderFilter] = useState("all");
   const [ageFilter, setAgeFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   const [scheduleTarget, setScheduleTarget] = useState<{
     id: string;
     token: number;
   } | null>(null);
+  const debouncedSetSearch = useDebouncedCallback((value: string) => {
+    setDebouncedSearchTerm(value);
+  }, 300);
+
+  useEffect(() => {
+    debouncedSetSearch(searchTerm);
+    setPage(1);
+  }, [searchTerm, debouncedSetSearch]);
+
   const patientsQuery = useDoctorPatients(
     clinicId || "",
     {
-      search: searchTerm,
+      search: debouncedSearchTerm,
       ...(genderFilter !== "all" && { gender: genderFilter }),
+      ...(ageFilter !== "all" && {
+        ageRange:
+          ageFilter === "young" ? "young" : ageFilter === "middle" ? "middle" : "senior",
+      }),
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
     },
     { enabled: !!clinicId }
   );
+  const patientsPage = useMemo(() => extractPaginationMeta(patientsQuery.data, pageSize), [patientsQuery.data]);
   const patients = useMemo(() => extractPatients(patientsQuery.data), [patientsQuery.data]);
   const drawerPatient = usePatientStore((state) => state.selectedPatient);
   const setSelectedPatient = usePatientStore((state) => state.setSelectedPatient);
@@ -169,24 +218,8 @@ export default function DoctorPatients() {
     return Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData as RecordLike).appointments || [];
   }, [appointmentsData]);
 
-  const filteredPatients = patientsWithProfile.filter((patient: RecordLike) => {
-    const name = patient.name || `${patient.firstName || ""} ${patient.lastName || ""}`.trim() || "";
-    const patientPhone = patient.phone || "";
-    const patientEmail = patient.email || "";
-    const matchesSearch =
-      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patientPhone.includes(searchTerm) ||
-      patientEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (patient.chiefComplaints || []).some((complaint: string) => String(complaint).toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesGender = genderFilter === "all" || String(patient.gender || "").toLowerCase() === genderFilter;
-    const matchesAge =
-      ageFilter === "all" ||
-      (ageFilter === "young" && patient.age < 30) ||
-      (ageFilter === "middle" && patient.age >= 30 && patient.age < 60) ||
-      (ageFilter === "senior" && patient.age >= 60);
-
-    return matchesSearch && matchesGender && matchesAge;
-  });
+  const filteredPatients = patientsWithProfile;
+  const totalPatientsCount = patientsPage.total || patientsWithProfile.length;
 
   const patientColumns = useMemo<ColumnDef<RecordLike>[]>(
     () => [
@@ -295,10 +328,10 @@ export default function DoctorPatients() {
     }, new Map<string, number>());
 
     const improvedPatients = Array.from(repeatPatients.values() as Iterable<number>).filter((count) => count > 1).length;
-    const recoveryRate = patientsWithProfile.length > 0 ? Math.round((improvedPatients / patientsWithProfile.length) * 100) : 0;
+    const recoveryRate = totalPatientsCount > 0 ? Math.round((improvedPatients / totalPatientsCount) * 100) : 0;
 
     return { upcomingAppointments, followUps, recoveryRate };
-  }, [appointments, patientsWithProfile.length]);
+  }, [appointments, totalPatientsCount]);
 
   if (isPendingPatients) {
     return (
@@ -314,7 +347,7 @@ export default function DoctorPatients() {
         eyebrow="Doctor Patients"
         title="My Patients"
         description="Review patient records, EHR summaries, contact details, and follow-up context from a shared clinical workspace."
-        meta={<span className="text-sm font-medium text-muted-foreground">Total: {patientsWithProfile.length} patients</span>}
+        meta={<span className="text-sm font-medium text-muted-foreground">Loaded: {patientsPage.total} patients</span>}
         actionsSlot={<WebSocketStatusIndicator />}
       />
 
@@ -325,7 +358,7 @@ export default function DoctorPatients() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{patientsWithProfile.length}</div>
+            <div className="text-2xl font-bold">{totalPatientsCount}</div>
             <p className="text-xs text-muted-foreground">Under your care</p>
           </CardContent>
         </Card>
@@ -374,7 +407,13 @@ export default function DoctorPatients() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
               <Input placeholder="Search by name or condition..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
-            <Select value={genderFilter} onValueChange={setGenderFilter}>
+            <Select
+              value={genderFilter}
+              onValueChange={(value) => {
+                setGenderFilter(value);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="Filter by gender" />
               </SelectTrigger>
@@ -384,7 +423,13 @@ export default function DoctorPatients() {
                 <SelectItem value="female">Female</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={ageFilter} onValueChange={setAgeFilter}>
+            <Select
+              value={ageFilter}
+              onValueChange={(value) => {
+                setAgeFilter(value);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="Filter by age" />
               </SelectTrigger>
@@ -404,6 +449,15 @@ export default function DoctorPatients() {
         data={filteredPatients}
         emptyMessage="No patients found"
         pageSize={10}
+        showPagination={false}
+      />
+
+      <ServerPagination
+        page={page}
+        totalPages={patientsPage.totalPages}
+        totalItems={patientsPage.total}
+        pageSize={pageSize}
+        onPageChange={setPage}
       />
 
       <Drawer

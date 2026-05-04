@@ -100,13 +100,14 @@ export const profileCompletionSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  dateOfBirth: z.string()
-    .min(1, "Date of birth is required")
+  dateOfBirth: z.string().optional()
     .refine((date) => {
+      if (!date) return true;
       // Check if the date is not in the future
       return new Date(date) <= new Date();
     }, "Date of birth cannot be in the future")
     .refine((date) => {
+      if (!date) return true;
       // Calculate age
       const birthDate = new Date(date);
       const today = new Date();
@@ -123,11 +124,11 @@ export const profileCompletionSchema = z.object({
     }, "You must be at least 12 years old to register"),
   gender: z.enum(["male", "female", "other"], {
     message: "Please select a gender",
-  }),
-  address: z.string().min(10, "Address must be at least 10 characters"),
-  emergencyContactName: z.string().min(2, "Emergency contact name is required"),
-  emergencyContactPhone: z.string().min(10, "Emergency contact phone is required"),
-  emergencyContactRelationship: z.string().min(2, "Emergency contact relationship is required"),
+  }).optional(),
+  address: z.string().optional(),
+  emergencyContactName: z.string().optional(),
+  emergencyContactPhone: z.string().optional(),
+  emergencyContactRelationship: z.string().optional(),
   // Optional fields for profile updates
   specialization: z.string().optional(),
   experience: z.string().optional(),

@@ -374,7 +374,7 @@ export default function TreatmentsPage() {
                               </div>
 
                               <div className="space-y-3 sm:space-y-4">
-                                <Link href={treatment.href}>
+                                <Link href={treatment.href} prefetch={false}>
                                   <Button
                                     size="lg"
                                     className={`w-full bg-gradient-to-r ${treatment.colorScheme.gradient} hover:${treatment.colorScheme.hover} text-white interactive transition-all duration-300 shadow-lg hover:shadow-xl group text-sm sm:text-base py-2 sm:py-3`}

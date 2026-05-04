@@ -22,12 +22,22 @@ export async function getPatients(clinicId: string, filters?: {
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined) {
-        if (key === 'doctorId') {
+        if (key === 'doctorId' || key === 'offset' || key === 'limit') {
           return;
         }
         params.append(key, value.toString());
       }
     });
+  }
+
+  const limitValue = typeof filters?.limit === 'number' ? filters.limit : undefined;
+  const pageValue =
+    typeof filters?.offset === 'number'
+      ? Math.floor(filters.offset / (limitValue || 50)) + 1
+      : 1;
+  if (typeof limitValue === 'number') {
+    params.append('limit', limitValue.toString());
+    params.append('page', String(Math.max(pageValue, 1)));
   }
 
   // Backend: GET /patients/clinic/:clinicId
@@ -70,46 +80,6 @@ export async function createPatient(patientData: {
   };
 }) {
   const { data } = await authenticatedApi(API_ENDPOINTS.PATIENTS.CREATE, {
-    method: 'POST',
-    body: JSON.stringify(patientData),
-  });
-  return data;
-}
-
-/**
- * Quick register patient and create profile atomically
- */
-export async function quickRegisterPatient(patientData: {
-  email?: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  dateOfBirth?: string;
-  gender?: 'MALE' | 'FEMALE' | 'OTHER';
-  address?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  zipCode?: string;
-  allergies?: string[];
-  medicalHistory?: string[];
-  emergencyContact?: {
-    name: string;
-    relationship: string;
-    phone: string;
-  };
-  insurance?: {
-    provider: string;
-    policyNumber: string;
-    groupNumber?: string;
-    primaryHolder?: string;
-    coverageStartDate?: string;
-    coverageEndDate?: string;
-    coverageType?: string;
-  };
-}) {
-  const { data } = await authenticatedApi('/patients/quick-register', {
     method: 'POST',
     body: JSON.stringify(patientData),
   });

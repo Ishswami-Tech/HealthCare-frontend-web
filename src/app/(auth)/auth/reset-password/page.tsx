@@ -77,6 +77,7 @@ export default function ResetPasswordPage() {
           <div className="w-full text-center">
             <Link
               href={ROUTES.FORGOT_PASSWORD}
+              prefetch={false}
               className="text-blue-600 hover:underline transition-colors text-xs sm:text-sm"
             >
               Request a new reset link
@@ -159,6 +160,7 @@ export default function ResetPasswordPage() {
           Remember your password?{" "}
           <Link
             href={ROUTES.LOGIN}
+            prefetch={false}
             className="text-blue-600 hover:underline transition-colors"
           >
             Sign in

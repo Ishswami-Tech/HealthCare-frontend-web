@@ -573,7 +573,7 @@ export default function ProfileCompletionForm({
                       <FormItem>
                         <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                           <Venus className="h-4" />
-                          Gender <span className="text-red-500 dark:text-red-400">*</span>
+                          Gender <span className="text-xs text-slate-500 dark:text-slate-400">(Optional)</span>
                         </FormLabel>
                         <Select
                           value={field.value || "male"}
@@ -651,7 +651,7 @@ export default function ProfileCompletionForm({
                         <FormItem className="flex flex-col">
                           <FormLabel className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                             <Calendar className="h-4 w-4" />
-                            Date of Birth <span className="text-red-500 dark:text-red-400">*</span>
+                            Date of Birth <span className="text-xs text-slate-500 dark:text-slate-400">(Optional)</span>
                           </FormLabel>
                           <Popover>
                             <PopoverTrigger asChild>

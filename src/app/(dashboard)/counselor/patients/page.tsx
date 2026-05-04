@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,18 +18,60 @@ import { useWebSocketQuerySync } from "@/hooks/realtime/useRealTimeQueries";
 import { usePatientStore } from "@/stores";
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { formatDateInIST } from "@/lib/utils/date-time";
+import { ServerPagination } from "@/components/ui/pagination";
+import { useDebouncedCallback } from "@/lib/utils/performance";
 
 export default function CounselorPatients() {
   const { session } = useAuth();
   const user = session?.user;
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   const clients = usePatientStore((state) => state.collections.counselor);
+  const debouncedSetSearch = useDebouncedCallback((value: string) => {
+    setDebouncedSearchQuery(value);
+  }, 300);
 
   const counselorId = user?.id;
 
-  const { isPending } = useCounselorClients(counselorId);
+  useEffect(() => {
+    debouncedSetSearch(searchQuery);
+    setPage(1);
+  }, [searchQuery, debouncedSetSearch]);
+
+  const clientsQuery = useCounselorClients(counselorId, {
+    search: debouncedSearchQuery || undefined,
+    status: filterStatus !== "all" ? filterStatus : undefined,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
+  });
+  const clientsPage = useMemo(() => {
+    if (Array.isArray(clientsQuery.data)) {
+      return {
+        total: clientsQuery.data.length,
+        page: 1,
+        totalPages: 1,
+        pageSize,
+      };
+    }
+
+    const record = (clientsQuery.data as Record<string, any>) || {};
+    const total = Number(record.total ?? record.count ?? record.totalCount ?? 0) || clients.length;
+    const currentPage = Number(record.page ?? record.currentPage ?? page) || page;
+    const resolvedPageSize = Number(record.pageSize ?? record.limit ?? pageSize) || pageSize;
+    const totalPages = Number(record.totalPages ?? record.pageCount ?? Math.max(1, Math.ceil(total / Math.max(resolvedPageSize, 1)))) || 1;
+
+    return {
+      total,
+      page: currentPage,
+      totalPages,
+      pageSize: resolvedPageSize,
+    };
+  }, [clientsQuery.data, clients.length, page, pageSize]);
+  const isPending = clientsQuery.isPending;
 
   // Sync with WebSocket for real-time updates
   useWebSocketQuerySync();
@@ -69,11 +111,7 @@ export default function CounselorPatients() {
         eyebrow="Counselor Clients"
         title="Clients"
         description="Review counseling clients, filter active caseloads, and manage follow-up context."
-        meta={
-          <span className="text-sm font-medium text-muted-foreground">
-            Total: {clients.length} clients
-          </span>
-        }
+        meta={<span className="text-sm font-medium text-muted-foreground">Loaded: {clientsPage.total} clients</span>}
       />
 
       <Card>
@@ -89,24 +127,33 @@ export default function CounselorPatients() {
               />
             </div>
             <div className="flex gap-2">
-              <Button
-                variant={filterStatus === "all" ? "default" : "outline"}
-                onClick={() => setFilterStatus("all")}
-              >
-                All
-              </Button>
-              <Button
-                variant={filterStatus === "active" ? "default" : "outline"}
-                onClick={() => setFilterStatus("active")}
-              >
-                Active
-              </Button>
-              <Button
-                variant={filterStatus === "inactive" ? "default" : "outline"}
-                onClick={() => setFilterStatus("inactive")}
-              >
-                Inactive
-              </Button>
+            <Button
+              variant={filterStatus === "all" ? "default" : "outline"}
+              onClick={() => {
+                setFilterStatus("all");
+                setPage(1);
+              }}
+            >
+              All
+            </Button>
+            <Button
+              variant={filterStatus === "active" ? "default" : "outline"}
+              onClick={() => {
+                setFilterStatus("active");
+                setPage(1);
+              }}
+            >
+              Active
+            </Button>
+            <Button
+              variant={filterStatus === "inactive" ? "default" : "outline"}
+              onClick={() => {
+                setFilterStatus("inactive");
+                setPage(1);
+              }}
+            >
+              Inactive
+            </Button>
             </div>
           </div>
         </CardContent>
@@ -172,6 +219,15 @@ export default function CounselorPatients() {
               ))}
             </div>
           )}
+          <div className="mt-6">
+            <ServerPagination
+              page={page}
+              totalPages={clientsPage.totalPages}
+              totalItems={clientsPage.total}
+              pageSize={pageSize}
+              onPageChange={setPage}
+            />
+          </div>
         </CardContent>
       </Card>
     </DashboardPageShell>

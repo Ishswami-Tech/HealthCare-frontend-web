@@ -22,7 +22,7 @@ export default function NotFound() {
 
         <div className="space-y-4">
           <Button asChild className="w-full">
-            <Link href="/" className="flex items-center justify-center">
+            <Link href="/" prefetch={false} className="flex items-center justify-center">
               <Home className="w-4 h-4 mr-2" />
               Go Home
             </Link>
@@ -41,7 +41,7 @@ export default function NotFound() {
         <div className="mt-12 text-sm text-gray-500">
           <p>
             Need help? Contact our{" "}
-            <Link href="/contact" className="text-blue-600 hover:underline">
+            <Link href="/contact" prefetch={false} className="text-blue-600 hover:underline">
               support team
             </Link>
           </p>

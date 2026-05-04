@@ -67,7 +67,7 @@ export function MinimalStatusIndicator({ className }: { className?: string }) {
   }
 
   return (
-    <Link href="/status" className={cn("inline-flex items-center group", className)}>
+    <Link href="/status" prefetch={false} className={cn("inline-flex items-center group", className)}>
       <motion.div 
         className={cn(
           "flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-sm transition-all cursor-pointer",
