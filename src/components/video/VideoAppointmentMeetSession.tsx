@@ -111,6 +111,10 @@ function normalizeAppointment(
   };
 }
 
+function isMergeableValue(value: unknown): boolean {
+  return value !== undefined && value !== null;
+}
+
 export function VideoAppointmentMeetSession({
   appointmentId,
   viewerRole,
@@ -155,7 +159,7 @@ export function VideoAppointmentMeetSession({
       const merged: Record<string, unknown> = { ...appointmentConsultationSource };
 
       for (const [key, value] of Object.entries(appointmentRecordSource as Record<string, unknown>)) {
-        if (value !== undefined) {
+        if (isMergeableValue(value)) {
           merged[key] = value;
         }
       }
@@ -218,14 +222,17 @@ export function VideoAppointmentMeetSession({
 
   React.useEffect(() => {
     const liveAppointmentSource =
-      (appointmentQuery as any)?.appointment || (appointmentQuery as any)?.data || null;
+      appointmentDetailsSource ||
+      (appointmentQuery as any)?.appointment ||
+      (appointmentQuery as any)?.data ||
+      null;
 
     if (!resolvedAppointmentId || !liveAppointmentSource) {
       return;
     }
 
     setAppointment(normalizeAppointment(liveAppointmentSource, resolvedAppointmentId));
-  }, [appointmentQuery, resolvedAppointmentId]);
+  }, [appointmentDetailsSource, appointmentQuery, resolvedAppointmentId]);
 
   const loadPreviewStream = React.useCallback(
     async (

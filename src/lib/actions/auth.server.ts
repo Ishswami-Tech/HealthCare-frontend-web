@@ -180,6 +180,109 @@ function resolveProfileComplete(userData: Record<string, unknown> | undefined): 
   return calculateProfileCompletion(userData as any);
 }
 
+function extractErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+
+  const apiError = error as Record<string, unknown>;
+  const response = apiError.response as Record<string, unknown> | undefined;
+  const responseStatus = response?.status;
+  if (typeof responseStatus === 'number') {
+    return responseStatus;
+  }
+
+  const statusCode = apiError.statusCode;
+  if (typeof statusCode === 'number') {
+    return statusCode;
+  }
+
+  const status = apiError.status;
+  if (typeof status === 'number') {
+    return status;
+  }
+
+  return undefined;
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (!error || typeof error !== 'object') {
+    return String(error || '');
+  }
+
+  const apiError = error as Record<string, unknown>;
+  const response = apiError.response as Record<string, unknown> | undefined;
+  const responseData = response?.data as Record<string, unknown> | undefined;
+  const message =
+    responseData?.message ||
+    responseData?.error ||
+    apiError.message ||
+    apiError.error ||
+    apiError.details ||
+    '';
+
+  return typeof message === 'string' ? message : '';
+}
+
+function isSessionInvalidError(error: unknown): boolean {
+  const status = extractErrorStatus(error);
+  if (status === 401 || status === 403) {
+    return true;
+  }
+
+  const message = extractErrorMessage(error).toLowerCase();
+  if (!message) {
+    return false;
+  }
+
+  return [
+    'no token provided',
+    'authentication required',
+    'session expired',
+    'invalid token',
+    'invalid session',
+    'unauthorized',
+    'no refresh token available',
+    'auth token invalid',
+    'refresh token invalid',
+  ].some((pattern) => message.includes(pattern));
+}
+
+function isTransientSessionError(error: unknown): boolean {
+  const status = extractErrorStatus(error);
+  if (
+    typeof status === 'number' &&
+    [408, 425, 429, 500, 502, 503, 504].includes(status)
+  ) {
+    return true;
+  }
+
+  const message = extractErrorMessage(error).toLowerCase();
+  if (!message) {
+    return false;
+  }
+
+  return [
+    'timeout',
+    'timed out',
+    'aborterror',
+    'failed to fetch',
+    'fetch failed',
+    'networkerror',
+    'network error',
+    'econnreset',
+    'enotfound',
+    'econnrefused',
+    'etimedout',
+    'socket hang up',
+    'request aborted',
+  ].some((pattern) => message.includes(pattern));
+}
+
 interface GoogleLoginResponse {
   user: {
     id: string;
@@ -233,8 +336,18 @@ export async function getServerSession(): Promise<Session | null> {
           return refreshedSession;
         }
       } catch (error: unknown) {
-        logger.error('getServerSession - Refresh failed', error instanceof Error ? error : new Error(String(error)));
-        await clearSession();
+        if (isTransientSessionError(error)) {
+          logger.warn('getServerSession - Refresh failed transiently', {
+            error: error instanceof Error ? error : new Error(String(error)),
+          });
+          throw error;
+        }
+        logger.error('getServerSession - Refresh failed', {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+        if (isSessionInvalidError(error)) {
+          await clearSession();
+        }
         return null;
       }
     }
@@ -316,8 +429,12 @@ export async function getServerSession(): Promise<Session | null> {
           const refreshedSession = await refreshToken();
           return refreshedSession;
         }
-        await clearSession();
-        return null;
+        if (response.status === 401 || response.status === 403) {
+          await clearSession();
+          return null;
+        }
+
+        throw new Error(`Failed to fetch user profile: HTTP ${response.status}`);
       }
 
       const userData = await response.json();
@@ -343,13 +460,46 @@ export async function getServerSession(): Promise<Session | null> {
         isAuthenticated: true
       };
     } catch (error: unknown) {
-      logger.error('getServerSession - Error fetching user data', error instanceof Error ? error : new Error(String(error)));
+      if (isTransientSessionError(error)) {
+        logger.warn('getServerSession - Transient session error', {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+        throw error;
+      }
+
+      if (isSessionInvalidError(error)) {
+      logger.error('getServerSession - Session invalid', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+        await clearSession();
+        return null;
+      }
+
+      logger.error('getServerSession - Error fetching user data', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+      throw error;
+    }
+  } catch (error: unknown) {
+    if (isTransientSessionError(error)) {
+      logger.warn('getServerSession - Unexpected transient error', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+      throw error;
+    }
+
+    if (isSessionInvalidError(error)) {
+      logger.error('getServerSession - Unexpected session invalid error', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
       await clearSession();
       return null;
     }
-  } catch (error: unknown) {
-    logger.error('getServerSession - Unexpected error', error instanceof Error ? error : new Error(String(error)));
-    return null;
+
+    logger.error('getServerSession - Unexpected error', {
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
+    throw error;
   }
 }
 
@@ -1025,12 +1175,23 @@ export async function refreshToken(): Promise<Session | null> {
   } catch (error) {
     const cookieStore = await cookies();
     const refreshTokenValue = cookieStore.get('refresh_token')?.value;
-    if (refreshTokenValue) {
+    if (refreshTokenValue && isSessionInvalidError(error)) {
       invalidRefreshTokenCache.set(refreshTokenValue, Date.now() + INVALID_REFRESH_TOKEN_TTL_MS);
     }
+    if (isTransientSessionError(error)) {
+      logger.warn('Token refresh failed transiently', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+      throw error;
+    }
+
     logger.error('Token refresh failed', error instanceof Error ? error : new Error(String(error)));
-    await clearSession();
-    return null;
+    if (isSessionInvalidError(error)) {
+      await clearSession();
+      return null;
+    }
+
+    throw error;
   }
 }
 

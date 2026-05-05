@@ -201,13 +201,7 @@ function toast(options: {
   duration?: number;
 }) {
   const toastId = options.id || `toast-${Date.now()}-${Math.random()}`;
-  
-  // Dismiss existing toast with same ID to prevent duplicates
-  if (activeToasts.has(toastId)) {
-    sonnerToast.dismiss(activeToasts.get(toastId));
-    activeToasts.delete(toastId);
-  }
-  
+
   // Build message from title and description
   // Sonner uses message as primary text, description as secondary
   const message = options.title || options.description || 'Notification';
@@ -221,7 +215,7 @@ function toast(options: {
     sonnerId = sonnerToast.error(errorMessage, {
       id: toastId,
       description: options.title && options.description ? options.title : undefined,
-      duration: options.duration ?? 5000,
+      duration: options.duration ?? 12000,
     });
   } else {
     sonnerId = sonnerToast.success(message, {
@@ -300,16 +294,14 @@ export function showErrorToast(
   }
 ) {
   const toastId = options?.id || TOAST_IDS.GLOBAL.ERROR;
-  sonnerToast.dismiss(toastId);
-  
   const errorMessage = options?.skipSanitization
     ? (typeof error === 'string' ? error : error instanceof Error ? error.message : ERROR_MESSAGES.UNKNOWN_ERROR)
     : sanitizeErrorMessage(error);
-  
+
   sonnerToast.error(errorMessage, {
     id: toastId,
     description: options?.description,
-    duration: options?.duration ?? 5000,
+    duration: options?.duration ?? 12000,
   });
 }
 
