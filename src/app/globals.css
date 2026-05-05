@@ -69,48 +69,48 @@
 }
 
 :root {
-  --background: oklch(0.982 0.008 150);      /* Ultra-light emerald canvas — cards float above */
+  --background: oklch(0.968 0.012 150);      /* Soft emerald-tinted canvas */
   --foreground: oklch(0.15 0 0);
-  --card: oklch(1 0 0);                      /* Pure White cards — pop off canvas */
+  --card: oklch(0.988 0.006 150);            /* Faded off-white cards */
   --card-foreground: oklch(0.15 0 0);
-  --popover: oklch(1 0 0);                   /* Pure White popovers */
+  --popover: oklch(0.988 0.006 150);         /* Faded off-white popovers */
   --popover-foreground: oklch(0.15 0 0);
-  --primary: oklch(0.62 0.16 150);           /* Emerald Green */
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.975 0.005 150);       /* Very light emerald tint */
+  --primary: #75E0C0;
+  --primary-foreground: oklch(0.2 0 0);
+  --secondary: oklch(0.95 0.01 150);
   --secondary-foreground: oklch(0.2 0 0);
-  --muted: oklch(0.975 0.005 150);           /* Very light emerald tint */
-  --muted-foreground: oklch(0.55 0 0);
-  --accent: oklch(0.975 0.005 150);
+  --muted: oklch(0.95 0.01 150);
+  --muted-foreground: oklch(0.4 0 0);
+  --accent: oklch(0.92 0.02 150);
   --accent-foreground: oklch(0.2 0 0);
   --destructive: oklch(0.57 0.2 27);
   --destructive-foreground: oklch(1 0 0);
   --border: oklch(0.90 0.005 150);           /* Faintly emerald-tinted border */
   --input: oklch(0.92 0.004 150);
-  --ring: oklch(0.62 0.16 150);              /* Emerald focus ring */
+  --ring: #75E0C0;
   --chart-1: oklch(0.45 0.15 260);
   --chart-2: oklch(0.65 0.15 200);
   --chart-3: oklch(0.75 0.15 150);
   --chart-4: oklch(0.85 0.15 100);
   --chart-5: oklch(0.90 0.15 50);
-  --sidebar: oklch(0.978 0.007 150);
+  --sidebar: oklch(0.966 0.01 150);
   --sidebar-foreground: oklch(0.15 0 0);
   --sidebar-primary: oklch(0.2 0 0);
   --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.96 0 0);
+  --sidebar-accent: oklch(0.94 0.008 150);
   --sidebar-accent-foreground: oklch(0.2 0 0);
   --sidebar-border: oklch(0.92 0 0);
   --sidebar-ring: oklch(0.62 0.16 150);
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-lato), Lato, ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     Liberation Mono, Courier New, monospace;
   --radius: 0.75rem;
 
   /* Base surface scale for page-canvas / shell / divider hierarchy */
-  --base-100: oklch(0.984 0 0);   /* near-white — card surface */
-  --base-200: oklch(0.948 0 0);   /* page canvas — visibly grey vs card */
-  --base-300: oklch(0.908 0 0);   /* dividers / strong border */
+  --base-100: oklch(0.988 0.006 150);   /* off-white card surface */
+  --base-200: oklch(0.958 0.01 150);    /* softly tinted page canvas */
+  --base-300: oklch(0.908 0.008 150);   /* dividers / strong border */
 
   /* Shadows — increased from 5% to 10-12% for light mode visibility */
   --shadow-x: 0px;
@@ -152,7 +152,7 @@
   --card-foreground: oklch(0.95 0 0);
   --popover: oklch(0.15 0 0);               /* Slightly elevated slate */
   --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.62 0.16 150);           /* Emerald Green — consistent branding */
+  --primary: #75E0C0;
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.2 0 0);
   --secondary-foreground: oklch(0.95 0 0);
@@ -178,7 +178,7 @@
   --sidebar-accent-foreground: oklch(0.95 0 0);
   --sidebar-border: oklch(0.2 0 0);
   --sidebar-ring: oklch(0.62 0.16 150);
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-lato), Lato, ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     Liberation Mono, Courier New, monospace;
@@ -486,7 +486,7 @@ html[lang="mr"] {
 }
 
 html[lang="en"] {
-  font-family: "Inter", "Noto Sans", system-ui, sans-serif;
+  font-family: var(--font-lato), Lato, "Noto Sans", system-ui, sans-serif;
 }
 
 /* Improved line height for Devanagari scripts */
@@ -1653,5 +1653,3 @@ html5-qrcode {
     line-height: 1.15;
   }
 }
-
-

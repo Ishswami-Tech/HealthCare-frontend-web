@@ -204,7 +204,7 @@ export function AyurvedaHeader({
           {/* Logo */}
           <div className="flex items-center">
             <a href="/" className="flex items-center space-x-3">
-              <div className="w-14 h-14 flex items-center justify-center overflow-hidden shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+              <div className="w-14 h-14 flex items-center justify-center overflow-hidden shrink-0 rounded-2xl border border-border/60 bg-card/90 dark:bg-slate-950/80 shadow-sm">
                 <img
                   src="/assets/logo/logowithoutbackground.png"
                   alt={t("navigation.clinicName")}

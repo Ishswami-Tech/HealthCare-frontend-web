@@ -4,7 +4,7 @@
  * Follows DRY, SOLID, KISS principles
  */
 
-import { Inter } from "next/font/google";
+import { Lato } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/app/providers/AppProvider";
 import { PerformanceProvider } from "@/app/providers/PerformanceProvider";
@@ -20,10 +20,12 @@ const OG_IMAGE = "/assets/og/og-image.png";
 const SITE_DESCRIPTION =
   "Experience authentic Ayurvedic care in Chinchwad, Pune with Panchakarma, Agnikarma, Viddha Karma, appointments, and secure patient workflows.";
 
-const inter = Inter({
+const lato = Lato({
   subsets: ["latin"],
+  weight: ["100", "300", "400", "700", "900"],
   display: "swap",
   preload: true,
+  variable: "--font-lato",
 });
 
 export const metadata = {
@@ -112,7 +114,7 @@ export default async function RootLayout({
         
         <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       </head>
-      <body className={cn(inter.className, "antialiased")} suppressHydrationWarning>
+      <body className={cn(lato.variable, lato.className, "antialiased")} suppressHydrationWarning>
         <PerformanceProvider
           enableWebVitals={true}
           enableResourceTracking={true}

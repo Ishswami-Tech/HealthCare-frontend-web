@@ -80,7 +80,7 @@ export function Header({ className, children, showSidebarTrigger = true }: Heade
 
   return (
     <header className={cn(
-      "sticky top-0 z-40 w-full transition-all duration-200 border-b border-border/10 bg-background/80 backdrop-blur-md",
+      "sticky top-0 z-40 w-full transition-all duration-200 border-b border-border/10 bg-primary/90 backdrop-blur-md",
       className
     )}>
       <div className="flex h-12 md:h-14 items-center px-3 md:px-5 gap-3 max-w-6xl mx-auto">

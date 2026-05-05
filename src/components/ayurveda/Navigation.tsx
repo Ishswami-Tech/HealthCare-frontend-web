@@ -181,7 +181,7 @@ const Navigation = () => {
   return (
     <>
       {/* Top Trust Bar */}
-      <div className="bg-gradient-to-r from-orange-600 to-red-600 dark:from-orange-700 dark:to-red-700 text-white py-2 px-4 relative z-40">
+      <div className="bg-gradient-to-r from-primary to-emerald-600 dark:from-primary/90 dark:to-emerald-700 text-primary-foreground py-2 px-4 relative z-40">
         <div className="container mx-auto max-w-7xl flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs md:text-sm gap-2 sm:gap-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <Badge
@@ -305,7 +305,7 @@ const Navigation = () => {
                 href="/"
                 className="flex items-center space-x-2 sm:space-x-3 touch-manipulation"
               >
-                  <motion.div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden flex-shrink-0 rounded-2xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+                  <motion.div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center overflow-hidden flex-shrink-0 rounded-2xl border border-border/60 bg-card/90 dark:bg-slate-950/80 shadow-sm">
                     <img
                       src="/assets/logo/logowithoutbackground.png"
                       alt={t("navigation.clinicName")}
@@ -321,7 +321,7 @@ const Navigation = () => {
                     <h1 className="font-playfair text-base sm:text-lg lg:text-lg font-bold text-gray-900 dark:text-white leading-tight truncate">
                       {t("navigation.clinicName")}
                     </h1>
-                    <p className="text-[10px] sm:text-xs lg:text-xs text-orange-600 dark:text-orange-400 -mt-1 truncate">
+                    <p className="text-[10px] sm:text-xs lg:text-xs text-primary dark:text-primary mt-1 truncate">
                       {t("navigation.clinicSubtitle")}
                     </p>
                   </div>
@@ -344,7 +344,7 @@ const Navigation = () => {
                 >
                   {item.hasDropdown ? (
                     <div
-                      className="relative rounded-lg transition-all duration-200 hover:bg-orange-50/50 dark:hover:bg-orange-900/10 px-2 py-1"
+                      className="relative rounded-lg transition-all duration-200 hover:bg-primary/10 dark:hover:bg-primary/20 px-2 py-1"
                       onMouseEnter={handleMouseEnter}
                       onMouseLeave={handleMouseLeave}
                       role="button"
@@ -359,12 +359,12 @@ const Navigation = () => {
                       <Link
                         href={item.href}
                         className={cn(
-                          "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center space-x-1",
+                          "text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap flex items-center space-x-1",
                           (pathname === item.href ||
                             item.subItems?.some(
                               (subItem) => pathname === subItem.href
                             )) &&
-                            "text-orange-600 dark:text-orange-400"
+                            "text-primary dark:text-primary"
                         )}
                       >
                         <span>{item.name}</span>
@@ -381,7 +381,7 @@ const Navigation = () => {
                           <ChevronRight className="w-3 h-3" />
                         </motion.div>
                         <motion.span
-                          className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
+                          className="absolute -bottom-1 left-0 h-0.5 bg-primary dark:bg-primary"
                           initial={{ width: 0 }}
                           whileHover={{ width: "100%" }}
                           animate={{
@@ -411,7 +411,7 @@ const Navigation = () => {
                               duration: 0.2,
                               ease: [0.0, 0.0, 0.2, 1],
                             }}
-                            className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50"
+                            className="absolute top-full left-0 mt-2 w-48 bg-card dark:bg-gray-800 rounded-lg shadow-lg border border-border dark:border-gray-700 overflow-hidden z-50"
                             onMouseEnter={handleMouseEnter}
                             onMouseLeave={handleMouseLeave}
                           >
@@ -429,13 +429,13 @@ const Navigation = () => {
                                 <Link
                                   href={subItem.href}
                                   className={cn(
-                                    "block px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0",
+                                    "block px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0",
                                     pathname === subItem.href &&
-                                      "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
+                                      "bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary"
                                   )}
                                 >
                                   <div className="flex items-center space-x-2">
-                                    <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                                    <div className="w-2 h-2 bg-primary rounded-full"></div>
                                     <span>{subItem.name}</span>
                                   </div>
                                 </Link>
@@ -449,14 +449,14 @@ const Navigation = () => {
                     <Link
                       href={item.href}
                       className={cn(
-                        "text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap",
+                        "text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition-colors duration-200 relative group text-sm lg:text-sm xl:text-sm whitespace-nowrap",
                         pathname === item.href &&
-                          "text-orange-600 dark:text-orange-400"
+                          "text-primary dark:text-primary"
                       )}
                     >
                       {item.name}
                       <motion.span
-                        className="absolute -bottom-1 left-0 h-0.5 bg-orange-600 dark:bg-orange-400"
+                        className="absolute -bottom-1 left-0 h-0.5 bg-primary dark:bg-primary"
                         initial={{ width: 0 }}
                         whileHover={{ width: "100%" }}
                         animate={{ width: pathname === item.href ? "100%" : 0 }}
@@ -509,7 +509,7 @@ const Navigation = () => {
                         size="sm"
                         variant="ghost"
                         onClick={handleLogin}
-                        className="text-orange-600 hover:bg-orange-50 text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
+                        className="text-primary hover:bg-primary/10 text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
                       >
                         <span className="hidden sm:inline">Login</span>
                         <span className="sm:hidden">Login</span>
@@ -518,7 +518,7 @@ const Navigation = () => {
                         type="button"
                         size="sm"
                         onClick={handleRegister}
-                        className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm px-2 sm:px-3 touch-manipulation"
                       >
                         <span className="hidden sm:inline">Register</span>
                         <span className="sm:hidden">Sign Up</span>
@@ -537,7 +537,7 @@ const Navigation = () => {
               <Button
                 type="button"
                 size="sm"
-                className="hidden lg:flex bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
+                className="hidden lg:flex bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm px-3 sm:px-4 shadow-lg"
                 onClick={() => (window.location.href = "tel:9860370961")}
               >
                 <Phone className="w-3 h-3 mr-1" />
@@ -548,7 +548,7 @@ const Navigation = () => {
               <Button
                 type="button"
                 size="sm"
-                className="lg:hidden bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
+                className="lg:hidden bg-primary hover:bg-primary/90 text-primary-foreground text-xs px-3 py-2 h-8 shadow-lg touch-manipulation"
                 onClick={() => (window.location.href = "tel:9860370961")}
               >
                 <Phone className="w-3 h-3 mr-1" />
@@ -565,7 +565,7 @@ const Navigation = () => {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="lg:hidden h-10 w-10 p-0 touch-manipulation hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                    className="lg:hidden h-10 w-10 p-0 touch-manipulation hover:bg-primary/10 dark:hover:bg-primary/20"
                     aria-label="Toggle mobile menu"
                   >
                     <Menu className="w-4 h-4 text-gray-700 dark:text-gray-300" />
@@ -574,11 +574,11 @@ const Navigation = () => {
 
                 <SheetContent
                   side="left"
-                  className="w-80 p-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700"
+                  className="w-80 p-0 bg-card dark:bg-gray-900 border-r border-border dark:border-gray-700"
                 >
-                  <SheetHeader className="p-8 pb-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
-                    <SheetTitle className="text-left text-xl font-bold text-orange-600 dark:text-orange-400 leading-tight tracking-wide flex items-center space-x-3">
-                      <div className="w-9 h-9 flex items-center justify-center overflow-hidden flex-shrink-0 rounded-xl border border-border/60 bg-white/90 dark:bg-slate-950/80 shadow-sm">
+                  <SheetHeader className="p-8 pb-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary/10 to-emerald-50 dark:from-primary/20 dark:to-emerald-900/20">
+                    <SheetTitle className="text-left text-xl font-bold text-primary dark:text-primary leading-tight tracking-wide flex items-center space-x-3">
+                      <div className="w-9 h-9 flex items-center justify-center overflow-hidden flex-shrink-0 rounded-xl border border-border/60 bg-card/90 dark:bg-slate-950/80 shadow-sm">
                         <img
                           src="/assets/logo/logowithoutbackground.png"
                           alt={t("navigation.clinicName")}
@@ -613,12 +613,12 @@ const Navigation = () => {
                                     )
                                   }
                                   className={cn(
-                                    "w-full text-left text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center justify-between transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
+                                    "w-full text-left text-gray-800 dark:text-gray-200 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 font-semibold py-4 px-5 rounded-xl flex items-center justify-between transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-primary/30 dark:hover:border-primary/40 text-base",
                                     (pathname === item.href ||
                                       item.subItems?.some(
                                         (subItem) => pathname === subItem.href
                                       )) &&
-                                      "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+                                      "text-primary dark:text-primary bg-primary/10 dark:bg-primary/20 border-primary/30 dark:border-primary/40"
                                   )}
                                 >
                                   <span>{item.name}</span>
@@ -641,16 +641,16 @@ const Navigation = () => {
                                         key={subItem.name}
                                         href={subItem.href}
                                         className={cn(
-                                          "block text-sm text-gray-700 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 py-2 px-3 rounded-lg transition-all duration-200 border border-transparent hover:border-orange-200 dark:hover:border-orange-800",
+                                          "block text-sm text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 py-2 px-3 rounded-lg transition-all duration-200 border border-transparent hover:border-primary/30 dark:hover:border-primary/40",
                                           pathname === subItem.href &&
-                                            "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+                                            "text-primary dark:text-primary bg-primary/10 dark:bg-primary/20 border-primary/30 dark:border-primary/40"
                                         )}
                                         onClick={() =>
                                           setIsMobileMenuOpen(false)
                                         }
                                       >
                                         <div className="flex items-center space-x-2">
-                                          <div className="w-1.5 h-1.5 bg-orange-400 rounded-full"></div>
+                                          <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
                                           <span>{subItem.name}</span>
                                         </div>
                                       </Link>
@@ -662,9 +662,9 @@ const Navigation = () => {
                               <Link
                                 href={item.href}
                                 className={cn(
-                                  "text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-semibold py-4 px-5 rounded-xl flex items-center transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-orange-200 dark:hover:border-orange-800 text-base",
+                                  "text-gray-800 dark:text-gray-200 hover:text-primary dark:hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 font-semibold py-4 px-5 rounded-xl flex items-center transition-all duration-200 touch-manipulation min-h-[52px] border border-transparent hover:border-primary/30 dark:hover:border-primary/40 text-base",
                                   pathname === item.href &&
-                                    "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+                                    "text-primary dark:text-primary bg-primary/10 dark:bg-primary/20 border-primary/30 dark:border-primary/40"
                                 )}
                                 onClick={() => setIsMobileMenuOpen(false)}
                               >
@@ -680,16 +680,16 @@ const Navigation = () => {
                     <div className="p-8 pt-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                       {isAuthenticated && session ? (
                         <div className="flex flex-col space-y-4">
-                          <div className="flex items-center space-x-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                            <User className="w-4 h-4 text-orange-600" />
-                            <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                          <div className="flex items-center space-x-2 p-3 bg-primary/10 dark:bg-primary/20 rounded-lg">
+                            <User className="w-4 h-4 text-primary" />
+                            <span className="text-sm font-medium text-primary-foreground dark:text-primary">
                               {session.user.firstName || "User"}
                             </span>
                           </div>
                           <Button
                             type="button"
                             onClick={handleDashboardNavigation}
-                            className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-base touch-manipulation shadow-md"
                           >
                             <User className="w-4 h-4 mr-2" />
                             Dashboard
@@ -710,14 +710,14 @@ const Navigation = () => {
                             type="button"
                             onClick={handleLogin}
                             variant="outline"
-                            className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation"
+                            className="border-primary/50 text-primary hover:bg-primary/10 dark:hover:bg-primary/20 h-12 text-base touch-manipulation"
                           >
                             Login
                           </Button>
                           <Button
                             type="button"
                             onClick={handleRegister}
-                            className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white h-12 text-base touch-manipulation shadow-md"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-base touch-manipulation shadow-md"
                           >
                             Register
                           </Button>
@@ -727,7 +727,7 @@ const Navigation = () => {
                       <Button
                         type="button"
                         variant="outline"
-                        className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 h-12 text-base touch-manipulation mt-3 w-full"
+                        className="border-primary/50 text-primary hover:bg-primary/10 dark:hover:bg-primary/20 h-12 text-base touch-manipulation mt-3 w-full"
                       >
                         <Phone className="w-4 h-4 mr-2" />
                         {t("navigation.bookConsultation")}
