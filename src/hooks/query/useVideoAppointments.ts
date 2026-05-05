@@ -133,6 +133,8 @@ export interface VideoAppointment {
   recordingUrl?: string;
   notes?: string;
   paymentCompleted?: boolean;
+  proposedSlots?: unknown[];
+  confirmedSlotIndex?: number | null;
   createdAt: string;
   updatedAt: string;
 }

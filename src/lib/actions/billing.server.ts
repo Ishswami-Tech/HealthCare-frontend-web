@@ -3,7 +3,7 @@
 
 'use server';
 
-import { authenticatedApi } from './auth.server';
+import { authenticatedApi, publicApi } from './auth.server';
 import { z } from 'zod';
 import { API_ENDPOINTS } from '../config/config';
 import { nowIso as nowIsoTimestamp } from '@/lib/utils/date-time';
@@ -26,6 +26,24 @@ type RawBillingPlan = Record<string, unknown>;
 type RawSubscription = Record<string, unknown>;
 type RawInvoice = Record<string, unknown>;
 type RawPayment = Record<string, unknown>;
+type PaymentIntentRequest =
+  | {
+      subscriptionId: string;
+      provider?: PaymentProvider;
+    }
+  | {
+      appointmentId: string;
+      appointmentType?: 'VIDEO_CALL' | 'IN_PERSON' | 'HOME_VISIT';
+      provider?: PaymentProvider;
+    }
+  | {
+      invoiceId: string;
+      provider?: PaymentProvider;
+    }
+  | {
+      prescriptionId: string;
+      provider?: PaymentProvider;
+    };
 
 function normalizeStringList(raw: unknown): string[] {
   if (Array.isArray(raw)) {
@@ -799,9 +817,8 @@ export async function createPayment(data: CreatePaymentData): Promise<{
 
 // âœ… NEW: Missing Payment Processing Actions
 
-export async function processSubscriptionPayment(
-  subscriptionId: string,
-  provider: PaymentProvider = 'cashfree'
+export async function createPaymentIntent(
+  request: PaymentIntentRequest
 ): Promise<{
   success: boolean;
   invoice?: any;
@@ -810,44 +827,89 @@ export async function processSubscriptionPayment(
   error?: string;
 }> {
   try {
-    const { data } = await authenticatedApi(`${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BASE}/${subscriptionId}/process-payment?provider=${provider}`, {
+    const provider = request.provider ?? 'cashfree';
+    const providerQuery = `?provider=${provider}`;
+
+    let endpoint: string;
+    const body: Record<string, unknown> = {};
+
+    if ('subscriptionId' in request) {
+      endpoint =
+        `${API_ENDPOINTS.BILLING.SUBSCRIPTIONS.BASE}/${request.subscriptionId}/process-payment${providerQuery}`;
+    } else if ('appointmentId' in request) {
+      endpoint =
+        `${API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(request.appointmentId)}${providerQuery}`;
+      if (request.appointmentType) {
+        body.appointmentType = request.appointmentType;
+      }
+    } else if ('invoiceId' in request) {
+      endpoint =
+        `${API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(request.invoiceId)}${providerQuery}`;
+    } else if ('prescriptionId' in request) {
+      endpoint =
+        `${API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.PROCESS_PAYMENT(request.prescriptionId)}${providerQuery}`;
+    } else {
+      return { success: false, error: 'Invalid payment intent request' };
+    }
+
+    const { data } = await authenticatedApi(endpoint, {
       method: 'POST',
+      ...(Object.keys(body).length > 0 ? { body: JSON.stringify(body) } : {}),
     });
-    return { 
-      success: true, 
-      invoice: (data as any).invoice, 
+
+    return {
+      success: true,
+      invoice: (data as any).invoice,
       paymentIntent: (data as any).paymentIntent,
-      message: (data as any).message 
+      message: (data as any).message,
     };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to process subscription payment' };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create payment intent',
+    };
   }
 }
 
-export async function processAppointmentPayment(
-  appointmentId: string,
-  appointmentType: 'VIDEO_CALL' | 'IN_PERSON' | 'HOME_VISIT',
-  provider: PaymentProvider = 'cashfree'
-): Promise<{
+export async function verifyPaymentCallback(params: {
+  clinicId: string;
+  orderId: string;
+  paymentId?: string;
+  provider?: PaymentProvider;
+}): Promise<{
   success: boolean;
-  invoice?: any;
-  paymentIntent?: any;
   message?: string;
   error?: string;
 }> {
   try {
-    const { data } = await authenticatedApi(`${API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(appointmentId)}?provider=${provider}`, {
-      method: 'POST',
-      body: JSON.stringify({ appointmentType }),
+    const queryParams = new URLSearchParams({
+      clinicId: params.clinicId,
+      paymentId: params.paymentId || params.orderId,
+      orderId: params.orderId,
+      provider: params.provider ?? 'cashfree',
     });
-    return { 
-      success: true, 
-      invoice: (data as any).invoice, 
-      paymentIntent: (data as any).paymentIntent,
-      message: (data as any).message 
+
+    const { data } = await publicApi<{
+      success?: boolean;
+      message?: string;
+    }>(`${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Clinic-ID': params.clinicId,
+      },
+      body: JSON.stringify({ orderId: params.orderId }),
+    });
+
+    return {
+      success: Boolean(data?.success),
+      message: data?.message ?? 'Payment verified successfully',
     };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to process appointment payment' };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Payment verification failed',
+    };
   }
 }
 

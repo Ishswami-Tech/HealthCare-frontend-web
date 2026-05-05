@@ -3,7 +3,10 @@ import { nowIso } from '@/lib/utils/date-time';
 
 import { useEffect, useRef } from 'react';
 import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
-import { invalidateAppointmentQueryFamilies } from './useWebSocketIntegration';
+import {
+  invalidateAppointmentQueryFamilies,
+  invalidateBillingQueryFamilies,
+} from './useWebSocketIntegration';
 import { useWebSocketContext, useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useAppStore } from '@/stores';
 import { useAuth } from '@/hooks/auth/useAuth';
@@ -347,6 +350,11 @@ export function useWebSocketQuerySync() {
   useEffect(() => {
     if (!isConnected) return;
 
+    const invalidateAppointmentsAndBilling = () => {
+      invalidateAppointmentQueryFamilies(queryClient);
+      invalidateBillingQueryFamilies(queryClient);
+    };
+
     // Global cache invalidation events
     const unsubscribeGlobalRefresh = subscribe('cache:invalidate', (rawData: unknown) => {
       const data = rawData as {
@@ -370,6 +378,18 @@ export function useWebSocketQuerySync() {
       queryClient.setQueryData(data.queryKey, data.data);
     });
 
+    const paymentLifecycleEvents = [
+      'billing.payment.updated',
+      'billing.invoice.paid',
+      'payment.completed',
+    ] as const;
+
+    const unsubscribePaymentLifecycleEvents = paymentLifecycleEvents.map((event) =>
+      subscribe(event, () => {
+        invalidateAppointmentsAndBilling();
+      })
+    );
+
     // Batch invalidation for performance
     const unsubscribeBatchInvalidate = subscribe('cache:batch_invalidate', (rawData: unknown) => {
       const data = rawData as {
@@ -388,6 +408,7 @@ export function useWebSocketQuerySync() {
     return () => {
       unsubscribeGlobalRefresh();
       unsubscribeQueryUpdate();
+      unsubscribePaymentLifecycleEvents.forEach((unsubscribe) => unsubscribe());
       unsubscribeBatchInvalidate();
     };
   }, [isConnected, subscribe, queryClient]);

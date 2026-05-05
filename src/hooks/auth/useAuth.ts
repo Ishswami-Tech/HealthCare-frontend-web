@@ -10,6 +10,7 @@ import { useGlobalLoading } from '@/hooks/utils/useGlobalLoading';
 import { logger } from '@/lib/utils/logger';
 import { useAuthStore, resetAllStores } from '@/stores';
 import { resolveRedirect, RedirectContext } from '@/lib/utils/redirect';
+import { isSessionInvalidError } from '@/lib/utils/auth-recovery';
 import {
   login as loginAction,
   register as registerAction,
@@ -121,51 +122,32 @@ export function useAuth() {
   const setError = useAuthStore((state) => state.setError);
 
   // Get current session with auto-refresh using core hook
-  const { data: session, isPending } = useQueryData<Session | null>(
+  const { data: session, isPending, error: sessionError } = useQueryData<Session | null>(
     ['session'],
     async (): Promise<Session | null> => {
-      try {
-        const result = await getServerSession();
+      const result = await getServerSession();
 
-        if (!result) {
-          return null;
-        }
-
-        // If session exists but token is expiring soon, refresh it
-        if (result.user && result.access_token && isTokenExpiringSoon(result.access_token)) {
-          try {
-            const refreshedSession = await refreshToken();
-            if (refreshedSession && refreshedSession.access_token && refreshedSession.user) {
-              // Ensure clinicId is compatible by allowing undefined
-              return {
-                ...refreshedSession,
-                user: {
-                  ...refreshedSession.user,
-                  clinicId: refreshedSession.user.clinicId || undefined
-                }
-              };
-            }
-            // If refresh failed, clear session and return null
-            await clearSession();
-            return null;
-          } catch (error) {
-            if (process.env.NODE_ENV === 'development') {
-              logger.error('Session refresh error', error, { component: 'useAuth' });
-            }
-            await clearSession();
-            return null;
-          }
-        }
-
-        return result;
-      } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          logger.error('Session fetch error', error, { component: 'useAuth' });
-        }
-        // Clear session on error
-        await clearSession();
+      if (!result) {
         return null;
       }
+
+      // If session exists but token is expiring soon, refresh it
+      if (result.user && result.access_token && isTokenExpiringSoon(result.access_token)) {
+        const refreshedSession = await refreshToken();
+        if (refreshedSession && refreshedSession.access_token && refreshedSession.user) {
+          // Ensure clinicId is compatible by allowing undefined
+          return {
+            ...refreshedSession,
+            user: {
+              ...refreshedSession.user,
+              clinicId: refreshedSession.user.clinicId || undefined
+            }
+          };
+        }
+        return null;
+      }
+
+      return result;
     },
     {
   // ✅ Disable auto-refetch on auth pages to prevent blocking
@@ -182,12 +164,11 @@ export function useAuth() {
       refetchOnReconnect: false, // Don't refetch on reconnect
       // ✅ Use structuralSharing to prevent unnecessary re-renders
       structuralSharing: true,
-      retry: (_failureCount: number, error: any) => {
-        if (isAuthError(error)) {
+      retry: (failureCount: number, error: any) => {
+        if (isAuthError(error) || isSessionInvalidError(error)) {
           return false;
         }
-        // ✅ No retries on auth pages to prevent blocking
-        return false; // Don't retry at all on auth pages
+        return failureCount < 2;
       },
     }
   );
@@ -196,7 +177,8 @@ export function useAuth() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    setLoading(isPending);
+    const isResolvingSession = isPending || (!!sessionError && !session);
+    setLoading(isResolvingSession);
 
     if (session) {
       // Convert SessionData to Session format for Zustand
@@ -207,18 +189,19 @@ export function useAuth() {
         isAuthenticated: session.isAuthenticated,
       };
       setSession(sessionForStore);
-      
       setError(null);
-    } else if (session === null && !isPending) {
+    } else if (session === null && !isPending && !sessionError) {
       // Only clear if explicitly null (logged out) and not loading
       clearAuth();
       clearTokens();
     }
-  }, [session, isPending, setSession, clearAuth, setLoading, setError]);
+  }, [session, isPending, sessionError, setSession, clearAuth, setLoading, setError]);
 
   // Function to manually refresh the session
   const refreshSession = async (force?: boolean): Promise<Session | null> => {
     try {
+      const currentSession = queryClient.getQueryData<Session | null>(['session']) || null;
+
       // If not forced, try to get the session from the server first (fastest)
       if (!force) {
         const serverSession = await getServerSession();
@@ -237,15 +220,18 @@ export function useAuth() {
         return refreshedSession;
       }
 
-      // If refresh fails, clear session
-      queryClient.setQueryData(['session'], null);
-      return null;
+      return currentSession;
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         logger.error('Session refresh error', error, { component: 'useAuth' });
       }
-      queryClient.setQueryData(['session'], null);
-      return null;
+
+      if (isSessionInvalidError(error)) {
+        queryClient.setQueryData(['session'], null);
+        return null;
+      }
+
+      return (queryClient.getQueryData<Session | null>(['session']) || null);
     }
   };
 

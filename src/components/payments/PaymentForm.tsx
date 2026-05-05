@@ -28,12 +28,12 @@ export function PaymentForm({
 }: PaymentFormProps) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Payment Details</CardTitle>
-        <CardDescription>
+        <CardHeader>
+          <CardTitle>Payment Details</CardTitle>
+          <CardDescription>
           Complete your payment of Rs {amount.toLocaleString()} using the live payment gateway.
-        </CardDescription>
-      </CardHeader>
+          </CardDescription>
+        </CardHeader>
       <CardContent>
         <div className="space-y-6">
           <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">

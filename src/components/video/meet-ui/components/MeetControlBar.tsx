@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Mic, MicOff, Video, VideoOff, MonitorUp, PhoneOff, 
   MessageSquare, Users, Info, MoreVertical, Disc, LayoutGrid,
-  Hand, ChevronDown, Check, Volume2, Camera
+  Hand, ChevronDown, Check, Volume2, Camera, Loader2
 } from "lucide-react";
 import { Device } from "openvidu-browser";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,6 +18,12 @@ interface MeetControlBarProps {
   showRecordingControl: boolean;
   isHandRaised?: boolean;
   isLocalSpeaking?: boolean;
+  isAudioBusy?: boolean;
+  isVideoBusy?: boolean;
+  isScreenShareBusy?: boolean;
+  isRecordingBusy?: boolean;
+  isHandRaiseBusy?: boolean;
+  isEndCallBusy?: boolean;
   onToggleAudio: () => void;
   onToggleVideo: () => void;
   onToggleScreenShare: () => void;
@@ -47,6 +53,12 @@ export function MeetControlBar({
   showRecordingControl,
   isHandRaised = false,
   isLocalSpeaking = false,
+  isAudioBusy = false,
+  isVideoBusy = false,
+  isScreenShareBusy = false,
+  isRecordingBusy = false,
+  isHandRaiseBusy = false,
+  isEndCallBusy = false,
   onToggleAudio,
   onToggleVideo,
   onToggleScreenShare,
@@ -111,7 +123,7 @@ export function MeetControlBar({
 
   return (
     <TooltipProvider>
-      <div className="w-full h-20 bg-background text-foreground flex items-center justify-between px-4 relative border-t border-border shadow-[0_-1px_0_rgba(15,23,42,0.04)] dark:bg-[#202124] dark:text-white dark:border-white/5 dark:shadow-none">
+      <div className="w-full h-20 bg-background text-foreground flex items-center justify-between px-4 relative border-t border-border shadow-[0_-1px_0_rgba(15,23,42,0.04)] dark:bg-meet-black dark:text-white dark:border-white/5 dark:shadow-none">
         <div className="hidden sm:flex grow shrink basis-1/4 items-center justify-start text-sm truncate select-none">
           <span className="font-medium mr-3">{currentTime}</span>
           <span className="text-muted-foreground mr-3 dark:text-gray-400">|</span>
@@ -120,35 +132,39 @@ export function MeetControlBar({
 
         <div className="flex grow shrink basis-1/2 items-center justify-center gap-3">
           <div className="relative" ref={audioMenuRef}>
-            <div className={`flex items-center h-11 px-1 rounded-full transition-all duration-200 border ${isAudioMuted ? 'border-[#ea4335] bg-[#ea4335] text-white shadow-sm shadow-red-500/20 hover:bg-[#d93025] hover:border-[#d93025]' : 'border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 dark:border-[#5f6368] dark:bg-[#3c4043] dark:text-white dark:hover:bg-[#4a4d51]'}`}>
+            <div className={`flex items-center h-11 px-1 rounded-full transition-all duration-200 border ${isAudioMuted ? 'border-meet-red bg-meet-red text-white shadow-sm shadow-red-500/20 hover:bg-[#d93025] hover:border-[#d93025]' : 'border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 dark:border-[#5f6368] dark:bg-dark-gray dark:text-white dark:hover:bg-[#4a4d51]'}`}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button 
                     onClick={onToggleAudio} 
                     aria-pressed={!isAudioMuted}
+                    disabled={isAudioBusy}
                     className="flex items-center gap-2 pl-3 pr-1 h-full rounded-l-full group text-inherit"
                   >
-                    {!isAudioMuted && isLocalSpeaking && (
+                    {isAudioBusy ? (
+                      <Loader2 size={20} className="animate-spin text-inherit" />
+                    ) : !isAudioMuted && isLocalSpeaking && (
                       <div className="flex items-end gap-[1.5px] h-4 mb-[2px]">
                         <motion.div animate={{ height: ["20%", "60%", "40%", "80%", "20%"] }} transition={{ repeat: Infinity, duration: 0.6 }} className="w-[2px] bg-blue-300 rounded-full" />
                         <motion.div animate={{ height: ["40%", "90%", "60%", "100%", "40%"] }} transition={{ repeat: Infinity, duration: 0.5, delay: 0.1 }} className="w-[2px] bg-blue-300 rounded-full" />
                         <motion.div animate={{ height: ["20%", "70%", "50%", "90%", "20%"] }} transition={{ repeat: Infinity, duration: 0.7, delay: 0.2 }} className="w-[2px] bg-blue-300 rounded-full" />
                       </div>
                     )}
-                    {isAudioMuted ? <MicOff size={20} className="text-white" /> : <Mic size={20} className="text-inherit" />}
+                    {!isAudioBusy && (isAudioMuted ? <MicOff size={20} className="text-white" /> : <Mic size={20} className="text-inherit" />)}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-[#3c4043] dark:text-white dark:border-none">
+                <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-dark-gray dark:text-white dark:border-none">
                   {isAudioMuted ? "Turn on microphone" : "Turn off microphone"}
                 </TooltipContent>
               </Tooltip>
-              <div className="w-[1px] h-5 bg-white/20 mx-1" />
-              <button 
-                className="h-full pr-3 pl-1 flex items-center justify-center rounded-r-full hover:bg-white/10 transition-colors text-inherit"
-                onClick={() => setShowAudioMenu(!showAudioMenu)}
-              >
-                <ChevronDown size={14} className="text-inherit" />
-              </button>
+              <div className="w-px h-5 bg-white/20 mx-1" />
+                <button 
+                  className="h-full pr-3 pl-1 flex items-center justify-center rounded-r-full hover:bg-white/10 transition-colors text-inherit"
+                  disabled={isAudioBusy}
+                  onClick={() => setShowAudioMenu(!showAudioMenu)}
+                >
+                  <ChevronDown size={14} className="text-inherit" />
+                </button>
             </div>
 
             <AnimatePresence>
@@ -186,28 +202,30 @@ export function MeetControlBar({
           </div>
 
           <div className="relative" ref={videoMenuRef}>
-            <div className={`flex items-center h-11 px-1 rounded-full transition-all duration-200 border ${isVideoMuted ? 'border-[#ea4335] bg-[#ea4335] text-white shadow-sm shadow-red-500/20 hover:bg-[#d93025] hover:border-[#d93025]' : 'border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 dark:border-[#5f6368] dark:bg-[#3c4043] dark:text-white dark:hover:bg-[#4a4d51]'}`}>
+            <div className={`flex items-center h-11 px-1 rounded-full transition-all duration-200 border ${isVideoMuted ? 'border-meet-red bg-meet-red text-white shadow-sm shadow-red-500/20 hover:bg-[#d93025] hover:border-[#d93025]' : 'border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 dark:border-[#5f6368] dark:bg-dark-gray dark:text-white dark:hover:bg-[#4a4d51]'}`}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button 
                     onClick={onToggleVideo} 
                     aria-pressed={!isVideoMuted}
+                    disabled={isVideoBusy}
                     className="flex items-center justify-center pl-3 pr-1 h-full rounded-l-full text-inherit"
                   >
-                    {isVideoMuted ? <VideoOff size={20} className="text-white" /> : <Video size={20} className="text-inherit" />}
+                    {isVideoBusy ? <Loader2 size={20} className="animate-spin text-inherit" /> : (isVideoMuted ? <VideoOff size={20} className="text-white" /> : <Video size={20} className="text-inherit" />)}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-[#3c4043] dark:text-white dark:border-none">
+                <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-dark-gray dark:text-white dark:border-none">
                   {isVideoMuted ? "Turn on camera" : "Turn off camera"}
                 </TooltipContent>
               </Tooltip>
-              <div className="w-[1px] h-5 bg-white/20 mx-1" />
-              <button 
-                className="h-full pr-3 pl-1 flex items-center justify-center rounded-r-full hover:bg-white/10 transition-colors text-inherit"
-                onClick={() => setShowVideoMenu(!showVideoMenu)}
-              >
-                <ChevronDown size={14} className="text-inherit" />
-              </button>
+              <div className="w-px h-5 bg-white/20 mx-1" />
+                <button 
+                  className="h-full pr-3 pl-1 flex items-center justify-center rounded-r-full hover:bg-white/10 transition-colors text-inherit"
+                  disabled={isVideoBusy}
+                  onClick={() => setShowVideoMenu(!showVideoMenu)}
+                >
+                  <ChevronDown size={14} className="text-inherit" />
+                </button>
             </div>
 
             <AnimatePresence>
@@ -240,16 +258,17 @@ export function MeetControlBar({
           </div>
 
           <Tooltip>
-            <TooltipTrigger asChild>
-              <button 
-                onClick={onToggleScreenShare} 
-                className={`meet-control-button hidden sm:flex ${isScreenSharing ? 'meet-control-button-blue' : 'meet-control-button-active'}`}
-                aria-pressed={isScreenSharing}
-              >
-                <MonitorUp size={20} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-[#3c4043] dark:text-white dark:border-none">
+              <TooltipTrigger asChild>
+                <button 
+                  onClick={onToggleScreenShare} 
+                  disabled={isScreenShareBusy}
+                  className={`meet-control-button hidden sm:flex ${isScreenSharing ? 'meet-control-button-blue' : 'meet-control-button-active'}`}
+                  aria-pressed={isScreenSharing}
+                >
+                  {isScreenShareBusy ? <Loader2 size={20} className="animate-spin" /> : <MonitorUp size={20} />}
+                </button>
+              </TooltipTrigger>
+            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-dark-gray dark:text-white dark:border-none">
               {isScreenSharing ? "You are presenting" : "Share screen"}
             </TooltipContent>
           </Tooltip>
@@ -259,13 +278,14 @@ export function MeetControlBar({
               <TooltipTrigger asChild>
                 <button 
                   onClick={onToggleRecording} 
+                  disabled={isRecordingBusy}
                   className={`meet-control-button hidden sm:flex ${isRecording ? 'meet-control-button-danger animate-pulse' : 'meet-control-button-active'}`}
                   aria-pressed={isRecording}
                 >
-                  <Disc size={20} />
+                  {isRecordingBusy ? <Loader2 size={20} className="animate-spin" /> : <Disc size={20} />}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-[#3c4043] dark:text-white dark:border-none">
+              <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-dark-gray dark:text-white dark:border-none">
                 {isRecording ? "Stop recording" : "Start recording"}
               </TooltipContent>
             </Tooltip>
@@ -275,13 +295,14 @@ export function MeetControlBar({
               <TooltipTrigger asChild>
                 <button 
                   onClick={onToggleHandRaise} 
+                  disabled={isHandRaiseBusy}
                   className={`meet-control-button hidden sm:flex ${isHandRaised ? 'meet-control-button-blue' : 'meet-control-button-active'}`}
                   aria-pressed={isHandRaised}
                 >
-                  <Hand size={20} className={isHandRaised ? 'fill-current' : ''} />
+                  {isHandRaiseBusy ? <Loader2 size={20} className="animate-spin" /> : <Hand size={20} className={isHandRaised ? 'fill-current' : ''} />}
                 </button>
               </TooltipTrigger>
-            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-[#3c4043] dark:text-white dark:border-none">
+            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-dark-gray dark:text-white dark:border-none">
               {isHandRaised ? "Lower hand" : "Raise hand"}
             </TooltipContent>
           </Tooltip>
@@ -296,7 +317,7 @@ export function MeetControlBar({
                   <MoreVertical size={20} />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="bg-[#3c4043] text-white border-none text-xs">
+              <TooltipContent side="top" className="bg-dark-gray text-white border-none text-xs">
                 More options
               </TooltipContent>
             </Tooltip>
@@ -307,7 +328,7 @@ export function MeetControlBar({
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-muted transition-colors dark:text-white dark:hover:bg-white/10"
                   onClick={() => { onToggleLayout(); setShowMoreMenu(false); }}
                 >
-                  <LayoutGrid size={18} className={layout === 'grid' ? 'text-[var(--color-meet-blue)]' : 'text-muted-foreground'} />
+                  <LayoutGrid size={18} className={layout === 'grid' ? 'text-meet-blue' : 'text-muted-foreground'} />
                   <div className="flex flex-col items-start">
                     <span>Change layout</span>
                     <span className="text-[10px] text-muted-foreground dark:text-gray-400">Currently: {layout === 'grid' ? 'Grid' : 'Speaker'}</span>
@@ -320,12 +341,12 @@ export function MeetControlBar({
           </div>
 
           <Tooltip>
-            <TooltipTrigger asChild>
-              <button onClick={onEndCall} className="leave-call-button">
-                <PhoneOff size={22} />
+              <TooltipTrigger asChild>
+              <button onClick={onEndCall} disabled={isEndCallBusy} className="leave-call-button">
+                {isEndCallBusy ? <Loader2 size={22} className="animate-spin" /> : <PhoneOff size={22} />}
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-[#3c4043] dark:text-white dark:border-none">
+            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-dark-gray dark:text-white dark:border-none">
               Leave session
             </TooltipContent>
           </Tooltip>
@@ -341,7 +362,7 @@ export function MeetControlBar({
                 <Info size={22} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-[#3c4043] dark:text-white dark:border-none">
+            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-dark-gray dark:text-white dark:border-none">
               Notes
             </TooltipContent>
           </Tooltip>
@@ -355,7 +376,7 @@ export function MeetControlBar({
                 <Users size={22} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-[#3c4043] dark:text-white dark:border-none">
+            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-dark-gray dark:text-white dark:border-none">
               Participants
             </TooltipContent>
           </Tooltip>
@@ -369,7 +390,7 @@ export function MeetControlBar({
                 <MessageSquare size={22} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-[#3c4043] dark:text-white dark:border-none">
+            <TooltipContent side="top" className="bg-popover text-popover-foreground border border-border text-xs dark:bg-dark-gray dark:text-white dark:border-none">
               Chat
             </TooltipContent>
           </Tooltip>

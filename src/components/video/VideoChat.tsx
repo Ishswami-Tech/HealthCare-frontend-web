@@ -189,7 +189,7 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
                   >
                     <Avatar className="h-8 w-8 ring-2 ring-background shadow-sm">
                       <AvatarFallback
-                        className={`text-xs ${getAvatarTone(getMessageAvatarSeed(message)).backgroundClass}`}
+                        className={`text-xs ${getAvatarTone(getMessageAvatarSeed(message)).backgroundClass} ${getAvatarTone(getMessageAvatarSeed(message)).textClass}`}
                       >
                         {getInitials(message.user?.name || message.userId || 'U')}
                       </AvatarFallback>
@@ -238,7 +238,7 @@ export function VideoChat({ appointmentId, className }: VideoChatProps) {
               {typingUsers.size > 0 && (
                 <div className="flex gap-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className={`text-xs ${getAvatarTone("typing").backgroundClass}`}>...</AvatarFallback>
+                    <AvatarFallback className={`text-xs ${getAvatarTone("typing").backgroundClass} ${getAvatarTone("typing").textClass}`}>...</AvatarFallback>
                   </Avatar>
                   <div className="rounded-2xl border border-border/60 bg-muted px-3 py-2">
                     <p className="text-sm text-muted-foreground italic dark:text-gray-400">

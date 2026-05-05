@@ -26,6 +26,7 @@ import {
 } from "@/hooks/query";
 import { showErrorToast, showSuccessToast, TOAST_IDS } from "@/hooks/utils/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { getAvatarTone } from "@/lib/utils/avatar-colors";
 
 interface WaitingRoomProps {
   appointmentId: string;
@@ -208,7 +209,7 @@ export function WaitingRoom({
                 >
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarFallback>
+                      <AvatarFallback className={`${getAvatarTone(participant.userName || participant.userId).backgroundClass} ${getAvatarTone(participant.userName || participant.userId).textClass}`}>
                         {getInitials(participant.userName)}
                       </AvatarFallback>
                     </Avatar>

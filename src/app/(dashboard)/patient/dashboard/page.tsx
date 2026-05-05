@@ -432,7 +432,7 @@ export default function PatientDashboard() {
             }
           />
 
-          <Card className="overflow-hidden border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-background to-sky-50 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:via-card dark:to-sky-950/20">
+ why           <Card className="overflow-hidden border border-emerald-200/70 bg-linear-to-br from-emerald-50 via-background to-sky-50 shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:via-card dark:to-sky-950/20">
             <CardContent className="p-3 sm:p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
@@ -635,7 +635,7 @@ export default function PatientDashboard() {
 
           {/* Patient Services */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 sm:gap-4">
-            <Card className="h-full overflow-hidden border-l-4 border-l-emerald-400 bg-gradient-to-br from-emerald-50 via-background to-emerald-100/50 shadow-sm dark:from-emerald-950/25 dark:via-card dark:to-emerald-950/10">
+            <Card className="h-full overflow-hidden border-l-4 border-l-emerald-400 bg-linear-to-br from-emerald-50 via-background to-emerald-100/50 shadow-sm dark:from-emerald-950/25 dark:via-card dark:to-emerald-950/10">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Prescriptions
@@ -664,7 +664,7 @@ export default function PatientDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="h-full overflow-hidden border-l-4 border-l-sky-400 bg-gradient-to-br from-sky-50 via-background to-sky-100/50 shadow-sm dark:from-sky-950/25 dark:via-card dark:to-sky-950/10">
+            <Card className="h-full overflow-hidden border-l-4 border-l-sky-400 bg-linear-to-br from-sky-50 via-background to-sky-100/50 shadow-sm dark:from-sky-950/25 dark:via-card dark:to-sky-950/10">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Billing & Payments
@@ -693,7 +693,7 @@ export default function PatientDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="h-full overflow-hidden border-l-4 border-l-violet-400 bg-gradient-to-br from-violet-50 via-background to-violet-100/50 shadow-sm dark:from-violet-950/25 dark:via-card dark:to-violet-950/10">
+            <Card className="h-full overflow-hidden border-l-4 border-l-violet-400 bg-linear-to-br from-violet-50 via-background to-violet-100/50 shadow-sm dark:from-violet-950/25 dark:via-card dark:to-violet-950/10">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Video Consults
@@ -722,7 +722,7 @@ export default function PatientDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="h-full overflow-hidden border-l-4 border-l-amber-400 bg-gradient-to-br from-amber-50 via-background to-amber-100/50 shadow-sm dark:from-amber-950/25 dark:via-card dark:to-amber-950/10">
+            <Card className="h-full overflow-hidden border-l-4 border-l-amber-400 bg-linear-to-br from-amber-50 via-background to-amber-100/50 shadow-sm dark:from-amber-950/25 dark:via-card dark:to-amber-950/10">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 sm:pb-2">
                 <CardTitle className={`text-sm font-semibold ${theme.textColors.heading}`}>
                   Reports & Records

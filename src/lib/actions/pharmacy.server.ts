@@ -102,10 +102,18 @@ export async function getMedicines(
 
   // Backend: GET /pharmacy/inventory (clinic-scoped via guard)
   const endpoint = `/pharmacy/inventory${params.toString() ? `?${params.toString()}` : ""}`;
-  const { data } = await authenticatedApi(endpoint, {
-    ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
-  });
-  return Array.isArray(data) ? data.map(normalizeMedicineRecord) : data;
+  try {
+    const { data } = await authenticatedApi(endpoint, {
+      ...(clinicId ? { headers: { "X-Clinic-ID": clinicId } } : {}),
+    });
+    return Array.isArray(data) ? data.map(normalizeMedicineRecord) : data;
+  } catch (error) {
+    const statusCode = error instanceof Error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
+    if (statusCode === 403) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 /**

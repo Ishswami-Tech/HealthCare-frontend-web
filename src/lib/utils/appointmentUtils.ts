@@ -478,12 +478,23 @@ export function isAwaitingDoctorSlotConfirmation(appointment: any): boolean {
 }
 
 export function getAppointmentStatusBadgeLabel(appointment: any): string {
+  const normalizedStatus = normalizeAppointmentStatus(appointment?.status);
+
+  if (normalizedStatus === 'COMPLETED' || normalizedStatus === 'CANCELLED' || normalizedStatus === 'NO_SHOW') {
+    return getAppointmentStatusDisplayName(normalizedStatus);
+  }
+
   if (isAwaitingDoctorSlotConfirmation(appointment)) {
     return 'Awaiting Doctor Review';
   }
-  if (String(appointment?.type || appointment?.appointmentType || '').toUpperCase() === 'VIDEO_CALL' && hasConfirmedSlot(appointment)) {
+
+  if (
+    String(appointment?.type || appointment?.appointmentType || '').toUpperCase() === 'VIDEO_CALL' &&
+    hasConfirmedSlot(appointment)
+  ) {
     return 'Confirmed';
   }
+
   return getAppointmentStatusDisplayName(String(appointment?.status || ''));
 }
 

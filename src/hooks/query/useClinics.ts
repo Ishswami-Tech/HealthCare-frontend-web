@@ -6,7 +6,6 @@ import { useAppStore } from '@/stores';
 import { useAuthStore } from '@/stores/auth.store';
 import { Permission } from '@/types/rbac.types';
 import { APP_CONFIG } from '@/lib/config/config';
-import { clinicApiClient } from '@/lib/api/client';
 import {
   CreateClinicData,
   UpdateClinicData,
@@ -25,7 +24,31 @@ import {
   createClinic,
   getClinics,
   getClinicById,
+  getClinicByAppName,
+  getMyClinic,
+  getClinicLocation,
   getClinicLocations,
+  updateClinic,
+  deleteClinic,
+  createClinicLocation,
+  updateClinicLocation,
+  deleteClinicLocation,
+  generateLocationQRCode,
+  verifyLocationQR,
+  assignClinicAdmin,
+  getClinicDoctors,
+  getClinicStaff,
+  getClinicPatients,
+  registerPatientToClinic,
+  getClinicUsers,
+  validateAppName,
+  associateUserToClinic,
+  getClinicStats,
+  getClinicOperatingHours,
+  getClinicSettings,
+  updateClinicSettings,
+  getClinicToken,
+  checkClinicPermission,
   getHealthStatus,
   getHealthReady,
   getHealthLive
@@ -42,34 +65,6 @@ import {
 // ✅ Get clinic ID from centralized config (not directly from env)
 // This ensures proper fallback and type safety
 const CLINIC_ID = APP_CONFIG.CLINIC.ID;
-
-/**
- * Helper to get auth headers
- */
-function getAuthHeaders(_token?: string, _sessionId?: string, clinicId?: string) {
-  const headers: Record<string, string> = {};
-  if (clinicId) headers['X-Clinic-ID'] = clinicId;
-  headers['Content-Type'] = 'application/json';
-  return headers;
-}
-
-/**
- * Base API call function for client-side
- */
-async function apiCall<T>(
-  endpoint: string, 
-  options: RequestInit = {}
-): Promise<{ status: number; data: T }> {
-  const response = await clinicApiClient.request<T>(endpoint, {
-    credentials: 'include',
-    ...options,
-  });
-
-  return {
-    status: response.statusCode || 200,
-    data: response.data as T,
-  };
-}
 
 // ===== CLINIC CRUD HOOKS =====
 
@@ -136,19 +131,14 @@ export const useClinic = (clinicId?: string) => {
  * Hook to get clinic by app name
  */
 export const useClinicByAppName = (appName: string) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<ClinicWithRelations>(
     ['clinicByAppName', appName],
     async () => {
-      const response = await apiCall<ClinicWithRelations>(`/clinics/app/${appName}`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      const result = await getClinicByAppName(appName);
+      if (!result) {
+        throw new Error('Failed to fetch clinic');
+      }
+      return result as ClinicWithRelations;
     },
     {
       enabled: !!appName,
@@ -162,21 +152,18 @@ export const useClinicByAppName = (appName: string) => {
  */
 export const useMyClinic = () => {
   const { session, isPending } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
   
   return useQueryData<ClinicWithRelations>(
     ['myClinic'],
     async () => {
-      const response = await apiCall<ClinicWithRelations>('/clinics/my-clinic', {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      const result = await getMyClinic();
+      if (!result) {
+        throw new Error('Failed to fetch clinic');
+      }
+      return result as ClinicWithRelations;
     },
     {
-      enabled: !!session?.user?.id && !!token && !isPending,
+      enabled: !!session?.user?.id && !isPending,
     }
   );
 };
@@ -185,20 +172,13 @@ export const useMyClinic = () => {
  * Hook to update clinic
  */
 export const useUpdateClinic = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useMutationOperation<ClinicWithRelations, { id: string; data: UpdateClinicData }>(
     async ({ id, data }) => {
-      const response = await apiCall<ClinicWithRelations>(`/clinics/${id}`, {
-        method: 'PUT',
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-        body: JSON.stringify(data),
-      });
-      return response.data;
+      const result = await updateClinic(id, data);
+      if (!result.success || !result.clinic) {
+        throw new Error('Failed to update clinic');
+      }
+      return result.clinic as ClinicWithRelations;
     },
     {
       toastId: TOAST_IDS.CLINIC.UPDATE,
@@ -213,19 +193,13 @@ export const useUpdateClinic = () => {
  * Hook to delete clinic
  */
 export const useDeleteClinic = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useMutationOperation<{ message: string }, string>(
     async (id) => {
-      const response = await apiCall<{ message: string }>(`/clinics/${id}`, {
-        method: 'DELETE',
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      const result = await deleteClinic(id);
+      if (!result.success) {
+        throw new Error('Failed to delete clinic');
+      }
+      return { message: 'Clinic deleted successfully' };
     },
     {
       toastId: TOAST_IDS.CLINIC.DELETE,
@@ -242,19 +216,13 @@ export const useDeleteClinic = () => {
  * Hook to create a new clinic location
  */
 export const useCreateClinicLocation = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationOperation<{ status: number; data: ClinicLocation }, { clinicId: string; data: CreateClinicLocationData }>(
+  return useMutationOperation<ClinicLocation, { clinicId: string; data: CreateClinicLocationData }>(
     async ({ clinicId, data }) => {
-      return apiCall<ClinicLocation>(`/clinics/${clinicId}/locations`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-        body: JSON.stringify(data),
-      });
+      const result = await createClinicLocation(clinicId, data);
+      if (!result.success || !result.location) {
+        throw new Error(result.error || 'Failed to create clinic location');
+      }
+      return result.location;
     },
     {
       toastId: TOAST_IDS.LOCATION.CREATE,
@@ -289,19 +257,14 @@ export const useClinicLocations = (clinicId: string) => {
  * Hook to get clinic location by ID
  */
 export const useClinicLocation = (clinicId: string, locationId: string) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<ClinicLocation>(
     ['clinicLocation', clinicId, locationId],
     async () => {
-      const response = await apiCall<ClinicLocation>(`/clinics/${clinicId}/locations/${locationId}`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      const result = await getClinicLocation(clinicId, locationId);
+      if (!result) {
+        throw new Error('Failed to fetch clinic location');
+      }
+      return result;
     },
     {
       enabled: !!clinicId && !!locationId,
@@ -313,19 +276,13 @@ export const useClinicLocation = (clinicId: string, locationId: string) => {
  * Hook to update clinic location
  */
 export const useUpdateClinicLocation = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationOperation<{ status: number; data: ClinicLocation }, { clinicId: string; locationId: string; data: UpdateClinicLocationData }>(
+  return useMutationOperation<ClinicLocation, { clinicId: string; locationId: string; data: UpdateClinicLocationData }>(
     async ({ clinicId, locationId, data }) => {
-      return apiCall<ClinicLocation>(`/clinics/${clinicId}/locations/${locationId}`, {
-        method: 'PUT',
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-        body: JSON.stringify(data),
-      });
+      const result = await updateClinicLocation(clinicId, locationId, data);
+      if (!result) {
+        throw new Error('Failed to update clinic location');
+      }
+      return result;
     },
     {
       toastId: TOAST_IDS.LOCATION.UPDATE,
@@ -340,18 +297,13 @@ export const useUpdateClinicLocation = () => {
  * Hook to delete clinic location
  */
 export const useDeleteClinicLocation = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationOperation<{ status: number; data: { message: string } }, { clinicId: string; locationId: string }>(
+  return useMutationOperation<{ message: string }, { clinicId: string; locationId: string }>(
     async ({ clinicId, locationId }) => {
-      return apiCall<{ message: string }>(`/clinics/${clinicId}/locations/${locationId}`, {
-        method: 'DELETE',
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
+      const result = await deleteClinicLocation(clinicId, locationId);
+      if (!result) {
+        throw new Error('Failed to delete clinic location');
+      }
+      return { message: 'Clinic location deleted successfully' };
     },
     {
       toastId: TOAST_IDS.LOCATION.DELETE,
@@ -366,17 +318,13 @@ export const useDeleteClinicLocation = () => {
  * Hook to generate QR code for clinic location
  */
 export const useGenerateLocationQR = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationOperation<{ status: number; data: { qrCode: string } }, { clinicId: string; locationId: string }>(
-    async ({ clinicId: _clinicId, locationId }) => {
-      return apiCall<{ qrCode: string }>(`/appointments/locations/${locationId}/qr-code`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
+  return useMutationOperation<{ qrCode: string }, { clinicId: string; locationId: string }>(
+    async ({ locationId }) => {
+      const result = await generateLocationQRCode(locationId);
+      if (!result) {
+        throw new Error('Failed to generate QR code');
+      }
+      return result;
     },
     {
       toastId: TOAST_IDS.LOCATION.UPDATE,
@@ -391,22 +339,16 @@ export const useGenerateLocationQR = () => {
  * Hook to verify location QR code
  */
 export const useVerifyLocationQR = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useMutationOperation<
-    { status: number; data: { appointmentId: string; verified: boolean } },
+    { appointmentId: string; verified: boolean },
     { qrData: string }
   >(
     async ({ qrData }) => {
-      return apiCall<{ appointmentId: string; verified: boolean }>('/appointments/verify-qr', {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-        body: JSON.stringify({ qrToken: qrData }),
-      });
+      const result = await verifyLocationQR(qrData);
+      if (!result) {
+        throw new Error('Failed to verify QR code');
+      }
+      return result;
     },
     {
       toastId: TOAST_IDS.LOCATION.UPDATE,
@@ -424,19 +366,13 @@ export const useVerifyLocationQR = () => {
  * Hook to assign clinic admin
  */
 export const useAssignClinicAdmin = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationOperation<{ status: number; data: ClinicUser }, AssignClinicAdminData>(
+  return useMutationOperation<ClinicUser, AssignClinicAdminData>(
     async (data) => {
-      return apiCall<ClinicUser>('/clinics/assign-admin', {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-        body: JSON.stringify(data),
-      });
+      const result = await assignClinicAdmin(data);
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to assign clinic admin');
+      }
+      return result.data as ClinicUser;
     },
     {
       toastId: TOAST_IDS.USER.UPDATE,
@@ -451,19 +387,11 @@ export const useAssignClinicAdmin = () => {
  * Hook to get clinic doctors
  */
 export const useClinicDoctors = (clinicId: string) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<ClinicUser[]>(
     ['clinicDoctors', clinicId],
     async () => {
-      const response = await apiCall<ClinicUser[]>(`/clinics/${clinicId}/doctors`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      const result = await getClinicDoctors(clinicId);
+      return Array.isArray(result) ? result : [];
     },
     {
       enabled: !!clinicId,
@@ -478,24 +406,13 @@ export const useClinicPatients = (clinicId: string, params?: {
   page?: number;
   limit?: number;
 }) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
   const queryPage = Math.max(params?.page ?? 1, 1);
   const queryLimit = Math.max(params?.limit ?? 100, 1);
   
   return useQueryData<ClinicPatientResult | ClinicUser[]>(
     ['clinicPatients', clinicId, queryPage, queryLimit],
     async () => {
-      const response = await apiCall<ClinicPatientResult | ClinicUser[]>(
-        `/clinics/${clinicId}/patients?page=${queryPage}&limit=${queryLimit}`,
-        {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      }
-      );
-      return response.data;
+      return await getClinicPatients(clinicId, { page: queryPage, limit: queryLimit });
     },
     {
       enabled: !!clinicId,
@@ -507,19 +424,13 @@ export const useClinicPatients = (clinicId: string, params?: {
  * Hook to register patient to clinic
  */
 export const useRegisterPatientToClinic = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationOperation<{ status: number; data: ClinicUser }, RegisterPatientData>(
+  return useMutationOperation<ClinicUser, RegisterPatientData>(
     async (data) => {
-      return apiCall<ClinicUser>('/clinics/register-patient', {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-        body: JSON.stringify(data),
-      });
+      const result = await registerPatientToClinic(data);
+      if (!result) {
+        throw new Error('Failed to register patient to clinic');
+      }
+      return result;
     },
     {
       toastId: TOAST_IDS.PATIENT.CREATE,
@@ -534,19 +445,10 @@ export const useRegisterPatientToClinic = () => {
  * Hook to get clinic users by role
  */
 export const useClinicUsersByRole = (clinicId: string, role: string) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<ClinicUser[]>(
     ['clinicUsersByRole', clinicId, role],
     async () => {
-      const response = await apiCall<ClinicUser[]>(`/clinics/${clinicId}/users?role=${role}`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      return await getClinicUsers(clinicId, role);
     },
     {
       enabled: !!clinicId && !!role,
@@ -560,17 +462,9 @@ export const useClinicUsersByRole = (clinicId: string, role: string) => {
  * Hook to validate app name
  */
 export const useValidateAppName = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationOperation<{ status: number; data: { available: boolean; message?: string } }, string>(
+  return useMutationOperation<{ available: boolean; message?: string }, string>(
     async (appName) => {
-      return apiCall<{ available: boolean; message?: string }>(`/clinics/validate-app-name?appName=${appName}`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
+      return await validateAppName(appName);
     },
     {
       toastId: TOAST_IDS.CLINIC.UPDATE,
@@ -585,18 +479,13 @@ export const useValidateAppName = () => {
  * Hook to associate user with clinic
  */
 export const useAssociateUserWithClinic = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationOperation<{ status: number; data: { message: string } }, string>(
+  return useMutationOperation<{ message: string }, string>(
     async (clinicId) => {
-      return apiCall<{ message: string }>(`/clinics/${clinicId}/associate`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
+      const result = await associateUserToClinic(clinicId);
+      if (!result) {
+        throw new Error('Failed to associate user with clinic');
+      }
+      return result;
     },
     {
       toastId: TOAST_IDS.CLINIC.UPDATE,
@@ -611,19 +500,14 @@ export const useAssociateUserWithClinic = () => {
  * Hook to get clinic stats
  */
 export const useClinicStats = (clinicId: string) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<ClinicStats>(
     ['clinicStats', clinicId],
     async () => {
-      const response = await apiCall<ClinicStats>(`/clinics/${clinicId}/stats`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      const result = await getClinicStats(clinicId);
+      if (!result) {
+        throw new Error('Failed to fetch clinic stats');
+      }
+      return result;
     },
     {
       enabled: !!clinicId,
@@ -635,19 +519,10 @@ export const useClinicStats = (clinicId: string) => {
  * Hook to get clinic operating hours
  */
 export const useClinicOperatingHours = (clinicId: string) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<any[]>(
     ['clinicOperatingHours', clinicId],
     async () => {
-      const response = await apiCall<any[]>(`/clinics/${clinicId}/operating-hours`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      return await getClinicOperatingHours(clinicId);
     },
     {
       enabled: !!clinicId,
@@ -659,19 +534,14 @@ export const useClinicOperatingHours = (clinicId: string) => {
  * Hook to get clinic settings
  */
 export const useClinicSettings = (clinicId: string) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<ClinicSettings>(
     ['clinicSettings', clinicId],
     async () => {
-      const response = await apiCall<ClinicSettings>(`/clinics/${clinicId}/settings`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      const result = await getClinicSettings(clinicId);
+      if (!result) {
+        throw new Error('Failed to fetch clinic settings');
+      }
+      return result;
     },
     {
       enabled: !!clinicId,
@@ -683,19 +553,13 @@ export const useClinicSettings = (clinicId: string) => {
  * Hook to update clinic settings
  */
 export const useUpdateClinicSettings = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationOperation<{ status: number; data: ClinicSettings }, { clinicId: string; settings: Partial<ClinicSettings> }>(
+  return useMutationOperation<ClinicSettings, { clinicId: string; settings: Partial<ClinicSettings> }>(
     async ({ clinicId, settings }) => {
-      return apiCall<ClinicSettings>(`/clinics/${clinicId}/settings`, {
-        method: 'PUT',
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-        body: JSON.stringify(settings),
-      });
+      const result = await updateClinicSettings(clinicId, settings);
+      if (!result) {
+        throw new Error('Failed to update clinic settings');
+      }
+      return result;
     },
     {
       toastId: TOAST_IDS.CLINIC.UPDATE,
@@ -736,17 +600,13 @@ export const useActiveLocations = (clinicId: string, options?: {
  * Hook to generate clinic token
  */
 export const useGenerateClinicToken = () => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
-  return useMutationOperation<{ status: number; data: { token: string } }, string>(
+  return useMutationOperation<{ token: string }, string>(
     async (clinicId: string) => {
-      return apiCall<{ token: string }>(`/clinics/${clinicId}/token`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
+      const result = await getClinicToken(clinicId);
+      if (!result) {
+        throw new Error('Failed to generate clinic token');
+      }
+      return result;
     },
     {
       toastId: TOAST_IDS.CLINIC.UPDATE,
@@ -760,19 +620,10 @@ export const useGenerateClinicToken = () => {
  * Hook to check clinic permission
  */
 export const useHasClinicPermission = (clinicId: string) => {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const sessionId = session?.session_id;
-  
   return useQueryData<boolean>(
     ['hasClinicPermission', clinicId],
     async () => {
-      const response = await apiCall<boolean>(`/clinics/${clinicId}/permission`, {
-        headers: {
-          ...getAuthHeaders(token, sessionId, CLINIC_ID),
-        },
-      });
-      return response.data;
+      return await checkClinicPermission(clinicId);
     },
     {
       enabled: !!clinicId,

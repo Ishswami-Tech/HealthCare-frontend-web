@@ -4,9 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useQueryClient } from "@/hooks/core";
-import { API_ENDPOINTS } from "@/lib/config/config";
-import { clinicApiClient } from "@/lib/api/client";
 import { getAppointmentStatsQueryKey } from "@/lib/query/appointment-query-keys";
+import { verifyPaymentCallback } from "@/lib/actions/billing.server";
 
 type VerifyState = "loading" | "success" | "failed";
 const ALLOWED_PROVIDERS = new Set(["cashfree"]);
@@ -36,7 +35,6 @@ export default function PaymentCallbackPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    const controller = new AbortController();
     let redirectTimer: ReturnType<typeof setTimeout> | undefined;
     const verify = async () => {
       if (!params.orderId) {
@@ -52,28 +50,15 @@ export default function PaymentCallbackPage() {
       }
 
       try {
-        const query = new URLSearchParams({
+        const response = await verifyPaymentCallback({
           clinicId: params.clinicId,
           paymentId: params.paymentId || params.orderId,
           orderId: params.orderId,
-          provider: params.provider,
+          provider: params.provider as "cashfree",
         });
 
-        const response = await clinicApiClient.publicRequest<{
-          success?: boolean;
-          message?: string;
-        }>(`${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${query.toString()}`, {
-          method: "POST",
-          signal: controller.signal,
-          headers: {
-            "Content-Type": "application/json",
-            "X-Clinic-ID": params.clinicId,
-          },
-          body: JSON.stringify({ orderId: params.orderId }),
-        });
-
-        if (!response.data?.success) {
-          throw new Error(response.data?.message || "Payment verification failed");
+        if (!response.success) {
+          throw new Error(response.error || response.message || "Payment verification failed");
         }
 
         await Promise.all([
@@ -111,7 +96,6 @@ export default function PaymentCallbackPage() {
 
     verify();
     return () => {
-      controller.abort();
       if (redirectTimer) {
         clearTimeout(redirectTimer);
       }

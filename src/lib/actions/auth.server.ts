@@ -118,6 +118,58 @@ const accessTokenOptions = SESSION_TOKEN_OPTIONS;
 const refreshTokenOptions = REFRESH_TOKEN_OPTIONS;
 const sessionOptions = COOKIE_OPTIONS;
 
+function parseJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    const payload = parts[1];
+    if (!payload) {
+      return null;
+    }
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return JSON.parse(Buffer.from(padded, 'base64').toString('utf8')) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function extractClinicIdFromPayload(
+  payload: Record<string, unknown> | null | undefined
+): string | undefined {
+  if (!payload) {
+    return undefined;
+  }
+
+  const directClinicId = payload['clinicId'];
+  if (typeof directClinicId === 'string' && directClinicId.trim()) {
+    return directClinicId;
+  }
+
+  const primaryClinicId = payload['primaryClinicId'];
+  if (typeof primaryClinicId === 'string' && primaryClinicId.trim()) {
+    return primaryClinicId;
+  }
+
+  const nestedUser = payload['user'];
+  if (nestedUser && typeof nestedUser === 'object') {
+    const nestedClinicId = (nestedUser as Record<string, unknown>)['clinicId'];
+    if (typeof nestedClinicId === 'string' && nestedClinicId.trim()) {
+      return nestedClinicId;
+    }
+
+    const nestedPrimaryClinicId = (nestedUser as Record<string, unknown>)['primaryClinicId'];
+    if (typeof nestedPrimaryClinicId === 'string' && nestedPrimaryClinicId.trim()) {
+      return nestedPrimaryClinicId;
+    }
+  }
+
+  return undefined;
+}
+
 function resolveProfileComplete(userData: Record<string, unknown> | undefined): boolean {
   if (!userData) return false;
   if (typeof userData.profileComplete === 'boolean') return userData.profileComplete;
@@ -126,6 +178,109 @@ function resolveProfileComplete(userData: Record<string, unknown> | undefined): 
     return !userData.requiresProfileCompletion;
   }
   return calculateProfileCompletion(userData as any);
+}
+
+function extractErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+
+  const apiError = error as Record<string, unknown>;
+  const response = apiError.response as Record<string, unknown> | undefined;
+  const responseStatus = response?.status;
+  if (typeof responseStatus === 'number') {
+    return responseStatus;
+  }
+
+  const statusCode = apiError.statusCode;
+  if (typeof statusCode === 'number') {
+    return statusCode;
+  }
+
+  const status = apiError.status;
+  if (typeof status === 'number') {
+    return status;
+  }
+
+  return undefined;
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (!error || typeof error !== 'object') {
+    return String(error || '');
+  }
+
+  const apiError = error as Record<string, unknown>;
+  const response = apiError.response as Record<string, unknown> | undefined;
+  const responseData = response?.data as Record<string, unknown> | undefined;
+  const message =
+    responseData?.message ||
+    responseData?.error ||
+    apiError.message ||
+    apiError.error ||
+    apiError.details ||
+    '';
+
+  return typeof message === 'string' ? message : '';
+}
+
+function isSessionInvalidError(error: unknown): boolean {
+  const status = extractErrorStatus(error);
+  if (status === 401 || status === 403) {
+    return true;
+  }
+
+  const message = extractErrorMessage(error).toLowerCase();
+  if (!message) {
+    return false;
+  }
+
+  return [
+    'no token provided',
+    'authentication required',
+    'session expired',
+    'invalid token',
+    'invalid session',
+    'unauthorized',
+    'no refresh token available',
+    'auth token invalid',
+    'refresh token invalid',
+  ].some((pattern) => message.includes(pattern));
+}
+
+function isTransientSessionError(error: unknown): boolean {
+  const status = extractErrorStatus(error);
+  if (
+    typeof status === 'number' &&
+    [408, 425, 429, 500, 502, 503, 504].includes(status)
+  ) {
+    return true;
+  }
+
+  const message = extractErrorMessage(error).toLowerCase();
+  if (!message) {
+    return false;
+  }
+
+  return [
+    'timeout',
+    'timed out',
+    'aborterror',
+    'failed to fetch',
+    'fetch failed',
+    'networkerror',
+    'network error',
+    'econnreset',
+    'enotfound',
+    'econnrefused',
+    'etimedout',
+    'socket hang up',
+    'request aborted',
+  ].some((pattern) => message.includes(pattern));
 }
 
 interface GoogleLoginResponse {
@@ -157,6 +312,7 @@ export async function getServerSession(): Promise<Session | null> {
     const userRole = cookieStore.get('user_role')?.value;
     const profileCompleteCookie = cookieStore.get('profile_complete')?.value;
     const profileComplete = profileCompleteCookie === 'true';
+    const cookieClinicId = cookieStore.get('clinic_id')?.value;
 
     if (process.env.NODE_ENV === 'development') {
       const now = Date.now();
@@ -180,8 +336,18 @@ export async function getServerSession(): Promise<Session | null> {
           return refreshedSession;
         }
       } catch (error: unknown) {
-        logger.error('getServerSession - Refresh failed', error instanceof Error ? error : new Error(String(error)));
-        await clearSession();
+        if (isTransientSessionError(error)) {
+          logger.warn('getServerSession - Refresh failed transiently', {
+            error: error instanceof Error ? error : new Error(String(error)),
+          });
+          throw error;
+        }
+        logger.error('getServerSession - Refresh failed', {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+        if (isSessionInvalidError(error)) {
+          await clearSession();
+        }
         return null;
       }
     }
@@ -199,6 +365,18 @@ export async function getServerSession(): Promise<Session | null> {
     }
     
     try {
+      const payload = parseJwtPayload(accessToken);
+      const payloadClinicId = extractClinicIdFromPayload(payload);
+      const resolvedClinicId = payloadClinicId || cookieClinicId;
+
+      if (payloadClinicId && payloadClinicId !== cookieClinicId) {
+        cookieStore.set({
+          name: 'clinic_id',
+          value: payloadClinicId,
+          ...sessionOptions,
+        });
+      }
+
       const session: Session = {
         user: {
           id: '',
@@ -209,7 +387,7 @@ export async function getServerSession(): Promise<Session | null> {
           name: '',
           isVerified: true,
           profileComplete: profileComplete,
-          clinicId: cookieStore.get('clinic_id')?.value
+          clinicId: resolvedClinicId
         },
         access_token: accessToken,
         session_id: sessionId || '',
@@ -217,14 +395,17 @@ export async function getServerSession(): Promise<Session | null> {
       };
 
       try {
-        const payload = JSON.parse(atob(accessToken.split('.')[1] || ''));
+        if (!payload) {
+          throw new Error('Invalid JWT payload');
+        }
+        const tokenPayload = payload;
         
-        session.user.id = payload.sub || '';
-        session.user.email = payload.email || '';
-        session.user.role = payload.role || userRole as Role;
-        // Fallback: read clinicId from JWT payload if cookie didn't provide it
-        if (!session.user.clinicId && payload.clinicId) {
-          session.user.clinicId = payload.clinicId;
+        session.user.id = String(tokenPayload['sub'] || '');
+        session.user.email = String(tokenPayload['email'] || '');
+        session.user.role = (tokenPayload['role'] as Role) || (userRole as Role);
+        if (!session.user.clinicId) {
+          session.user.clinicId =
+            payloadClinicId || cookieClinicId;
         }
 
         if (session.user.id && session.user.email && session.user.role) {
@@ -248,8 +429,12 @@ export async function getServerSession(): Promise<Session | null> {
           const refreshedSession = await refreshToken();
           return refreshedSession;
         }
-        await clearSession();
-        return null;
+        if (response.status === 401 || response.status === 403) {
+          await clearSession();
+          return null;
+        }
+
+        throw new Error(`Failed to fetch user profile: HTTP ${response.status}`);
       }
 
       const userData = await response.json();
@@ -275,13 +460,46 @@ export async function getServerSession(): Promise<Session | null> {
         isAuthenticated: true
       };
     } catch (error: unknown) {
-      logger.error('getServerSession - Error fetching user data', error instanceof Error ? error : new Error(String(error)));
+      if (isTransientSessionError(error)) {
+        logger.warn('getServerSession - Transient session error', {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+        throw error;
+      }
+
+      if (isSessionInvalidError(error)) {
+      logger.error('getServerSession - Session invalid', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+        await clearSession();
+        return null;
+      }
+
+      logger.error('getServerSession - Error fetching user data', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+      throw error;
+    }
+  } catch (error: unknown) {
+    if (isTransientSessionError(error)) {
+      logger.warn('getServerSession - Unexpected transient error', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+      throw error;
+    }
+
+    if (isSessionInvalidError(error)) {
+      logger.error('getServerSession - Unexpected session invalid error', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
       await clearSession();
       return null;
     }
-  } catch (error: unknown) {
-    logger.error('getServerSession - Unexpected error', error instanceof Error ? error : new Error(String(error)));
-    return null;
+
+    logger.error('getServerSession - Unexpected error', {
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
+    throw error;
   }
 }
 
@@ -346,6 +564,9 @@ export async function setSession(data: {
     }
 
     if (currentSessionId && currentUserRole) {
+       const tokenPayload = accessTokenValue ? parseJwtPayload(accessTokenValue) : null;
+       const tokenClinicId = extractClinicIdFromPayload(tokenPayload) || cookieStore.get('clinic_id')?.value;
+
        if (accessTokenValue) {
           cookieStore.set({
              name: 'access_token',
@@ -368,6 +589,14 @@ export async function setSession(data: {
              ...sessionOptions,
           });
        }
+
+       if (tokenClinicId) {
+         cookieStore.set({
+           name: 'clinic_id',
+           value: tokenClinicId,
+           ...sessionOptions,
+         });
+       }
        
        const session: Session = {
          access_token: accessTokenValue || '',
@@ -384,7 +613,7 @@ export async function setSession(data: {
            address: '',
            isVerified: true,
            profileComplete: currentProfileComplete,
-           clinicId: cookieStore.get('clinic_id')?.value
+           clinicId: tokenClinicId
          },
          isAuthenticated: true
        };
@@ -946,12 +1175,23 @@ export async function refreshToken(): Promise<Session | null> {
   } catch (error) {
     const cookieStore = await cookies();
     const refreshTokenValue = cookieStore.get('refresh_token')?.value;
-    if (refreshTokenValue) {
+    if (refreshTokenValue && isSessionInvalidError(error)) {
       invalidRefreshTokenCache.set(refreshTokenValue, Date.now() + INVALID_REFRESH_TOKEN_TTL_MS);
     }
+    if (isTransientSessionError(error)) {
+      logger.warn('Token refresh failed transiently', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+      throw error;
+    }
+
     logger.error('Token refresh failed', error instanceof Error ? error : new Error(String(error)));
-    await clearSession();
-    return null;
+    if (isSessionInvalidError(error)) {
+      await clearSession();
+      return null;
+    }
+
+    throw error;
   }
 }
 

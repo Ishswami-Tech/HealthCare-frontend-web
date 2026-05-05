@@ -27,7 +27,7 @@ export function SpeakerLayout({
   });
 
   if (allParticipants.length === 0) {
-    return <div className="w-full h-full bg-[var(--color-meet-black)]"></div>;
+    return <div className="w-full h-full bg-meet-black"></div>;
   }
 
   // Find the active speaker or someone with screen share.

@@ -22,6 +22,54 @@ export interface IconColorScheme {
   border: string;
 }
 
+export interface AvatarTone {
+  backgroundClass: string;
+  textClass: string;
+  gradientClass?: string;
+}
+
+export interface VideoTileTone {
+  backgroundClass: string;
+  textClass: string;
+}
+
+const AVATAR_TONE_PALETTE: readonly AvatarTone[] = [
+  { backgroundClass: "bg-[#4285F4]", textClass: "text-white" },
+  { backgroundClass: "bg-[#EA4335]", textClass: "text-white" },
+  { backgroundClass: "bg-[#34A853]", textClass: "text-white" },
+  { backgroundClass: "bg-[#FBBC04]", textClass: "text-meet-black" },
+  { backgroundClass: "bg-[#8AB4F8]", textClass: "text-meet-black" },
+  { backgroundClass: "bg-[#A142F4]", textClass: "text-white" },
+  { backgroundClass: "bg-[#00ACC1]", textClass: "text-white" },
+  { backgroundClass: "bg-[#F06292]", textClass: "text-white" },
+] as const;
+
+function hashSeed(seed: string) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash);
+}
+
+export function getAvatarTone(seed: string | null | undefined): AvatarTone {
+  const value = (seed || "guest").trim() || "guest";
+  const index = hashSeed(value) % AVATAR_TONE_PALETTE.length;
+  const tone = AVATAR_TONE_PALETTE[index] ?? AVATAR_TONE_PALETTE[0]!;
+
+  return {
+    ...tone,
+    gradientClass: tone.backgroundClass,
+  };
+}
+
+export const VIDEO_TILE_PALETTE: readonly VideoTileTone[] = AVATAR_TONE_PALETTE;
+
+export function getRandomVideoTileTone(): VideoTileTone {
+  const index = Math.floor(Math.random() * VIDEO_TILE_PALETTE.length);
+  return VIDEO_TILE_PALETTE[index] ?? VIDEO_TILE_PALETTE[0]!;
+}
+
 // Master color palette - each color is unique and follows design principles
 export const MASTER_COLOR_PALETTE = {
   // Primary Healthcare Colors

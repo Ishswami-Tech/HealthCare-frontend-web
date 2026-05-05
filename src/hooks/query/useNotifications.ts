@@ -32,8 +32,8 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
-  getNotificationSettings,
-  updateNotificationSettings,
+  getMyNotificationPreferences,
+  updateNotificationPreferences,
 } from "@/lib/actions/notifications.server";
 import { TOAST_IDS } from "@/hooks/utils/use-toast";
 
@@ -246,7 +246,7 @@ export const useNotificationSettings = (userId?: string) => {
   return useQueryData(
     ['notificationSettings', userId],
     async () => {
-      return await getNotificationSettings(userId);
+      return await getMyNotificationPreferences(userId);
     },
     { enabled: !!userId || userId === undefined }
   );
@@ -269,7 +269,7 @@ export const useUpdateNotificationSettings = () => {
         marketing?: boolean;
       };
     }) => {
-      const result = await updateNotificationSettings(settings);
+      const result = await updateNotificationPreferences(settings);
       return result;
     },
     {

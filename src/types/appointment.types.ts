@@ -37,6 +37,8 @@ export type TreatmentType =
   | 'LAB_TEST'
   | 'IMAGING'
   | 'VACCINATION'
+  | 'SPECIAL_CASE'
+  | 'GERIATRIC_CARE'
   // Ayurveda Types
   | 'VIDDHAKARMA'
   | 'AGNIKARMA'

@@ -740,11 +740,11 @@ export function VideoAppointmentRoom({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-linear-to-br from-slate-50 via-white to-blue-50/30">
       <div className="border-b border-border bg-background px-3 py-3 sm:px-4 lg:px-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-600 text-white shadow-lg shadow-emerald-500/20 sm:h-11 sm:w-11">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-blue-600 text-white shadow-lg shadow-emerald-500/20 sm:h-11 sm:w-11">
               <Phone className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div className="min-w-0">

@@ -27,6 +27,7 @@ import {
   normalizeAppointmentStatus,
   getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
+import { getAvatarTone } from "@/lib/utils/avatar-colors";
 
 interface AppointmentCardProps {
   appointment: {
@@ -106,6 +107,7 @@ function AppointmentCardComponent({
     <Card
       className={cn(
         "hover:shadow-md transition-all duration-300 border-l-4",
+        normalizedStatus === "CONFIRMED" && "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/60",
         normalizedStatus === "SCHEDULED" && "border-l-primary",
         normalizedStatus === "COMPLETED" && "border-l-primary",
         normalizedStatus === "CANCELLED" && "border-l-destructive",
@@ -140,7 +142,7 @@ function AppointmentCardComponent({
           <div className="flex items-center gap-3">
             <Avatar className="w-10 h-10">
               <AvatarImage src={appointment.doctor.avatar} />
-              <AvatarFallback>
+              <AvatarFallback className={`${getAvatarTone(appointment.doctor.name).backgroundClass} ${getAvatarTone(appointment.doctor.name).textClass}`}>
                 <User className="w-5 h-5" />
               </AvatarFallback>
             </Avatar>
@@ -159,7 +161,7 @@ function AppointmentCardComponent({
           <div className="flex items-center gap-3">
             <Avatar className="w-10 h-10">
               <AvatarImage src={appointment.patient.avatar} />
-              <AvatarFallback>
+              <AvatarFallback className={`${getAvatarTone(appointment.patient.name).backgroundClass} ${getAvatarTone(appointment.patient.name).textClass}`}>
                 <User className="w-5 h-5" />
               </AvatarFallback>
             </Avatar>

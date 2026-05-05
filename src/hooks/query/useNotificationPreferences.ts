@@ -1,16 +1,18 @@
 import { useQueryData, useMutationOperation } from '../core';
 import { TOAST_IDS } from '../utils/use-toast';
-import { authenticatedApi } from '@/lib/actions/auth.server';
-import { API_ENDPOINTS } from '@/lib/config/config';
+import {
+  createNotificationPreferences,
+  deleteNotificationPreferences,
+  getMyNotificationPreferences,
+  getUserNotificationPreferences,
+  updateNotificationPreferences,
+} from '@/lib/actions/notifications.server';
 
 export const useNotificationPreferences = () => {
   return useQueryData(
     ['notificationPreferences', 'me'],
     async () => {
-      const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_MY, {
-        method: 'GET',
-      });
-      return data;
+      return await getMyNotificationPreferences();
     }
   );
 };
@@ -19,10 +21,7 @@ export const useUserNotificationPreferences = (userId: string) => {
   return useQueryData(
     ['notificationPreferences', userId],
     async () => {
-      const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_BY_USER(userId), {
-        method: 'GET',
-      });
-      return data;
+      return await getUserNotificationPreferences(userId);
     },
     { enabled: !!userId }
   );
@@ -42,11 +41,7 @@ export const useCreateNotificationPreferences = () => {
         marketing?: boolean;
       };
     }) => {
-      const { data: response } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.CREATE, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-      return response;
+      return await createNotificationPreferences(data);
     },
     {
       toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_CREATE,
@@ -72,19 +67,7 @@ export const useUpdateNotificationPreferences = () => {
         marketing?: boolean;
       };
     }) => {
-      const userId = data.userId;
-      const updateData = { ...data };
-      delete updateData.userId;
-
-      const endpoint = userId
-        ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId)
-        : API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE('me');
-
-      const { data: response } = await authenticatedApi(endpoint, {
-        method: 'PUT',
-        body: JSON.stringify(updateData),
-      });
-      return response;
+      return await updateNotificationPreferences(data);
     },
     {
       toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_UPDATE,
@@ -98,14 +81,7 @@ export const useUpdateNotificationPreferences = () => {
 export const useDeleteNotificationPreferences = () => {
   return useMutationOperation(
     async (userId?: string) => {
-      const endpoint = userId
-        ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE(userId)
-        : API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE('me');
-
-      const { data } = await authenticatedApi(endpoint, {
-        method: 'DELETE',
-      });
-      return data;
+      return await deleteNotificationPreferences(userId);
     },
     {
       toastId: TOAST_IDS.NOTIFICATION.PREFERENCE_DELETE,

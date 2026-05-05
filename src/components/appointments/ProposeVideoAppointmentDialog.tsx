@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useProposeVideoAppointment } from "@/hooks/query/useAppointments";
 import { useDoctors } from "@/hooks/query/useDoctors";
 import { usePatients } from "@/hooks/query/usePatients";
@@ -83,18 +83,6 @@ export function ProposeVideoAppointmentDialog({
   ]);
   const [notes, setNotes] = useState("");
 
-  const addSlot = () => {
-    if (proposedSlots.length < 4) {
-      setProposedSlots([...proposedSlots, { date: "", time: "" }]);
-    }
-  };
-
-  const removeSlot = (index: number) => {
-    if (proposedSlots.length > 3) {
-      setProposedSlots(proposedSlots.filter((_, i) => i !== index));
-    }
-  };
-
   const updateSlot = (index: number, field: "date" | "time", value: string) => {
     const updated = [...proposedSlots];
     if (field === "date") {
@@ -149,7 +137,7 @@ export function ProposeVideoAppointmentDialog({
         <DialogHeader>
           <DialogTitle>Propose Video Appointment</DialogTitle>
           <DialogDescription>
-            Propose 3–4 time slots. The doctor will select one to confirm your video appointment.
+            Propose exactly 3 time slots. The doctor will select one to confirm your video appointment.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -215,7 +203,7 @@ export function ProposeVideoAppointmentDialog({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label>Proposed time slots (3–4)</Label>
+            <Label>Proposed time slots (3)</Label>
             {proposedSlots.map((slot, i) => (
               <div key={i} className="flex gap-2 items-center">
                 <Input
@@ -237,19 +225,8 @@ export function ProposeVideoAppointmentDialog({
                     ))}
                   </SelectContent>
                 </Select>
-                {proposedSlots.length > 3 && (
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeSlot(i)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
             ))}
-            {proposedSlots.length < 4 && (
-              <Button type="button" variant="outline" size="sm" onClick={addSlot} className="gap-1 w-fit">
-                <Plus className="h-4 w-4" />
-                Add slot
-              </Button>
-            )}
           </div>
           <div className="grid gap-2">
             <Label>Notes (optional)</Label>
