@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useUserProfile, useUpdateUserProfile } from "@/hooks/query/useUsers";
 import { Loader2, Mail, Phone, MapPin, Calendar, Shield, Save } from "lucide-react";
+import { getAvatarTone } from "@/lib/utils/avatar-colors";
 
 export default function PharmacistProfile() {
   const { session } = useAuth();
@@ -89,7 +90,7 @@ export default function PharmacistProfile() {
             <div className="flex justify-center pb-4">
               <Avatar className="h-24 w-24">
                 <AvatarImage src={(userProfile as any)?.avatar} />
-                <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
+                <AvatarFallback className={`text-2xl ${getAvatarTone(initials).backgroundClass} ${getAvatarTone(initials).textClass}`}>{initials}</AvatarFallback>
               </Avatar>
             </div>
             <CardTitle>{formData.firstName} {formData.lastName}</CardTitle>

@@ -27,6 +27,7 @@ import {
   normalizeAppointmentStatus,
   getReceptionistAppointmentTimeLabel,
 } from "@/lib/utils/appointmentUtils";
+import { getAvatarTone } from "@/lib/utils/avatar-colors";
 
 interface AppointmentCardProps {
   appointment: {
@@ -140,7 +141,7 @@ function AppointmentCardComponent({
           <div className="flex items-center gap-3">
             <Avatar className="w-10 h-10">
               <AvatarImage src={appointment.doctor.avatar} />
-              <AvatarFallback>
+              <AvatarFallback className={`${getAvatarTone(appointment.doctor.name).backgroundClass} ${getAvatarTone(appointment.doctor.name).textClass}`}>
                 <User className="w-5 h-5" />
               </AvatarFallback>
             </Avatar>
@@ -159,7 +160,7 @@ function AppointmentCardComponent({
           <div className="flex items-center gap-3">
             <Avatar className="w-10 h-10">
               <AvatarImage src={appointment.patient.avatar} />
-              <AvatarFallback>
+              <AvatarFallback className={`${getAvatarTone(appointment.patient.name).backgroundClass} ${getAvatarTone(appointment.patient.name).textClass}`}>
                 <User className="w-5 h-5" />
               </AvatarFallback>
             </Avatar>

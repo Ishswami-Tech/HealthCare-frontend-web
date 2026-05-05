@@ -1036,7 +1036,7 @@ export function BookAppointmentDialog({
     }
     if (step === 3) return !!selectedDoctorId;
     if (step === 4) return !!selectedDate;
-    if (step === 5) return consultationMode === "VIDEO" ? selectedVideoSlots.length >= 3 && selectedVideoSlots.length <= 4 : !!selectedSlot;
+    if (step === 5) return consultationMode === "VIDEO" ? selectedVideoSlots.length === 3 : !!selectedSlot;
     return true;
   }, [step, selectedLocationId, consultationMode, selectedServiceId, selectedDoctorId, selectedDate, selectedSlot, selectedVideoSlots, isPrivilegedScheduler, selectedPatientId]);
 

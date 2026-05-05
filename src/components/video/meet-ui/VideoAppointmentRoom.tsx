@@ -123,6 +123,12 @@ export default function VideoAppointmentRoom({
   const [isHandRaised, setIsHandRaised] = useState(false);
   const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
   const [isLocalSpeaking, setIsLocalSpeaking] = useState(false);
+  const [isAudioActionBusy, setIsAudioActionBusy] = useState(false);
+  const [isVideoActionBusy, setIsVideoActionBusy] = useState(false);
+  const [isScreenShareActionBusy, setIsScreenShareActionBusy] = useState(false);
+  const [isRecordingActionBusy, setIsRecordingActionBusy] = useState(false);
+  const [isHandRaiseActionBusy, setIsHandRaiseActionBusy] = useState(false);
+  const [isEndCallActionBusy, setIsEndCallActionBusy] = useState(false);
   const [call, setCall] = useState<OpenViduAPI | null>(null);
   const callRef = useRef<OpenViduAPI | null>(null);
   const [sessionMovedMessage, setSessionMovedMessage] = useState<string | null>(null);
@@ -191,29 +197,6 @@ export default function VideoAppointmentRoom({
     return unsubscribe;
   }, [appointment.appointmentId, currentUserId, isConnected, subscribeToVirtualBackground]);
 
-  // Toggle hand raise signal
-  const toggleHandRaise = () => {
-    const nextState = !isHandRaised;
-    setIsHandRaised(nextState);
-    
-    if (isHandRaised) {
-      setRaisedHands(prev => {
-        const next = new Set(prev);
-        next.delete('local');
-        return next;
-      });
-    } else {
-      setRaisedHands(prev => new Set(prev).add('local'));
-    }
-
-    const session = getCurrentCall()?.getSession();
-    if (session) {
-      session.signal({
-        data: JSON.stringify({ raised: nextState }),
-        type: 'hand-raise'
-      }).catch((err: any) => console.error('Error sending hand-raise signal:', err));
-    }
-  };
   const [layout, setLayout] = useState<"grid" | "speaker">("grid");
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [activePanel, setActivePanel] = useState<"chat" | "notes" | "participants">("chat");
@@ -418,35 +401,6 @@ export default function VideoAppointmentRoom({
     }
   };
 
-  const handleEndCall = async (options?: { skipToast?: boolean }) => {
-    const activeCall = call;
-    try {
-      if (activeCall) {
-        releaseOwnership();
-        await withTimeout(
-          endCall(resolvedAppointmentId),
-          END_CALL_TIMEOUT_MS,
-          "Ending the session is taking too long"
-        );
-      }
-    } catch (error) {
-      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
-    } finally {
-      if (activeCall) {
-        activeCall.dispose().catch(() => undefined);
-      }
-      setCall(null);
-      callRef.current = null;
-      initialMediaStream?.getTracks().forEach((track) => track.stop());
-
-      if (!options?.skipToast && activeCall) {
-        showSuccessToast("Call ended", { id: TOAST_IDS.VIDEO.END });
-      }
-
-      onLeaveRoom?.();
-    }
-  };
-
   const handleLeaveRoom = () => {
     const activeCall = call;
     if (activeCall) {
@@ -523,15 +477,22 @@ export default function VideoAppointmentRoom({
   }, [publisher, call]);
 
   const toggleAudio = () => {
-    controls?.toggleAudio();
+    if (!controls || isAudioActionBusy) return;
+    setIsAudioActionBusy(true);
+    controls.toggleAudio();
+    window.setTimeout(() => setIsAudioActionBusy(false), 350);
   };
 
   const toggleVideo = () => {
-    controls?.toggleVideo();
+    if (!controls || isVideoActionBusy) return;
+    setIsVideoActionBusy(true);
+    controls.toggleVideo();
+    window.setTimeout(() => setIsVideoActionBusy(false), 350);
   };
 
   const toggleRecording = () => {
-    if (!controls) return;
+    if (!controls || isRecordingActionBusy) return;
+    setIsRecordingActionBusy(true);
     controls.toggleRecording();
     const next = !isRecording;
     setIsRecording(next);
@@ -540,23 +501,84 @@ export default function VideoAppointmentRoom({
     } else {
       sendRecordingStopped(resolvedAppointmentId, { recordingId: resolvedAppointmentId, status: 'stopped' });
     }
+    window.setTimeout(() => setIsRecordingActionBusy(false), 350);
   };
 
   const toggleScreenSharing = async () => {
-    if (!controls) return;
-    if (isScreenSharing) {
-      try {
+    if (!controls || isScreenShareActionBusy) return;
+    setIsScreenShareActionBusy(true);
+    try {
+      if (isScreenSharing) {
         await controls.stopScreenShare();
-      } catch (error) {
-        console.error('Error stopping screen share:', error);
-      }
-    } else {
-      try {
+      } else {
         await controls.shareScreen();
-      } catch (error) {
-        console.error('Error starting screen share:', error);
+      }
+    } catch (error) {
+      console.error('Error toggling screen share:', error);
+      if (!isScreenSharing) {
         setIsScreenSharing(false);
       }
+    } finally {
+      setIsScreenShareActionBusy(false);
+    }
+  };
+
+  const toggleHandRaise = () => {
+    if (isHandRaiseActionBusy) return;
+    setIsHandRaiseActionBusy(true);
+    const nextState = !isHandRaised;
+    setIsHandRaised(nextState);
+    
+    if (isHandRaised) {
+      setRaisedHands(prev => {
+        const next = new Set(prev);
+        next.delete('local');
+        return next;
+      });
+    } else {
+      setRaisedHands(prev => new Set(prev).add('local'));
+    }
+
+    const session = getCurrentCall()?.getSession();
+    if (session) {
+      session.signal({
+        data: JSON.stringify({ raised: nextState }),
+        type: 'hand-raise'
+      }).catch((err: any) => console.error('Error sending hand-raise signal:', err));
+    }
+
+    window.setTimeout(() => setIsHandRaiseActionBusy(false), 350);
+  };
+
+  const handleEndCall = async (options?: { skipToast?: boolean }) => {
+    const activeCall = call;
+    if (isEndCallActionBusy) return;
+    setIsEndCallActionBusy(true);
+    try {
+      if (activeCall) {
+        releaseOwnership();
+        await withTimeout(
+          endCall(resolvedAppointmentId),
+          END_CALL_TIMEOUT_MS,
+          "Ending the session is taking too long"
+        );
+      }
+    } catch (error) {
+      showErrorToast(error, { id: TOAST_IDS.VIDEO.ERROR });
+    } finally {
+      if (activeCall) {
+        activeCall.dispose().catch(() => undefined);
+      }
+      setCall(null);
+      callRef.current = null;
+      initialMediaStream?.getTracks().forEach((track) => track.stop());
+
+      if (!options?.skipToast && activeCall) {
+        showSuccessToast("Call ended", { id: TOAST_IDS.VIDEO.END });
+      }
+
+      onLeaveRoom?.();
+      setIsEndCallActionBusy(false);
     }
   };
 
@@ -781,7 +803,7 @@ export default function VideoAppointmentRoom({
                                 >
                                   <div className="flex items-center gap-3 min-w-0">
                                     <div className="relative shrink-0">
-                                      <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm ${getAvatarTone(participant.displayName || participant.userId || participant.connectionId).backgroundClass}`}>
+                                      <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm ${getAvatarTone(participant.displayName || participant.userId || participant.connectionId).backgroundClass} ${getAvatarTone(participant.displayName || participant.userId || participant.connectionId).textClass}`}>
                                         {(participant.displayName || "U").charAt(0).toUpperCase()}
                                       </div>
                                       {participant.isSpeaking && (
@@ -938,6 +960,12 @@ export default function VideoAppointmentRoom({
               activePanel={activePanel}
               showSidePanel={showSidePanel}
               layout={layout}
+              isAudioBusy={isAudioActionBusy}
+              isVideoBusy={isVideoActionBusy}
+              isScreenShareBusy={isScreenShareActionBusy}
+              isRecordingBusy={isRecordingActionBusy}
+              isHandRaiseBusy={isHandRaiseActionBusy}
+              isEndCallBusy={isEndCallActionBusy}
             />
           </div>
         )}
