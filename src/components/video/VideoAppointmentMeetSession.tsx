@@ -159,7 +159,7 @@ export function VideoAppointmentMeetSession({
       const merged: Record<string, unknown> = { ...appointmentConsultationSource };
 
       for (const [key, value] of Object.entries(appointmentRecordSource as Record<string, unknown>)) {
-        if (value !== undefined) {
+        if (isMergeableValue(value)) {
           merged[key] = value;
         }
       }
