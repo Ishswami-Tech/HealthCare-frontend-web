@@ -157,9 +157,10 @@ export function MeetControlBar({
                   {isAudioMuted ? "Turn on microphone" : "Turn off microphone"}
                 </TooltipContent>
               </Tooltip>
-              <div className="w-px h-5 bg-white/20 mx-1" />
+          <div className="w-px h-5 bg-white/20 mx-1" />
               <button
                 className="h-full pr-3 pl-1 flex items-center justify-center rounded-r-full hover:bg-white/10 transition-colors text-inherit"
+                disabled={isAudioBusy}
                 onClick={() => setShowAudioMenu(!showAudioMenu)}
               >
                 <ChevronDown size={14} className="text-inherit" />
@@ -217,9 +218,10 @@ export function MeetControlBar({
                   {isVideoMuted ? "Turn on camera" : "Turn off camera"}
                 </TooltipContent>
               </Tooltip>
-              <div className="w-px h-5 bg-white/20 mx-1" />
+          <div className="w-px h-5 bg-white/20 mx-1" />
               <button
                 className="h-full pr-3 pl-1 flex items-center justify-center rounded-r-full hover:bg-white/10 transition-colors text-inherit"
+                disabled={isVideoBusy}
                 onClick={() => setShowVideoMenu(!showVideoMenu)}
               >
                 <ChevronDown size={14} className="text-inherit" />
