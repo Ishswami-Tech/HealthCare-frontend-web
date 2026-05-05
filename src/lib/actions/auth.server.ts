@@ -118,6 +118,58 @@ const accessTokenOptions = SESSION_TOKEN_OPTIONS;
 const refreshTokenOptions = REFRESH_TOKEN_OPTIONS;
 const sessionOptions = COOKIE_OPTIONS;
 
+function parseJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    const payload = parts[1];
+    if (!payload) {
+      return null;
+    }
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return JSON.parse(Buffer.from(padded, 'base64').toString('utf8')) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function extractClinicIdFromPayload(
+  payload: Record<string, unknown> | null | undefined
+): string | undefined {
+  if (!payload) {
+    return undefined;
+  }
+
+  const directClinicId = payload['clinicId'];
+  if (typeof directClinicId === 'string' && directClinicId.trim()) {
+    return directClinicId;
+  }
+
+  const primaryClinicId = payload['primaryClinicId'];
+  if (typeof primaryClinicId === 'string' && primaryClinicId.trim()) {
+    return primaryClinicId;
+  }
+
+  const nestedUser = payload['user'];
+  if (nestedUser && typeof nestedUser === 'object') {
+    const nestedClinicId = (nestedUser as Record<string, unknown>)['clinicId'];
+    if (typeof nestedClinicId === 'string' && nestedClinicId.trim()) {
+      return nestedClinicId;
+    }
+
+    const nestedPrimaryClinicId = (nestedUser as Record<string, unknown>)['primaryClinicId'];
+    if (typeof nestedPrimaryClinicId === 'string' && nestedPrimaryClinicId.trim()) {
+      return nestedPrimaryClinicId;
+    }
+  }
+
+  return undefined;
+}
+
 function resolveProfileComplete(userData: Record<string, unknown> | undefined): boolean {
   if (!userData) return false;
   if (typeof userData.profileComplete === 'boolean') return userData.profileComplete;
@@ -157,6 +209,7 @@ export async function getServerSession(): Promise<Session | null> {
     const userRole = cookieStore.get('user_role')?.value;
     const profileCompleteCookie = cookieStore.get('profile_complete')?.value;
     const profileComplete = profileCompleteCookie === 'true';
+    const cookieClinicId = cookieStore.get('clinic_id')?.value;
 
     if (process.env.NODE_ENV === 'development') {
       const now = Date.now();
@@ -199,6 +252,18 @@ export async function getServerSession(): Promise<Session | null> {
     }
     
     try {
+      const payload = parseJwtPayload(accessToken);
+      const payloadClinicId = extractClinicIdFromPayload(payload);
+      const resolvedClinicId = payloadClinicId || cookieClinicId;
+
+      if (payloadClinicId && payloadClinicId !== cookieClinicId) {
+        cookieStore.set({
+          name: 'clinic_id',
+          value: payloadClinicId,
+          ...sessionOptions,
+        });
+      }
+
       const session: Session = {
         user: {
           id: '',
@@ -209,7 +274,7 @@ export async function getServerSession(): Promise<Session | null> {
           name: '',
           isVerified: true,
           profileComplete: profileComplete,
-          clinicId: cookieStore.get('clinic_id')?.value
+          clinicId: resolvedClinicId
         },
         access_token: accessToken,
         session_id: sessionId || '',
@@ -217,14 +282,17 @@ export async function getServerSession(): Promise<Session | null> {
       };
 
       try {
-        const payload = JSON.parse(atob(accessToken.split('.')[1] || ''));
+        if (!payload) {
+          throw new Error('Invalid JWT payload');
+        }
+        const tokenPayload = payload;
         
-        session.user.id = payload.sub || '';
-        session.user.email = payload.email || '';
-        session.user.role = payload.role || userRole as Role;
-        // Fallback: read clinicId from JWT payload if cookie didn't provide it
-        if (!session.user.clinicId && payload.clinicId) {
-          session.user.clinicId = payload.clinicId;
+        session.user.id = String(tokenPayload['sub'] || '');
+        session.user.email = String(tokenPayload['email'] || '');
+        session.user.role = (tokenPayload['role'] as Role) || (userRole as Role);
+        if (!session.user.clinicId) {
+          session.user.clinicId =
+            payloadClinicId || cookieClinicId;
         }
 
         if (session.user.id && session.user.email && session.user.role) {
@@ -346,6 +414,9 @@ export async function setSession(data: {
     }
 
     if (currentSessionId && currentUserRole) {
+       const tokenPayload = accessTokenValue ? parseJwtPayload(accessTokenValue) : null;
+       const tokenClinicId = extractClinicIdFromPayload(tokenPayload) || cookieStore.get('clinic_id')?.value;
+
        if (accessTokenValue) {
           cookieStore.set({
              name: 'access_token',
@@ -368,6 +439,14 @@ export async function setSession(data: {
              ...sessionOptions,
           });
        }
+
+       if (tokenClinicId) {
+         cookieStore.set({
+           name: 'clinic_id',
+           value: tokenClinicId,
+           ...sessionOptions,
+         });
+       }
        
        const session: Session = {
          access_token: accessTokenValue || '',
@@ -384,7 +463,7 @@ export async function setSession(data: {
            address: '',
            isVerified: true,
            profileComplete: currentProfileComplete,
-           clinicId: cookieStore.get('clinic_id')?.value
+           clinicId: tokenClinicId
          },
          isAuthenticated: true
        };

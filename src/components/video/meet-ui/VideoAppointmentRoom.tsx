@@ -388,6 +388,17 @@ export default function VideoAppointmentRoom({
       );
       setCall(videoCall);
       callRef.current = videoCall;
+
+      // The preview stream has already been cloned into the publisher.
+      // Release the original preview capture so the browser camera is owned
+      // only by the active room session.
+      initialMediaStream?.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          // Ignore teardown errors; the session is already live.
+        }
+      });
       
       // Initialize active devices
       setActiveAudioDeviceId(videoCall.getActiveAudioDeviceId());

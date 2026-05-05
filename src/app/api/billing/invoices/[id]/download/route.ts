@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { APP_CONFIG } from "@/lib/config/config";
+import { getServerSession } from "@/lib/actions/auth.server";
 import { fetchWithAbort } from "@/lib/utils/fetch-with-abort";
 
 interface RouteParams {
@@ -16,10 +17,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("access_token")?.value;
-  const clinicId = cookieStore.get("clinic_id")?.value;
+  const session = await getServerSession();
+  const clinicId = session?.user?.clinicId || cookieStore.get("clinic_id")?.value;
 
   if (!accessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!clinicId) {
+    return NextResponse.json(
+      { error: "Clinic context is missing. Please re-login." },
+      { status: 403 }
+    );
   }
 
   try {
@@ -28,7 +37,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          ...(clinicId ? { "X-Clinic-ID": clinicId } : {}),
+          "X-Clinic-ID": clinicId,
         },
         timeout: 60000,
         cache: "no-store",

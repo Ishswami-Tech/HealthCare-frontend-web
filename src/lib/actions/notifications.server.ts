@@ -77,7 +77,7 @@ export async function deleteNotification(notificationId: string) {
 /**
  * Get notification settings - Use NOTIFICATION_PREFERENCES endpoint
  */
-export async function getNotificationSettings(userId?: string) {
+export async function getMyNotificationPreferences(userId?: string) {
   if (userId) {
     const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_BY_USER(userId));
     return data;
@@ -87,9 +87,40 @@ export async function getNotificationSettings(userId?: string) {
 }
 
 /**
- * Update notification settings - Use NOTIFICATION_PREFERENCES endpoint
+ * Get notification preferences for a specific user
  */
-export async function updateNotificationSettings(settings: {
+export async function getUserNotificationPreferences(userId: string) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.GET_BY_USER(userId));
+  return data;
+}
+
+/**
+ * Create notification preferences - Use NOTIFICATION_PREFERENCES endpoint
+ */
+export async function createNotificationPreferences(settings: {
+  userId?: string;
+  email?: boolean;
+  sms?: boolean;
+  push?: boolean;
+  whatsapp?: boolean;
+  types?: {
+    appointments?: boolean;
+    prescriptions?: boolean;
+    reminders?: boolean;
+    marketing?: boolean;
+  };
+}) {
+  const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.CREATE, {
+    method: 'POST',
+    body: JSON.stringify(settings),
+  });
+  return data;
+}
+
+/**
+ * Update notification preferences - Use NOTIFICATION_PREFERENCES endpoint
+ */
+export async function updateNotificationPreferences(settings: {
   userId?: string;
   email?: boolean;
   sms?: boolean;
@@ -109,6 +140,20 @@ export async function updateNotificationSettings(settings: {
   const { data } = await authenticatedApi(API_ENDPOINTS.NOTIFICATION_PREFERENCES.UPDATE(userId), {
     method: 'PATCH',
     body: JSON.stringify(settings),
+  });
+  return data;
+}
+
+/**
+ * Delete notification preferences - resets to defaults
+ */
+export async function deleteNotificationPreferences(userId?: string) {
+  const endpoint = userId
+    ? API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE(userId)
+    : API_ENDPOINTS.NOTIFICATION_PREFERENCES.DELETE('me');
+
+  const { data } = await authenticatedApi(endpoint, {
+    method: 'DELETE',
   });
   return data;
 }

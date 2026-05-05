@@ -448,10 +448,13 @@ export default function AppointmentManager({
     const displayDuration = getDisplayAppointmentDuration(apt);
 
     const isCancelled = effectiveStatus === "CANCELLED" || effectiveStatus === "NO_SHOW";
+    const isConfirmed = effectiveStatus === "CONFIRMED";
     return (
       <div className={`rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md ${
         isCancelled
           ? "bg-red-50 border-red-200 dark:bg-red-950/25 dark:border-red-900/50 hover:border-red-300"
+          : isConfirmed
+            ? "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/60 hover:border-emerald-300"
           : `bg-card border-border hover:border-emerald-200 ${isExpanded ? "shadow-md border-emerald-300" : ""}`
       }`}>
         {/* Card header */}

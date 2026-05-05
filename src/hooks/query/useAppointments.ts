@@ -14,11 +14,11 @@ import { TOAST_IDS, useToast } from '../utils/use-toast';
 import { sanitizeErrorMessage } from '@/lib/utils/error-handler';
 import { useAuth } from '../auth/useAuth';
 import { Role } from '@/types/auth.types';
-import { clinicApiClient } from '@/lib/api/client';
-import { API_ENDPOINTS } from '@/lib/config/config';
 import {
   createAppointment,
+  getAppointments,
   getMyAppointments,
+  getAppointmentById,
   getAppointmentServiceCatalog,
   updateAppointment,
   updateAppointmentStatus, // Consolidated status update
@@ -37,6 +37,7 @@ import {
   checkInAppointment,
   forceCheckInAppointment,
   scanLocationQRAndCheckIn,
+  getDoctorAvailability,
 } from '@/lib/actions/appointments.server';
 import {
   getQueue,
@@ -52,7 +53,6 @@ import {
   serializeAppointmentQueryKey,
   getAppointmentQueryKey,
   getAppointmentStatsQueryKey,
-  toAppointmentFilterParams,
 } from '@/lib/query/appointment-query-keys';
 import type { 
   CreateAppointmentData, 
@@ -360,15 +360,12 @@ export const useAppointments = (
       throw new Error('No clinic ID available and omitClinicId not set');
     }
 
-    const response = await clinicApiClient.get<unknown>(
-      API_ENDPOINTS.APPOINTMENTS.GET_ALL,
-      toAppointmentFilterParams(filters)
-    );
+    const response = await getAppointments(filters);
     if (!response.success) {
-      throw new Error(response.message || response.error || 'Failed to fetch appointments');
+      throw new Error(response.error || 'Failed to fetch appointments');
     }
 
-    const appointments = extractAppointments(response.data);
+    const appointments = response.appointments || [];
     return {
       success: true,
       appointments,
@@ -433,15 +430,11 @@ export const useAppointment = (appointmentId: string) => {
   return useQueryData(
     ['appointment', appointmentId],
     async (): Promise<any> => {
-      const response = await clinicApiClient.getAppointmentById(appointmentId);
-      if (!response.success) {
-        throw new Error(response.message || response.error || 'Failed to fetch appointment');
+      const response = await getAppointmentById(appointmentId);
+      if (!response.success || !response.appointment) {
+        throw new Error(response.error || 'Failed to fetch appointment');
       }
-      const appointment =
-        response.data && typeof response.data === 'object' && 'appointment' in response.data
-          ? (response.data as { appointment?: Appointment }).appointment
-          : (response.data as Appointment | undefined);
-      return appointment as any;
+      return response.appointment as any;
     },
     {
       enabled: !!appointmentId && hasPermission(Permission.VIEW_APPOINTMENTS),
@@ -1454,20 +1447,11 @@ export const useDoctorAvailability = (
   return useQueryData(
     ['doctorAvailability', clinicId, doctorId, date, locationId, appointmentType],
     async (): Promise<any> => {
-      const response = await clinicApiClient.getDoctorAvailability(
-        doctorId,
-        date,
-        locationId,
-        appointmentType
-      );
+      const response = await getDoctorAvailability(clinicId, doctorId, date, locationId, appointmentType);
       if (!response.success) {
-        throw new Error(response.message || response.error || 'Failed to fetch doctor availability');
+        throw new Error(response.error || 'Failed to fetch doctor availability');
       }
-      const availability =
-        response.data && typeof response.data === 'object' && 'availability' in response.data
-          ? (response.data as { availability?: unknown }).availability
-          : response.data;
-      return availability as any;
+      return response.availability as any;
     },
     {
       enabled: !!doctorId && !!date && (options?.enabled ?? true), // Enabled for everyone, including guests
@@ -1527,16 +1511,13 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
         throw new Error('No clinic ID available');
       }
       
-      const response = await clinicApiClient.get<unknown>(
-        API_ENDPOINTS.APPOINTMENTS.GET_ALL,
-        toAppointmentFilterParams({ ...filters, clinicId })
-      );
+      const response = await getAppointments({ ...filters, clinicId });
       if (!response.success) {
         // ✅ Use centralized error handler
         const { ERROR_MESSAGES: MSGS } = await import('@/lib/config/config');
         
         // Handle specific error cases with better UX
-        const errorMessage = response.message || response.error || MSGS.UNKNOWN_ERROR;
+        const errorMessage = response.error || MSGS.UNKNOWN_ERROR;
         if (errorMessage.includes('Access denied') || errorMessage.includes('permission')) {
           throw new Error(MSGS.FORBIDDEN);
         }
@@ -1551,7 +1532,7 @@ export const useAppointmentsWithErrorHandling = (filters?: AppointmentFilters) =
         const { sanitizeErrorMessage } = await import('@/lib/utils/error-handler');
         throw new Error(sanitizeErrorMessage(errorMessage));
       }
-      const appointments = extractAppointments(response.data);
+      const appointments = response.appointments || [];
       return { success: true, appointments, data: appointments, meta: response.meta } as any;
     };
     
@@ -1706,26 +1687,23 @@ export const useAppointmentStats = () => {
         throw new Error('No clinic ID available');
       }
       // ✅ Consolidated: Use filters parameter only (removed legacy clinicId parameter)
-      const response = await clinicApiClient.get<unknown>(
-        API_ENDPOINTS.APPOINTMENTS.GET_ALL,
-        { clinicId }
-      );
+      const response = await getAppointments({ clinicId });
       if (!response.success) {
-        throw new Error(response.message || response.error || 'Failed to fetch appointments');
+        throw new Error(response.error || 'Failed to fetch appointments');
       }
       
-      const appointments = extractAppointments(response.data);
+      const appointments = response.appointments || [];
       const today = new Date().toDateString();
       
       return {
         totalAppointments: appointments.length,
-        todayAppointments: appointments.filter((apt: Appointment) => 
+        todayAppointments: appointments.filter((apt: any) => 
           new Date(apt.date).toDateString() === today
         ).length,
-        completedAppointments: appointments.filter((apt: Appointment) => 
+        completedAppointments: appointments.filter((apt: any) => 
           apt.status === 'COMPLETED'
         ).length,
-        cancelledAppointments: appointments.filter((apt: Appointment) => 
+        cancelledAppointments: appointments.filter((apt: any) => 
           apt.status === 'CANCELLED'
         ).length,
       };
@@ -1872,11 +1850,8 @@ export const useCanCancelAppointment = (appointmentId: string) => {
         return { canCancel: false, reason: 'Insufficient permissions' };
       }
       
-      const response = await clinicApiClient.getAppointmentById(appointmentId);
-      const appointment =
-        response.data && typeof response.data === 'object' && 'appointment' in response.data
-          ? (response.data as { appointment?: Appointment }).appointment
-          : (response.data as Appointment | undefined);
+      const response = await getAppointmentById(appointmentId);
+      const appointment = response.appointment;
 
       if (!response.success || !appointment) {
         return { canCancel: false, reason: 'Appointment not found' };

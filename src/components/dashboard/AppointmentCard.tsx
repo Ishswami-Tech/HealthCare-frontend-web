@@ -107,6 +107,7 @@ function AppointmentCardComponent({
     <Card
       className={cn(
         "hover:shadow-md transition-all duration-300 border-l-4",
+        normalizedStatus === "CONFIRMED" && "bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/60",
         normalizedStatus === "SCHEDULED" && "border-l-primary",
         normalizedStatus === "COMPLETED" && "border-l-primary",
         normalizedStatus === "CANCELLED" && "border-l-destructive",

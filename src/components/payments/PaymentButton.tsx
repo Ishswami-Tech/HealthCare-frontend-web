@@ -11,13 +11,16 @@ import {
 } from "@/hooks/utils/use-toast";
 import { useQueryClient } from "@/hooks/core";
 import { useAuth } from "@/hooks/auth/useAuth";
-import { clinicApiClient } from "@/lib/api/client";
-import { API_ENDPOINTS, APP_CONFIG } from "@/lib/config/config";
+import { APP_CONFIG } from "@/lib/config/config";
 import {
   DEFAULT_PAYMENT_PROVIDER,
   isPaymentProviderEnabled,
   type PaymentProvider,
 } from "@/lib/payments/providers";
+import {
+  createPaymentIntent,
+  verifyPaymentCallback,
+} from "@/lib/actions/billing.server";
 import { getClinicId } from "@/lib/utils/token-manager";
 
 const BILLING_QUERY_KEYS = [
@@ -124,46 +127,37 @@ export function PaymentButton({
   };
 
   const getPaymentIntent = async () => {
-    let paymentIntentUrl: string;
-    const body: Record<string, unknown> = {};
-    const providerQuery = `?provider=${effectiveProvider}`;
-
     if (subscriptionId) {
-      paymentIntentUrl =
-        API_ENDPOINTS.BILLING.SUBSCRIPTIONS.PROCESS_PAYMENT(subscriptionId) +
-        providerQuery;
+      return await createPaymentIntent({
+        subscriptionId,
+        provider: effectiveProvider,
+      });
     } else if (appointmentId) {
-      paymentIntentUrl =
-        API_ENDPOINTS.BILLING.APPOINTMENT_PAYMENTS.PROCESS_PAYMENT(appointmentId) +
-        providerQuery;
-      if (appointmentType) {
-        body.appointmentType = appointmentType;
-      }
+      return appointmentType
+        ? await createPaymentIntent({
+            appointmentId,
+            appointmentType,
+            provider: effectiveProvider,
+          })
+        : await createPaymentIntent({
+            appointmentId,
+            provider: effectiveProvider,
+          });
     } else if (invoiceId) {
-      paymentIntentUrl =
-        API_ENDPOINTS.BILLING.INVOICES.PROCESS_PAYMENT(invoiceId) + providerQuery;
+      return await createPaymentIntent({
+        invoiceId,
+        provider: effectiveProvider,
+      });
     } else if (prescriptionId) {
-      paymentIntentUrl =
-        API_ENDPOINTS.PHARMACY.PRESCRIPTIONS.PROCESS_PAYMENT(prescriptionId) + providerQuery;
+      return await createPaymentIntent({
+        prescriptionId,
+        provider: effectiveProvider,
+      });
     } else {
       throw new Error(
         "Either invoiceId, appointmentId, subscriptionId, or prescriptionId is required"
       );
     }
-
-    const response = await clinicApiClient.post(
-      paymentIntentUrl,
-      Object.keys(body).length > 0 ? body : {}
-    );
-
-    if (!response.success || !response.data) {
-      throw new Error(response.message || "Failed to create payment intent");
-    }
-
-    const paymentData = response.data as Record<string, unknown>;
-    const paymentIntent =
-      (paymentData?.paymentIntent as Record<string, unknown>) || paymentData;
-    return paymentIntent;
   };
 
   const verifyPayment = async (
@@ -174,22 +168,14 @@ export function PaymentButton({
       clinicId: string;
     }
   ) => {
-    const queryParams = new URLSearchParams({
+    const verifyResponse = await verifyPaymentCallback({
       clinicId: params.clinicId,
       paymentId: params.paymentId || params.orderId,
       orderId: params.orderId,
       provider: usedProvider,
     });
-    const body = { orderId: params.orderId };
-    const verifyResponse = await clinicApiClient.post(
-      `${API_ENDPOINTS.BILLING.PAYMENTS.CALLBACK}?${queryParams.toString()}`,
-      body
-    );
     if (!verifyResponse.success) {
-      throw new Error(
-        (verifyResponse as { message?: string }).message ||
-          "Payment verification failed"
-      );
+      throw new Error(verifyResponse.error || verifyResponse.message || "Payment verification failed");
     }
     return verifyResponse;
   };
@@ -321,7 +307,11 @@ export function PaymentButton({
   const handlePayment = async () => {
     setIsProcessing(true);
     try {
-      const paymentIntent = await getPaymentIntent();
+      const paymentResponse = await getPaymentIntent();
+      if (!paymentResponse.success || !paymentResponse.paymentIntent) {
+        throw new Error(paymentResponse.error || paymentResponse.message || "Failed to create payment intent");
+      }
+      const paymentIntent = paymentResponse.paymentIntent as Record<string, unknown>;
       const providerFromIntent =
         typeof paymentIntent?.provider === "string"
           ? paymentIntent.provider.toLowerCase()

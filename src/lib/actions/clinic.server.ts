@@ -10,7 +10,17 @@ import { auditLog } from '@/lib/utils/audit';
 import { validateClinicAccess } from '@/lib/config/permissions';
 import { logger } from '@/lib/utils/logger';
 import { API_ENDPOINTS } from '@/lib/config/config';
-import type { Clinic, ClinicLocation, CreateClinicData, UpdateClinicData } from '@/types/clinic.types';
+import type {
+  Clinic,
+  ClinicLocation,
+  ClinicPatientResult,
+  ClinicSettings,
+  ClinicStats,
+  ClinicUser,
+  CreateClinicData,
+  RegisterPatientData,
+  UpdateClinicData,
+} from '@/types/clinic.types';
 
 // ✅ Input Validation Schemas
 import { createClinicSchema, updateClinicSchema } from '@/lib/schema/clinic.schema';
@@ -132,6 +142,19 @@ export async function getClinicByAppName(appName: string) {
     return data;
   } catch (error) {
     logger.error('Failed to get clinic by app name', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
+/**
+ * Get current user's clinic
+ */
+export async function getMyClinic() {
+  try {
+    const { data } = await authenticatedApi<Clinic>('/clinics/my-clinic', {});
+    return data || null;
+  } catch (error) {
+    logger.error('Failed to get current clinic', error instanceof Error ? error : new Error(String(error)));
     return null;
   }
 }
@@ -285,6 +308,19 @@ export async function getClinicLocations(clinicId: string) {
 }
 
 /**
+ * Get a single clinic location
+ */
+export async function getClinicLocation(clinicId: string, locationId: string) {
+  try {
+    const { data } = await authenticatedApi<ClinicLocation>(API_ENDPOINTS.CLINIC_LOCATIONS.GET_BY_ID(clinicId, locationId), {});
+    return data || null;
+  } catch (error) {
+    logger.error('Failed to get clinic location', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
+/**
  * Update clinic location
  */
 export async function updateClinicLocation(clinicId: string, locationId: string, data: Partial<ClinicLocation>) {
@@ -355,6 +391,35 @@ export async function deleteClinicLocation(clinicId: string, locationId: string)
   }
 }
 
+/**
+ * Generate QR code for clinic location
+ */
+export async function generateLocationQRCode(locationId: string) {
+  try {
+    const { data } = await authenticatedApi<{ qrCode: string }>(API_ENDPOINTS.APPOINTMENTS.QR.GENERATE(locationId), {});
+    return data || null;
+  } catch (error) {
+    logger.error('Failed to generate location QR code', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
+/**
+ * Verify clinic location QR code
+ */
+export async function verifyLocationQR(qrData: string) {
+  try {
+    const { data } = await authenticatedApi<{ appointmentId: string; verified: boolean }>(API_ENDPOINTS.APPOINTMENTS.QR.VERIFY, {
+      method: 'POST',
+      body: JSON.stringify({ qrToken: qrData }),
+    });
+    return data || null;
+  } catch (error) {
+    logger.error('Failed to verify location QR code', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
 // ✅ Health Check Server Actions
 
 /**
@@ -401,7 +466,7 @@ export async function getHealthLive() {
  */
 export async function assignClinicAdmin(data: { userId: string; clinicId: string }) {
   try {
-    const { data: result } = await authenticatedApi('/clinics/admin', {
+    const { data: result } = await authenticatedApi('/clinics/assign-admin', {
       method: 'POST',
       body: JSON.stringify(data)
     });
@@ -418,10 +483,10 @@ export async function assignClinicAdmin(data: { userId: string; clinicId: string
 export async function getClinicDoctors(clinicId: string) {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.DOCTORS.GET_CLINIC_DOCTORS(clinicId), {});
-    return { success: true, doctors: data };
+    return data || [];
   } catch (error) {
     logger.error('Failed to get clinic doctors', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Unexpected error' };
+    return [];
   }
 }
 
@@ -431,9 +496,177 @@ export async function getClinicDoctors(clinicId: string) {
 export async function getClinicStaff(clinicId: string) {
   try {
     const { data } = await authenticatedApi(API_ENDPOINTS.USERS.GET_BY_CLINIC(clinicId), {});
-    return { success: true, staff: data };
+    return data || [];
   } catch (error) {
     logger.error('Failed to get clinic staff', error instanceof Error ? error : new Error(String(error)));
-    return { success: false, error: 'Unexpected error' };
+    return [];
+  }
+}
+
+/**
+ * Get clinic patients
+ */
+export async function getClinicPatients(
+  clinicId: string,
+  params?: { page?: number; limit?: number }
+): Promise<ClinicPatientResult | ClinicUser[]> {
+  try {
+    const query = new URLSearchParams({
+      page: String(Math.max(params?.page ?? 1, 1)),
+      limit: String(Math.max(params?.limit ?? 100, 1)),
+    }).toString();
+    const { data } = await authenticatedApi<ClinicPatientResult | ClinicUser[]>(
+      `/clinics/${clinicId}/patients?${query}`,
+      {}
+    );
+    return data || [];
+  } catch (error) {
+    logger.error('Failed to get clinic patients', error instanceof Error ? error : new Error(String(error)));
+    return [];
+  }
+}
+
+/**
+ * Register patient to clinic
+ */
+export async function registerPatientToClinic(data: RegisterPatientData) {
+  try {
+    const { data: result } = await authenticatedApi<ClinicUser>('/clinics/register-patient', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return result || null;
+  } catch (error) {
+    logger.error('Failed to register patient to clinic', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
+/**
+ * Get users for a clinic by role
+ */
+export async function getClinicUsers(clinicId: string, role: string) {
+  try {
+    const { data } = await authenticatedApi<ClinicUser[]>(
+      `/clinics/${clinicId}/users?role=${encodeURIComponent(role)}`,
+      {}
+    );
+    return data || [];
+  } catch (error) {
+    logger.error('Failed to get clinic users', error instanceof Error ? error : new Error(String(error)));
+    return [];
+  }
+}
+
+/**
+ * Validate app name
+ */
+export async function validateAppName(appName: string) {
+  try {
+    const { data } = await authenticatedApi<{ available: boolean; message?: string }>(
+      `/clinics/validate-app-name?appName=${encodeURIComponent(appName)}`,
+      {}
+    );
+    return data || { available: false, message: 'Unable to validate app name' };
+  } catch (error) {
+    logger.error('Failed to validate app name', error instanceof Error ? error : new Error(String(error)));
+    return { available: false, message: error instanceof Error ? error.message : 'Unable to validate app name' };
+  }
+}
+
+/**
+ * Associate current user with clinic
+ */
+export async function associateUserToClinic(clinicId: string) {
+  try {
+    const { data } = await authenticatedApi<{ message: string }>(`/clinics/${clinicId}/associate`, {
+      method: 'POST',
+    });
+    return data || { message: 'Associated successfully' };
+  } catch (error) {
+    logger.error('Failed to associate user with clinic', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
+/**
+ * Get clinic stats
+ */
+export async function getClinicStats(clinicId: string) {
+  try {
+    const { data } = await authenticatedApi<ClinicStats>(API_ENDPOINTS.CLINICS.STATS(clinicId), {});
+    return data || null;
+  } catch (error) {
+    logger.error('Failed to get clinic stats', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
+/**
+ * Get clinic operating hours
+ */
+export async function getClinicOperatingHours(clinicId: string) {
+  try {
+    const { data } = await authenticatedApi<any[]>(API_ENDPOINTS.CLINICS.OPERATING_HOURS(clinicId), {});
+    return data || [];
+  } catch (error) {
+    logger.error('Failed to get clinic operating hours', error instanceof Error ? error : new Error(String(error)));
+    return [];
+  }
+}
+
+/**
+ * Get clinic settings
+ */
+export async function getClinicSettings(clinicId: string) {
+  try {
+    const { data } = await authenticatedApi<ClinicSettings>(API_ENDPOINTS.CLINICS.SETTINGS(clinicId), {});
+    return data || null;
+  } catch (error) {
+    logger.error('Failed to get clinic settings', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
+/**
+ * Update clinic settings
+ */
+export async function updateClinicSettings(clinicId: string, settings: Partial<ClinicSettings>) {
+  try {
+    const { data } = await authenticatedApi<ClinicSettings>(API_ENDPOINTS.CLINICS.SETTINGS(clinicId), {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+    revalidateCache('clinics');
+    return data || null;
+  } catch (error) {
+    logger.error('Failed to update clinic settings', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
+/**
+ * Get clinic token
+ */
+export async function getClinicToken(clinicId: string) {
+  try {
+    const { data } = await authenticatedApi<{ token: string }>(`/clinics/${clinicId}/token`, {});
+    return data || null;
+  } catch (error) {
+    logger.error('Failed to get clinic token', error instanceof Error ? error : new Error(String(error)));
+    return null;
+  }
+}
+
+/**
+ * Check clinic permission
+ */
+export async function checkClinicPermission(clinicId: string) {
+  try {
+    const { data } = await authenticatedApi<boolean>(`/clinics/${clinicId}/permission`, {});
+    return !!data;
+  } catch (error) {
+    logger.error('Failed to check clinic permission', error instanceof Error ? error : new Error(String(error)));
+    return false;
   }
 }

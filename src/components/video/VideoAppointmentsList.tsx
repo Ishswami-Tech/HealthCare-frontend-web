@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ServerPagination } from "@/components/ui/pagination";
 import {
   Video,
   Download,
@@ -110,6 +111,7 @@ import {
 } from "@/lib/utils/appointmentUtils";
 import {
   getAppointmentViewState,
+  getVideoSessionDecision,
   isPaidVideoAppointmentAwaitingDoctorConfirmation,
 } from "@/lib/utils/appointmentUtils";
 import { ProposeVideoAppointmentDialog } from "@/components/appointments/ProposeVideoAppointmentDialog";
@@ -404,11 +406,13 @@ export function VideoAppointmentsList({
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [pendingSlotSelections, setPendingSlotSelections] = useState<Record<string, number>>({});
+  const [currentPage, setCurrentPage] = useState(1);
   
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [actionReason, setActionReason] = useState("");
   const [resolvedSlotConfirmations, setResolvedSlotConfirmations] = useState<Record<string, boolean>>({});
+  const PAGE_SIZE = 8;
   const historyStartDate = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() - 90);
@@ -603,6 +607,17 @@ export function VideoAppointmentsList({
     const matchesEndDate = !dateFilter.end || (aptDate && aptDate <= new Date(dateFilter.end));
     return matchesSearch && matchesStatus && matchesStartDate && matchesEndDate;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  useEffect(() => {
+    setCurrentPage((previousPage) => Math.min(previousPage, totalPages));
+  }, [totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, dateFilter.start, dateFilter.end, isPatient]);
 
   const stats = computeStats(appointments);
   const { total: totalAppointments, active: activeAppointments, scheduled: scheduledAppointments, completed: completedAppointmentsCount, cancelled: cancelledAppointments } = stats;
@@ -823,6 +838,7 @@ export function VideoAppointmentsList({
       ? ""
       : rawDoctorName;
     const displayDuration = getDisplayAppointmentDuration(appointment);
+    const videoSessionDecision = getVideoSessionDecision(appointment);
     const finalSlotSource = String(
       (appointment as any).metadata?.finalSlotSource ||
         (appointment as any).finalSlotSource ||
@@ -1017,8 +1033,9 @@ export function VideoAppointmentsList({
                       </>
                     )}
                     {showJoinButton &&
-                      ["scheduled", "confirmed", "queued", "in-progress"].includes(effectiveStatus) &&
-                      isJoinableVideoAppointment(appointment) &&
+                      videoSessionDecision.canJoin &&
+                      ["join", "resume"].includes(videoSessionDecision.action) &&
+                      !videoSessionDecision.blockedReason &&
                       (!enforceTimeSlotWindow || isWithinJoinWindow(appointment)) && (
                       <Link
                         href={buildVideoSessionRoute(getEffectiveAppointmentId(appointment))}
@@ -1118,10 +1135,23 @@ export function VideoAppointmentsList({
               )}
             </div>
           ) : (
-            <div className="grid gap-4">
-              {filteredAppointments.map(apt => (
-                <AppointmentCard key={apt.appointmentId || apt.id} appointment={apt} />
-              ))}
+            <div className="space-y-4">
+              <div className="grid gap-4">
+                {filteredAppointments
+                  .slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE)
+                  .map((apt) => (
+                    <AppointmentCard key={apt.appointmentId || apt.id} appointment={apt} />
+                  ))}
+              </div>
+              {filteredAppointments.length > PAGE_SIZE && (
+                <ServerPagination
+                  page={safeCurrentPage}
+                  totalPages={totalPages}
+                  totalItems={filteredAppointments.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setCurrentPage}
+                />
+              )}
             </div>
           )}
         </div>

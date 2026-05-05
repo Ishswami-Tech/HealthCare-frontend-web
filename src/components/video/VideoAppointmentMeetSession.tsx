@@ -20,6 +20,7 @@ import {
   getAppointmentDoctorName,
   getAppointmentPatientName,
   getAppointmentViewState,
+  getVideoSessionDecision,
 } from "@/lib/utils/appointmentUtils";
 import { getVideoSessionExitRoute } from "@/lib/utils/video-session-route";
 import type { VideoAppointment } from "@/hooks/query/useVideoAppointments";
@@ -89,6 +90,14 @@ function normalizeAppointment(
       .toLowerCase()
       .replace(/_/g, "-") as VideoAppointment["status"],
     paymentCompleted: getAppointmentViewState(appointment).paymentCompleted,
+    confirmedSlotIndex:
+      appointment?.confirmedSlotIndex ??
+      appointment?.confirmed_slot_index ??
+      null,
+    proposedSlots:
+      appointment?.proposedSlots ??
+      appointment?.proposed_slots ??
+      undefined,
     sessionId:
       appointment?.sessionId ||
       (consultationSessionId && consultationSessionId !== resolvedAppointmentId
@@ -143,14 +152,29 @@ export function VideoAppointmentMeetSession({
   );
   const appointmentDetailsSource = React.useMemo(() => {
     if (appointmentRecordSource && appointmentConsultationSource) {
+      const merged: Record<string, unknown> = { ...appointmentConsultationSource };
+
+      for (const [key, value] of Object.entries(appointmentRecordSource as Record<string, unknown>)) {
+        if (value !== undefined) {
+          merged[key] = value;
+        }
+      }
+
+      return merged;
+    }
+
+    if (appointmentRecordSource) {
       return {
-        ...appointmentConsultationSource,
         ...appointmentRecordSource,
       };
     }
 
-    return appointmentRecordSource || appointmentConsultationSource;
+    return appointmentConsultationSource || appointmentRecordSource;
   }, [appointmentConsultationSource, appointmentRecordSource]);
+  const videoSessionDecision = React.useMemo(
+    () => getVideoSessionDecision(appointmentDetailsSource || appointment),
+    [appointment, appointmentDetailsSource]
+  );
   const appointmentDoctorName = getAppointmentDoctorName(appointmentDetailsSource);
   const appointmentPatientName = getAppointmentPatientName(appointmentDetailsSource);
   const appointmentDateValue =
@@ -546,19 +570,29 @@ export function VideoAppointmentMeetSession({
 
       {/* Right side: Meeting details & Join button */}
       <div className="flex w-full max-w-sm flex-col items-center text-center z-10 p-2 sm:p-4 lg:w-[35%] lg:items-center">
-        <div className={MEET_STATUS_BADGE}>Ready to join</div>
-        <h1 className="mt-3 text-3xl sm:text-[36px] font-normal text-foreground dark:text-white mb-2 tracking-tight">Ready to join?</h1>
+        <div className={MEET_STATUS_BADGE}>
+          {videoSessionDecision.blockedReason ? "Session unavailable" : "Ready to join"}
+        </div>
+        <h1 className="mt-3 text-3xl sm:text-[36px] font-normal text-foreground dark:text-white mb-2 tracking-tight">
+          {videoSessionDecision.blockedReason ? "This session is closed" : "Ready to join?"}
+        </h1>
         <p className="text-muted-foreground dark:text-[#9aa0a6] text-base mb-8 font-normal">
           Meeting with <span className="text-foreground font-medium dark:text-white">{meetingWithLabel}</span>
         </p>
         
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button
-            onClick={handleJoin}
-            className={`h-12 w-full rounded-full px-6 text-[14px] font-medium shadow-md shadow-blue-500/20 transition-all border-0 hover:shadow-lg hover:shadow-blue-500/30 sm:w-auto ${MEET_JOIN_BUTTON}`}
-          >
-            Join now
-          </Button>
+          {!videoSessionDecision.blockedReason ? (
+            <Button
+              onClick={handleJoin}
+              className={`h-12 w-full rounded-full px-6 text-[14px] font-medium shadow-md shadow-blue-500/20 transition-all border-0 hover:shadow-lg hover:shadow-blue-500/30 sm:w-auto ${MEET_JOIN_BUTTON}`}
+            >
+              Join now
+            </Button>
+          ) : (
+            <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+              {videoSessionDecision.blockedReason}
+            </div>
+          )}
           <Button
             onClick={handleLeavePreview}
             variant="outline"
