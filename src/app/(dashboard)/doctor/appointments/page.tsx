@@ -400,7 +400,13 @@ export default function DoctorAppointments() {
                 <Button
                   size="sm"
                   className={WORKFLOW_ACTION_BUTTON_CLASS}
-                  onClick={() => startConsultation(app.id, app.type === "VIDEO_CALL" ? { openVideoAfterStart: true } : undefined)}
+                  onClick={() =>
+                    startConsultation(
+                      app.id,
+                      app.doctorId,
+                      app.type === "VIDEO_CALL" ? { openVideoAfterStart: true } : undefined
+                    )
+                  }
                   disabled={startAppointmentMutation.isPending || (app.type === "VIDEO_CALL" && !app.paymentCompleted)}
                   title={app.type === "VIDEO_CALL" && !app.paymentCompleted ? "Video request is waiting for payment" : undefined}
                 >
@@ -459,14 +465,25 @@ export default function DoctorAppointments() {
     [completeAppointmentMutation.isPending, consultationNotes, diagnosis, prescription, startAppointmentMutation.isPending, user?.id]
   );
 
-  const startConsultation = async (appointmentId: string, options?: { openVideoAfterStart?: boolean }) => {
+  const startConsultation = async (
+    appointmentId: string,
+    doctorId: string,
+    options?: { openVideoAfterStart?: boolean }
+  ) => {
     try {
-      await startAppointmentMutation.mutateAsync(appointmentId);
+      await startAppointmentMutation.mutateAsync({
+        appointmentId,
+        doctorId,
+      });
       if (options?.openVideoAfterStart) {
         router.push(buildVideoSessionRoute(appointmentId));
       }
     } catch (error: unknown) {
-      void error;
+      console.error("Failed to start consultation", {
+        appointmentId,
+        doctorId,
+        error,
+      });
     }
   };
 
@@ -492,7 +509,10 @@ export default function DoctorAppointments() {
       setConsultationNotes("");
       setSelectedAppointment(null);
     } catch (error: unknown) {
-      void error;
+      console.error("Failed to complete consultation", {
+        appointmentId,
+        error,
+      });
     }
   };
 

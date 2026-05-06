@@ -15,6 +15,7 @@ import {
 import { getAppointmentStatsQueryKey } from '@/lib/query/appointment-query-keys';
 // ✅ Consolidated: Import types from @/types (single source of truth)
 import type { Appointment } from '@/types/appointment.types';
+import type { BillingPlan, Invoice, Payment, Subscription } from '@/types/billing.types';
 import { useNotificationStore, Notification } from '@/stores/notifications.store';
 import { showInfoToast, showWarningToast, TOAST_IDS } from '@/hooks/utils/use-toast';
 import { logger } from '@/lib/utils/logger';
@@ -63,6 +64,79 @@ function getRealtimeAppointmentId(value: unknown): string {
 
   const record = value as Record<string, unknown>;
   return String(record.appointmentId || record.id || '');
+}
+
+function extractRealtimeAppointmentSnapshot(rawData: unknown): Appointment | null {
+  if (!rawData || typeof rawData !== 'object') {
+    return null;
+  }
+
+  const record = rawData as Record<string, unknown>;
+  const candidates = [
+    record.appointment,
+    record.payload,
+    record.data,
+    record.updates,
+    record,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+      continue;
+    }
+
+    const appointment = candidate as Appointment & { appointmentId?: string };
+    if (getRealtimeAppointmentId(appointment) || 'status' in appointment || 'startedAt' in appointment) {
+      return appointment;
+    }
+  }
+
+  return null;
+}
+
+function extractRealtimeAppointmentSnapshots(rawData: unknown): Appointment[] {
+  if (!rawData || typeof rawData !== 'object') {
+    return [];
+  }
+
+  const record = rawData as Record<string, unknown>;
+  const snapshots = new Map<string, Appointment>();
+
+  const addSnapshot = (candidate: unknown): void => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+      return;
+    }
+
+    const appointment = candidate as Appointment;
+    const appointmentId = getRealtimeAppointmentId(appointment);
+    if (!appointmentId) {
+      return;
+    }
+
+    snapshots.set(appointmentId, {
+      ...appointment,
+      id: (appointment as any).id || appointmentId,
+    });
+  };
+
+  const candidates = [record.appointment, record.payload, record.data, record.updates, record];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      candidate.forEach(addSnapshot);
+      continue;
+    }
+
+    addSnapshot(candidate);
+  }
+
+  for (const arrayKey of ['appointments', 'items', 'records'] as const) {
+    const candidate = record[arrayKey];
+    if (Array.isArray(candidate)) {
+      candidate.forEach(addSnapshot);
+    }
+  }
+
+  return Array.from(snapshots.values());
 }
 
 function mergeRealtimeAppointmentPayload(payload: unknown, appointment: Appointment): unknown {
@@ -146,6 +220,238 @@ function mergeRealtimeAppointmentPayload(payload: unknown, appointment: Appointm
   }
 
   return changed ? nextRecord : payload;
+}
+
+function upsertRealtimeAppointmentCaches(queryClient: QueryClient, appointment: Appointment): void {
+  const targetId = getRealtimeAppointmentId(appointment);
+  if (!targetId) {
+    return;
+  }
+
+  queryClient.setQueryData(['appointment', targetId], (oldData: Appointment | undefined) =>
+    oldData ? { ...oldData, ...appointment } : appointment
+  );
+  queryClient.setQueryData(['video-appointment', targetId], (oldData: Appointment | undefined) =>
+    oldData ? { ...oldData, ...appointment } : appointment
+  );
+  queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
+    mergeRealtimeAppointmentPayload(current, appointment)
+  );
+  queryClient.setQueriesData({ queryKey: ['myAppointments'], exact: false }, (current) =>
+    mergeRealtimeAppointmentPayload(current, appointment)
+  );
+  queryClient.setQueriesData({ queryKey: ['userUpcomingAppointments'], exact: false }, (current) =>
+    mergeRealtimeAppointmentPayload(current, appointment)
+  );
+  queryClient.setQueriesData({ queryKey: ['video-appointments'], exact: false }, (current) =>
+    mergeRealtimeAppointmentPayload(current, appointment)
+  );
+  queryClient.setQueriesData({ queryKey: ['doctorAppointments'], exact: false }, (current) =>
+    mergeRealtimeAppointmentPayload(current, appointment)
+  );
+  queryClient.setQueriesData({ queryKey: ['doctorSchedule'], exact: false }, (current) =>
+    mergeRealtimeAppointmentPayload(current, appointment)
+  );
+  queryClient.setQueriesData({ queryKey: ['doctorPatients'], exact: false }, (current) =>
+    mergeRealtimeAppointmentPayload(current, appointment)
+  );
+}
+
+function upsertRealtimeAppointmentCacheBatch(queryClient: QueryClient, appointments: Appointment[]): void {
+  for (const appointment of appointments) {
+    upsertRealtimeAppointmentCaches(queryClient, appointment);
+  }
+}
+
+function hasRealtimeAppointmentSnapshot(rawData: unknown): boolean {
+  return extractRealtimeAppointmentSnapshots(rawData).length > 0;
+}
+
+type RealtimeBillingEntity = {
+  id?: string;
+  clinicId?: string;
+  userId?: string;
+  status?: string;
+  updatedAt?: string;
+  createdAt?: string;
+};
+
+function getRealtimeBillingEntityId(value: unknown): string {
+  if (!value || typeof value !== 'object') {
+    return '';
+  }
+
+  const record = value as Record<string, unknown>;
+  return String(
+    record.id ||
+      record.invoiceId ||
+      record.paymentId ||
+      record.subscriptionId ||
+      record.planId ||
+      ''
+  );
+}
+
+function extractRealtimeBillingSnapshot<T extends RealtimeBillingEntity>(
+  rawData: unknown,
+  entityKeys: readonly string[]
+): T | null {
+  if (!rawData || typeof rawData !== 'object') {
+    return null;
+  }
+
+  const record = rawData as Record<string, unknown>;
+  const containerCandidates = [
+    record,
+    record.payload,
+    record.data,
+    record.updates,
+  ];
+
+  for (const container of containerCandidates) {
+    if (!container || typeof container !== 'object' || Array.isArray(container)) {
+      continue;
+    }
+
+    const containerRecord = container as Record<string, unknown>;
+    for (const key of entityKeys) {
+      const candidate = containerRecord[key];
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+        continue;
+      }
+
+      const entity = candidate as T;
+      if (getRealtimeBillingEntityId(entity)) {
+        return entity;
+      }
+    }
+  }
+
+  return null;
+}
+
+function mergeRealtimeBillingListPayload<T extends RealtimeBillingEntity>(
+  payload: unknown,
+  entity: T
+): unknown {
+  const targetId = getRealtimeBillingEntityId(entity);
+  if (!targetId) {
+    return payload;
+  }
+
+  const mergeItem = (item: unknown): unknown => {
+    if (!item || typeof item !== 'object') {
+      return item;
+    }
+
+    const itemRecord = item as Record<string, unknown>;
+    const itemId = getRealtimeBillingEntityId(itemRecord);
+    if (!itemId || itemId !== targetId) {
+      return item;
+    }
+
+    return {
+      ...itemRecord,
+      ...entity,
+      id: (entity as any).id || itemRecord.id,
+      updatedAt: (entity as any).updatedAt || itemRecord.updatedAt || nowIso(),
+    };
+  };
+
+  if (Array.isArray(payload)) {
+    return payload.map(mergeItem);
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const nextRecord: Record<string, unknown> = { ...record };
+  let changed = false;
+
+  for (const arrayKey of ['items', 'data', 'records', 'invoices', 'payments', 'subscriptions', 'plans'] as const) {
+    if (Array.isArray(record[arrayKey])) {
+      nextRecord[arrayKey] = (record[arrayKey] as unknown[]).map(mergeItem);
+      changed = true;
+    }
+  }
+
+  if (record.data && typeof record.data === 'object' && !Array.isArray(record.data)) {
+    const nestedData = record.data as Record<string, unknown>;
+    const nestedNext: Record<string, unknown> = { ...nestedData };
+    let nestedChanged = false;
+
+    for (const arrayKey of ['items', 'data', 'records', 'invoices', 'payments', 'subscriptions', 'plans'] as const) {
+      if (Array.isArray(nestedData[arrayKey])) {
+        nestedNext[arrayKey] = (nestedData[arrayKey] as unknown[]).map(mergeItem);
+        nestedChanged = true;
+      }
+    }
+
+    if (nestedChanged) {
+      nextRecord.data = nestedNext;
+      changed = true;
+    }
+  }
+
+  return changed ? nextRecord : payload;
+}
+
+function upsertRealtimeBillingCaches(
+  queryClient: QueryClient,
+  entity:
+    | (Invoice & RealtimeBillingEntity)
+    | (Payment & RealtimeBillingEntity)
+    | (Subscription & RealtimeBillingEntity)
+    | (BillingPlan & RealtimeBillingEntity),
+  entityType: 'invoice' | 'payment' | 'subscription' | 'plan'
+): void {
+  const targetId = getRealtimeBillingEntityId(entity);
+  if (!targetId) {
+    return;
+  }
+
+  const listKeysByType: Record<typeof entityType, readonly string[]> = {
+    invoice: ['invoices', 'clinic-invoices'],
+    payment: ['payments', 'clinic-payments'],
+    subscription: ['subscriptions', 'clinic-subscriptions'],
+    plan: ['billing-plans'],
+  };
+
+  const exactKeyByType: Record<typeof entityType, string[]> = {
+    invoice: ['invoice', targetId],
+    payment: ['payment', targetId],
+    subscription: ['subscription', targetId],
+    plan: ['billing-plan', targetId],
+  };
+
+  queryClient.setQueryData(exactKeyByType[entityType], (oldData: unknown) =>
+    oldData ? { ...(oldData as Record<string, unknown>), ...entity } : entity
+  );
+
+  queryClient.setQueriesData({ queryKey: listKeysByType[entityType], exact: false }, (current) =>
+    mergeRealtimeBillingListPayload(current, entity)
+  );
+
+  if (entityType === 'subscription') {
+    queryClient.setQueriesData({ queryKey: ['active-subscription'], exact: false }, (current) => {
+      if (!current || typeof current !== 'object' || Array.isArray(current)) {
+        return current;
+      }
+
+      const currentRecord = current as Record<string, unknown>;
+      const currentId = getRealtimeBillingEntityId(currentRecord);
+      if (currentId && currentId !== targetId) {
+        return current;
+      }
+
+      return {
+        ...currentRecord,
+        ...entity,
+      };
+    });
+  }
 }
 
 export interface UseWebSocketIntegrationOptions {
@@ -253,6 +559,10 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         });
 
       } catch (error) {
+        logger.warn('Failed to initialize appointment websocket', {
+          component: 'appointment-live-ws',
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     };
 
@@ -293,68 +603,42 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
       const unsubscribeAppointmentCreated = subscribe('appointment.created', (rawData: unknown) => {
         const data = rawData as Appointment & { clinicId?: string; doctorId?: string };
+        const appointment = extractRealtimeAppointmentSnapshot(rawData) || data;
         logAppointmentNamespace('appointment.created', {
-          appointmentId: (data as { appointmentId?: string }).appointmentId || data?.id || '',
-          clinicId: data.clinicId,
-          doctorId: data.doctorId,
+          appointmentId: getRealtimeAppointmentId(appointment),
+          clinicId: (appointment as { clinicId?: string }).clinicId || data.clinicId,
+          doctorId: (appointment as { doctorId?: string }).doctorId || data.doctorId,
         });
-        invalidateAppointmentQueries();
+        if (appointment) {
+          upsertRealtimeAppointmentCaches(queryClient, appointment);
+        }
+        if (!hasRealtimeAppointmentSnapshot(rawData)) {
+          invalidateAppointmentQueries();
+        }
       });
 
       const unsubscribeAppointmentUpdated = subscribe('appointment.updated', (rawData: unknown) => {
         const data = rawData as { appointmentId?: string; id?: string; appointment?: Appointment; updates?: Partial<Appointment> };
-        const appointmentRecord = data.appointment as { appointmentId?: string; id?: string } | undefined;
-        const appointmentId = String(appointmentRecord?.appointmentId || data.appointmentId || data.id || appointmentRecord?.id || '');
-        const patch = (data.appointment || data.updates || {}) as Appointment;
+        const appointment = extractRealtimeAppointmentSnapshot(rawData);
+        const appointmentId = String(
+          getRealtimeAppointmentId(appointment || data.appointment || data.updates || data) || ''
+        );
+        const patch = (appointment || data.appointment || data.updates || {}) as Appointment;
         logAppointmentNamespace('appointment.updated', {
           appointmentId,
-          clinicId: (data.appointment as { clinicId?: string } | undefined)?.clinicId,
-          doctorId: (data.appointment as { doctorId?: string } | undefined)?.doctorId,
+          clinicId: (appointment as { clinicId?: string } | undefined)?.clinicId || (data.appointment as { clinicId?: string } | undefined)?.clinicId,
+          doctorId: (appointment as { doctorId?: string } | undefined)?.doctorId || (data.appointment as { doctorId?: string } | undefined)?.doctorId,
         });
         if (appointmentId) {
-          queryClient.setQueryData(['appointment', appointmentId], (oldData: Appointment | undefined) =>
-            oldData ? { ...oldData, ...patch } : (data.appointment as Appointment | undefined) || oldData
-          );
-          queryClient.setQueryData(['video-appointment', appointmentId], (oldData: Appointment | undefined) =>
-            oldData ? { ...oldData, ...patch } : (data.appointment as Appointment | undefined) || oldData
-          );
-          queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
-            mergeRealtimeAppointmentPayload(current, {
-              ...patch,
-              id: appointmentId,
-              appointmentId,
-            } as Appointment)
-          );
-          queryClient.setQueriesData({ queryKey: ['myAppointments'], exact: false }, (current) =>
-            mergeRealtimeAppointmentPayload(current, {
-              ...patch,
-              id: appointmentId,
-              appointmentId,
-            } as Appointment)
-          );
-          queryClient.setQueriesData({ queryKey: ['video-appointments'], exact: false }, (current) =>
-            mergeRealtimeAppointmentPayload(current, {
-              ...patch,
-              id: appointmentId,
-              appointmentId,
-            } as Appointment)
-          );
-          queryClient.setQueriesData({ queryKey: ['doctorAppointments'], exact: false }, (current) =>
-            mergeRealtimeAppointmentPayload(current, {
-              ...patch,
-              id: appointmentId,
-              appointmentId,
-            } as Appointment)
-          );
-          queryClient.setQueriesData({ queryKey: ['doctorSchedule'], exact: false }, (current) =>
-            mergeRealtimeAppointmentPayload(current, {
-              ...patch,
-              id: appointmentId,
-              appointmentId,
-            } as Appointment)
-          );
+          upsertRealtimeAppointmentCaches(queryClient, {
+            ...patch,
+            id: appointmentId,
+            appointmentId,
+          } as Appointment);
         }
-        invalidateAppointmentQueries();
+        if (!hasRealtimeAppointmentSnapshot(rawData)) {
+          invalidateAppointmentQueries();
+        }
       });
 
       const unsubscribeAppointmentDeleted = subscribe('appointment.deleted', (rawData: unknown) => {
@@ -368,21 +652,35 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
       });
 
       const unsubscribeAppointmentStatusChanged = subscribe('appointment.status_changed', (rawData: unknown) => {
-        const data = rawData as { id: string; status: string; timestamp: string };
+        const data = rawData as { id: string; status: string; timestamp: string; appointment?: Appointment };
+        const appointment = extractRealtimeAppointmentSnapshot(rawData);
+        const appointmentId = String(getRealtimeAppointmentId(appointment || data.appointment || data) || data.id || '');
         logAppointmentNamespace('appointment.status_changed', {
-          appointmentId: data.id,
+          appointmentId,
           status: data.status,
         });
-        queryClient.setQueryData(['appointment', data.id], (oldData: any) => {
-          if (oldData) {
-            return { ...oldData, status: data.status, updatedAt: data.timestamp };
-          }
-          return oldData;
-        });
-        invalidateAppointmentQueries();
+        if (appointmentId) {
+          upsertRealtimeAppointmentCaches(queryClient, {
+            ...(appointment || data.appointment || {}),
+            id: appointmentId,
+            appointmentId,
+            status: data.status,
+            updatedAt: data.timestamp,
+          } as Appointment);
+        }
+        if (!hasRealtimeAppointmentSnapshot(rawData)) {
+          invalidateAppointmentQueries();
+        }
       });
 
       const appointmentLifecycleEvents = [
+        'appointment.followup.plan.created',
+        'appointment.followup.scheduled',
+        'appointment.followup.plan.updated',
+        'appointment.followup.plan.cancelled',
+        'appointment.series.created',
+        'appointment.series.updated',
+        'appointment.conflict-resolved',
         'appointment.reassigned',
         'appointment.checked_in',
         'appointment.confirmed',
@@ -396,56 +694,60 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
 
       const unsubscribeAppointmentLifecycleEvents = appointmentLifecycleEvents.map((event) =>
         subscribe(event, (rawData: unknown) => {
-          const data = rawData as { appointmentId?: string; id?: string; clinicId?: string; appointment?: Appointment };
+          const data = rawData as { appointmentId?: string; id?: string; clinicId?: string; appointment?: Appointment; payload?: Appointment };
           if (data.clinicId && clinicId && data.clinicId !== clinicId) {
             return;
           }
 
-          const appointmentId = String(data.appointmentId || data.id || '');
+          const appointment = extractRealtimeAppointmentSnapshot(rawData);
+          const appointmentId = String(getRealtimeAppointmentId(appointment || data.appointment || data.payload || data) || data.appointmentId || data.id || '');
           logAppointmentNamespace(event, {
             appointmentId,
             clinicId: data.clinicId,
           });
-          if (appointmentId) {
-            const updatedAppointment = {
-              ...(data.appointment || {}),
+          const snapshots = extractRealtimeAppointmentSnapshots(rawData);
+          if (snapshots.length > 0) {
+            upsertRealtimeAppointmentCacheBatch(queryClient, snapshots);
+          } else if (appointmentId) {
+            upsertRealtimeAppointmentCaches(queryClient, {
+              ...(appointment || data.appointment || data.payload || {}),
               id: appointmentId,
               appointmentId,
-            } as Appointment;
-            queryClient.setQueryData(['appointment', appointmentId], (oldData: Appointment | undefined) =>
-              oldData ? { ...oldData, ...updatedAppointment } : updatedAppointment
-            );
-            queryClient.setQueryData(['video-appointment', appointmentId], (oldData: Appointment | undefined) =>
-              oldData ? { ...oldData, ...updatedAppointment } : updatedAppointment
-            );
-            queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
-              mergeRealtimeAppointmentPayload(current, updatedAppointment)
-            );
-            queryClient.setQueriesData({ queryKey: ['myAppointments'], exact: false }, (current) =>
-              mergeRealtimeAppointmentPayload(current, updatedAppointment)
-            );
-            queryClient.setQueriesData({ queryKey: ['video-appointments'], exact: false }, (current) =>
-              mergeRealtimeAppointmentPayload(current, updatedAppointment)
-            );
-            queryClient.setQueriesData({ queryKey: ['doctorAppointments'], exact: false }, (current) =>
-              mergeRealtimeAppointmentPayload(current, updatedAppointment)
-            );
-            queryClient.setQueriesData({ queryKey: ['doctorSchedule'], exact: false }, (current) =>
-              mergeRealtimeAppointmentPayload(current, updatedAppointment)
-            );
+            } as Appointment);
           }
-          invalidateAppointmentQueries();
-          invalidateBillingQueryFamilies(queryClient);
+
+          if (!hasRealtimeAppointmentSnapshot(rawData)) {
+            invalidateAppointmentQueries();
+          }
+
         })
       );
 
-      const paymentLifecycleEvents = [
-        'billing.payment.updated',
+      const billingLifecycleEvents = [
+        'billing.plan.created',
+        'billing.plan.updated',
+        'billing.plan.deleted',
+        'billing.subscription.created',
+        'billing.subscription.updated',
+        'billing.subscription.cancelled',
+        'billing.subscription.renewed',
+        'billing.subscription.quota_reset',
+        'billing.invoice.created',
+        'billing.invoice.updated',
         'billing.invoice.paid',
+        'billing.invoice.pdf_generated',
+        'billing.invoice.sent_whatsapp',
+        'billing.payment.created',
+        'billing.payment.updated',
+        'billing.payout.pending',
+        'billing.payout.success',
+        'payment.pending',
         'payment.completed',
+        'payment.failed',
+        'payment.cancelled',
       ] as const;
 
-      const unsubscribePaymentLifecycleEvents = paymentLifecycleEvents.map((event) =>
+      const unsubscribePaymentLifecycleEvents = billingLifecycleEvents.map((event) =>
         subscribe(event, (rawData: unknown) => {
           const data = rawData as {
             clinicId?: string;
@@ -453,6 +755,10 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
             invoiceId?: string;
             paymentId?: string;
             appointment?: Appointment;
+            invoice?: Invoice;
+            payment?: Payment;
+            subscription?: Subscription;
+            plan?: BillingPlan;
           };
 
           if (data.clinicId && clinicId && data.clinicId !== clinicId) {
@@ -460,42 +766,75 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
           }
 
           const appointmentRecord = data.appointment as { appointmentId?: string; id?: string } | undefined;
-          const appointmentId = String(appointmentRecord?.appointmentId || data.appointmentId || appointmentRecord?.id || '');
+          const appointmentId = String(
+            appointmentRecord?.appointmentId || data.appointmentId || appointmentRecord?.id || ''
+          );
+
+          const invoice = extractRealtimeBillingSnapshot<Invoice & RealtimeBillingEntity>(rawData, ['invoice']);
+          const payment = extractRealtimeBillingSnapshot<Payment & RealtimeBillingEntity>(rawData, ['payment']);
+          const subscription = extractRealtimeBillingSnapshot<Subscription & RealtimeBillingEntity>(rawData, ['subscription']);
+          const plan = extractRealtimeBillingSnapshot<BillingPlan & RealtimeBillingEntity>(rawData, ['plan']);
+
           logAppointmentNamespace(event, {
             appointmentId,
             clinicId: data.clinicId,
           });
-          if (appointmentId) {
-            const updatedAppointment = {
+
+          if (invoice) {
+            upsertRealtimeBillingCaches(queryClient, invoice, 'invoice');
+          }
+
+          if (payment) {
+            upsertRealtimeBillingCaches(queryClient, payment, 'payment');
+          }
+
+          if (subscription) {
+            upsertRealtimeBillingCaches(queryClient, subscription, 'subscription');
+          }
+
+          if (plan) {
+            upsertRealtimeBillingCaches(queryClient, plan, 'plan');
+          }
+
+          if (appointmentId && data.appointment) {
+            upsertRealtimeAppointmentCaches(queryClient, {
               ...(data.appointment || {}),
               id: appointmentId,
               appointmentId,
-            } as Appointment;
-            queryClient.setQueryData(['appointment', appointmentId], (oldData: Appointment | undefined) =>
-              oldData ? { ...oldData, ...updatedAppointment } : updatedAppointment
-            );
-            queryClient.setQueryData(['video-appointment', appointmentId], (oldData: Appointment | undefined) =>
-              oldData ? { ...oldData, ...updatedAppointment } : updatedAppointment
-            );
-            queryClient.setQueriesData({ queryKey: ['appointments'], exact: false }, (current) =>
-              mergeRealtimeAppointmentPayload(current, updatedAppointment)
-            );
-            queryClient.setQueriesData({ queryKey: ['myAppointments'], exact: false }, (current) =>
-              mergeRealtimeAppointmentPayload(current, updatedAppointment)
-            );
-            queryClient.setQueriesData({ queryKey: ['video-appointments'], exact: false }, (current) =>
-              mergeRealtimeAppointmentPayload(current, updatedAppointment)
-            );
-            queryClient.setQueriesData({ queryKey: ['doctorAppointments'], exact: false }, (current) =>
-              mergeRealtimeAppointmentPayload(current, updatedAppointment)
-            );
-            queryClient.setQueriesData({ queryKey: ['doctorSchedule'], exact: false }, (current) =>
-              mergeRealtimeAppointmentPayload(current, updatedAppointment)
-            );
+            } as Appointment);
           }
 
-          invalidateAppointmentQueries();
-          invalidateBillingQueryFamilies(queryClient);
+          if (event.startsWith('billing.plan.')) {
+            if (!plan) {
+              queryClient.invalidateQueries({ queryKey: ['billing-plans'], exact: false });
+              queryClient.invalidateQueries({ queryKey: ['billing-plan'], exact: false });
+            }
+            queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false });
+          } else if (event.startsWith('billing.subscription.')) {
+            if (!subscription) {
+              queryClient.invalidateQueries({ queryKey: ['subscriptions'], exact: false });
+              queryClient.invalidateQueries({ queryKey: ['clinic-subscriptions'], exact: false });
+              queryClient.invalidateQueries({ queryKey: ['active-subscription'], exact: false });
+            }
+            queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false });
+          } else if (
+            event.startsWith('billing.invoice.') ||
+            event.startsWith('billing.payment.') ||
+            event.startsWith('payment.')
+          ) {
+            if (!invoice && !payment) {
+              invalidateBillingQueryFamilies(queryClient);
+            } else {
+              queryClient.invalidateQueries({ queryKey: ['clinic-ledger'], exact: false });
+              queryClient.invalidateQueries({ queryKey: ['billing-analytics'], exact: false });
+            }
+          }
+
+          if (appointmentId && event.startsWith('billing.payment.')) {
+            if (!hasRealtimeAppointmentSnapshot(rawData)) {
+              invalidateAppointmentQueries();
+            }
+          }
         })
       );
 
@@ -603,6 +942,39 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         invalidateQueueQueries(data);
       });
 
+      const unsubscribeQueueMetricsEnterprise = subscribe('queue.metrics.updated', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        if (currentClinic?.id) {
+          const payloadLocationId =
+            typeof data.locationId === 'string' ? data.locationId : undefined;
+          const payloadQueueName =
+            typeof data.queueName === 'string' ? data.queueName : undefined;
+          const snapshot = normalizeQueueStatusSnapshot(data.metrics || data.status || data);
+
+          queryClient.setQueryData(
+            getQueueStatusQueryKey(currentClinic.id, payloadLocationId, payloadQueueName),
+            snapshot
+          );
+        }
+
+        invalidateQueueQueries(data);
+      });
+
+      const unsubscribeQueueAlertCreated = subscribe('queue.alert.created', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        invalidateQueueQueries(data);
+      });
+
+      const unsubscribeQueueAlertResolved = subscribe('queue.alert.resolved', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        invalidateQueueQueries(data);
+      });
+
+      const unsubscribeQueueReportGenerated = subscribe('queue.report.generated', (rawData: unknown) => {
+        const data = rawData as Record<string, unknown>;
+        invalidateQueueQueries(data);
+      });
+
       const unsubscribeMedicineDeskUpdated = subscribe(
         'pharmacy.medicine_desk.updated',
         (rawData: unknown) => {
@@ -622,6 +994,10 @@ export function useWebSocketIntegration(options: UseWebSocketIntegrationOptions 
         unsubscribeAppointmentReassigned,
         unsubscribeAppointmentCheckedIn,
         unsubscribeQueueMetrics,
+        unsubscribeQueueMetricsEnterprise,
+        unsubscribeQueueAlertCreated,
+        unsubscribeQueueAlertResolved,
+        unsubscribeQueueReportGenerated,
         unsubscribeMedicineDeskUpdated
       );
     }

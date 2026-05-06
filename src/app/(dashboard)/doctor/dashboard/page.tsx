@@ -82,6 +82,7 @@ interface TransformedAppointment {
   isVideo: boolean;
   priority: string;
   patientId: string;
+  doctorId: string;
   paymentStatus: string;
   paymentCompleted: boolean;
   paymentPending: boolean;
@@ -187,6 +188,7 @@ export default function DoctorDashboard() {
   const [consultSummary, setConsultSummary] = useState("");
   const [skipMedicineSelected, setSkipMedicineSelected] = useState(false);
   const [consultTick, setConsultTick] = useState(() => Date.now());
+  const [consultStartOverrides, setConsultStartOverrides] = useState<Record<string, string>>({});
   const [pendingVideoSlotSelections, setPendingVideoSlotSelections] = useState<Record<string, number>>({});
 
   // Enable real-time WebSocket sync
@@ -322,7 +324,14 @@ export default function DoctorDashboard() {
   }, [doctorId, highlightedQueuePatient, visibleAppointmentsArray]);
 
   const currentConsultStatus = String(currentInPersonConsult?.status || "").toUpperCase();
-  const currentConsultStartedAt = currentInPersonConsult?.startedAt ? new Date(currentInPersonConsult.startedAt) : null;
+  const currentConsultStartOverride =
+    currentInPersonConsult?.id ? consultStartOverrides[currentInPersonConsult.id] : undefined;
+  const currentConsultStartedAt =
+    currentInPersonConsult?.startedAt
+      ? new Date(currentInPersonConsult.startedAt)
+      : currentConsultStartOverride
+        ? new Date(currentConsultStartOverride)
+        : null;
   const consultElapsedLabel = useMemo(() => {
     if (!currentConsultStartedAt || Number.isNaN(currentConsultStartedAt.getTime())) {
       return "00:00";
@@ -343,9 +352,9 @@ export default function DoctorDashboard() {
     Boolean(currentInPersonConsult) &&
     ["CONFIRMED", "SCHEDULED", "WAITING"].includes(currentConsultStatus) &&
     Boolean(currentInPersonConsult?.checkedInAt) &&
-    !currentInPersonConsult?.startedAt;
+    !currentConsultStartedAt;
 
-  const isConsultInProgress = currentConsultStatus === "IN_PROGRESS";
+  const isConsultInProgress = currentConsultStatus === "IN_PROGRESS" || Boolean(currentConsultStartedAt);
 
   useEffect(() => {
     setConsultSummary("");
@@ -406,6 +415,7 @@ export default function DoctorDashboard() {
           notes: apt.notes || "",
           isVideo: apt.type === "VIDEO_CALL",
           priority: (apt as any).priority || "NORMAL",
+          doctorId: apt.doctorId,
           paymentStatus: paymentDisplay.paymentStatus,
           paymentCompleted: paymentDisplay.paymentCompleted,
           paymentPending: paymentDisplay.paymentPending,
@@ -491,13 +501,32 @@ export default function DoctorDashboard() {
     setIsPrescriptionModalOpen(true);
   };
 
+  const startConsultationForAppointment = async (
+    appointmentId: string,
+    doctorId: string,
+    options?: { openVideoAfterStart?: boolean }
+  ) => {
+    const startedAt = new Date().toISOString();
+    await startAppointmentMutation.mutateAsync({
+      appointmentId,
+      doctorId,
+    });
+    setConsultStartOverrides(prev => ({
+      ...prev,
+      [appointmentId]: startedAt,
+    }));
+    if (options?.openVideoAfterStart) {
+      router.push(buildVideoSessionRoute(appointmentId));
+    }
+    await refetchAppointments();
+  };
+
   const handleStartConsultation = async () => {
     if (!currentInPersonConsult) {
       return;
     }
 
-    await startAppointmentMutation.mutateAsync(currentInPersonConsult.id);
-    await refetchAppointments();
+    await startConsultationForAppointment(currentInPersonConsult.id, currentInPersonConsult.doctorId);
   };
 
   const handleCompleteWithoutMedicine = async () => {
@@ -656,8 +685,9 @@ export default function DoctorDashboard() {
                 className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                 disabled={startAppointmentMutation.isPending || !paymentReady}
                 onClick={async () => {
-                  await startAppointmentMutation.mutateAsync(appointment.id);
-                  router.push(buildVideoSessionRoute(appointment.id));
+                  await startConsultationForAppointment(appointment.id, appointment.doctorId, {
+                    openVideoAfterStart: true,
+                  });
                 }}
                 title={!paymentReady ? "Video request is waiting for payment" : undefined}
               >
@@ -675,7 +705,7 @@ export default function DoctorDashboard() {
                 className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                 disabled={startAppointmentMutation.isPending || !paymentReady}
                 onClick={async () => {
-                  await startAppointmentMutation.mutateAsync(appointment.id);
+                  await startConsultationForAppointment(appointment.id, appointment.doctorId);
                   if (appointment.isVideo) {
                     router.push("/doctor/video");
                   }

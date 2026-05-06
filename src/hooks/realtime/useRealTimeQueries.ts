@@ -4,10 +4,7 @@ import { nowIso } from '@/lib/utils/date-time';
 import { useEffect, useRef } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { useQueryData, useOptimisticMutation, useQueryClient } from '@/hooks/core';
-import {
-  invalidateAppointmentQueryFamilies,
-  invalidateBillingQueryFamilies,
-} from './useWebSocketIntegration';
+import { invalidateBillingQueryFamilies } from './useWebSocketIntegration';
 import { useWebSocketContext, useWebSocketStatus } from '@/app/providers/WebSocketProvider';
 import { useAppStore } from '@/stores';
 import { useAuth } from '@/hooks/auth/useAuth';
@@ -214,6 +211,10 @@ export function useRealTimeQueueStatus(queueName?: string, locationId?: string) 
       'queue.updated',
       'queue.position.updated',
       'queue_metrics_update',
+      'queue.metrics.updated',
+      'queue.alert.created',
+      'queue.alert.resolved',
+      'queue.report.generated',
     ] as const;
 
     const unsubscribes = queueEvents.map((event) =>
@@ -376,11 +377,6 @@ export function useWebSocketQuerySync() {
   useEffect(() => {
     if (!isConnected) return;
 
-    const invalidateAppointmentsAndBilling = () => {
-      invalidateAppointmentQueryFamilies(queryClient);
-      invalidateBillingQueryFamilies(queryClient);
-    };
-
     const invalidateQueueQueryFamilies = () => {
       void queryClient.invalidateQueries({ queryKey: ['queue'], exact: false });
       void queryClient.invalidateQueries({ queryKey: ['queue-status'], exact: false });
@@ -418,15 +414,33 @@ export function useWebSocketQuerySync() {
       queryClient.setQueryData(data.queryKey, data.data);
     });
 
-    const paymentLifecycleEvents = [
-      'billing.payment.updated',
+    const billingLifecycleEvents = [
+      'billing.plan.created',
+      'billing.plan.updated',
+      'billing.plan.deleted',
+      'billing.subscription.created',
+      'billing.subscription.updated',
+      'billing.subscription.cancelled',
+      'billing.subscription.renewed',
+      'billing.subscription.quota_reset',
+      'billing.invoice.created',
+      'billing.invoice.updated',
       'billing.invoice.paid',
+      'billing.invoice.pdf_generated',
+      'billing.invoice.sent_whatsapp',
+      'billing.payment.created',
+      'billing.payment.updated',
+      'billing.payout.pending',
+      'billing.payout.success',
+      'payment.pending',
       'payment.completed',
+      'payment.failed',
+      'payment.cancelled',
     ] as const;
 
-    const unsubscribePaymentLifecycleEvents = paymentLifecycleEvents.map((event) =>
+    const unsubscribePaymentLifecycleEvents = billingLifecycleEvents.map((event) =>
       subscribe(event, () => {
-        invalidateAppointmentsAndBilling();
+        invalidateBillingQueryFamilies(queryClient);
       })
     );
 
@@ -434,7 +448,6 @@ export function useWebSocketQuerySync() {
 
     const unsubscribeCheckInLifecycleEvents = checkInLifecycleEvents.map((event) =>
       subscribe(event, () => {
-        invalidateAppointmentsAndBilling();
         invalidateQueueQueryFamilies();
       })
     );
